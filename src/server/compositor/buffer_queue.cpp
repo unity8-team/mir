@@ -397,12 +397,19 @@ void mc::BufferQueue::release(
 int mc::BufferQueue::max_buffers() const
 {
     // FIXME: compositors count is ticking up to 2 from 1 spuriously
-    int compositors = std::max(1, int(buffers_sent_to_compositor.size()));
-    int min_clients = frame_dropping_enabled ? 2 : 1;
-    int clients = std::max(min_clients, int(buffers_owned_by_client.size()));
-    int ret = std::min(nbuffers, compositors+clients);
-    fprintf(stderr, "compositors %d, min_clients %d, clients %d\n",
-        compositors, min_clients, clients);
+
+    // Measure the actual number of buffers we presently need concurrently
+    // to avoid starving any compositors or clients...
+    int min_compositors = std::max(1, int(buffers_sent_to_compositor.size()));
+    int min_clients = std::max(1, int(buffers_owned_by_client.size()));
+    int min_free = frame_dropping_enabled ? 1 : 0;
+    int buffers_required = min_compositors + min_clients + min_free;
+
+    // XXX In some cases buffers_required > nuffers !! (LP: #1317403)
+    int ret = std::min(nbuffers, buffers_required);
+
+    fprintf(stderr, "min_compositors %d, min_clients %d, min_free %d\n",
+        min_compositors, min_clients, min_free);
     fprintf(stderr, "max_buffers %d of %d\n", ret, nbuffers);
     return ret;
 }
