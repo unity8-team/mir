@@ -184,3 +184,24 @@ TEST_F(ScreencastDisplayBufferTest, renders_renderables_on_render_and_post_updat
 
     db.render_and_post_update(renderables, std::ref(mock_render_functor));
 }
+
+TEST_F(ScreencastDisplayBufferTest, makes_capture_opaque)
+{
+    using namespace testing;
+
+    geom::Rectangle const rect{{100,100}, {800,600}};
+    mtd::StubBuffer stub_buffer;
+
+    mc::ScreencastDisplayBuffer db{rect, stub_buffer};
+
+    Mock::VerifyAndClearExpectations(&mock_gl);
+
+    InSequence s;
+    EXPECT_CALL(mock_gl, glClearColor(_, _, _, 1.0f));
+    EXPECT_CALL(mock_gl, glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE));
+    EXPECT_CALL(mock_gl, glClear(GL_COLOR_BUFFER_BIT));
+    EXPECT_CALL(mock_gl, glClearColor(_, _, _, _));
+    EXPECT_CALL(mock_gl, glColorMask(_, _, _, _));
+
+    db.post_update();
+}

@@ -24,6 +24,23 @@
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
+namespace
+{
+void make_opaque()
+{
+    // Ensure screen captures are opaque (LP: #1301210)
+    GLfloat old_clear_color[4] {0.0f, 0.0f, 0.0f, 0.0f};
+    GLboolean old_color_mask[4] {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, old_clear_color);
+    glGetBooleanv(GL_COLOR_WRITEMASK, old_color_mask);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(old_clear_color[0], old_clear_color[1], old_clear_color[2], old_clear_color[3]);
+    glColorMask(old_color_mask[0], old_color_mask[1], old_color_mask[2], old_color_mask[3]);
+}
+}
 
 mc::ScreencastDisplayBuffer::ScreencastDisplayBuffer(
     geom::Rectangle const& rect,
@@ -97,6 +114,7 @@ void mc::ScreencastDisplayBuffer::render_and_post_update(
 
 void mc::ScreencastDisplayBuffer::post_update()
 {
+    make_opaque();
     glFinish();
 }
 
