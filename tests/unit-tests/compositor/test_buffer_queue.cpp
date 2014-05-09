@@ -988,7 +988,7 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
 
 TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
 {
-    for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
+    for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         mg::BufferID history[5];
@@ -999,8 +999,9 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         const int dy = -3;
         int width = width0;
         int height = height0;
+        int const nbuffers_to_use = nbuffers == 1 ? 1 : nbuffers - 1;
 
-        for (int produce = 0; produce < nbuffers - 1; ++produce)
+        for (int produce = 0; produce < nbuffers_to_use; ++produce)
         {
             geom::Size new_size{width, height};
             width += dx;
@@ -1011,14 +1012,14 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             history[produce] = handle->id();
             auto buffer = handle->buffer();
-            ASSERT_THAT(new_size, Eq(buffer->size()));
+            ASSERT_THAT(buffer->size(), Eq(new_size));
             handle->release_buffer();
         }
 
         width = width0;
         height = height0;
 
-        for (int consume = 0; consume < nbuffers - 1; ++consume)
+        for (int consume = 0; consume < nbuffers_to_use; ++consume)
         {
             geom::Size expect_size{width, height};
             width += dx;
@@ -1027,7 +1028,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             auto buffer = q.compositor_acquire(this);
 
             // Verify the compositor gets resized buffers, eventually
-            ASSERT_THAT(expect_size, Eq(buffer->size()));
+            ASSERT_THAT(buffer->size(), Eq(expect_size));
 
             // Verify the compositor gets buffers with *contents*, ie. that
             // they have not been resized prematurely and are empty.
@@ -1041,10 +1042,38 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         for (int unchanging = 0; unchanging < 100; ++unchanging)
         {
             auto buffer = q.compositor_acquire(this);
-            ASSERT_THAT(final_size, Eq(buffer->size()));
+            ASSERT_THAT(buffer->size(), Eq(final_size));
             q.compositor_release(buffer);
         }
     }
+}
+
+TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames)
+{
+    int const nbuffers{1};
+    geom::Size const new_size{123,456};
+
+    mc::BufferQueue q(nbuffers, allocator, basic_properties);
+
+    q.client_release(client_acquire_sync(q));
+    q.resize(new_size);
+
+    mt::WaitCondition client_acquire_requested;
+
+    std::thread t{
+        [&]
+        {
+            auto handle = client_acquire_async(q);
+            client_acquire_requested.wake_up_everyone();
+            handle->wait();
+        }};
+
+    client_acquire_requested.wait_for_at_most_seconds(3);
+
+    auto buf = q.compositor_acquire(this);
+    EXPECT_THAT(buf->size(), Eq(new_size));
+
+    t.join();
 }
 
 /* Regression test for LP: #1306464 */
@@ -1266,4 +1295,40 @@ TEST_F(BufferQueueTest, DISABLED_synchronous_clients_only_get_two_real_buffers)
 
         EXPECT_THAT(buffers_acquired.size(), Eq(2));
     }
+}
+
+/*
+ * This is a regression test for bug lp:1317801. This bug is a race and
+ * very difficult to reproduce with pristine code. By carefully placing
+ * a delay in the code, we can greatly increase the chances (100% for me)
+ * that this test catches a regression. However these delays are not
+ * acceptable for production use, so since the test and code in their
+ * pristine state are highly unlikely to catch the issue, I have decided
+ * to DISABLE the test to avoid giving a false sense of security.
+ *
+ * Apply the aforementioned delay, by adding
+ * std::this_thread::sleep_for(std::chrono::milliseconds{20})
+ * just before returning the acquired_buffer at the end of
+ * BufferQueue::compositor_acquire().
+ */
+TEST_F(BufferQueueTest, DISABLED_lp_1317801_regression_test)
+{
+    int const nbuffers = 3;
+    mc::BufferQueue q(nbuffers, allocator, basic_properties);
+
+    q.client_release(client_acquire_sync(q));
+
+    std::thread t{
+        [&]
+        {
+            /* Use in conjuction with a 20ms delay in compositor_acquire() */
+            std::this_thread::sleep_for(std::chrono::milliseconds{10});
+
+            q.client_release(client_acquire_sync(q));
+            q.client_release(client_acquire_sync(q));
+        }};
+
+    auto b = q.compositor_acquire(this);
+    q.compositor_release(b);
+    t.join();
 }

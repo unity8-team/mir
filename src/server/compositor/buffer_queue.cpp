@@ -105,6 +105,13 @@ mc::BufferQueue::BufferQueue(
             std::logic_error("invalid number of buffers for BufferQueue"));
     }
 
+    /*
+     * We have to reserve the maximum size so that all references to
+     * existing elements of 'buffers' remain valid when we add new
+     * elements to it (i.e. in client_acquire()).
+     */
+    buffers.reserve(nbuffers);
+
     /* By default not all buffers are allocated.
      * If there is increased pressure by the client to acquire
      * more buffers, more will be allocated at that time (up to nbuffers)
@@ -212,6 +219,16 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
     current_buffer_users.push_back(user_id);
 
+    /*
+     * We need to use a reference for acquired_buffer, so that if it
+     * is resized by release() => give_buffer_to_client() (i.e. when
+     * nbuffers == 1) we will return the new resized buffer from this function.
+     *
+     * It is safe to store a reference, because the 'buffers' std::vector
+     * will never be resized beyond its initial capacity, so no reallocations
+     * can occur, and therefore all reference to elements remain valid at all
+     * times (see the buffers.reserve() call in the constructor).
+     */
     auto const& acquired_buffer = buffer_for(current_compositor_buffer, buffers);
     if (buffer_to_release)
         release(buffer_to_release, std::move(lock));
