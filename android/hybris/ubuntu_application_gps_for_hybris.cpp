@@ -364,8 +364,7 @@ void UHardwareGps_::delete_aiding_data(uint16_t flags)
 
 void UHardwareGps_::set_server_for_type(UHardwareGpsAGpsType type, const char* hostname, uint16_t port)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
-    if (agps_interface)
+    if (agps_interface && agps_interface->set_server)
         agps_interface->set_server(type, hostname, port);
 }
 
@@ -379,33 +378,31 @@ void UHardwareGps_::set_reference_location(UHardwareGpsAGpsRefLocation* location
     ref_loc.u.cellID.lac = location->u.cellID.lac;
     ref_loc.u.cellID.cid = location->u.cellID.cid;
 
-    if (agps_ril_interface)
+    if (agps_ril_interface && agps_ril_interface->set_ref_location)
         agps_ril_interface->set_ref_location(&ref_loc, sizeof(ref_loc));
 }
 
 void UHardwareGps_::notify_connection_is_open(const char* apn)
 {
-    if (agps_interface)
+    if (agps_interface && agps_interface->data_conn_open)
         agps_interface->data_conn_open(apn);
 }
 
 void UHardwareGps_::notify_connection_is_closed()
 {
-    if (agps_interface)
+    if (agps_interface && agps_interface->data_conn_closed)
         agps_interface->data_conn_closed();
 }
 
 void UHardwareGps_::notify_connection_not_available()
 {
-    if (agps_interface)
+    if (agps_interface && agps_interface->data_conn_failed)
         agps_interface->data_conn_failed();
 }
 
 bool UHardwareGps_::set_position_mode(uint32_t mode, uint32_t recurrence, uint32_t min_interval,
                                     uint32_t preferred_accuracy, uint32_t preferred_time)
 {
-    printf("%s \n", __PRETTY_FUNCTION__);
-
     if (gps_interface)
         return (gps_interface->set_position_mode(mode, recurrence, min_interval,
                                                  preferred_accuracy, preferred_time) == 0);
