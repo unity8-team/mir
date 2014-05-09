@@ -20,7 +20,6 @@
 #define MIR_QT_EVENT_FEEDER_H
 
 #include <mir/input/input_dispatcher.h>
-#include <mir/scene/input_registrar.h>
 #include <mir/shell/input_targeter.h>
 
 class QTouchDevice;
@@ -29,7 +28,6 @@ class QTouchDevice;
   Fills Qt's event loop with input events from Mir
  */
 class QtEventFeeder : public mir::input::InputDispatcher,
-                      public mir::scene::InputRegistrar,
                       public mir::shell::InputTargeter
 {
 public:
@@ -43,13 +41,6 @@ public:
     void dispatch(MirEvent const& event) override;
     void start() override;
     void stop() override;
-
-    // From mir::scene::InputRegistrar
-    void input_channel_opened(std::shared_ptr<mir::input::InputChannel> const& openedChannel,
-                              std::shared_ptr<mir::input::Surface> const& surface,
-                              mir::input::InputReceptionMode inputMode) override;
-
-    void input_channel_closed(std::shared_ptr<mir::input::InputChannel> const& closedChannel) override;
 
     // From mir::shell::InputTargeter
     void focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel) override;

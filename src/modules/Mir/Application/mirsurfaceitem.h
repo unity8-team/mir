@@ -42,8 +42,16 @@ public:
 
     void setListener(QObject *listener);
 
+    void attrib_changed(MirSurfaceAttrib, int) override {}
+    void resized_to(mir::geometry::Size const&) override {}
+    void moved_to(mir::geometry::Point const&) override {}
+    void hidden_set_to(bool) override {}
+
     // Get new frame notifications from Mir, called from a Mir thread.
     void frame_posted() override;
+
+    void alpha_set_to(float) override {}
+    void transformation_set_to(glm::mat4 const&) override {}
 private:
     QObject *m_listener;
 };

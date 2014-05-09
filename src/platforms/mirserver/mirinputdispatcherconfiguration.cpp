@@ -25,11 +25,6 @@ MirInputDispatcherConfiguration::MirInputDispatcherConfiguration()
 {
 }
 
-std::shared_ptr<scene::InputRegistrar> MirInputDispatcherConfiguration::the_input_registrar()
-{
-    return std::static_pointer_cast<scene::InputRegistrar>(mQtEventFeeder);
-}
-
 std::shared_ptr<shell::InputTargeter> MirInputDispatcherConfiguration::the_input_targeter()
 {
     return std::static_pointer_cast<shell::InputTargeter>(mQtEventFeeder);

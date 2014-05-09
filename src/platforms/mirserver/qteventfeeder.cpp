@@ -423,22 +423,6 @@ void QtEventFeeder::stop()
     // not used
 }
 
-void QtEventFeeder::input_channel_opened(std::shared_ptr<mir::input::InputChannel> const& openedChannel,
-                          std::shared_ptr<mir::input::Surface> const& surface,
-                          mir::input::InputReceptionMode inputMode)
-{
-    Q_UNUSED(openedChannel);
-    Q_UNUSED(surface);
-    Q_UNUSED(inputMode);
-    // not used
-}
-
-void QtEventFeeder::input_channel_closed(std::shared_ptr<mir::input::InputChannel> const& closedChannel)
-{
-    Q_UNUSED(closedChannel);
-    // not used
-}
-
 void QtEventFeeder::focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel)
 {
     Q_UNUSED(focusChannel);

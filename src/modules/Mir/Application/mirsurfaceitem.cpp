@@ -315,13 +315,14 @@ bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene gra
     m_mutex.unlock();
 
     if (textureIsOutdated) {
+        std::unique_ptr<mg::Renderable> renderable = m_surface->compositor_snapshot((void*)123/*user_id*/);
         if (!m_textureProvider->t) {
-            m_textureProvider->t = new MirBufferSGTexture(m_surface->buffer((void*)123/*user_id*/));
+            m_textureProvider->t = new MirBufferSGTexture(renderable->buffer());
         } else {
             // Avoid holding two buffers for the compositor at the same time. Thus free the current
             // before acquiring the next
             m_textureProvider->t->freeBuffer();
-            m_textureProvider->t->setBuffer(m_surface->buffer((void*)123/*user_id*/));
+            m_textureProvider->t->setBuffer(renderable->buffer());
         }
         textureUpdated = true;
     }
