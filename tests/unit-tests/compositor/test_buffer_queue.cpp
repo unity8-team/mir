@@ -1060,7 +1060,7 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames)
 
     mt::WaitCondition client_acquire_requested;
 
-    std::thread t{
+    mt::AutoJoinThread client{
         [&]
         {
             auto handle = client_acquire_async(q);
@@ -1072,8 +1072,6 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames)
 
     auto buf = q.compositor_acquire(this);
     EXPECT_THAT(buf->size(), Eq(new_size));
-
-    t.join();
 }
 
 /* Regression test for LP: #1306464 */
@@ -1318,7 +1316,7 @@ TEST_F(BufferQueueTest, DISABLED_lp_1317801_regression_test)
 
     q.client_release(client_acquire_sync(q));
 
-    std::thread t{
+    mt::AutoJoinThread t{
         [&]
         {
             /* Use in conjuction with a 20ms delay in compositor_acquire() */
@@ -1330,5 +1328,4 @@ TEST_F(BufferQueueTest, DISABLED_lp_1317801_regression_test)
 
     auto b = q.compositor_acquire(this);
     q.compositor_release(b);
-    t.join();
 }
