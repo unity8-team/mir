@@ -21,7 +21,6 @@
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test/auto_unblock_thread.h"
-#include "mir_test/wait_condition.h"
 
 #include <gtest/gtest.h>
 
@@ -1058,19 +1057,10 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames)
     q.client_release(client_acquire_sync(q));
     q.resize(new_size);
 
-    mt::WaitCondition client_acquire_requested;
+    auto const handle = client_acquire_async(q);
+    EXPECT_THAT(handle->has_acquired_buffer(), Eq(false));
 
-    mt::AutoJoinThread client{
-        [&]
-        {
-            auto handle = client_acquire_async(q);
-            client_acquire_requested.wake_up_everyone();
-            handle->wait();
-        }};
-
-    client_acquire_requested.wait_for_at_most_seconds(3);
-
-    auto buf = q.compositor_acquire(this);
+    auto const buf = q.compositor_acquire(this);
     EXPECT_THAT(buf->size(), Eq(new_size));
 }
 
