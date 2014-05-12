@@ -62,6 +62,27 @@ bool contains(mg::Buffer const* item, std::vector<mg::Buffer*> const& list)
     return false;
 }
 
+#if 0
+int count_unique(std::vector<mg::Buffer*> const& list)
+{
+    int const size = list.size();
+    int count = 0;
+    for (int i = 0; i < size; ++i)
+    {
+        ++count;
+        for (int j = 0; j < i; ++j)
+        {
+            if (list[i] == list[j])
+            {
+                --count;
+                break;
+            }
+        }
+    }
+    return count;
+}
+#endif
+
 std::shared_ptr<mg::Buffer> const&
 buffer_for(mg::Buffer const* item, std::vector<std::shared_ptr<mg::Buffer>> const& list)
 {
@@ -95,6 +116,7 @@ mc::BufferQueue::BufferQueue(
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props)
     : nbuffers{nbuffers},
+      excess{0},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -148,7 +170,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
      * between double-buffering to n-buffering
      */
     int const allocated_buffers = buffers.size();
-    if (allocated_buffers < min_buffers())
+    if (allocated_buffers < min_buffers(1))
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -384,14 +406,26 @@ void mc::BufferQueue::release(
 
 void mc::BufferQueue::free_buffer(graphics::Buffer* b)
 {
-    int held_buffers = buffers_owned_by_client.size() +
-                       buffers_sent_to_compositor.size();
+    int used_buffers = buffers.size() - free_buffers.size() - 1;
 
-    if (held_buffers >= min_buffers() && buffers.back().get() == b &&
-        nbuffers > 1)
-        buffers.pop_back();
+    // To avoid jittering and reallocating buffers too often (which may be
+    // very slow), only drop a buffer after it's continually been in excess
+    // for a relatively long time...
+
+    if (used_buffers > min_buffers())
+        ++excess;
     else
+        excess = 0;
+
+    if (excess > 1000 && buffers.back().get() == b && nbuffers > 1)
+    {
+        buffers.pop_back();
+        excess = 0;
+    }
+    else
+    {
         free_buffers.push_back(b);
+    }
 }
 
 /**
@@ -402,18 +436,14 @@ void mc::BufferQueue::free_buffer(graphics::Buffer* b)
  * result of min_buffers will be 3. If you had bypass and frame dropping
  * enabled simultaneously then required_buffers could reach 4 (LP: #1317403)
  */
-int mc::BufferQueue::min_buffers() const
+int mc::BufferQueue::min_buffers(int extra) const
 {
     if (nbuffers <= 1)
         return nbuffers;
 
     // else for multi-buffering with exclusivity guarantees:
-    // FIXME: compositors count is ticking up to 2 from 1 spuriously
-    //        This is partly due to BufferConsumingFunctor and partly due to
-    //        multi-monitor. In the very least the latter needs to be dealt
-    //        with. Ideally both.
     int min_compositors = std::max(1, int(buffers_sent_to_compositor.size()));
-    int min_clients = std::max(1, int(buffers_owned_by_client.size()));
+    int min_clients = std::max(1, extra + int(buffers_owned_by_client.size()));
     int min_free = frame_dropping_enabled ? 1 : 0;
     int required_buffers = min_compositors + min_clients + min_free;
 

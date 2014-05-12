@@ -64,7 +64,7 @@ private:
     bool should_reuse_current_buffer(void const* user_id);
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
-    int min_buffers() const;
+    int min_buffers(int extra = 0) const;
     void free_buffer(graphics::Buffer*);
 
     mutable std::mutex guard;
@@ -82,6 +82,7 @@ private:
     std::deque<Callback> pending_client_notifications;
 
     int nbuffers;
+    int excess;
     bool frame_dropping_enabled;
     graphics::BufferProperties the_properties;
 
