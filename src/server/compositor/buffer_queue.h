@@ -64,7 +64,7 @@ private:
     bool should_reuse_current_buffer(void const* user_id);
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
-    int min_buffers(int extra = 0) const;
+    int min_buffers() const;
     void free_buffer(graphics::Buffer*);
 
     mutable std::mutex guard;

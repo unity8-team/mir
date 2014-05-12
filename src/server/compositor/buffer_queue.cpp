@@ -170,7 +170,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
      * between double-buffering to n-buffering
      */
     int const allocated_buffers = buffers.size();
-    if (allocated_buffers < min_buffers(1))
+    if (allocated_buffers < min_buffers())
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -436,14 +436,17 @@ void mc::BufferQueue::free_buffer(graphics::Buffer* b)
  * result of min_buffers will be 3. If you had bypass and frame dropping
  * enabled simultaneously then required_buffers could reach 4 (LP: #1317403)
  */
-int mc::BufferQueue::min_buffers(int extra) const
+int mc::BufferQueue::min_buffers() const
 {
     if (nbuffers <= 1)
         return nbuffers;
 
     // else for multi-buffering with exclusivity guarantees:
-    int min_compositors = std::max(1, int(buffers_sent_to_compositor.size()));
-    int min_clients = std::max(1, extra + int(buffers_owned_by_client.size()));
+    int client_demand = buffers_owned_by_client.size() +
+                        pending_client_notifications.size();
+    int compositor_demand = buffers_sent_to_compositor.size();
+    int min_compositors = std::max(1, compositor_demand);
+    int min_clients = std::max(1, client_demand);
     int min_free = frame_dropping_enabled ? 1 : 0;
     int required_buffers = min_compositors + min_clients + min_free;
 
