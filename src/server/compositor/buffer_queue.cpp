@@ -419,6 +419,7 @@ int mc::BufferQueue::min_buffers() const
     // else for multi-buffering with exclusivity guarantees:
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
+    // FIXME: compositor_demand is periodically spiking higher than reality
     int compositor_demand = buffers_sent_to_compositor.size();
     int min_compositors = std::max(1, compositor_demand);
     int min_clients = std::max(1, client_demand);
@@ -428,6 +429,7 @@ int mc::BufferQueue::min_buffers() const
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     int ret = std::min(nbuffers, required_buffers);
 
+    fprintf(stderr, "#buffers %d\n", int(buffers.size()));
     fprintf(stderr, "min_compositors %d, min_clients %d, min_free %d\n",
         min_compositors, min_clients, min_free);
     fprintf(stderr, "min_buffers %d of %d\n", ret, nbuffers);
