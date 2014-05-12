@@ -62,27 +62,6 @@ bool contains(mg::Buffer const* item, std::vector<mg::Buffer*> const& list)
     return false;
 }
 
-#if 0
-int count_unique(std::vector<mg::Buffer*> const& list)
-{
-    int const size = list.size();
-    int count = 0;
-    for (int i = 0; i < size; ++i)
-    {
-        ++count;
-        for (int j = 0; j < i; ++j)
-        {
-            if (list[i] == list[j])
-            {
-                --count;
-                break;
-            }
-        }
-    }
-    return count;
-}
-#endif
-
 std::shared_ptr<mg::Buffer> const&
 buffer_for(mg::Buffer const* item, std::vector<std::shared_ptr<mg::Buffer>> const& list)
 {
@@ -165,10 +144,6 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
         return;
     }
 
-    /* No empty buffers, attempt allocating more
-     * TODO: need a good heuristic to switch
-     * between double-buffering to n-buffering
-     */
     int const allocated_buffers = buffers.size();
     if (allocated_buffers < min_buffers())
     {
