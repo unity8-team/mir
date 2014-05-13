@@ -49,12 +49,10 @@ int64_t,
 int64_t, 
 int);
 
-IMPLEMENT_VOID_SF_FUNCTION4(
+IMPLEMENT_VOID_FUNCTION2(
 u_hardware_gps_inject_location, 
 UHardwareGps, 
-double, 
-double, 
-float);
+UHardwareGpsLocation);
 
 IMPLEMENT_VOID_FUNCTION2(
 u_hardware_gps_delete_aiding_data, 

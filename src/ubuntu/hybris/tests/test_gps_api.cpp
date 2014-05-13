@@ -179,10 +179,11 @@ void GPSTest::inject_time()
 
 void GPSTest::inject_reference_location(float lat, float lon, float accuracy)
 {
-    u_hardware_gps_inject_location(u_hardware_gps,
-                                   lat,
-                                   lon,
-                                   accuracy);
+    UHardwareGpsLocation location;
+    location.latitude = lat;
+    location.longitude = lon;
+    location.accuracy = accuracy;
+    u_hardware_gps_inject_location(u_hardware_gps, location);
 }
 
 bool GPSTest::init_and_start(const char* supl_server, uint16_t port)

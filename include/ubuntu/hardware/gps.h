@@ -496,9 +496,7 @@ u_hardware_gps_inject_time(
 UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_location(
     UHardwareGps self,
-    double latitude,
-    double longitude,
-    float accuracy);
+    UHardwareGpsLocation location);
 
 /**
   * \brief Informs the GPS chipset about wifi ap's or radio cells to be used in AGPS calls.

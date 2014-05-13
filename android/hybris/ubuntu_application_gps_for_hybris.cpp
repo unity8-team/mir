@@ -459,10 +459,11 @@ void u_hardware_gps_inject_time(UHardwareGps self, int64_t time, int64_t time_re
     self->inject_time(time, time_reference, uncertainty);
 }
 
-void u_hardware_gps_inject_location(UHardwareGps self, double latitude, double longitude,
-                                float accuracy)
+void u_hardware_gps_inject_location(UHardwareGps self,
+                                    UHardwareGpsLocation location)
 {
-    self->inject_location(latitude, longitude, accuracy);
+    self->inject_location(location.latitude, location.longitude,
+                          location.accuracy);
 }
 
 void u_hardware_gps_delete_aiding_data(UHardwareGps self, UHardwareGpsAidingData flags)
