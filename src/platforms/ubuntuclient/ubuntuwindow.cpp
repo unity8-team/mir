@@ -218,7 +218,6 @@ void UbuntuWindow::setGeometry(const QRect& rect)
 void UbuntuWindow::setVisible(bool visible)
 {
   DLOG("UbuntuWindow::setVisible (this=%p, visible=%s)", this, visible ? "true" : "false");
-  mScreen->toggleSensors(visible);
 
   if (visible) {
     ua_ui_window_show(mWindow);

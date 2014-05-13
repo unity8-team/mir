@@ -19,22 +19,32 @@
 #ifndef SCREEN_H
 #define SCREEN_H
 
+#include <QObject>
 #include <qpa/qplatformscreen.h>
 #include "mir/graphics/display_configuration.h"
 
-class Screen : public QPlatformScreen
+class QOrientationSensor;
+
+class Screen : public QObject, public QPlatformScreen
 {
+    Q_OBJECT
 public:
     Screen(mir::graphics::DisplayConfigurationOutput const&);
 
-    QRect geometry() const override { return m_geometry; }
+    // QObject methods.
+    void customEvent(QEvent* event) override;
 
+    // QPlatformScreen methods.
+    QRect geometry() const override { return m_geometry; }
     int depth() const override { return m_depth; }
     QImage::Format format() const override { return m_format; }
-
     QSizeF physicalSize() const override { return m_physicalSize; }
-
     qreal refreshRate() const override { return m_refreshRate; }
+    Qt::ScreenOrientation nativeOrientation() const override { return m_nativeOrientation; }
+    Qt::ScreenOrientation orientation() const override { return m_currentOrientation; }
+
+public Q_SLOTS:
+    void onOrientationReadingChanged();
 
 private:
     void readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const&);
@@ -44,6 +54,10 @@ private:
     QImage::Format m_format;
     QSizeF m_physicalSize;
     qreal m_refreshRate;
+
+    Qt::ScreenOrientation m_nativeOrientation;
+    Qt::ScreenOrientation m_currentOrientation;
+    QOrientationSensor *m_orientationSensor;
 };
 
 #endif // SCREEN_H

@@ -2,7 +2,7 @@ TARGET = qpa-ubuntuclient
 TEMPLATE = lib
 
 QT -= gui
-QT += core-private gui-private platformsupport-private dbus sensors
+QT += core-private gui-private platformsupport-private dbus
 
 CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir

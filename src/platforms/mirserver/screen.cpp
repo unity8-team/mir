@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013,2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -13,15 +13,23 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Authors:
+ *   Daniel d'Andrada <daniel.dandrada@canonical.com>
+ *   Gerry Boland <gerry.boland@canonical.com>
  */
 
 #include "screen.h"
 
 #include "mir/geometry/size.h"
 
-namespace mg = mir::geometry;
+// Qt
+#include <QCoreApplication>
+#include <qpa/qwindowsysteminterface.h>
+#include <QtSensors/QOrientationSensor>
+#include <QtSensors/QOrientationReading>
+#include <QThread>
 
+namespace mg = mir::geometry;
 
 namespace {
 bool isLittleEndian() {
@@ -69,11 +77,41 @@ enum QImage::Format qImageFormatFromMirPixelFormat(MirPixelFormat mirPixelFormat
         break;
     }
 }
-}
+
+
+class OrientationReadingEvent : public QEvent
+{
+public:
+    OrientationReadingEvent(QOrientationReading::Orientation orientation)
+        : QEvent(orientationReadingEventType)
+        , orientation(orientation) {
+    }
+
+    static const QEvent::Type orientationReadingEventType;
+    QOrientationReading::Orientation orientation;
+};
+const QEvent::Type OrientationReadingEvent::orientationReadingEventType =
+    static_cast<QEvent::Type>(QEvent::registerEventType());
+
+} // namespace {
 
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
+    : QObject(nullptr)
 {
     readMirDisplayConfiguration(screen);
+
+    // Set the default orientation based on the initial screen dimmensions.
+    m_nativeOrientation = (m_geometry.width() >= m_geometry.height())
+        ? Qt::LandscapeOrientation : Qt::PortraitOrientation;
+
+    m_currentOrientation = m_nativeOrientation;
+
+    m_orientationSensor = new QOrientationSensor(this);
+    connect(m_orientationSensor, &QOrientationSensor::readingChanged,
+                     this, &Screen::onOrientationReadingChanged);
+
+    // TODO: Stop when display is off
+    m_orientationSensor->start();
 }
 
 void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const &screen)
@@ -94,4 +132,51 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_geometry.setHeight(mode.size.height.as_int());
 
     m_refreshRate = 60; //FIXME: mode.vrefresh_hz value seems to be incorrect??
+}
+
+void Screen::customEvent(QEvent* event)
+{
+    Q_ASSERT(QThread::currentThread() == thread());
+
+    OrientationReadingEvent* oReadingEvent = static_cast<OrientationReadingEvent*>(event);
+    switch (oReadingEvent->orientation) {
+
+    case QOrientationReading::TopUp:
+        m_currentOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
+            Qt::LandscapeOrientation : Qt::PortraitOrientation;
+        break;
+
+    case QOrientationReading::TopDown:
+        m_currentOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
+            Qt::InvertedLandscapeOrientation : Qt::InvertedPortraitOrientation;
+        break;
+
+    case QOrientationReading::LeftUp:
+        m_currentOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
+            Qt::InvertedPortraitOrientation : Qt::LandscapeOrientation;
+        break;
+
+    case QOrientationReading::RightUp:
+        m_currentOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
+            Qt::PortraitOrientation : Qt::InvertedLandscapeOrientation;
+        break;
+
+    case QOrientationReading::FaceUp:
+    case QOrientationReading::FaceDown:
+        // maintain screen orientation
+        break;
+
+    default:
+        qFatal("[mirserver QPA] Unknown orientation.");
+    }
+
+    // Raise the event signal so that client apps know the orientation changed
+    QWindowSystemInterface::handleScreenOrientationChange(screen(), m_currentOrientation);
+}
+
+void Screen::onOrientationReadingChanged()
+{
+    // Make sure to switch to the main Qt thread context
+    QCoreApplication::postEvent(this,
+            new OrientationReadingEvent(m_orientationSensor->reading()->orientation()));
 }

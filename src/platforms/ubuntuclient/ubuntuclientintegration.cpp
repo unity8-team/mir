@@ -46,8 +46,6 @@ static void resumedCallback(const UApplicationOptions *options, void* context)
 {
     Q_UNUSED(options)
     DASSERT(context != NULL);
-    UbuntuClientIntegration* integration = static_cast<UbuntuClientIntegration*>(context);
-    integration->screen()->toggleSensors(true);
     QCoreApplication::postEvent(QCoreApplication::instance(),
                                 new QEvent(QEvent::ApplicationActivate));
 }
@@ -57,7 +55,6 @@ static void aboutToStopCallback(UApplicationArchive *archive, void* context)
     Q_UNUSED(archive)
     DASSERT(context != NULL);
     UbuntuClientIntegration* integration = static_cast<UbuntuClientIntegration*>(context);
-    integration->screen()->toggleSensors(false);
     integration->inputContext()->hideInputPanel();
     QCoreApplication::postEvent(QCoreApplication::instance(),
                                 new QEvent(QEvent::ApplicationDeactivate));
@@ -89,8 +86,6 @@ UbuntuClientIntegration::UbuntuClientIntegration()
     // Create default screen.
     mScreen = new UbuntuScreen;
     screenAdded(mScreen);
-
-    mScreen->toggleSensors(false);
 
     // Initialize input.
     if (qEnvironmentVariableIsEmpty("QTUBUNTU_NO_INPUT")) {
