@@ -489,9 +489,10 @@ u_hardware_gps_inject_time(
 /**
   * \brief Injects a new reference location into the GPS chipset.
   * \param self The instance to apply the chane to.
-  * \param latitude New coordinate, in [°].
-  * \param longitude New coordinate, [°].
-  * \param accuracy Accuracy estimate of the location, in [m].
+  * \param location New location to me injected. The structure must have the following details, any others are ignored:
+  *    - location: New coordinate, in [°].
+  *    - longitude: New coordinate, [°].
+  *    - accuracy: Accuracy estimate of the location, in [m].
   */
 UBUNTU_DLL_PUBLIC void
 u_hardware_gps_inject_location(
