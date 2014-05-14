@@ -488,7 +488,7 @@ u_hardware_gps_inject_time(
 
 /**
   * \brief Injects a new reference location into the GPS chipset.
-  * \param self The instance to apply the chane to.
+  * \param self The instance to apply the change to.
   * \param location New location to me injected. The structure must have the following details, any others are ignored:
   *    - location: New coordinate, in [°].
   *    - longitude: New coordinate, [°].
