@@ -49,9 +49,10 @@ extern "C" {
      * \returns The acceleration in x-axis direction.
      * \param[in] event The reading to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     uas_accelerometer_event_get_acceleration_x(
-        UASAccelerometerEvent* event);
+        UASAccelerometerEvent* event,
+        float* value);
 
     /**
      * \brief Query the acceleration in y-axis direction.
@@ -59,9 +60,10 @@ extern "C" {
      * \returns The acceleration in y-axis direction.
      * \param[in] event The reading to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     uas_accelerometer_event_get_acceleration_y(
-        UASAccelerometerEvent* event);
+        UASAccelerometerEvent* event,
+        float* value);
 
     /**
      * \brief Query the acceleration in z-axis direction.
@@ -69,9 +71,10 @@ extern "C" {
      * \returns The acceleration in z-axis direction.
      * \param[in] event The reading to be queried.
      */
-    UBUNTU_DLL_PUBLIC float
+    UBUNTU_DLL_PUBLIC UStatus
     uas_accelerometer_event_get_acceleration_z(
-        UASAccelerometerEvent* event);
+        UASAccelerometerEvent* event,
+        float* value);
 
 #ifdef __cplusplus
 }
