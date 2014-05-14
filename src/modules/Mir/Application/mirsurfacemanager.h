@@ -21,6 +21,7 @@
 #include <memory>
 
 // Qt
+#include <QAbstractListModel>
 #include <QHash>
 
 // Mir
@@ -30,35 +31,58 @@
 #include "mirsurfaceitem.h"
 
 class ShellServerConfiguration;
-namespace mir { namespace shell { class Surface; class Session; }}
-namespace mir { namespace scene { class Surface; }}
+namespace mir { namespace shell { class Surface; }}
+namespace mir { namespace scene { class Surface; class Session; }}
 
-class MirSurfaceManager : public QObject
+class MirSurfaceManager : public QAbstractListModel
 {
     Q_OBJECT
 
+    Q_ENUMS(Roles)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+
 public:
+    enum Roles {
+        RoleSurface = Qt::UserRole,
+    };
+
     static MirSurfaceManager* singleton();
 
     MirSurfaceManager(QObject *parent = 0);
     ~MirSurfaceManager();
 
+    // from QAbstractItemModel
+    int rowCount(const QModelIndex & parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override { return m_roleNames; }
+
+    int count() const { return rowCount(); }
+    Q_INVOKABLE void move(int from, int to);
+
+    Q_INVOKABLE int getIndexOfSurfaceWithAppId(const QString &appId) const;
+    Q_INVOKABLE MirSurfaceItem* getSurface(int index);
+
 Q_SIGNALS:
+    void countChanged();
     void surfaceCreated(MirSurfaceItem* surface);
     void surfaceDestroyed(MirSurfaceItem* surface);
 //    void surfaceResized(MirSurface*);
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
-    void onSessionCreatedSurface(mir::shell::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
-    void onSessionDestroyingSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionCreatedSurface(mir::scene::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionDestroyingSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
     void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
 
 private:
-    QHash<const mir::scene::Surface *, MirSurfaceItem *> m_surfaces;
+    QString toString() const;
+
+    QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
+    QList<MirSurfaceItem*> m_surfaceItems;
     ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
+    QHash<int, QByteArray> m_roleNames;
 };
 
 #endif // MIR_SURFACE_MANAGER_H

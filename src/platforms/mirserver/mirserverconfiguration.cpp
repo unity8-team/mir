@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -17,7 +17,9 @@
 #include "mirserverconfiguration.h"
 
 #include "mirglconfig.h"
-#include "mirinputconfiguration.h"
+#include "mirplacementstrategy.h"
+#include "mirinputdispatcherconfiguration.h"
+#include "mirserverstatuslistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
@@ -40,10 +42,20 @@ MirServerConfiguration::~MirServerConfiguration()
 {
 }
 
-std::shared_ptr<msh::SessionListener>
-MirServerConfiguration::the_shell_session_listener()
+std::shared_ptr<ms::PlacementStrategy>
+MirServerConfiguration::the_placement_strategy()
 {
-    return shell_session_listener(
+    return shell_placement_strategy(
+        [this]
+        {
+            return std::make_shared<MirPlacementStrategy>(the_shell_display_layout());
+        });
+}
+
+std::shared_ptr<ms::SessionListener>
+MirServerConfiguration::the_session_listener()
+{
+    return session_listener(
         [this]
         {
             return std::make_shared<SessionListener>();
@@ -80,14 +92,13 @@ MirServerConfiguration::the_compositor()
         });
 }
 
-std::shared_ptr<mir::input::InputConfiguration>
-MirServerConfiguration::the_input_configuration()
+std::shared_ptr<mir::input::InputDispatcherConfiguration>
+MirServerConfiguration::the_input_dispatcher_configuration()
 {
-    return input_configuration(
+    return input_dispatcher_configuration(
     [this]()
     {
-        return std::make_shared<MirInputConfiguration>(the_input_report(),
-                                                       the_input_region());
+        return std::make_shared<MirInputDispatcherConfiguration>();
     });
 }
 
@@ -99,6 +110,16 @@ MirServerConfiguration::the_gl_config()
     {
         return std::make_shared<MirGLConfig>();
     });
+}
+
+std::shared_ptr<mir::ServerStatusListener>
+MirServerConfiguration::the_server_status_listener()
+{
+    return server_status_listener(
+        []()
+        {
+            return std::make_shared<MirServerStatusListener>();
+        });
 }
 
 /************************************ Shell side ************************************/
@@ -125,7 +146,7 @@ SessionAuthorizer *MirServerConfiguration::sessionAuthorizer()
 
 SessionListener *MirServerConfiguration::sessionListener()
 {
-    auto sharedPtr = the_shell_session_listener();
+    auto sharedPtr = the_session_listener();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionListener*>(sharedPtr.get());

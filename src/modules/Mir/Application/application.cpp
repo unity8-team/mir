@@ -24,7 +24,7 @@
 #include "logging.h"
 
 // mir
-#include <mir/shell/session.h>
+#include <mir/scene/session.h>
 
 Application::Application(const QString &appId, Application::State state,
                          const QStringList &arguments, QObject *parent)
@@ -126,7 +126,7 @@ bool Application::fullscreen() const
     return m_fullscreen;
 }
 
-std::shared_ptr<mir::shell::Session> Application::session() const
+std::shared_ptr<mir::scene::Session> Application::session() const
 {
     return m_session;
 }
@@ -141,7 +141,7 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
-void Application::setSession(const std::shared_ptr<mir::shell::Session>& session)
+void Application::setSession(const std::shared_ptr<mir::scene::Session>& session)
 {
     DLOG("Application::setSession (this=%p, session=%p)", this, session.get());
 
@@ -176,7 +176,7 @@ QImage Application::screenshotImage() const
 void Application::updateScreenshot()
 {
     session()->take_snapshot(
-        [&](mir::shell::Snapshot const& snapshot)
+        [&](mir::scene::Snapshot const& snapshot)
         {
             DLOG("ApplicationScreenshotProvider - Mir snapshot ready with size %d x %d",
                  snapshot.size.height.as_int(), snapshot.size.width.as_int());
@@ -247,13 +247,13 @@ void Application::setFullscreen(bool fullscreen)
 
 void Application::suspend()
 {
-    DLOG("Application::suspend (this=%p)", this);
+    DLOG("Application::suspend (this=%p, appId=%s)", this, qPrintable(appId()));
     TaskController::singleton()->suspend(appId());
 }
 
 void Application::resume()
 {
-    DLOG("Application::resume (this=%p)", this);
+    DLOG("Application::resume (this=%p, appId=%s)", this, qPrintable(appId()));
     TaskController::singleton()->resume(appId());
 }
 

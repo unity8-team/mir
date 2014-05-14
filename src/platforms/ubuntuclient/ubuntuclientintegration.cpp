@@ -84,7 +84,7 @@ UbuntuClientIntegration::UbuntuClientIntegration()
     mInstance = u_application_instance_new_from_description_with_options(mDesc, mOptions);
 
     if (mInstance == nullptr)
-        qFatal("QUbuntu: Could not create application instance");
+        qFatal("UbuntuClientIntegration: Could not create application instance");
 
     // Create default screen.
     mScreen = new UbuntuScreen;

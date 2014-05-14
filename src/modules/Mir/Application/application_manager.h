@@ -36,10 +36,8 @@ class MirSurfaceManager;
 class TaskController;
 
 namespace mir {
-    namespace shell {
-        class Session;
-    }
     namespace scene {
+        class Session;
         class Surface;
     }
 }
@@ -89,12 +87,12 @@ public:
 public Q_SLOTS:
     void authorizeSession(const quint64 pid, bool &authorized);
 
-    void onSessionStarting(std::shared_ptr<mir::shell::Session> const& session);
-    void onSessionStopping(std::shared_ptr<mir::shell::Session> const& session);
-    void onSessionFocused(std::shared_ptr<mir::shell::Session> const& session);
+    void onSessionStarting(std::shared_ptr<mir::scene::Session> const& session);
+    void onSessionStopping(std::shared_ptr<mir::scene::Session> const& session);
+    void onSessionFocused(std::shared_ptr<mir::scene::Session> const& session);
     void onSessionUnfocused();
 
-    void onSessionCreatedSurface(mir::shell::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
     void onProcessStartReportReceived(const QString& appId, const bool failure);
     void onProcessStopped(const QString& appId, const bool unexpected);
@@ -111,12 +109,13 @@ private:
     void setFocused(Application *application);
     void add(Application *application);
     void remove(Application* application);
-    Application* findApplicationWithSession(const std::shared_ptr<mir::shell::Session> &session);
-    Application* findApplicationWithSession(const mir::shell::Session *session);
+    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
+    Application* findApplicationWithSession(const mir::scene::Session *session);
     Application* findLastExecutedApplication();
     QModelIndex findIndex(Application* application);
     void suspendApplication(Application *application);
     void resumeApplication(Application *application);
+    QString toString() const;
 
     QList<Application*> m_applications;
     Application* m_focusedApplication; // remove as Mir has API for this

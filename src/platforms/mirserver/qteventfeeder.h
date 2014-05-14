@@ -1,27 +1,55 @@
+/*
+ * Copyright © 2013-2014 Canonical Ltd.
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Authored by: Daniel d'Andrada <daniel.dandrada@canonical.com>
+ */
+
 #ifndef MIR_QT_EVENT_FEEDER_H
 #define MIR_QT_EVENT_FEEDER_H
 
-// android-input
-#include <InputReader.h>
+#include <mir/input/input_dispatcher.h>
+#include <mir/shell/input_targeter.h>
 
 class QTouchDevice;
 
 /*
-  Fills Qt's event loop with events from android-input layer.
+  Fills Qt's event loop with input events from Mir
  */
-class QtEventFeeder : public android::InputListenerInterface
+class QtEventFeeder : public mir::input::InputDispatcher,
+                      public mir::shell::InputTargeter
 {
 public:
     QtEventFeeder();
 
-    // From InputListenerInterface
-    void notifyConfigurationChanged(const android::NotifyConfigurationChangedArgs* args) override;
-    void notifyKey(const android::NotifyKeyArgs* args) override;
-    void notifyMotion(const android::NotifyMotionArgs* args) override;
-    void notifySwitch(const android::NotifySwitchArgs* args) override;
-    void notifyDeviceReset(const android::NotifyDeviceResetArgs* args) override;
+    static const int MirEventActionMask;
+    static const int MirEventActionPointerIndexMask;
+    static const int MirEventActionPointerIndexShift;
+
+    // From mir::input::InputDispatcher
+    void dispatch(MirEvent const& event) override;
+    void start() override;
+    void stop() override;
+
+    // From mir::shell::InputTargeter
+    void focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel) override;
+    void focus_cleared() override;
 
 private:
+    void dispatchKey(MirKeyEvent const& event);
+    void dispatchMotion(MirMotionEvent const& event);
+
     QTouchDevice *mTouchDevice;
 };
 

@@ -125,7 +125,7 @@ void UbuntuWindow::createWindow()
         geometry = mGeometry;
     }
 
-    fprintf(stderr, "[ubuntuclient QPA] creating surface at (%d, %d) with size (%d, %d) with title '%s'\n",
+    DLOG("[ubuntuclient QPA] creating surface at (%d, %d) with size (%d, %d) with title '%s'\n",
             geometry.x(), geometry.y(), geometry.width(), geometry.height(), title.data());
 
     // Setup platform window creation properties
@@ -146,6 +146,18 @@ void UbuntuWindow::createWindow()
     if (mState == Qt::WindowFullScreen) {
         ua_ui_window_request_fullscreen(mWindow);
     }
+
+    // Window manager can give us a final size different from what we asked for
+    // so let's check what we ended up getting
+    {
+        uint32_t width, height;
+        ua_ui_window_get_size(mWindow, &width, &height);
+        geometry.setWidth(width);
+        geometry.setHeight(height);
+    }
+
+    DLOG("[ubuntuclient QPA] created surface has size (%d, %d)",
+            geometry.width(), geometry.height());
 
     // Tell Qt about the geometry.
     QWindowSystemInterface::handleGeometryChange(window(), geometry);

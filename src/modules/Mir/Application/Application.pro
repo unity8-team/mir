@@ -17,13 +17,6 @@ INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
 
-# android-input stuff
-INCLUDEPATH += "/usr/include/mirserver/android-deps"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/include"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/base/services/input"
-INCLUDEPATH += "/usr/include/mirserver/android-input/android/frameworks/native/include"
-QMAKE_CXXFLAGS += "-include /usr/include/mirserver/android-input/android/system/core/include/arch/ubuntu-x86/AndroidConfig.h"
-
 TARGET = $$qtLibraryTarget($$TARGET)
 uri = Mir.Application
 
