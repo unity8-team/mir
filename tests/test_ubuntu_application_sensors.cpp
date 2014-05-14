@@ -110,9 +110,14 @@ TESTP_F(SimBackendTest, CreateAccelerometer, {
 
     UASensorsAccelerometer *s = ua_sensors_accelerometer_new();
     EXPECT_TRUE(s != NULL);
-    EXPECT_FLOAT_EQ(0.5, ua_sensors_accelerometer_get_min_value(s));
-    EXPECT_FLOAT_EQ(1000.0, ua_sensors_accelerometer_get_max_value(s));
-    EXPECT_FLOAT_EQ(0.1, ua_sensors_accelerometer_get_resolution(s));
+
+    float min = 0.f; ua_sensors_accelerometer_get_min_value(s, &min);
+    float max = 0.f; ua_sensors_accelerometer_get_max_value(s, &max);
+    float res = 0.f; ua_sensors_accelerometer_get_resolution(s, &res);
+
+    EXPECT_FLOAT_EQ(0.5, min);
+    EXPECT_FLOAT_EQ(1000.0, max);
+    EXPECT_FLOAT_EQ(0.1, res);
 })
 
 TESTP_F(SimBackendTest, CreateLight, {
@@ -122,9 +127,14 @@ TESTP_F(SimBackendTest, CreateLight, {
 
     UASensorsLight *s = ua_sensors_light_new();
     EXPECT_TRUE(s != NULL);
-    EXPECT_FLOAT_EQ(0.0, ua_sensors_light_get_min_value(s));
-    EXPECT_FLOAT_EQ(10.0, ua_sensors_light_get_max_value(s));
-    EXPECT_FLOAT_EQ(0.5, ua_sensors_light_get_resolution(s));
+
+    float min = 0.f; ua_sensors_light_get_min_value(s, &min);
+    float max = 0.f; ua_sensors_light_get_max_value(s, &max);
+    float res = 0.f; ua_sensors_light_get_resolution(s, &res);
+
+    EXPECT_FLOAT_EQ(0.0, min);
+    EXPECT_FLOAT_EQ(10.0, max);
+    EXPECT_FLOAT_EQ(0.5, res);
 })
 
 TESTP_F(SimBackendTest, ProximityEvents, {
@@ -191,8 +201,10 @@ TESTP_F(SimBackendTest, LightEvents, {
 
     ua_sensors_light_set_reading_cb(s,
         [](UASLightEvent* ev, void* ctx) {
+            float light = -1.f;
+             uas_light_event_get_light(ev, &light);
             events.push({uas_light_event_get_timestamp(ev),
-                         uas_light_event_get_light(ev), .0, .0,
+                         light, .0, .0,
                          (UASProximityDistance) 0, ctx});
         }, NULL);
 
@@ -229,10 +241,14 @@ TESTP_F(SimBackendTest, AccelEvents, {
 
     ua_sensors_accelerometer_set_reading_cb(s,
         [](UASAccelerometerEvent* ev, void* ctx) {
+            float x; uas_accelerometer_event_get_acceleration_x(ev, &x);
+            float y; uas_accelerometer_event_get_acceleration_y(ev, &y);
+            float z; uas_accelerometer_event_get_acceleration_z(ev, &z);
+
             events.push({uas_accelerometer_event_get_timestamp(ev),
-                         uas_accelerometer_event_get_acceleration_x(ev),
-                         uas_accelerometer_event_get_acceleration_y(ev),
-                         uas_accelerometer_event_get_acceleration_z(ev),
+                         x,
+                         y,
+                         z,
                          (UASProximityDistance) 0, ctx});
         }, NULL);
 
@@ -274,8 +290,12 @@ TESTP_F(DefaultBackendTest, CreateProximity, {
         // calling its functions should not crash; we can't assert much about
         // their actual values, though
         ua_sensors_proximity_enable(s);
-        EXPECT_LE(ua_sensors_proximity_get_min_value(s), ua_sensors_proximity_get_max_value(s));
-        ua_sensors_proximity_get_resolution(s);
+        float min; ua_sensors_proximity_get_min_value(s, &min);
+        float max; ua_sensors_proximity_get_max_value(s, &max);
+
+        EXPECT_LE(min, max);
+
+        float res; ua_sensors_proximity_get_resolution(s, &res);
         ua_sensors_proximity_disable(s);
     } else {
         cerr << "no proximity sensor on this hardware\n";
@@ -291,8 +311,12 @@ TESTP_F(DefaultBackendTest, CreateAccelerometer, {
         // calling its functions should not crash; we can't assert much about
         // their actual values, though
         ua_sensors_accelerometer_enable(s);
-        EXPECT_LE(ua_sensors_accelerometer_get_min_value(s), ua_sensors_accelerometer_get_max_value(s));
-        ua_sensors_accelerometer_get_resolution(s);
+        float min; ua_sensors_accelerometer_get_min_value(s, &min);
+        float max; ua_sensors_accelerometer_get_max_value(s, &max);
+
+        EXPECT_LE(min, max);
+
+        float res; ua_sensors_accelerometer_get_resolution(s, &res);
         ua_sensors_accelerometer_disable(s);
     } else {
         cerr << "no accelerometer sensor on this hardware\n";
@@ -308,8 +332,12 @@ TESTP_F(DefaultBackendTest, CreateLight, {
         // calling its functions should not crash; we can't assert much about
         // their actual values, though
         ua_sensors_light_enable(s);
-        EXPECT_LE(ua_sensors_light_get_min_value(s), ua_sensors_light_get_max_value(s));
-        ua_sensors_light_get_resolution(s);
+        float min; ua_sensors_light_get_min_value(s, &min);
+        float max; ua_sensors_light_get_max_value(s, &max);
+
+        EXPECT_LE(min, max);
+
+        float res; ua_sensors_light_get_resolution(s, &res);
         ua_sensors_light_disable(s);
     } else {
         cerr << "no light sensor on this hardware\n";
