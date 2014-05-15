@@ -57,6 +57,8 @@ public:
     UApplicationUiWindowState state() const;
     void set_state(const UApplicationUiWindowState);
 
+    void get_size(uint32_t *width, uint32_t *height);
+
 protected:
     Window(Window const&) = delete;
     Window& operator=(Window const&) = delete;

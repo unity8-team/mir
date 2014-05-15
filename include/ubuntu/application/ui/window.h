@@ -48,6 +48,12 @@ extern "C" {
     ua_ui_window_get_id(
     	UAUiWindow *window);
     
+    UBUNTU_DLL_PUBLIC void
+    ua_ui_window_get_size(
+        UAUiWindow *window,
+        uint32_t *width,
+        uint32_t *height);
+
     UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_move(
         UAUiWindow *window,
