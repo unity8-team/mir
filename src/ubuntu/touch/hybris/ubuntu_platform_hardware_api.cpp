@@ -94,6 +94,12 @@ IMPLEMENT_VOID_FUNCTION1(
 
 IMPLEMENT_FUNCTION2(
         UStatus,
+        u_hardware_alarm_get_elapsed_real_time,
+        UHardwareAlarm,
+        struct timespec*);
+        
+IMPLEMENT_FUNCTION2(
+        UStatus,
         u_hardware_alarm_set_timezone,
         UHardwareAlarm,
         const struct timezone*);
