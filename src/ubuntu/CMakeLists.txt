@@ -1,10 +1,3 @@
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_subdirectory(application)
-add_subdirectory(testbackend)
-
 set(
   UBUNTU_APPLICATION_API_LINK_LIBRARIES
   
@@ -12,18 +5,37 @@ set(
   ubuntu_application_url_dispatcher
 )
 
-if(ENABLE_HYBRIS_IMPLEMENTATION)
-  add_subdirectory(hybris/)
-endif()
+add_subdirectory(common)
+add_subdirectory(desktop)
+add_subdirectory(touch)
+add_subdirectory(testbackend)
 
-if(ENABLE_MIRSERVER_IMPLEMENTATION OR ENABLE_MIRCLIENT_IMPLEMENTATION)
-  add_subdirectory(mircommon/)
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
-if(ENABLE_MIRSERVER_IMPLEMENTATION)
-  add_subdirectory(mirserver/)
-endif()
+add_library(
+  ubuntu_application_api SHARED
+  
+  ubuntu_application_api.cpp
+)
 
-if(ENABLE_MIRCLIENT_IMPLEMENTATION)
-  add_subdirectory(mirclient/)
-endif()
+include_directories(
+  ${CMAKE_BINARY_DIR}/include
+)
+
+target_link_libraries(
+  ubuntu_application_api
+
+  dl  
+)
+
+set_target_properties(
+  ubuntu_application_api
+  PROPERTIES
+  VERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}.${UBUNTU_PLATFORM_API_VERSION_MINOR}.${UBUNTU_PLATFORM_API_VERSION_PATCH}
+  SOVERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}
+)
+
+install(
+  TARGETS ubuntu_application_api
+  ${INSTALL_TARGETS_DEFAULT_ARGS}
+)

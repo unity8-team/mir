@@ -7,30 +7,23 @@ set(SOURCES
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
-add_library(
-	ubuntu_application_api_mirserver SHARED
-	${SOURCES}
-)
-
 include_directories(
     ${CMAKE_BINARY_DIR}/include
     ${MIRSERVER_INCLUDE_DIRS}
 )
 
+add_library(
+	ubuntu_application_api_mirserver STATIC
+	${SOURCES}
+)
+
+#ubuntu_application_api_d_sensors
+
 target_link_libraries(
 	ubuntu_application_api_mirserver
-        ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
-        -Wl,--whole-archive ubuntu_application_api_mircommon ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
-        -Wl,--no-whole-archive
+
+    ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
+#    ${MIRCOMMON_LINK}
 )
 
-
-set_target_properties(
-	ubuntu_application_api_mirserver
-	PROPERTIES
-	VERSION 1.0
-	SOVERSION 1
-)
-
-install(TARGETS ubuntu_application_api_mirserver ${INSTALL_TARGETS_DEFAULT_ARGS})
 install(FILES ubuntu_application_api_mirserver_priv.h DESTINATION include/ubuntu/application)

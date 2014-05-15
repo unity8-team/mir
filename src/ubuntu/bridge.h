@@ -16,27 +16,21 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
-#ifndef BRIDGE_H_
-#define BRIDGE_H_
+#ifndef BASE_BRIDGE_H_
+#define BASE_BRIDGE_H_
 
 #include <assert.h>
 #include <dlfcn.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void *android_dlopen(const char *filename, int flag);
-extern void *android_dlsym(void *handle, const char *symbol);
-
-#ifdef __cplusplus
-}
-#endif
+/*
+ * This is the base backend loader for the Platform API
+ */
 
 namespace internal
 {
@@ -53,9 +47,12 @@ struct HIDDEN_SYMBOL ToApplication
         static const char* cache = NULL;
 
         if (cache == NULL) {
-            cache = secure_getenv("UBUNTU_PLATFORM_API_SENSORS_BACKEND");
-            if (cache == NULL)
-                cache = "/system/lib/libubuntu_application_api.so";
+            cache = secure_getenv("UBUNTU_PLATFORM_API_BACKEND");
+            if (cache == NULL) {
+                printf("UBUNTU PLATFORM API BACKEND NOT SELECTED -- Aborting\n");
+                abort();
+            }
+            printf("UBUNTU_PLATFORM_API_BACKEND=%s\n", cache);
         }
 
         return cache;
@@ -74,31 +71,19 @@ class HIDDEN_SYMBOL Bridge
 
     void* resolve_symbol(const char* symbol) const
     {
-        return dlsym_fn(lib_handle, symbol);
+        return dlsym(lib_handle, symbol);
     }
 
   protected:
-    Bridge() : lib_handle(android_dlopen(Scope::path(), RTLD_LAZY))
+    Bridge() : lib_handle(dlopen(Scope::path(), RTLD_LAZY))
     {
-        const char* path = Scope::path();
-        /* use Android dl functions for Android libs in /system/, glibc dl
-         * functions for others */
-        if (strncmp(path, "/system/", 8) == 0) {
-            lib_handle = android_dlopen(path, RTLD_LAZY);
-            dlsym_fn = android_dlsym;
-        } else {
-            lib_handle = dlopen(path, RTLD_LAZY);
-            dlsym_fn = dlsym;
-        }
     }
 
     ~Bridge()
     {
-        // TODO android_dlclose(libcamera_handle);
     }
 
     void* lib_handle;
-    void* (*dlsym_fn) (void*, const char*);
 };
 
 }

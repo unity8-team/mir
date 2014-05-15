@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 
     UStatus rc = u_hardware_alarm_set_relative_to_with_behavior(
         alarm,
-        U_HARDWARE_ALARM_TIME_REFERENCE_RTC,
+        U_HARDWARE_ALARM_TIME_REFERENCE_NOW,
         U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE,
         &ts);
 

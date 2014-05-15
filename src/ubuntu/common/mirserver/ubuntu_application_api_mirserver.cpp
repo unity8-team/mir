@@ -16,7 +16,6 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "ubuntu_application_api_mirserver_priv.h"
 #include "application_instance_mirserver_priv.h"
 #include "window_properties_mirserver_priv.h"
 #include "window_mirserver_priv.h"
@@ -27,6 +26,7 @@
 #include "mircommon/mir/geometry/rectangles.h"
 
 // C APIs
+#include <ubuntu/application/init.h>
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
 #include <ubuntu/application/ui/options.h>
@@ -77,19 +77,20 @@ global_mirserver_context()
 
 extern "C"
 {
-void ua_ui_mirserver_init(mir::DefaultServerConfiguration& config)
+void u_application_init(void *args)
 {
     auto context = global_mirserver_context();
+    mir::DefaultServerConfiguration* config = reinterpret_cast<mir::DefaultServerConfiguration*>(args);
 
-    context->display = config.the_display();
-    context->buffer_allocator = config.the_buffer_allocator();
-    context->surface_coordinator = config.the_surface_coordinator();
-    context->session_listener = config.the_session_listener();
+    context->surface_coordinator = config->the_surface_coordinator();
+    context->buffer_allocator = config->the_buffer_allocator();
+    context->display = config->the_display();
+    context->session_listener = config->the_session_listener();
     context->input_platform = mir::input::receiver::InputPlatform::create();
-    context->egl_client = config.the_graphics_platform()->create_internal_client();
+    context->egl_client = config->the_graphics_platform()->create_internal_client();
 }
 
-void ua_ui_mirserver_finish()
+void u_application_finish()
 {
     auto context = global_mirserver_context();
 

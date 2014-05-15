@@ -86,6 +86,15 @@ static void dispatch_callback(MirConnection* conn, MirLifecycleState state, void
 extern "C"
 {
 
+void u_application_init(void *args)
+{
+    (void) args;
+}
+
+void u_application_finish()
+{
+}
+
 // TODO<papi>: Eliminate global instance by adding Instance to some functions (i.e. display queries)
 // TODO: We can't take ownership of description and options until we get rid of the global instance
 // so we leak them.

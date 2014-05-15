@@ -1,15 +1,9 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
 add_library(
-  ubuntu_application_api SHARED
-
-  ubuntu_application_api_hybris.cpp
+  ubuntu_application_api_hybris STATIC
+  
   ubuntu_application_sensors_hybris.cpp
-)
-
-add_library(
-  ubuntu_platform_hardware_api SHARED
-  ubuntu_platform_hardware_api.cpp
 )
 
 include_directories(
@@ -17,12 +11,14 @@ include_directories(
 )
 
 target_link_libraries(
-  ubuntu_application_api
-
-  "-Wl,--whole-archive"
-  ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}  
-  "-Wl,--no-whole-archive"
+  ubuntu_application_api_hybris
+  
   ${Hybris}
+)
+
+add_library(
+  ubuntu_platform_hardware_api SHARED
+  ubuntu_platform_hardware_api.cpp
 )
 
 target_link_libraries(
@@ -32,22 +28,10 @@ target_link_libraries(
 )
 
 set_target_properties(
-  ubuntu_application_api
-  PROPERTIES
-  VERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}.${UBUNTU_PLATFORM_API_VERSION_MINOR}.${UBUNTU_PLATFORM_API_VERSION_PATCH}
-  SOVERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}
-)
-
-set_target_properties(
   ubuntu_platform_hardware_api
   PROPERTIES
   VERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}.${UBUNTU_PLATFORM_API_VERSION_MINOR}.${UBUNTU_PLATFORM_API_VERSION_PATCH}
   SOVERSION ${UBUNTU_PLATFORM_API_VERSION_MAJOR}
-)
-
-install(
-  TARGETS ubuntu_application_api  
-  ${INSTALL_TARGETS_DEFAULT_ARGS}
 )
 
 install(
