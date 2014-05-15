@@ -26,9 +26,10 @@ Vcs-Bzr: lp:platform-api
 # just go ahead.  ~phablet-team will notice and sync up the code again.
 Vcs-Browser: https://code.launchpad.net/platform-api
 
-Package: libplatform-api-headers
+Package: libubuntu-application-api-headers
 Section: libdevel
 Architecture: any
+Replaces: libplatform-api1-headers
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -53,44 +54,47 @@ Description: Platform API for system level capabilities (API headers)
  should build depend on the libplatform-hardware-api-dev package instead, which
  will pull this package as well.
 
-Package: libplatform-api1-dev
+Package: libubuntu-application-api-dev
 Section: libdevel
 Architecture: any
+Replaces: libplatform-api1-dev
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
          libgles2-mesa-dev,
-         libplatform-api-headers (= ${binary:Version}),
-         libubuntu-application-api1 | libplatform-api1,
-         libubuntu-application-api-mirserver1 (= ${binary:Version}),
-         libubuntu-application-api-mirclient1 (= ${binary:Version}),
+         libubuntu-application-api-headers (= ${binary:Version}),
+         libubuntu-application-api2,
+         ubuntu-application-api2-touch (= ${binary:Version}),
+         ubuntu-application-api2-desktop (= ${binary:Version}),
          ${misc:Depends},
-Suggests: libplatform-api1-doc,
-Description: Platform API for system level capabilities (development)
+Suggests: libubuntu-application-api-doc,
+Description: Ubuntu Application API for system level capabilities (development)
  This package provides the development library and headers (via
- dependency) for the Platform API.
+ dependency) for the Ubuntu Application API.
 
-Package: libubuntu-application-api-mirserver1
+Package: ubuntu-application-api2-touch
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-Description: Implementation of the Platform API for a Mir server
+         libubuntu-application-api2 (= ${binary:Version}),
+Description: Implementation of the Platform API for Ubuntu Touch
  This package provides the implementation of the Platform API to
- provide a server instance of Mir.
+ bring up an Ubuntu Touch system.
 
-Package: libubuntu-application-api-mirclient1
+Package: ubuntu-application-api2-desktop
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-Description: Implementation of the Platform API for a Mir client
+         libubuntu-application-api2 (= ${binary:Version}),
+Description: Implementation of the Platform API for Ubuntu Desktop
  This package provides the implementation of the Platform API to
- allow a client to connect to a Mir server.
+ bring up an Ubuntu Desktop system.
 
 Package: libplatform-hardware-api1-dev
 Section: libdevel
@@ -101,16 +105,17 @@ Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libplatform-hardware-api-headers (= ${binary:Version}),
          libubuntu-platform-hardware-api1 | libplatform-hardware-api1,
-Suggests: libplatform-api1-doc,
+Suggests: libubuntu-application-api-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the hw-access portions of the Platform API.
 
-Package: libplatform-api1-doc
+Package: libubuntu-application-api-doc
 Section: doc
 Architecture: all
+Replaces: libplatform-api1-doc
 Depends: ${misc:Depends},
-         libplatform-api1-dev,
+         libubuntu-application-api-dev,
 Description: Platform API for system level capabilities (development)
  This package provides the developer documentation for the Platform API.
 
@@ -129,11 +134,9 @@ Description: Hybris implementation of the hw-access parts of the Platform API (r
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the device drivers live.
 
-Package: libubuntu-application-api1
+Package: libubuntu-application-api2
 Section: libs
 Architecture: any
-Replaces: libplatform-api1-hybris (<< 0.18.3)
-Breaks: libplatform-api1-hybris (<< 0.18.3)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -144,13 +147,14 @@ Description: Hybris implementation of the Platform API (runtime)
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
 
-Package: libubuntu-application-api-test1
+Package: libubuntu-application-api-test2
 Section: libs
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+         libubuntu-application-api2 (= ${binary:Version}),
 Description: test implementation of the Platform API
  This package provides an implementation of the Platform API for testing. It
  does not communicate with actual hardware, but reads input from a text file.
@@ -160,33 +164,14 @@ Description: test implementation of the Platform API
  .
  For now this provides simulated sensors.
 
-Package: libplatform-api1-hybris-tests
+Package: ubuntu-application-api-touch2-examples
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libubuntu-application-api1 (= ${binary:Version}),
+         ubuntu-application-api2-touch (= ${binary:Version}),
 Description: Hybris implementation of the Platform API (tests)
  This package provides the test cases for the hybris implementation
  of the Platform API.
-
-Package: libubuntu-platform-api1-dev
-Section: oldlibs
-Architecture: all
-Depends: ${misc:Depends},
-         libplatform-api1-dev (= ${binary:Version}),
-Description: dummy transitional package for libplatform-api1-dev
- This is dummy transitional package, please use libplatform-api1-dev instead.
- .
- This package can be safely removed.
-
-Package: libplatform-api1-hybris
-Section: oldlibs
-Architecture: all
-Depends: libubuntu-application-api1,
-         ${misc:Depends},
-Description: dummy transitional package for libplatform-api1-hybris
- This is a dummy transitional package, please use libubuntu-application-api1
- instead.
 
 Package: libplatform-hardware-api1-hybris
 Section: oldlibs

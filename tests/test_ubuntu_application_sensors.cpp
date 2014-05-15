@@ -65,7 +65,7 @@ class SimBackendTest : public testing::Test
             abort();
         }
         setenv("UBUNTU_PLATFORM_API_SENSOR_TEST", data_file, 1);
-        setenv("UBUNTU_PLATFORM_API_BACKEND", "libubuntu_application_api_test.so.1", 1);
+        setenv("UBUNTU_PLATFORM_API_SENSORS_BACKEND", "libubuntu_application_api_test.so.1", 1);
 
         // ensure the queue is clear
         while (events.size() > 0)
