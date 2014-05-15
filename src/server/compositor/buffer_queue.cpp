@@ -391,6 +391,7 @@ void mc::BufferQueue::release(
     else
         excess = 0;
     
+    // If too many frames have had excess buffers then start dropping them now
     if (excess > 300 && buffers.back().get() == buffer && nbuffers > 1)
     {
         buffers.pop_back();
