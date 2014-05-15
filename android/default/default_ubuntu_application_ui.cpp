@@ -218,9 +218,9 @@ ua_ui_window_properties_get_role(
 }
 
 void
-ua_ui_window_properties_set_input_cb_and_ctx(
+ua_ui_window_properties_set_event_cb_and_ctx(
     UAUiWindowProperties *properties,
-    UAUiWindowInputEventCb cb,
+    UAUiWindowEventCb cb,
     void *ctx)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
+ *              Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 #ifndef UBUNTU_APPLICATION_UI_INPUT_EVENT_H_
 #define UBUNTU_APPLICATION_UI_INPUT_EVENT_H_
@@ -102,7 +103,7 @@ typedef enum {
 } UMotionButtonMask;
 
 
-    /** Maximum number of pointers reported within one input event. */
+    /** Maximum number of pointers reported within one event. */
 #define UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT (16)
 
     /** Reference timebase, nanoseconds as measured by CLOCK_MONOTONIC. */
@@ -113,18 +114,14 @@ typedef enum {
     {
         KEY_EVENT_TYPE, ///< Event originates from a keyboard.
         MOTION_EVENT_TYPE, ///< Event originates from something moving, e.g., a wheel, a mouse, a finger on a touchpad.
-        HW_SWITCH_EVENT_TYPE ///< Event originates from an additional button attached to the device's HW, e.g., power button.
+        HW_SWITCH_EVENT_TYPE, ///< Event originates from an additional button attached to the device's HW, e.g., power button.
+        RESIZE_EVENT_TYPE ///< Surface has been resized
     } EventType;
 
-    /** Models an input event. */
+    /** Models an event. */
     typedef struct
     {
         EventType type; ///< Type of the event.
-        int32_t device_id; ///< Device that this event originated from.
-        int32_t source_id; ///< Source that this event originated from.
-        int32_t action; ///< Action signalled by this event.
-        int32_t flags; ///< Flags associated with this event.
-        int32_t meta_state; ///< State of the meta modifiers (ALT, CTRL, SHIFT).
         /** Information specific to key/motion event types. */
         union
         {
@@ -139,6 +136,12 @@ typedef enum {
             /** Information describing an event originating from a keyboard key. */
             struct KeyEvent
             {
+                int32_t device_id; ///< Device that this event originated from.
+                int32_t source_id; ///< Source that this event originated from.
+                int32_t action; ///< Action signalled by this event.
+                int32_t flags; ///< Flags associated with this event.
+                int32_t meta_state; ///< State of the meta modifiers (ALT, CTRL, SHIFT).
+
                 int32_t key_code; 
                 int32_t scan_code;
                 int32_t repeat_count;
@@ -152,6 +155,12 @@ typedef enum {
              */
             struct MotionEvent
             {
+                int32_t device_id; ///< Device that this event originated from.
+                int32_t source_id; ///< Source that this event originated from.
+                int32_t action; ///< Action signalled by this event.
+                int32_t flags; ///< Flags associated with this event.
+                int32_t meta_state; ///< State of the meta modifiers (ALT, CTRL, SHIFT).
+
                 int32_t edge_flags; ///< Set for touches intersecting a touchscreen's edges, requires HW support.
                 int32_t button_state; ///< State of buttons of the device
                 float x_offset; ///< Movement in x direction since down event
@@ -173,6 +182,12 @@ typedef enum {
                     float orientation; ///< Orientation
                 } pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT]; ///< Pointer information, valid from [0,pointer_count).
             } motion;
+            /** Information describing a surface resize event. */
+            struct ResizeEvent
+            {
+                int32_t width; ///< The new surface width
+                int32_t height; ///< The new surface height.
+            } resize;
         } details;
     } Event;
 

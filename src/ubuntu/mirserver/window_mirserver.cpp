@@ -40,7 +40,7 @@ namespace mircv = mir::input::receiver;
 namespace
 {
 
-static void ua_ui_window_handle_event(UAUiWindowInputEventCb cb, void* ctx, MirEvent* mir_event)
+static void ua_ui_window_handle_event(UAUiWindowEventCb cb, void* ctx, MirEvent* mir_event)
 {
     Event ubuntu_ev;
     auto translated_event = uaum::event_to_ubuntu_event(mir_event, ubuntu_ev);

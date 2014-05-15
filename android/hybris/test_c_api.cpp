@@ -110,7 +110,7 @@ int main(int argc, char** argv)
     UAUiWindowProperties* wprops = ua_ui_window_properties_new_for_normal_window();
     ua_ui_window_properties_set_titlen(wprops, "Window 1", 8);
     ua_ui_window_properties_set_role(wprops, U_MAIN_ROLE);
-    ua_ui_window_properties_set_input_cb_and_ctx(wprops, on_new_event, NULL);
+    ua_ui_window_properties_set_event_cb_and_ctx(wprops, on_new_event, NULL);
    
     UAUiWindow* surface = ua_ui_window_new_for_application_with_properties(instance, wprops);
     
