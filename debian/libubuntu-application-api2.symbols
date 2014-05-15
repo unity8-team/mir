@@ -1,4 +1,4 @@
-libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
+libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  u_application_description_destroy@Base 0.18.1daily13.06.21
  u_application_description_new@Base 0.18.1daily13.06.21
  u_application_description_set_application_id@Base 0.18.1daily13.06.21
@@ -105,21 +105,6 @@ libubuntu_application_api.so.1 libubuntu-application-api1 #MINVER#
  uas_light_event_get_timestamp@Base 0.18.1daily13.06.21
  uas_proximity_event_get_distance@Base 0.18.1daily13.06.21
  uas_proximity_event_get_timestamp@Base 0.18.1daily13.06.21
- ubuntu_ui_install_task_controller@Base 0.18.1daily13.06.21
- ubuntu_ui_report_notification_invisible@Base 0.18.1daily13.06.21
- ubuntu_ui_report_notification_visible@Base 0.18.1daily13.06.21
- ubuntu_ui_report_osk_invisible@Base 0.18.1daily13.06.21
- ubuntu_ui_report_osk_visible@Base 0.18.1daily13.06.21
- ubuntu_ui_session_focus_running_session_with_id@Base 0.18.1daily13.06.21
- ubuntu_ui_session_install_session_lifecycle_observer@Base 0.18.1daily13.06.21
- ubuntu_ui_session_properties_get_application_instance_id@Base 0.18.1daily13.06.21
- ubuntu_ui_session_properties_get_application_stage_hint@Base 0.18.1daily13.06.21
- ubuntu_ui_session_properties_get_desktop_file_hint@Base 0.18.1daily13.06.21
- ubuntu_ui_session_snapshot_running_session_with_id@Base 0.18.1daily13.06.21
- ubuntu_ui_session_trigger_switch_to_well_known_application@Base 0.18.1daily13.06.21
- ubuntu_ui_session_unfocus_running_sessions@Base 0.18.1daily13.06.21
- ubuntu_ui_set_surface_trap@Base 0.18.1daily13.06.21
- ubuntu_ui_unset_surface_trap@Base 0.18.1daily13.06.21
  ua_location_service_controller_disable_gps@Base 0.18.3+13.10.20130826
  ua_location_service_controller_disable_service@Base 0.18.3+13.10.20130826
  ua_location_service_controller_enable_gps@Base 0.18.3+13.10.20130826
