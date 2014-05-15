@@ -287,8 +287,9 @@ void mc::BufferQueue::force_requests_to_complete()
     {
         auto const buffer = pop(ready_to_composite_queue);
         while (!ready_to_composite_queue.empty())
-            free_buffer(pop(ready_to_composite_queue));
-
+        {
+            free_buffers.push_back(pop(ready_to_composite_queue));
+        }
         give_buffer_to_client(buffer, std::move(lock));
     }
 }
@@ -380,33 +381,28 @@ void mc::BufferQueue::release(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
-    if (!pending_client_notifications.empty())
-        give_buffer_to_client(buffer, std::move(lock));
-    else
-        free_buffer(buffer);
-}
+    int used_buffers = buffers.size() - free_buffers.size();
 
-void mc::BufferQueue::free_buffer(graphics::Buffer* b)
-{
-    int used_buffers = buffers.size() - free_buffers.size() - 1;
-
-    // To avoid jittering and reallocating buffers too often (which may be
-    // very slow), only drop a buffer after it's continually been in excess
-    // for a relatively long time...
-
+    // To avoid reallocating buffers too often (which may be slow), only drop
+    // a buffer after it's continually been in excess for a long time...
+    
     if (used_buffers > min_buffers())
         ++excess;
     else
         excess = 0;
-
-    if (excess > 1000 && buffers.back().get() == b && nbuffers > 1)
+    
+    if (excess > 300 && buffers.back().get() == buffer && nbuffers > 1)
     {
         buffers.pop_back();
         excess = 0;
     }
+    else if (!pending_client_notifications.empty())
+    {
+        give_buffer_to_client(buffer, std::move(lock));
+    }
     else
     {
-        free_buffers.push_back(b);
+        free_buffers.push_back(buffer);
     }
 }
 

@@ -65,7 +65,6 @@ private:
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
     int min_buffers() const;
-    void free_buffer(graphics::Buffer*);
 
     mutable std::mutex guard;
 
