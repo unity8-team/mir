@@ -397,13 +397,9 @@ void mc::BufferQueue::release(
         excess = 0;
     }
     else if (!pending_client_notifications.empty())
-    {
         give_buffer_to_client(buffer, std::move(lock));
-    }
     else
-    {
         free_buffers.push_back(buffer);
-    }
 }
 
 /**
