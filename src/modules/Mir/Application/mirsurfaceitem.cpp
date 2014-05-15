@@ -204,6 +204,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_pendingClientBuffersCount(0)
     , m_firstFrameDrawn(false)
     , m_textureProvider(nullptr)
+    , m_pendingMirSurfaceSizeUpdate(false)
 {
     DLOG("MirSurfaceItem::MirSurfaceItem");
 
@@ -223,6 +224,14 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     // fetch surface geometry
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
+
+    // When an item is resized, you usually get a width change *and* a height change.
+    // So instead of resizing the mir surface for each individual dimension change
+    // we way until the next event loop iteration to actually perform the resize.
+    connect(this, &QQuickItem::widthChanged,
+        this, &MirSurfaceItem::requestMirSurfaceSizeUpdate);
+    connect(this, &QQuickItem::heightChanged,
+        this, &MirSurfaceItem::requestMirSurfaceSizeUpdate);
 
     if (!m_ubuntuKeyboardInfo) {
         m_ubuntuKeyboardInfo = new UbuntuKeyboardInfo;
@@ -460,6 +469,32 @@ void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*
     default:
         break;
     }
+}
+
+// Requests updateMirSurfaceSize() to be called on the next event loop iteration
+void MirSurfaceItem::requestMirSurfaceSizeUpdate()
+{
+    if (!m_pendingMirSurfaceSizeUpdate) {
+        QTimer::singleShot(0, this, SLOT(updateMirSurfaceSize()));
+        m_pendingMirSurfaceSizeUpdate = true;
+    }
+}
+
+void MirSurfaceItem::updateMirSurfaceSize()
+{
+    m_pendingMirSurfaceSizeUpdate = false;
+
+    int mirWidth = m_surface->size().width.as_int();
+    int mirHeight = m_surface->size().width.as_int();
+
+    if ((int)width() == mirWidth && (int)height() == mirHeight)
+        return;
+
+    mir::geometry::Size newMirSize((int)width(), (int)height());
+
+    qDebug() << "MirSurfaceItem::updateMirSurfaceSize width" << width()
+            << "height" << height();
+    m_surface->resize(newMirSize);
 }
 
 #include "mirsurfaceitem.moc"

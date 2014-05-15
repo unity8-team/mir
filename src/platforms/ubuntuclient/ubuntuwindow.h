@@ -19,47 +19,33 @@
 
 #include <qpa/qplatformwindow.h>
 
-#include <EGL/egl.h>
-
-// Platform API
-#include <ubuntu/application/instance.h>
-#include <ubuntu/application/ui/window.h>
-
 class UbuntuInput;
 class UbuntuScreen;
+class UbuntuWindowPrivate;
 
 class UbuntuWindow : public QPlatformWindow
 {
 public:
     UbuntuWindow(QWindow* w, UbuntuScreen* screen,
-                 UbuntuInput* input, UApplicationInstance* instance);
+                 UbuntuInput* input, void* instance);
     virtual ~UbuntuWindow();
 
     // QPlatformWindow methods.
-    WId winId() const override { return mId; }
+    WId winId() const override;
     void setGeometry(const QRect&) override;
     void setWindowState(Qt::WindowState state) override;
     void setVisible(bool visible) override;
 
     // New methods.
-    void createEGLSurface(EGLNativeWindowType nativeWindow);
-    void destroyEGLSurface();
-    EGLSurface eglSurface() const { return mEglSurface; }
-    UbuntuInput *input() { return mInput; }
+    void* eglSurface() const;
+    void handleResize(int width, int height);
 
+    UbuntuWindowPrivate* priv() { return d; }
 private:
     void createWindow();
     void moveResize(const QRect& rect);
 
-    UbuntuScreen* mScreen;
-    EGLSurface mEglSurface;
-    WId mId;
-    UbuntuInput* mInput;
-    UAUiWindow* mWindow;
-    Qt::WindowState mState;
-    QRect mGeometry;
-    UApplicationInstance* mUainstance;
-    UAUiWindowProperties* mWprops;
+    UbuntuWindowPrivate *d;
 };
 
 #endif // UBUNTU_WINDOW_H

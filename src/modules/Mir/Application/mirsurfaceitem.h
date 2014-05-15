@@ -127,6 +127,8 @@ protected:
 
 private Q_SLOTS:
     void surfaceDamaged();
+    void requestMirSurfaceSizeUpdate();
+    void updateMirSurfaceSize();
 
 private:
     bool updateTexture();
@@ -153,6 +155,8 @@ private:
     static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
 
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
+
+    bool m_pendingMirSurfaceSizeUpdate;
 
     friend class MirSurfaceManager;
 };
