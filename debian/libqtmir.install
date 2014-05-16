@@ -1,2 +1,2 @@
-usr/lib/*/libqtmir.so.*
-usr/lib/*/unity8/qml/*
+usr/lib/*/qt5/plugins/platforms/libqpa-mir*
+usr/lib/*/qt5/qml/Mir/Application/*
