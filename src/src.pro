@@ -1,4 +1,4 @@
 TEMPLATE = subdirs
 
 SUBDIRS += platforms/mirserver platforms/ubuntuclient modules/Mir/Application
-platforms_mirserver.depends = modules_Mir_Application
+modules_Mir_Application.depends = platforms_mirserver
