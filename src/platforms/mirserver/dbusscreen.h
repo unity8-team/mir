@@ -19,8 +19,10 @@
 
 // qt
 #include <QObject>
+#include <QSharedPointer>
 
-class MirServerConfiguration;
+// local
+#include "mirserverconfiguration.h"
 
 class DBusScreen : public QObject
 {
@@ -28,12 +30,12 @@ class DBusScreen : public QObject
     Q_CLASSINFO("D-Bus Interface", "com.canonical.Unity.Screen")
 
 public:
-    explicit DBusScreen(MirServerConfiguration *config, QObject *parent = 0);
+    explicit DBusScreen(const QSharedPointer<MirServerConfiguration> &config, QObject *parent = 0);
 
     Q_INVOKABLE Q_SCRIPTABLE bool setScreenPowerMode(const QString &mode);
 
 private:
-    MirServerConfiguration *m_serverConfig;
+    const QSharedPointer<MirServerConfiguration> m_serverConfig;
 };
 
 #endif // DBUSSCREEN_H

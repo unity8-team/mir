@@ -17,23 +17,25 @@
 #ifndef QMIRSERVER_H
 #define QMIRSERVER_H
 
+// Qt
 #include <QObject>
 #include <QThread>
+#include <QSharedPointer>
 
 // Mir
 #include <mir/display_server.h>
 
+// local
 #include "mirserverconfiguration.h"
-
-class MirServerConfiguration;
 
 // Wrap mir::DisplayServer with QObject, so it can be controlled via QThread
 class MirServerWorker : public QObject, public mir::DisplayServer
 {
     Q_OBJECT
+
 public:
-    MirServerWorker(MirServerConfiguration &config)
-        : mir::DisplayServer(config)
+    MirServerWorker(const QSharedPointer<MirServerConfiguration> &config)
+        : mir::DisplayServer(*config.data())
     {}
 
 Q_SIGNALS:
@@ -50,7 +52,7 @@ class QMirServer: public QObject
     Q_OBJECT
 
 public:
-    QMirServer(MirServerConfiguration*, QObject* parent=0);
+    QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject* parent=0);
     ~QMirServer();
 
 Q_SIGNALS:
@@ -58,7 +60,8 @@ Q_SIGNALS:
     void stop();
 
 protected Q_SLOTS:
-    void shutDown();
+    void shutDownMirServer();
+    void shutDownQApplication();
 
 private:
     QThread m_mirThread;

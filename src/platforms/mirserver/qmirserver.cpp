@@ -21,20 +21,19 @@
 
 // local
 #include "qmirserver.h"
-#include "mirserverconfiguration.h"
 
 
-QMirServer::QMirServer(MirServerConfiguration *config, QObject *parent)
+QMirServer::QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject *parent)
     : QObject(parent)
-    , m_mirServer(new MirServerWorker(*config))
+    , m_mirServer(new MirServerWorker(config))
 {
     m_mirServer->moveToThread(&m_mirThread);
 
     connect(this, &QMirServer::run, m_mirServer, &MirServerWorker::run);
     connect(this, &QMirServer::stop, m_mirServer, &MirServerWorker::stop);
 
-    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &QMirServer::shutDown);
-    connect(m_mirServer, &MirServerWorker::stopped, [=]() { m_mirThread.quit(); }); // &m_mirThread, &QThread::quit); // why doens't this work??
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &QMirServer::shutDownMirServer);
+    connect(m_mirServer, &MirServerWorker::stopped, this, &QMirServer::shutDownQApplication, Qt::DirectConnection); // since no event loop
 
     m_mirThread.start(QThread::TimeCriticalPriority);
     Q_EMIT run();
@@ -42,17 +41,24 @@ QMirServer::QMirServer(MirServerConfiguration *config, QObject *parent)
 
 QMirServer::~QMirServer()
 {
-    shutDown();
+    shutDownMirServer();
 }
 
-void QMirServer::shutDown()
+void QMirServer::shutDownMirServer()
 {
     if (m_mirThread.isRunning()) {
         m_mirServer->stop();
-        //Q_EMIT stop(); // why doesn't this work??
         m_mirThread.wait();
     }
+}
 
-    if (m_mirServer) 
-        delete m_mirServer;
+void QMirServer::shutDownQApplication()
+{
+    if (m_mirThread.isRunning())
+        m_mirThread.quit();
+
+    // if unexpected mir server stop, better quit the QApplication
+    if (!QCoreApplication::closingDown()) {
+        QCoreApplication::quit();
+    }
 }
