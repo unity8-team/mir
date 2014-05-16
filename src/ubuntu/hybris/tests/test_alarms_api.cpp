@@ -32,8 +32,19 @@ int main(int argc, char** argv)
     }
 
     // Alarm in two seconds.
-    timespec ts { 2, 0 };
+    timespec ts { 0, 0 };
+    clock_gettime(CLOCK_REALTIME, &ts);
 
+    int timeout_in_seconds = 5;
+
+    // Let's see if a timeout has been specified on the command line
+    if (argc > 1)
+    {
+        timeout_in_seconds = atoi(argv[1]);
+    }
+
+    // Alarm in two seconds.
+    ts.tv_sec += timeout_in_seconds;
 
     UStatus rc = u_hardware_alarm_set_relative_to_with_behavior(
         alarm,
