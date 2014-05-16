@@ -1,0 +1,63 @@
+Source: qtmir
+Section: libs
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: debhelper (>= 9),
+               pkg-config,
+               libfontconfig1-dev,
+               libglib2.0-dev,
+               libplatform-api1-dev,
+               libmirserver-dev (>= 0.1.8),
+               libmirclient-dev (>= 0.1.8),
+               libunity-api-dev (>= 7.80.6),
+               libupstart-app-launch2-dev,
+               libudev-dev,
+               libxrender-dev,
+               libxkbcommon-dev,
+               mircommon-dev,
+               qt5-default,
+               qtbase5-dev,
+               qtbase5-private-dev,
+               qtdeclarative5-dev,
+               qtdeclarative5-private-dev,
+               qtsensors5-dev,
+Standards-Version: 3.9.4
+Homepage: https://launchpad.net/qtmir
+# If you aren't a member of ~mir-team but need to upload packaging changes,
+# just go ahead. ~mir-team will notice and sync up the code again.
+Vcs-Bzr: https://code.launchpad.net/~mir-team/qtmir/trunk
+Vcs-Browser: http://bazaar.launchpad.net/~mir-team/unity-mir/trunk/files
+
+Package: libqtmir
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Replaces: libunity-mir1,
+Conflicts: libunity-mir1,
+Provides: qtmir,
+          unity-application-impl,
+          unity-application-impl-2,
+Description: Qt plugins for Unity specific Mir APIs
+ QtMir provides Qt bindings for Mir features that are not exposed 
+ through the QtUbuntu QPA plugins but needed for shell functionality.
+
+Package: libqtmir-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends},
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         libqtmir (= ${binary:Version}),
+         libupstart-app-launch2-dev,
+         libmirserver-dev (>= 0.1.8),
+         libmirclient-dev (>= 0.1.8),
+         libplatform-api1-dev,
+         qtbase5-dev,
+Description: Qt plugins for Unity specific Mir APIs - development files
+ Unity-Mir provides Qt bindings for Mir features that are not exposed 
+ through the QtUbuntu QPA plugins but needed for shell functionality.
+ .
+ This package provides the development files for libqtmir.
