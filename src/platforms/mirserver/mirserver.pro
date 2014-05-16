@@ -2,7 +2,7 @@ TARGET = qpa-mirserver
 TEMPLATE = lib
 
 QT -= gui
-QT += core-private gui-private platformsupport-private dbus
+QT += core-private gui-private platformsupport-private dbus sensors
 
 CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
