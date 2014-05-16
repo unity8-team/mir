@@ -1,8 +1,13 @@
-platform-api (0.22+14.10.20140507-0ubuntu2) utopic; urgency=medium
+platform-api (1.1.0+14.10.20140515.1-0ubuntu1) utopic; urgency=medium
 
-  * bump depends
+  [ Gerry Boland ]
+  [Daniel d'Andrada]
+  * Add ua_ui_window_get_size().
+  
+  [Gerry Boland]
+  * Bump package version to match library version.
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Thu, 15 May 2014 13:49:19 +0200
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 May 2014 17:18:39 +0000
 
 platform-api (0.21+14.10.20140507-0ubuntu1) utopic; urgency=medium
 
