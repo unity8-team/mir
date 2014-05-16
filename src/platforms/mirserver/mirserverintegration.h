@@ -26,7 +26,6 @@
 #include "mirserverconfiguration.h"
 
 class Display;
-class DBusScreen;
 class NativeInterface;
 class QMirServer;
 
@@ -69,7 +68,6 @@ private:
     QScopedPointer<QAbstractEventDispatcher> m_eventDispatcher;
 #endif
 
-    DBusScreen *m_dbusScreen;
     Display *m_display;
     QMirServer *m_mirServer;
     NativeInterface *m_nativeInterface;

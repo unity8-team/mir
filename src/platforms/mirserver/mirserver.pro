@@ -33,7 +33,6 @@ SOURCES += \
     mirserverintegration.cpp \
     miropenglcontext.cpp \
     nativeinterface.cpp \
-    dbusscreen.cpp \
     qtcompositor.cpp \
     ../common/ubuntutheme.cpp
 
@@ -56,7 +55,6 @@ HEADERS += \
     mirserverintegration.h \
     miropenglcontext.h \
     nativeinterface.h \
-    dbusscreen.h \
     qtcompositor.h \
     ../common/ubuntutheme.h
 

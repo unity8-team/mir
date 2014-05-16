@@ -47,7 +47,6 @@
 #include <csignal>
 
 // local
-#include "dbusscreen.h"
 #include "display.h"
 #include "displaywindow.h"
 #include "miropenglcontext.h"
@@ -89,8 +88,6 @@ MirServerIntegration::MirServerIntegration()
 #endif
 
     QPlatformInputContextFactory::create();
-
-    m_dbusScreen = new DBusScreen(m_mirConfig);
 }
 
 MirServerIntegration::~MirServerIntegration()
@@ -98,7 +95,6 @@ MirServerIntegration::~MirServerIntegration()
     delete m_nativeInterface;
     delete m_display;
     delete m_mirServer;
-    delete m_dbusScreen;
 }
 
 bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) const
