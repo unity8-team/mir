@@ -1,20 +1,8 @@
-qtmir (0.0.1-ppa4) utopic; urgency=medium
+qtmir (0.0.1-ppa5) utopic; urgency=medium
 
-  * ...
+  * packaging works now
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Thu, 15 May 2014 17:10:37 +0200
-
-qtmir (0.0.1-ppa3) utopic; urgency=medium
-
-  * another one
-
- -- Michael Zanetti <michael.zanetti@canonical.com>  Thu, 15 May 2014 16:20:31 +0200
-
-qtmir (0.0.1-ppa2) utopic; urgency=medium
-
-  * next try
-
- -- Michael Zanetti <michael.zanetti@canonical.com>  Thu, 15 May 2014 16:02:18 +0200
+ -- Michael Zanetti <michael.zanetti@canonical.com>  Fri, 16 May 2014 14:04:29 +0200
 
 qtmir (0.0.1-ppa1) utopic; urgency=medium
 
