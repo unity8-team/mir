@@ -821,6 +821,8 @@ TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         q.allow_framedropping(false);
 
+        // Dynamic queue scaling will limit synchronous client acquires to 1
+        // before blocking (or rather not returning an immediate buffer).
         int const max_synchronously_ownable_buffers = 1;
 
         for (int b = 0; b < max_synchronously_ownable_buffers; b++)
