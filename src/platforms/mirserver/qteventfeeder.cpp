@@ -194,11 +194,11 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
 
     // Key action
     QEvent::Type keyType;
-    if (event.action == mir_key_action_up) {
-        keyType = QEvent::KeyRelease;
-    } else if (event.action == mir_key_action_down) {
+    if (event.action == mir_key_action_down) {
         keyType = QEvent::KeyPress;
-    } else {} // mir_key_action_multiple does not correspond to a physical keypress
+    } else {
+        keyType = QEvent::KeyRelease;
+    }
 
     // Key event propagation.
     char s[2];
