@@ -62,6 +62,22 @@ bool contains(mg::Buffer const* item, std::vector<mg::Buffer*> const& list)
     return false;
 }
 
+int count_unique(std::vector<mg::Buffer*> const& list)
+{
+    int const size = list.size();
+    int count = 0;
+    for (int i = 0; i < size; ++i)
+    {
+        ++count;
+        for (int j = 0; j < i; ++j)
+        {
+            --count;
+            break;
+        }
+    }
+    return count;
+}
+
 std::shared_ptr<mg::Buffer> const&
 buffer_for(mg::Buffer const* item, std::vector<std::shared_ptr<mg::Buffer>> const& list)
 {
@@ -395,7 +411,7 @@ void mc::BufferQueue::release(
  * to avoid starving any compositors of fresh frames or starving clients of
  * any buffers at all. Typically in a multi-buffer client min_buffers will
  * be 2. However when DRM bypass is active or frame dropping enabled, the
- * result of min_buffers will be 3. If you had bypass and frame dropping
+ * result of min_buffers could be 3. If you had bypass and frame dropping
  * enabled simultaneously then required_buffers could reach 4 (LP: #1317403)
  */
 int mc::BufferQueue::min_buffers() const
@@ -407,7 +423,7 @@ int mc::BufferQueue::min_buffers() const
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
     // FIXME: LP: #1308844 / LP: #1308843 is inflating compositor_demand
-    int compositor_demand = buffers_sent_to_compositor.size();
+    int compositor_demand = count_unique(buffers_sent_to_compositor);
     int min_compositors = std::max(1, compositor_demand);
     int min_clients = std::max(1, client_demand);
     int min_free = frame_dropping_enabled ? 1 : 0;
