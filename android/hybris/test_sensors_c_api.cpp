@@ -27,10 +27,13 @@
 void on_new_accelerometer_event(UASAccelerometerEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
+    float x; uas_accelerometer_event_get_acceleration_x(event, &x);
+    float y; uas_accelerometer_event_get_acceleration_x(event, &y);
+    float z; uas_accelerometer_event_get_acceleration_x(event, &z);
     printf("\ttime: %llu\n", uas_accelerometer_event_get_timestamp(event));
-    printf("\tx: %f\n", uas_accelerometer_event_get_acceleration_x(event));
-    printf("\ty: %f\n", uas_accelerometer_event_get_acceleration_y(event));
-    printf("\tz: %f\n", uas_accelerometer_event_get_acceleration_z(event));
+    printf("\tx: %f\n", x);
+    printf("\ty: %f\n", y);
+    printf("\tz: %f\n", z);
 }
 
 void on_new_proximity_event(UASProximityEvent* event, void* context)
@@ -57,7 +60,8 @@ void on_new_light_event(UASLightEvent* event, void* context)
 {
     printf("%s \n", __PRETTY_FUNCTION__);
     printf("\ttime: %llu\n", uas_light_event_get_timestamp(event));
-    printf("\tlight: %f\n", uas_light_event_get_light(event));
+    float light; uas_light_event_get_light(event, &light);
+    printf("\tlight: %f\n", light);
 }
 
 int main(int argc, char** argv)

@@ -1,4 +1,11 @@
 libubuntu_platform_hardware_api.so.1 libubuntu-platform-hardware-api1 #MINVER#
+ u_hardware_alarm_create@Base 0replaceme
+ u_hardware_alarm_get_elapsed_real_time@Base 0replaceme
+ u_hardware_alarm_ref@Base 0replaceme
+ u_hardware_alarm_set_relative_to_with_behavior@Base 0replaceme
+ u_hardware_alarm_set_timezone@Base 0replaceme
+ u_hardware_alarm_unref@Base 0replaceme
+ u_hardware_alarm_wait_for_next_alarm@Base 0replaceme
  u_hardware_gps_delete@Base 0.18.2+13.10.20130709
  u_hardware_gps_delete_aiding_data@Base 0.18.2+13.10.20130709
  u_hardware_gps_inject_location@Base 0.18.2+13.10.20130709

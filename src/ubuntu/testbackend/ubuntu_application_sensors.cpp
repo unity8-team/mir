@@ -375,22 +375,34 @@ uint32_t ua_sensors_accelerometer_get_min_delay(UASensorsAccelerometer* s)
     return static_cast<TestSensor*>(s)->min_delay;
 }
 
-float ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer* s) __SF_FN_ATTR;
-float ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer* s)
+UStatus ua_sensors_accelerometer_get_min_value(UASensorsAccelerometer* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->min_value;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->min_value;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer* s) __SF_FN_ATTR;
-float ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer* s)
+UStatus ua_sensors_accelerometer_get_max_value(UASensorsAccelerometer* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->max_value;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->max_value;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s) __SF_FN_ATTR;
-float ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s)
+UStatus ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->resolution;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->resolution;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_accelerometer_set_reading_cb(UASensorsAccelerometer* s, on_accelerometer_event_cb cb, void* ctx)
@@ -405,22 +417,34 @@ uint64_t uas_accelerometer_event_get_timestamp(UASAccelerometerEvent* e)
     return static_cast<TestSensor*>(e)->timestamp;
 }
 
-float uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent* e) __SF_FN_ATTR;
-float uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent* e)
+UStatus uas_accelerometer_event_get_acceleration_x(UASAccelerometerEvent* e, float* value)
 {
-    return static_cast<TestSensor*>(e)->x;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(e)->x;
+
+    return U_STATUS_SUCCESS;
 }
 
-float uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent* e) __SF_FN_ATTR;
-float uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent* e)
+UStatus uas_accelerometer_event_get_acceleration_y(UASAccelerometerEvent* e, float* value)
 {
-    return static_cast<TestSensor*>(e)->y;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(e)->y;
+
+    return U_STATUS_SUCCESS;
 }
 
-float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e) __SF_FN_ATTR;
-float uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e)
+UStatus uas_accelerometer_event_get_acceleration_z(UASAccelerometerEvent* e, float* value)
 {
-    return static_cast<TestSensor*>(e)->z;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(e)->z;
+
+    return U_STATUS_SUCCESS;
 }
 
 /***************************************
@@ -452,22 +476,34 @@ uint32_t ua_sensors_proximity_get_min_delay(UASensorsProximity* s)
 }
 
 // the next three function make no sense in the API, just return zero
-float ua_sensors_proximity_get_min_value(UASensorsProximity*) __SF_FN_ATTR;
-float ua_sensors_proximity_get_min_value(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_min_value(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_proximity_get_max_value(UASensorsProximity*) __SF_FN_ATTR;
-float ua_sensors_proximity_get_max_value(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_max_value(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_proximity_get_resolution(UASensorsProximity*) __SF_FN_ATTR;
-float ua_sensors_proximity_get_resolution(UASensorsProximity*)
+UStatus ua_sensors_proximity_get_resolution(UASensorsProximity*, float* value)
 {
-    return 0.0;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_proximity_set_reading_cb(UASensorsProximity* s, on_proximity_event_cb cb, void* ctx)
@@ -516,22 +552,34 @@ uint32_t ua_sensors_light_get_min_delay(UASensorsLight* s)
     return static_cast<TestSensor*>(s)->min_delay;
 }
 
-float ua_sensors_light_get_min_value(UASensorsLight* s) __SF_FN_ATTR;
-float ua_sensors_light_get_min_value(UASensorsLight* s)
+UStatus ua_sensors_light_get_min_value(UASensorsLight* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->min_value;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->min_value;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_light_get_max_value(UASensorsLight* s) __SF_FN_ATTR;
-float ua_sensors_light_get_max_value(UASensorsLight* s)
+UStatus ua_sensors_light_get_max_value(UASensorsLight* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->max_value;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->max_value;
+
+    return U_STATUS_SUCCESS;
 }
 
-float ua_sensors_light_get_resolution(UASensorsLight* s) __SF_FN_ATTR;
-float ua_sensors_light_get_resolution(UASensorsLight* s)
+UStatus ua_sensors_light_get_resolution(UASensorsLight* s, float* value)
 {
-    return static_cast<TestSensor*>(s)->resolution;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(s)->resolution;
+
+    return U_STATUS_SUCCESS;
 }
 
 void ua_sensors_light_set_reading_cb(UASensorsLight* s, on_light_event_cb cb, void* ctx)
@@ -546,8 +594,12 @@ uint64_t uas_light_event_get_timestamp(UASLightEvent* e)
     return static_cast<TestSensor*>(e)->timestamp;
 }
 
-float uas_light_event_get_light(UASLightEvent* e) __SF_FN_ATTR;
-float uas_light_event_get_light(UASLightEvent* e)
+UStatus uas_light_event_get_light(UASLightEvent* e, float* value)
 {
-    return static_cast<TestSensor*>(e)->x;
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = static_cast<TestSensor*>(e)->x;
+
+    return U_STATUS_SUCCESS;
 }
