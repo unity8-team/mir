@@ -790,7 +790,7 @@ TEST_F(BufferQueueTest, bypass_clients_get_more_than_two_buffers)
     }
 }
 
-TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
+TEST_F(BufferQueueTest, framedropping_clients_get_multiple_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -798,7 +798,9 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
         q.allow_framedropping(true);
 
         int const nframes = 100;
-        int max_ownable_buffers = nbuffers - 1;
+        // Dynamic queue scaling sensibly limits the framedropping client to
+        // two non-overlapping buffers, before overwriting old ones.
+        int max_ownable_buffers = nbuffers <= 2 ? 1 : 2;
         std::unordered_set<uint32_t> ids_acquired;
         for (int i = 0; i < nframes; ++i)
         {
