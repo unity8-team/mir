@@ -163,14 +163,16 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     int const allocated_buffers = buffers.size();
     if (allocated_buffers < min_buffers())
     {
-        fprintf(stderr, "Grow buffers for client_acquire (%d+1)\n", allocated_buffers);
+        //fprintf(stderr, "Grow buffers for client_acquire (%d+1)\n", allocated_buffers);
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
         give_buffer_to_client(buffer.get(), std::move(lock));
         return;
     }
     else
-        fprintf(stderr, "Keep allocate buffers at %d\n", allocated_buffers);
+    {
+        //fprintf(stderr, "Keep allocate buffers at %d\n", allocated_buffers);
+    }
 
     /* Last resort, drop oldest buffer from the ready queue */
     if (frame_dropping_enabled && !ready_to_composite_queue.empty())
@@ -354,7 +356,7 @@ void mc::BufferQueue::give_buffer_to_client(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
-    fprintf(stderr, "mc::BufferQueue::give_buffer_to_client\n");
+    //fprintf(stderr, "mc::BufferQueue::give_buffer_to_client\n");
     /* Clears callback */
     auto give_to_client_cb = std::move(pending_client_notifications.front());
     pending_client_notifications.pop_front();
@@ -452,7 +454,7 @@ int mc::BufferQueue::min_buffers() const
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     int ret = std::min(nbuffers, required_buffers);
 
-#if 1
+#if 0
     fprintf(stderr, "#buffers %d\n", int(buffers.size()));
     fprintf(stderr, "min_compositors %d, min_clients %d, min_free %d\n",
         min_compositors, min_clients, min_free);

@@ -368,7 +368,6 @@ TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
     handle->release_buffer();
 
     handle = client_acquire_async(q);
-    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
     handle->release_buffer();
 
     auto comp_buffer = q.compositor_acquire(this);
@@ -614,13 +613,13 @@ TEST_F(BufferQueueTest, compositor_client_interleaved)
     handle->release_buffer();
 
     handle = client_acquire_async(q);
-    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
     // in the original bug, compositor would be given the wrong buffer here
     auto compositor_buffer = q.compositor_acquire(this);
 
     EXPECT_THAT(compositor_buffer->id(), Eq(first_ready_buffer_id));
 
+    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
     handle->release_buffer();
     q.compositor_release(compositor_buffer);
 }
