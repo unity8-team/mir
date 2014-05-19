@@ -71,8 +71,11 @@ int count_unique(std::vector<mg::Buffer*> const& list)
         ++count;
         for (int j = 0; j < i; ++j)
         {
-            --count;
-            break;
+            if (list[j] == list[i])
+            {
+                --count;
+                break;
+            }
         }
     }
     return count;
