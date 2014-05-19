@@ -34,7 +34,7 @@ class MirServerConfiguration : public QObject, public mir::DefaultServerConfigur
 
 public:
     MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
-    ~MirServerConfiguration();
+    ~MirServerConfiguration() = default;
 
     /* mir specific */
     std::shared_ptr<mir::compositor::Compositor> the_compositor() override;

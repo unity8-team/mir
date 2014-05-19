@@ -18,7 +18,7 @@
 
 #include "nativeinterface.h"
 
-NativeInterface::NativeInterface(MirServerConfiguration *config)
+NativeInterface::NativeInterface(const QSharedPointer<MirServerConfiguration> &config)
     : m_mirConfig(config)
 {
 }

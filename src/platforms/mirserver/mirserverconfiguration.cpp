@@ -38,10 +38,6 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
     DLOG("MirServerConfiguration created");
 }
 
-MirServerConfiguration::~MirServerConfiguration()
-{
-}
-
 std::shared_ptr<ms::PlacementStrategy>
 MirServerConfiguration::the_placement_strategy()
 {

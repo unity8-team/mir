@@ -121,7 +121,7 @@ private:
     Application* m_focusedApplication; // remove as Mir has API for this
     Application* m_applicationToBeFocused; // a basic form of focus stealing prevention
     QStringList m_lifecycleExceptions;
-    MirServerConfiguration* m_mirConfig;
+    QSharedPointer<MirServerConfiguration> m_mirConfig;
     DBusWindowStack* m_dbusWindowStack;
     QScopedPointer<TaskController> m_taskController;
     static ApplicationManager* the_application_manager;

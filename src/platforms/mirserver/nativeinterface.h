@@ -20,6 +20,7 @@
 #define NATIVEINTEGRATION_H
 
 // qt
+#include <QSharedPointer>
 #include <qpa/qplatformnativeinterface.h>
 
 // local
@@ -28,11 +29,11 @@
 class NativeInterface : public QPlatformNativeInterface
 {
 public:
-    NativeInterface(MirServerConfiguration*);
+    NativeInterface(const QSharedPointer<MirServerConfiguration> &);
 
     virtual void *nativeResourceForIntegration(const QByteArray &resource);
 
-    MirServerConfiguration *m_mirConfig;
+    QSharedPointer<MirServerConfiguration> m_mirConfig;
 };
 
 #endif // NATIVEINTEGRATION_H

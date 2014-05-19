@@ -23,12 +23,11 @@
 #include <qpa/qplatformintegration.h>
 
 // local
-#include "qmirserver.h"
 #include "mirserverconfiguration.h"
-#include "display.h"
-#include "nativeinterface.h"
 
-class DBusScreen;
+class Display;
+class NativeInterface;
+class QMirServer;
 
 class MirServerIntegration : public QPlatformIntegration
 {
@@ -60,17 +59,18 @@ public:
     QPlatformNativeInterface *nativeInterface() const override;
 
 private:
+    QSharedPointer<MirServerConfiguration> m_mirConfig;
+
     QScopedPointer<QPlatformAccessibility> m_accessibility;
     QScopedPointer<QPlatformFontDatabase> m_fontDb;
     QScopedPointer<QPlatformServices> m_services;
-    QMirServer *m_mirServer;
-    Display *m_display;
-    MirServerConfiguration *m_mirConfig;
-    NativeInterface *m_nativeInterface;
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
-    QAbstractEventDispatcher* eventDispatcher_;
+    QScopedPointer<QAbstractEventDispatcher> m_eventDispatcher;
 #endif
-    DBusScreen *m_dbusScreen;
+
+    Display *m_display;
+    QMirServer *m_mirServer;
+    NativeInterface *m_nativeInterface;
 };
 
 #endif // MIRSERVERINTEGRATION_H

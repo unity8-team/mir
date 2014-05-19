@@ -29,14 +29,14 @@ class Display : public QObject
 {
     Q_OBJECT
 public:
-    Display(mir::DefaultServerConfiguration*, QObject *parent = 0);
+    Display(const QSharedPointer<mir::DefaultServerConfiguration> &config, QObject *parent = 0);
     ~Display();
 
     QList<QPlatformScreen *> screens() const { return m_screens; }
 
 private:
     QList<QPlatformScreen *> m_screens;
-    mir::DefaultServerConfiguration* m_mirConfig;
+    const QSharedPointer<mir::DefaultServerConfiguration> m_mirConfig;
 };
 
 #endif // DISPLAY_H

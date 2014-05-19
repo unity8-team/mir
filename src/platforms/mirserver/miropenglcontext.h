@@ -27,14 +27,14 @@
 #include <QOpenGLDebugLogger>
 #endif
 
-namespace mir { class DefaultServerConfiguration; }
+#include <mir/default_server_configuration.h>
 
 class MirOpenGLContext : public QObject, public QPlatformOpenGLContext
 {
     Q_OBJECT
 public:
-    MirOpenGLContext(mir::DefaultServerConfiguration *, QSurfaceFormat);
-    ~MirOpenGLContext();
+    MirOpenGLContext(const QSharedPointer<mir::DefaultServerConfiguration> &, const QSurfaceFormat &);
+    ~MirOpenGLContext() = default;
 
     QSurfaceFormat format() const override;
     void swapBuffers(QPlatformSurface *surface) override;
@@ -52,7 +52,7 @@ public:
 #endif
 
 private:
-    mir::DefaultServerConfiguration *m_mirConfig;
+    const QSharedPointer<mir::DefaultServerConfiguration> m_mirConfig;
     QSurfaceFormat m_format;
 #if GL_DEBUG
     QOpenGLDebugLogger *m_logger;

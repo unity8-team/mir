@@ -34,10 +34,10 @@
 // The Mir "Display" generates a shared GL context for all DisplayBuffers
 // (i.e. individual display output buffers) to use as a common base context.
 
-MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSurfaceFormat format)
+MirOpenGLContext::MirOpenGLContext(const QSharedPointer<mir::DefaultServerConfiguration> &config, const QSurfaceFormat &format)
     : m_mirConfig(config)
 #if GL_DEBUG
-    , m_logger(new QOpenGLDebugLogger)
+    , m_logger(new QOpenGLDebugLogger(this))
 #endif
 {
     std::shared_ptr<mir::graphics::Display> display = m_mirConfig->the_display();
@@ -95,10 +95,6 @@ MirOpenGLContext::MirOpenGLContext(mir::DefaultServerConfiguration *config, QSur
 #endif // debug
 }
 
-MirOpenGLContext::~MirOpenGLContext()
-{
-}
-
 QSurfaceFormat MirOpenGLContext::format() const
 {
     return m_format;
@@ -138,6 +134,5 @@ void MirOpenGLContext::doneCurrent()
 
 QFunctionPointer MirOpenGLContext::getProcAddress(const QByteArray &procName)
 {
-    qDebug() << "MirOpenGLContext::getProcAddress" << procName;
-    return eglGetProcAddress(procName.constData()); // Mir might want to wrap this?
+    return eglGetProcAddress(procName.constData());
 }

@@ -47,11 +47,11 @@
 #include <csignal>
 
 // local
+#include "display.h"
 #include "displaywindow.h"
-#include "qmirserver.h"
-#include "mirserverconfiguration.h"
 #include "miropenglcontext.h"
-#include "dbusscreen.h"
+#include "nativeinterface.h"
+#include "qmirserver.h"
 #include "../common/ubuntutheme.h"
 
 namespace mg = mir::graphics;
@@ -60,12 +60,12 @@ MirServerIntegration::MirServerIntegration()
     : m_accessibility(new QPlatformAccessibility())
     , m_fontDb(new QGenericUnixFontDatabase())
     , m_services(new QPlatformServices())
-    , m_mirServer(nullptr)
-    , m_display(nullptr)
-    , m_nativeInterface(nullptr)
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
-    , eventDispatcher_(createUnixEventDispatcher())
+    , m_eventDispatcher(createUnixEventDispatcher())
 #endif
+    , m_display(nullptr)
+    , m_mirServer(nullptr)
+    , m_nativeInterface(nullptr)
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 
@@ -77,9 +77,10 @@ MirServerIntegration::MirServerIntegration()
         argv[i] = new char[strlen(args.at(i).toStdString().c_str())+1];
         memcpy(argv[i], args.at(i).toStdString().c_str(), strlen(args.at(i).toStdString().c_str())+1);
     }
-    argv[args.size()] = ((char)NULL);
+    argv[args.size()] = '\0';
 
-    m_mirConfig = new MirServerConfiguration(args.length(), const_cast<const char**>(argv));
+    m_mirConfig = QSharedPointer<MirServerConfiguration>(
+                      new MirServerConfiguration(args.length(), const_cast<const char**>(argv)));
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
     QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);
@@ -87,13 +88,13 @@ MirServerIntegration::MirServerIntegration()
 #endif
 
     QPlatformInputContextFactory::create();
-
-    m_dbusScreen = new DBusScreen(m_mirConfig);
 }
 
 MirServerIntegration::~MirServerIntegration()
 {
-    delete m_mirConfig;
+    delete m_nativeInterface;
+    delete m_display;
+    delete m_mirServer;
 }
 
 bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) const
@@ -169,7 +170,7 @@ void MirServerIntegration::initialize()
     {SIGINT, SIGTERM},
     [&](int)
     {
-        qDebug() << "Signal caught, stopping Mir server..";
+        qDebug() << "Signal caught by Mir, stopping Mir server..";
         QCoreApplication::quit();
     });
 }
@@ -189,7 +190,7 @@ QStringList MirServerIntegration::themeNames() const
     return QStringList(UbuntuTheme::name);
 }
 
-QPlatformTheme* MirServerIntegration::createPlatformTheme(const QString& name) const
+QPlatformTheme *MirServerIntegration::createPlatformTheme(const QString& name) const
 {
     Q_UNUSED(name);
     return new UbuntuTheme;

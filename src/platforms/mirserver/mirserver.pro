@@ -2,7 +2,7 @@ TARGET = qpa-mirserver
 TEMPLATE = lib
 
 QT -= gui
-QT += core-private gui-private platformsupport-private dbus
+QT += core-private gui-private platformsupport-private dbus sensors
 
 CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
@@ -33,7 +33,6 @@ SOURCES += \
     mirserverintegration.cpp \
     miropenglcontext.cpp \
     nativeinterface.cpp \
-    dbusscreen.cpp \
     qtcompositor.cpp \
     ../common/ubuntutheme.cpp
 
@@ -56,7 +55,6 @@ HEADERS += \
     mirserverintegration.h \
     miropenglcontext.h \
     nativeinterface.h \
-    dbusscreen.h \
     qtcompositor.h \
     ../common/ubuntutheme.h
 
