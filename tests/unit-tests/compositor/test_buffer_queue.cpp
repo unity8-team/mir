@@ -821,9 +821,9 @@ TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         q.allow_framedropping(false);
 
-        int const max_ownable_buffers = nbuffers - 1;
+        int const max_synchronously_ownable_buffers = 1;
 
-        for (int b = 0; b < max_ownable_buffers; b++)
+        for (int b = 0; b < max_synchronously_ownable_buffers; b++)
         {
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
