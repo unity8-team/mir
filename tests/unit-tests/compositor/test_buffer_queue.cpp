@@ -294,18 +294,12 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties);
 
-    for (int i = 0; i < nbuffers - 1; ++i)
-    {
-        auto handle = client_acquire_async(q);
-        ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-        handle->release_buffer();
-    }
+    auto handle = client_acquire_async(q);
+    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
+    handle->release_buffer();
 
     auto handle1 = client_acquire_async(q);
-    ASSERT_THAT(handle1->has_acquired_buffer(), Eq(false));
-
     auto handle2 = client_acquire_async(q);
-    ASSERT_THAT(handle1->has_acquired_buffer(), Eq(false));
 
     for (int i = 0; i < nbuffers + 1; ++i)
         q.compositor_release(q.compositor_acquire(this));
