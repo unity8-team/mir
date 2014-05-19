@@ -1272,9 +1272,9 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         /* Hold a reference to current compositor buffer*/
         auto comp_buffer1 = q.compositor_acquire(main_compositor);
 
-        /* Make nbuffers -1 ready to composite */
-        int const max_ownable_buffers = nbuffers - 1;
-        for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
+        /* Dynamic queue scaling lets a synchronous client only prefill 1 */
+        int const max_ownable_sync_buffers = 1;
+        for (int acquires = 0; acquires < max_ownable_sync_buffers; ++acquires)
         {
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
@@ -1296,10 +1296,11 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
            compositor_thread, std::ref(q), std::ref(done));
 
         std::unordered_set<mg::Buffer *> unique_buffers_acquired;
-        for (int frame = 0; frame < max_ownable_buffers*2; frame++)
+        int const max_ownable_async_buffers = nbuffers - 1;
+        for (int frame = 0; frame < max_ownable_async_buffers*2; frame++)
         {
             std::vector<mg::Buffer *> client_buffers;
-            for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
+            for (int acquires = 0; acquires < max_ownable_async_buffers; ++acquires)
             {
                 auto handle = client_acquire_async(q);
                 handle->wait_for(std::chrono::seconds(1));
