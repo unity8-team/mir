@@ -14,7 +14,7 @@ QMAKE_CXXFLAGS_RELEASE += -Werror  # so no stop on warning in debug builds
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 CONFIG   += link_pkgconfig
-PKGCONFIG += mircommon mirserver mirclient egl
+PKGCONFIG += mircommon mirserver mirclient egl xkbcommon
 
 SOURCES += \
     qteventfeeder.cpp \
