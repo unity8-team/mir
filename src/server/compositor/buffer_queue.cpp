@@ -62,6 +62,7 @@ bool contains(mg::Buffer const* item, std::vector<mg::Buffer*> const& list)
     return false;
 }
 
+#if 0
 int count_unique(std::vector<mg::Buffer*> const& list)
 {
     int const size = list.size();
@@ -80,6 +81,7 @@ int count_unique(std::vector<mg::Buffer*> const& list)
     }
     return count;
 }
+#endif
 
 std::shared_ptr<mg::Buffer> const&
 buffer_for(mg::Buffer const* item, std::vector<std::shared_ptr<mg::Buffer>> const& list)
@@ -115,6 +117,7 @@ mc::BufferQueue::BufferQueue(
     graphics::BufferProperties const& props)
     : nbuffers{nbuffers},
       excess{0},
+      overlapping_compositors{false},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -236,6 +239,11 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     }
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
+
+    // Detect bypassing compositors (those that need to hold multiple different
+    // buffers simultaneously).
+    overlapping_compositors = buffers_sent_to_compositor.size() >
+                              current_buffer_users.size();
 
     std::shared_ptr<mg::Buffer> const acquired_buffer =
         buffer_for(current_compositor_buffer, buffers);
@@ -448,7 +456,7 @@ int mc::BufferQueue::min_buffers() const
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
     // FIXME: LP: #1308844 / LP: #1308843 is inflating compositor_demand
-    int compositor_demand = count_unique(buffers_sent_to_compositor);
+    int compositor_demand = overlapping_compositors ? 2 : 1;
     int min_compositors = std::max(1, compositor_demand);
     int min_clients = std::max(1, client_demand);
     int min_free = frame_dropping_enabled ? 1 : 0;

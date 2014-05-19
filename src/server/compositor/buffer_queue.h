@@ -82,6 +82,7 @@ private:
 
     int nbuffers;
     int excess;
+    bool overlapping_compositors;
     bool frame_dropping_enabled;
     graphics::BufferProperties the_properties;
 
