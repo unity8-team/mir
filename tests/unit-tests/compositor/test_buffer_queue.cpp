@@ -988,6 +988,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         mg::BufferID history[5];
+        std::shared_ptr<AcquireWaitHandle> producing[5];
 
         const int width0 = 123;
         const int height0 = 456;
@@ -1007,9 +1008,16 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             history[produce] = handle->id();
+            producing[produce] = handle;
             auto buffer = handle->buffer();
             ASSERT_THAT(buffer->size(), Eq(new_size));
-            handle->release_buffer();
+        }
+
+        // Overlap all the client_acquires asyncronously. It's the only way
+        // the new dynamic queue scaling will let a client hold that many...
+        for (int complete = 0; complete < nbuffers_to_use; ++complete)
+        {
+            producing[complete]->release_buffer();
         }
 
         width = width0;
