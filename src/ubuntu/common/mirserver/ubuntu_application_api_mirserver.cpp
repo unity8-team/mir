@@ -291,6 +291,13 @@ void ua_ui_window_destroy(UAUiWindow* u_window)
     delete window;
 }
 
+void ua_ui_window_get_size(UAUiWindow* u_window, uint32_t *width, uint32_t *height)
+{
+    (void) u_window;
+    (void) width;
+    (void) height;
+}
+
 UStatus ua_ui_window_move(UAUiWindow* window, uint32_t x, uint32_t y)
 {
     // TODO<mir,papi>: Implement. But should this exist?

@@ -110,6 +110,7 @@ IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_dimensions, UAUiWindowPrope
 // UAUiWindow
 IMPLEMENT_FUNCTION2(UAUiWindow*, ua_ui_window_new_for_application_with_properties, UApplicationInstance*, UAUiWindowProperties*);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_window_destroy, UAUiWindow*);
+IMPLEMENT_VOID_FUNCTION3(ua_ui_window_get_size, UAUiWindow*, uint32_t*, uint32_t*);
 IMPLEMENT_FUNCTION3(UStatus, ua_ui_window_move, UAUiWindow*, uint32_t, uint32_t);
 IMPLEMENT_FUNCTION3(UStatus, ua_ui_window_resize, UAUiWindow*, uint32_t, uint32_t);
 IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_hide, UAUiWindow*);

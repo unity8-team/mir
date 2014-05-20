@@ -320,7 +320,7 @@ void ua_ui_window_destroy(UAUiWindow* u_window)
     delete window;
 }
 
-void ua_ui_window_get_size(UAUiWindow *u_window, uint32_t *width, uint32_t *height)
+void ua_ui_window_get_size(UAUiWindow* u_window, uint32_t *width, uint32_t *height)
 {
     auto window = uamc::Window::from_u_window(u_window);
     window->get_size(width, height);
