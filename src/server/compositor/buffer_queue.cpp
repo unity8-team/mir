@@ -211,13 +211,17 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         current_buffer_users.push_back(user_id);
         current_compositor_buffer = pop(ready_to_composite_queue);
     }
+    else if (current_buffer_users.empty())
+    {   // current_buffer_users and ready_to_composite_queue both empty
+        current_buffer_users.push_back(user_id);
+    }
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
     // Detect bypassing compositors (those that need to hold multiple different
     // buffers simultaneously).
-    overlapping_compositors = buffers_sent_to_compositor.size() >
-                              current_buffer_users.size();
+    overlapping_compositors =
+        buffers_sent_to_compositor.size() > current_buffer_users.size();
 
     std::shared_ptr<mg::Buffer> const acquired_buffer =
         buffer_for(current_compositor_buffer, buffers);
@@ -438,7 +442,7 @@ int mc::BufferQueue::min_buffers() const
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     int ret = std::min(nbuffers, required_buffers);
 
-#if 0
+#if 1
     fprintf(stderr, "#buffers %d\n", int(buffers.size()));
     fprintf(stderr, "min_compositors %d, min_clients %d, min_free %d\n",
         min_compositors, min_clients, min_free);
