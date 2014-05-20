@@ -146,3 +146,11 @@ void uamc::Window::set_state(const UApplicationUiWindowState state)
 {
     mir_surface_set_state(surface.get(), static_cast<MirSurfaceState>(state));
 }
+
+void uamc::Window::get_size(uint32_t *width, uint32_t *height)
+{
+    MirSurfaceParameters parameters;
+    mir_surface_get_parameters(surface.get(), &parameters);
+    *width = parameters.width;
+    *height = parameters.height;
+}
