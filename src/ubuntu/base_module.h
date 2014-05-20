@@ -48,10 +48,20 @@ struct HIDDEN_SYMBOL ToBackend
 
         return cache;
     }
+
+    static void* dlopen_fn(const char* path, int flags)
+    {
+        return dlopen(path, flags);
+    }
+
+    static void* dlsym_fn(void* handle, const char* symbol)
+    {
+        return dlsym(handle, symbol);
+    }
 };
 }
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<ToBackend>::instance().resolve_symbol(sym); }
+#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToBackend>::instance().resolve_symbol(sym); }
 
 #include <bridge_defs.h>
 

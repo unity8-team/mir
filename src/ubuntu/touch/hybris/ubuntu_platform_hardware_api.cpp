@@ -21,7 +21,7 @@
 #include <ubuntu/hardware/alarm.h>
 #include <ubuntu/hardware/gps.h>
 
-#include "bridge.h"
+#include "hybris_module.h"
 
 // Hardware - GPS
 IMPLEMENT_FUNCTION1(

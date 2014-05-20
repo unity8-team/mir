@@ -42,22 +42,12 @@ class HIDDEN_SYMBOL Bridge
 
     void* resolve_symbol(const char* symbol) const
     {
-        return dlsym_fn(lib_handle, symbol);
+        return Scope::dlsym_fn(lib_handle, symbol);
     }
 
   protected:
-    Bridge() : lib_handle(android_dlopen(Scope::path(), RTLD_LAZY))
+    Bridge() : lib_handle(Scope::dlopen_fn(Scope::path(), RTLD_LAZY))
     {
-        const char* path = Scope::path();
-        /* use Android dl functions for Android libs in /system/, glibc dl
-         * functions for others */
-        if (strncmp(path, "/system/", 8) == 0) {
-            lib_handle = android_dlopen(path, RTLD_LAZY);
-            dlsym_fn = android_dlsym;
-        } else {
-            lib_handle = dlopen(path, RTLD_LAZY);
-            dlsym_fn = dlsym;
-        }
     }
 
     ~Bridge()
@@ -65,7 +55,6 @@ class HIDDEN_SYMBOL Bridge
     }
 
     void* lib_handle;
-    void* (*dlsym_fn) (void*, const char*);
 };
 }
 

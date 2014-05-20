@@ -37,7 +37,7 @@
 
 #include <ubuntu/application/init.h>
 
-#include "bridge.h"
+#include "base_module.h"
 
 #ifdef __cplusplus
 extern "C" {

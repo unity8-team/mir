@@ -29,7 +29,7 @@
 #include <ubuntu/application/ui/clipboard.h>
 #include <ubuntu/application/ui/display.h>
 
-#include "bridge.h"
+#include "hybris_module.h"
 
 #ifdef __cplusplus
 extern "C" {

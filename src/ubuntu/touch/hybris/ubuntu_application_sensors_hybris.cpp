@@ -21,7 +21,7 @@
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
 
-#include "bridge.h"
+#include "hybris_module.h"
 
 // Ubuntu Application Sensors
 

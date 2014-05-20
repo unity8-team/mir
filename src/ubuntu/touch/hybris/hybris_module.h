@@ -41,10 +41,20 @@ struct HIDDEN_SYMBOL ToHybris
         static const char* cache = "/system/lib/libubuntu_application_api.so";
         return cache;
     }
+
+    static void* dlopen_fn(const char* path, int flags)
+    {
+        return android_dlopen(path, flags);
+    }
+
+    static void* dlsym_fn(void* handle, const char* symbol)
+    {
+        return android_dlsym(handle, symbol);
+    }
 };
 }
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<ToHybris>::instance().resolve_symbol(sym); }
+#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToHybris>::instance().resolve_symbol(sym); }
 
 #include <bridge_defs.h>
 

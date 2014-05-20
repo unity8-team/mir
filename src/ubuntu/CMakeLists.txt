@@ -5,6 +5,12 @@ set(
   ubuntu_application_url_dispatcher
 )
 
+include_directories(
+  ${CMAKE_BINARY_DIR}/include
+)
+
+include_directories(../bridge)
+
 add_subdirectory(common)
 add_subdirectory(desktop)
 add_subdirectory(touch)
@@ -16,11 +22,6 @@ add_library(
   ubuntu_application_api SHARED
   
   ubuntu_application_api.cpp
-)
-
-include_directories(
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_BINARY_DIR}/src/bridge
 )
 
 target_link_libraries(
