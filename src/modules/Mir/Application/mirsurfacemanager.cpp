@@ -84,10 +84,14 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     auto qmlSurface = new MirSurfaceItem(surface, application);
     m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
 
+    bool wasEmpty = isEmpty();
     beginInsertRows(QModelIndex(), 0, 0);
     m_surfaceItems.prepend(qmlSurface);
     endInsertRows();
     emit countChanged();
+    if (wasEmpty && !isEmpty()) {
+        emit emptyChanged();
+    }
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
@@ -101,10 +105,14 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
 
         int i = m_surfaceItems.indexOf(mirSurfaceItem);
         if (i != -1) {
+            bool wasEmpty = isEmpty();
             beginRemoveRows(QModelIndex(), i, i);
             m_surfaceItems.removeAt(i);
             endRemoveRows();
             emit countChanged();
+            if (!wasEmpty && isEmpty()) {
+                emit emptyChanged();
+            }
         }
     });
 }
@@ -125,10 +133,14 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
 
         int i = m_surfaceItems.indexOf(item);
         if (i != -1) {
+            bool wasEmpty = isEmpty();
             beginRemoveRows(QModelIndex(), i, i);
             m_surfaceItems.removeAt(i);
             endRemoveRows();
             emit countChanged();
+            if (!wasEmpty && isEmpty()) {
+                emit emptyChanged();
+            }
         }
         return;
     }

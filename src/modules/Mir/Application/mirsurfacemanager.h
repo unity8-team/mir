@@ -40,6 +40,7 @@ class MirSurfaceManager : public QAbstractListModel
 
     Q_ENUMS(Roles)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
     enum Roles {
@@ -57,6 +58,7 @@ public:
     QHash<int, QByteArray> roleNames() const override { return m_roleNames; }
 
     int count() const { return rowCount(); }
+    bool isEmpty() const { return rowCount() == 0; }
     Q_INVOKABLE void move(int from, int to);
 
     Q_INVOKABLE int getIndexOfSurfaceWithAppId(const QString &appId) const;
@@ -68,6 +70,7 @@ Q_SIGNALS:
     void surfaceDestroyed(MirSurfaceItem* surface);
 //    void surfaceResized(MirSurface*);
 //    void fullscreenSurfaceChanged();
+    void emptyChanged();
 
 public Q_SLOTS:
     void onSessionCreatedSurface(mir::scene::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
