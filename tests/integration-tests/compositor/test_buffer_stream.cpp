@@ -91,11 +91,19 @@ struct BufferStreamTest : public ::testing::Test
 
 }
 
-TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
+TEST_F(BufferStreamTest, DISABLED_gives_same_back_buffer_until_more_available)
 {
     mg::Buffer* client1{nullptr};
     buffer_stream.swap_client_buffers_blocking(client1);
     auto client1_id = client1->id();
+    // FIXME: This test is no longer runnable as the following client acquire
+    //        now correctly blocks, so needs to be avoided. But at the same
+    //        time BufferStream requires that we call
+    //        swap_client_buffers_blocking to release the first client buffer
+    //        to the compositors.
+    //        So we mustn't call it, because it will block; and we must call
+    //        it because it's the only way BufferStream lets us release the
+    //        first client. TODO: Fix BufferStream?
     buffer_stream.swap_client_buffers_blocking(client1);
 
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
