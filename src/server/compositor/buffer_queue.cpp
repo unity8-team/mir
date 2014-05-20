@@ -62,27 +62,6 @@ bool contains(mg::Buffer const* item, std::vector<mg::Buffer*> const& list)
     return false;
 }
 
-#if 0
-int count_unique(std::vector<mg::Buffer*> const& list)
-{
-    int const size = list.size();
-    int count = 0;
-    for (int i = 0; i < size; ++i)
-    {
-        ++count;
-        for (int j = 0; j < i; ++j)
-        {
-            if (list[j] == list[i])
-            {
-                --count;
-                break;
-            }
-        }
-    }
-    return count;
-}
-#endif
-
 std::shared_ptr<mg::Buffer> const&
 buffer_for(mg::Buffer const* item, std::vector<std::shared_ptr<mg::Buffer>> const& list)
 {
@@ -169,15 +148,10 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     int const allocated_buffers = buffers.size();
     if (allocated_buffers < min_buffers())
     {
-        //fprintf(stderr, "Grow buffers for client_acquire (%d+1)\n", allocated_buffers);
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
         give_buffer_to_client(buffer.get(), std::move(lock));
         return;
-    }
-    else
-    {
-        //fprintf(stderr, "Keep allocate buffers at %d\n", allocated_buffers);
     }
 
     /* Last resort, drop oldest buffer from the ready queue */
@@ -367,7 +341,6 @@ void mc::BufferQueue::give_buffer_to_client(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
-    //fprintf(stderr, "mc::BufferQueue::give_buffer_to_client\n");
     /* Clears callback */
     auto give_to_client_cb = std::move(pending_client_notifications.front());
     pending_client_notifications.pop_front();
