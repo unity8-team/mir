@@ -43,7 +43,6 @@ struct HIDDEN_SYMBOL ToBackend
                 printf("UBUNTU PLATFORM API BACKEND NOT SELECTED -- Aborting\n");
                 abort();
             }
-            printf("UBUNTU_PLATFORM_API_BACKEND=%s\n", cache);
         }
 
         return cache;
