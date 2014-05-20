@@ -294,9 +294,13 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties);
 
-    auto handle = client_acquire_async(q);
-    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-    handle->release_buffer();
+    int const prefill = q.buffers_free_for_client();
+    for (int i = 0; i < prefill; ++i)
+    {
+        auto handle = client_acquire_async(q);
+        ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
+        handle->release_buffer();
+    }
 
     auto handle1 = client_acquire_async(q);
     auto handle2 = client_acquire_async(q);
@@ -821,11 +825,9 @@ TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         q.allow_framedropping(false);
 
-        // Dynamic queue scaling will limit synchronous client acquires to 1
-        // before blocking (or rather not returning an immediate buffer).
-        int const max_synchronously_ownable_buffers = 1;
+        int const max_ownable_buffers = q.buffers_free_for_client();
 
-        for (int b = 0; b < max_synchronously_ownable_buffers; b++)
+        for (int b = 0; b < max_ownable_buffers; b++)
         {
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
@@ -1280,9 +1282,8 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         /* Hold a reference to current compositor buffer*/
         auto comp_buffer1 = q.compositor_acquire(main_compositor);
 
-        /* Dynamic queue scaling lets a synchronous client only prefill 1 */
-        int const max_ownable_sync_buffers = 1;
-        for (int acquires = 0; acquires < max_ownable_sync_buffers; ++acquires)
+        int const prefill = q.buffers_free_for_client();
+        for (int acquires = 0; acquires < prefill; ++acquires)
         {
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
@@ -1304,11 +1305,11 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
            compositor_thread, std::ref(q), std::ref(done));
 
         std::unordered_set<mg::Buffer *> unique_buffers_acquired;
-        int const max_ownable_async_buffers = nbuffers - 1;
-        for (int frame = 0; frame < max_ownable_async_buffers*2; frame++)
+        int const max_ownable_buffers = nbuffers - 1;
+        for (int frame = 0; frame < max_ownable_buffers*2; frame++)
         {
             std::vector<mg::Buffer *> client_buffers;
-            for (int acquires = 0; acquires < max_ownable_async_buffers; ++acquires)
+            for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
             {
                 auto handle = client_acquire_async(q);
                 handle->wait_for(std::chrono::seconds(1));
