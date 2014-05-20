@@ -20,6 +20,7 @@ add_library(
 
 include_directories(
   ${CMAKE_BINARY_DIR}/include
+  ${CMAKE_BINARY_DIR}/src/bridge
 )
 
 target_link_libraries(

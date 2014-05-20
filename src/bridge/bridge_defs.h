@@ -16,77 +16,10 @@
  * Authored by: Thomas Voss <thomas.voss@canonical.com>
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
-#ifndef BASE_BRIDGE_H_
-#define BASE_BRIDGE_H_
+#ifndef BRIDGE_DEFS_H_
+#define BRIDGE_DEFS_H_
 
-#include <assert.h>
-#include <dlfcn.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
-
-/*
- * This is the base backend loader for the Platform API
- */
-
-namespace internal
-{
-
-/* By default we load the backend from /system/lib/libubuntu_application_api.so
- * Programs can select a different backend with $UBUNTU_PLATFORM_API_BACKEND,
- * which either needs to be a full path or just the file name (then it will be
- * looked up in the usual library search path, see dlopen(3)).
- */
-struct HIDDEN_SYMBOL ToApplication
-{
-    static const char* path()
-    {
-        static const char* cache = NULL;
-
-        if (cache == NULL) {
-            cache = secure_getenv("UBUNTU_PLATFORM_API_BACKEND");
-            if (cache == NULL) {
-                printf("UBUNTU PLATFORM API BACKEND NOT SELECTED -- Aborting\n");
-                abort();
-            }
-            printf("UBUNTU_PLATFORM_API_BACKEND=%s\n", cache);
-        }
-
-        return cache;
-    }
-};
-
-template<typename Scope = ToApplication>
-class HIDDEN_SYMBOL Bridge
-{
-  public:
-    static Bridge<Scope>& instance()
-    { 
-        static Bridge<Scope> bridge; 
-        return bridge; 
-    }
-
-    void* resolve_symbol(const char* symbol) const
-    {
-        return dlsym(lib_handle, symbol);
-    }
-
-  protected:
-    Bridge() : lib_handle(dlopen(Scope::path(), RTLD_LAZY))
-    {
-    }
-
-    ~Bridge()
-    {
-    }
-
-    void* lib_handle;
-};
-
-}
+// Must be included afterthe Bridge class is defined
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,8 +28,6 @@ extern "C" {
 /**********************************************************/
 /*********** Implementation starts here *******************/
 /**********************************************************/
-
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<>::instance().resolve_symbol(sym); }
 
 // this allows DLSYM to return NULL (happens if the backend is not available),
 // and returns NULL in that case; return_type must be a pointer!
@@ -202,4 +133,4 @@ extern "C" {
 }
 #endif
 
-#endif // BRIDGE_H_
+#endif // BRIDGE_DEFS_H_
