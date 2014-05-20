@@ -29,7 +29,7 @@ Vcs-Browser: https://code.launchpad.net/platform-api
 Package: libubuntu-application-api-headers
 Section: libdevel
 Architecture: any
-Replaces: libplatform-api1-headers
+Replaces: libplatform-api-headers
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -164,7 +164,7 @@ Description: test implementation of the Platform API
  .
  For now this provides simulated sensors.
 
-Package: ubuntu-application-api-touch2-examples
+Package: ubuntu-application-api2-touch-examples
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},

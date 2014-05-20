@@ -5,6 +5,12 @@ add_library(
   ubuntu_application_sensors.cpp
 )
 
+target_link_libraries(
+  ubuntu_application_api_test
+
+  rt
+)
+
 set_target_properties(
   ubuntu_application_api_test
   PROPERTIES

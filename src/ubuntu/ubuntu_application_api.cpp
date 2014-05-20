@@ -17,10 +17,6 @@
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
-//#include <private/application/ui/ubuntu_application_ui.h>
-
-#include <ubuntu/ui/ubuntu_ui_session_service.h>
-
 // C APIs
 #include <ubuntu/application/lifecycle_delegate.h>
 #include <ubuntu/application/ui/window.h>
@@ -38,8 +34,6 @@
 #include <ubuntu/application/location/velocity_update.h>
 
 #include <ubuntu/application/url_dispatcher/service.h>
-
-#include <mir/default_server_configuration.h>
 
 #include <ubuntu/application/init.h>
 

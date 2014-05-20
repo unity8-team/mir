@@ -41,23 +41,11 @@ extern void *android_dlsym(void *handle, const char *symbol);
 namespace internal
 {
 
-/* By default we load the backend from /system/lib/libubuntu_application_api.so
- * Programs can select a different backend with $UBUNTU_PLATFORM_API_BACKEND,
- * which either needs to be a full path or just the file name (then it will be
- * looked up in the usual library search path, see dlopen(3)).
- */
 struct HIDDEN_SYMBOL ToApplication
 {
     static const char* path()
     {
-        static const char* cache = NULL;
-
-        if (cache == NULL) {
-            cache = secure_getenv("UBUNTU_PLATFORM_API_SENSORS_BACKEND");
-            if (cache == NULL)
-                cache = "/system/lib/libubuntu_application_api.so";
-        }
-
+        static const char* cache = "/system/lib/libubuntu_application_api.so";
         return cache;
     }
 };
@@ -81,15 +69,7 @@ class HIDDEN_SYMBOL Bridge
     Bridge() : lib_handle(android_dlopen(Scope::path(), RTLD_LAZY))
     {
         const char* path = Scope::path();
-        /* use Android dl functions for Android libs in /system/, glibc dl
-         * functions for others */
-        if (strncmp(path, "/system/", 8) == 0) {
-            lib_handle = android_dlopen(path, RTLD_LAZY);
-            dlsym_fn = android_dlsym;
-        } else {
-            lib_handle = dlopen(path, RTLD_LAZY);
-            dlsym_fn = dlsym;
-        }
+        dlsym_fn = android_dlsym;
     }
 
     ~Bridge()

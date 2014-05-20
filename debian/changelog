@@ -1,3 +1,13 @@
+platform-api (0.22-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Bump API version to 2.0
+  * Introduce support for dynamic backend loading
+  * Package naming changes
+  * Further support for test backend
+  * Unified bridge
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 19 May 2014 16:53:45 +0200
+
 platform-api (0.21+14.10.20140507-0ubuntu1) utopic; urgency=medium
 
   [ Ricardo Mendoza ]
