@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MAX_MODULE_NAME 32
+
 #define HIDDEN_SYMBOL __attribute__ ((visibility ("hidden")))
 
 namespace internal

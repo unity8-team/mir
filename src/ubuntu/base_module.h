@@ -36,16 +36,26 @@ struct HIDDEN_SYMBOL ToBackend
     static const char* path()
     {
         static const char* cache = NULL;
+        static char path[64];
 
         if (cache == NULL) {
             cache = secure_getenv("UBUNTU_PLATFORM_API_BACKEND");
             if (cache == NULL) {
                 printf("UBUNTU PLATFORM API BACKEND NOT SELECTED -- Aborting\n");
                 abort();
+            } else {
+                strcpy(path, "libubuntu_application_api_");
+                if (strlen(cache) > MAX_MODULE_NAME) {
+                    printf("Invalid Ubuntu Application API backend\n");
+                    abort();
+                }
+                strcat(path, cache);
+                strcat(path, ".so.2");
             }
+
         }
 
-        return cache;
+        return path;
     }
 
     static void* dlopen_fn(const char* path, int flags)
