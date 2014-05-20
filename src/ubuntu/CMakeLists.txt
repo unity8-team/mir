@@ -1,6 +1,7 @@
 set(
   UBUNTU_APPLICATION_API_LINK_LIBRARIES
-  
+
+  ubuntu_application_sensors_haptic
   ubuntu_application_location
   ubuntu_application_url_dispatcher
 )
