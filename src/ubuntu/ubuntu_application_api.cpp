@@ -27,6 +27,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/haptic.h>
 
 #include <ubuntu/application/location/service.h>
 #include <ubuntu/application/location/heading_update.h>
@@ -169,7 +170,7 @@ IMPLEMENT_CTOR0(UASensorsHaptic*, ua_sensors_haptic_new);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_enable, UASensorsHaptic*);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_disable, UASensorsHaptic*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_haptic_vibrate_once, UASensorsHaptic*, uint32_t);
-IMPLEMENT_FUNCTION2(UStatus, ua_sensors_haptic_vibrate_with_pattern, UASensorsHaptic*, uint32_t*);
+IMPLEMENT_FUNCTION3(UStatus, ua_sensors_haptic_vibrate_with_pattern, UASensorsHaptic*, uint32_t*, uint32_t);
 
 // Location
 

@@ -64,6 +64,11 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_accelerometer_get_resolution@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_new@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_set_reading_cb@Base 0.18.1daily13.06.21
+ ua_sensors_haptic_disable@Base 2.0.0-0ubuntu1
+ ua_sensors_haptic_enable@Base 2.0.0-0ubuntu1
+ ua_sensors_haptic_new@Base 2.0.0-0ubuntu1
+ ua_sensors_haptic_vibrate_once@Base 2.0.0-0ubuntu1
+ ua_sensors_haptic_vibrate_with_pattern@Base 2.0.0-0ubuntu1
  ua_sensors_light_disable@Base 0.18.2+13.10.20130708
  ua_sensors_light_enable@Base 0.18.1daily13.06.21
  ua_sensors_light_get_max_value@Base 0.18.1daily13.06.21
