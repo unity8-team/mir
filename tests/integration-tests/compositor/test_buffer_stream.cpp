@@ -130,8 +130,8 @@ TEST_F(BufferStreamTest, DISABLED_gives_same_back_buffer_until_more_available)
 TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
 {
     mg::Buffer* client_buffer{nullptr};
-    for (int i = 0; i !=  nbuffers - 1; i++)
-        buffer_stream.swap_client_buffers_blocking(client_buffer);
+
+    buffer_stream.swap_client_buffers_blocking(client_buffer);
 
     auto first_monitor = buffer_stream.lock_compositor_buffer(0);
     auto first_compositor_id = first_monitor->id();
