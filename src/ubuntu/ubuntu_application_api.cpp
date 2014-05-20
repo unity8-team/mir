@@ -164,6 +164,13 @@ IMPLEMENT_VOID_FUNCTION3(ua_sensors_light_set_reading_cb, UASensorsLight*, on_li
 IMPLEMENT_FUNCTION1(uint64_t, uas_light_event_get_timestamp, UASLightEvent*);
 IMPLEMENT_FUNCTION2(UStatus, uas_light_event_get_light, UASLightEvent*, float*);
 
+// Haptic Sensor
+IMPLEMENT_CTOR0(UASensorsHaptic*, ua_sensors_haptic_new);
+IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_enable, UASensorsHaptic*);
+IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_disable, UASensorsHaptic*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_haptic_vibrate_once, UASensorsHaptic*, uint32_t);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_haptic_vibrate_with_pattern, UASensorsHaptic*, uint32_t*);
+
 // Location
 
 IMPLEMENT_VOID_FUNCTION1(ua_location_service_controller_ref, UALocationServiceController*);
