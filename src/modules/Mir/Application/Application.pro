@@ -17,6 +17,9 @@ INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
 
+# workaround subdir depends not being aggressive enough
+PRE_TARGETDEPS += $${OUT_PWD}/../../../platforms/mirserver/libqpa-mirserver.so
+
 TARGET = $$qtLibraryTarget($$TARGET)
 uri = Mir.Application
 
