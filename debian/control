@@ -147,7 +147,7 @@ Description: Hybris implementation of the Platform API (runtime)
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
 
-Package: libubuntu-application-api-test2
+Package: ubuntu-application-api2-test
 Section: libs
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
