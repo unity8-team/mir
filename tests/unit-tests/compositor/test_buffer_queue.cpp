@@ -1404,6 +1404,20 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
     }
 }
 
+TEST_F(BufferQueueTest, buffers_ready_for_compositor_returns_at_least_one)
+{
+    mc::BufferQueue q(3, allocator, basic_properties, policy_factory);
+
+    /* There's always one buffer ready for a compositor */
+    EXPECT_THAT(q.buffers_ready_for_compositor(), Eq(1));
+
+    auto handle = client_acquire_async(q);
+    ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
+    handle->release_buffer();
+
+    EXPECT_THAT(q.buffers_ready_for_compositor(), Eq(2));
+}
+
 /* FIXME (enabling this optimization breaks timing tests) */
 TEST_F(BufferQueueTest, DISABLED_synchronous_clients_only_get_two_real_buffers)
 {
