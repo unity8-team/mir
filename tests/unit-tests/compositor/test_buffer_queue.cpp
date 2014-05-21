@@ -1416,6 +1416,9 @@ TEST_F(BufferQueueTest, buffers_ready_for_compositor_returns_at_least_one)
     handle->release_buffer();
 
     EXPECT_THAT(q.buffers_ready_for_compositor(), Eq(2));
+
+    auto buffer = q.compositor_acquire(this);
+    EXPECT_THAT(q.buffers_ready_for_compositor(), Eq(1));
 }
 
 /* FIXME (enabling this optimization breaks timing tests) */
