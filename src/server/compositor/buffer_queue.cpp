@@ -364,7 +364,7 @@ int mc::BufferQueue::buffers_ready_for_compositor() const
      * as the number of buffers that are truly ready
      * vary depending on concurrent compositors.
      */
-    return ready_to_composite_queue.size();
+    return ready_to_composite_queue.size() + 1;
 }
 
 void mc::BufferQueue::give_buffer_to_client(
