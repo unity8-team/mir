@@ -91,19 +91,11 @@ struct BufferStreamTest : public ::testing::Test
 
 }
 
-TEST_F(BufferStreamTest, DISABLED_gives_same_back_buffer_until_more_available)
+TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
 {
     mg::Buffer* client1{nullptr};
     buffer_stream.swap_client_buffers_blocking(client1);
     auto client1_id = client1->id();
-    // FIXME: This test is no longer runnable as the following client acquire
-    //        now correctly blocks, so needs to be avoided. But at the same
-    //        time BufferStream requires that we call
-    //        swap_client_buffers_blocking to release the first client buffer
-    //        to the compositors.
-    //        So we mustn't call it, because it will block; and we must call
-    //        it because it's the only way BufferStream lets us release the
-    //        first client. TODO: Fix BufferStream?
     buffer_stream.swap_client_buffers_blocking(client1);
 
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
@@ -130,8 +122,8 @@ TEST_F(BufferStreamTest, DISABLED_gives_same_back_buffer_until_more_available)
 TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
 {
     mg::Buffer* client_buffer{nullptr};
-
-    buffer_stream.swap_client_buffers_blocking(client_buffer);
+    for (int i = 0; i !=  nbuffers - 1; i++)
+        buffer_stream.swap_client_buffers_blocking(client_buffer);
 
     auto first_monitor = buffer_stream.lock_compositor_buffer(0);
     auto first_compositor_id = first_monitor->id();
@@ -145,18 +137,16 @@ TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
     }
 }
 
-TEST_F(BufferStreamTest, DISABLED_gives_different_back_buffer_asap)
+TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
 {
     mg::Buffer* client_buffer{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client_buffer);
 
     if (nbuffers > 1)
     {
         buffer_stream.swap_client_buffers_blocking(client_buffer);
         auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
 
-        // FIXME: This hangs (correctly), but is also needed to be called to
-        //        ensure the first client buffer is released (produced) to
-        //        satisfy the expectation.
         buffer_stream.swap_client_buffers_blocking(client_buffer);
         auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
 
