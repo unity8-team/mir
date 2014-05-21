@@ -18,10 +18,10 @@
 
 #include "src/platform/graphics/mesa/linux_virtual_terminal.h"
 #include "src/server/report/null_report_factory.h"
-#include "mir/graphics/event_handler_register.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_display_report.h"
+#include "mir_test_doubles/mock_event_handler_register.h"
 #include "mir_test/gmock_fixes.h"
 
 #include <gtest/gtest.h>
@@ -68,20 +68,6 @@ public:
 // The default return values are appropriate, so
 // Add a typedef to aid clarity.
 typedef testing::NiceMock<MockPosixProcessOperations> StubPosixProcessOperations;
-
-class MockEventHandlerRegister : public mg::EventHandlerRegister
-{
-public:
-    ~MockEventHandlerRegister() noexcept {}
-
-    MOCK_METHOD2(register_signal_handler,
-                 void(std::initializer_list<int>,
-                      std::function<void(int)> const&));
-
-    MOCK_METHOD2(register_fd_handler,
-                 void(std::initializer_list<int>,
-                      std::function<void(int)> const&));
-};
 
 ACTION_TEMPLATE(SetIoctlPointee,
                 HAS_1_TEMPLATE_PARAMS(typename, T),
@@ -246,7 +232,7 @@ public:
     struct termios fake_tc_attr;
     std::function<void(int)> sig_handler;
     MockVTFileOperations mock_fops;
-    MockEventHandlerRegister mock_event_handler_register;
+    mtd::MockEventHandlerRegister mock_event_handler_register;
 };
 
 

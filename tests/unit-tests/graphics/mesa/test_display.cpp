@@ -29,6 +29,7 @@
 #include "mir_test_doubles/mock_gl.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir_test_doubles/mock_display_report.h"
+#include "mir_test_doubles/mock_event_handler_register.h"
 #include "mir_test_doubles/null_virtual_terminal.h"
 #include "mir_test_doubles/stub_gl_config.h"
 #include "mir_test_doubles/mock_gl_config.h"
@@ -76,18 +77,6 @@ public:
                       std::function<bool()> const&,
                       std::function<bool()> const&));
 };
-
-class MockEventRegister : public mg::EventHandlerRegister
-{
-public:
-    MOCK_METHOD2(register_signal_handler,
-                 void(std::initializer_list<int>,
-                 std::function<void(int)> const&));
-    MOCK_METHOD2(register_fd_handler,
-                 void(std::initializer_list<int>,
-                 std::function<void(int)> const&));
-};
-
 
 class MesaDisplayTest : public ::testing::Test
 {
@@ -713,9 +702,9 @@ TEST_F(MesaDisplayTest, configuration_change_registers_video_devices_handler)
     using namespace testing;
 
     auto display = create_display(create_platform());
-    MockEventRegister mock_register;
+    mtd::MockEventHandlerRegister mock_register;
 
-    EXPECT_CALL(mock_register, register_fd_handler(_,_));
+    EXPECT_CALL(mock_register, register_fd_handler(_,_,_));
 
     display->register_configuration_change_handler(mock_register, []{});
 }

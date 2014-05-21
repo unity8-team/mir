@@ -24,6 +24,8 @@
 #include <mutex>
 #include <condition_variable>
 
+namespace bap = boost::asio::posix;
+
 class mir::AsioMainLoop::SignalHandler
 {
 public:
@@ -63,17 +65,42 @@ private:
 class mir::AsioMainLoop::FDHandler
 {
 public:
+    typedef std::unique_ptr<bap::stream_descriptor> stream_descriptor_ptr;
     FDHandler(boost::asio::io_service& io,
               std::initializer_list<int> fds,
+              void const* owner,
               std::function<void(int)> const& handler)
-        : handler{handler}
+        : owner(owner),handler{handler}
     {
         for (auto fd : fds)
-        {
-            auto raw = new boost::asio::posix::stream_descriptor{io, fd};
-            auto s = std::unique_ptr<boost::asio::posix::stream_descriptor>(raw);
-            stream_descriptors.push_back(std::move(s));
-        }
+            stream_descriptors.emplace_back(new bap::stream_descriptor{io, fd});
+    }
+
+    bool is_owned_by(void const* possible_owner) const
+    {
+        return owner == possible_owner;
+    }
+
+    bool empty() const
+    {
+        return stream_descriptors.empty();
+    }
+
+    void reduce_set(std::initializer_list<int> fds)
+    {
+        remove_if(begin(stream_descriptors),
+                  end(stream_descriptors),
+                  [&fds,this](stream_descriptor_ptr const& item)
+                  {
+                      auto native = item->native();
+                      for (int fd : fds)
+                          if (fd == native)
+                          {
+                              cancel_pending_waits(*item);
+                              return true;
+                          }
+                      return false;
+                  });
     }
 
     void async_wait()
@@ -88,21 +115,38 @@ public:
     }
 
 private:
-    void handle(boost::system::error_code err, size_t /*bytes*/,
-                boost::asio::posix::stream_descriptor* s)
+    void cancel_pending_waits(bap::stream_descriptor & s)
     {
-        if (!err)
+        try
+        {
+            s.cancel();
+        }
+        catch(boost::system::system_error const& error)
+        {
+            // TODO log error
+        }
+    }
+    void handle(boost::system::error_code err, size_t /*bytes*/,
+                bap::stream_descriptor* s)
+    {
+        if (!err &&
+            end(stream_descriptors) != find_if(begin(stream_descriptors),
+                                               end(stream_descriptors),
+                                               [s](stream_descriptor_ptr const& item)
+                                               {return item.get() == s;} ))
         {
             handler(s->native_handle());
+
             s->async_read_some(
-                boost::asio::null_buffers(),
-                std::bind(&FDHandler::handle, this,
-                          std::placeholders::_1, std::placeholders::_2, s));
+                    boost::asio::null_buffers(),
+                    std::bind(&FDHandler::handle, this,
+                              std::placeholders::_1, std::placeholders::_2, s));
         }
     }
 
-    std::vector<std::unique_ptr<boost::asio::posix::stream_descriptor>> stream_descriptors;
-    std::function<void(int)> handler;
+    std::vector<stream_descriptor_ptr> stream_descriptors;
+    void const* owner;
+    std::function<void(int)> const handler;
 };
 
 /*
@@ -147,16 +191,34 @@ void mir::AsioMainLoop::register_signal_handler(
 
 void mir::AsioMainLoop::register_fd_handler(
     std::initializer_list<int> fds,
+    void const* owner,
     std::function<void(int)> const& handler)
 {
     assert(handler);
 
     auto fd_handler = std::unique_ptr<FDHandler>{
-        new FDHandler{io, fds, handler}};
+        new FDHandler{io, fds, owner, handler}};
 
     fd_handler->async_wait();
 
+    std::lock_guard<std::mutex> lock(fd_handlers_mutex);
     fd_handlers.push_back(std::move(fd_handler));
+}
+
+void mir::AsioMainLoop::unregister_fd_handler(
+    std::initializer_list<int> fds,
+    void const* owner)
+{
+    std::lock_guard<std::mutex> lock(fd_handlers_mutex);
+    remove_if(
+        begin(fd_handlers), end(fd_handlers),
+        [owner,&fds](std::unique_ptr<FDHandler> & item)
+        {
+            if (item->is_owned_by(owner))
+                item->reduce_set(fds);
+
+            return item->empty();
+        });
 }
 
 namespace
