@@ -4,6 +4,8 @@ include_directories(
   ${CMAKE_BINARY_DIR}/include
 )
 
+include_directories(../../bridge)
+
 add_library(
   ubuntu_platform_hardware_api SHARED
   ubuntu_platform_hardware_api.cpp
