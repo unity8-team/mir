@@ -3,9 +3,6 @@ set(SOURCES ubuntu_application_api_hybris.cpp)
 add_executable(test_android_ubuntu_app_api test_c_api.cpp)
 target_link_libraries(test_android_ubuntu_app_api ubuntu_application_api EGL GLESv2)
 
-add_executable(test_android_gps_api test_gps_api.cpp)
-target_link_libraries(test_android_gps_api ubuntu_platform_hardware_api)
-
 add_executable(test_android_ubuntu_app_api_multiple_surfaces test_multiple_surfaces_event_delivery.cpp)
 target_link_libraries(test_android_ubuntu_app_api_multiple_surfaces ubuntu_application_api EGL GLESv2)
 
@@ -15,15 +12,10 @@ target_link_libraries(test_android_sensors_api ubuntu_application_api)
 add_executable(test_ubuntu_app_api_location_service test_location_api.cpp)
 target_link_libraries(test_ubuntu_app_api_location_service ubuntu_application_api)
 
-add_executable(test_hardware_alarms_api test_alarms_api.cpp)
-target_link_libraries(test_hardware_alarms_api ubuntu_platform_hardware_api)
-
 install(TARGETS
 	test_android_ubuntu_app_api
-	test_android_gps_api
 	test_android_ubuntu_app_api_multiple_surfaces
 	test_android_sensors_api
 	test_ubuntu_app_api_location_service
-	test_hardware_alarms_api
 	DESTINATION bin
 )
