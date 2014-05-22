@@ -23,6 +23,7 @@
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <algorithm>
+#include <cassert>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -93,7 +94,8 @@ void replace(mg::Buffer const* item, std::shared_ptr<mg::Buffer> const& new_buff
 mc::BufferQueue::BufferQueue(
     int nbuffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
-    graphics::BufferProperties const& props)
+    graphics::BufferProperties const& props,
+    mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
       frame_dropping_enabled{false},
       the_properties{props},
@@ -127,6 +129,30 @@ mc::BufferQueue::BufferQueue(
      */
     if (nbuffers == 1)
         free_buffers.push_back(current_compositor_buffer);
+
+    framedrop_policy = policy_provider.create_policy([this]
+    {
+       std::unique_lock<decltype(guard)> lock{guard};
+       assert(!pending_client_notifications.empty());
+       if (ready_to_composite_queue.empty())
+       {
+           /*
+            * NOTE: This can only happen under two circumstances:
+            * 1) Client is single buffered. Don't do that, it's a bad idea.
+            * 2) Client already has a buffer, and is asking for a new one
+            *    without submitting the old one.
+            *
+            *    This shouldn't be exposed to the client as swap_buffers
+            *    blocking, as the client already has something to render to.
+            *
+            *    Our current implementation will never hit this case. If we
+            *    later want clients to be able to own multiple buffers simultaneously
+            *    then we might want to add an entry to the CompositorReport here.
+            */
+           return;
+       }
+       give_buffer_to_client(pop(ready_to_composite_queue), std::move(lock));
+    });
 }
 
 void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
@@ -161,7 +187,14 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     {
         auto const buffer = pop(ready_to_composite_queue);
         give_buffer_to_client(buffer, std::move(lock));
+        return;
     }
+
+    /* Can't give the client a buffer yet; they'll just have to wait
+     * until the compositor is done with an old frame, or the policy
+     * says they've waited long enough.
+     */
+    framedrop_policy->swap_now_blocking();
 }
 
 void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
@@ -239,13 +272,29 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     if (contains(buffer.get(), buffers_sent_to_compositor))
         return;
 
+    if (nbuffers <= 1)
+        return;
+
     /*
-     * This buffer is not owned by compositor anymore. If the queue is supposed
-     * to only own a single buffer (nbuffers == 1), then this is a buffer that
-     * is no longer used (i.e. replaced by a new resized buffer), so just
-     * discard it.
+     * We can't release the current_compositor_buffer because we need to keep
+     * a compositor buffer always-available. But there might be a new
+     * compositor buffer available to take its place immediately. Moving to
+     * that one immediately will free up the old compositor buffer, allowing
+     * us to call back the client with a buffer where otherwise we couldn't.
      */
-    if (current_compositor_buffer != buffer.get() && nbuffers > 1)
+    if (current_compositor_buffer == buffer.get() &&
+        !ready_to_composite_queue.empty())
+    {
+        current_compositor_buffer = pop(ready_to_composite_queue);
+
+        // Ensure current_compositor_buffer gets reused by the next
+        // compositor_acquire:
+        current_buffer_users.clear();
+        void const* const impossible_user_id = this;
+        current_buffer_users.push_back(impossible_user_id);
+    }
+
+    if (current_compositor_buffer != buffer.get())
         release(buffer.get(), std::move(lock));
 }
 
@@ -372,7 +421,10 @@ void mc::BufferQueue::release(
     std::unique_lock<std::mutex> lock)
 {
     if (!pending_client_notifications.empty())
+    {
+        framedrop_policy->swap_unblocked();
         give_buffer_to_client(buffer, std::move(lock));
+    }
     else
         free_buffers.push_back(buffer);
 }
