@@ -18,6 +18,7 @@
  */
 
 // C APIs
+#include <ubuntu/hardware/alarm.h>
 #include <ubuntu/hardware/gps.h>
 
 #include "bridge.h"
