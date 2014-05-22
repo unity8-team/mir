@@ -12,7 +12,7 @@ Rectangle {
     function flipTargetX() {
         if (targetX == 0) {
             targetX = maxX
-        } else if (targetX == maxX) {
+        } else {
             targetX = 0
         }
     }
@@ -29,7 +29,7 @@ Rectangle {
                 } else {
                     x += step;
                 }
-            } else if (x > targetX) {
+            } else {
                 if (x - step < targetX) {
                     x = targetX;
                 } else {
@@ -42,6 +42,11 @@ Rectangle {
     onXChanged: {
         if (x == targetX) {
             flipTargetX();
+        }
+    }
+    onWidthChanged: {
+        if (targetX > 0) {
+            targetX = maxX;
         }
     }
 
