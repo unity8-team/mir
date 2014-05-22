@@ -8,6 +8,24 @@ platform-api (2.0.0-0ubuntu1) UNRELEASED; urgency=medium
 
  -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 19 May 2014 16:53:45 +0200
 
+platform-api (1.2.0+14.10.20140522.1-0ubuntu1) utopic; urgency=medium
+
+  [ Manuel de la Pena ]
+  * Add agps hooks in the hardware api to allow the use of supl.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ thomas-voss ]
+  * Add hw alarm api implementation for android's /dev/alarm. Add simple
+    test executable for hw alarm api implementation on android. Adjust
+    interface signatures to make sure that status of operations is
+    reported correctly. Add HW Alarms API interface definition. Add
+    Ubuntu implementation that will bridge over to the android world.
+    (LP: #1299916)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 May 2014 15:29:47 +0000
+
 platform-api (1.2.0-0ubuntu1) UNRELEASED; urgency=medium
 
   * Add agps hooks in the hardware api to allow the use of supl.
