@@ -1,3 +1,13 @@
+platform-api (2.0.0-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Bump API version to 2.0
+  * Introduce support for dynamic backend loading
+  * Package naming changes
+  * Further support for test backend
+  * Unified bridge
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 19 May 2014 16:53:45 +0200
+
 platform-api (1.2.0-0ubuntu1) UNRELEASED; urgency=medium
 
   * Add agps hooks in the hardware api to allow the use of supl.
@@ -14,6 +24,12 @@ platform-api (1.1.0+14.10.20140515.1-0ubuntu1) utopic; urgency=medium
   * Bump package version to match library version.
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 May 2014 17:18:39 +0000
+
+platform-api (0.22-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Add agps hooks in the hardware api to allow the use of supl.
+
+ -- Manuel de la Pena <manuel.delapena@canonical.com>  Wed, 14 May 2014 10:45:33 +2000
 
 platform-api (0.21+14.10.20140507-0ubuntu1) utopic; urgency=medium
 
