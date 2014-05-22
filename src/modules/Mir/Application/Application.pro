@@ -7,8 +7,7 @@ QT       += gui-private # annoyingly needed by included NativeInterface
 CONFIG   += link_pkgconfig plugin
 
 # CONFIG += c++11 # only enables C++0x
-QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden
-QMAKE_CXXFLAGS_RELEASE += -Werror     # so no stop on warning in debug builds
+QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 PKGCONFIG += mircommon mirclient mirserver glib-2.0 upstart-app-launch-2
