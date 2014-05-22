@@ -88,33 +88,37 @@ public:
 
     void reduce_set(std::initializer_list<int> fds)
     {
+        std::lock_guard<std::mutex> descriptors_guard(stream_descriptors_mutex);
         remove_if(begin(stream_descriptors),
                   end(stream_descriptors),
                   [&fds,this](stream_descriptor_ptr const& item)
                   {
-                      auto native = item->native();
-                      for (int fd : fds)
-                          if (fd == native)
-                          {
-                              cancel_pending_waits(*item);
-                              return true;
-                          }
-                      return false;
+                      return cancel_if_in_list(fds, *item);
                   });
     }
 
     void async_wait()
     {
+        std::lock_guard<std::mutex> descriptors_guard(stream_descriptors_mutex);
         for (auto const& s : stream_descriptors)
         {
-            s->async_read_some(
-                boost::asio::null_buffers(),
-                std::bind(&FDHandler::handle, this,
-                          std::placeholders::_1, std::placeholders::_2, s.get()));
+            read_some(*s);
         }
     }
 
 private:
+    bool cancel_if_in_list(std::initializer_list<int> fds, bap::stream_descriptor & item)
+    {
+        auto native = item.native();
+        for (int fd : fds)
+            if (fd == native)
+            {
+                cancel_pending_waits(item);
+                return true;
+            }
+        return false;
+    }
+
     void cancel_pending_waits(bap::stream_descriptor & s)
     {
         try
@@ -126,24 +130,43 @@ private:
             // TODO log error
         }
     }
+
+    void read_some(bap::stream_descriptor& s)
+    {
+        s.async_read_some(
+            boost::asio::null_buffers(),
+            std::bind(&FDHandler::handle, this,
+                      std::placeholders::_1, std::placeholders::_2, &s));
+
+    }
+
+    bool still_registered(bap::stream_descriptor* s)
+    {
+        return end(stream_descriptors) != find_if(begin(stream_descriptors),
+                                                  end(stream_descriptors),
+                                                  [s](stream_descriptor_ptr const& item)
+                                                  {return item.get() == s;}
+                                                  );
+    }
+
     void handle(boost::system::error_code err, size_t /*bytes*/,
                 bap::stream_descriptor* s)
     {
-        if (!err &&
-            end(stream_descriptors) != find_if(begin(stream_descriptors),
-                                               end(stream_descriptors),
-                                               [s](stream_descriptor_ptr const& item)
-                                               {return item.get() == s;} ))
+        std::unique_lock<std::mutex> lock(stream_descriptors_mutex);
+        if (!err && still_registered(s))
         {
+            lock.unlock();
             handler(s->native_handle());
 
-            s->async_read_some(
-                    boost::asio::null_buffers(),
-                    std::bind(&FDHandler::handle, this,
-                              std::placeholders::_1, std::placeholders::_2, s));
+            lock.lock();
+            if (still_registered(s))
+            {
+                read_some(*s);
+            }
         }
     }
 
+    std::mutex stream_descriptors_mutex;
     std::vector<stream_descriptor_ptr> stream_descriptors;
     void const* owner;
     std::function<void(int)> const handler;
