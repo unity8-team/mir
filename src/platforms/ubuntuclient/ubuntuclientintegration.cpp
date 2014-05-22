@@ -45,6 +45,7 @@
 static void resumedCallback(const UApplicationOptions *options, void* context)
 {
     Q_UNUSED(options)
+    Q_UNUSED(context)
     DASSERT(context != NULL);
     QCoreApplication::postEvent(QCoreApplication::instance(),
                                 new QEvent(QEvent::ApplicationActivate));
