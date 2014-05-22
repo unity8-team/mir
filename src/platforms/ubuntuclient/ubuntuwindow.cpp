@@ -202,9 +202,10 @@ void UbuntuWindow::handleResize(int width, int height)
     newGeometry.setWidth(width);
     newGeometry.setHeight(height);
 
+    d->geometry = newGeometry;
     QPlatformWindow::setGeometry(newGeometry);
     QWindowSystemInterface::handleGeometryChange(window(), newGeometry, oldGeometry);
-    QWindowSystemInterface::flushWindowSystemEvents();
+    QWindowSystemInterface::handleExposeEvent(window(), newGeometry);
 }
 
 void UbuntuWindow::setWindowState(Qt::WindowState state)
