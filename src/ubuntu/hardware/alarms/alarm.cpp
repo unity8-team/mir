@@ -16,27 +16,74 @@
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
+#include <android/linux/android_alarm.h>
+
 #include <ubuntu/hardware/alarm.h>
 
 #include <cstdio>
-#include <cstdlib>
-#include <string.h>
+#include <cstring>
+
+#include <stdexcept>
+#include <string>
+
+#include <unistd.h>
 
 #include <errno.h>
 #include <fcntl.h>
 
-#include <linux/ioctl.h>
-#include <linux/android_alarm.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
-#include <utils/Log.h>
-
-class UbuntuHardwareAlarm
+namespace
 {
-  public:
-    static UbuntuHardwareAlarm& instance()
+struct HardwareAlarm
+{
+    HardwareAlarm() = default;
+    virtual ~HardwareAlarm() = default;
+
+    // Blocks the calling thread until an alarm fires or
+    // an error occurs. Returns an int with bool semantics.
+    virtual int wait_for() = 0;
+
+    // Arms the alarm with the given properties.
+    // Returns true if the alarm has been armed successfully, false otherwise.
+    virtual bool set(
+        UHardwareAlarmTimeReference time_reference,
+        UHardwareAlarmSleepBehavior behavior,
+        const struct timespec *ts) = 0;
+
+    // Queries the time since last boot including deep sleep periods.
+    virtual bool get_elapsed_realtime(struct timespec* ts) = 0;
+};
+
+// An implementation of HardwareAlarm based on Android's /dev/alarm.
+struct DevAlarmHardwareAlarm : public HardwareAlarm
+{
+    int fd; // file descriptor referring to /dev/alarm
+
+    DevAlarmHardwareAlarm() : fd(open("/dev/alarm", O_RDWR))
     {
-        static UbuntuHardwareAlarm ha;
-        return ha;
+        if (fd == -1)
+        {
+            auto error = errno;
+
+            std::string what
+            {
+                "Could not open /dev/alarm: "
+            };
+            throw std::runtime_error
+            {
+                (what + strerror(error)).c_str()
+            };
+        }
+    }
+
+    ~DevAlarmHardwareAlarm()
+    {
+        // No need to check if fd is valid here.
+        // Ctor would have thrown if fd was invalid.
+        ::close(fd);
     }
 
     int wait_for()
@@ -49,7 +96,7 @@ class UbuntuHardwareAlarm
         } while (result < 0 && errno == EINTR);
 
         if (result < 0)
-            ALOGE("Waiting for hw alarm failed with: %s", strerror(errno));
+            fprintf(stderr, "Waiting for hw alarm failed with: %s\n", strerror(errno));
 
         return result;
     }
@@ -58,6 +105,9 @@ class UbuntuHardwareAlarm
              UHardwareAlarmSleepBehavior behavior,
              const struct timespec *ts)
     {
+        if (not ts)
+            return false;
+
         int type = 0;
 
         if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_BOOT)
@@ -84,16 +134,13 @@ class UbuntuHardwareAlarm
         int result = ::ioctl(fd, ANDROID_ALARM_SET(type), ts);
 
         if (result < 0)
-            ALOGE("Unable to set alarm: %s", strerror(errno));
+            fprintf(stderr, "Unable to set alarm: %s\n", strerror(errno));
 
         return not (result < 0);
     }
 
     bool get_elapsed_realtime(struct timespec* ts)
     {
-        if (not is_valid())
-            return false;
-
         if (not ts)
             return false;
 
@@ -104,32 +151,68 @@ class UbuntuHardwareAlarm
 
         return result == 0;
     }
+};
+}
+
+class UbuntuHardwareAlarm
+{
+  public:
+    static UbuntuHardwareAlarm& instance()
+    {
+        static UbuntuHardwareAlarm ha;
+        return ha;
+    }
+
+    int wait_for()
+    {
+        return impl->wait_for();
+    }
+
+    bool set(UHardwareAlarmTimeReference time_reference,
+             UHardwareAlarmSleepBehavior behavior,
+             const struct timespec *ts)
+    {
+        return impl->set(time_reference, behavior, ts);
+    }
+
+    bool get_elapsed_realtime(struct timespec* ts)
+    {
+        return impl->get_elapsed_realtime(ts);
+    }
 
     bool is_valid() const
     {
-        return valid;
+        return impl != nullptr;
     }
 
   private:
-    UbuntuHardwareAlarm() : fd(open("/dev/alarm", O_RDWR)),
-                            valid(true)
+    UbuntuHardwareAlarm()
     {
-        if (fd == -1)
+        try
         {
-            ALOGE("Could not open /dev/alarm: %s", strerror(errno));
-            valid = false;
+            impl = new DevAlarmHardwareAlarm();
+        } catch(const std::runtime_error& e)
+        {
+            fprintf(
+                stderr, "%s: Error creating /dev/alarm-based implementation with: %s\n",
+                __PRETTY_FUNCTION__,
+                e.what());
+
+            // TODO: Should we fallback to a timer-fd implementation here? I'm not
+            // convinced that we should do so as a timer-fd wouldn't wakeup the device
+            // from any sort of sleep mode.
         }
     }
 
     ~UbuntuHardwareAlarm()
     {
-        // No need to check if fd is valid here.
-        // Ctor would have thrown if fd was invalid.
-        ::close(fd);
+        delete impl;
     }
 
-    int fd;
-    bool valid;
+    HardwareAlarm* impl
+    {
+        nullptr
+    };
 };
 
 UHardwareAlarm
