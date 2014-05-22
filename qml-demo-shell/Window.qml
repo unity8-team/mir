@@ -6,38 +6,41 @@ Rectangle {
     readonly property int margin: 5
 
     function setSurface(surface) {
-        surface.parent = windowContainer;
-        root.width = surface.width + 2*margin;
-        root.height = surface.height + margin + title.height;
+        surface.parent = root //windowContainer;
+        root.width = surface.width //+ 2*margin;
+        root.height = surface.height //+ margin + title.height;
 
-        surface.anchors.fill = windowContainer;
+        surface.anchors.fill = root //windowContainer;
+//        surface.opacity = 0.99;
 
-        title.text = surface.name;
+//        title.text = surface.name;
     }
 
-    Text {
-        id: title
+//    Text {
+//        id: title
+//        anchors {
+//            left: parent.left
+//            right: parent.right
+//            top: parent.top
+//            leftMargin: margin
+//            rightMargin: margin
+//        }
+//        font.pixelSize: 40
+//    }
+
+    Rectangle {
+        id: windowContainer
         anchors {
             left: parent.left
             right: parent.right
             top: parent.top
-            leftMargin: margin
-            rightMargin: margin
-        }
-        font.pixelSize: 40
-    }
-
-    Rectangle {
-        id: windowContainer
-        opacity: 0.999 // FIXME: something weird has happened
-        anchors {
-            left: parent.left
-            right: parent.right
-            top: title.bottom
+//            top: title.bottom
             bottom: parent.bottom
             leftMargin: margin
             rightMargin: margin
             bottomMargin: margin
         }
+        color: "pink"
+        opacity: 0.2
     }
 }

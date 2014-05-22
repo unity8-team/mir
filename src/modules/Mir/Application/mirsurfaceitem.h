@@ -113,6 +113,8 @@ public Q_SLOTS:
     void release(); // For QML to destroy this surface
 
 protected:
+    void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -127,8 +129,6 @@ protected:
 
 private Q_SLOTS:
     void surfaceDamaged();
-    void requestMirSurfaceSizeUpdate();
-    void updateMirSurfaceSize();
 
 private:
     bool updateTexture();
@@ -155,8 +155,6 @@ private:
     static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
 
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
-
-    bool m_pendingMirSurfaceSizeUpdate;
 
     friend class MirSurfaceManager;
 };

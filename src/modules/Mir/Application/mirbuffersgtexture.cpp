@@ -24,6 +24,8 @@
 #include <mir/graphics/buffer.h>
 #include <mir/geometry/size.h>
 
+#include <QDebug>
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
 #include <private/qqmlprofilerservice_p.h>
 #include <QElapsedTimer>
@@ -64,6 +66,9 @@ void MirBufferSGTexture::freeBuffer()
 void MirBufferSGTexture::setBuffer(std::shared_ptr<mir::graphics::Buffer> buffer)
 {
     m_mirBuffer = buffer;
+    mg::Size size = buffer->size();
+    m_height = size.height.as_int();
+    m_width = size.width.as_int();
 }
 
 int MirBufferSGTexture::textureId() const

@@ -204,7 +204,6 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_pendingClientBuffersCount(0)
     , m_firstFrameDrawn(false)
     , m_textureProvider(nullptr)
-    , m_pendingMirSurfaceSizeUpdate(false)
 {
     DLOG("MirSurfaceItem::MirSurfaceItem");
 
@@ -224,14 +223,6 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     // fetch surface geometry
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
-
-    // When an item is resized, you usually get a width change *and* a height change.
-    // So instead of resizing the mir surface for each individual dimension change
-    // we way until the next event loop iteration to actually perform the resize.
-    connect(this, &QQuickItem::widthChanged,
-        this, &MirSurfaceItem::requestMirSurfaceSizeUpdate);
-    connect(this, &QQuickItem::heightChanged,
-        this, &MirSurfaceItem::requestMirSurfaceSizeUpdate);
 
     if (!m_ubuntuKeyboardInfo) {
         m_ubuntuKeyboardInfo = new UbuntuKeyboardInfo;
@@ -303,11 +294,19 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT surfaceFirstFrameDrawn(this);
     }
 
-    m_mutex.lock();
-    ++m_pendingClientBuffersCount;
-    m_mutex.unlock();
-
-    update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
+    if (isVisible() && width() > 0 && height() > 0 && opacity() > 0 && scale() > 0) {
+        m_mutex.lock();
+        ++m_pendingClientBuffersCount;
+        m_mutex.unlock();
+        // Notify QML engine that this needs redrawing, schedules call to updatePaintItem
+        update();
+    } else {
+        // Need to consume buffers from client until it has been notified it has been occluded
+        // and stops rendering itself - if we don't consume, client is blocked.
+        // TODO: notify client it has been occluded so it can stop rendering
+        // FIXME: this will spin client at 100% - need to delay buffer consuming by about vsync
+        m_surface->compositor_snapshot((void*)123/*user_id*/);
+    }
 }
 
 bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene graph)
@@ -471,30 +470,22 @@ void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*
     }
 }
 
-// Requests updateMirSurfaceSize() to be called on the next event loop iteration
-void MirSurfaceItem::requestMirSurfaceSizeUpdate()
+void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry)
 {
-    if (!m_pendingMirSurfaceSizeUpdate) {
-        QTimer::singleShot(0, this, SLOT(updateMirSurfaceSize()));
-        m_pendingMirSurfaceSizeUpdate = true;
-    }
-}
-
-void MirSurfaceItem::updateMirSurfaceSize()
-{
-    m_pendingMirSurfaceSizeUpdate = false;
-
     int mirWidth = m_surface->size().width.as_int();
     int mirHeight = m_surface->size().width.as_int();
 
-    if ((int)width() == mirWidth && (int)height() == mirHeight)
+    if ((int)newGeometry.width() == mirWidth && (int)newGeometry.height() == mirHeight)
         return;
 
-    mir::geometry::Size newMirSize((int)width(), (int)height());
+    mir::geometry::Size newMirSize((int)newGeometry.width(), (int)newGeometry.height());
 
-    qDebug() << "MirSurfaceItem::updateMirSurfaceSize width" << width()
-            << "height" << height();
+    //qDebug() << "MirSurfaceItem::updateMirSurfaceSize width" << width() << "height" << height();
     m_surface->resize(newMirSize);
+
+    setImplicitSize(newGeometry.width(), newGeometry.height());
+
+    QQuickItem::geometryChanged(newGeometry, oldGeometry);
 }
 
 #include "mirsurfaceitem.moc"

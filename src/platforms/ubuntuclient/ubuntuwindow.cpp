@@ -187,6 +187,7 @@ void UbuntuWindow::moveResize(const QRect& rect)
 {
   fprintf(stderr, "\nQUbuntuWindow::moveResize (this=%p, x=%d, y=%d, w=%d, h=%d)\n", this,
           rect.x(), rect.y(), rect.width(), rect.height());
+  LOG("UbuntuWindow::moveResize(width=%d, height=%d)", rect.width(), rect.height());
   ua_ui_window_move(d->window, rect.x(), rect.y());
   ua_ui_window_resize(d->window, rect.width(), rect.height());
   QWindowSystemInterface::handleGeometryChange(window(), rect);
@@ -195,7 +196,7 @@ void UbuntuWindow::moveResize(const QRect& rect)
 
 void UbuntuWindow::handleResize(int width, int height)
 {
-    DLOG("UbuntuWindow::handleResize(width=%d, height=%d)", width, height);
+    LOG("UbuntuWindow::handleResize(width=%d, height=%d)", width, height);
     QRect oldGeometry = geometry();
     QRect newGeometry = oldGeometry;
     newGeometry.setWidth(width);
@@ -203,6 +204,7 @@ void UbuntuWindow::handleResize(int width, int height)
 
     QPlatformWindow::setGeometry(newGeometry);
     QWindowSystemInterface::handleGeometryChange(window(), newGeometry, oldGeometry);
+    QWindowSystemInterface::flushWindowSystemEvents();
 }
 
 void UbuntuWindow::setWindowState(Qt::WindowState state)
@@ -253,6 +255,7 @@ void UbuntuWindow::setVisible(bool visible)
   if (visible) {
     ua_ui_window_show(d->window);
     QWindowSystemInterface::handleExposeEvent(window(), QRect());
+    QWindowSystemInterface::flushWindowSystemEvents();
   } else {
     ua_ui_window_hide(d->window);
   }
