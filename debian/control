@@ -43,6 +43,7 @@ Description: Platform API for system level capabilities (API headers)
 Package: libubuntu-platform-hardware-api-headers
 Section: libdevel
 Architecture: any
+Replaces: libplatform-hardware-api-headers
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -99,6 +100,7 @@ Description: Implementation of the Platform API for Ubuntu Desktop
 Package: libubuntu-platform-hardware-api-dev
 Section: libdevel
 Architecture: any
+Replaces: libplatform-hardware-api1-dev
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},

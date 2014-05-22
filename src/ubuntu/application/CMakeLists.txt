@@ -10,7 +10,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}/include
 )
 
-include_directories(../bridge)
+include_directories(../../bridge)
 
 add_subdirectory(common)
 add_subdirectory(desktop)
