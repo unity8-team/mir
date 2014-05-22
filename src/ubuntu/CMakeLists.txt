@@ -3,6 +3,7 @@ include_directories(
 )
 
 add_subdirectory(application)
+add_subdirectory(hardware)
 add_subdirectory(testbackend)
 
 set(
@@ -10,6 +11,12 @@ set(
   
   ubuntu_application_location
   ubuntu_application_url_dispatcher
+)
+
+set(
+  UBUNTU_HARDWARE_API_LINK_LIBRARIES
+  
+  ubuntu_hardware_alarm
 )
 
 if(ENABLE_HYBRIS_IMPLEMENTATION)

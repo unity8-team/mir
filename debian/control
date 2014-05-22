@@ -2,7 +2,8 @@ Source: platform-api
 Priority: optional
 Section: devel
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-Build-Depends: cmake,
+Build-Depends: android-headers,
+               cmake,
                debhelper (>= 9),
                doxygen,
                graphviz,
