@@ -1,6 +1,10 @@
 platform-api (1.2.0-0ubuntu1) UNRELEASED; urgency=medium
 
+  [ Manuel de la Pena ]
   * Add agps hooks in the hardware api to allow the use of supl.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
 
  -- Manuel de la Pena <manuel.delapena@canonical.com>  Wed, 14 May 2014 10:45:33 +2000
 
