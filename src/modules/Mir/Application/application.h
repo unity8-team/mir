@@ -33,13 +33,25 @@ class TaskController;
 namespace mir { namespace scene { class Session; }}
 
 class Application : public unity::shell::application::ApplicationInfoInterface {
+    Q_FLAGS(Orientation SupportedOrientations)
+
     Q_OBJECT
     Q_PROPERTY(QString desktopFile READ desktopFile CONSTANT)
     Q_PROPERTY(QString exec READ exec CONSTANT)
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
     Q_PROPERTY(Stage stage READ stage WRITE setStage NOTIFY stageChanged)
+    Q_PROPERTY(SupportedOrientations supportedOrientations READ supportedOrientations CONSTANT)
 
 public:
+    // Matching Qt::ScreenOrientation values for convenience
+    enum Orientation {
+        PortraitOrientation = 0x1,
+        LandscapeOrientation = 0x2,
+        InvertedPortraitOrientation = 0x4,
+        InvertedLandscapeOrientation = 0x8
+    };
+    Q_DECLARE_FLAGS(SupportedOrientations, Orientation)
+
     Application(const QString &appId, State state, const QStringList &arguments, QObject *parent = 0);
     Application(DesktopFileReader *desktopFileReader, State state, const QStringList &arguments, QObject *parent = 0);
     virtual ~Application();
@@ -65,6 +77,8 @@ public:
     bool fullscreen() const;
     std::shared_ptr<mir::scene::Session> session() const;
 
+    SupportedOrientations supportedOrientations() const;
+
 public Q_SLOTS:
     void suspend();
     void resume();
@@ -83,6 +97,10 @@ private:
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
     void setSessionName(const QString& name);
 
+    // FIXME: This is a hack. Remove once we have a real implementation for knowning
+    // the supported orientations of an app
+    void deduceSupportedOrientationsFromAppId();
+
     DesktopFileReader* m_desktopData;
     qint64 m_pid;
     Stage m_stage;
@@ -95,6 +113,7 @@ private:
     QString m_sessionName;
     QStringList m_arguments;
     QTimer* m_suspendTimer;
+    SupportedOrientations m_supportedOrientations;
 
     friend class ApplicationManager;
     friend class ApplicationListModel;
@@ -102,5 +121,6 @@ private:
 };
 
 Q_DECLARE_METATYPE(Application*)
+Q_DECLARE_OPERATORS_FOR_FLAGS(Application::SupportedOrientations)
 
 #endif  // APPLICATION_H

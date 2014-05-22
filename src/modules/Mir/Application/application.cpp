@@ -49,6 +49,8 @@ Application::Application(DesktopFileReader *desktopFileReader, State state,
 
     m_suspendTimer->setSingleShot(true);
     connect(m_suspendTimer, SIGNAL(timeout()), this, SLOT(suspend()));
+
+    deduceSupportedOrientationsFromAppId();
 }
 
 Application::~Application()
@@ -261,4 +263,21 @@ void Application::respawn()
 {
     DLOG("Application::respawn (this=%p)", this);
     TaskController::singleton()->start(appId(), m_arguments);
+}
+
+Application::SupportedOrientations Application::supportedOrientations() const
+{
+    return m_supportedOrientations;
+}
+
+void Application::deduceSupportedOrientationsFromAppId()
+{
+    if (appId() == "dialer-app") {
+        m_supportedOrientations = PortraitOrientation;
+    } else {
+        m_supportedOrientations = PortraitOrientation
+            | LandscapeOrientation
+            | InvertedPortraitOrientation
+            | InvertedLandscapeOrientation;
+    }
 }

@@ -92,6 +92,7 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     if (wasEmpty && !isEmpty()) {
         emit emptyChanged();
     }
+    emit topmostSurfaceChanged();
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
@@ -112,6 +113,9 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
             emit countChanged();
             if (!wasEmpty && isEmpty()) {
                 emit emptyChanged();
+            }
+            if (i == 0) {
+                emit topmostSurfaceChanged();
             }
         }
     });
@@ -140,6 +144,9 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
             emit countChanged();
             if (!wasEmpty && isEmpty()) {
                 emit emptyChanged();
+            }
+            if (i == 0) {
+                emit topmostSurfaceChanged();
             }
         }
         return;
@@ -190,12 +197,18 @@ void MirSurfaceManager::move(int from, int to) {
 
     if (from >= 0 && from < m_surfaceItems.count() && to >= 0 && to < m_surfaceItems.count()) {
         QModelIndex parent;
+        void *oldTopMost = topmostSurface();
+
         /* When moving an item down, the destination index needs to be incremented
            by one, as explained in the documentation:
            http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
         beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
         m_surfaceItems.move(from, to);
         endMoveRows();
+
+        if (oldTopMost != topmostSurface()) {
+            emit topmostSurfaceChanged();
+        }
     }
     DLOG("MirSurfaceManager::move after (%s)", qPrintable(toString()));
 }
@@ -226,4 +239,13 @@ QString MirSurfaceManager::toString() const
         result.append(m_surfaceItems.at(i)->application()->appId());
     }
     return result;
+}
+
+MirSurfaceItem* MirSurfaceManager::topmostSurface() const
+{
+    if (m_surfaceItems.isEmpty()) {
+        return nullptr;
+    } else {
+        return m_surfaceItems[0];
+    }
 }
