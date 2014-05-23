@@ -44,9 +44,8 @@
 extern "C" {
 #endif
 
-//IMPLEMENT_VOID_FUNCTION1(u_application_init, mir::DefaultServerConfiguration&);
+// Application Module Config
 IMPLEMENT_VOID_FUNCTION1(u_application_init, void*);
-//IMPLEMENT_VOID_FUNCTION1(u_application_init, UApplicationInitArgs*);
 IMPLEMENT_VOID_FUNCTION0(u_application_finish);
 
 // Session helpers
