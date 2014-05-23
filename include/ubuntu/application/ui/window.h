@@ -34,7 +34,10 @@ extern "C" {
 
     typedef void UAUiWindow;
     typedef int32_t UAUiWindowId;
-    
+
+    /*
+        Ownership of properties is given to the returned UAUiWindow
+    */
     UBUNTU_DLL_PUBLIC UAUiWindow*
     ua_ui_window_new_for_application_with_properties(
     	UApplicationInstance *instance,

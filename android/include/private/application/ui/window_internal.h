@@ -60,13 +60,13 @@ public:
         return this->role;
     }
 
-    void set_input_event_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx)
+    void set_input_event_cb_and_ctx(UAUiWindowEventCb cb, void* ctx)
     {
         this->cb = cb;
         this->ctx = ctx;
     }
 
-    UAUiWindowInputEventCb get_input_cb()
+    UAUiWindowEventCb get_input_cb()
     {
         return this->cb;
     }
@@ -79,7 +79,7 @@ public:
 private:
     char *title;
     UAUiWindowRole role;
-    UAUiWindowInputEventCb cb;
+    UAUiWindowEventCb cb;
     void* ctx;
    
 protected:
