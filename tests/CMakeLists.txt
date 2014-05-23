@@ -37,13 +37,13 @@ target_link_libraries(
 add_test(
     test_ua_sensors_mock
     
-    env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu/testbackend ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_mock
+    env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu:${CMAKE_BINARY_DIR}/src/ubuntu/application/testbackend ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_mock
 )
 
 if(DEFINED ENV{UBUNTU_PLATFORM_API_BACKEND})
     add_test(
         test_ua_sensors_real
 
-        env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu:${CMAKE_BINARY_DIR}/src/ubuntu/touch:${CMAKE_BINARY_DIR}/src/ubuntu/desktop ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_real
+        env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu:${CMAKE_BINARY_DIR}/src/ubuntu/application/touch:${CMAKE_BINARY_DIR}/src/ubuntu/desktop ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_real
     )
 endif()
