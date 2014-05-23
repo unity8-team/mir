@@ -66,14 +66,13 @@ class mir::AsioMainLoop::FDHandler
 {
 public:
     typedef std::unique_ptr<bap::stream_descriptor> stream_descriptor_ptr;
+
     FDHandler(boost::asio::io_service& io,
               std::initializer_list<int> fds,
               void const* owner,
               std::function<void(int)> const& handler)
-        : owner(owner),handler{handler}
+        : data{std::make_shared<InternalState>(io, fds, handler)}, owner{owner}
     {
-        for (auto fd : fds)
-            stream_descriptors.emplace_back(new bap::stream_descriptor{io, fd});
     }
 
     bool is_owned_by(void const* possible_owner) const
@@ -83,27 +82,26 @@ public:
 
     bool empty() const
     {
-        return stream_descriptors.empty();
+        return data->stream_descriptors.empty();
     }
 
     void reduce_set(std::initializer_list<int> fds)
     {
-        std::lock_guard<std::mutex> descriptors_guard(stream_descriptors_mutex);
-        remove_if(begin(stream_descriptors),
-                  end(stream_descriptors),
-                  [&fds,this](stream_descriptor_ptr const& item)
-                  {
-                      return cancel_if_in_list(fds, *item);
-                  });
+        std::lock_guard<std::mutex> descriptors_guard(data->stream_descriptors_mutex);
+        auto end_of_valid = remove_if(begin(data->stream_descriptors),
+              end(data->stream_descriptors),
+              [&fds,this](stream_descriptor_ptr const& item)
+              {
+                  return cancel_if_in_list(fds, *item);
+              });
+        data->stream_descriptors.erase(end_of_valid, end(data->stream_descriptors));
     }
 
     void async_wait()
     {
-        std::lock_guard<std::mutex> descriptors_guard(stream_descriptors_mutex);
-        for (auto const& s : stream_descriptors)
-        {
-            read_some(*s);
-        }
+        std::lock_guard<std::mutex> descriptors_guard(data->stream_descriptors_mutex);
+        for (auto const& s : data->stream_descriptors)
+            read_some(s.get(), data);
     }
 
 private:
@@ -114,6 +112,8 @@ private:
             if (fd == native)
             {
                 cancel_pending_waits(item);
+                // MainLoop does not own the fds
+                item.release();
                 return true;
             }
         return false;
@@ -131,45 +131,56 @@ private:
         }
     }
 
-    void read_some(bap::stream_descriptor& s)
+    struct InternalState
     {
-        s.async_read_some(
-            boost::asio::null_buffers(),
-            std::bind(&FDHandler::handle, this,
-                      std::placeholders::_1, std::placeholders::_2, &s));
+        std::mutex stream_descriptors_mutex;
+        std::vector<stream_descriptor_ptr> stream_descriptors;
+        std::function<void(int)> const handler;
 
-    }
-
-    bool still_registered(bap::stream_descriptor* s)
-    {
-        return end(stream_descriptors) != find_if(begin(stream_descriptors),
-                                                  end(stream_descriptors),
-                                                  [s](stream_descriptor_ptr const& item)
-                                                  {return item.get() == s;}
-                                                  );
-    }
-
-    void handle(boost::system::error_code err, size_t /*bytes*/,
-                bap::stream_descriptor* s)
-    {
-        std::unique_lock<std::mutex> lock(stream_descriptors_mutex);
-        if (!err && still_registered(s))
+        InternalState(boost::asio::io_service & io, std::initializer_list<int> fds,
+                      std::function<void(int)> const& handler)
+            : handler{handler}
         {
-            lock.unlock();
-            handler(s->native_handle());
-
-            lock.lock();
-            if (still_registered(s))
-            {
-                read_some(*s);
-            }
+            for (auto fd : fds)
+                stream_descriptors.emplace_back(new bap::stream_descriptor{io, fd});
         }
+
+        bool still_registered(bap::stream_descriptor* s)
+        {
+            return end(stream_descriptors) != find_if(
+                begin(stream_descriptors),
+                end(stream_descriptors),
+                [s](stream_descriptor_ptr const& item)
+                {
+                    return item.get() == s;
+                });
+        }
+    };
+
+    static void read_some(bap::stream_descriptor* s, std::weak_ptr<InternalState> const& data)
+    {
+        s->async_read_some(
+            boost::asio::null_buffers(),
+            [data,s](boost::system::error_code err, size_t /*bytes*/)
+            {
+                if (err)
+                    return;
+                auto state = data.lock();
+                std::unique_lock<std::mutex> lock(state->stream_descriptors_mutex);
+                if (state->still_registered(s))
+                {
+                    lock.unlock();
+                    state->handler(s->native_handle());
+
+                    lock.lock();
+                    if (state->still_registered(s))
+                        read_some(s, data);
+                }
+            });
     }
 
-    std::mutex stream_descriptors_mutex;
-    std::vector<stream_descriptor_ptr> stream_descriptors;
+    std::shared_ptr<InternalState> data;
     void const* owner;
-    std::function<void(int)> const handler;
 };
 
 /*
@@ -233,15 +244,18 @@ void mir::AsioMainLoop::unregister_fd_handler(
     void const* owner)
 {
     std::lock_guard<std::mutex> lock(fd_handlers_mutex);
-    remove_if(
+    auto end_of_valid = remove_if(
         begin(fd_handlers), end(fd_handlers),
         [owner,&fds](std::unique_ptr<FDHandler> & item)
         {
             if (item->is_owned_by(owner))
+            {
                 item->reduce_set(fds);
+            }
 
             return item->empty();
         });
+    fd_handlers.erase(end_of_valid, end(fd_handlers));
 }
 
 namespace
