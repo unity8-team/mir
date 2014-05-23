@@ -1,3 +1,9 @@
+set(
+  UBUNTU_HARDWARE_API_LINK_LIBRARIES
+    
+  ubuntu_hardware_alarm
+)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -fPIC")
 
 include_directories(
