@@ -21,8 +21,6 @@
 #include <QSurfaceFormat>
 #include <EGL/egl.h>
 
-class QOrientationSensor;
-
 class UbuntuScreen : public QObject, public QPlatformScreen
 {
     Q_OBJECT
@@ -30,25 +28,18 @@ public:
     UbuntuScreen();
     virtual ~UbuntuScreen();
 
-    // QObject methods.
-    void customEvent(QEvent* event) override;
-
     // QPlatformScreen methods.
     QImage::Format format() const override { return mFormat; }
     int depth() const override { return mDepth; }
     QRect geometry() const override { return mGeometry; }
     QRect availableGeometry() const override { return mAvailableGeometry; }
     Qt::ScreenOrientation nativeOrientation() const override { return mNativeOrientation; }
-    Qt::ScreenOrientation orientation() const override { return mCurrentOrientation; }
+    Qt::ScreenOrientation orientation() const override { return mNativeOrientation; }
 
     // New methods.
     QSurfaceFormat surfaceFormat() const { return mSurfaceFormat; }
     EGLDisplay eglDisplay() const { return mEglDisplay; }
     EGLConfig eglConfig() const { return mEglConfig; }
-    void toggleSensors(bool enable) const;
-
-public Q_SLOTS:
-    void onOrientationReadingChanged();
 
 private:
     QRect mGeometry;
@@ -56,8 +47,6 @@ private:
     int mGridUnit;
     float mDensityPixelRatio;
     Qt::ScreenOrientation mNativeOrientation;
-    Qt::ScreenOrientation mCurrentOrientation;
-    QOrientationSensor* mOrientationSensor;
     QImage::Format mFormat;
     int mDepth;
     QSurfaceFormat mSurfaceFormat;

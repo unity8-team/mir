@@ -18,6 +18,7 @@
 #include "ubuntuinput.h"
 #include "ubuntuclientintegration.h"
 #include "ubuntunativeinterface.h"
+#include "ubuntuwindow.h"
 #include <logging.h>
 
 // Qt
@@ -126,15 +127,14 @@ static const QEvent::Type kEventType[] = {
   QEvent::KeyPress     // U_KEY_ACTION_MULTIPLE = 2
 };
 
-
 class UbuntuEvent : public QEvent
 {
 public:
-    UbuntuEvent(QWindow* window, const Event* event, QEvent::Type type)
+    UbuntuEvent(UbuntuWindow* window, const Event* event, QEvent::Type type)
         : QEvent(type), window(window) {
         memcpy(&nativeEvent, event, sizeof(Event));
     }
-    QWindow* window;
+    UbuntuWindow* window;
     Event nativeEvent;
 };
 
@@ -163,39 +163,48 @@ void UbuntuInput::customEvent(QEvent* event)
 {
     DASSERT(QThread::currentThread() == thread());
     UbuntuEvent* ubuntuEvent = static_cast<UbuntuEvent*>(event);
+    Event *nativeEvent = &ubuntuEvent->nativeEvent;
 
     // Event filtering.
     long result;
     if (QWindowSystemInterface::handleNativeEvent(
-                ubuntuEvent->window, mEventFilterType, &ubuntuEvent->nativeEvent, &result) == true) {
+                ubuntuEvent->window->window(), mEventFilterType, nativeEvent, &result) == true) {
         DLOG("event filtered out by native interface");
         return;
     }
 
+
     // Event dispatching.
-    switch (ubuntuEvent->nativeEvent.type) {
+    switch (nativeEvent->type) {
     case MOTION_EVENT_TYPE:
-        dispatchMotionEvent(ubuntuEvent->window, &ubuntuEvent->nativeEvent);
+        dispatchMotionEvent(ubuntuEvent->window->window(), nativeEvent);
         break;
     case KEY_EVENT_TYPE:
-        dispatchKeyEvent(ubuntuEvent->window, &ubuntuEvent->nativeEvent);
+        dispatchKeyEvent(ubuntuEvent->window->window(), nativeEvent);
         break;
     case HW_SWITCH_EVENT_TYPE:
-        dispatchHWSwitchEvent(ubuntuEvent->window, &ubuntuEvent->nativeEvent);
+        dispatchHWSwitchEvent(ubuntuEvent->window->window(), nativeEvent);
+        break;
+    case RESIZE_EVENT_TYPE:
+        ubuntuEvent->window->handleResize(nativeEvent->details.resize.width,
+                                          nativeEvent->details.resize.height);
         break;
     default:
-        DLOG("unhandled event type %d", ubuntuEvent->nativeEvent.type);
+        DLOG("unhandled event type %d", nativeEvent->type);
     }
 }
 
-void UbuntuInput::postEvent(QWindow* window, const void* event)
+void UbuntuInput::postEvent(UbuntuWindow* platformWindow, const void* event)
 {
+    QWindow *window = platformWindow->window();
+
     QCoreApplication::postEvent(this, new UbuntuEvent(
-            window, reinterpret_cast<const Event*>(event), mEventType));
+            platformWindow, reinterpret_cast<const Event*>(event), mEventType));
 
     if ((window->flags() && Qt::WindowTransparentForInput) && window->parent()) {
         QCoreApplication::postEvent(this, new UbuntuEvent(
-                    window->parent(), reinterpret_cast<const Event*>(event), mEventType));
+                    static_cast<UbuntuWindow*>(platformWindow->parent()),
+                    reinterpret_cast<const Event*>(event), mEventType));
     }
 }
 
@@ -207,8 +216,9 @@ void UbuntuInput::dispatchMotionEvent(QWindow* window, const void* ev)
     // Motion event logging.
     LOG("MOTION device_id:%d source_id:%d action:%d flags:%d meta_state:%d edge_flags:%d "
             "button_state:%d x_offset:%.2f y_offset:%.2f x_precision:%.2f y_precision:%.2f "
-            "down_time:%lld event_time:%lld pointer_count:%d {", event->device_id,
-            event->source_id, event->action, event->flags, event->meta_state,
+            "down_time:%lld event_time:%lld pointer_count:%d {", event->details.motion.device_id,
+            event->details.motion.source_id, event->details.motion.action,
+            event->details.motion.flags, event->details.motion.meta_state,
             event->details.motion.edge_flags, event->details.motion.button_state,
             event->details.motion.x_offset, event->details.motion.y_offset,
             event->details.motion.x_precision, event->details.motion.y_precision,
@@ -258,7 +268,7 @@ void UbuntuInput::dispatchMotionEvent(QWindow* window, const void* ev)
         touchPoints.append(touchPoint);
     }
 
-    switch (event->action & U_MOTION_ACTION_MASK) {
+    switch (event->details.motion.action & U_MOTION_ACTION_MASK) {
     case U_MOTION_ACTION_MOVE:
         // No extra work needed.
         break;
@@ -272,7 +282,7 @@ void UbuntuInput::dispatchMotionEvent(QWindow* window, const void* ev)
         break;
 
     case U_MOTION_ACTION_POINTER_DOWN: {
-        const int index = (event->action & U_MOTION_ACTION_POINTER_INDEX_MASK) >>
+        const int index = (event->details.motion.action & U_MOTION_ACTION_POINTER_INDEX_MASK) >>
             U_MOTION_ACTION_POINTER_INDEX_SHIFT;
         touchPoints[index].state = Qt::TouchPointPressed;
         break;
@@ -280,7 +290,7 @@ void UbuntuInput::dispatchMotionEvent(QWindow* window, const void* ev)
 
     case U_MOTION_ACTION_CANCEL:
     case U_MOTION_ACTION_POINTER_UP: {
-        const int index = (event->action & U_MOTION_ACTION_POINTER_INDEX_MASK) >>
+        const int index = (event->details.motion.action & U_MOTION_ACTION_POINTER_INDEX_MASK) >>
             U_MOTION_ACTION_POINTER_INDEX_SHIFT;
         touchPoints[index].state = Qt::TouchPointReleased;
         break;
@@ -292,7 +302,7 @@ void UbuntuInput::dispatchMotionEvent(QWindow* window, const void* ev)
     case U_MOTION_ACTION_HOVER_ENTER:
     case U_MOTION_ACTION_HOVER_EXIT:
     default:
-        DLOG("unhandled motion event action %d", event->action & U_MOTION_ACTION_MASK);
+        DLOG("unhandled motion event action %d", event->details.motion.action & U_MOTION_ACTION_MASK);
     }
 
     QWindowSystemInterface::handleTouchEvent(window, event->details.motion.event_time / 1000000,
@@ -325,7 +335,8 @@ void UbuntuInput::dispatchKeyEvent(QWindow* window, const void* ev)
     // Key event logging.
     LOG("KEY device_id:%d source_id:%d action:%d flags:%d meta_state:%d key_code:%d "
             "scan_code:%d repeat_count:%d down_time:%lld event_time:%lld is_system_key:%d",
-            event->device_id, event->source_id, event->action, event->flags, event->meta_state,
+            event->details.key.device_id, event->details.key.source_id,
+            event->details.key.action, event->details.key.flags, event->details.key.meta_state,
             event->details.key.key_code, event->details.key.scan_code,
             event->details.key.repeat_count, event->details.key.down_time,
             event->details.key.event_time, event->details.key.is_system_key);
@@ -335,7 +346,7 @@ void UbuntuInput::dispatchKeyEvent(QWindow* window, const void* ev)
     xkb_keysym_t xk_sym = (xkb_keysym_t)event->details.key.key_code;
 
     // Key modifier and unicode index mapping.
-    const int kMetaState = event->meta_state;
+    const int kMetaState = event->details.key.meta_state;
     Qt::KeyboardModifiers modifiers = Qt::NoModifier;
     if (kMetaState & U_KEY_MODIFIER_SHIFT) {
         modifiers |= Qt::ShiftModifier;
@@ -350,7 +361,7 @@ void UbuntuInput::dispatchKeyEvent(QWindow* window, const void* ev)
         modifiers |= Qt::MetaModifier;
     }
 
-    QEvent::Type keyType = event->action == U_KEY_ACTION_DOWN ? QEvent::KeyPress : QEvent::KeyRelease;
+    QEvent::Type keyType = event->details.key.action == U_KEY_ACTION_DOWN ? QEvent::KeyPress : QEvent::KeyRelease;
 
     char s[2];
     int sym = translateKeysym(xk_sym, s, sizeof(s));

@@ -294,11 +294,19 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT surfaceFirstFrameDrawn(this);
     }
 
-    m_mutex.lock();
-    ++m_pendingClientBuffersCount;
-    m_mutex.unlock();
-
-    update(); // Notifies QML engine that this needs redrawing, schedules call to updatePaintItem
+    if (isVisible() && width() > 0 && height() > 0 && opacity() > 0 && scale() > 0) {
+        m_mutex.lock();
+        ++m_pendingClientBuffersCount;
+        m_mutex.unlock();
+        // Notify QML engine that this needs redrawing, schedules call to updatePaintItem
+        update();
+    } else {
+        // Need to consume buffers from client until it has been notified it has been occluded
+        // and stops rendering itself - if we don't consume, client is blocked.
+        // TODO: notify client it has been occluded so it can stop rendering
+        // FIXME: this will spin client at 100% - need to delay buffer consuming by about vsync
+        m_surface->compositor_snapshot((void*)123/*user_id*/);
+    }
 }
 
 bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene graph)
@@ -460,6 +468,24 @@ void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*
     default:
         break;
     }
+}
+
+void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry)
+{
+    int mirWidth = m_surface->size().width.as_int();
+    int mirHeight = m_surface->size().width.as_int();
+
+    if ((int)newGeometry.width() == mirWidth && (int)newGeometry.height() == mirHeight)
+        return;
+
+    mir::geometry::Size newMirSize((int)newGeometry.width(), (int)newGeometry.height());
+
+    //qDebug() << "MirSurfaceItem::updateMirSurfaceSize width" << width() << "height" << height();
+    m_surface->resize(newMirSize);
+
+    setImplicitSize(newGeometry.width(), newGeometry.height());
+
+    QQuickItem::geometryChanged(newGeometry, oldGeometry);
 }
 
 #include "mirsurfaceitem.moc"

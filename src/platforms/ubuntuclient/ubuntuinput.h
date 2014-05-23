@@ -21,6 +21,7 @@
 #include <qpa/qwindowsysteminterface.h>
 
 class UbuntuClientIntegration;
+class UbuntuWindow;
 
 class UbuntuInput : public QObject
 {
@@ -33,7 +34,7 @@ public:
     // QObject methods.
     void customEvent(QEvent* event) override;
 
-    void postEvent(QWindow* window, const void* event);
+    void postEvent(UbuntuWindow* window, const void* event);
     UbuntuClientIntegration* integration() const { return mIntegration; }
 
 protected:

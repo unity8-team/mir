@@ -28,7 +28,6 @@
 #include <QtSensors/QOrientationSensor>
 #include <QtSensors/QOrientationReading>
 #include <QThread>
-#include <QDebug>
 
 namespace mg = mir::geometry;
 
