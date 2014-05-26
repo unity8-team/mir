@@ -88,6 +88,10 @@ Q_SIGNALS:
     void fullscreenChanged();
     void stageChanged(Stage stage);
 
+    void surfaceCreated(MirSurfaceItem *surface);
+    void surfaceAboutToBeDestroyed(MirSurfaceItem *surface);
+    void surfaceDestroyed(MirSurfaceItem *surface);
+
 private:
     pid_t pid() const;
     void setPid(pid_t pid);
