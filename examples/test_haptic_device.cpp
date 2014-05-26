@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     sleep(3);
 
     printf("Vibrating with pattern 6*1500, repeat twice.\n");
-    int pattern[MAX_PATTERN_SIZE] = {1500, 1500, 1500, 1500, 1500, 1500};
+    uint32_t pattern[MAX_PATTERN_SIZE] = {1500, 1500, 1500, 1500, 1500, 1500};
     ua_sensors_haptic_vibrate_with_pattern(sensor, pattern, 2);
 
     return 0;
