@@ -32,5 +32,4 @@ target_link_libraries(
 
   ${MIRCLIENT_LDFLAGS} ${MIRCLIENT_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
-#  ${MIRCOMMON_LINK}
 )
