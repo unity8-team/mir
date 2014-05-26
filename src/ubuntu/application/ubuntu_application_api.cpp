@@ -45,6 +45,7 @@ extern "C" {
 #endif
 
 // Application Module Config
+IMPLEMENT_VOID_FUNCTION3(u_application_module_version, uint32_t*, uint32_t*, uint32_t*);
 IMPLEMENT_VOID_FUNCTION1(u_application_init, void*);
 IMPLEMENT_VOID_FUNCTION0(u_application_finish);
 

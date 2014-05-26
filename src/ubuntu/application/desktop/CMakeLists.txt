@@ -1,12 +1,16 @@
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
+
 add_library(
   ubuntu_application_api_desktop_mirclient MODULE
 
+  module.cpp
   module_version.h
 )
 
 add_library(
   ubuntu_application_api_desktop_mirserver MODULE
 
+  module.cpp
   module_version.h
 )
 

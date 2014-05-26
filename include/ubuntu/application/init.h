@@ -21,11 +21,24 @@
 
 #include <ubuntu/visibility.h>
 
-#include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif 
+
+    /**
+     * \brief Queries the Module Version that is currently loaded.
+     * \ingroup application_support
+     * \param[out] major Major version.
+     * \param[out] minor Minor version.
+     * \param[out] patch Patch version.
+     */
+     UBUNTU_DLL_PUBLIC void
+     u_application_module_version(
+        uint32_t *major,
+        uint32_t *minor,
+        uint32_t *patch);
 
     /**
      * \brief Initializes the Ubuntu Application API backend with args.
