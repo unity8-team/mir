@@ -29,6 +29,7 @@
 
 class QImage;
 class DesktopFileReader;
+class MirSurfaceItem;
 class TaskController;
 namespace mir { namespace scene { class Session; }}
 

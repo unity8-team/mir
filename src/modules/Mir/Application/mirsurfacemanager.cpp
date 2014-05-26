@@ -122,9 +122,9 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
             }
         }
 
-        Application *app = item->application();
+        Application *app = mirSurfaceItem->application();
         if (app)
-            Q_EMIT app->surfaceDestroyed(item);
+            Q_EMIT app->surfaceDestroyed(mirSurfaceItem);
     });
 }
 
