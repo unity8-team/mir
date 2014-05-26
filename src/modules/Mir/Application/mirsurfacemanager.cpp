@@ -97,6 +97,9 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
+        Application *app = item->application();
+        if (app)
+            Q_EMIT app->surfaceCreated(item);
     });
 
     // clean up after MirSurfaceItem is destroyed
@@ -118,6 +121,10 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
                 emit topmostSurfaceChanged();
             }
         }
+
+        Application *app = item->application();
+        if (app)
+            Q_EMIT app->surfaceDestroyed(item);
     });
 }
 
@@ -131,6 +138,9 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
         Q_EMIT item->surfaceDestroyed();
+        Application *app = item->application();
+        if (app)
+            Q_EMIT app->surfaceAboutToBeDestroyed(item);
 
         // delete *it; // do not delete actual MirSurfaceItem as QML has ownership of that object.
         m_mirSurfaceToItemHash.erase(it);
