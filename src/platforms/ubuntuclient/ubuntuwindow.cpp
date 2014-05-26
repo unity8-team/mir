@@ -216,20 +216,17 @@ void UbuntuWindow::setWindowState(Qt::WindowState state)
     switch (state) {
     case Qt::WindowNoState:
         DLOG("setting window state: 'NoState'");
-        moveResize(d->geometry);
         d->state = Qt::WindowNoState;
         break;
 
     case Qt::WindowFullScreen:
         DLOG("setting window state: 'FullScreen'");
         ua_ui_window_request_fullscreen(d->window);
-        moveResize(screen()->geometry());
         d->state = Qt::WindowFullScreen;
         break;
 
     case Qt::WindowMaximized:
         DLOG("setting window state: 'Maximized'");
-        moveResize(screen()->availableGeometry());
         d->state = Qt::WindowMaximized;
         break;
 
