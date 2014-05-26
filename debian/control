@@ -165,12 +165,12 @@ Description: test implementation of the Platform API
  .
  For now this provides simulated sensors.
 
-Package: ubuntu-application-api2-touch-examples
+Package: ubuntu-application-api2-examples
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          ubuntu-application-api2-touch (= ${binary:Version}),
-Description: Hybris implementation of the Platform API (tests)
- This package provides the test cases for the hybris implementation
- of the Platform API.
+Description: Binary examples for Ubuntu Application API
+ This package provides a set of example programs that excercise most the
+ set of APIs provided by the Application API.
 
