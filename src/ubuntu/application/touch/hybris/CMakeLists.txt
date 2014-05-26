@@ -15,5 +15,3 @@ target_link_libraries(
   
   ${Hybris}
 )
-
-add_subdirectory(tests/)
