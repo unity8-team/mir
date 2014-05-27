@@ -166,7 +166,6 @@ public:
 
     void operator()() noexcept // noexcept is important! (LP: #1237332)
     try
-    {
         /*
          * Make the buffer the current rendering target, and release
          * it when the thread is finished.
@@ -222,23 +221,17 @@ public:
 
                 fprintf(stderr, "fake %d -> %d\n",
                     (int)real_frames, old_real_frames);
-                // Now only composite a fake frame if no real display has
-                // composited during the sleep.
-
                 int more = 0;
 
                 auto const& renderables = scene->renderable_list_for(this);
                 for (auto const& r : renderables)
                 {
-                    int n = r->buffers_ready_for_compositor();
-                    more += n;
-                    fprintf(stderr, "    renderable %p consume %d\n",
-                        (void*)r.get(), n);
+                    more += r->buffers_ready_for_compositor();
+
+                    // Now only composite a fake frame if no real display has
+                    // composited during the sleep.
                     if (real_frames == old_real_frames)
-                    {
-                        for (int i = 0; i < n; ++i)
-                            (void)r->buffer();
-                    }
+                        (void)r->buffer();
                 }
 
                 return more > 0;
