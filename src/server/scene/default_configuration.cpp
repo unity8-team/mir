@@ -20,7 +20,7 @@
 
 #include "mir/graphics/display.h"
 #include "mir/graphics/gl_context.h"
-#include "mir/input/input_configuration.h"
+#include "mir/input/input_targets.h"
 #include "mir/abnormal_exit.h"
 #include "mir/scene/session.h"
 
@@ -38,43 +38,28 @@
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
+namespace mi = mir::input;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
 std::shared_ptr<ms::SurfaceStackModel>
 mir::DefaultServerConfiguration::the_surface_stack_model()
 {
-    return surface_stack(
-        [this]()
-        {
-            auto const scene_report = the_scene_report();
-
-            auto const ss = std::make_shared<ms::SurfaceStack>(
-                the_input_registrar(),
-                scene_report);
-
-            the_input_configuration()->set_input_targets(ss);
-
-            return ss;
-        });
+    return surface_stack([this]()
+                         { return std::make_shared<ms::SurfaceStack>(the_scene_report()); });
 }
 
 std::shared_ptr<mc::Scene>
 mir::DefaultServerConfiguration::the_scene()
 {
-    return surface_stack(
-        [this]()
-        {
-            auto const scene_report = the_scene_report();
+    return surface_stack([this]()
+                         { return std::make_shared<ms::SurfaceStack>(the_scene_report()); });
+}
 
-            auto const ss = std::make_shared<ms::SurfaceStack>(
-                the_input_registrar(),
-                scene_report);
-
-            the_input_configuration()->set_input_targets(ss);
-
-            return ss;
-        });
+std::shared_ptr<mi::InputTargets> mir::DefaultServerConfiguration::the_input_targets()
+{
+    return surface_stack([this]()
+                         { return std::make_shared<ms::SurfaceStack>(the_scene_report()); });
 }
 
 auto mir::DefaultServerConfiguration::the_surface_factory()
@@ -144,7 +129,8 @@ mir::DefaultServerConfiguration::the_mediating_display_changer()
                 the_compositor(),
                 the_display_configuration_policy(),
                 the_session_container(),
-                the_session_event_handler_register());
+                the_session_event_handler_register(),
+                the_server_action_queue());
         });
 
 }

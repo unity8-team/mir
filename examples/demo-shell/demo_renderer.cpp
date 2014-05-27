@@ -18,6 +18,7 @@
 
 #include "demo_renderer.h"
 #include <mir/graphics/renderable.h>
+#include <mir/compositor/recently_used_cache.h>
 #include <cmath>
 
 using namespace mir;
@@ -134,8 +135,12 @@ GLuint generate_frame_corner_texture(float corner_radius,
 
 } // namespace
 
-DemoRenderer::DemoRenderer(geometry::Rectangle const& display_area)
-    : GLRenderer(display_area)
+DemoRenderer::DemoRenderer(
+    graphics::GLProgramFactory const& program_factory,
+    geometry::Rectangle const& display_area)
+    : GLRenderer(program_factory,
+        std::unique_ptr<graphics::GLTextureCache>(new compositor::RecentlyUsedCache()),
+        display_area)
     , corner_radius(0.5f)
 {
     shadow_corner_tex = generate_shadow_corner_texture(0.4f);
@@ -154,18 +159,21 @@ void DemoRenderer::begin() const
 {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // Ensure we don't change the framebuffer's alpha components (if any)
+    // as that would ruin the appearance of screengrabs. (LP: #1301210)
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
 }
 
-void DemoRenderer::tessellate(std::vector<Primitive>& primitives,
-                              graphics::Renderable const& renderable,
-                              geometry::Size const& buf_size) const
+void DemoRenderer::tessellate(std::vector<graphics::GLPrimitive>& primitives,
+                              graphics::Renderable const& renderable) const
 {
-    GLRenderer::tessellate(primitives, renderable, buf_size);
+    GLRenderer::tessellate(primitives, renderable);
     tessellate_shadow(primitives, renderable, 80.0f);
     tessellate_frame(primitives, renderable, 30.0f);
 }
 
-void DemoRenderer::tessellate_shadow(std::vector<Primitive>& primitives,
+void DemoRenderer::tessellate_shadow(std::vector<graphics::GLPrimitive>& primitives,
                                      graphics::Renderable const& renderable,
                                      float radius) const
 {
@@ -260,7 +268,7 @@ void DemoRenderer::tessellate_shadow(std::vector<Primitive>& primitives,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void DemoRenderer::tessellate_frame(std::vector<Primitive>& primitives,
+void DemoRenderer::tessellate_frame(std::vector<graphics::GLPrimitive>& primitives,
                                     graphics::Renderable const& renderable,
                                     float titlebar_height) const
 {

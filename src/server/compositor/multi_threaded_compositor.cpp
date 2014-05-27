@@ -23,6 +23,10 @@
 #include "mir/compositor/display_buffer_compositor_factory.h"
 #include "mir/compositor/scene.h"
 #include "mir/compositor/compositor_report.h"
+#include "mir/scene/legacy_scene_change_notification.h"
+#include "mir/scene/surface_observer.h"
+#include "mir/scene/surface.h"
+#include "mir/run_mir.h"
 
 #include <thread>
 #include <condition_variable>
@@ -32,6 +36,7 @@
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
+namespace ms = mir::scene;
 
 namespace
 {
@@ -160,6 +165,7 @@ public:
     }
 
     void operator()() noexcept // noexcept is important! (LP: #1237332)
+    try
     {
         /*
          * Make the buffer the current rendering target, and release
@@ -184,6 +190,10 @@ public:
             return ret;
         });
     }
+    catch (...)
+    {
+        mir::terminate_with_current_exception();
+    }
 
 private:
     std::shared_ptr<mc::DisplayBufferCompositorFactory> const display_buffer_compositor_factory;
@@ -200,6 +210,7 @@ public:
     }
 
     void operator()() noexcept // noexcept is important! (LP: #1237332)
+    try
     {
         run_compositing_loop(
             [this]
@@ -212,14 +223,21 @@ public:
                 // Now only composite a fake frame if no real display has
                 // composited during the sleep.
                 if (real_frames == old_real_frames)
-                {
-                    auto const& all = scene->generate_renderable_list();
-                    for (auto const& r : all)
-                        (void)r->buffer(this);
-                }
+		{
+                    auto const& renderables = scene->renderable_list_for(this);
+                    for (auto const& r : renderables)
+                    {
+                        if (r->buffers_ready_for_compositor() > 0)
+                            (void)r->buffer();
+                    }
+		}
 
                 return false;
             });
+    }
+    catch (...)
+    {
+        mir::terminate_with_current_exception();
     }
 
 private:
@@ -242,6 +260,17 @@ mc::MultiThreadedCompositor::MultiThreadedCompositor(
       state{CompositorState::stopped},
       compose_on_start{compose_on_start}
 {
+    observer = std::make_shared<ms::LegacySceneChangeNotification>(
+    [this]()
+    {
+        schedule_compositing();
+    },
+    [this](int)
+    {
+        //TODO: make use of number of buffer schedules to provide more intelligent
+        //      composition scheduling.
+        schedule_compositing();
+    });
 }
 
 mc::MultiThreadedCompositor::~MultiThreadedCompositor()
@@ -252,6 +281,7 @@ mc::MultiThreadedCompositor::~MultiThreadedCompositor()
 void mc::MultiThreadedCompositor::schedule_compositing()
 {
     std::unique_lock<std::mutex> lk(state_guard);
+
     report->scheduled();
     for (auto& f : thread_functors)
         f->schedule_compositing();
@@ -275,8 +305,7 @@ void mc::MultiThreadedCompositor::start()
         }};
 
     lk.unlock();
-    /* Recomposite whenever the scene changes */
-    scene->set_change_callback([this]() { schedule_compositing(); });
+    scene->add_observer(observer);
     lk.lock();
 
     create_compositing_threads();
@@ -307,7 +336,7 @@ void mc::MultiThreadedCompositor::stop()
         }};
 
     lk.unlock();
-    scene->set_change_callback([]{});
+    scene->remove_observer(observer);
     lk.lock();
 
     destroy_compositing_threads(lk);
