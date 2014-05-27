@@ -27,6 +27,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
 #include <ubuntu/application/sensors/haptic.h>
 
 #include <ubuntu/application/location/service.h>
@@ -171,6 +172,22 @@ IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_enable, UASensorsHaptic*);
 IMPLEMENT_FUNCTION1(UStatus, ua_sensors_haptic_disable, UASensorsHaptic*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_haptic_vibrate_once, UASensorsHaptic*, uint32_t);
 IMPLEMENT_FUNCTION3(UStatus, ua_sensors_haptic_vibrate_with_pattern, UASensorsHaptic*, uint32_t*, uint32_t);
+
+// Orientation Sensor
+IMPLEMENT_CTOR0(UASensorsOrientation*, ua_sensors_orientation_new);
+IMPLEMENT_FUNCTION1(UStatus, ua_sensors_orientation_enable, UASensorsOrientation*);
+IMPLEMENT_FUNCTION1(UStatus, ua_sensors_orientation_disable, UASensorsOrientation*);
+IMPLEMENT_FUNCTION1(uint32_t, ua_sensors_orientation_get_min_delay, UASensorsOrientation*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_min_value, UASensorsOrientation*, float*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_max_value, UASensorsOrientation*, float*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_resolution, UASensorsOrientation*, float*);
+IMPLEMENT_VOID_FUNCTION3(ua_sensors_orientation_set_reading_cb, UASensorsOrientation*, on_orientation_event_cb, void*);
+
+// Orientation Sensor Event
+IMPLEMENT_FUNCTION1(uint64_t, uas_orientation_event_get_timestamp, UASOrientationEvent*);
+IMPLEMENT_FUNCTION2(UStatus, uas_orientation_event_get_azimuth, UASOrientationEvent*, float*);
+IMPLEMENT_FUNCTION2(UStatus, uas_orientation_event_get_pitch, UASOrientationEvent*, float*);
+IMPLEMENT_FUNCTION2(UStatus, uas_orientation_event_get_roll, UASOrientationEvent*, float*);
 
 // Location
 

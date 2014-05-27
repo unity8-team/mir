@@ -21,6 +21,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
 
 #include <private/application/sensors/sensor.h>
 #include <private/application/sensors/sensor_listener.h>
@@ -55,7 +56,8 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
 {
     SensorListener() : on_accelerometer_event(NULL),
                        on_proximity_event(NULL),
-                       on_light_event(NULL)
+                       on_light_event(NULL),
+                       on_orientation_event(NULL)
     {
     }
 
@@ -63,6 +65,25 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
     {
         switch(sensor_type)
         {
+            case ubuntu::application::sensors::sensor_type_orientation:
+            {
+                if (!on_orientation_event)
+                    return;
+
+                ubuntu::application::sensors::OrientationEvent::Ptr ev(
+                    new ubuntu::application::sensors::OrientationEvent(
+                        reading->timestamp,
+                        reading->vector[0],
+                        reading->vector[1],
+                        reading->vector[2])
+                        );
+
+                on_orientation_event(
+                    make_holder(ev), this->context
+                    );
+
+                break;
+            }
             case ubuntu::application::sensors::sensor_type_accelerometer:
             {
                 if (!on_accelerometer_event)
@@ -122,12 +143,15 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
     on_accelerometer_event_cb on_accelerometer_event;
     on_proximity_event_cb on_proximity_event;
     on_light_event_cb on_light_event;
+    on_orientation_event_cb on_orientation_event;
     void *context;
 };
 
+ubuntu::application::sensors::Sensor::Ptr orientation;
 ubuntu::application::sensors::Sensor::Ptr accelerometer;
 ubuntu::application::sensors::Sensor::Ptr proximity;
 ubuntu::application::sensors::Sensor::Ptr light;
+ubuntu::application::sensors::SensorListener::Ptr orientation_listener;
 ubuntu::application::sensors::SensorListener::Ptr accelerometer_listener;
 ubuntu::application::sensors::SensorListener::Ptr proximity_listener;
 ubuntu::application::sensors::SensorListener::Ptr light_listener;
@@ -600,6 +624,178 @@ uas_accelerometer_event_get_acceleration_z(
 
     auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
     *value = ev->value->get_z();
+
+    return U_STATUS_SUCCESS;
+}
+
+/*
+ * Orientation Sensor
+ */
+
+UASensorsOrientation*
+ua_sensors_orientation_new()
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    orientation =
+        ubuntu::application::sensors::SensorService::sensor_for_type(
+            ubuntu::application::sensors::sensor_type_orientation);
+
+    return orientation.get();
+}
+
+UStatus
+ua_sensors_orientation_enable(
+    UASensorsOrientation* sensor)
+{
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    
+    s->enable();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_orientation_disable(
+    UASensorsOrientation* sensor)
+{
+    if (sensor == NULL)
+        return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    s->disable();
+
+    return U_STATUS_SUCCESS;
+}
+
+uint32_t
+ua_sensors_orientation_get_min_delay(
+    UASensorsOrientation* sensor)
+{
+    if (sensor == NULL)
+        return -1;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    return toHz(s->min_delay());
+}
+
+UStatus
+ua_sensors_orientation_get_min_value(
+    UASensorsOrientation* sensor,
+    float* value)
+{
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    *value = s->min_value();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_orientation_get_max_value(
+    UASensorsOrientation* sensor,
+    float* value)
+{
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    *value = s->max_value();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_orientation_get_resolution(
+    UASensorsOrientation* sensor,
+    float* value)
+{
+    if (sensor == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    *value = s->resolution();
+
+    return U_STATUS_SUCCESS;
+}
+
+void
+ua_sensors_orientation_set_reading_cb(
+    UASensorsOrientation* sensor,
+    on_orientation_event_cb cb,
+    void *ctx)
+{
+    if (sensor == NULL)
+        return; 
+
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+
+    SensorListener<ubuntu::application::sensors::sensor_type_orientation>* sl
+        = new SensorListener<ubuntu::application::sensors::sensor_type_orientation>();
+
+    sl->on_orientation_event = cb;
+    sl->context = ctx;
+
+    orientation_listener = sl;
+    s->register_listener(orientation_listener);
+}
+
+uint64_t
+uas_orientation_event_get_timestamp(
+    UASOrientationEvent* event)
+{
+    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
+    return ev->value->get_timestamp();
+}
+
+UStatus
+uas_orientation_event_get_azimuth(
+    UASOrientationEvent* event,
+    float* value)
+{
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+    
+    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
+    *value = ev->value->get_azimuth();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+uas_orientation_event_get_pitch(
+    UASOrientationEvent* event,
+    float* value)
+{
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
+    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
+    *value = ev->value->get_pitch();
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+uas_orientation_event_get_roll(
+    UASOrientationEvent* event,
+    float* value)
+{
+    if (event == NULL || value == NULL)
+        return U_STATUS_ERROR;
+
+    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
+    *value = ev->value->get_roll();
 
     return U_STATUS_SUCCESS;
 }

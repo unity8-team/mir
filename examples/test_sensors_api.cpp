@@ -25,6 +25,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
 
 void on_new_accelerometer_event(UASAccelerometerEvent* event, void* context)
 {
@@ -68,11 +69,25 @@ void on_new_light_event(UASLightEvent* event, void* context)
     printf("\tlight: %f\n", light);
 }
 
+void on_new_orientation_event(UASOrientationEvent* event, void* context)
+{
+    float x; uas_orientation_event_get_azimuth(event, &x);
+    float y; uas_orientation_event_get_pitch(event, &y);
+    float z; uas_orientation_event_get_roll(event, &z);
+
+    printf("%s \n", __PRETTY_FUNCTION__);
+    printf("\ttime: %" PRIu64 "\n", uas_orientation_event_get_timestamp(event));
+    printf("\tx: %f\n", x);
+    printf("\ty: %f\n", y);
+    printf("\tz: %f\n", z);
+}
+
 int main(int argc, char** argv)
 {
     UASensorsAccelerometer* accelerometer = ua_sensors_accelerometer_new();
     UASensorsProximity* proximity = ua_sensors_proximity_new();
     UASensorsLight* ambientlight = ua_sensors_light_new();
+    UASensorsOrientation* orientation = ua_sensors_orientation_new();
 
     ua_sensors_accelerometer_set_reading_cb(accelerometer,
                                             on_new_accelerometer_event,
@@ -86,9 +101,14 @@ int main(int argc, char** argv)
                                     on_new_light_event,
                                     NULL);
 
+    ua_sensors_orientation_set_reading_cb(orientation,
+                                          on_new_orientation_event,
+                                          NULL);
+
     ua_sensors_accelerometer_enable(accelerometer);
     ua_sensors_proximity_enable(proximity);
     ua_sensors_light_enable(ambientlight);
+    ua_sensors_orientation_enable(orientation);
 
     while(true)
     {
