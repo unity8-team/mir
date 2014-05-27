@@ -46,6 +46,7 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
 {
     Q_OBJECT
     Q_FLAGS(ExecFlags)
+    Q_PROPERTY(Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
 
 public:
     // Mapping enums to Ubuntu Platform API enums.
@@ -77,6 +78,8 @@ public:
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
     QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
 
+    Application* topmostApplication() const;
+
     Q_INVOKABLE Application *startApplication(const QString &appId, ExecFlags flags,
                                               const QStringList &arguments = QStringList());
     Q_INVOKABLE void move(int from, int to);
@@ -101,6 +104,7 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void focusRequested(const QString &appId);
+    void topmostApplicationChanged(Application *application);
 
 private Q_SLOTS:
     void screenshotUpdated();

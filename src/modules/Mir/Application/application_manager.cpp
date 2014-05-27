@@ -725,6 +725,9 @@ void ApplicationManager::add(Application* application)
     endInsertRows();
     emit countChanged();
     emit applicationAdded(application->appId());
+    if (m_applications.size() == 1) {
+        emit topmostApplicationChanged(application);
+    }
 }
 
 void ApplicationManager::remove(Application *application)
@@ -739,6 +742,9 @@ void ApplicationManager::remove(Application *application)
         endRemoveRows();
         emit applicationRemoved(application->appId());
         emit countChanged();
+        if (i == 0) {
+            emit topmostApplicationChanged(topmostApplication());
+        }
     }
 }
 
@@ -751,9 +757,14 @@ void ApplicationManager::move(int from, int to) {
         /* When moving an item down, the destination index needs to be incremented
            by one, as explained in the documentation:
            http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
+
+        Application *oldTopmost = topmostApplication();
         beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
         m_applications.move(from, to);
         endMoveRows();
+        if (topmostApplication() != oldTopmost) {
+            emit topmostApplicationChanged(topmostApplication());
+        }
     }
     DLOG("ApplicationManager::move after (%s)", qPrintable(toString()));
 }
@@ -779,4 +790,13 @@ QString ApplicationManager::toString() const
         result.append(m_applications.at(i)->appId());
     }
     return result;
+}
+
+Application* ApplicationManager::topmostApplication() const
+{
+    if (m_applications.isEmpty()) {
+        return nullptr;
+    } else {
+        return m_applications[0];
+    }
 }
