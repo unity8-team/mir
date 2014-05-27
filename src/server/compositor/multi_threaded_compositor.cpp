@@ -224,21 +224,24 @@ public:
                     (int)real_frames, old_real_frames);
                 // Now only composite a fake frame if no real display has
                 // composited during the sleep.
-                if (real_frames == old_real_frames)
+
+                int more = 0;
+
+                auto const& renderables = scene->renderable_list_for(this);
+                for (auto const& r : renderables)
                 {
-                    auto const& renderables = scene->renderable_list_for(this);
-                    for (auto const& r : renderables)
+                    int n = r->buffers_ready_for_compositor();
+                    more += n;
+                    fprintf(stderr, "    renderable %p consume %d\n",
+                        (void*)r.get(), n);
+                    if (real_frames == old_real_frames)
                     {
-                        int n = r->buffers_ready_for_compositor();
-                        fprintf(stderr, "    renderable %p consume %d\n",
-                            (void*)r.get(), n);
                         for (int i = 0; i < n; ++i)
                             (void)r->buffer();
                     }
-		    return true;
                 }
 
-                return false;
+                return more > 0;
             });
     }
     catch (...)
