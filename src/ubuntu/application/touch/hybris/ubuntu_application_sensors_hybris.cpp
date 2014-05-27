@@ -35,6 +35,7 @@ IMPLEMENT_FUNCTION2(UStatus, ua_sensors_accelerometer_get_min_value, UASensorsAc
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_accelerometer_get_max_value, UASensorsAccelerometer*, float*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_accelerometer_get_resolution, UASensorsAccelerometer*, float*);
 IMPLEMENT_VOID_FUNCTION3(ua_sensors_accelerometer_set_reading_cb, UASensorsAccelerometer*, on_accelerometer_event_cb, void*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_accelerometer_set_event_rate, UASensorsAccelerometer*, uint32_t);
 
 // Acceleration Sensor Event
 IMPLEMENT_FUNCTION1(uint64_t, uas_accelerometer_event_get_timestamp, UASAccelerometerEvent*);
@@ -51,6 +52,7 @@ IMPLEMENT_FUNCTION2(UStatus, ua_sensors_proximity_get_min_value, UASensorsProxim
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_proximity_get_max_value, UASensorsProximity*, float*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_proximity_get_resolution, UASensorsProximity*, float*);
 IMPLEMENT_VOID_FUNCTION3(ua_sensors_proximity_set_reading_cb, UASensorsProximity*, on_proximity_event_cb, void*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_proximity_set_event_rate, UASensorsProximity*, uint32_t);
 
 // Proximity Sensor Event
 IMPLEMENT_FUNCTION1(uint64_t, uas_proximity_event_get_timestamp, UASProximityEvent*);
@@ -65,6 +67,7 @@ IMPLEMENT_FUNCTION2(UStatus, ua_sensors_light_get_min_value, UASensorsLight*, fl
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_light_get_max_value, UASensorsLight*, float*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_light_get_resolution, UASensorsLight*, float*);
 IMPLEMENT_VOID_FUNCTION3(ua_sensors_light_set_reading_cb, UASensorsLight*, on_light_event_cb, void*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_light_set_event_rate, UASensorsLight*, uint32_t);
 
 // Ambient Light Sensor Event
 IMPLEMENT_FUNCTION1(uint64_t, uas_light_event_get_timestamp, UASLightEvent*);
@@ -79,6 +82,7 @@ IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_min_value, UASensorsOrie
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_max_value, UASensorsOrientation*, float*);
 IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_get_resolution, UASensorsOrientation*, float*);
 IMPLEMENT_VOID_FUNCTION3(ua_sensors_orientation_set_reading_cb, UASensorsOrientation*, on_orientation_event_cb, void*);
+IMPLEMENT_FUNCTION2(UStatus, ua_sensors_orientation_set_event_rate, UASensorsOrientation*, uint32_t);
 
 // Orientation Sensor Event
 IMPLEMENT_FUNCTION1(uint64_t, uas_orientation_event_get_timestamp, UASOrientationEvent*);

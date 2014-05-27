@@ -17,7 +17,6 @@
  *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
-#include <ubuntu/application/sensors/ubuntu_application_sensors.h>
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
@@ -290,6 +289,22 @@ ua_sensors_proximity_set_reading_cb(
     s->register_listener(proximity_listener);
 }
 
+UStatus
+ua_sensors_proximity_set_event_rate(
+    UASensorsProximity* sensor,
+    uint32_t rate)
+{
+    if (sensor == NULL)
+       return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    if (!s->set_event_rate(rate))
+        return U_STATUS_ERROR;
+
+    return U_STATUS_SUCCESS;
+}
+
 uint64_t
 uas_proximity_event_get_timestamp(
     UASProximityEvent* event)
@@ -434,6 +449,22 @@ ua_sensors_light_set_reading_cb(
     s->register_listener(light_listener);
 }
 
+UStatus
+ua_sensors_light_set_event_rate(
+    UASensorsLight* sensor,
+    uint32_t rate)
+{
+    if (sensor == NULL)
+       return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    if (!s->set_event_rate(rate))
+        return U_STATUS_ERROR;
+
+    return U_STATUS_SUCCESS;
+}
+
 uint64_t
 uas_light_event_get_timestamp(
     UASLightEvent* event)
@@ -576,6 +607,22 @@ ua_sensors_accelerometer_set_reading_cb(
 
     accelerometer_listener = sl;
     s->register_listener(accelerometer_listener);
+}
+
+UStatus
+ua_sensors_accelerometer_set_event_rate(
+    UASensorsAccelerometer* sensor,
+    uint32_t rate)
+{
+    if (sensor == NULL)
+       return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    if (!s->set_event_rate(rate))
+        return U_STATUS_ERROR;
+
+    return U_STATUS_SUCCESS;
 }
 
 uint64_t
@@ -748,6 +795,22 @@ ua_sensors_orientation_set_reading_cb(
 
     orientation_listener = sl;
     s->register_listener(orientation_listener);
+}
+
+UStatus
+ua_sensors_orientation_set_event_rate(
+    UASensorsOrientation* sensor,
+    uint32_t rate)
+{
+    if (sensor == NULL)
+       return U_STATUS_ERROR;
+
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    auto s = static_cast<ubuntu::application::sensors::Sensor*>(sensor);
+    if (!s->set_event_rate(rate))
+        return U_STATUS_ERROR;
+
+    return U_STATUS_SUCCESS;
 }
 
 uint64_t
