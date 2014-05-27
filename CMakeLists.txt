@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 2.6)
 
 project(ubuntu-platform-api)
 
-set(UBUNTU_PLATFORM_API_VERSION_MAJOR 1)
-set(UBUNTU_PLATFORM_API_VERSION_MINOR 2)
+set(UBUNTU_PLATFORM_API_VERSION_MAJOR 2)
+set(UBUNTU_PLATFORM_API_VERSION_MINOR 0)
 set(UBUNTU_PLATFORM_API_VERSION_PATCH 0)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
@@ -57,36 +57,18 @@ option(
   ON
 )
 
-option(
-  ENABLE_MIRSERVER_IMPLEMENTATION
-  "Enable mirserver based platorm API implementation"
-  OFF
-)
+find_package(PkgConfig)
+pkg_check_modules(MIRSERVER REQUIRED mirserver)
 
-if(ENABLE_MIRSERVER_IMPLEMENTATION)
-  find_package(PkgConfig)
-  pkg_check_modules(MIRSERVER REQUIRED mirserver)
-endif(ENABLE_MIRSERVER_IMPLEMENTATION)
+find_package(PkgConfig)
+pkg_check_modules(MIRCLIENT REQUIRED mirclient)
 
-option(
-  ENABLE_MIRCLIENT_IMPLEMENTATION
-  "Enable mirclient based platform API implementation"
-  OFF
-)
-
-if(ENABLE_MIRCLIENT_IMPLEMENTATION)
-  find_package(PkgConfig)
-  pkg_check_modules(MIRCLIENT REQUIRED mirclient)
-
-  find_package(Protobuf REQUIRED)
-  if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
-    message(SEND_ERROR "protoc executable not found! Missing protobuf-compiler package?")
-  endif()
-endif(ENABLE_MIRCLIENT_IMPLEMENTATION)
-
-if(ENABLE_MIRCLIENT_IMPLEMENTATION OR ENABLE_MIRSERVER_IMPLEMENTATION)
-  pkg_check_modules(MIRCOMMON REQUIRED mircommon)
+find_package(Protobuf REQUIRED)
+if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
+  message(SEND_ERROR "protoc executable not found! Missing protobuf-compiler package?")
 endif()
+
+pkg_check_modules(MIRCOMMON REQUIRED mircommon)
 
 # Try to find hybris, and disable hybris from build if not found
 find_library(Hybris
@@ -105,6 +87,7 @@ add_subdirectory(data/)
 add_subdirectory(doc/)
 add_subdirectory(include/)
 add_subdirectory(src/)
+add_subdirectory(examples/)
 
 #### Enable tests
 include(CTest)
