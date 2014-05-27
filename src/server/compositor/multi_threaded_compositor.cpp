@@ -223,14 +223,14 @@ public:
                 // Now only composite a fake frame if no real display has
                 // composited during the sleep.
                 if (real_frames == old_real_frames)
-		{
+                {
                     auto const& renderables = scene->renderable_list_for(this);
                     for (auto const& r : renderables)
                     {
                         if (r->buffers_ready_for_compositor() > 0)
                             (void)r->buffer();
                     }
-		}
+                }
 
                 return false;
             });
