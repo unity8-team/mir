@@ -235,6 +235,7 @@ public:
                         for (int i = 0; i < n; ++i)
                             (void)r->buffer();
                     }
+		    return true;
                 }
 
                 return false;
