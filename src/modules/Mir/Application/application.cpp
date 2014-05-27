@@ -43,6 +43,7 @@ Application::Application(DesktopFileReader *desktopFileReader, State state,
     , m_fullscreen(false)
     , m_arguments(arguments)
     , m_suspendTimer(new QTimer(this))
+    , m_surface(nullptr)
 {
     DLOG("Application::Application (this=%p, appId=%s, state=%d", this, qPrintable(desktopFileReader->appId()),
          static_cast<int>(state));
@@ -280,4 +281,19 @@ void Application::deduceSupportedOrientationsFromAppId()
             | InvertedPortraitOrientation
             | InvertedLandscapeOrientation;
     }
+}
+
+MirSurfaceItem* Application::surface() const
+{
+    return m_surface;
+}
+
+void Application::setSurface(MirSurfaceItem *surface)
+{
+    if (surface == m_surface)
+        return;
+
+    DLOG("Application::surface = %p", surface);
+    m_surface = surface;
+    Q_EMIT surfaceChanged(surface);
 }

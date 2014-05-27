@@ -27,9 +27,10 @@
 // Unity API
 #include <unity/shell/application/ApplicationInfoInterface.h>
 
+#include "mirsurfaceitem.h"
+
 class QImage;
 class DesktopFileReader;
-class MirSurfaceItem;
 class TaskController;
 namespace mir { namespace scene { class Session; }}
 
@@ -42,6 +43,7 @@ class Application : public unity::shell::application::ApplicationInfoInterface {
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
     Q_PROPERTY(Stage stage READ stage WRITE setStage NOTIFY stageChanged)
     Q_PROPERTY(SupportedOrientations supportedOrientations READ supportedOrientations CONSTANT)
+    Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
 
 public:
     // Matching Qt::ScreenOrientation values for convenience
@@ -67,7 +69,10 @@ public:
     bool focused() const override;
     QUrl screenshot() const override;
 
+    MirSurfaceItem* surface() const;
+
     void setStage(Stage stage);
+    void setSurface(MirSurfaceItem *surface);
 
     QImage screenshotImage() const;
     void updateScreenshot();
@@ -88,9 +93,8 @@ public Q_SLOTS:
 Q_SIGNALS:
     void fullscreenChanged();
     void stageChanged(Stage stage);
+    void surfaceChanged(MirSurfaceItem *surface);
 
-    void surfaceCreated(MirSurfaceItem *surface);
-    void surfaceAboutToBeDestroyed(MirSurfaceItem *surface);
     void surfaceDestroyed(MirSurfaceItem *surface);
 
 private:
@@ -119,6 +123,7 @@ private:
     QStringList m_arguments;
     QTimer* m_suspendTimer;
     SupportedOrientations m_supportedOrientations;
+    MirSurfaceItem *m_surface;
 
     friend class ApplicationManager;
     friend class ApplicationListModel;

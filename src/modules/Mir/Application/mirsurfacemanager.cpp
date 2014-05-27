@@ -98,8 +98,9 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
         Application *app = item->application();
-        if (app)
-            Q_EMIT app->surfaceCreated(item);
+        // FIXME: We are intentionally ignoring the "app with many surfaces" case for now.
+        if (app && app->surface() == nullptr)
+            app->setSurface(item);
     });
 
     // clean up after MirSurfaceItem is destroyed
@@ -138,9 +139,6 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
         Q_EMIT item->surfaceDestroyed();
-        Application *app = item->application();
-        if (app)
-            Q_EMIT app->surfaceAboutToBeDestroyed(item);
 
         // delete *it; // do not delete actual MirSurfaceItem as QML has ownership of that object.
         m_mirSurfaceToItemHash.erase(it);
