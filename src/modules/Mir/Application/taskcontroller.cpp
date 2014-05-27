@@ -421,18 +421,19 @@ bool TaskController::suspend(const QString& appId)
 
 bool TaskController::resume(const QString& appId)
 {
-    DLOG("TaskController::resume (this=%p, application=%p)", this, qPrintable(appId));
     pid_t pid = upstart_app_launch_get_primary_pid(appId.toLatin1().constData());
 
     ensureProcessIsUnlikelyToBeKilled(pid);
 
     if (pid) {
+        DLOG("TaskController::resume (this=%p, appId=%s) - SIGCONT pid=%d", this, qPrintable(appId), pid);
         // We do assume that the app was launched by upstart and with that,
         // in its own process group. For that, we interpret the pid as pgid and
         // sigcont the complete process group on resume.
         kill(-pid, SIGCONT);
         return true;
     } else {
+        DLOG("TaskController::resume (this=%p, appId=%s) - couldn't find PID to resume!", this, qPrintable(appId));
         return false;
     }
 }
