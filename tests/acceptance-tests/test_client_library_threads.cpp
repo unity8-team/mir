@@ -21,14 +21,6 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/mir_client_library_debug.h"
 
-#ifdef ANDROID
-/*
- * MirNativeBuffer for Android is defined opaquely, but we now depend on
- * it having width and height fields, for all platforms. So need definition...
- */
-#include <system/window.h>  // for ANativeWindowBuffer AKA MirNativeBuffer
-#endif
-
 #include <gtest/gtest.h>
 
 #include <sys/types.h>
