@@ -171,6 +171,7 @@ Description: test implementation of the Platform API
 Package: ubuntu-application-api2-examples
 Architecture: any
 Replaces: libplatform-api1-hybris-tests
+Breaks: libplatform-api1-hybris-tests
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          ubuntu-application-api2-test,
@@ -204,4 +205,20 @@ Depends: libubuntu-application-api-dev,
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api1-dev
  This is a dummy transitional package, please use libubuntu-application-api-dev
+
+Package: libplatform-api1-hybris-tests
+Section: oldlibs
+Architecture: all
+Depends: ubuntu-application-api2-examples,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api1-hybris-tests
+ This is a dummy transitional package, please use ubuntu-application-api2-examples
+
+Package: libplatform-api1-doc
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-application-api-doc,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api1-doc
+ This is a dummy transitional package, please use libubuntu-application-api-doc
 
