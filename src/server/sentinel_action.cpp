@@ -18,7 +18,6 @@
 
 #include "sentinel_action.h"
 
-
 mir::SentinelAction::SentinelAction(
     ServerActionQueue & queue,
     boost::optional<std::thread::id> queue_thread_id,
@@ -52,4 +51,3 @@ mir::SentinelAction::~SentinelAction()
     std::unique_lock<std::mutex> lock(done_mutex);
     while(!done) done_condition.wait(lock);
 }
-

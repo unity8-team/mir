@@ -211,7 +211,6 @@ void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
         }};
 }
 
-
 void mir::AsioMainLoop::enqueue(void const* owner, ServerAction const& action)
 {
     action_queue.enqueue(owner, action);
@@ -226,4 +225,3 @@ void mir::AsioMainLoop::resume_processing_for(void const* owner)
 {
     action_queue.resume_processing_for(owner);
 }
-

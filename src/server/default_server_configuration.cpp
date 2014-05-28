@@ -75,7 +75,6 @@ private:
 };
 }
 
-
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
         DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
 {

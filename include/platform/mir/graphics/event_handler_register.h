@@ -42,8 +42,6 @@ public:
 
     virtual void unregister_fd_handler(void const* owner) = 0;
 
-
-
 protected:
     EventHandlerRegister() = default;
     virtual ~EventHandlerRegister() = default;
