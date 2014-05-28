@@ -30,7 +30,8 @@ Vcs-Browser: https://code.launchpad.net/platform-api
 Package: libubuntu-application-api-headers
 Section: libdevel
 Architecture: any
-Replaces: libplatform-api-headers
+Replaces: libplatform-api-headers (<< 2.0.0)
+Breaks: libplatform-api-headers (<< 2.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -44,7 +45,8 @@ Description: Platform API for system level capabilities (API headers)
 Package: libubuntu-platform-hardware-api-headers
 Section: libdevel
 Architecture: any
-Replaces: libplatform-hardware-api-headers
+Replaces: libplatform-hardware-api-headers (<< 2.0.0)
+Breaks: libplatform-hardware-api-headers (<< 2.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -59,7 +61,8 @@ Description: Platform API for system level capabilities (API headers)
 Package: libubuntu-application-api-dev
 Section: libdevel
 Architecture: any
-Replaces: libplatform-api1-dev
+Replaces: libplatform-api1-dev (<< 2.0.0)
+Breaks: libplatform-api1-dev (<< 2.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -175,4 +178,30 @@ Depends: ${misc:Depends},
 Description: Binary examples for Ubuntu Application API
  This package provides a set of example programs that excercise most the
  set of APIs provided by the Application API.
+
+Package: libplatform-api-headers
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-application-api-headers,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api-headers
+ This is a dummy transitional package, please use libubuntu-application-api-headers
+ instead.
+
+Package: libplatform-hardware-api-headers
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-platform-hardware-api-headers,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-hardware-api-headers
+ This is a dummy transitional package, please use libubuntu-platform-hardware-api-headers
+ instead.
+
+Package: libplatform-api1-dev
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-application-api-dev,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-api1-dev
+ This is a dummy transitional package, please use libubuntu-application-api-dev
 

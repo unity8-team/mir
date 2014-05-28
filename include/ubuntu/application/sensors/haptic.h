@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -32,7 +32,6 @@ extern "C" {
      * \brief Opaque type that models the haptics device.
      * \ingroup sensor_access
      */
-    //typedef struct UbuntuApplicationSensorsHaptic UASensorsHaptic;
     typedef void UASensorsHaptic;
 
     /**

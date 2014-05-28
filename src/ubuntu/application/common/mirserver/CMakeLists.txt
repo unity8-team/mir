@@ -17,13 +17,10 @@ add_library(
 	${SOURCES}
 )
 
-#ubuntu_application_api_d_sensors
-
 target_link_libraries(
 	ubuntu_application_api_mirserver
 
     ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
-#    ${MIRCOMMON_LINK}
 )
 
 install(FILES ubuntu_application_api_mirserver_priv.h DESTINATION include/ubuntu/application)

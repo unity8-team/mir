@@ -59,8 +59,6 @@ option(
 
 find_package(PkgConfig)
 pkg_check_modules(MIRSERVER REQUIRED mirserver)
-
-find_package(PkgConfig)
 pkg_check_modules(MIRCLIENT REQUIRED mirclient)
 
 find_package(Protobuf REQUIRED)

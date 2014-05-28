@@ -25,6 +25,11 @@
  * This is the base backend loader for the Platform API
  */
 
+#define API_VERSION_MAJOR   "2"
+#define API_VERSION_MINOR   "0"
+#define API_VERSION_PATCH   "0"
+#define SO_SUFFIX ".so." API_VERSION_MAJOR "." API_VERSION_MINOR "." API_VERSION_PATCH
+
 namespace internal
 {
 /* Programs can select a backend with $UBUNTU_PLATFORM_API_BACKEND,
@@ -50,7 +55,7 @@ struct HIDDEN_SYMBOL ToBackend
                     abort();
                 }
                 strcat(path, cache);
-                strcat(path, ".so.2");
+                strcat(path, SO_SUFFIX);
             }
 
         }
