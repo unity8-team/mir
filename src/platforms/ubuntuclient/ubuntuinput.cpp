@@ -159,6 +159,26 @@ UbuntuInput::~UbuntuInput()
   // Qt will take care of deleting mTouchDevice.
 }
 
+static const char* nativeEventTypeToStr(int eventType)
+{
+    switch (eventType) {
+    case MOTION_EVENT_TYPE:
+        return "MOTION_EVENT_TYPE";
+        break;
+    case KEY_EVENT_TYPE:
+        return "KEY_EVENT_TYPE";
+        break;
+    case HW_SWITCH_EVENT_TYPE:
+        return "HW_SWITCH_EVENT_TYPE";
+        break;
+    case RESIZE_EVENT_TYPE:
+        return "RESIZE_EVENT_TYPE";
+        break;
+    default:
+        return "INVALID!";
+    }
+}
+
 void UbuntuInput::customEvent(QEvent* event)
 {
     DASSERT(QThread::currentThread() == thread());
@@ -173,6 +193,7 @@ void UbuntuInput::customEvent(QEvent* event)
         return;
     }
 
+    DLOG("UbuntuInput::customEvent(type=%s)", nativeEventTypeToStr(nativeEvent->type));
 
     // Event dispatching.
     switch (nativeEvent->type) {
