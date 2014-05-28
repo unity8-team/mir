@@ -111,18 +111,23 @@ public:
 
     ~AlarmImpl() noexcept override;
 
+    // mir::time::Alarm:
     bool cancel() override;
     State state() const override;
 
     bool reschedule_in(std::chrono::milliseconds delay) override;
     bool reschedule_for(mir::time::Timestamp time_point) override;
+
+
+    // called through SentinelActions:
     void update_timer(ServerActionQueue & queue);
+    bool cancel_timer();
 
 private:
     struct InternalState
     {
         InternalState(std::function<void(void)> callback)
-            : callback{callback}
+            : callback{callback}, state{pending}
         {
         }
 
@@ -164,6 +169,11 @@ mir::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
 }
 
 bool mir::AsioTimerService::AlarmImpl::cancel()
+{
+    return service.cancel_alarm(*this);
+}
+
+bool mir::AsioTimerService::AlarmImpl::cancel_timer()
 {
     std::lock_guard<decltype(data->m)> lock(data->m);
     if (data->state == triggered)
@@ -228,6 +238,8 @@ void mir::AsioTimerService::AlarmImpl::update_timer(ServerActionQueue & queue)
                     data->callback();
                 }
             });
+        std::lock_guard<decltype(data->m)> lock(data->m);
+        data->state = pending;
     });
     data->state = pending;
 }
@@ -244,11 +256,19 @@ mir::AsioTimerService::~AsioTimerService() noexcept(true)
 
 void mir::AsioTimerService::run()
 {
+    {
+        std::lock_guard<std::mutex> lock(thread_id_mutex);
+        timer_thread = std::this_thread::get_id();
+    }
     io.run();
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
+    timer_thread.reset();
 }
 
 void mir::AsioTimerService::stop()
 {
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
+    timer_thread.reset();
     io.stop();
 }
 
@@ -268,6 +288,7 @@ std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_at(mir::time::Ti
 
 void mir::AsioTimerService::reschedule_alarm(mir::AsioTimerService::AlarmImpl& alarm)
 {
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
     mir::SentinelAction(
         action_queue,
         timer_thread,
@@ -275,5 +296,20 @@ void mir::AsioTimerService::reschedule_alarm(mir::AsioTimerService::AlarmImpl& a
         {
             alarm.update_timer(action_queue);
         });
+}
+
+bool mir::AsioTimerService::cancel_alarm(mir::AsioTimerService::AlarmImpl& alarm)
+{
+    bool result;
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
+    mir::SentinelAction(
+        action_queue,
+        timer_thread,
+        [this, &result, &alarm]
+        {
+            result = alarm.cancel_timer();
+        });
+
+    return result;
 }
 

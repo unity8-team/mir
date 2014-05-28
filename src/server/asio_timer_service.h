@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <thread>
+#include <mutex>
 
 namespace mir
 {
@@ -49,10 +50,12 @@ public:
 
 private:
     void reschedule_alarm(AlarmImpl &);
+    bool cancel_alarm(AlarmImpl &);
     boost::asio::io_service io;
     boost::asio::io_service::work work;
 
     std::shared_ptr<time::Clock> const clock;
+    std::mutex thread_id_mutex;
     boost::optional<std::thread::id> timer_thread;
     mir::AsioServerActionQueue action_queue;
     friend class AlarmImpl;
