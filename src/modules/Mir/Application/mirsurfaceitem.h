@@ -23,6 +23,7 @@
 #include <QMutex>
 #include <QSet>
 #include <QQuickItem>
+#include <QTimer>
 
 // mir
 #include <mir/scene/surface.h>
@@ -129,6 +130,7 @@ protected:
 
 private Q_SLOTS:
     void surfaceDamaged();
+    void consumePendingBuffers();
 
 private:
     bool updateTexture();
@@ -155,6 +157,8 @@ private:
     static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
 
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
+
+    QTimer m_consumePendingBuffersTimer;
 
     friend class MirSurfaceManager;
 };

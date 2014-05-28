@@ -233,6 +233,11 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     // might create a less error-prone API design (concern: QML forgets to call "release()"
     // for a surface, and thus Mir will not release the surface buffers etc.)
     QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
+
+    connect(&m_consumePendingBuffersTimer, &QTimer::timeout,
+            this, &MirSurfaceItem::consumePendingBuffers);
+    m_consumePendingBuffersTimer.setInterval(200);
+    m_consumePendingBuffersTimer.setSingleShot(false);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
@@ -297,6 +302,7 @@ void MirSurfaceItem::surfaceDamaged()
     if (isVisible() && width() > 0 && height() > 0 && opacity() > 0 && scale() > 0) {
         m_mutex.lock();
         ++m_pendingClientBuffersCount;
+        m_consumePendingBuffersTimer.start();
         m_mutex.unlock();
         // Notify QML engine that this needs redrawing, schedules call to updatePaintItem
         update();
@@ -305,7 +311,7 @@ void MirSurfaceItem::surfaceDamaged()
         // and stops rendering itself - if we don't consume, client is blocked.
         // TODO: notify client it has been occluded so it can stop rendering
         // FIXME: this will spin client at 100% - need to delay buffer consuming by about vsync
-        m_surface->compositor_snapshot((void*)123/*user_id*/);
+        m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
     }
 }
 
@@ -323,7 +329,15 @@ bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene gra
     m_mutex.unlock();
 
     if (textureIsOutdated) {
+        m_mutex.lock();
         std::unique_ptr<mg::Renderable> renderable = m_surface->compositor_snapshot((void*)123/*user_id*/);
+        if (m_pendingClientBuffersCount > 0) {
+            m_consumePendingBuffersTimer.start();
+        } else {
+            m_consumePendingBuffersTimer.stop();
+        }
+        m_mutex.unlock();
+
         if (!m_textureProvider->t) {
             m_textureProvider->t = new MirBufferSGTexture(renderable->buffer());
         } else {
@@ -472,6 +486,7 @@ void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*
 
 void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry)
 {
+    qDebug() << "MirSurfaceItem::geometryChanged oldGeometry" << oldGeometry << ", newGeometry" << newGeometry;
     int mirWidth = m_surface->size().width.as_int();
     int mirHeight = m_surface->size().width.as_int();
 
@@ -480,12 +495,25 @@ void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &ol
 
     mir::geometry::Size newMirSize((int)newGeometry.width(), (int)newGeometry.height());
 
-    //qDebug() << "MirSurfaceItem::updateMirSurfaceSize width" << width() << "height" << height();
     m_surface->resize(newMirSize);
 
     setImplicitSize(newGeometry.width(), newGeometry.height());
 
     QQuickItem::geometryChanged(newGeometry, oldGeometry);
+}
+
+void MirSurfaceItem::consumePendingBuffers()
+{
+    qDebug() << "MirSurfaceItem::consumePendingBuffers()";
+    m_mutex.lock();
+    while (m_pendingClientBuffersCount > 0) {
+        m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
+        --m_pendingClientBuffersCount;
+        qDebug() << "MirSurfaceItem::consumePendingBuffers() consumed pending buffer." << m_pendingClientBuffersCount
+            << "left.";
+    }
+    m_consumePendingBuffersTimer.stop();
+    m_mutex.unlock();
 }
 
 #include "mirsurfaceitem.moc"
