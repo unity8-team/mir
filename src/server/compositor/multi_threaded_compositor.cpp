@@ -166,6 +166,7 @@ public:
 
     void operator()() noexcept // noexcept is important! (LP: #1237332)
     try
+    {
         /*
          * Make the buffer the current rendering target, and release
          * it when the thread is finished.
