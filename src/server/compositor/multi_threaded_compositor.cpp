@@ -216,24 +216,24 @@ public:
             [this]
             {
                 int old_real_frames = real_frames;
-
                 // Emulate a moderately slow fake display
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                bool consumed = real_frames != old_real_frames;
 
-                fprintf(stderr, "fake %d -> %d\n",
-                    (int)real_frames, old_real_frames);
                 int more = 0;
-
                 auto const& renderables = scene->renderable_list_for(this);
                 for (auto const& r : renderables)
                 {
-                    more += r->buffers_ready_for_compositor();
+                    int ready = r->buffers_ready_for_compositor();
+                    more += ready;
 
                     // Now only composite a fake frame if no real display has
                     // composited during the sleep.
-                    if (real_frames == old_real_frames)
+                    if (ready && !consumed)
                         (void)r->buffer();
                 }
+
+                fprintf(stderr, "more = %d\n", more);
 
                 return more > 0;
             });
