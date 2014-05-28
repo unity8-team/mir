@@ -216,8 +216,14 @@ public:
             [this]
             {
                 int old_real_frames = real_frames;
-                // Emulate a moderately slow fake display
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                // Emulate a moderately slow fake display.
+                // Note that due to feedback from consuming a buffer,
+                // this will trigger alternation between consuming a real
+                // and fake frame. So sleeping 50ms here actually results
+                // in a client frame rate of 10Hz.
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 bool consumed = real_frames != old_real_frames;
 
                 int more = 0;
@@ -232,8 +238,6 @@ public:
                     if (ready && !consumed)
                         (void)r->buffer();
                 }
-
-                fprintf(stderr, "more = %d\n", more);
 
                 return more > 0;
             });
