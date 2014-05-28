@@ -30,6 +30,9 @@ set(
   display_server.cpp
   default_server_configuration.cpp
   asio_main_loop.cpp
+  asio_server_action_queue.cpp
+  asio_timer_service.cpp
+  sentinel_action.cpp
 )
 
 set(MIRSERVER_LINKAGE SHARED)

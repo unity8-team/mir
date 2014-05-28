@@ -19,7 +19,6 @@
 #include "mir/default_server_configuration.h"
 #include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
-#include "mir/asio_main_loop.h"
 #include "mir/default_server_status_listener.h"
 #include "mir/default_configuration.h"
 
@@ -37,6 +36,9 @@
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
 
+#include "asio_timer_service.h"
+#include "asio_main_loop.h"
+
 #include <map>
 
 namespace mc = mir::compositor;
@@ -47,6 +49,32 @@ namespace mo = mir::options;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mi = mir::input;
+
+namespace
+{
+class AsioTimerServiceThread : public mir::AsioTimerService
+{
+public:
+    AsioTimerServiceThread(std::shared_ptr<mir::time::Clock> const& clock)
+        : AsioTimerService(clock)
+    {}
+    void run() override
+    {
+        service_thread = std::thread([this]{mir::AsioTimerService::run();});
+    }
+    void stop() override
+    {
+        if (service_thread.joinable())
+        {
+            mir::AsioTimerService::stop();
+            service_thread.join();
+        }
+    }
+private:
+    std::thread service_thread;
+};
+}
+
 
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
         DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
@@ -171,7 +199,16 @@ std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
     return main_loop(
         [this]()
         {
-            return std::make_shared<mir::AsioMainLoop>(the_clock());
+            return std::make_shared<mir::AsioMainLoop>();
+        });
+}
+
+std::shared_ptr<mir::time::TimerService> mir::DefaultServerConfiguration::the_timer_service()
+{
+    return timer_service(
+        [this]()
+        {
+            return std::make_shared<AsioTimerServiceThread>(the_clock());
         });
 }
 

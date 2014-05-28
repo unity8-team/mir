@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,20 +13,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_MAIN_LOOP_H_
-#define MIR_MAIN_LOOP_H_
+#ifndef MIR_TIME_TIMER_SERVICE_H_
+#define MIR_TIME_TIMER_SERVICE_H_
 
-#include "mir/graphics/event_handler_register.h"
-#include "mir/server_action_queue.h"
+#include "mir/time/timer.h"
 
 namespace mir
 {
+namespace time
+{
 
-class MainLoop : public graphics::EventHandlerRegister,
-                 public ServerActionQueue
+class TimerService : public Timer
 {
 public:
     virtual void run() = 0;
@@ -34,5 +34,6 @@ public:
 };
 
 }
+}
 
-#endif /* MIR_MAIN_LOOP_H_ */
+#endif

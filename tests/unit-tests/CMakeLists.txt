@@ -8,7 +8,10 @@ set(
   UNIT_TEST_SOURCES
 
   test_gmock_fixes.cpp
+  test_sentinel_action.cpp
   test_asio_main_loop.cpp
+  test_asio_server_action_queue.cpp
+  test_asio_timer_service.cpp
   shared_library_test.cpp
   test_raii.cpp
   test_udev_wrapper.cpp
@@ -29,6 +32,33 @@ add_subdirectory(scene/)
 add_subdirectory(draw/)
 
 link_directories(${LIBRARY_OUTPUT_PATH})
+add_executable(mir_asio_unit_tests test_asio_main_loop.cpp)
+target_link_libraries(
+  mir_asio_unit_tests 
+  mirclient
+  mirserver
+  mirplatformgraphics
+  mirclientplatform
+  mirdraw
+  mirtestdraw
+  mirlogging
+
+  mir-test
+  mir-test-doubles
+  mir-test-doubles-platform
+  mir-test-framework
+
+  3rd_party
+
+  ${PROTOBUF_LIBRARIES}
+  ${GTEST_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARY}
+  ${GMOCK_MAIN_LIBRARY}
+  ${Boost_LIBRARIES}
+  ${UMOCKDEV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+  )
+
 
 add_executable(mir_unit_tests ${UNIT_TEST_SOURCES})
 uses_android_input(mir_unit_tests)

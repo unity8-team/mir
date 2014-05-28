@@ -43,8 +43,7 @@ public:
                  void(std::initializer_list<int>, void const*,
                       std::function<void(int)> const&));
 
-    MOCK_METHOD2(unregister_fd_handler,
-                 void(std::initializer_list<int>, void const*));
+    MOCK_METHOD1(unregister_fd_handler, void(void const*));
 };
 
 }

@@ -156,6 +156,7 @@ public:
     virtual std::shared_ptr<compositor::Compositor> the_compositor();
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
     virtual std::shared_ptr<MainLoop>               the_main_loop();
+    virtual std::shared_ptr<time::TimerService>     the_timer_service();
     virtual std::shared_ptr<ServerStatusListener>   the_server_status_listener();
     virtual std::shared_ptr<DisplayChanger>         the_display_changer();
     virtual std::shared_ptr<graphics::Platform>     the_graphics_platform();
@@ -341,6 +342,7 @@ protected:
     CachedPtr<graphics::DisplayReport> display_report;
     CachedPtr<time::Clock> clock;
     CachedPtr<MainLoop> main_loop;
+    CachedPtr<time::TimerService> timer_service;
     CachedPtr<ServerStatusListener> server_status_listener;
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;
     CachedPtr<graphics::nested::HostConnection> host_connection;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,26 +13,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_MAIN_LOOP_H_
-#define MIR_MAIN_LOOP_H_
+#ifndef MIR_MOCK_SERVER_ACTION_QUEUE_H_
+#define MIR_MOCK_SERVER_ACTION_QUEUE_H_
 
-#include "mir/graphics/event_handler_register.h"
 #include "mir/server_action_queue.h"
+#include <gmock/gmock.h>
 
 namespace mir
 {
+namespace test
+{
+namespace doubles
+{
 
-class MainLoop : public graphics::EventHandlerRegister,
-                 public ServerActionQueue
+class MockServerActionQueue : public mir::ServerActionQueue
 {
 public:
-    virtual void run() = 0;
-    virtual void stop() = 0;
+    MOCK_METHOD2(enqueue, void (void const* /*owner*/, mir::ServerAction const& /*action*/));
+    MOCK_METHOD1(pause_processing_for, void(void const* /*owner*/));
+    MOCK_METHOD1(resume_processing_for, void(void const* /*owner*/));
 };
 
 }
+}
+}
 
-#endif /* MIR_MAIN_LOOP_H_ */
+#endif

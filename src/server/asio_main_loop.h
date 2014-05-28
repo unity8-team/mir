@@ -21,8 +21,13 @@
 
 #include "mir/main_loop.h"
 
+#include "asio_server_action_queue.h"
+
 #include <boost/asio.hpp>
+#include <boost/optional.hpp>
+
 #include <memory>
+#include <thread>
 #include <vector>
 #include <mutex>
 #include <utility>
@@ -32,15 +37,10 @@
 namespace mir
 {
 
-namespace time
-{
-class Clock;
-}
-
 class AsioMainLoop : public MainLoop
 {
 public:
-    explicit AsioMainLoop(std::shared_ptr<time::Clock> const& clock);
+    AsioMainLoop();
     ~AsioMainLoop() noexcept(true);
 
     void run();
@@ -55,35 +55,23 @@ public:
         void const* owner,
         std::function<void(int)> const& handler) override;
 
-    void unregister_fd_handler(
-        std::initializer_list<int> fd,
-        void const* owner) override;
+    void unregister_fd_handler(void const* owner) override;
 
-
-
-    std::unique_ptr<time::Alarm> notify_in(std::chrono::milliseconds delay,
-                                           std::function<void()> callback) override;
-    std::unique_ptr<time::Alarm> notify_at(mir::time::Timestamp time_point,
-                                           std::function<void()> callback) override;
-    void enqueue(void const* owner, ServerAction const& action);
-    void pause_processing_for(void const* owner);
-    void resume_processing_for(void const* owner);
+    void enqueue(void const* owner, ServerAction const& action) override;
+    void pause_processing_for(void const* owner) override;
+    void resume_processing_for(void const* owner) override;
 
 private:
     class SignalHandler;
     class FDHandler;
-    bool should_process(void const*);
-    void process_server_actions();
 
     boost::asio::io_service io;
     boost::asio::io_service::work work;
+    boost::optional<std::thread::id> main_loop_thread;
     std::vector<std::unique_ptr<SignalHandler>> signal_handlers;
     std::vector<std::unique_ptr<FDHandler>> fd_handlers;
     std::mutex fd_handlers_mutex;
-    std::mutex server_actions_mutex;
-    std::deque<std::pair<void const*,ServerAction>> server_actions;
-    std::set<void const*> do_not_process;
-    std::shared_ptr<time::Clock> const clock;
+    AsioServerActionQueue action_queue;
 };
 
 }
