@@ -268,8 +268,14 @@ void mir::AsioTimerService::run()
 void mir::AsioTimerService::stop()
 {
     std::lock_guard<std::mutex> lock(thread_id_mutex);
-    timer_thread.reset();
-    io.stop();
+    mir::SentinelAction(
+        action_queue,
+        timer_thread,
+        [this]
+        {
+            timer_thread.reset();
+            io.stop();
+        });
 }
 
 
