@@ -910,6 +910,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         unsigned long client_frames = 0;
         unsigned long const compose_frames = 100;
         auto const frame_time = std::chrono::milliseconds(16);
+        auto const render_time = std::chrono::milliseconds(15);
 
         q.allow_framedropping(false);
 
@@ -947,7 +948,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
             auto handle = client_acquire_async(q);
             handle->wait_for(std::chrono::seconds(1));
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-            std::this_thread::sleep_for(frame_time);
+            std::this_thread::sleep_for(render_time);
             handle->release_buffer();
             client_frames++;
         }
