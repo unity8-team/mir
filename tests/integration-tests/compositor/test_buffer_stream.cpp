@@ -271,11 +271,8 @@ TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
 
 TEST_F(BufferStreamTest, can_get_partly_released_back_buffer)
 {
-    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
-
-    mg::Buffer* client{nullptr};
-    buffer_stream.swap_client_buffers_blocking(client);
-    buffer_stream.swap_client_buffers_blocking(client);
+    mg::Buffer* client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
 
     int a, b, c;
     auto comp1 = buffer_stream.lock_compositor_buffer(&a);
