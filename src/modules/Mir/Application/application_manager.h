@@ -47,6 +47,7 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
     Q_OBJECT
     Q_FLAGS(ExecFlags)
     Q_PROPERTY(Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
     // Mapping enums to Ubuntu Platform API enums.
@@ -84,6 +85,8 @@ public:
                                               const QStringList &arguments = QStringList());
     Q_INVOKABLE void move(int from, int to);
 
+    bool isEmpty() const { return rowCount() == 0; }
+
     const QList<Application*> &list() const { return m_applications; }
     Application* findApplicationWithPid(const qint64 pid);
 
@@ -105,6 +108,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void focusRequested(const QString &appId);
     void topmostApplicationChanged(Application *application);
+    void emptyChanged();
 
 private Q_SLOTS:
     void screenshotUpdated();

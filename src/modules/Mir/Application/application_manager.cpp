@@ -727,6 +727,7 @@ void ApplicationManager::add(Application* application)
     emit applicationAdded(application->appId());
     if (m_applications.size() == 1) {
         emit topmostApplicationChanged(application);
+        emit emptyChanged();
     }
 }
 
@@ -744,6 +745,7 @@ void ApplicationManager::remove(Application *application)
         emit countChanged();
         if (i == 0) {
             emit topmostApplicationChanged(topmostApplication());
+            emit emptyChanged();
         }
     }
 }

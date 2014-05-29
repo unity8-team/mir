@@ -58,6 +58,7 @@ Application::~Application()
 {
     DLOG("Application::~Application");
     delete m_desktopData;
+    delete m_surface;
 }
 
 bool Application::isValid() const
@@ -221,6 +222,9 @@ void Application::setState(Application::State state)
         case Application::Stopped:
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
+            if (m_surface) {
+                m_surface->stopFrameDropper();
+            }
             break;
         default:
             break;
@@ -251,6 +255,11 @@ void Application::setFullscreen(bool fullscreen)
 void Application::suspend()
 {
     DLOG("Application::suspend (this=%p, appId=%s)", this, qPrintable(appId()));
+    if (m_surface) {
+        m_surface->stopFrameDropper();
+    } else {
+        qDebug() << "Application::suspend - no surface to call stopFrameDropper() on!";
+    }
     TaskController::singleton()->suspend(appId());
 }
 
@@ -258,6 +267,9 @@ void Application::resume()
 {
     DLOG("Application::resume (this=%p, appId=%s)", this, qPrintable(appId()));
     TaskController::singleton()->resume(appId());
+    if (m_surface) {
+        m_surface->startFrameDropper();
+    }
 }
 
 void Application::respawn()
@@ -285,15 +297,59 @@ void Application::deduceSupportedOrientationsFromAppId()
 
 MirSurfaceItem* Application::surface() const
 {
-    return m_surface;
+    // Only notify QML of surface creation once it has drawn its first frame.
+    if (m_surface && m_surface->isFirstFrameDrawn()) {
+        return m_surface;
+    } else {
+        return nullptr;
+    }
 }
 
-void Application::setSurface(MirSurfaceItem *surface)
+void Application::setSurface(MirSurfaceItem *newSurface)
 {
-    if (surface == m_surface)
+    if (newSurface == m_surface) {
         return;
+    }
 
-    DLOG("Application::surface = %p", surface);
-    m_surface = surface;
-    Q_EMIT surfaceChanged(surface);
+    DLOG("Application::surface = %p", newSurface);
+
+    if (m_surface) {
+        m_surface->disconnect(this);
+        m_surface->setApplication(nullptr);
+    }
+
+    MirSurfaceItem *previousSurface = surface();
+    m_surface = newSurface;
+
+    if (newSurface) {
+        m_surface->setApplication(this);
+
+        // Only notify QML of surface creation once it has drawn its first frame.
+        if (!surface()) {
+            connect(newSurface, &MirSurfaceItem::firstFrameDrawn,
+                    this, &Application::surfaceChanged);
+        }
+
+        connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
+                this, &Application::discardSurface);
+
+        connect(newSurface, &MirSurfaceItem::stateChanged,
+            this, &Application::updateFullscreenProperty);
+    }
+
+    if (previousSurface != surface()) {
+        Q_EMIT surfaceChanged(newSurface);
+    }
+}
+
+void Application::discardSurface()
+{
+    MirSurfaceItem *discardedSurface = m_surface;
+    setSurface(nullptr);
+    delete discardedSurface;
+}
+
+void Application::updateFullscreenProperty()
+{
+    setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
 }

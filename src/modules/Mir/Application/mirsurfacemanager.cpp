@@ -79,10 +79,12 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
 {
     DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
-    Application* application = appMgr->findApplicationWithSession(session);
 
-    auto qmlSurface = new MirSurfaceItem(surface, application);
+    auto qmlSurface = new MirSurfaceItem(surface);
     m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
+
+    Application* application = appMgr->findApplicationWithSession(session);
+    application->setSurface(qmlSurface);
 
     bool wasEmpty = isEmpty();
     beginInsertRows(QModelIndex(), 0, 0);
@@ -95,12 +97,8 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     emit topmostSurfaceChanged();
 
     // Only notify QML of surface creation once it has drawn its first frame.
-    connect(qmlSurface, &MirSurfaceItem::surfaceFirstFrameDrawn, [&](MirSurfaceItem *item) {
+    connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
-        Application *app = item->application();
-        // FIXME: We are intentionally ignoring the "app with many surfaces" case for now.
-        if (app && app->surface() == nullptr)
-            app->setSurface(item);
     });
 
     // clean up after MirSurfaceItem is destroyed
@@ -122,10 +120,6 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
                 emit topmostSurfaceChanged();
             }
         }
-
-        Application *app = mirSurfaceItem->application();
-        if (app)
-            Q_EMIT app->surfaceDestroyed(mirSurfaceItem);
     });
 }
 
@@ -140,7 +134,6 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
         MirSurfaceItem* item = it.value();
         Q_EMIT item->surfaceDestroyed();
 
-        // delete *it; // do not delete actual MirSurfaceItem as QML has ownership of that object.
         m_mirSurfaceToItemHash.erase(it);
 
         int i = m_surfaceItems.indexOf(item);
@@ -172,10 +165,6 @@ void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
     auto it = m_mirSurfaceToItemHash.find(surface);
     if (it != m_mirSurfaceToItemHash.end()) {
         it.value()->setAttribute(attribute, value);
-        if (attribute == mir_surface_attrib_state &&
-                value == mir_surface_state_fullscreen) {
-            it.value()->application()->setFullscreen(static_cast<bool>(value));
-        }
     }
 }
 
@@ -218,35 +207,11 @@ void MirSurfaceManager::move(int from, int to) {
             emit topmostSurfaceChanged();
         }
     }
-    DLOG("MirSurfaceManager::move after (%s)", qPrintable(toString()));
-}
-
-int MirSurfaceManager::getIndexOfSurfaceWithAppId(const QString &appId) const
-{
-    for (int i = 0; i < m_surfaceItems.count(); ++i) {
-        MirSurfaceItem *surfaceItem = m_surfaceItems[i];
-        if (surfaceItem->application()->appId() == appId) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 {
     return m_surfaceItems[index];
-}
-
-QString MirSurfaceManager::toString() const
-{
-    QString result;
-    for (int i = 0; i < m_surfaceItems.count(); ++i) {
-        if (i > 0) {
-            result.append(",");
-        }
-        result.append(m_surfaceItems.at(i)->application()->appId());
-    }
-    return result;
 }
 
 MirSurfaceItem* MirSurfaceManager::topmostSurface() const
