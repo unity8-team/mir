@@ -172,8 +172,8 @@ Description: test implementation of the Platform API
 
 Package: ubuntu-application-api2-examples
 Architecture: any
-Replaces: libplatform-api1-hybris-tests
-Breaks: libplatform-api1-hybris-tests
+Replaces: libplatform-api1-hybris-tests (<< 2.0.0)
+Breaks: libplatform-api1-hybris-tests (<< 2.0.0)
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          ubuntu-application-api2-test,
