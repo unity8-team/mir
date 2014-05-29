@@ -279,7 +279,8 @@ TEST_F(BufferQueueTest, client_can_acquire_buffers)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
-        int const max_ownable_buffers = nbuffers - 1;
+        int const max_ownable_buffers = q.buffers_free_for_client();
+        ASSERT_THAT(max_ownable_buffers, Gt(0));
         for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
         {
             auto handle = client_acquire_async(q);
@@ -294,7 +295,8 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties);
 
-    int const prefill = 1; //q.buffers_free_for_client();
+    int const prefill = q.buffers_free_for_client();
+    ASSERT_THAT(prefill, Gt(0));
     for (int i = 0; i < prefill; ++i)
     {
         auto handle = client_acquire_async(q);
@@ -825,7 +827,8 @@ TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
         mc::BufferQueue q(nbuffers, allocator, basic_properties);
         q.allow_framedropping(false);
 
-        int const max_ownable_buffers = 1; //q.buffers_free_for_client();
+        int const max_ownable_buffers = q.buffers_free_for_client();
+        ASSERT_THAT(max_ownable_buffers, Gt(0));
 
         for (int b = 0; b < max_ownable_buffers; b++)
         {
@@ -899,7 +902,7 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
 TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
 {
     /* BufferQueue can only satify this for nbuffers >= 3
-     * since a client can only own nbuffers - 1 at any one time
+     * since a client can only own up to nbuffers - 1 at any one time
      */
     for (int nbuffers = 3; nbuffers <= 3; nbuffers++)
     {
@@ -998,7 +1001,8 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         const int dy = -3;
         int width = width0;
         int height = height0;
-        int const nbuffers_to_use = nbuffers == 1 ? 1 : nbuffers - 1;
+        int const nbuffers_to_use = q.buffers_free_for_client();
+        ASSERT_THAT(nbuffers_to_use, Gt(0));
 
         for (int produce = 0; produce < nbuffers_to_use; ++produce)
         {
@@ -1282,7 +1286,8 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         /* Hold a reference to current compositor buffer*/
         auto comp_buffer1 = q.compositor_acquire(main_compositor);
 
-        int const prefill = 1; //q.buffers_free_for_client();
+        int const prefill = q.buffers_free_for_client();
+        ASSERT_THAT(prefill, Gt(0));
         for (int acquires = 0; acquires < prefill; ++acquires)
         {
             auto handle = client_acquire_async(q);
