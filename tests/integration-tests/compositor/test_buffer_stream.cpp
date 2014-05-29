@@ -178,13 +178,13 @@ TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
 
 TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
 {
-    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
-
     auto old_size = buffer_stream.stream_size();
 
-    mg::Buffer* client{nullptr};
-    buffer_stream.swap_client_buffers_blocking(client);
+    mg::Buffer* client = buffer_stream.acquire_client_buffer_blocking();
     EXPECT_EQ(old_size, client->size());
+    buffer_stream.release_client_buffer(client);
+
+    buffer_stream.lock_compositor_buffer(this);
 
     geom::Size const new_size
     {
@@ -194,18 +194,20 @@ TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
     buffer_stream.resize(new_size);
     EXPECT_EQ(new_size, buffer_stream.stream_size());
 
-    buffer_stream.swap_client_buffers_blocking(client);
+    client = buffer_stream.acquire_client_buffer_blocking();
     EXPECT_EQ(new_size, client->size());
+    buffer_stream.release_client_buffer(client);
+
+    buffer_stream.lock_compositor_buffer(this);
 
     buffer_stream.resize(old_size);
     EXPECT_EQ(old_size, buffer_stream.stream_size());
 
-    /* Release a buffer so client can acquire another */
-    auto comp = buffer_stream.lock_compositor_buffer(nullptr);
-    comp.reset();
+    buffer_stream.lock_compositor_buffer(this);
 
-    buffer_stream.swap_client_buffers_blocking(client);
+    client = buffer_stream.acquire_client_buffer_blocking();
     EXPECT_EQ(old_size, client->size());
+    buffer_stream.release_client_buffer(client);
 }
 
 TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
