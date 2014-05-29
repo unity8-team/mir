@@ -159,6 +159,7 @@ UbuntuInput::~UbuntuInput()
   // Qt will take care of deleting mTouchDevice.
 }
 
+#ifndef QT_NO_DEBUG
 static const char* nativeEventTypeToStr(int eventType)
 {
     switch (eventType) {
@@ -178,6 +179,7 @@ static const char* nativeEventTypeToStr(int eventType)
         return "INVALID!";
     }
 }
+#endif
 
 void UbuntuInput::customEvent(QEvent* event)
 {
