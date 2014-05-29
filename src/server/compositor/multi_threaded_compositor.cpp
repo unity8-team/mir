@@ -207,8 +207,6 @@ public:
         run_compositing_loop(
             [this]
             {
-                if (1) return false; // Work around LP: #1308844 / LP: #1308843
-
                 std::vector<std::shared_ptr<mg::Buffer>> saved_resources;
 
                 auto const& renderables = scene->renderable_list_for(this);
