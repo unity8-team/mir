@@ -446,13 +446,5 @@ int mc::BufferQueue::min_buffers() const
     int required_buffers = min_compositors + min_clients + min_free;
 
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
-    int ret = std::min(nbuffers, required_buffers);
-
-#if 0
-    fprintf(stderr, "#buffers %d\n", int(buffers.size()));
-    fprintf(stderr, "min_compositors %d, min_clients %d, min_free %d\n",
-        min_compositors, min_clients, min_free);
-    fprintf(stderr, "min_buffers %d of %d\n", ret, nbuffers);
-#endif
-    return ret;
+    return std::min(nbuffers, required_buffers);
 }
