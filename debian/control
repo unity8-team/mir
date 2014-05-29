@@ -105,6 +105,7 @@ Package: libubuntu-platform-hardware-api-dev
 Section: libdevel
 Architecture: any
 Replaces: libplatform-hardware-api1-dev
+Breaks: libplatform-hardware-api1-dev
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -120,6 +121,7 @@ Package: libubuntu-application-api-doc
 Section: doc
 Architecture: all
 Replaces: libplatform-api1-doc
+Breaks: libplatform-api1-doc
 Depends: ${misc:Depends},
          libubuntu-application-api-dev,
 Description: Platform API for system level capabilities (development)
@@ -205,6 +207,15 @@ Depends: libubuntu-application-api-dev,
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api1-dev
  This is a dummy transitional package, please use libubuntu-application-api-dev
+
+Package: libplatform-hardware-api1-dev
+Section: oldlibs
+Architecture: all
+Depends: libubuntu-platform-hardware-api-dev,
+         ${misc:Depends},
+Description: dummy transitional package for libplatform-hardware-api1-dev
+ This is a dummy transitional package, please use libubuntu-platform-hardware-api-dev
+ instead.
 
 Package: libplatform-api1-hybris-tests
 Section: oldlibs
