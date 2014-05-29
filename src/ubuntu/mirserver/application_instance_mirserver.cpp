@@ -58,8 +58,8 @@ public:
     virtual void show() override {}
     virtual void send_display_config(mir::graphics::DisplayConfiguration const&) override {}
 
-    virtual void begin_trust_session() {}
-    virtual void end_trust_session() {}
+    virtual void start_trust_session() {}
+    virtual void stop_trust_session() {}
 private:
     std::shared_ptr<ms::Surface> const surface;
 };
