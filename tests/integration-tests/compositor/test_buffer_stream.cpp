@@ -212,12 +212,10 @@ TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
 
 TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
 {
-    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
-
     auto old_size = buffer_stream.stream_size();
 
-    mg::Buffer* client{nullptr};
-    buffer_stream.swap_client_buffers_blocking(client);
+    mg::Buffer* client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
 
     geom::Size const new_size
     {
@@ -227,36 +225,46 @@ TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
     buffer_stream.resize(new_size);
     EXPECT_EQ(new_size, buffer_stream.stream_size());
 
-    buffer_stream.swap_client_buffers_blocking(client);
-
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
+
     EXPECT_EQ(old_size, comp1->size());
     comp1.reset();
 
-    buffer_stream.swap_client_buffers_blocking(client);
-
     auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
+
     EXPECT_EQ(new_size, comp2->size());
     comp2.reset();
 
-    buffer_stream.swap_client_buffers_blocking(client);
-
     auto comp3 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
+
     EXPECT_EQ(new_size, comp3->size());
     comp3.reset();
 
     buffer_stream.resize(old_size);
     EXPECT_EQ(old_size, buffer_stream.stream_size());
 
-    // No client frames "drawn" since resize(old_size), so compositor gets new_size
-    buffer_stream.swap_client_buffers_blocking(client);
     auto comp4 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    // No client frames "drawn" since resize(old_size), so compositor gets new_size
+    client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
     EXPECT_EQ(new_size, comp4->size());
     comp4.reset();
 
-    // Generate a new frame, which should be back to old_size now
-    buffer_stream.swap_client_buffers_blocking(client);
     auto comp5 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    // Generate a new frame, which should be back to old_size now
+    client = buffer_stream.acquire_client_buffer_blocking();
+    buffer_stream.release_client_buffer(client);
     EXPECT_EQ(old_size, comp5->size());
     comp5.reset();
 }
