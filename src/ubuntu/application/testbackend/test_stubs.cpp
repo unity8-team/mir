@@ -34,10 +34,6 @@
 #include <ubuntu/application/init.h>
 
 // Application Module Config
-void u_application_module_version(uint32_t *major, uint32_t *, uint32_t*)
-{
-}
-
 void u_application_init(void*)
 {
 }
@@ -457,8 +453,9 @@ double ua_location_velocity_update_get_velocity_in_meters_per_second(UALocationV
 
 // URL Dispatcher
 
-void UAUrlDispatcherSession* ua_url_dispatcher_session()
+UAUrlDispatcherSession* ua_url_dispatcher_session()
 {
+    return NULL;
 }
 
 void ua_url_dispatcher_session_open(UAUrlDispatcherSession*, const char*, UAUrlDispatcherSessionDispatchHandler, void*)

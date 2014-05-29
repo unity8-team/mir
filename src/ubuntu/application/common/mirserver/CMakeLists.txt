@@ -22,5 +22,3 @@ target_link_libraries(
 
     ${MIRSERVER_LDFLAGS} ${MIRSERVER_LIBRARIES}
 )
-
-install(FILES ubuntu_application_api_mirserver_priv.h DESTINATION include/ubuntu/application)
