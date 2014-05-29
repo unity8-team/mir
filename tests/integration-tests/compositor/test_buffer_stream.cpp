@@ -164,16 +164,10 @@ TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
 
 TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
 {
-    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
-
-    mg::Buffer* client_buffer{nullptr};
-    buffer_stream.swap_client_buffers_blocking(client_buffer);
-
-    ASSERT_THAT(nbuffers, Gt(1));
-    buffer_stream.swap_client_buffers_blocking(client_buffer);
+    buffer_stream.release_client_buffer(buffer_stream.acquire_client_buffer_blocking());
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
 
-    buffer_stream.swap_client_buffers_blocking(client_buffer);
+    buffer_stream.release_client_buffer(buffer_stream.acquire_client_buffer_blocking());
     auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
 
     EXPECT_NE(comp1->id(), comp2->id());
