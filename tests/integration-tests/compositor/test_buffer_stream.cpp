@@ -45,15 +45,13 @@ struct BufferStreamSurfaces : mc::BufferStreamSurfaces
 {
     using mc::BufferStreamSurfaces::BufferStreamSurfaces;
 
-    // Convenient function to allow tests to be written in linear style
-    void swap_client_buffers_blocking(mg::Buffer*& buffer)
+    // Convenient functions to allow tests to be written in linear style
+    mg::Buffer* acquire_client_buffer_blocking()
     {
         std::mutex mutex;
         std::condition_variable cv;
         bool done = false;
-
-        if (buffer)
-            release_client_buffer(buffer);
+        mg::Buffer* buffer = nullptr;
 
         acquire_client_buffer(
             [&](mg::Buffer* new_buffer)
@@ -67,6 +65,16 @@ struct BufferStreamSurfaces : mc::BufferStreamSurfaces
         std::unique_lock<decltype(mutex)> lock(mutex);
 
         cv.wait(lock, [&]{ return done; });
+
+        return buffer;
+    }
+
+    void swap_client_buffers_blocking(mg::Buffer*& buffer)
+    {
+        if (buffer)
+            release_client_buffer(buffer);
+
+        buffer = acquire_client_buffer_blocking();
     }
 };
 
@@ -106,12 +114,9 @@ struct BufferStreamTest : public ::testing::Test
 
 TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
 {
-    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
-
-    mg::Buffer* client1{nullptr};
-    buffer_stream.swap_client_buffers_blocking(client1);
+    mg::Buffer* client1 = buffer_stream.acquire_client_buffer_blocking();
     auto client1_id = client1->id();
-    buffer_stream.swap_client_buffers_blocking(client1);
+    buffer_stream.release_client_buffer(client1);
 
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
     auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
@@ -121,10 +126,14 @@ TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
 
     comp1.reset();
 
-    buffer_stream.swap_client_buffers_blocking(client1);
+    mg::Buffer* client2 = buffer_stream.acquire_client_buffer_blocking();
+    auto client2_id = client2->id();
+    buffer_stream.release_client_buffer(client2);
+
     auto comp3 = buffer_stream.lock_compositor_buffer(nullptr);
 
     EXPECT_NE(client1_id, comp3->id());
+    EXPECT_EQ(client2_id, comp3->id());
 
     comp2.reset();
     auto comp3_id = comp3->id();
