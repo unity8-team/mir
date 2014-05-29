@@ -97,6 +97,9 @@ Q_SIGNALS:
 
     void surfaceDestroyed(MirSurfaceItem *surface);
 
+private Q_SLOTS:
+    void discardSurface();
+
 private:
     pid_t pid() const;
     void setPid(pid_t pid);
@@ -105,6 +108,7 @@ private:
     void setFullscreen(bool fullscreen);
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
     void setSessionName(const QString& name);
+    void updateFullscreenProperty();
 
     // FIXME: This is a hack. Remove once we have a real implementation for knowning
     // the supported orientations of an app

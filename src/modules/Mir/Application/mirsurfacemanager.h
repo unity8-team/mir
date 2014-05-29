@@ -63,7 +63,6 @@ public:
     MirSurfaceItem* topmostSurface() const;
     Q_INVOKABLE void move(int from, int to);
 
-    Q_INVOKABLE int getIndexOfSurfaceWithAppId(const QString &appId) const;
     Q_INVOKABLE MirSurfaceItem* getSurface(int index);
 
 Q_SIGNALS:
@@ -82,8 +81,6 @@ public Q_SLOTS:
     void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
 
 private:
-    QString toString() const;
-
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
     QList<MirSurfaceItem*> m_surfaceItems;
     ShellServerConfiguration* m_mirServer;

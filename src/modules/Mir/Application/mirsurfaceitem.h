@@ -21,6 +21,7 @@
 
 // Qt
 #include <QMutex>
+#include <QPointer>
 #include <QSet>
 #include <QQuickItem>
 #include <QTimer>
@@ -66,10 +67,9 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(Application* application READ application CONSTANT)
 
 public:
-    explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface, Application* application,
+    explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -94,7 +94,6 @@ public:
     };
 
     //getters
-    Application* application() const;
     Type type() const;
     State state() const;
     QString name() const;
@@ -103,15 +102,19 @@ public:
     bool isTextureProvider() const { return true; }
     QSGTextureProvider *textureProvider() const;
 
+    void stopFrameDropper();
+    void startFrameDropper();
+
+    bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
+
+    void setApplication(Application *app);
+
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
     void surfaceDestroyed();
-    void surfaceFirstFrameDrawn(MirSurfaceItem *); // so MirSurfaceManager can notify QML
-
-public Q_SLOTS:
-    void release(); // For QML to destroy this surface
+    void firstFrameDrawn(MirSurfaceItem *item);
 
 protected:
     void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
@@ -130,7 +133,8 @@ protected:
 
 private Q_SLOTS:
     void surfaceDamaged();
-    void consumePendingBuffers();
+    void dropPendingBuffers();
+    void scheduleTextureUpdate();
 
 private:
     bool updateTexture();
@@ -145,11 +149,12 @@ private:
 
     bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
 
+    QString appId();
+
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
-    Application* m_application;
-    int m_pendingClientBuffersCount;
+    QPointer<Application> m_application;
     bool m_firstFrameDrawn;
 
     QMirSurfaceTextureProvider *m_textureProvider;
@@ -158,7 +163,7 @@ private:
 
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
 
-    QTimer m_consumePendingBuffersTimer;
+    QTimer m_frameDropperTimer;
 
     friend class MirSurfaceManager;
 };
