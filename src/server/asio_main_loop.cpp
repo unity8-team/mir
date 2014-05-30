@@ -18,7 +18,7 @@
 
 #include "asio_main_loop.h"
 
-#include "sentinel_action.h"
+#include "synchronous_server_action.h"
 
 #include <cassert>
 #include <mutex>
@@ -194,7 +194,7 @@ void mir::AsioMainLoop::register_fd_handler(
 
 void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
 {
-    SentinelAction unregister{
+    SynchronousServerAction unregister{
         action_queue,
         main_loop_thread,
         [this,owner]()

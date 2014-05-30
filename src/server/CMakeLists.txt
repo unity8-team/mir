@@ -32,7 +32,7 @@ set(
   asio_main_loop.cpp
   asio_server_action_queue.cpp
   asio_timer_service.cpp
-  sentinel_action.cpp
+  synchronous_server_action.cpp
 )
 
 set(MIRSERVER_LINKAGE SHARED)

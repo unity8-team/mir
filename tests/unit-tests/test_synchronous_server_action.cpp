@@ -16,14 +16,14 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/server/sentinel_action.h"
+#include "src/server/synchronous_server_action.h"
 #include "mir_test_doubles/mock_server_action_queue.h"
 
 #include <thread>
 
 namespace mtd = mir::test::doubles;
 
-TEST(SentinelActionTest, just_executes_action_if_queue_is_not_running)
+TEST(SynchronousServerActionTest, just_executes_action_if_queue_is_not_running)
 {
     using namespace ::testing;
 
@@ -32,12 +32,12 @@ TEST(SentinelActionTest, just_executes_action_if_queue_is_not_running)
     int val = 0;
     boost::optional<std::thread::id> empty_queue_thread_id;
     {
-        mir::SentinelAction action(mock_queue, empty_queue_thread_id, [&val]{val=1;});
+        mir::SynchronousServerAction action(mock_queue, empty_queue_thread_id, [&val]{val=1;});
     }
     EXPECT_EQ(val, 1);
 }
 
-TEST(SentinelActionTest, just_executes_action_if_thread_identical)
+TEST(SynchronousServerActionTest, just_executes_action_if_thread_identical)
 {
     using namespace ::testing;
 
@@ -46,12 +46,12 @@ TEST(SentinelActionTest, just_executes_action_if_thread_identical)
     int val = 0;
     boost::optional<std::thread::id> this_one{std::this_thread::get_id()};
     {
-        mir::SentinelAction action(mock_queue, this_one, [&val]{val=1;});
+        mir::SynchronousServerAction action(mock_queue, this_one, [&val]{val=1;});
     }
     EXPECT_EQ(val, 1);
 }
 
-TEST(SentinelActionTest, enqueues_action_if_thread_differs)
+TEST(SynchronousServerActionTest, enqueues_action_if_thread_differs)
 {
     using namespace ::testing;
 
@@ -70,7 +70,7 @@ TEST(SentinelActionTest, enqueues_action_if_thread_differs)
     boost::optional<std::thread::id> not_this_one{arbitrary_thread};
 
     {
-        mir::SentinelAction action(execute_it, not_this_one, [&val]{val=1;});
+        mir::SynchronousServerAction action(execute_it, not_this_one, [&val]{val=1;});
     }
     EXPECT_EQ(1,val);
 }

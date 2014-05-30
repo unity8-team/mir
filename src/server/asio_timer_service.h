@@ -32,11 +32,9 @@
 namespace mir
 {
 
-
 class AsioTimerService : public time::TimerService
 {
 public:
-    class AlarmImpl;
     explicit AsioTimerService(std::shared_ptr<time::Clock> const& clock);
     ~AsioTimerService() noexcept(true);
 
@@ -49,6 +47,8 @@ public:
                                            std::function<void()> callback) override;
 
 private:
+    class AlarmImpl;
+
     void reschedule_alarm(AlarmImpl &);
     bool cancel_alarm(AlarmImpl &);
     boost::asio::io_service io;

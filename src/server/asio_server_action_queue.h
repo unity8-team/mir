@@ -35,7 +35,7 @@ namespace mir
 class AsioServerActionQueue : public ServerActionQueue
 {
 public:
-        explicit AsioServerActionQueue(boost::asio::io_service & service);
+    explicit AsioServerActionQueue(boost::asio::io_service & service);
     ~AsioServerActionQueue() noexcept(true);
 
     void enqueue(void const* owner, ServerAction const& action) override;

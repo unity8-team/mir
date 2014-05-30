@@ -16,9 +16,9 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "sentinel_action.h"
+#include "synchronous_server_action.h"
 
-mir::SentinelAction::SentinelAction(
+mir::SynchronousServerAction::SynchronousServerAction(
     ServerActionQueue & queue,
     boost::optional<std::thread::id> queue_thread_id,
     ServerAction const& action) :
@@ -43,7 +43,7 @@ mir::SentinelAction::SentinelAction(
     }
 }
 
-mir::SentinelAction::~SentinelAction()
+mir::SynchronousServerAction::~SynchronousServerAction()
 {
     if (done)
         return;

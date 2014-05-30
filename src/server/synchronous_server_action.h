@@ -30,13 +30,13 @@
 namespace mir
 {
 
-class SentinelAction
+class SynchronousServerAction
 {
 public:
-    SentinelAction(ServerActionQueue & queue,
-                   boost::optional<std::thread::id> queue_thread_id,
-                   ServerAction const& action);
-    ~SentinelAction();
+    SynchronousServerAction(ServerActionQueue & queue,
+                            boost::optional<std::thread::id> queue_thread_id,
+                            ServerAction const& action);
+    ~SynchronousServerAction();
 private:
     std::mutex done_mutex;
     bool done;

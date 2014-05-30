@@ -17,7 +17,7 @@
  */
 
 #include "asio_timer_service.h"
-#include "sentinel_action.h"
+#include "synchronous_server_action.h"
 
 #include "boost/date_time/posix_time/conversion.hpp"
 #include <mutex>
@@ -119,7 +119,7 @@ public:
     bool reschedule_for(mir::time::Timestamp time_point) override;
 
 
-    // called through SentinelActions:
+    // called through SynchronousServerAction
     void update_timer(ServerActionQueue & queue);
     bool cancel_timer();
 
@@ -142,9 +142,9 @@ private:
 };
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                     mir::AsioTimerService & service,
-                     std::chrono::milliseconds delay,
-                     std::function<void ()> callback) :
+                                            mir::AsioTimerService& service,
+                                            std::chrono::milliseconds delay,
+                                            std::function<void()> callback) :
     timer{io},
     data{std::make_shared<InternalState>(callback)},
     service(service)
@@ -153,9 +153,9 @@ mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
 }
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                     mir::AsioTimerService & service,
-                     mir::time::Timestamp time_point,
-                     std::function<void ()> callback) :
+                                            mir::AsioTimerService& service,
+                                            mir::time::Timestamp time_point,
+                                            std::function<void()> callback) :
     timer{io},
     data{std::make_shared<InternalState>(callback)},
     service(service)
@@ -268,7 +268,7 @@ void mir::AsioTimerService::run()
 void mir::AsioTimerService::stop()
 {
     std::lock_guard<std::mutex> lock(thread_id_mutex);
-    mir::SentinelAction(
+    SynchronousServerAction(
         action_queue,
         timer_thread,
         [this]
@@ -295,7 +295,7 @@ std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_at(mir::time::Ti
 void mir::AsioTimerService::reschedule_alarm(mir::AsioTimerService::AlarmImpl& alarm)
 {
     std::lock_guard<std::mutex> lock(thread_id_mutex);
-    mir::SentinelAction(
+    SynchronousServerAction(
         action_queue,
         timer_thread,
         [this,&alarm]
@@ -308,7 +308,7 @@ bool mir::AsioTimerService::cancel_alarm(mir::AsioTimerService::AlarmImpl& alarm
 {
     bool result;
     std::lock_guard<std::mutex> lock(thread_id_mutex);
-    mir::SentinelAction(
+    SynchronousServerAction(
         action_queue,
         timer_thread,
         [this, &result, &alarm]

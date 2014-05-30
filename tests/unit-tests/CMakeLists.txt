@@ -8,7 +8,7 @@ set(
   UNIT_TEST_SOURCES
 
   test_gmock_fixes.cpp
-  test_sentinel_action.cpp
+  test_synchronous_server_action.cpp
   test_asio_main_loop.cpp
   test_asio_server_action_queue.cpp
   test_asio_timer_service.cpp
