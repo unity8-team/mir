@@ -23,8 +23,9 @@ class UbuntuInput;
 class UbuntuScreen;
 class UbuntuWindowPrivate;
 
-class UbuntuWindow : public QPlatformWindow
+class UbuntuWindow : public QObject, public QPlatformWindow
 {
+    Q_OBJECT
 public:
     UbuntuWindow(QWindow* w, UbuntuScreen* screen,
                  UbuntuInput* input, void* instance);
@@ -38,9 +39,15 @@ public:
 
     // New methods.
     void* eglSurface() const;
-    void handleResize(int width, int height);
+    void handleSurfaceResize(int width, int height);
+    void onBuffersSwapped_threadSafe(int newBufferWidth, int newBufferHeight);
 
     UbuntuWindowPrivate* priv() { return d; }
+
+public Q_SLOTS:
+    void handleBufferResize(int width, int height);
+    void forceRedraw();
+
 private:
     void createWindow();
     void moveResize(const QRect& rect);

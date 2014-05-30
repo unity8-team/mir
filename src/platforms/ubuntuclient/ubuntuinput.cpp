@@ -209,8 +209,8 @@ void UbuntuInput::customEvent(QEvent* event)
         dispatchHWSwitchEvent(ubuntuEvent->window->window(), nativeEvent);
         break;
     case RESIZE_EVENT_TYPE:
-        ubuntuEvent->window->handleResize(nativeEvent->details.resize.width,
-                                          nativeEvent->details.resize.height);
+        ubuntuEvent->window->handleSurfaceResize(nativeEvent->details.resize.width,
+                                                 nativeEvent->details.resize.height);
         break;
     default:
         DLOG("unhandled event type %d", nativeEvent->type);
@@ -226,7 +226,7 @@ void UbuntuInput::postEvent(UbuntuWindow* platformWindow, const void* event)
 
     if ((window->flags() && Qt::WindowTransparentForInput) && window->parent()) {
         QCoreApplication::postEvent(this, new UbuntuEvent(
-                    static_cast<UbuntuWindow*>(platformWindow->parent()),
+                    static_cast<UbuntuWindow*>(platformWindow->QPlatformWindow::parent()),
                     reinterpret_cast<const Event*>(event), mEventType));
     }
 }

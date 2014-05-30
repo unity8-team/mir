@@ -82,9 +82,25 @@ void UbuntuOpenGLContext::doneCurrent()
 
 void UbuntuOpenGLContext::swapBuffers(QPlatformSurface* surface)
 {
-    EGLSurface eglSurface = static_cast<UbuntuWindow*>(surface)->eglSurface();
+    UbuntuWindow *ubuntuWindow = static_cast<UbuntuWindow*>(surface);
+
+    EGLSurface eglSurface = ubuntuWindow->eglSurface();
     ASSERT(eglBindAPI(EGL_OPENGL_ES_API) == EGL_TRUE);
     ASSERT(eglSwapBuffers(mEglDisplay, eglSurface) == EGL_TRUE);
+
+    // "Technique" copied from mir, in examples/eglapp.c around line 96
+    EGLint newBufferWidth = -1;
+    EGLint newBufferHeight = -1;
+    /*
+     * Querying the surface (actually the current buffer) dimensions here is
+     * the only truly safe way to be sure that the dimensions we think we
+     * have are those of the buffer being rendered to. But this should be
+     * improved in future; https://bugs.launchpad.net/mir/+bug/1194384
+     */
+    eglQuerySurface(mEglDisplay, eglSurface, EGL_WIDTH, &newBufferWidth);
+    eglQuerySurface(mEglDisplay, eglSurface, EGL_HEIGHT, &newBufferHeight);
+
+    ubuntuWindow->onBuffersSwapped_threadSafe(newBufferWidth, newBufferHeight);
 }
 
 void (*UbuntuOpenGLContext::getProcAddress(const QByteArray& procName)) ()
