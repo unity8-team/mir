@@ -20,6 +20,8 @@
 #define BASE_MODULE_H_
 
 #include <bridge.h>
+#include <stdio.h>
+#include <unistd.h>
 
 /*
  * This is the base backend loader for the Platform API
@@ -40,32 +42,55 @@ struct HIDDEN_SYMBOL ToBackend
 {
     static const char* path()
     {
-        static const char* cache = NULL;
+        static char* cache = NULL;
         static char path[64];
+        char module_name[32];
 
         if (cache == NULL) {
             cache = secure_getenv("UBUNTU_PLATFORM_API_BACKEND");
             if (cache == NULL) {
-                printf("UBUNTU PLATFORM API BACKEND NOT SELECTED -- Aborting\n");
-                abort();
-            } else {
-                strcpy(path, "libubuntu_application_api_");
-                if (strlen(cache) > MAX_MODULE_NAME) {
-                    printf("Invalid Ubuntu Application API backend\n");
-                    abort();
+                FILE *conf;
+                conf = fopen("/etc/ubuntu-platform-api/application.conf", "r");
+                if (conf == NULL) {
+                    exit_module("Unable to find module configuration file");
+                } else {
+                    if (fgets(module_name, 32, conf))
+                        cache = module_name;
+                    else
+                        exit_module("Error reading module name from file");
                 }
-                strcat(path, cache);
-                strcat(path, SO_SUFFIX);
+                // Null terminate module blob
+                cache[strlen(cache)-1] = '\0';
+                fclose(conf);
             }
+            if (cache == NULL)
+                exit_module("Unable to determine backend");
 
+            strcpy(path, "libubuntu_application_api_");
+            
+            if (strlen(cache) > MAX_MODULE_NAME)
+                exit_module("Selected module is invalid");
+            
+            strcat(path, cache);
+            strcat(path, SO_SUFFIX);
         }
 
         return path;
     }
 
+    static void exit_module(const char* msg)
+    {
+        printf("Ubuntu Platform API: %s -- Aborting\n", msg);
+        abort();
+    }
+
     static void* dlopen_fn(const char* path, int flags)
     {
-        return dlopen(path, flags);
+        void *handle = dlopen(path, flags);
+        if (handle == NULL)
+            exit_module("Unable to load selected module.");
+
+        return handle;
     }
 
     static void* dlsym_fn(void* handle, const char* symbol)
