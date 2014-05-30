@@ -109,6 +109,8 @@ public:
 
     void setApplication(Application *app);
 
+    void onApplicationStateChanged();
+
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
@@ -148,6 +150,7 @@ private:
     void setSurfaceValid(const bool);
 
     bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
+    void syncSurfaceSizeWithItemSize();
 
     QString appId();
 

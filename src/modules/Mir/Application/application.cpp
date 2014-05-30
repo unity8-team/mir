@@ -231,6 +231,11 @@ void Application::setState(Application::State state)
         }
         m_state = state;
         Q_EMIT stateChanged(state);
+
+        // FIXME: Make this a signal-slot connection
+        if (m_surface) {
+            m_surface->onApplicationStateChanged();
+        }
     }
 }
 

@@ -451,7 +451,9 @@ void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &ol
     int mirWidth = m_surface->size().width.as_int();
     int mirHeight = m_surface->size().width.as_int();
 
-    if (m_application && m_application->state() == Application::Running
+    if (m_application &&
+            (m_application->state() == Application::Running
+             || m_application->state() == Application::Starting)
             && ((int)newGeometry.width() != mirWidth
                 || (int)newGeometry.height() != mirHeight)) {
 
@@ -530,6 +532,26 @@ QString MirSurfaceItem::appId()
 void MirSurfaceItem::setApplication(Application *app)
 {
     m_application = app;
+}
+
+void MirSurfaceItem::onApplicationStateChanged()
+{
+    if (m_application->state() == Application::Running) {
+        syncSurfaceSizeWithItemSize();
+    }
+}
+
+void MirSurfaceItem::syncSurfaceSizeWithItemSize()
+{
+    int mirWidth = m_surface->size().width.as_int();
+    int mirHeight = m_surface->size().width.as_int();
+
+    if ((int)width() != mirWidth || (int)height() != mirHeight) {
+        qDebug("MirSurfaceItem::syncSurfaceSizeWithItemSize()");
+        mir::geometry::Size newMirSize((int)width(), (int)height());
+        m_surface->resize(newMirSize);
+        setImplicitSize(width(), height());
+    }
 }
 
 #include "mirsurfaceitem.moc"
