@@ -51,29 +51,32 @@ public:
     }
     void advance_by(std::chrono::milliseconds const step, mir::AsioTimerService & timer_service)
     {
-        bool done = false;
-        std::mutex checkpoint_mutex;
-        std::condition_variable checkpoint;
-
         {
             std::lock_guard<std::mutex> lock(time_mutex);
             current_time += step;
         }
+
+        bool done = false;
         auto evaluate_clock_alarm = timer_service.notify_in(
             std::chrono::milliseconds{0},
-            [&done, &checkpoint_mutex, &checkpoint]
+            [&done, this]
             {
-                std::unique_lock<std::mutex> lock(checkpoint_mutex);
+                std::unique_lock<std::mutex> lock(update_time_checkpoint_mutex);
                 done = true;
-                checkpoint.notify_one();
+                update_time_checkpoint.notify_one();
             });
 
-        std::unique_lock<std::mutex> lock(checkpoint_mutex);
-        while(!done) checkpoint.wait(lock);
+        std::unique_lock<std::mutex> lock(update_time_checkpoint_mutex);
+        while(!done) update_time_checkpoint.wait(lock);
     }
 
 private:
     mutable std::mutex time_mutex;
+
+    std::mutex update_time_checkpoint_mutex;
+    std::condition_variable update_time_checkpoint;
+
+
     mir::time::Timestamp current_time{
         []
         {
@@ -162,9 +165,9 @@ TEST_F(AsioTimerServiceTest, alarm_starts_in_pending_state)
 
 TEST_F(AsioTimerServiceTest, alarm_fires_with_correct_delay)
 {
-    UnblockTimerService unblocker(timer_service);
-
     auto alarm = timer_service.notify_in(delay, [](){});
+
+    UnblockTimerService unblocker(timer_service);
 
     clock->advance_by(delay - std::chrono::milliseconds{1}, timer_service);
     EXPECT_EQ(mir::time::Alarm::pending, alarm->state());
@@ -193,7 +196,7 @@ TEST_F(AsioTimerServiceTest, cancelled_alarm_doesnt_fire)
 {
     UnblockTimerService unblocker(timer_service);
     auto alarm = timer_service.notify_in(std::chrono::milliseconds{100},
-                              [](){ FAIL() << "Alarm handler of canceld alarm called";});
+                                         [](){ FAIL() << "Alarm handler of canceld alarm called";});
 
     EXPECT_TRUE(alarm->cancel());
 
@@ -207,7 +210,7 @@ TEST_F(AsioTimerServiceTest, cancelled_alarm_doesnt_fire)
 TEST_F(AsioTimerServiceTest, destroyed_alarm_doesnt_fire)
 {
     auto alarm = timer_service.notify_in(std::chrono::milliseconds{200},
-                              [](){ FAIL() << "Alarm handler of destroyed alarm called"; });
+                                         [](){ FAIL() << "Alarm handler of destroyed alarm called"; });
 
     UnblockTimerService unblocker(timer_service);
 

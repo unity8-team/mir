@@ -17,7 +17,6 @@
  */
 
 #include "asio_timer_service.h"
-#include "synchronous_server_action.h"
 
 #include "boost/date_time/posix_time/conversion.hpp"
 #include <mutex>
@@ -100,12 +99,10 @@ class mir::AsioTimerService::AlarmImpl : public mir::time::Alarm
 {
 public:
     AlarmImpl(boost::asio::io_service& io,
-              mir::AsioTimerService & service,
               std::chrono::milliseconds delay,
               std::function<void(void)> callback);
 
     AlarmImpl(boost::asio::io_service& io,
-              mir::AsioTimerService & service,
               mir::time::Timestamp time_point,
               std::function<void(void)> callback);
 
@@ -118,12 +115,9 @@ public:
     bool reschedule_in(std::chrono::milliseconds delay) override;
     bool reschedule_for(mir::time::Timestamp time_point) override;
 
-
-    // called through SynchronousServerAction
-    void update_timer(ServerActionQueue & queue);
-    bool cancel_timer();
-
 private:
+    void update_timer();
+
     struct InternalState
     {
         InternalState(std::function<void(void)> callback)
@@ -138,27 +132,23 @@ private:
 
     ::deadline_timer timer;
     std::shared_ptr<InternalState> data;
-    mir::AsioTimerService & service;
+    std::function<void(void)> callback;
 };
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                                            mir::AsioTimerService& service,
                                             std::chrono::milliseconds delay,
                                             std::function<void()> callback) :
     timer{io},
-    data{std::make_shared<InternalState>(callback)},
-    service(service)
+    callback{callback}
 {
     reschedule_in(delay);
 }
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                                            mir::AsioTimerService& service,
                                             mir::time::Timestamp time_point,
                                             std::function<void()> callback) :
     timer{io},
-    data{std::make_shared<InternalState>(callback)},
-    service(service)
+    callback{callback}
 {
     reschedule_for(time_point);
 }
@@ -169,11 +159,6 @@ mir::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
 }
 
 bool mir::AsioTimerService::AlarmImpl::cancel()
-{
-    return service.cancel_alarm(*this);
-}
-
-bool mir::AsioTimerService::AlarmImpl::cancel_timer()
 {
     std::lock_guard<decltype(data->m)> lock(data->m);
     if (data->state == triggered)
@@ -194,26 +179,26 @@ mir::time::Alarm::State mir::AsioTimerService::AlarmImpl::state() const
 bool mir::AsioTimerService::AlarmImpl::reschedule_in(std::chrono::milliseconds delay)
 {
     bool cancelling = timer.expires_from_now(delay);
-    service.reschedule_alarm(*this);
+    update_timer();
     return cancelling;
 }
 
 bool mir::AsioTimerService::AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
 {
     bool cancelling = timer.expires_at(time_point);
-    service.reschedule_alarm(*this);
+    update_timer();
     return cancelling;
 }
 
-void mir::AsioTimerService::AlarmImpl::update_timer(ServerActionQueue & queue)
+void mir::AsioTimerService::AlarmImpl::update_timer()
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
+    auto new_internal_state = std::make_shared<InternalState>(callback);
 
     // Awkwardly, we can't stop the async_wait handler from being called
     // on a destroyed AlarmImpl. This means we need to wedge a shared_ptr
     // into the async_wait callback.
-    std::weak_ptr<InternalState> possible_data = data;
-    timer.async_wait([possible_data,&queue](boost::system::error_code const& ec)
+    std::weak_ptr<InternalState> possible_data = new_internal_state;
+    timer.async_wait([possible_data](boost::system::error_code const& ec)
     {
         if (ec)
             return;
@@ -222,30 +207,20 @@ void mir::AsioTimerService::AlarmImpl::update_timer(ServerActionQueue & queue)
         if (!data)
             return;
 
-        queue.enqueue(
-            data.get(),
-            [possible_data]()
-            {
-                auto data = possible_data.lock();
-                if (!data)
-                    return;
-
-                std::unique_lock<decltype(data->m)> lock(data->m);
-                if (data->state == pending)
-                {
-                    data->state = triggered;
-                    lock.unlock();
-                    data->callback();
-                }
-            });
-        std::lock_guard<decltype(data->m)> lock(data->m);
-        data->state = pending;
+        std::unique_lock<decltype(data->m)> lock(data->m);
+        if (data->state == pending)
+        {
+            data->state = triggered;
+            lock.unlock();
+            data->callback();
+        }
     });
-    data->state = pending;
+
+    data = new_internal_state;
 }
 
 mir::AsioTimerService::AsioTimerService(std::shared_ptr<time::Clock> const& clock)
-    : work{io}, clock(clock), action_queue{io}
+    : work{io}, clock(clock)
 {
     MirClockTimerTraits::set_clock(clock);
 }
@@ -256,66 +231,24 @@ mir::AsioTimerService::~AsioTimerService() noexcept(true)
 
 void mir::AsioTimerService::run()
 {
-    {
-        std::lock_guard<std::mutex> lock(thread_id_mutex);
-        timer_thread = std::this_thread::get_id();
-    }
     io.run();
-    std::lock_guard<std::mutex> lock(thread_id_mutex);
-    timer_thread.reset();
 }
 
 void mir::AsioTimerService::stop()
 {
-    std::lock_guard<std::mutex> lock(thread_id_mutex);
-    SynchronousServerAction(
-        action_queue,
-        timer_thread,
-        [this]
-        {
-            timer_thread.reset();
-            io.stop();
-        });
+    io.stop();
 }
 
 
 std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_in(std::chrono::milliseconds delay,
                                                                  std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, *this, delay, callback}};
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, delay, callback}};
 }
 
 std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_at(mir::time::Timestamp time_point,
                                                                  std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, *this, time_point, callback}};
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, time_point, callback}};
 
 }
-
-void mir::AsioTimerService::reschedule_alarm(mir::AsioTimerService::AlarmImpl& alarm)
-{
-    std::lock_guard<std::mutex> lock(thread_id_mutex);
-    SynchronousServerAction(
-        action_queue,
-        timer_thread,
-        [this,&alarm]
-        {
-            alarm.update_timer(action_queue);
-        });
-}
-
-bool mir::AsioTimerService::cancel_alarm(mir::AsioTimerService::AlarmImpl& alarm)
-{
-    bool result;
-    std::lock_guard<std::mutex> lock(thread_id_mutex);
-    SynchronousServerAction(
-        action_queue,
-        timer_thread,
-        [this, &result, &alarm]
-        {
-            result = alarm.cancel_timer();
-        });
-
-    return result;
-}
-

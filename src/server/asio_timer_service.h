@@ -20,7 +20,6 @@
 #define MIR_ASIO_TIMER_SERVICE_H_
 
 #include "mir/time/timer_service.h"
-#include "asio_server_action_queue.h"
 
 #include <boost/asio.hpp>
 #include <boost/optional.hpp>
@@ -48,17 +47,10 @@ public:
 
 private:
     class AlarmImpl;
-
-    void reschedule_alarm(AlarmImpl &);
-    bool cancel_alarm(AlarmImpl &);
     boost::asio::io_service io;
     boost::asio::io_service::work work;
 
     std::shared_ptr<time::Clock> const clock;
-    std::mutex thread_id_mutex;
-    boost::optional<std::thread::id> timer_thread;
-    mir::AsioServerActionQueue action_queue;
-    friend class AlarmImpl;
 };
 
 }
