@@ -20,6 +20,7 @@
 
 #include "boost/date_time/posix_time/conversion.hpp"
 #include <mutex>
+#include <atomic>
 
 namespace
 {
@@ -125,9 +126,8 @@ private:
         {
         }
 
-        mutable std::mutex m;
         std::function<void(void)> callback;
-        State state;
+        std::atomic<State> state;
     };
 
     ::deadline_timer timer;
@@ -160,19 +160,17 @@ mir::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
 
 bool mir::AsioTimerService::AlarmImpl::cancel()
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
-    if (data->state == triggered)
-        return false;
-
-    data->state = cancelled;
-    timer.cancel();
-    return true;
+    State expectedState = pending;
+    if (data->state.compare_exchange_strong(expectedState, cancelled))
+    {
+        timer.cancel();
+        return true;
+    }
+    return false;
 }
 
 mir::time::Alarm::State mir::AsioTimerService::AlarmImpl::state() const
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
-
     return data->state;
 }
 
@@ -207,13 +205,9 @@ void mir::AsioTimerService::AlarmImpl::update_timer()
         if (!data)
             return;
 
-        std::unique_lock<decltype(data->m)> lock(data->m);
-        if (data->state == pending)
-        {
-            data->state = triggered;
-            lock.unlock();
+        State expectedState = pending;
+        if (data->state.compare_exchange_strong(expectedState, triggered))
             data->callback();
-        }
     });
 
     data = new_internal_state;
