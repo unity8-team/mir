@@ -71,8 +71,10 @@ public:
               std::initializer_list<int> fds,
               void const* owner,
               std::function<void(int)> const& handler)
-        : data{std::make_shared<InternalState>(io, fds, handler)}, owner{owner}
+        : handler{handler}, owner{owner}
     {
+        for (auto fd : fds)
+            stream_descriptors.emplace_back(new bap::stream_descriptor{io, fd});
     }
 
     bool is_owned_by(void const* possible_owner) const
@@ -80,57 +82,41 @@ public:
         return owner == possible_owner;
     }
 
-    bool empty() const
+    static void async_wait(std::shared_ptr<FDHandler> const& fd_handler, ServerActionQueue & queue)
     {
-        return data->stream_descriptors.empty();
-    }
-
-    void async_wait(ServerActionQueue & queue)
-    {
-        for (auto const& s : data->stream_descriptors)
-            read_some(s.get(), data, queue);
+        for (auto const& s : fd_handler->stream_descriptors)
+            read_some(s.get(), fd_handler, queue);
     }
 
 private:
-    struct InternalState
-    {
-        std::vector<stream_descriptor_ptr> stream_descriptors;
-        std::function<void(int)> const handler;
-
-        InternalState(boost::asio::io_service & io, std::initializer_list<int> fds,
-                      std::function<void(int)> const& handler)
-            : handler{handler}
-        {
-            for (auto fd : fds)
-                stream_descriptors.emplace_back(new bap::stream_descriptor{io, fd});
-        }
-    };
-
-    static void read_some(bap::stream_descriptor* s, std::weak_ptr<InternalState> const& data, ServerActionQueue & queue)
+    static void read_some(bap::stream_descriptor* s, std::weak_ptr<FDHandler> const& possible_fd_handler, ServerActionQueue & queue)
     {
         s->async_read_some(
             boost::asio::null_buffers(),
-            [data,s,&queue](boost::system::error_code err, size_t /*bytes*/)
+            [possible_fd_handler,s,&queue](boost::system::error_code err, size_t /*bytes*/)
             {
                 if (err)
                     return;
 
                 queue.enqueue(
                     s,
-                    [data,s,&queue]()
+                    [possible_fd_handler,s,&queue]()
                     {
-                        auto state = data.lock();
-                        if (!state)
+                        auto fd_handler = possible_fd_handler.lock();
+                        if (!fd_handler)
                             return;
 
-                        state->handler(s->native_handle());
+                        fd_handler->handler(s->native_handle());
+                        fd_handler.reset();
 
-                        read_some(s, data, queue);
+                        if (possible_fd_handler.lock())
+                            read_some(s, possible_fd_handler, queue);
                     });
             });
     }
 
-    std::shared_ptr<InternalState> data;
+    std::vector<stream_descriptor_ptr> stream_descriptors;
+    std::function<void(int)> const handler;
     void const* owner;
 };
 
@@ -183,13 +169,12 @@ void mir::AsioMainLoop::register_fd_handler(
 {
     assert(handler);
 
-    auto fd_handler = std::unique_ptr<FDHandler>{
-        new FDHandler{io, fds, owner, handler}};
+    auto fd_handler = std::make_shared<FDHandler>(io, fds, owner, handler);
 
-    fd_handler->async_wait(action_queue);
+    FDHandler::async_wait(fd_handler, action_queue);
 
     std::lock_guard<std::mutex> lock(fd_handlers_mutex);
-    fd_handlers.push_back(std::move(fd_handler));
+    fd_handlers.push_back(fd_handler);
 }
 
 void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
@@ -203,7 +188,7 @@ void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
             auto end_of_valid = remove_if(
                 begin(fd_handlers),
                 end(fd_handlers),
-                [owner](std::unique_ptr<FDHandler> & item)
+                [owner](std::shared_ptr<FDHandler> const& item)
                 {
                     return item->is_owned_by(owner);
                 });

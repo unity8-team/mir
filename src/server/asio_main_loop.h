@@ -69,7 +69,7 @@ private:
     boost::asio::io_service::work work;
     boost::optional<std::thread::id> main_loop_thread;
     std::vector<std::unique_ptr<SignalHandler>> signal_handlers;
-    std::vector<std::unique_ptr<FDHandler>> fd_handlers;
+    std::vector<std::shared_ptr<FDHandler>> fd_handlers;
     std::mutex fd_handlers_mutex;
     AsioServerActionQueue action_queue;
 };
