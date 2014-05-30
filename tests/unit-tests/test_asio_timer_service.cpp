@@ -104,7 +104,7 @@ public:
 
 }
 
-TEST_F(AsioTimerServiceTest, runs_until_stop_called)
+TEST_F(AsioTimerServiceTest, runs_until_stopped)
 {
     std::mutex checkpoint_mutex;
     std::condition_variable checkpoint;
