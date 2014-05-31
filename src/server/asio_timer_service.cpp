@@ -160,8 +160,8 @@ mir::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
 
 bool mir::AsioTimerService::AlarmImpl::cancel()
 {
-    State expectedState = pending;
-    if (data->state.compare_exchange_strong(expectedState, cancelled))
+    State expected_state = pending;
+    if (data->state.compare_exchange_strong(expected_state, cancelled))
     {
         timer.cancel();
         return true;
@@ -205,8 +205,8 @@ void mir::AsioTimerService::AlarmImpl::update_timer()
         if (!data)
             return;
 
-        State expectedState = pending;
-        if (data->state.compare_exchange_strong(expectedState, triggered))
+        State expected_state = pending;
+        if (data->state.compare_exchange_strong(expected_state, triggered))
             data->callback();
     });
 

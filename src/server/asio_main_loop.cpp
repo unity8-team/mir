@@ -98,20 +98,24 @@ private:
                 if (err)
                     return;
 
-                queue.enqueue(
-                    s,
-                    [possible_fd_handler,s,&queue]()
-                    {
-                        auto fd_handler = possible_fd_handler.lock();
-                        if (!fd_handler)
-                            return;
+                // The actual execution of the fd handler is moved to the action queue.This allows us to synchronously
+                // unregister FDHandlers even when they are about to be executed. We do this because of the way Asio
+                // copies and executes pending completion handlers.
+                // In worst case during the call to unregister the FDHandler, it may still be executed, but not after
+                // the unregister call returned.
+                queue.enqueue(s,
+                              [possible_fd_handler, s, &queue]()
+                              {
+                    auto fd_handler = possible_fd_handler.lock();
+                    if (!fd_handler)
+                        return;
 
-                        fd_handler->handler(s->native_handle());
-                        fd_handler.reset();
+                    fd_handler->handler(s->native_handle());
+                    fd_handler.reset();
 
-                        if (possible_fd_handler.lock())
-                            read_some(s, possible_fd_handler, queue);
-                    });
+                    if (possible_fd_handler.lock())
+                        read_some(s, possible_fd_handler, queue);
+                });
             });
     }
 
@@ -179,6 +183,11 @@ void mir::AsioMainLoop::register_fd_handler(
 
 void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
 {
+    // The SynchronousServerAction makes sure that with the
+    // completion of the method unregister_fd_handler the
+    // handler will no longer be called.
+    // There is a chance for a fd handler callback to happen before
+    // the completion of this method.
     SynchronousServerAction unregister{
         action_queue,
         main_loop_thread,
