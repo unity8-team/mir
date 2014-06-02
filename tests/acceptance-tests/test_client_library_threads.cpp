@@ -25,7 +25,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
 namespace mtf = mir_test_framework;
 
@@ -34,12 +33,14 @@ namespace
     char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
 bool signalled;
-static void SIGIO_handler(int /*signo*/)
+extern "C" void SIGIO_handler(int /*signo*/)
 {
     signalled = true;
 }
 }
 
+namespace mir
+{
 using ClientLibraryThreads = DefaultDisplayServerTestFixture;
 
 TEST_F(ClientLibraryThreads, HandleNoSignals)
@@ -121,4 +122,5 @@ TEST_F(ClientLibraryThreads, DoNotInterfereWithClientSignalHandling)
     } client_config;
 
     launch_client_process(client_config);
+}
 }
