@@ -21,7 +21,7 @@
 
 class UbuntuNativeInterface : public QPlatformNativeInterface {
 public:
-    enum ResourceType { EglDisplay, EglContext, NativeOrientation };
+    enum ResourceType { EglDisplay, EglContext, NativeOrientation, Display };
 
     UbuntuNativeInterface();
     ~UbuntuNativeInterface();
@@ -31,6 +31,8 @@ public:
                                    QOpenGLContext* context) override;
     void* nativeResourceForWindow(const QByteArray& resourceString,
                                   QWindow* window) override;
+    void* nativeResourceForScreen(const QByteArray& resourceString,
+                                  QScreen* screen) override;
 
     // New methods.
     const QByteArray& genericEventFilterType() const { return mGenericEventFilterType; }

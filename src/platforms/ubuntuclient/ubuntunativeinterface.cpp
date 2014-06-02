@@ -36,6 +36,7 @@ public:
         insert("egldisplay", UbuntuNativeInterface::EglDisplay);
         insert("eglcontext", UbuntuNativeInterface::EglContext);
         insert("nativeorientation", UbuntuNativeInterface::NativeOrientation);
+        insert("display", UbuntuNativeInterface::Display);
     }
 };
 
@@ -99,3 +100,18 @@ void* UbuntuNativeInterface::nativeResourceForWindow(const QByteArray& resourceS
         return NULL;
     }
 }
+
+void* UbuntuNativeInterface::nativeResourceForScreen(const QByteArray& resourceString, QScreen* screen)
+{
+    const QByteArray kLowerCaseResource = resourceString.toLower();
+    if (!ubuntuResourceMap()->contains(kLowerCaseResource))
+        return NULL;
+    const ResourceType kResourceType = ubuntuResourceMap()->value(kLowerCaseResource);
+    if (kResourceType == UbuntuNativeInterface::Display) {
+        if (!screen)
+            screen = QGuiApplication::primaryScreen();
+        return static_cast<UbuntuScreen*>(screen->handle())->eglNativeDisplay();
+    } else
+        return NULL;
+}
+

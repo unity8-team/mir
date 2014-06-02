@@ -100,8 +100,8 @@ UbuntuScreen::UbuntuScreen()
     ASSERT(eglBindAPI(EGL_OPENGL_ES_API) == EGL_TRUE);
 
     UAUiDisplay* u_display = ua_ui_display_new_with_index(0);
-    mEglDisplay = eglGetDisplay(ua_ui_display_get_native_type(u_display));
-    DASSERT(mEglDisplay != EGL_NO_DISPLAY);
+    mEglNativeDisplay = ua_ui_display_get_native_type(u_display);
+    ASSERT((mEglDisplay = eglGetDisplay(mEglNativeDisplay)) != EGL_NO_DISPLAY);
     ua_ui_display_destroy(u_display);
     ASSERT(eglInitialize(mEglDisplay, nullptr, nullptr) == EGL_TRUE);
 
