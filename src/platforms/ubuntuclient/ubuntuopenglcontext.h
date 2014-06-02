@@ -23,7 +23,7 @@
 class UbuntuOpenGLContext : public QPlatformOpenGLContext
 {
 public:
-    UbuntuOpenGLContext(UbuntuScreen* screen);
+    UbuntuOpenGLContext(UbuntuScreen* screen, UbuntuOpenGLContext* share);
     virtual ~UbuntuOpenGLContext();
 
     // QPlatformOpenGLContext methods.

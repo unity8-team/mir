@@ -40,6 +40,7 @@ public:
     QSurfaceFormat surfaceFormat() const { return mSurfaceFormat; }
     EGLDisplay eglDisplay() const { return mEglDisplay; }
     EGLConfig eglConfig() const { return mEglConfig; }
+    EGLNativeDisplayType eglNativeDisplay() const { return mEglNativeDisplay; }
 
 private:
     QRect mGeometry;
@@ -52,6 +53,7 @@ private:
     QSurfaceFormat mSurfaceFormat;
     EGLDisplay mEglDisplay;
     EGLConfig mEglConfig;
+    EGLNativeDisplayType mEglNativeDisplay;
 };
 
 #endif // UBUNTU_SCREEN_H
