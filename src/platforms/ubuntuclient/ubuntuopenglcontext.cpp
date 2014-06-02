@@ -39,7 +39,7 @@ static void printOpenGLESConfig() {
 }
 #endif
 
-UbuntuOpenGLContext::UbuntuOpenGLContext(UbuntuScreen* screen)
+UbuntuOpenGLContext::UbuntuOpenGLContext(UbuntuScreen* screen, UbuntuOpenGLContext* share)
 {
     DASSERT(screen != NULL);
     mEglDisplay = screen->eglDisplay();
@@ -52,7 +52,7 @@ UbuntuOpenGLContext::UbuntuOpenGLContext(UbuntuScreen* screen)
     attribs.append(EGL_NONE);
     ASSERT(eglBindAPI(EGL_OPENGL_ES_API) == EGL_TRUE);
 
-    mEglContext = eglCreateContext(mEglDisplay, screen->eglConfig(), EGL_NO_CONTEXT,
+    mEglContext = eglCreateContext(mEglDisplay, screen->eglConfig(), share ? share->eglContext() : EGL_NO_CONTEXT,
                                    attribs.constData());
     DASSERT(mEglContext != EGL_NO_CONTEXT);
 }
