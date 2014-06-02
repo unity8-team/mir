@@ -20,13 +20,18 @@ target_link_libraries(
   ubuntu_application_api
 
   "-Wl,--whole-archive"
-  ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}  
+  ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
   "-Wl,--no-whole-archive"
   ${Hybris}
 )
 
 target_link_libraries(
   ubuntu_platform_hardware_api
+
+  "-Wl,--whole-archive"
+  ${UBUNTU_HARDWARE_API_LINK_LIBRARIES}
+  "-Wl,--no-whole-archive"
+
   dl
   ${Hybris}
 )
@@ -46,7 +51,7 @@ set_target_properties(
 )
 
 install(
-  TARGETS ubuntu_application_api  
+  TARGETS ubuntu_application_api
   ${INSTALL_TARGETS_DEFAULT_ARGS}
 )
 

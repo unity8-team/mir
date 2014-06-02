@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@LIB_INSTALL_DIR@
+includedir=${exec_prefix}/include
+ 
+Name: ubuntu_platform_hardware_api
+Description: Ubuntu's platform hardware abstraction layer.
+Version: @UBUNTU_PLATFORM_API_VERSION_MAJOR@.@UBUNTU_PLATFORM_API_VERSION_MINOR@.@UBUNTU_PLATFORM_API_VERSION_PATCH@
+Libs: -L${libdir} -lubuntu_platform_hardware_api
+Cflags: -I${includedir}/ubuntu
