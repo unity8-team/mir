@@ -74,8 +74,8 @@ MirSurfaceManager::~MirSurfaceManager()
     m_mirSurfaceToItemHash.clear();
 }
 
-void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* session,
-        std::shared_ptr<mir::scene::Surface> const& surface)
+void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,
+        const std::shared_ptr<mir::scene::Surface> &surface)
 {
     DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
@@ -84,21 +84,17 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
     m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
 
     Application* application = appMgr->findApplicationWithSession(session);
-    application->setSurface(qmlSurface);
-
-    bool wasEmpty = isEmpty();
-    beginInsertRows(QModelIndex(), 0, 0);
-    m_surfaceItems.prepend(qmlSurface);
-    endInsertRows();
-    emit countChanged();
-    if (wasEmpty && !isEmpty()) {
-        emit emptyChanged();
-    }
-    emit topmostSurfaceChanged();
+    if (application)
+        application->setSurface(qmlSurface);
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
+
+        beginInsertRows(QModelIndex(), 0, 0);
+        m_surfaceItems.prepend(item);
+        endInsertRows();
+        Q_EMIT countChanged();
     });
 
     // clean up after MirSurfaceItem is destroyed
@@ -108,25 +104,20 @@ void MirSurfaceManager::onSessionCreatedSurface(mir::scene::Session const* sessi
 
         int i = m_surfaceItems.indexOf(mirSurfaceItem);
         if (i != -1) {
-            bool wasEmpty = isEmpty();
             beginRemoveRows(QModelIndex(), i, i);
             m_surfaceItems.removeAt(i);
             endRemoveRows();
-            emit countChanged();
-            if (!wasEmpty && isEmpty()) {
-                emit emptyChanged();
-            }
-            if (i == 0) {
-                emit topmostSurfaceChanged();
-            }
+            Q_EMIT countChanged();
         }
     });
 }
 
-void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
-        std::shared_ptr<mir::scene::Surface> const& surface)
+void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
+        const std::shared_ptr<mir::scene::Surface> &surface)
 {
     DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
+
+    // TODO - tell Application the surface closed
 
     auto it = m_mirSurfaceToItemHash.find(surface.get());
     if (it != m_mirSurfaceToItemHash.end()) {
@@ -138,17 +129,10 @@ void MirSurfaceManager::onSessionDestroyingSurface(mir::scene::Session const*,
 
         int i = m_surfaceItems.indexOf(item);
         if (i != -1) {
-            bool wasEmpty = isEmpty();
             beginRemoveRows(QModelIndex(), i, i);
             m_surfaceItems.removeAt(i);
             endRemoveRows();
             emit countChanged();
-            if (!wasEmpty && isEmpty()) {
-                emit emptyChanged();
-            }
-            if (i == 0) {
-                emit topmostSurfaceChanged();
-            }
         }
         return;
     }
@@ -188,37 +172,8 @@ QVariant MirSurfaceManager::data(const QModelIndex & index, int role) const
     }
 }
 
-void MirSurfaceManager::move(int from, int to) {
-    DLOG("MirSurfaceManager::move (this=%p, from=%d, to=%d)", this, from, to);
-    if (from == to) return;
-
-    if (from >= 0 && from < m_surfaceItems.count() && to >= 0 && to < m_surfaceItems.count()) {
-        QModelIndex parent;
-        void *oldTopMost = topmostSurface();
-
-        /* When moving an item down, the destination index needs to be incremented
-           by one, as explained in the documentation:
-           http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
-        beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
-        m_surfaceItems.move(from, to);
-        endMoveRows();
-
-        if (oldTopMost != topmostSurface()) {
-            emit topmostSurfaceChanged();
-        }
-    }
-}
-
 MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 {
     return m_surfaceItems[index];
 }
 
-MirSurfaceItem* MirSurfaceManager::topmostSurface() const
-{
-    if (m_surfaceItems.isEmpty()) {
-        return nullptr;
-    } else {
-        return m_surfaceItems[0];
-    }
-}
