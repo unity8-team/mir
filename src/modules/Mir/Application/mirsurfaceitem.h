@@ -98,6 +98,8 @@ public:
     State state() const;
     QString name() const;
 
+    Q_INVOKABLE void release();
+
     // Item surface/texture management
     bool isTextureProvider() const { return true; }
     QSGTextureProvider *textureProvider() const;
@@ -151,6 +153,8 @@ private:
 
     bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
     void syncSurfaceSizeWithItemSize();
+
+    bool clientIsRunning() const;
 
     QString appId();
 

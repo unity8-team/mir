@@ -321,12 +321,14 @@ void Application::setSurface(MirSurfaceItem *newSurface)
     if (m_surface) {
         m_surface->disconnect(this);
         m_surface->setApplication(nullptr);
+        m_surface->setParent(nullptr);
     }
 
     MirSurfaceItem *previousSurface = surface();
     m_surface = newSurface;
 
     if (newSurface) {
+        m_surface->setParent(this);
         m_surface->setApplication(this);
 
         // Only notify QML of surface creation once it has drawn its first frame.

@@ -285,9 +285,7 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT firstFrameDrawn(this);
     }
 
-    if (m_application &&
-            (m_application->state() == Application::Running
-            || m_application->state() == Application::Starting)) {
+    if (clientIsRunning()) {
         scheduleTextureUpdate();
     }
 }
@@ -452,27 +450,22 @@ void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &ol
     int mirWidth = m_surface->size().width.as_int();
     int mirHeight = m_surface->size().width.as_int();
 
-    if (m_application &&
-            (m_application->state() == Application::Running
-             || m_application->state() == Application::Starting)
-            && ((int)newGeometry.width() != mirWidth
-                || (int)newGeometry.height() != mirHeight)) {
+    bool mirGeometryIsDifferent = (int)newGeometry.width() != mirWidth
+                || (int)newGeometry.height() != mirHeight;
 
-        qDebug() << "MirSurfaceItem::geometryChanged"
-                << "appId =" << appId()
-                << ", oldGeometry" << oldGeometry
-                << ", newGeometry" << newGeometry
-                << "surface resized";
+    #if !defined(QT_NO_DEBUG)
+    const char *didResize = clientIsRunning() && mirGeometryIsDifferent ? "surface resized" : "surface NOT resized";
+    qDebug() << "MirSurfaceItem::geometryChanged"
+            << "appId =" << appId()
+            << ", oldGeometry" << oldGeometry
+            << ", newGeometry" << newGeometry
+            << didResize;
+    #endif
 
+    if (clientIsRunning() && mirGeometryIsDifferent) {
         mir::geometry::Size newMirSize((int)newGeometry.width(), (int)newGeometry.height());
         m_surface->resize(newMirSize);
         setImplicitSize(newGeometry.width(), newGeometry.height());
-    } else {
-        qDebug() << "MirSurfaceItem::geometryChanged"
-                << "appId =" << appId()
-                << ", oldGeometry" << oldGeometry
-                << ", newGeometry" << newGeometry
-                << "surface NOT resized";
     }
 
     QQuickItem::geometryChanged(newGeometry, oldGeometry);
@@ -553,6 +546,21 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
         m_surface->resize(newMirSize);
         setImplicitSize(width(), height());
     }
+}
+
+void MirSurfaceItem::release()
+{
+    if (!parent()) {
+        deleteLater();
+    }
+}
+
+bool MirSurfaceItem::clientIsRunning() const
+{
+    return (m_application &&
+            (m_application->state() == Application::Running
+             || m_application->state() == Application::Starting))
+        || !m_application;
 }
 
 #include "mirsurfaceitem.moc"
