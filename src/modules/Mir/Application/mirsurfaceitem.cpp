@@ -241,6 +241,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
 MirSurfaceItem::~MirSurfaceItem()
 {
     DLOG("MirSurfaceItem::~MirSurfaceItem(this=%p)", this);
+    m_surface->remove_observer(m_surfaceObserver);
     if (m_textureProvider)
         m_textureProvider->deleteLater();
 }
