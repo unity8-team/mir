@@ -140,11 +140,12 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
     DLOG("MirSurfaceManager::sessionDestroyingSurface: unable to find MirSurfaceItem corresponding to surface '%s'", surface->name().c_str());
 }
 
+// NB: Surface might be a dangling pointer here, so refrain from dereferencing it.
 void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
         const MirSurfaceAttrib attribute, const int value)
 {
-    DLOG("MirSurfaceManager::onSurfaceAttributeChanged (surface='%s', attrib=%d, value=%d)",
-         surface->name().c_str(), static_cast<int>(attribute), value);
+    DLOG("MirSurfaceManager::onSurfaceAttributeChanged (surface=%p, attrib=%d, value=%d)",
+         surface, static_cast<int>(attribute), value);
 
     auto it = m_mirSurfaceToItemHash.find(surface);
     if (it != m_mirSurfaceToItemHash.end()) {
