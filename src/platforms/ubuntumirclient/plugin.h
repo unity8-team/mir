@@ -14,20 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "plugin.h"
-#include "ubuntuclientintegration.h"
+#ifndef UBUNTU_CLIENT_PLUGIN_H
+#define UBUNTU_CLIENT_PLUGIN_H
 
-QStringList UbuntuClientIntegrationPlugin::keys() const {
-    QStringList list;
-    list << "ubuntuclient";
-    return list;
-}
+#include <qpa/qplatformintegrationplugin.h>
 
-QPlatformIntegration* UbuntuClientIntegrationPlugin::create(const QString &system,
-                                                            const QStringList &) {
-    if (system.toLower() == "ubuntuclient")
-        return new UbuntuClientIntegration;
-    else
-        return 0;
-}
+class UbuntuMirClientIntegrationPlugin : public QPlatformIntegrationPlugin
+{
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID QPlatformIntegrationFactoryInterface_iid FILE "ubuntumirclient.json")
 
+public:
+    QStringList keys() const;
+    QPlatformIntegration* create(const QString&, const QStringList&);
+};
+
+#endif // UBUNTU_CLIENT_PLUGIN_H

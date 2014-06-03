@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS += mirserver ubuntuclient
+SUBDIRS += mirserver ubuntumirclient

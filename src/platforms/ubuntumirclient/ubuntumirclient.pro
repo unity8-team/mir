@@ -1,4 +1,4 @@
-TARGET = qpa-ubuntuclient
+TARGET = qpa-ubuntumirclient
 TEMPLATE = lib
 
 QT -= gui
