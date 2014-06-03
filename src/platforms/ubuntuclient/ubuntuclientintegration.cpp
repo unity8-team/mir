@@ -15,6 +15,7 @@
  */
 
 // Qt
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformnativeinterface.h>
@@ -46,10 +47,8 @@ static void resumedCallback(const UApplicationOptions *options, void* context)
     Q_UNUSED(options)
     Q_UNUSED(context)
     DASSERT(context != NULL);
-    QCoreApplication::postEvent(QCoreApplication::instance(), new QEvent(QEvent::ApplicationActivate));
-    Q_FOREACH(QWindow *window, QGuiApplication::allWindows()) {
-        QGuiApplication::postEvent(window, new QExposeEvent( window->geometry() ));
-    }
+    QCoreApplication::postEvent(QCoreApplication::instance(),
+                                new QEvent(QEvent::ApplicationActivate));
 }
 
 static void aboutToStopCallback(UApplicationArchive *archive, void* context)
@@ -58,10 +57,8 @@ static void aboutToStopCallback(UApplicationArchive *archive, void* context)
     DASSERT(context != NULL);
     UbuntuClientIntegration* integration = static_cast<UbuntuClientIntegration*>(context);
     integration->inputContext()->hideInputPanel();
-    Q_FOREACH(QWindow *window, QGuiApplication::allWindows()) {
-        QGuiApplication::postEvent(window, new QExposeEvent( QRegion() ));
-    }
-    QCoreApplication::postEvent(QCoreApplication::instance(), new QEvent(QEvent::ApplicationDeactivate));
+    QCoreApplication::postEvent(QCoreApplication::instance(),
+                                new QEvent(QEvent::ApplicationDeactivate));
 }
 
 UbuntuClientIntegration::UbuntuClientIntegration()
