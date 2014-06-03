@@ -1,3 +1,40 @@
+platform-api (1.2.0+14.10.20140522.1-0ubuntu1) utopic; urgency=medium
+
+  [ Manuel de la Pena ]
+  * Add agps hooks in the hardware api to allow the use of supl.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ thomas-voss ]
+  * Add hw alarm api implementation for android's /dev/alarm. Add simple
+    test executable for hw alarm api implementation on android. Adjust
+    interface signatures to make sure that status of operations is
+    reported correctly. Add HW Alarms API interface definition. Add
+    Ubuntu implementation that will bridge over to the android world.
+    (LP: #1299916)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 May 2014 15:29:47 +0000
+
+platform-api (1.1.0+14.10.20140515.1-0ubuntu1) utopic; urgency=medium
+
+  [ Gerry Boland ]
+  [Daniel d'Andrada]
+  * Add ua_ui_window_get_size().
+  
+  [Gerry Boland]
+  * Bump package version to match library version.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 May 2014 17:18:39 +0000
+
+platform-api (0.21+14.10.20140507-0ubuntu1) utopic; urgency=medium
+
+  [ Ricardo Mendoza ]
+  * Change sensors API to allow for GCC 4.8 building across all clients
+    Ubuntu-side
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 07 May 2014 10:45:33 +0000
+
 platform-api (0.20+14.10.20140430.1-0ubuntu1) utopic; urgency=low
 
   [ Alberto Aguirre ]

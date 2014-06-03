@@ -143,22 +143,6 @@ extern "C" {
         DLSYM(&f, #symbol);                     \
         return f(_1); }
 
-// pcs attribute (calling convention) is only defined on ARM, avoid warning on
-// other platforms
-#ifdef __arm__
-#define __SF_FN_ATTR __attribute__((pcs("aapcs")))
-#else
-#define __SF_FN_ATTR
-#endif
-
-#define IMPLEMENT_SF_FUNCTION1(return_type, symbol, arg1) \
-    return_type symbol(arg1 _1)                        \
-    {                                                  \
-        static return_type (*f)(arg1) __SF_FN_ATTR = NULL; \
-        DLSYM(&f, #symbol);                     \
-        return f(_1); }
-
-
 #define IMPLEMENT_VOID_FUNCTION1(symbol, arg1)               \
     void symbol(arg1 _1)                                     \
     {                                                        \
@@ -195,6 +179,13 @@ extern "C" {
         f(_1, _2, _3); }
 
 #define IMPLEMENT_VOID_FUNCTION4(symbol, arg1, arg2, arg3, arg4) \
+    void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)              \
+    {                                                            \
+        static void (*f)(arg1, arg2, arg3, arg4) = NULL;         \
+        DLSYM(&f, #symbol);                                      \
+        f(_1, _2, _3, _4); }
+
+#define IMPLEMENT_VOID_SF_FUNCTION4(symbol, arg1, arg2, arg3, arg4) \
     void symbol(arg1 _1, arg2 _2, arg3 _3, arg4 _4)              \
     {                                                            \
         static void (*f)(arg1, arg2, arg3, arg4) = NULL;         \
