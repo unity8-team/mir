@@ -33,9 +33,11 @@ public:
 
     // QPlatformWindow methods.
     WId winId() const override;
+    bool isExposed() const override;
     void setGeometry(const QRect&) override;
     void setWindowState(Qt::WindowState state) override;
     void setVisible(bool visible) override;
+    void windowEvent(QEvent *event) override;
 
     // New methods.
     void* eglSurface() const;
@@ -51,6 +53,7 @@ public Q_SLOTS:
 private:
     void createWindow();
     void moveResize(const QRect& rect);
+    void setExposed(const bool exposed);
 
     UbuntuWindowPrivate *d;
 };

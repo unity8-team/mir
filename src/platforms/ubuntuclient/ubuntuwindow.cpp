@@ -25,6 +25,7 @@
 #include <qpa/qwindowsysteminterface.h>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QRegion>
 #include <QSize>
 
 // Platform API
@@ -308,15 +309,51 @@ void UbuntuWindow::setGeometry(const QRect& rect)
 
 void UbuntuWindow::setVisible(bool visible)
 {
-  DLOG("UbuntuWindow::setVisible (this=%p, visible=%s)", this, visible ? "true" : "false");
+    DLOG("UbuntuWindow::setVisible (this=%p, visible=%s)", this, visible ? "true" : "false");
 
-  if (visible) {
-    ua_ui_window_show(d->window);
-    QWindowSystemInterface::handleExposeEvent(window(), QRect());
-    QWindowSystemInterface::flushWindowSystemEvents();
-  } else {
-    ua_ui_window_hide(d->window);
-  }
+    if (visible) {
+        ua_ui_window_show(d->window);
+        QWindowSystemInterface::handleExposeEvent(window(), QRect());
+        QWindowSystemInterface::flushWindowSystemEvents();
+    } else {
+        ua_ui_window_hide(d->window);
+    }
+
+    setExposed(visible);
+}
+
+bool UbuntuWindow::isExposed() const {
+    return m_exposed;
+}
+
+void UbuntuWindow::setExposed(const bool exposed)
+{
+    DLOG("QUbuntuWindow::setExposed (this=%p, exposed=%s)", this, exposed ? "true" : "false");
+
+    if (m_exposed == exposed)
+        return;
+
+    m_exposed = exposed;
+    if (m_exposed) {
+        QWindowSystemInterface::handleExposeEvent(window(), geometry());
+    } else {
+        QWindowSystemInterface::handleExposeEvent(window(), QRect());
+    }
+}
+
+void UbuntuWindow::windowEvent(QEvent *event)
+{
+    if (event->type() == QEvent::Expose) {
+        QRegion region = static_cast<QExposeEvent *>(event)->region();
+
+        if (region.isEmpty()) {
+            // hiding window causes Qt to release the GL context and its resources, which is a bit severe
+            // Instead can use the exposure system to stop the rendering loop, but hold onto the resources
+            setExposed(false);
+        } else {
+            setExposed(true);
+        }
+    }
 }
 
 void* UbuntuWindow::eglSurface() const
