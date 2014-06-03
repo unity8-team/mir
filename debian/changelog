@@ -1,8 +1,5 @@
 platform-api (1.2.0+14.10.20140522.1-0ubuntu1) utopic; urgency=medium
 
-  [ Cemil Azizoglu ]
-  * Bump Mir server ABI to 20.
-
   [ Manuel de la Pena ]
   * Add agps hooks in the hardware api to allow the use of supl.
 
