@@ -150,7 +150,7 @@ void UbuntuWindow::createWindow()
         geometry = d->geometry;
     }
 
-    DLOG("[ubuntuclient QPA] creating surface at (%d, %d) with size (%d, %d) with title '%s'\n",
+    DLOG("[ubuntumirclient QPA] creating surface at (%d, %d) with size (%d, %d) with title '%s'\n",
             geometry.x(), geometry.y(), geometry.width(), geometry.height(), title.data());
 
     // Setup platform window creation properties
@@ -181,7 +181,7 @@ void UbuntuWindow::createWindow()
         geometry.setHeight(height);
     }
 
-    DLOG("[ubuntuclient QPA] created surface has size (%d, %d)",
+    DLOG("[ubuntumirclient QPA] created surface has size (%d, %d)",
             geometry.width(), geometry.height());
 
     // Assume that the buffer size matches the surface size at creation time
@@ -223,7 +223,7 @@ void UbuntuWindow::handleSurfaceResize(int width, int height)
     if (shouldSwapBuffers) {
         QWindowSystemInterface::handleExposeEvent(window(), geometry());
     } else {
-        qWarning("[ubuntuclient QPA] UbuntuWindow::handleSurfaceResize"
+        qWarning("[ubuntumirclient QPA] UbuntuWindow::handleSurfaceResize"
                  " current buffer already has the target size");
         d->targetBufferSize = QSize();
     }
