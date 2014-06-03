@@ -77,7 +77,8 @@ MirSurfaceManager::~MirSurfaceManager()
 void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,
         const std::shared_ptr<mir::scene::Surface> &surface)
 {
-    DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
+    DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with Surface(%p,name='%s')",
+            this, surface.get(), surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
 
     auto qmlSurface = new MirSurfaceItem(surface);
@@ -115,7 +116,8 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
 void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
         const std::shared_ptr<mir::scene::Surface> &surface)
 {
-    DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with surface name '%s'", this, surface->name().c_str());
+    DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with Surface(%p, name='%s')",
+            this, surface.get(), surface->name().c_str());
 
     // TODO - tell Application the surface closed
 
@@ -137,7 +139,8 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
         return;
     }
 
-    DLOG("MirSurfaceManager::sessionDestroyingSurface: unable to find MirSurfaceItem corresponding to surface '%s'", surface->name().c_str());
+    DLOG("MirSurfaceManager::onSessionDestroyingSurface: unable to find MirSurfaceItem"
+            " corresponding to Surface(%p,name='%s')", surface.get(), surface->name().c_str());
 }
 
 // NB: Surface might be a dangling pointer here, so refrain from dereferencing it.
