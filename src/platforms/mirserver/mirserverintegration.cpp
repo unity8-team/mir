@@ -87,7 +87,7 @@ MirServerIntegration::MirServerIntegration()
     initialize();
 #endif
 
-    QPlatformInputContextFactory::create();
+    m_inputContext = QPlatformInputContextFactory::create();
 }
 
 MirServerIntegration::~MirServerIntegration()

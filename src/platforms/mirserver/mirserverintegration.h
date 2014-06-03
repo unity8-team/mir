@@ -49,6 +49,8 @@ public:
     void initialize() override;
 #endif
 
+    QPlatformInputContext* inputContext() const override { return m_inputContext; }
+
     QPlatformFontDatabase *fontDatabase() const override;
     QStringList themeNames() const override;
     QPlatformTheme* createPlatformTheme(const QString& name) const override;
@@ -71,6 +73,7 @@ private:
     Display *m_display;
     QMirServer *m_mirServer;
     NativeInterface *m_nativeInterface;
+    QPlatformInputContext* m_inputContext;
 };
 
 #endif // MIRSERVERINTEGRATION_H
