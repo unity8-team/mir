@@ -21,6 +21,7 @@
 #define SCREEN_H
 
 #include <QObject>
+#include <QTimer>
 #include <qpa/qplatformscreen.h>
 #include "mir/graphics/display_configuration.h"
 
@@ -47,6 +48,9 @@ public:
 public Q_SLOTS:
     void onOrientationReadingChanged();
 
+private Q_SLOTS:
+    void commitPendingOrientation();
+
 private:
     void readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const&);
 
@@ -58,6 +62,8 @@ private:
 
     Qt::ScreenOrientation m_nativeOrientation;
     Qt::ScreenOrientation m_currentOrientation;
+    Qt::ScreenOrientation m_pendingOrientation;
+    QTimer m_pendingOrientationTimer;
     QOrientationSensor *m_orientationSensor;
 };
 
