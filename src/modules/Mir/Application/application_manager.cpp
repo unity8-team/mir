@@ -659,7 +659,7 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     Application* application = findApplicationWithSession(session);
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
-        m_focusedApplication->setState(Application::Running);
+        application->setState(Application::Running);
     }
 }
 
@@ -671,7 +671,7 @@ void ApplicationManager::setFocused(Application *application)
         return;
 
     // set state of previously focused app to suspended
-    suspendApplication(m_focusedApplication);
+    //suspendApplication(m_focusedApplication);
 
 
     m_focusedApplication = application;
