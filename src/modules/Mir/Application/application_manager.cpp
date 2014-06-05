@@ -61,6 +61,9 @@ ApplicationManager::ApplicationManager(QObject *parent)
 {
     DLOG("ApplicationManager::ApplicationManager (this=%p)", this);
 
+    m_roleNames.insert(RoleSurface, "surface");
+    m_roleNames.insert(RoleFullscreen, "fullscreen");
+
     NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
 
     m_mirConfig = nativeInterface->m_mirConfig;
@@ -130,6 +133,10 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->focused());
             case RoleScreenshot:
                 return QVariant::fromValue(application->screenshot());
+            case RoleSurface:
+                return QVariant::fromValue(application->surface());
+            case RoleFullscreen:
+                return QVariant::fromValue(application->fullscreen());
             default:
                 return QVariant();
         }
@@ -262,6 +269,10 @@ bool ApplicationManager::focusApplication(const QString &appId)
             move(from, 0);
         }
     }
+
+    setFocused(application);
+    QModelIndex appIndex = findIndex(application);
+    Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleFocused);
 
     // FIXME(dandrader): lying here. The operation is async. So we will only know whether
     // the focusing was successful once the server replies. Maybe the API in unity-api should
@@ -630,7 +641,7 @@ void ApplicationManager::onSessionUnfocused()
         Q_ASSERT(m_focusedApplication->focused());
         m_focusedApplication->setFocused(false);
 
-        suspendApplication(m_focusedApplication);
+        //suspendApplication(m_focusedApplication);
 
         m_focusedApplication = NULL;
         Q_EMIT focusedApplicationIdChanged();
@@ -650,10 +661,7 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     Application* application = findApplicationWithSession(session);
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
-        // only when Session creates a Surface will we actually mark it focused
-        setFocused(application);
-        QModelIndex appIndex = findIndex(application);
-        Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleFocused);
+        m_focusedApplication->setState(Application::Running);
     }
 }
 
@@ -670,7 +678,6 @@ void ApplicationManager::setFocused(Application *application)
 
     m_focusedApplication = application;
     m_focusedApplication->setFocused(true);
-    m_focusedApplication->setState(Application::Running);
     move(m_applications.indexOf(application), 0);
     Q_EMIT focusedApplicationIdChanged();
     m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());

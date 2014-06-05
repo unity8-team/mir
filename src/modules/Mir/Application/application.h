@@ -29,6 +29,7 @@
 
 #include "mirsurfaceitem.h"
 
+class ApplicationManager;
 class QImage;
 class DesktopFileReader;
 class TaskController;
@@ -55,8 +56,8 @@ public:
     };
     Q_DECLARE_FLAGS(SupportedOrientations, Orientation)
 
-    Application(const QString &appId, State state, const QStringList &arguments, QObject *parent = 0);
-    Application(DesktopFileReader *desktopFileReader, State state, const QStringList &arguments, QObject *parent = 0);
+    Application(const QString &appId, State state, const QStringList &arguments, ApplicationManager *parent = 0);
+    Application(DesktopFileReader *desktopFileReader, State state, const QStringList &arguments, ApplicationManager *parent = 0);
     virtual ~Application();
 
     // ApplicationInfoInterface
@@ -93,12 +94,13 @@ public Q_SLOTS:
 Q_SIGNALS:
     void fullscreenChanged();
     void stageChanged(Stage stage);
-    void surfaceChanged(MirSurfaceItem *surface);
+    void surfaceChanged();
 
     void surfaceDestroyed(MirSurfaceItem *surface);
 
 private Q_SLOTS:
     void discardSurface();
+    void onFirstFrameDrawn();
 
 private:
     pid_t pid() const;
@@ -114,6 +116,7 @@ private:
     // the supported orientations of an app
     void deduceSupportedOrientationsFromAppId();
 
+    ApplicationManager* m_appMgr;
     DesktopFileReader* m_desktopData;
     qint64 m_pid;
     Stage m_stage;

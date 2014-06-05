@@ -45,11 +45,17 @@ namespace mir {
 class ApplicationManager : public unity::shell::application::ApplicationManagerInterface
 {
     Q_OBJECT
+    Q_ENUMS(MoreRoles)
     Q_FLAGS(ExecFlags)
     Q_PROPERTY(Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
+    enum MoreRoles {
+        RoleSurface = RoleScreenshot+1,
+        RoleFullscreen,
+    };
+
     // Mapping enums to Ubuntu Platform API enums.
     enum Flag {
         NoFlag = 0x0,
@@ -137,6 +143,7 @@ private:
     QString m_nextFocusedAppId;
     bool m_suspended;
 
+    friend class Application;
     friend class DBusWindowStack;
     friend class MirSurfaceManager;
 };
