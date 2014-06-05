@@ -121,8 +121,6 @@ Q_SIGNALS:
     void firstFrameDrawn(MirSurfaceItem *item);
 
 protected:
-    void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
-
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -139,6 +137,9 @@ private Q_SLOTS:
     void surfaceDamaged();
     void dropPendingBuffers();
     void scheduleTextureUpdate();
+
+    void scheduleMirSurfaceSizeUpdate();
+    void updateMirSurfaceSize();
 
 private:
     bool updateTexture();
@@ -171,6 +172,8 @@ private:
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
 
     QTimer m_frameDropperTimer;
+
+    QTimer m_updateMirSurfaceSizeTimer;
 
     friend class MirSurfaceManager;
 };

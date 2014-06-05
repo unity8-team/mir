@@ -236,6 +236,12 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
             this, &MirSurfaceItem::dropPendingBuffers);
     m_frameDropperTimer.setInterval(200);
     m_frameDropperTimer.setSingleShot(false);
+
+    m_updateMirSurfaceSizeTimer.setSingleShot(true);
+    m_updateMirSurfaceSizeTimer.setInterval(1);
+    connect(&m_updateMirSurfaceSizeTimer, &QTimer::timeout, this, &MirSurfaceItem::updateMirSurfaceSize);
+    connect(this, &QQuickItem::widthChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
+    connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
@@ -444,31 +450,37 @@ void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*
     }
 }
 
-void MirSurfaceItem::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry)
+void MirSurfaceItem::scheduleMirSurfaceSizeUpdate()
 {
+    if (clientIsRunning() && !m_updateMirSurfaceSizeTimer.isActive()) {
+        m_updateMirSurfaceSizeTimer.start();
+    }
+}
 
+void MirSurfaceItem::updateMirSurfaceSize()
+{
     int mirWidth = m_surface->size().width.as_int();
-    int mirHeight = m_surface->size().width.as_int();
+    int mirHeight = m_surface->size().height.as_int();
 
-    bool mirGeometryIsDifferent = (int)newGeometry.width() != mirWidth
-                || (int)newGeometry.height() != mirHeight;
+    int qmlWidth = (int)width();
+    int qmlHeight = (int)height();
+
+    bool mirSizeIsDifferent = qmlWidth != mirWidth || qmlHeight != mirHeight;
 
     #if !defined(QT_NO_DEBUG)
-    const char *didResize = clientIsRunning() && mirGeometryIsDifferent ? "surface resized" : "surface NOT resized";
-    qDebug() << "MirSurfaceItem::geometryChanged"
+    const char *didResize = clientIsRunning() && mirSizeIsDifferent ? "surface resized" : "surface NOT resized";
+    qDebug() << "MirSurfaceItem::updateMirSurfaceSize"
             << "appId =" << appId()
-            << ", oldGeometry" << oldGeometry
-            << ", newGeometry" << newGeometry
+            << ", old (" << mirWidth << "," << mirHeight << ")"
+            << ", new (" << qmlWidth << "," << qmlHeight << ")"
             << didResize;
     #endif
 
-    if (clientIsRunning() && mirGeometryIsDifferent) {
-        mir::geometry::Size newMirSize((int)newGeometry.width(), (int)newGeometry.height());
+    if (clientIsRunning() && mirSizeIsDifferent) {
+        mir::geometry::Size newMirSize(qmlWidth, qmlHeight);
         m_surface->resize(newMirSize);
-        setImplicitSize(newGeometry.width(), newGeometry.height());
+        setImplicitSize(qmlWidth, qmlHeight);
     }
-
-    QQuickItem::geometryChanged(newGeometry, oldGeometry);
 }
 
 void MirSurfaceItem::dropPendingBuffers()
