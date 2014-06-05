@@ -347,7 +347,7 @@ void Application::setSurface(MirSurfaceItem *newSurface)
         // Only notify QML of surface creation once it has drawn its first frame.
         if (!surface()) {
             connect(newSurface, &MirSurfaceItem::firstFrameDrawn,
-                    this, &Application::onFirstFrameDrawn);
+                    this, &Application::emitSurfaceChanged);
         }
 
         connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
@@ -358,13 +358,11 @@ void Application::setSurface(MirSurfaceItem *newSurface)
     }
 
     if (previousSurface != surface()) {
-        Q_EMIT surfaceChanged();
-        QModelIndex appIndex = m_appMgr->findIndex(this);
-        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleSurface);
+        emitSurfaceChanged();
     }
 }
 
-void Application::onFirstFrameDrawn()
+void Application::emitSurfaceChanged()
 {
     Q_EMIT surfaceChanged();
     QModelIndex appIndex = m_appMgr->findIndex(this);

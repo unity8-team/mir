@@ -100,7 +100,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void discardSurface();
-    void onFirstFrameDrawn();
+    void emitSurfaceChanged();
 
 private:
     pid_t pid() const;
