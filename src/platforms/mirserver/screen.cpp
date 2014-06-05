@@ -107,7 +107,7 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     m_currentOrientation = m_nativeOrientation;
 
     m_pendingOrientationTimer.setSingleShot(true);
-    m_pendingOrientationTimer.setInterval(1000);
+    m_pendingOrientationTimer.setInterval(600);
     connect(&m_pendingOrientationTimer, &QTimer::timeout,
             this, &Screen::commitPendingOrientation);
 
@@ -181,6 +181,7 @@ void Screen::customEvent(QEvent* event)
     case QOrientationReading::FaceUp:
     case QOrientationReading::FaceDown:
         // maintain screen orientation
+        m_pendingOrientationTimer.stop();
         break;
 
     default:
