@@ -125,7 +125,6 @@ private:
     void remove(Application* application);
     Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
     Application* findApplicationWithSession(const mir::scene::Session *session);
-    Application* findLastExecutedApplication();
     QModelIndex findIndex(Application* application);
     void suspendApplication(Application *application);
     void resumeApplication(Application *application);

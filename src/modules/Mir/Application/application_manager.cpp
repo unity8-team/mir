@@ -574,9 +574,7 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
         return;
     }
 
-    //FIXME(greyback) Mir not supplying any identifier that we can use to link the PID to the session
-    // so am assuming that the *most recently* launched application session is the one that connects
-    Application* application = findLastExecutedApplication();
+    Application* application = findApplicationWithPid(session->process_id());
     if (application && application->state() != Application::Running) {
         application->setSession(session);
         m_applicationToBeFocused = application;
@@ -711,15 +709,6 @@ Application* ApplicationManager::findApplicationWithPid(const qint64 pid)
     return nullptr;
 }
 
-Application* ApplicationManager::findLastExecutedApplication()
-{
-    if (m_applications.length() > 0) {
-        return m_applications.last();
-    } else {
-        return NULL;
-    }
-}
-
 void ApplicationManager::add(Application* application)
 {
     DASSERT(application != NULL);
@@ -727,13 +716,13 @@ void ApplicationManager::add(Application* application)
 
     connect(application, &Application::screenshotChanged, this, &ApplicationManager::screenshotUpdated);
 
-    beginInsertRows(QModelIndex(), m_applications.size(), m_applications.size());
-    m_applications.append(application);
+    beginInsertRows(QModelIndex(), 0, 0);
+    m_applications.prepend(application);
     endInsertRows();
     emit countChanged();
     emit applicationAdded(application->appId());
+    emit topmostApplicationChanged(application);
     if (m_applications.size() == 1) {
-        emit topmostApplicationChanged(application);
         emit emptyChanged();
     }
 }
