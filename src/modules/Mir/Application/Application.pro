@@ -33,7 +33,8 @@ SOURCES += application_manager.cpp \
     mirsurfacemanager.cpp \
     ubuntukeyboardinfo.cpp \
     mirsurfaceitem.cpp \
-    mirbuffersgtexture.cpp
+    mirbuffersgtexture.cpp \
+    windowscreenshotprovider.cpp
 
 HEADERS += application_manager.h \
     application.h \
@@ -48,6 +49,7 @@ HEADERS += application_manager.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
     mirsurfaceitem.h \
     mirbuffersgtexture.h
+    windowscreenshotprovider.h
 
 installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 
