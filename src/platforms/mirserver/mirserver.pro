@@ -15,6 +15,8 @@ QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 CONFIG   += link_pkgconfig
 PKGCONFIG += mircommon mirserver mirclient egl xkbcommon
 
+LIBS += -lubuntu_application_api_mirclient
+
 SOURCES += \
     qteventfeeder.cpp \
     plugin.cpp \
@@ -33,6 +35,7 @@ SOURCES += \
     miropenglcontext.cpp \
     nativeinterface.cpp \
     qtcompositor.cpp \
+    ../common/ubuntuplatformservices.cpp \
     ../common/ubuntutheme.cpp
 
 HEADERS += \
@@ -55,6 +58,7 @@ HEADERS += \
     miropenglcontext.h \
     nativeinterface.h \
     qtcompositor.h \
+    ../common/ubuntuplatformservices.h \
     ../common/ubuntutheme.h
 
 
