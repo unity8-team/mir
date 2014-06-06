@@ -16,6 +16,7 @@
 
 // Qt
 #include <QGuiApplication>
+#include <QMutexLocker>
 
 // local
 #include "mirsurfacemanager.h"
@@ -82,7 +83,10 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
 
     auto qmlSurface = new MirSurfaceItem(surface);
-    m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
+    {
+        QMutexLocker lock(&m_mutex);
+        m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
+    }
 
     Application* application = appMgr->findApplicationWithSession(session);
     if (application)
@@ -92,6 +96,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
 
+        QMutexLocker lock(&m_mutex);
         beginInsertRows(QModelIndex(), 0, 0);
         m_surfaceItems.prepend(item);
         endInsertRows();
@@ -101,7 +106,10 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     // clean up after MirSurfaceItem is destroyed
     connect(qmlSurface, &MirSurfaceItem::destroyed, [&](QObject *item) {
         auto mirSurfaceItem = static_cast<MirSurfaceItem*>(item);
-        m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(mirSurfaceItem));
+        {
+            QMutexLocker lock(&m_mutex);
+            m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(mirSurfaceItem));
+        }
 
         int i = m_surfaceItems.indexOf(mirSurfaceItem);
         if (i != -1) {
@@ -127,7 +135,11 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
         MirSurfaceItem* item = it.value();
         Q_EMIT item->surfaceDestroyed();
 
-        m_mirSurfaceToItemHash.erase(it);
+        {
+            QMutexLocker lock(&m_mutex);
+            m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(item));
+        }
+//        m_mirSurfaceToItemHash.erase(it);
 
         int i = m_surfaceItems.indexOf(item);
         if (i != -1) {
@@ -150,6 +162,7 @@ void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
     DLOG("MirSurfaceManager::onSurfaceAttributeChanged (surface=%p, attrib=%d, value=%d)",
          surface, static_cast<int>(attribute), value);
 
+    QMutexLocker lock(&m_mutex);
     auto it = m_mirSurfaceToItemHash.find(surface);
     if (it != m_mirSurfaceToItemHash.end()) {
         it.value()->setAttribute(attribute, value);
@@ -180,4 +193,3 @@ MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 {
     return m_surfaceItems[index];
 }
-

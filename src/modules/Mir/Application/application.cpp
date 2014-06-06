@@ -27,14 +27,15 @@
 #include <mir/scene/session.h>
 
 Application::Application(const QString &appId, Application::State state,
-                         const QStringList &arguments, QObject *parent)
+                         const QStringList &arguments, ApplicationManager *parent)
     : Application(new DesktopFileReader(appId), state, arguments, parent)
 {
 }
 
 Application::Application(DesktopFileReader *desktopFileReader, State state,
-                         const QStringList &arguments, QObject *parent)
+                         const QStringList &arguments, ApplicationManager *parent)
     : ApplicationInfoInterface(desktopFileReader->appId(), parent)
+    , m_appMgr(parent)
     , m_desktopData(desktopFileReader)
     , m_pid(0)
     , m_stage((m_desktopData->stageHint() == "SideStage") ? Application::SideStage : Application::MainStage)
@@ -169,6 +170,8 @@ void Application::setStage(Application::Stage stage)
     if (m_stage != stage) {
         m_stage = stage;
         Q_EMIT stageChanged(stage);
+        QModelIndex appIndex = m_appMgr->findIndex(this);
+        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleStage);
     }
 }
 
@@ -179,7 +182,10 @@ QImage Application::screenshotImage() const
 
 void Application::updateScreenshot()
 {
-    session()->take_snapshot(
+    if (!m_session)
+        return;
+
+    m_session->take_snapshot(
         [&](mir::scene::Snapshot const& snapshot)
         {
             DLOG("ApplicationScreenshotProvider - Mir snapshot ready with size %d x %d",
@@ -232,6 +238,9 @@ void Application::setState(Application::State state)
         m_state = state;
         Q_EMIT stateChanged(state);
 
+        QModelIndex appIndex = m_appMgr->findIndex(this);
+        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleState);
+
         // FIXME: Make this a signal-slot connection
         if (m_surface) {
             m_surface->onApplicationStateChanged();
@@ -245,6 +254,8 @@ void Application::setFocused(bool focused)
     if (m_focused != focused) {
         m_focused = focused;
         Q_EMIT focusedChanged(focused);
+        QModelIndex appIndex = m_appMgr->findIndex(this);
+        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleFocused);
     }
 }
 
@@ -254,6 +265,8 @@ void Application::setFullscreen(bool fullscreen)
     if (m_fullscreen != fullscreen) {
         m_fullscreen = fullscreen;
         Q_EMIT fullscreenChanged();
+        QModelIndex appIndex = m_appMgr->findIndex(this);
+        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleFullscreen);
     }
 }
 
@@ -334,7 +347,7 @@ void Application::setSurface(MirSurfaceItem *newSurface)
         // Only notify QML of surface creation once it has drawn its first frame.
         if (!surface()) {
             connect(newSurface, &MirSurfaceItem::firstFrameDrawn,
-                    this, &Application::surfaceChanged);
+                    this, &Application::emitSurfaceChanged);
         }
 
         connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
@@ -345,8 +358,15 @@ void Application::setSurface(MirSurfaceItem *newSurface)
     }
 
     if (previousSurface != surface()) {
-        Q_EMIT surfaceChanged(newSurface);
+        emitSurfaceChanged();
     }
+}
+
+void Application::emitSurfaceChanged()
+{
+    Q_EMIT surfaceChanged();
+    QModelIndex appIndex = m_appMgr->findIndex(this);
+    Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleSurface);
 }
 
 void Application::discardSurface()

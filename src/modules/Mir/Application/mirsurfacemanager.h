@@ -23,6 +23,7 @@
 // Qt
 #include <QAbstractListModel>
 #include <QHash>
+#include <QMutex>
 
 // Mir
 #include <mir_toolkit/common.h>
@@ -79,6 +80,7 @@ private:
     ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
     QHash<int, QByteArray> m_roleNames;
+    QMutex m_mutex;
 };
 
 #endif // MIR_SURFACE_MANAGER_H
