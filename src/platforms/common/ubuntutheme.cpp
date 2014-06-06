@@ -41,4 +41,3 @@ QVariant UbuntuTheme::themeHint(ThemeHint hint) const
         return QGenericUnixTheme::themeHint(hint);
     }
 }
-

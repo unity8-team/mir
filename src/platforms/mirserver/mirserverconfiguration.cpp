@@ -127,7 +127,7 @@ MirServerConfiguration::the_server_status_listener()
 // The rationale is that if when you do
 //     the_session_authorizer()
 // get a pointer that is unique means that Mir is not
-// holding the pointer and thus when we return from the 
+// holding the pointer and thus when we return from the
 //     sessionAuthorizer()
 // scope the unique pointer will be destroyed so we return 0
 //

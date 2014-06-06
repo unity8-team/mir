@@ -193,4 +193,3 @@ MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 {
     return m_surfaceItems[index];
 }
-

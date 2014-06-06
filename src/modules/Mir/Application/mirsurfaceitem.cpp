@@ -76,7 +76,7 @@ MirEvent createMirEvent(QTouchEvent *qtEvent)
 
     // Hardcoding it for now
     // TODO: Gather this info from a QTouchDevice-derived class created by QtEventFeeder
-    mirEvent.motion.device_id = 0; 
+    mirEvent.motion.device_id = 0;
     mirEvent.motion.source_id = 0x00001002; // AINPUT_SOURCE_TOUCHSCREEN; https://bugs.launchpad.net/bugs/1311687
 
     // NB: it's assumed that touch points are pressed and released

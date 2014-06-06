@@ -198,7 +198,6 @@ struct OomScoreAdjuster
         // we choose a default value of -9, and a default increase of +1.
         static const int default_value = -9;
         static const int default_increase = 1;
-        
 
         // We could be way more clever here if we knew the distribution
         // of oom_score_adj values of all app processes. However, we just

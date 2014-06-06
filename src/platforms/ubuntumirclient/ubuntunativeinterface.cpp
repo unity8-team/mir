@@ -114,4 +114,3 @@ void* UbuntuNativeInterface::nativeResourceForScreen(const QByteArray& resourceS
     } else
         return NULL;
 }
-

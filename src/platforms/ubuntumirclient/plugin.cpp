@@ -30,4 +30,3 @@ QPlatformIntegration* UbuntuMirClientIntegrationPlugin::create(const QString &sy
     else
         return 0;
 }
-
