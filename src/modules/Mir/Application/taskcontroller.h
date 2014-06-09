@@ -23,9 +23,8 @@
 
 #include "application.h"
 
-// upstart
 extern "C" {
-    #include "upstart-app-launch.h"
+    #include "ubuntu-app-launch.h"
 }
 
 class TaskController : public QObject
@@ -53,8 +52,8 @@ private:
     TaskController(QObject *parent = 0);
 
     static TaskController* m_theTaskController;
-    upstart_app_launch_app_observer_t preStartCallback, startedCallback, stopCallback, focusCallback, resumeCallback;
-    upstart_app_launch_app_failed_observer_t failureCallback;
+    UbuntuAppLaunchAppObserver preStartCallback, startedCallback, stopCallback, focusCallback, resumeCallback;
+    UbuntuAppLaunchAppFailedObserver failureCallback;
 };
 
 #endif // TASKCONTROLLER_H

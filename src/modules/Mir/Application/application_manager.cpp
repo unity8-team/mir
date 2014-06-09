@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013,2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -331,7 +331,7 @@ void ApplicationManager::onProcessStartReportReceived(const QString &appId, cons
 
     Application *application = findApplication(appId);
 
-    if (!application) { // if shell did not start this application, but upstart did
+    if (!application) { // if shell did not start this application, but ubuntu-app-launch did
         application = new Application(appId, Application::Starting, QStringList(), this);
         if (!application->isValid()) {
             DLOG("Unable to instantiate application with appId '%s'", qPrintable(appId));
@@ -391,9 +391,9 @@ void ApplicationManager::onProcessStopped(const QString &appId, const bool unexp
 {
     Application *application = findApplication(appId);
 
-    // if shell did not stop the application, but upstart says it died, we assume the process has been
+    // if shell did not stop the application, but ubuntu-app-launch says it died, we assume the process has been
     // killed, so it can be respawned later. Only exception is if that application is focused or running
-    // as then it most likely crashed. Update this logic when upstart gives some failure info.
+    // as then it most likely crashed. Update this logic when ubuntu-app-launch gives some failure info.
     if (application) {
         bool removeApplication = false;
 
@@ -444,7 +444,7 @@ void ApplicationManager::onResumeRequested(const QString& appId)
         return;
     }
 
-    // If app Stopped, trust that upstart-app-launch respawns it itself, and AppManager will
+    // If app Stopped, trust that ubuntu-app-launch respawns it itself, and AppManager will
     // be notified of that through the onProcessStartReportReceived slot. Else resume.
     if (application->state() == Application::Suspended) {
         application->setState(Application::Running);
@@ -484,7 +484,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
 
     /*
      * Hack: Allow applications to be launched externally, but must be executed with the
-     * "desktop_file_hint" parameter attached. This exists until upstart-app-launch can
+     * "desktop_file_hint" parameter attached. This exists until ubuntu-app-launch can
      * notify shell it is starting an application and so shell should allow it. Also reads
      * the --stage parameter to determine the desired stage
      */

@@ -39,7 +39,7 @@ void MirServerStatusListener::started()
     // FIXME: should not be unity-mir's job, instead should notify the user of this library
     // that they should emit this signal, perhaps by posting an event to the
     // QMirServerApplication event loop when it comes up
-    if (qgetenv("UPSTART_JOB") == "unity8") {
+    if (qgetenv("UNITY_MIR_EMITS_SIGSTOP") == "1") {
         raise(SIGSTOP);
     }
 }

@@ -306,7 +306,7 @@ TaskController::TaskController(QObject *parent) :
 {
     preStartCallback = [](const gchar * appId, gpointer userData) {
         Q_UNUSED(userData)
-        pid_t pid = upstart_app_launch_get_primary_pid(appId);
+        pid_t pid = ubuntu_app_launch_get_primary_pid(appId);
         ensureProcessIsUnlikelyToBeKilled(pid);
     };
 
@@ -322,7 +322,7 @@ TaskController::TaskController(QObject *parent) :
 
     focusCallback = [](const gchar * appId, gpointer userData) {
         Q_UNUSED(userData)
-        pid_t pid = upstart_app_launch_get_primary_pid(appId);
+        pid_t pid = ubuntu_app_launch_get_primary_pid(appId);
         ensureProcessIsUnlikelyToBeKilled(pid);
         Q_EMIT TaskController::singleton()->requestFocus(QString(appId));
     };
@@ -332,52 +332,52 @@ TaskController::TaskController(QObject *parent) :
         Q_EMIT TaskController::singleton()->requestResume(QString(appId));
     };
 
-    failureCallback = [](const gchar * appId, upstart_app_launch_app_failed_t failureType, gpointer userData) {
+    failureCallback = [](const gchar * appId, UbuntuAppLaunchAppFailed failureType, gpointer userData) {
         Q_UNUSED(userData)
-        if (failureType == UPSTART_APP_LAUNCH_APP_FAILED_CRASH) {
+        if (failureType == UBUNTU_APP_LAUNCH_APP_FAILED_CRASH) {
             Q_EMIT TaskController::singleton()->processStopped(QString(appId), true);
-        } else if (failureType == UPSTART_APP_LAUNCH_APP_FAILED_START_FAILURE) {
+        } else if (failureType == UBUNTU_APP_LAUNCH_APP_FAILED_START_FAILURE) {
             Q_EMIT TaskController::singleton()->processStartReport(QString(appId), true);
         } else {
-            LOG("TaskController: unknown failure type returned from upstart-app-launch");
+            LOG("TaskController: unknown failure type returned from ubuntu-app-launch");
         }
         Q_EMIT TaskController::singleton()->requestResume(QString(appId));
     };
 
-    upstart_app_launch_observer_add_app_starting(preStartCallback, nullptr);
-    upstart_app_launch_observer_add_app_started(startedCallback, nullptr);
-    upstart_app_launch_observer_add_app_stop(stopCallback, nullptr);
-    upstart_app_launch_observer_add_app_focus(focusCallback, nullptr);
-    upstart_app_launch_observer_add_app_resume(resumeCallback, nullptr);
-    upstart_app_launch_observer_add_app_failed(failureCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_starting(preStartCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_started(startedCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_stop(stopCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_focus(focusCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_resume(resumeCallback, nullptr);
+    ubuntu_app_launch_observer_add_app_failed(failureCallback, nullptr);
 }
 
 TaskController::~TaskController()
 {
-    upstart_app_launch_observer_delete_app_starting(preStartCallback, nullptr);
-    upstart_app_launch_observer_delete_app_started(startedCallback, nullptr);
-    upstart_app_launch_observer_delete_app_stop(stopCallback, nullptr);
-    upstart_app_launch_observer_delete_app_focus(focusCallback, nullptr);
-    upstart_app_launch_observer_delete_app_resume(resumeCallback, nullptr);
-    upstart_app_launch_observer_delete_app_failed(failureCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_starting(preStartCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_started(startedCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_stop(stopCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_focus(focusCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_resume(resumeCallback, nullptr);
+    ubuntu_app_launch_observer_delete_app_failed(failureCallback, nullptr);
 }
 
 bool TaskController::start(const QString& appId, const QStringList& arguments)
 {
     DLOG("TaskController::start appId='%s'", qPrintable(appId));
-    gchar ** upstartArgs = nullptr;
+    gchar ** appLaunchArgs = nullptr;
     bool result = false;
 
-    // Convert arguments QStringList into format suitable for upstart-app-launch
-    upstartArgs = g_new0(gchar *, arguments.length());
+    // Convert arguments QStringList into format suitable for ubuntu-app-launch
+    appLaunchArgs = g_new0(gchar *, arguments.length());
 
     for (int i=0; i<arguments.length(); i++) {
-        upstartArgs[i] = arguments.at(i).toLatin1().data();
+        appLaunchArgs[i] = arguments.at(i).toLatin1().data();
     }
 
-    result = upstart_app_launch_start_application(appId.toLatin1().constData(),
-                                                  static_cast<const gchar * const *>(upstartArgs));
-    g_free(upstartArgs);
+    result = ubuntu_app_launch_start_application(appId.toLatin1().constData(),
+                                                  static_cast<const gchar * const *>(appLaunchArgs));
+    g_free(appLaunchArgs);
 
     DLOG_IF(!result, "TaskController::startApplication appId='%s' FAILED", qPrintable(appId));
     return result;
@@ -388,7 +388,7 @@ bool TaskController::stop(const QString& appId)
     DLOG("TaskController::stop appId='%s'", qPrintable(appId));
     bool result = false;
 
-    result = upstart_app_launch_stop_application(appId.toLatin1().constData());
+    result = ubuntu_app_launch_stop_application(appId.toLatin1().constData());
 
     DLOG_IF(!result, "TaskController::stopApplication appId='%s' FAILED", qPrintable(appId));
     return result;
@@ -397,18 +397,18 @@ bool TaskController::stop(const QString& appId)
 bool TaskController::appIdHasProcessId(const QString& appId, const quint64 pid)
 {
     DLOG("TaskController::isApplicationPid appId='%s', pid=%lld", qPrintable(appId), pid);
-    return upstart_app_launch_pid_in_app_id(pid, appId.toLatin1().constData());
+    return ubuntu_app_launch_pid_in_app_id(pid, appId.toLatin1().constData());
 }
 
 bool TaskController::suspend(const QString& appId)
 {
     DLOG("TaskController::suspend (this=%p, application=%p)", this, qPrintable(appId));
-    pid_t pid = upstart_app_launch_get_primary_pid(appId.toLatin1().constData());
+    pid_t pid = ubuntu_app_launch_get_primary_pid(appId.toLatin1().constData());
 
     ensureProcessIsLikelyToBeKilled(pid);
 
     if (pid) {
-        // We do assume that the app was launched by upstart and with that,
+        // We do assume that the app was launched by ubuntu-app-launch and with that,
         // in its own process group. For that, we interpret the pid as pgid and
         // sigstop the complete process group on suspend.
         kill(-pid, SIGSTOP);
@@ -420,13 +420,13 @@ bool TaskController::suspend(const QString& appId)
 
 bool TaskController::resume(const QString& appId)
 {
-    pid_t pid = upstart_app_launch_get_primary_pid(appId.toLatin1().constData());
+    pid_t pid = ubuntu_app_launch_get_primary_pid(appId.toLatin1().constData());
 
     ensureProcessIsUnlikelyToBeKilled(pid);
 
     if (pid) {
         DLOG("TaskController::resume (this=%p, appId=%s) - SIGCONT pid=%d", this, qPrintable(appId), pid);
-        // We do assume that the app was launched by upstart and with that,
+        // We do assume that the app was launched by ubuntu-app-launch and with that,
         // in its own process group. For that, we interpret the pid as pgid and
         // sigcont the complete process group on resume.
         kill(-pid, SIGCONT);
