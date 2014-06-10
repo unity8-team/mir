@@ -16,8 +16,8 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_SENTINEL_ACTION_H
-#define MIR_SENTINEL_ACTION_H
+#ifndef MIR_SYNCHRONOUS_SERVER_ACTION_H_
+#define MIR_SYNCHRONOUS_SERVER_ACTION_H_
 
 #include "mir/server_action_queue.h"
 

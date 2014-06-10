@@ -43,12 +43,12 @@ public:
     AsioMainLoop();
     ~AsioMainLoop() noexcept(true);
 
-    void run();
-    void stop();
+    void run() override;
+    void stop() override;
 
     void register_signal_handler(
         std::initializer_list<int> signals,
-        std::function<void(int)> const& handler);
+        std::function<void(int)> const& handler) override;
 
     void register_fd_handler(
         std::initializer_list<int> fd,

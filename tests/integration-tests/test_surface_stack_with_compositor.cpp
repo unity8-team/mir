@@ -48,7 +48,8 @@ namespace
 class StubRendererFactory : public mc::RendererFactory
 {
 public:
-    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&) override
+    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&,
+        mc::DestinationAlpha) override
     {
         return std::unique_ptr<mtd::StubRenderer>(new mtd::StubRenderer);
     }
@@ -61,23 +62,12 @@ struct CountingDisplayBuffer : public mtd::StubDisplayBuffer
     {
     }
 
-    bool can_bypass() const override
+    bool post_renderables_if_optimizable(mg::RenderableList const&) override
     {
-        return true;
-    }
-
-    bool post_renderables_if_optimizable(mg::RenderableList const&)
-    {
-        increment_post_count();
-        return true;
+        return false;
     }
 
     void post_update() override
-    {
-        increment_post_count();
-    }
-
-    void post_update(std::shared_ptr<mg::Buffer>) override
     {
         increment_post_count();
     }
@@ -142,6 +132,7 @@ struct SurfaceStackCompositor : public testing::Test
             mock_buffer_stream,
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<ms::SurfaceConfigurator>(),
+            std::shared_ptr<mg::CursorImage>(),
             null_scene_report)}
     {
         using namespace testing;
@@ -214,7 +205,7 @@ namespace
 int thread_distinguishing_buffers_ready_for_compositor()
 {
     //could use c++14 integer_sequence one day
-    std::vector<int> sequence{5,4,3,2,1};
+    std::vector<int> sequence{5,4,3,2,1,0};
     thread_local size_t sequence_idx{0};
     return sequence[sequence_idx++];
 }
@@ -265,7 +256,7 @@ TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
 {
     using namespace testing;
     ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
-        .WillByDefault(Return(1));
+        .WillByDefault(Return(0));
 
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),

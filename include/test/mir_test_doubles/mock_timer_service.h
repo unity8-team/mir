@@ -37,7 +37,7 @@ public:
                                                              std::function<void()>));
     MOCK_METHOD2(notify_at,std::unique_ptr<mir::time::Alarm>(mir::time::Timestamp,
                                                              std::function<void()>));
-
+    MOCK_METHOD1(create_alarm,std::unique_ptr<mir::time::Alarm>(std::function<void()>));
     MOCK_METHOD0(run, void());
     MOCK_METHOD0(stop, void());
 };

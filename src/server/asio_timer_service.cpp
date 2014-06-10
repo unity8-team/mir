@@ -107,6 +107,9 @@ public:
               mir::time::Timestamp time_point,
               std::function<void(void)> callback);
 
+    AlarmImpl(boost::asio::io_service& io,
+              std::function<void(void)> callback);
+
     ~AlarmImpl() noexcept override;
 
     // mir::time::Alarm:
@@ -132,25 +135,30 @@ private:
 
     ::deadline_timer timer;
     std::shared_ptr<InternalState> data;
-    std::function<void(void)> callback;
 };
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
                                             std::chrono::milliseconds delay,
-                                            std::function<void()> callback) :
-    timer{io},
-    callback{callback}
+                                            std::function<void()> callback)
+    : AlarmImpl(io, callback)
 {
     reschedule_in(delay);
 }
 
 mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
                                             mir::time::Timestamp time_point,
-                                            std::function<void()> callback) :
-    timer{io},
-    callback{callback}
+                                            std::function<void()> callback)
+    : AlarmImpl(io, callback)
 {
     reschedule_for(time_point);
+}
+
+mir::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                                            std::function<void(void)> callback)
+    : timer{io},
+      data{std::make_shared<InternalState>(callback)}
+{
+    data->state = triggered;
 }
 
 mir::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
@@ -190,7 +198,7 @@ bool mir::AsioTimerService::AlarmImpl::reschedule_for(mir::time::Timestamp time_
 
 void mir::AsioTimerService::AlarmImpl::update_timer()
 {
-    auto new_internal_state = std::make_shared<InternalState>(callback);
+    auto new_internal_state = std::make_shared<InternalState>(data->callback);
 
     // Awkwardly, we can't stop the async_wait handler from being called
     // on a destroyed AlarmImpl. This means we need to wedge a shared_ptr
@@ -233,7 +241,6 @@ void mir::AsioTimerService::stop()
     io.stop();
 }
 
-
 std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_in(std::chrono::milliseconds delay,
                                                                  std::function<void()> callback)
 {
@@ -245,4 +252,9 @@ std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::notify_at(mir::time::Ti
 {
     return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, time_point, callback}};
 
+}
+
+std::unique_ptr<mir::time::Alarm> mir::AsioTimerService::create_alarm(std::function<void()> callback)
+{
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, callback}};
 }

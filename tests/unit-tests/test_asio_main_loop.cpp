@@ -20,6 +20,7 @@
 
 #include "mir_test/pipe.h"
 #include "mir_test/auto_unblock_thread.h"
+#include "mir_test/signal.h"
 #include "mir_test/wait_object.h"
 
 #include <gtest/gtest.h>
@@ -47,6 +48,33 @@ public:
     mir::AsioMainLoop ml;
 };
 
+class Counter
+{
+public:
+    int operator++()
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        cv.notify_one();
+        return ++counter;
+    }
+
+    bool wait_for(std::chrono::milliseconds const& delay, int expected)
+    {
+        std::unique_lock<decltype(mutex)> lock(mutex);
+        return cv.wait_for(lock, delay, [&]{ return counter == expected;});
+    }
+
+    operator int() const
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        return counter;
+    }
+
+private:
+    std::mutex mutable mutex;
+    std::condition_variable cv;
+    int counter{0};
+};
 }
 
 TEST_F(AsioMainLoopTest, signal_handled)
@@ -310,8 +338,8 @@ TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_ca
 {
     mt::Pipe p1, p2;
     char const data_to_write{'a'};
-    std::atomic<int> p1_handler_never_triggers{-1};
-    std::atomic<int> p2_handler_executes{-1};
+    int p1_handler_never_triggers{-1};
+    int p2_handler_executes{-1};
     char data_read{0};
 
     ml.register_fd_handler(

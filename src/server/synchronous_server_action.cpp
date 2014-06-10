@@ -45,9 +45,6 @@ mir::SynchronousServerAction::SynchronousServerAction(
 
 mir::SynchronousServerAction::~SynchronousServerAction()
 {
-    if (done)
-        return;
-
     std::unique_lock<std::mutex> lock(done_mutex);
     while(!done) done_condition.wait(lock);
 }

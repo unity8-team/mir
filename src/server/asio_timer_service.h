@@ -44,7 +44,7 @@ public:
                                            std::function<void()> callback) override;
     std::unique_ptr<time::Alarm> notify_at(mir::time::Timestamp time_point,
                                            std::function<void()> callback) override;
-
+    std::unique_ptr<time::Alarm> create_alarm(std::function<void()> callback) override;
 private:
     class AlarmImpl;
     boost::asio::io_service io;

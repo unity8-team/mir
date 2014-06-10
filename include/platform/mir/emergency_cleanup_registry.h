@@ -13,29 +13,33 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
+ * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_ANDROID_HWC_FORMATTED_LOGGER_H_
-#define MIR_GRAPHICS_ANDROID_HWC_FORMATTED_LOGGER_H_
 
-#include "hwc_logger.h"
+#ifndef MIR_EMERGENCY_CLEANUP_REGISTRY_H_
+#define MIR_EMERGENCY_CLEANUP_REGISTRY_H_
+
+#include <functional>
 
 namespace mir
 {
-namespace graphics
-{
-namespace android
-{
-class HwcFormattedLogger : public HwcLogger
+
+typedef std::function<void()> EmergencyCleanupHandler;
+
+class EmergencyCleanupRegistry
 {
 public:
-    HwcFormattedLogger() = default;
-    void log_list_submitted_to_prepare(hwc_display_contents_1_t const& list) const override;
-    void log_prepare_done(hwc_display_contents_1_t const& list) const override;
-    void log_set_list(hwc_display_contents_1_t const& list) const override;
+    virtual ~EmergencyCleanupRegistry() = default;
+
+    virtual void add(EmergencyCleanupHandler const& handler) = 0;
+
+protected:
+    EmergencyCleanupRegistry() = default;
+    EmergencyCleanupRegistry(EmergencyCleanupRegistry const&) = delete;
+    EmergencyCleanupRegistry& operator=(EmergencyCleanupRegistry const&) = delete;
 };
+
 }
-}
-}
-#endif /* MIR_GRAPHICS_ANDROID_HWC_FORMATTED_LOGGER_H_ */
+
+#endif /* MIR_EMERGENCY_CLEANUP_REGISTRY_H_ */
