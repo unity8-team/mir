@@ -19,7 +19,7 @@
 #ifndef MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
 #define MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
 
-#include "mir/time/timer_service.h"
+#include "mir/scheduler/timer_service.h"
 
 #include <boost/asio.hpp>
 #include <boost/optional.hpp>
@@ -33,7 +33,7 @@ namespace mir
 namespace scheduler
 {
 
-class AsioTimerService : public time::TimerService
+class AsioTimerService : public TimerService
 {
 public:
     explicit AsioTimerService(std::shared_ptr<time::Clock> const& clock);

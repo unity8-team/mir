@@ -30,7 +30,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
-#include "mir/time/timer_service.h"
+#include "mir/scheduler/timer_service.h"
 
 #include <stdexcept>
 
@@ -194,7 +194,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mir::scheduler::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
     std::shared_ptr<mir::DisplayChanger> const display_changer;
-    std::shared_ptr<mir::time::TimerService> const timer_service;
+    std::shared_ptr<mir::scheduler::TimerService> const timer_service;
 };
 
 mir::DisplayServer::DisplayServer(ServerConfiguration& config) :

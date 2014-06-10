@@ -255,7 +255,7 @@ public:
         return mock_input_dispatcher;
     }
 
-    std::shared_ptr<mir::time::TimerService> the_timer_service() override
+    std::shared_ptr<mir::scheduler::TimerService> the_timer_service() override
     {
         if (!mock_timer_service)
             mock_timer_service = std::make_shared<mtd::MockTimerService>();

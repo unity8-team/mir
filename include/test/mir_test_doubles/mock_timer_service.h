@@ -19,7 +19,7 @@
 #ifndef MIR_MOCK_TIMER_SERVICE_H_
 #define MIR_MOCK_TIMER_SERVICE_H_
 
-#include "mir/time/timer_service.h"
+#include "mir/scheduler/timer_service.h"
 
 #include "mir_test/gmock_fixes.h"
 
@@ -30,7 +30,7 @@ namespace test
 namespace doubles
 {
 
-class MockTimerService : public mir::time::TimerService
+class MockTimerService : public mir::scheduler::TimerService
 {
 public:
     MOCK_METHOD2(notify_in,std::unique_ptr<mir::time::Alarm>(std::chrono::milliseconds,

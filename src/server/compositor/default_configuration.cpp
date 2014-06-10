@@ -28,7 +28,7 @@
 
 #include "mir/frontend/screencast.h"
 #include "mir/options/configuration.h"
-#include "mir/time/timer_service.h"
+#include "mir/scheduler/timer_service.h"
 
 #include <boost/throw_exception.hpp>
 

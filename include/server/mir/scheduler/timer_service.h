@@ -16,17 +16,17 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_TIME_TIMER_SERVICE_H_
-#define MIR_TIME_TIMER_SERVICE_H_
+#ifndef MIR_SCHEDULER_TIMER_SERVICE_H_
+#define MIR_SCHEDULER_TIMER_SERVICE_H_
 
 #include "mir/time/timer.h"
 
 namespace mir
 {
-namespace time
+namespace scheduler
 {
 
-class TimerService : public Timer
+class TimerService : public time::Timer
 {
 public:
     virtual void run() = 0;

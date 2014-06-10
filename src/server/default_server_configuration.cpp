@@ -205,7 +205,7 @@ std::shared_ptr<mir::scheduler::MainLoop> mir::DefaultServerConfiguration::the_m
         });
 }
 
-std::shared_ptr<mir::time::TimerService> mir::DefaultServerConfiguration::the_timer_service()
+std::shared_ptr<mir::scheduler::TimerService> mir::DefaultServerConfiguration::the_timer_service()
 {
     return timer_service(
         [this]()
