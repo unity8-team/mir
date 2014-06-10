@@ -19,16 +19,16 @@
 
 #include "asio_server_action_queue.h"
 
-mir::AsioServerActionQueue::AsioServerActionQueue(boost::asio::io_service & service)
+mir::scheduler::AsioServerActionQueue::AsioServerActionQueue(boost::asio::io_service & service)
     : io(service)
 {
 }
 
-mir::AsioServerActionQueue::~AsioServerActionQueue() noexcept(true)
+mir::scheduler::AsioServerActionQueue::~AsioServerActionQueue() noexcept(true)
 {
 }
 
-void mir::AsioServerActionQueue::enqueue(void const* owner, ServerAction const& action)
+void mir::scheduler::AsioServerActionQueue::enqueue(void const* owner, ServerAction const& action)
 {
     {
         std::lock_guard<std::mutex> lock{server_actions_mutex};
@@ -38,13 +38,13 @@ void mir::AsioServerActionQueue::enqueue(void const* owner, ServerAction const& 
     io.post([this] { process_server_actions(); });
 }
 
-void mir::AsioServerActionQueue::pause_processing_for(void const* owner)
+void mir::scheduler::AsioServerActionQueue::pause_processing_for(void const* owner)
 {
     std::lock_guard<std::mutex> lock{server_actions_mutex};
     do_not_process.insert(owner);
 }
 
-void mir::AsioServerActionQueue::resume_processing_for(void const* owner)
+void mir::scheduler::AsioServerActionQueue::resume_processing_for(void const* owner)
 {
     {
         std::lock_guard<std::mutex> lock{server_actions_mutex};
@@ -54,7 +54,7 @@ void mir::AsioServerActionQueue::resume_processing_for(void const* owner)
     io.post([this] { process_server_actions(); });
 }
 
-void mir::AsioServerActionQueue::process_server_actions()
+void mir::scheduler::AsioServerActionQueue::process_server_actions()
 {
     std::unique_lock<std::mutex> lock{server_actions_mutex};
 

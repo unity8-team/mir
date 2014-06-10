@@ -11,6 +11,7 @@ add_subdirectory(scene/)
 add_subdirectory(frontend/)
 add_subdirectory(shell/)
 add_subdirectory(time/)
+add_subdirectory(scheduler/)
 
 set(PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(EXEC_PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -29,10 +30,6 @@ set(
   report_exception.cpp
   display_server.cpp
   default_server_configuration.cpp
-  asio_main_loop.cpp
-  asio_server_action_queue.cpp
-  asio_timer_service.cpp
-  synchronous_server_action.cpp
 )
 
 set(MIRSERVER_LINKAGE SHARED)
@@ -59,6 +56,7 @@ list(APPEND MIRSERVER_ARCHIVES
   mirlttng
   mirreport
   mirlogger
+  mirscheduler
   mirnestedgraphics
   miroffscreengraphics
 )

@@ -19,7 +19,7 @@
 #ifndef MIR_MOCK_SERVER_ACTION_QUEUE_H_
 #define MIR_MOCK_SERVER_ACTION_QUEUE_H_
 
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 #include <gmock/gmock.h>
 
 namespace mir
@@ -29,10 +29,10 @@ namespace test
 namespace doubles
 {
 
-class MockServerActionQueue : public mir::ServerActionQueue
+class MockServerActionQueue : public mir::scheduler::ServerActionQueue
 {
 public:
-    MOCK_METHOD2(enqueue, void (void const* /*owner*/, mir::ServerAction const& /*action*/));
+    MOCK_METHOD2(enqueue, void (void const* /*owner*/, mir::scheduler::ServerAction const& /*action*/));
     MOCK_METHOD1(pause_processing_for, void(void const* /*owner*/));
     MOCK_METHOD1(resume_processing_for, void(void const* /*owner*/));
 };

@@ -16,12 +16,14 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_SERVER_ACTION_QUEUE_H_
-#define MIR_SERVER_ACTION_QUEUE_H_
+#ifndef MIR_SCHEDULER_SERVER_ACTION_QUEUE_H_
+#define MIR_SCHEDULER_SERVER_ACTION_QUEUE_H_
 
 #include <functional>
 
 namespace mir
+{
+namespace scheduler
 {
 
 typedef std::function<void()> ServerAction;
@@ -42,5 +44,6 @@ protected:
 };
 
 }
+}
 
-#endif /* MIR_SERVER_ACTION_QUEUE_H_ */
+#endif /* MIR_SCHEDULER_SERVER_ACTION_QUEUE_H_ */

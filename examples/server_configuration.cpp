@@ -21,7 +21,7 @@
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/composite_event_filter.h"
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 
 #include <string>
 
@@ -109,7 +109,7 @@ public:
 class QuitFilter : public mir::input::EventFilter
 {
 public:
-    QuitFilter(std::shared_ptr<mir::MainLoop> const& main_loop)
+    QuitFilter(std::shared_ptr<mir::scheduler::MainLoop> const& main_loop)
         : main_loop{main_loop}
     {
     }
@@ -130,7 +130,7 @@ public:
     }
 
 private:
-    std::shared_ptr<mir::MainLoop> const main_loop;
+    std::shared_ptr<mir::scheduler::MainLoop> const main_loop;
 };
 
 }

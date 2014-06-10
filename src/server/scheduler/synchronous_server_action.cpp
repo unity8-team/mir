@@ -18,7 +18,7 @@
 
 #include "synchronous_server_action.h"
 
-mir::SynchronousServerAction::SynchronousServerAction(
+mir::scheduler::SynchronousServerAction::SynchronousServerAction(
     ServerActionQueue & queue,
     boost::optional<std::thread::id> queue_thread_id,
     ServerAction const& action) :
@@ -43,7 +43,7 @@ mir::SynchronousServerAction::SynchronousServerAction(
     }
 }
 
-mir::SynchronousServerAction::~SynchronousServerAction()
+mir::scheduler::SynchronousServerAction::~SynchronousServerAction()
 {
     std::unique_lock<std::mutex> lock(done_mutex);
     while(!done) done_condition.wait(lock);

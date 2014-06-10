@@ -26,7 +26,7 @@
 
 namespace bap = boost::asio::posix;
 
-class mir::AsioMainLoop::SignalHandler
+class mir::scheduler::AsioMainLoop::SignalHandler
 {
 public:
     SignalHandler(boost::asio::io_service& io,
@@ -62,7 +62,7 @@ private:
     std::function<void(int)> handler;
 };
 
-class mir::AsioMainLoop::FDHandler
+class mir::scheduler::AsioMainLoop::FDHandler
 {
 public:
     typedef std::unique_ptr<bap::stream_descriptor> stream_descriptor_ptr;
@@ -103,19 +103,20 @@ private:
                 // copies and executes pending completion handlers.
                 // In worst case during the call to unregister the FDHandler, it may still be executed, but not after
                 // the unregister call returned.
-                queue.enqueue(s,
-                              [possible_fd_handler, s, &queue]()
-                              {
-                    auto fd_handler = possible_fd_handler.lock();
-                    if (!fd_handler)
-                        return;
+                queue.enqueue(
+                    s,
+                    [possible_fd_handler, s, &queue]()
+                    {
+                        auto fd_handler = possible_fd_handler.lock();
+                        if (!fd_handler)
+                            return;
 
-                    fd_handler->handler(s->native_handle());
-                    fd_handler.reset();
+                        fd_handler->handler(s->native_handle());
+                        fd_handler.reset();
 
-                    if (possible_fd_handler.lock())
-                        read_some(s, possible_fd_handler, queue);
-                });
+                        if (possible_fd_handler.lock())
+                            read_some(s, possible_fd_handler, queue);
+                    });
             });
     }
 
@@ -131,28 +132,28 @@ private:
  * don't have complete type information for SignalHandler and fail
  * to compile.
  */
-mir::AsioMainLoop::AsioMainLoop()
+mir::scheduler::AsioMainLoop::AsioMainLoop()
     : work{io}, action_queue{io}
 {
 }
 
-mir::AsioMainLoop::~AsioMainLoop() noexcept(true)
+mir::scheduler::AsioMainLoop::~AsioMainLoop() noexcept(true)
 {
 }
 
-void mir::AsioMainLoop::run()
+void mir::scheduler::AsioMainLoop::run()
 {
     main_loop_thread = std::this_thread::get_id();
     io.run();
 }
 
-void mir::AsioMainLoop::stop()
+void mir::scheduler::AsioMainLoop::stop()
 {
     io.stop();
     main_loop_thread.reset();
 }
 
-void mir::AsioMainLoop::register_signal_handler(
+void mir::scheduler::AsioMainLoop::register_signal_handler(
     std::initializer_list<int> signals,
     std::function<void(int)> const& handler)
 {
@@ -166,7 +167,7 @@ void mir::AsioMainLoop::register_signal_handler(
     signal_handlers.push_back(std::move(sig_handler));
 }
 
-void mir::AsioMainLoop::register_fd_handler(
+void mir::scheduler::AsioMainLoop::register_fd_handler(
     std::initializer_list<int> fds,
     void const* owner,
     std::function<void(int)> const& handler)
@@ -181,7 +182,7 @@ void mir::AsioMainLoop::register_fd_handler(
     fd_handlers.push_back(fd_handler);
 }
 
-void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
+void mir::scheduler::AsioMainLoop::unregister_fd_handler(void const* owner)
 {
     // The SynchronousServerAction makes sure that with the
     // completion of the method unregister_fd_handler the
@@ -205,17 +206,17 @@ void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
         }};
 }
 
-void mir::AsioMainLoop::enqueue(void const* owner, ServerAction const& action)
+void mir::scheduler::AsioMainLoop::enqueue(void const* owner, ServerAction const& action)
 {
     action_queue.enqueue(owner, action);
 }
 
-void mir::AsioMainLoop::pause_processing_for(void const* owner)
+void mir::scheduler::AsioMainLoop::pause_processing_for(void const* owner)
 {
     action_queue.pause_processing_for(owner);
 }
 
-void mir::AsioMainLoop::resume_processing_for(void const* owner)
+void mir::scheduler::AsioMainLoop::resume_processing_for(void const* owner)
 {
     action_queue.resume_processing_for(owner);
 }

@@ -16,7 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/asio_main_loop.h"
+#include "src/server/scheduler/asio_main_loop.h"
 
 #include "mir_test/pipe.h"
 #include "mir_test/auto_unblock_thread.h"
@@ -45,7 +45,7 @@ namespace
 class AsioMainLoopTest : public ::testing::Test
 {
 public:
-    mir::AsioMainLoop ml;
+    mir::scheduler::AsioMainLoop ml;
 };
 
 class Counter

@@ -27,7 +27,10 @@
 
 namespace mir
 {
+namespace scheduler
+{
 class ServerActionQueue;
+}
 
 namespace graphics
 {
@@ -51,7 +54,7 @@ public:
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const& display_configuration_policy,
         std::shared_ptr<SessionContainer> const& session_container,
         std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register,
-        std::shared_ptr<ServerActionQueue> const& server_action_queue);
+        std::shared_ptr<scheduler::ServerActionQueue> const& server_action_queue);
 
     /* From mir::frontend::DisplayChanger */
     std::shared_ptr<graphics::DisplayConfiguration> active_configuration();
@@ -82,7 +85,7 @@ private:
     std::shared_ptr<graphics::DisplayConfigurationPolicy> const display_configuration_policy;
     std::shared_ptr<SessionContainer> const session_container;
     std::shared_ptr<SessionEventHandlerRegister> const session_event_handler_register;
-    std::shared_ptr<ServerActionQueue> const server_action_queue;
+    std::shared_ptr<scheduler::ServerActionQueue> const server_action_queue;
     std::mutex configuration_mutex;
     std::map<std::weak_ptr<frontend::Session>,
              std::shared_ptr<graphics::DisplayConfiguration>,

@@ -8,10 +8,6 @@ set(
   UNIT_TEST_SOURCES
 
   test_gmock_fixes.cpp
-  test_synchronous_server_action.cpp
-  test_asio_main_loop.cpp
-  test_asio_server_action_queue.cpp
-  test_asio_timer_service.cpp
   shared_library_test.cpp
   test_raii.cpp
   test_udev_wrapper.cpp
@@ -19,6 +15,7 @@ set(
   test_thread_name.cpp
 )
 
+add_subdirectory(scheduler/)
 add_subdirectory(options/)
 add_subdirectory(client/)
 add_subdirectory(compositor/)

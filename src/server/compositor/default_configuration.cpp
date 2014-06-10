@@ -24,7 +24,7 @@
 #include "gl_renderer_factory.h"
 #include "compositing_screencast.h"
 #include "timeout_frame_dropping_policy_factory.h"
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 
 #include "mir/frontend/screencast.h"
 #include "mir/options/configuration.h"

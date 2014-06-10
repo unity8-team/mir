@@ -20,7 +20,7 @@
 #include "src/server/scene/session_container.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "src/server/scene/broadcasting_session_event_sink.h"
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 
 #include "mir_test_doubles/mock_display.h"
 #include "mir_test_doubles/mock_compositor.h"
@@ -90,7 +90,7 @@ struct MockDisplay : public mtd::MockDisplay
     mutable mg::DisplayConfiguration* conf_ptr;
 };
 
-struct StubServerActionQueue : mir::ServerActionQueue
+struct StubServerActionQueue : mir::scheduler::ServerActionQueue
 {
     void flush()
     {
@@ -100,7 +100,7 @@ struct StubServerActionQueue : mir::ServerActionQueue
         actions.clear();
     }
 
-    void enqueue(void const* /*owner*/, mir::ServerAction const& action) override
+    void enqueue(void const* /*owner*/, mir::scheduler::ServerAction const& action) override
     {
         std::lock_guard<std::mutex> lock{mutex};
         actions.push_back(action);
@@ -109,13 +109,13 @@ struct StubServerActionQueue : mir::ServerActionQueue
     void pause_processing_for(void const* /*owner*/) override {}
     void resume_processing_for(void const* /*owner*/) override {}
 
-    std::vector<mir::ServerAction> actions;
+    std::vector<mir::scheduler::ServerAction> actions;
     std::mutex mutex;
 };
 
-struct MockServerActionQueue : mir::ServerActionQueue
+struct MockServerActionQueue : mir::scheduler::ServerActionQueue
 {
-    MOCK_METHOD2(enqueue, void(void const*, mir::ServerAction const&));
+    MOCK_METHOD2(enqueue, void(void const*, mir::scheduler::ServerAction const&));
     MOCK_METHOD1(pause_processing_for, void(void const*));
     MOCK_METHOD1(resume_processing_for, void(void const*));
 };

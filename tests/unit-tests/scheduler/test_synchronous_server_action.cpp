@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/server/synchronous_server_action.h"
+#include "src/server/scheduler/synchronous_server_action.h"
 #include "mir_test_doubles/mock_server_action_queue.h"
 
 #include <thread>
@@ -32,7 +32,7 @@ TEST(SynchronousServerActionTest, just_executes_action_if_queue_is_not_running)
     int val = 0;
     boost::optional<std::thread::id> empty_queue_thread_id;
     {
-        mir::SynchronousServerAction action(mock_queue, empty_queue_thread_id, [&val]{val=1;});
+        mir::scheduler::SynchronousServerAction action(mock_queue, empty_queue_thread_id, [&val]{val=1;});
     }
     EXPECT_EQ(val, 1);
 }
@@ -46,7 +46,7 @@ TEST(SynchronousServerActionTest, just_executes_action_if_thread_identical)
     int val = 0;
     boost::optional<std::thread::id> this_one{std::this_thread::get_id()};
     {
-        mir::SynchronousServerAction action(mock_queue, this_one, [&val]{val=1;});
+        mir::scheduler::SynchronousServerAction action(mock_queue, this_one, [&val]{val=1;});
     }
     EXPECT_EQ(val, 1);
 }
@@ -57,7 +57,7 @@ TEST(SynchronousServerActionTest, enqueues_action_if_thread_differs)
 
     class DirectlyExecutingServerActionQueue : public StrictMock<mtd::MockServerActionQueue>
     {
-        void enqueue(void const*, mir::ServerAction const& action) override
+        void enqueue(void const*, mir::scheduler::ServerAction const& action) override
         {
             action();
         }
@@ -70,7 +70,7 @@ TEST(SynchronousServerActionTest, enqueues_action_if_thread_differs)
     boost::optional<std::thread::id> not_this_one{arbitrary_thread};
 
     {
-        mir::SynchronousServerAction action(execute_it, not_this_one, [&val]{val=1;});
+        mir::scheduler::SynchronousServerAction action(execute_it, not_this_one, [&val]{val=1;});
     }
     EXPECT_EQ(1,val);
 }

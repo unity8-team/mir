@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -16,7 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/asio_server_action_queue.h"
+#include "src/server/scheduler/asio_server_action_queue.h"
 
 #include "mir_test/pipe.h"
 #include "mir_test/auto_unblock_thread.h"
@@ -45,7 +45,7 @@ class AsioServerActionQueueTest : public ::testing::Test
 {
 public:
     boost::asio::io_service service;
-    mir::AsioServerActionQueue queue{service};
+    mir::scheduler::AsioServerActionQueue queue{service};
 };
 
 }

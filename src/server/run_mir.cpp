@@ -18,7 +18,7 @@
 
 #include "mir/run_mir.h"
 #include "mir/display_server.h"
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 #include "mir/server_configuration.h"
 #include "mir/frontend/connector.h"
 #include "mir/raii.h"

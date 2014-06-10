@@ -19,7 +19,7 @@
 #include "inprocess_egl_client.h"
 #include "example_egl_helper.h"
 
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 #include "mir/shell/focus_controller.h"
 #include "mir/frontend/surface.h"
 #include "mir/scene/surface_creation_parameters.h"

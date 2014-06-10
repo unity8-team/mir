@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,13 +16,15 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_MAIN_LOOP_H_
-#define MIR_MAIN_LOOP_H_
+#ifndef MIR_SCHEDULER_MAIN_LOOP_H_
+#define MIR_SCHEDULER_MAIN_LOOP_H_
 
 #include "mir/graphics/event_handler_register.h"
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 
 namespace mir
+{
+namespace scheduler
 {
 
 class MainLoop : public graphics::EventHandlerRegister,
@@ -34,5 +36,6 @@ public:
 };
 
 }
+}
 
-#endif /* MIR_MAIN_LOOP_H_ */
+#endif /* MIR_SCHEDULER_MAIN_LOOP_H_ */

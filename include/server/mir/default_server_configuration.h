@@ -34,7 +34,10 @@ namespace droidinput = android;
 
 namespace mir
 {
+namespace scheduler
+{
 class ServerActionQueue;
+}
 
 namespace compositor
 {
@@ -156,7 +159,7 @@ public:
     virtual std::shared_ptr<graphics::Display>      the_display();
     virtual std::shared_ptr<compositor::Compositor> the_compositor();
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
-    virtual std::shared_ptr<MainLoop>               the_main_loop();
+    virtual std::shared_ptr<scheduler::MainLoop>    the_main_loop();
     virtual std::shared_ptr<time::TimerService>     the_timer_service();
     virtual std::shared_ptr<ServerStatusListener>   the_server_status_listener();
     virtual std::shared_ptr<DisplayChanger>         the_display_changer();
@@ -275,7 +278,7 @@ public:
     /** @} */
 
     virtual std::shared_ptr<time::Clock> the_clock();
-    virtual std::shared_ptr<ServerActionQueue> the_server_action_queue();
+    virtual std::shared_ptr<scheduler::ServerActionQueue> the_server_action_queue();
 
 protected:
     std::shared_ptr<options::Option> the_options() const;
@@ -359,7 +362,7 @@ protected:
     CachedPtr<logging::Logger> logger;
     CachedPtr<graphics::DisplayReport> display_report;
     CachedPtr<time::Clock> clock;
-    CachedPtr<MainLoop> main_loop;
+    CachedPtr<scheduler::MainLoop> main_loop;
     CachedPtr<time::TimerService> timer_service;
     CachedPtr<ServerStatusListener> server_status_listener;
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;

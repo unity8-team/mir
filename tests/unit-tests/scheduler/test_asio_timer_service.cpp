@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/server/asio_timer_service.h"
+#include "src/server/scheduler/asio_timer_service.h"
 
 #include "mir/time/high_resolution_clock.h"
 #include "mir_test/auto_unblock_thread.h"
@@ -49,7 +49,7 @@ public:
         std::lock_guard<std::mutex> lock(time_mutex);
         return current_time;
     }
-    void advance_by(std::chrono::milliseconds const step, mir::AsioTimerService & timer_service)
+    void advance_by(std::chrono::milliseconds const step, mir::scheduler::AsioTimerService & timer_service)
     {
         {
             std::lock_guard<std::mutex> lock(time_mutex);
@@ -91,14 +91,14 @@ class AsioTimerServiceTest : public ::testing::Test
 {
 public:
     std::shared_ptr<AdvanceableClock> clock = std::make_shared<AdvanceableClock>();
-    mir::AsioTimerService timer_service{clock};
+    mir::scheduler::AsioTimerService timer_service{clock};
     int call_count{0};
     mt::WaitObject wait;
     std::chrono::milliseconds delay{50};
 
     struct UnblockTimerService : mt::AutoUnblockThread
     {
-        UnblockTimerService(mir::AsioTimerService & timer_service)
+        UnblockTimerService(mir::scheduler::AsioTimerService & timer_service)
             : mt::AutoUnblockThread([&timer_service]() {timer_service.stop();},
                                     [&timer_service]() {timer_service.run();})
         {}

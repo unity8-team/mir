@@ -27,7 +27,10 @@
 
 namespace mir
 {
+namespace scheduler
+{
 class MainLoop;
+}
 namespace input
 {
 namespace receiver

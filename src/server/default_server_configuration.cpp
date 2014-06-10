@@ -37,8 +37,8 @@
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
 
-#include "asio_timer_service.h"
-#include "asio_main_loop.h"
+#include "scheduler/asio_timer_service.h"
+#include "scheduler/asio_main_loop.h"
 
 #include <map>
 #include <vector>
@@ -55,7 +55,7 @@ namespace mi = mir::input;
 
 namespace
 {
-class AsioTimerServiceThread : public mir::AsioTimerService
+class AsioTimerServiceThread : public mir::scheduler::AsioTimerService
 {
 public:
     AsioTimerServiceThread(std::shared_ptr<mir::time::Clock> const& clock)
@@ -63,13 +63,13 @@ public:
     {}
     void run() override
     {
-        service_thread = std::thread([this]{mir::AsioTimerService::run();});
+        service_thread = std::thread([this]{mir::scheduler::AsioTimerService::run();});
     }
     void stop() override
     {
         if (service_thread.joinable())
         {
-            mir::AsioTimerService::stop();
+            mir::scheduler::AsioTimerService::stop();
             service_thread.join();
         }
     }
@@ -196,12 +196,12 @@ std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
         });
 }
 
-std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
+std::shared_ptr<mir::scheduler::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
 {
     return main_loop(
         [this]()
         {
-            return std::make_shared<mir::AsioMainLoop>();
+            return std::make_shared<mir::scheduler::AsioMainLoop>();
         });
 }
 
@@ -214,7 +214,7 @@ std::shared_ptr<mir::time::TimerService> mir::DefaultServerConfiguration::the_ti
         });
 }
 
-std::shared_ptr<mir::ServerActionQueue> mir::DefaultServerConfiguration::the_server_action_queue()
+std::shared_ptr<mir::scheduler::ServerActionQueue> mir::DefaultServerConfiguration::the_server_action_queue()
 {
     return the_main_loop();
 }

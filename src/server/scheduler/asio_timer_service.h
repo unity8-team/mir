@@ -16,8 +16,8 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_ASIO_TIMER_SERVICE_H_
-#define MIR_ASIO_TIMER_SERVICE_H_
+#ifndef MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
+#define MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
 
 #include "mir/time/timer_service.h"
 
@@ -29,6 +29,8 @@
 #include <mutex>
 
 namespace mir
+{
+namespace scheduler
 {
 
 class AsioTimerService : public time::TimerService
@@ -53,6 +55,7 @@ private:
     std::shared_ptr<time::Clock> const clock;
 };
 
+}
 }
 
 #endif

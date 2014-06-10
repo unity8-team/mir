@@ -16,10 +16,10 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_ASIO_MAIN_LOOP_H_
-#define MIR_ASIO_MAIN_LOOP_H_
+#ifndef MIR_SCHEDULER_ASIO_MAIN_LOOP_H_
+#define MIR_SCHEDULER_ASIO_MAIN_LOOP_H_
 
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 
 #include "asio_server_action_queue.h"
 
@@ -35,6 +35,8 @@
 #include <set>
 
 namespace mir
+{
+namespace scheduler
 {
 
 class AsioMainLoop : public MainLoop
@@ -75,5 +77,6 @@ private:
 };
 
 }
+}
 
-#endif /* MIR_ASIO_MAIN_LOOP_H */
+#endif /* MIR_SCHEDULER_ASIO_MAIN_LOOP_H */

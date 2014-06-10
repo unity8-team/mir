@@ -20,7 +20,7 @@
 #include "mir/frontend/connector.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/display_configuration_policy.h"
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 #include "mir/graphics/event_handler_register.h"
 #include "mir/server_status_listener.h"
 

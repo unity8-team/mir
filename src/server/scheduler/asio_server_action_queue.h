@@ -17,10 +17,10 @@
  *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_ASIO_SERVER_ACTION_QUEUE
-#define MIR_ASIO_SERVER_ACTION_QUEUE
+#ifndef MIR_SCHEDULER_ASIO_SERVER_ACTION_QUEUE
+#define MIR_SCHEDULER_ASIO_SERVER_ACTION_QUEUE
 
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 
 #include <boost/asio.hpp>
 
@@ -30,6 +30,8 @@
 #include <set>
 
 namespace mir
+{
+namespace scheduler
 {
 
 class AsioServerActionQueue : public ServerActionQueue
@@ -53,6 +55,7 @@ private:
     std::set<void const*> do_not_process;
 };
 
+}
 }
 
 #endif

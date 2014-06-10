@@ -20,7 +20,7 @@
 
 #include "mir/display_server.h"
 #include "mir/server_configuration.h"
-#include "mir/main_loop.h"
+#include "mir/scheduler/main_loop.h"
 #include "mir/server_status_listener.h"
 #include "mir/display_changer.h"
 
@@ -191,7 +191,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mc::Compositor> const compositor;
     std::shared_ptr<mf::Connector> const connector;
     std::shared_ptr<mi::InputManager> const input_manager;
-    std::shared_ptr<mir::MainLoop> const main_loop;
+    std::shared_ptr<mir::scheduler::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
     std::shared_ptr<mir::DisplayChanger> const display_changer;
     std::shared_ptr<mir::time::TimerService> const timer_service;

@@ -24,7 +24,7 @@
 #include "mir/compositor/compositor.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/graphics/display_configuration.h"
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 
 namespace mf = mir::frontend;
 namespace ms = mir::scene;
@@ -64,7 +64,7 @@ ms::MediatingDisplayChanger::MediatingDisplayChanger(
     std::shared_ptr<mg::DisplayConfigurationPolicy> const& display_configuration_policy,
     std::shared_ptr<SessionContainer> const& session_container,
     std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register,
-    std::shared_ptr<ServerActionQueue> const& server_action_queue)
+    std::shared_ptr<scheduler::ServerActionQueue> const& server_action_queue)
     : display{display},
       compositor{compositor},
       display_configuration_policy{display_configuration_policy},

@@ -16,10 +16,10 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_SYNCHRONOUS_SERVER_ACTION_H_
-#define MIR_SYNCHRONOUS_SERVER_ACTION_H_
+#ifndef MIR_SCHEDULER_SYNCHRONOUS_SERVER_ACTION_H_
+#define MIR_SCHEDULER_SYNCHRONOUS_SERVER_ACTION_H_
 
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 
 #include <boost/optional.hpp>
 
@@ -28,6 +28,8 @@
 #include <condition_variable>
 
 namespace mir
+{
+namespace scheduler
 {
 
 class SynchronousServerAction
@@ -43,6 +45,7 @@ private:
     std::condition_variable done_condition;
 };
 
+}
 }
 
 #endif

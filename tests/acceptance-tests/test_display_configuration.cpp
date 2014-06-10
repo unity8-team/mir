@@ -17,7 +17,7 @@
  *              Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/server_action_queue.h"
+#include "mir/scheduler/server_action_queue.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/graphics/event_handler_register.h"
 #include "src/server/scene/global_event_sender.h"
@@ -157,7 +157,7 @@ public:
     testing::NiceMock<MockDisplay> mock_display;
 };
 
-void wait_for_server_actions_to_finish(mir::ServerActionQueue& server_action_queue)
+void wait_for_server_actions_to_finish(mir::scheduler::ServerActionQueue& server_action_queue)
 {
     mt::WaitCondition last_action_done;
     server_action_queue.enqueue(
