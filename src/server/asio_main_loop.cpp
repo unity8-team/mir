@@ -103,19 +103,20 @@ private:
                 // copies and executes pending completion handlers.
                 // In worst case during the call to unregister the FDHandler, it may still be executed, but not after
                 // the unregister call returned.
-                queue.enqueue(s,
-                              [possible_fd_handler, s, &queue]()
-                              {
-                    auto fd_handler = possible_fd_handler.lock();
-                    if (!fd_handler)
-                        return;
+                queue.enqueue(
+                    s,
+                    [possible_fd_handler, s, &queue]()
+                    {
+                        auto fd_handler = possible_fd_handler.lock();
+                        if (!fd_handler)
+                            return;
 
-                    fd_handler->handler(s->native_handle());
-                    fd_handler.reset();
+                        fd_handler->handler(s->native_handle());
+                        fd_handler.reset();
 
-                    if (possible_fd_handler.lock())
-                        read_some(s, possible_fd_handler, queue);
-                });
+                        if (possible_fd_handler.lock())
+                            read_some(s, possible_fd_handler, queue);
+                    });
             });
     }
 
