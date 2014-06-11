@@ -155,12 +155,10 @@ TEST_F(HwcLogger, log_blank)
     off_str << "HWC blank: screen is OFF" << std::endl;
 
     mga::HwcFormattedLogger logger;
-    logger.log_screen_blank(0);
+    logger.log_screen_blank(mga::HwcBlankCommand::On);
     EXPECT_EQ(on_str.str(), test_stream.str()); 
     test_stream.str("");
     test_stream.clear();
-    logger.log_screen_blank(1);
-    EXPECT_EQ(off_str.str(), test_stream.str()); 
-    logger.log_screen_blank(100008);
+    logger.log_screen_blank(mga::HwcBlankCommand::Off);
     EXPECT_EQ(off_str.str(), test_stream.str()); 
 }

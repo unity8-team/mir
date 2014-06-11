@@ -28,6 +28,12 @@ namespace graphics
 {
 namespace android
 {
+enum class HwcBlankCommand
+{
+    On = 0,
+    Off
+};
+
 class HwcLogger
 {
 public:
@@ -37,6 +43,7 @@ public:
     virtual void log_prepare_done(hwc_display_contents_1_t const& list) const = 0;
     virtual void log_set_list(hwc_display_contents_1_t const& list) const = 0;
     virtual void log_overlay_optimization(OverlayOptimization optimization_option) const = 0;
+    virtual void log_screen_blank(HwcBlankCommand blank) const = 0;
 protected:
     HwcLogger() = default;
     HwcLogger& operator=(HwcLogger const&) = delete;

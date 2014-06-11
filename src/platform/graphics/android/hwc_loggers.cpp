@@ -139,6 +139,14 @@ std::ostream& operator<<(std::ostream& str, mga::OverlayOptimization opt)
     else
         return str << "OFF";
 }
+
+std::ostream& operator<<(std::ostream& str, mga::HwcBlankCommand command)
+{
+    if (command == mga::HwcBlankCommand::On)
+        return str << "ON";
+    else
+        return str << "OFF";
+}
 }
 
 void mga::HwcFormattedLogger::log_list_submitted_to_prepare(hwc_display_contents_1_t const& list) const
@@ -189,6 +197,11 @@ void mga::HwcFormattedLogger::log_overlay_optimization(OverlayOptimization overl
     std::cout << "HWC overlay optimizations are " << overlay_optimization << std::endl;
 }
 
+void mga::HwcFormattedLogger::log_screen_blank(HwcBlankCommand blank) const
+{
+    std::cout << "HWC blank: screen is " << blank << std::endl;
+}
+
 void mga::NullHwcLogger::log_list_submitted_to_prepare(hwc_display_contents_1_t const&) const
 {
 }
@@ -202,5 +215,9 @@ void mga::NullHwcLogger::log_set_list(hwc_display_contents_1_t const&) const
 }
 
 void mga::NullHwcLogger::log_overlay_optimization(OverlayOptimization) const
+{
+}
+
+void mga::NullHwcLogger::log_screen_blank(HwcBlankCommand) const
 {
 }
