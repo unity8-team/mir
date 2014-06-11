@@ -146,3 +146,21 @@ TEST_F(HwcLogger, log_optimization)
     logger.log_overlay_optimization(mga::OverlayOptimization::disabled);
     EXPECT_EQ(disabled_str.str(), test_stream.str()); 
 }
+
+TEST_F(HwcLogger, log_blank)
+{
+    std::stringstream on_str;
+    std::stringstream off_str;
+    on_str << "HWC blank: screen is ON" << std::endl;
+    off_str << "HWC blank: screen is OFF" << std::endl;
+
+    mga::HwcFormattedLogger logger;
+    logger.log_screen_blank(0);
+    EXPECT_EQ(on_str.str(), test_stream.str()); 
+    test_stream.str("");
+    test_stream.clear();
+    logger.log_screen_blank(1);
+    EXPECT_EQ(off_str.str(), test_stream.str()); 
+    logger.log_screen_blank(100008);
+    EXPECT_EQ(off_str.str(), test_stream.str()); 
+}
