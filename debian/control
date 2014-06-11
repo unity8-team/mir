@@ -104,8 +104,8 @@ Description: Implementation of the Platform API for Ubuntu Desktop
 Package: libubuntu-platform-hardware-api-dev
 Section: libdevel
 Architecture: any
-Replaces: libplatform-hardware-api1-dev
-Breaks: libplatform-hardware-api1-dev
+Replaces: libplatform-hardware-api1-dev (<< 2.0.0)
+Breaks: libplatform-hardware-api1-dev (<< 2.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -120,8 +120,8 @@ Description: Platform API for system level capabilities (development)
 Package: libubuntu-application-api-doc
 Section: doc
 Architecture: all
-Replaces: libplatform-api1-doc
-Breaks: libplatform-api1-doc
+Replaces: libplatform-api1-doc (<< 2.0.0)
+Breaks: libplatform-api1-doc (<< 2.0.0)
 Depends: ${misc:Depends},
          libubuntu-application-api-dev,
 Description: Platform API for system level capabilities (development)
