@@ -105,6 +105,34 @@ public:
     };
 };
 
+class Counter
+{
+public:
+    int operator++()
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        cv.notify_one();
+        return ++counter;
+    }
+
+    bool wait_for(std::chrono::milliseconds const& delay, int expected)
+    {
+        std::unique_lock<decltype(mutex)> lock(mutex);
+        return cv.wait_for(lock, delay, [&]{ return counter == expected;});
+    }
+
+    operator int() const
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        return counter;
+    }
+
+private:
+    std::mutex mutable mutex;
+    std::condition_variable cv;
+    int counter{0};
+};
+
 }
 
 TEST_F(AsioAlarmLoopTest, runs_until_stopped)
@@ -178,8 +206,10 @@ TEST_F(AsioAlarmLoopTest, alarm_fires_with_correct_delay)
 
 TEST_F(AsioAlarmLoopTest, multiple_alarms_fire)
 {
+    using namespace testing;
+
     int const alarm_count{10};
-    std::atomic<int> call_count{0};
+    Counter call_count;
     std::array<std::unique_ptr<mir::scheduler::Alarm>, alarm_count> alarms;
 
     for (auto& alarm : alarms)
@@ -187,6 +217,9 @@ TEST_F(AsioAlarmLoopTest, multiple_alarms_fire)
 
     UnblockAlarmLoop unblocker(alarm_loop);
     clock->advance_by(delay, alarm_loop);
+
+    call_count.wait_for(delay, alarm_count);
+    EXPECT_THAT(call_count, Eq(alarm_count));
 
     for (auto const& alarm : alarms)
         EXPECT_EQ(mir::scheduler::Alarm::triggered, alarm->state());
