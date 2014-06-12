@@ -7,6 +7,7 @@ set(
   lifecycle_delegate.h
   operation_mode.h
   options.h
+  init.h
 )
 
 install(
