@@ -17,16 +17,15 @@
  */
 
 
-#ifndef MIR_GRAPHICS_EVENT_HANDLER_REGISTER_H_
-#define MIR_GRAPHICS_EVENT_HANDLER_REGISTER_H_
+#ifndef MIR_SCHEDULER_EVENT_HANDLER_REGISTER_H_
+#define MIR_SCHEDULER_EVENT_HANDLER_REGISTER_H_
 
 #include <functional>
 #include <initializer_list>
 
 namespace mir
 {
-
-namespace graphics
+namespace scheduler
 {
 class EventHandlerRegister
 {
@@ -52,4 +51,4 @@ protected:
 }
 
 
-#endif /* MIR_GRAPHICS_EVENT_HANDLER_REGISTER_H_ */
+#endif /* MIR_SCHEDULER_EVENT_HANDLER_REGISTER_H_ */

@@ -19,7 +19,7 @@
 
 #include "mir/scheduler/server_action_queue.h"
 #include "mir/frontend/session_authorizer.h"
-#include "mir/graphics/event_handler_register.h"
+#include "mir/scheduler/event_handler_register.h"
 #include "src/server/scene/global_event_sender.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
@@ -98,7 +98,7 @@ public:
     }
 
     void register_configuration_change_handler(
-        mg::EventHandlerRegister& handlers,
+        mir::scheduler::EventHandlerRegister& handlers,
         mg::DisplayConfigurationChangeHandler const& handler) override
     {
         handlers.register_fd_handler(

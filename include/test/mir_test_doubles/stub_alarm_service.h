@@ -16,11 +16,11 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_STUB_TIMER_H_
-#define MIR_TEST_DOUBLES_STUB_TIMER_H_
+#ifndef MIR_TEST_DOUBLES_STUB_ALARM_SERVICE_H_
+#define MIR_TEST_DOUBLES_STUB_ALARM_SERVICE_H_
 
-#include "mir/time/alarm.h"
-#include "mir/time/timer.h"
+#include "mir/scheduler/alarm.h"
+#include "mir/scheduler/alarm_service.h"
 
 namespace mir
 {
@@ -29,7 +29,7 @@ namespace test
 namespace doubles
 {
 
-class StubAlarm : public mir::time::Alarm
+class StubAlarm : public mir::scheduler::Alarm
 {
     bool cancel() override
     {
@@ -37,7 +37,7 @@ class StubAlarm : public mir::time::Alarm
     }
     State state() const override
     {
-        return Cancelled;
+        return cancelled;
     }
     bool reschedule_in(std::chrono::milliseconds) override
     {
@@ -49,16 +49,16 @@ class StubAlarm : public mir::time::Alarm
     }
 };
 
-class StubTimer : public mir::time::Timer
+class StubAlarmService : public mir::scheduler::AlarmService
 {
-    std::unique_ptr<mir::time::Alarm> notify_in(std::chrono::milliseconds, std::function<void(void)>) override
+    std::unique_ptr<mir::scheduler::Alarm> notify_in(std::chrono::milliseconds, std::function<void(void)>) override
     {
-        return std::unique_ptr<mir::time::Alarm>{new StubAlarm};
+        return std::unique_ptr<mir::scheduler::Alarm>{new StubAlarm};
     }
 
-    std::unique_ptr<mir::time::Alarm> notify_at(mir::time::Timestamp, std::function<void(void)>) override
+    std::unique_ptr<mir::scheduler::Alarm> notify_at(mir::time::Timestamp, std::function<void(void)>) override
     {
-        return std::unique_ptr<mir::time::Alarm>{new StubAlarm};
+        return std::unique_ptr<mir::scheduler::Alarm>{new StubAlarm};
     }
 };
 

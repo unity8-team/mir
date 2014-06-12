@@ -19,7 +19,7 @@
 #ifndef MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
 #define MIR_SCHEDULER_ASIO_TIMER_SERVICE_H_
 
-#include "mir/scheduler/timer_service.h"
+#include "mir/scheduler/alarm_loop.h"
 
 #include <boost/asio.hpp>
 #include <boost/optional.hpp>
@@ -33,20 +33,20 @@ namespace mir
 namespace scheduler
 {
 
-class AsioTimerService : public TimerService
+class AsioAlarmLoop : public AlarmLoop
 {
 public:
-    explicit AsioTimerService(std::shared_ptr<time::Clock> const& clock);
-    ~AsioTimerService() noexcept(true);
+    explicit AsioAlarmLoop(std::shared_ptr<time::Clock> const& clock);
+    ~AsioAlarmLoop() noexcept(true);
 
     void run() override;
     void stop() override;
 
-    std::unique_ptr<time::Alarm> notify_in(std::chrono::milliseconds delay,
+    std::unique_ptr<scheduler::Alarm> notify_in(std::chrono::milliseconds delay,
                                            std::function<void()> callback) override;
-    std::unique_ptr<time::Alarm> notify_at(mir::time::Timestamp time_point,
+    std::unique_ptr<scheduler::Alarm> notify_at(mir::time::Timestamp time_point,
                                            std::function<void()> callback) override;
-    std::unique_ptr<time::Alarm> create_alarm(std::function<void()> callback) override;
+    std::unique_ptr<scheduler::Alarm> create_alarm(std::function<void()> callback) override;
 private:
     class AlarmImpl;
     boost::asio::io_service io;

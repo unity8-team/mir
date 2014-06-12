@@ -75,11 +75,11 @@ public:
     void configure(graphics::DisplayConfiguration const& conf) override;
 
     void register_configuration_change_handler(
-        EventHandlerRegister& handlers,
+        scheduler::EventHandlerRegister& handlers,
         DisplayConfigurationChangeHandler const& conf_change_handler);
 
     void register_pause_resume_handlers(
-        EventHandlerRegister& handlers,
+        scheduler::EventHandlerRegister& handlers,
         DisplayPauseHandler const& pause_handler,
         DisplayResumeHandler const& resume_handler);
 

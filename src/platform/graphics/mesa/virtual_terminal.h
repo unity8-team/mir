@@ -23,9 +23,12 @@
 
 namespace mir
 {
-namespace graphics
+namespace scheduler
 {
 class EventHandlerRegister;
+}
+namespace graphics
+{
 
 namespace mesa
 {
@@ -37,7 +40,7 @@ public:
 
     virtual void set_graphics_mode() = 0;
     virtual void register_switch_handlers(
-        EventHandlerRegister& handlers,
+        scheduler::EventHandlerRegister& handlers,
         std::function<bool()> const& switch_away,
         std::function<bool()> const& switch_back) = 0;
 

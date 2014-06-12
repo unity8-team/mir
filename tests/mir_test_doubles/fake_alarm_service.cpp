@@ -16,7 +16,7 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include "mir_test_doubles/mock_timer.h"
+#include "mir_test_doubles/fake_alarm_service.h"
 
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -24,7 +24,7 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-class FakeAlarm : public mir::time::Alarm
+class FakeAlarm : public mir::scheduler::Alarm
 {
 public:
     FakeAlarm(std::function<void(void)> callback, std::shared_ptr<mt::FakeClock> const& clock);
@@ -36,7 +36,7 @@ public:
     bool reschedule_in(std::chrono::milliseconds delay) override;
     bool reschedule_for(mir::time::Timestamp timeout) override;
 
-private:    
+private:
     struct InternalState
     {
         explicit InternalState(std::function<void(void)> callback);
@@ -52,7 +52,7 @@ private:
 };
 
 FakeAlarm::InternalState::InternalState(std::function<void(void)> callback)
-    : state{mir::time::Alarm::pending}, callback{callback}
+    : state{mir::scheduler::Alarm::pending}, callback{callback}
 {
 }
 
@@ -123,27 +123,27 @@ bool FakeAlarm::reschedule_for(mir::time::Timestamp timeout)
 }
 }
 
-mtd::FakeTimer::FakeTimer(std::shared_ptr<FakeClock> const& clock) : clock{clock}
+mtd::FakeAlarmService::FakeAlarmService(std::shared_ptr<FakeClock> const& clock) : clock{clock}
 {
 }
 
-std::unique_ptr<mir::time::Alarm> mtd::FakeTimer::notify_in(std::chrono::milliseconds delay,
-                                                            std::function<void(void)> callback)
+std::unique_ptr<mir::scheduler::Alarm> mtd::FakeAlarmService::notify_in(std::chrono::milliseconds delay,
+                                                                        std::function<void(void)> callback)
 {
-    auto alarm = std::unique_ptr<mir::time::Alarm>{new FakeAlarm{callback, clock}};
+    auto alarm = std::unique_ptr<mir::scheduler::Alarm>{new FakeAlarm{callback, clock}};
     alarm->reschedule_in(delay);
     return std::move(alarm);
 }
 
-std::unique_ptr<mir::time::Alarm> mtd::FakeTimer::notify_at(time::Timestamp time_point,
-                                                            std::function<void(void)> callback)
+std::unique_ptr<mir::scheduler::Alarm> mtd::FakeAlarmService::notify_at(time::Timestamp time_point,
+                                                                        std::function<void(void)> callback)
 {
-    auto alarm = std::unique_ptr<mir::time::Alarm>{new FakeAlarm{callback, clock}};
+    auto alarm = std::unique_ptr<mir::scheduler::Alarm>{new FakeAlarm{callback, clock}};
     alarm->reschedule_for(time_point);
     return std::move(alarm);
 }
 
-std::unique_ptr<mir::time::Alarm> mir::test::doubles::FakeTimer::create_alarm(std::function<void(void)> callback)
+std::unique_ptr<mir::scheduler::Alarm> mir::test::doubles::FakeAlarmService::create_alarm(std::function<void(void)> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new FakeAlarm{callback, clock}};
+    return std::unique_ptr<mir::scheduler::Alarm>{new FakeAlarm{callback, clock}};
 }

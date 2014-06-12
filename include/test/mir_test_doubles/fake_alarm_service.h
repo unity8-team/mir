@@ -16,10 +16,10 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_TIMER_H_
-#define MIR_TEST_DOUBLES_MOCK_TIMER_H_
+#ifndef MIR_TEST_DOUBLES_FAKE_ALARM_SERVICE_H_
+#define MIR_TEST_DOUBLES_FAKE_ALARM_SERVICE_H_
 
-#include "mir/time/timer.h"
+#include "mir/scheduler/alarm_service.h"
 #include "mir_test/fake_clock.h"
 #include <memory>
 
@@ -30,16 +30,16 @@ namespace test
 namespace doubles
 {
 
-class FakeTimer : public mir::time::Timer
+class FakeAlarmService : public mir::scheduler::AlarmService
 {
 public:
-    FakeTimer(std::shared_ptr<FakeClock> const& clock);
+    FakeAlarmService(std::shared_ptr<FakeClock> const& clock);
 
-    std::unique_ptr<time::Alarm> notify_in(std::chrono::milliseconds delay,
-                                           std::function<void(void)> callback) override;
-    std::unique_ptr<time::Alarm> notify_at(time::Timestamp time_point,
-                                           std::function<void(void)> callback) override;
-    std::unique_ptr<time::Alarm> create_alarm(std::function<void ()> callback) override;
+    std::unique_ptr<scheduler::Alarm> notify_in(std::chrono::milliseconds delay,
+                                                std::function<void(void)> callback) override;
+    std::unique_ptr<scheduler::Alarm> notify_at(time::Timestamp time_point,
+                                                std::function<void(void)> callback) override;
+    std::unique_ptr<scheduler::Alarm> create_alarm(std::function<void ()> callback) override;
 
 private:
     std::shared_ptr<FakeClock> const clock;
@@ -49,4 +49,4 @@ private:
 }
 }
 
-#endif // MIR_TEST_DOUBLES_MOCK_TIMER_H_
+#endif // MIR_TEST_DOUBLES_FAKE_ALARM_SERVICE_H_

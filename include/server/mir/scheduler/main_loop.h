@@ -19,7 +19,7 @@
 #ifndef MIR_SCHEDULER_MAIN_LOOP_H_
 #define MIR_SCHEDULER_MAIN_LOOP_H_
 
-#include "mir/graphics/event_handler_register.h"
+#include "mir/scheduler/event_handler_register.h"
 #include "mir/scheduler/server_action_queue.h"
 
 namespace mir
@@ -27,7 +27,7 @@ namespace mir
 namespace scheduler
 {
 
-class MainLoop : public graphics::EventHandlerRegister,
+class MainLoop : public EventHandlerRegister,
                  public ServerActionQueue
 {
 public:

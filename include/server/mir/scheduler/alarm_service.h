@@ -16,11 +16,10 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#ifndef MIR_SCHEDULER_ALARM_SERVICE_H_
+#define MIR_SCHEDULER_ALARM_SERVICE_H_
 
-#ifndef MIR_TIME_TIMER_H_
-#define MIR_TIME_TIMER_H_
-
-#include "mir/time/alarm.h"
+#include "mir/scheduler/alarm.h"
 
 #include <chrono>
 #include <functional>
@@ -28,16 +27,16 @@
 
 namespace mir
 {
-namespace time
+namespace scheduler
 {
 
 class Alarm;
 
-class Timer
+class AlarmService
 {
 public:
-    Timer() = default;
-    virtual ~Timer() = default;
+    AlarmService() = default;
+    virtual ~AlarmService() = default;
     /**
      * \brief Create an Alarm that calls the callback after the specified delay
      *
@@ -56,7 +55,7 @@ public:
      *
      * \return A handle to an Alarm that will fire after delay ms.
      */
-    virtual std::unique_ptr<Alarm> notify_at(Timestamp time_point,
+    virtual std::unique_ptr<Alarm> notify_at(time::Timestamp time_point,
                                              std::function<void()> callback) = 0;
     /**
      * \brief Create an Alarm that will not fire until scheduled
@@ -67,11 +66,11 @@ public:
      */
     virtual std::unique_ptr<Alarm> create_alarm(std::function<void()> callback) = 0;
 
-    Timer(Timer const&) = delete;
-    Timer& operator=(Timer const&) = delete;
+    AlarmService(AlarmService const&) = delete;
+    AlarmService& operator=(AlarmService const&) = delete;
 };
 
 }
 }
 
-#endif // MIR_TIME_TIMER_H_
+#endif // MIR_SCHEDULER_ALARM_SERVICE_H_

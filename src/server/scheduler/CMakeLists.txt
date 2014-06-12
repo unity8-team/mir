@@ -3,6 +3,6 @@ ADD_LIBRARY(
 
   asio_main_loop.cpp
   asio_server_action_queue.cpp
-  asio_timer_service.cpp
+  asio_alarm_loop.cpp
   synchronous_server_action.cpp
 )

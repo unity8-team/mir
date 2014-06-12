@@ -30,7 +30,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
-#include "mir/scheduler/timer_service.h"
+#include "mir/scheduler/alarm_loop.h"
 
 #include <stdexcept>
 
@@ -82,7 +82,7 @@ struct mir::DisplayServer::Private
           main_loop{config.the_main_loop()},
           server_status_listener{config.the_server_status_listener()},
           display_changer{config.the_display_changer()},
-          timer_service{config.the_timer_service()}
+          alarm_loop{config.the_alarm_loop()}
     {
         display->register_configuration_change_handler(
             *main_loop,
@@ -99,8 +99,8 @@ struct mir::DisplayServer::Private
         try
         {
             TryButRevertIfUnwinding timers{
-                [this] { timer_service->stop(); },
-                [this] { timer_service->run(); }};
+                [this] { alarm_loop->stop(); },
+                [this] { alarm_loop->run(); }};
 
             TryButRevertIfUnwinding dispatcher{
                 [this] { input_dispatcher->stop(); },
@@ -159,8 +159,8 @@ struct mir::DisplayServer::Private
                 [this] { input_dispatcher->stop(); }};
 
             TryButRevertIfUnwinding timers{
-                [this] { timer_service->run(); },
-                [this] { timer_service->stop(); }};
+                [this] { alarm_loop->run(); },
+                [this] { alarm_loop->stop(); }};
 
             compositor->start();
         }
@@ -194,7 +194,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mir::scheduler::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
     std::shared_ptr<mir::DisplayChanger> const display_changer;
-    std::shared_ptr<mir::scheduler::TimerService> const timer_service;
+    std::shared_ptr<mir::scheduler::AlarmLoop> const alarm_loop;
 };
 
 mir::DisplayServer::DisplayServer(ServerConfiguration& config) :
@@ -217,13 +217,13 @@ void mir::DisplayServer::run()
     p->compositor->start();
     p->input_manager->start();
     p->input_dispatcher->start();
-    p->timer_service->run();
+    p->alarm_loop->run();
 
     p->server_status_listener->started();
 
     p->main_loop->run();
 
-    p->timer_service->stop();
+    p->alarm_loop->stop();
     p->input_dispatcher->stop();
     p->input_manager->stop();
     p->compositor->stop();

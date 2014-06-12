@@ -18,7 +18,7 @@
 
 #include "linux_virtual_terminal.h"
 #include "mir/graphics/display_report.h"
-#include "mir/graphics/event_handler_register.h"
+#include "mir/scheduler/event_handler_register.h"
 
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -128,7 +128,7 @@ void mgm::LinuxVirtualTerminal::set_graphics_mode()
 }
 
 void mgm::LinuxVirtualTerminal::register_switch_handlers(
-    EventHandlerRegister& handlers,
+    scheduler::EventHandlerRegister& handlers,
     std::function<bool()> const& switch_away,
     std::function<bool()> const& switch_back)
 {

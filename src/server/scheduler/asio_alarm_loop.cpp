@@ -16,7 +16,9 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "asio_timer_service.h"
+#include "asio_alarm_loop.h"
+
+#include "mir/time/clock.h"
 
 #include "boost/date_time/posix_time/conversion.hpp"
 #include <mutex>
@@ -28,31 +30,31 @@ struct MirClockTimerTraits
 {
     // TODO the clock used by the timer service is a global setting, this is a restriction
     // of boost::asio only allowing static methods inside the taits type.
-    struct TimerServiceClockStorage
+    struct AlarmLoopClockStorage
     {
     public:
         void set_clock(std::shared_ptr<mir::time::Clock const> const& clock)
         {
-            std::lock_guard<std::mutex> lock(timer_service_mutex);
-            auto stored_clock = timer_service_clock.lock();
+            std::lock_guard<std::mutex> lock(alarm_service_mutex);
+            auto stored_clock = alarm_service_clock.lock();
             if (stored_clock && stored_clock != clock)
-                BOOST_THROW_EXCEPTION(std::logic_error("A clock is already in use as time source for mir::scheduler::AsioTimerService"));
-            timer_service_clock = clock;
+                BOOST_THROW_EXCEPTION(std::logic_error("A clock is already in use as time source for mir::scheduler::AsioAlarmLoop"));
+            alarm_service_clock = clock;
         }
         mir::time::Timestamp now()
         {
-            std::lock_guard<std::mutex> lock(timer_service_mutex);
-            auto clock = timer_service_clock.lock();
+            std::lock_guard<std::mutex> lock(alarm_service_mutex);
+            auto clock = alarm_service_clock.lock();
             if (!clock)
                 BOOST_THROW_EXCEPTION(std::logic_error("No clock available to create time stamp"));
             return clock->sample();
         }
     private:
-        std::mutex timer_service_mutex;
-        std::weak_ptr<mir::time::Clock const> timer_service_clock;
+        std::mutex alarm_service_mutex;
+        std::weak_ptr<mir::time::Clock const> alarm_service_clock;
     };
 
-    static TimerServiceClockStorage clock_storage;
+    static AlarmLoopClockStorage clock_storage;
 
     static void set_clock(std::shared_ptr<mir::time::Clock const> const& clock)
     {
@@ -91,12 +93,12 @@ struct MirClockTimerTraits
     }
 };
 
-MirClockTimerTraits::TimerServiceClockStorage MirClockTimerTraits::clock_storage;
+MirClockTimerTraits::AlarmLoopClockStorage MirClockTimerTraits::clock_storage;
 
 typedef boost::asio::basic_deadline_timer<mir::time::Timestamp, MirClockTimerTraits> deadline_timer;
 }
 
-class mir::scheduler::AsioTimerService::AlarmImpl : public mir::time::Alarm
+class mir::scheduler::AsioAlarmLoop::AlarmImpl : public mir::scheduler::Alarm
 {
 public:
     AlarmImpl(boost::asio::io_service& io,
@@ -112,7 +114,7 @@ public:
 
     ~AlarmImpl() noexcept override;
 
-    // mir::time::Alarm:
+    // mir::scheduler::Alarm:
     bool cancel() override;
     State state() const override;
 
@@ -137,34 +139,34 @@ private:
     std::shared_ptr<InternalState> data;
 };
 
-mir::scheduler::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                                                       std::chrono::milliseconds delay,
-                                                       std::function<void()> callback)
+mir::scheduler::AsioAlarmLoop::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                                                    std::chrono::milliseconds delay,
+                                                    std::function<void()> callback)
     : AlarmImpl(io, callback)
 {
     reschedule_in(delay);
 }
 
-mir::scheduler::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
-                                                       mir::time::Timestamp time_point,
-                                                       std::function<void()> callback)
+mir::scheduler::AsioAlarmLoop::AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                                                    mir::time::Timestamp time_point,
+                                                    std::function<void()> callback)
     : AlarmImpl(io, callback)
 {
     reschedule_for(time_point);
 }
 
-mir::scheduler::AsioTimerService::AlarmImpl::AlarmImpl(boost::asio::io_service& io, std::function<void(void)> callback)
+mir::scheduler::AsioAlarmLoop::AlarmImpl::AlarmImpl(boost::asio::io_service& io, std::function<void(void)> callback)
     : timer{io}, data{std::make_shared<InternalState>(callback)}
 {
     data->state = triggered;
 }
 
-mir::scheduler::AsioTimerService::AlarmImpl::~AlarmImpl() noexcept
+mir::scheduler::AsioAlarmLoop::AlarmImpl::~AlarmImpl() noexcept
 {
     AlarmImpl::cancel();
 }
 
-bool mir::scheduler::AsioTimerService::AlarmImpl::cancel()
+bool mir::scheduler::AsioAlarmLoop::AlarmImpl::cancel()
 {
     State expected_state = pending;
     if (data->state.compare_exchange_strong(expected_state, cancelled))
@@ -175,26 +177,26 @@ bool mir::scheduler::AsioTimerService::AlarmImpl::cancel()
     return false;
 }
 
-mir::time::Alarm::State mir::scheduler::AsioTimerService::AlarmImpl::state() const
+mir::scheduler::Alarm::State mir::scheduler::AsioAlarmLoop::AlarmImpl::state() const
 {
     return data->state;
 }
 
-bool mir::scheduler::AsioTimerService::AlarmImpl::reschedule_in(std::chrono::milliseconds delay)
+bool mir::scheduler::AsioAlarmLoop::AlarmImpl::reschedule_in(std::chrono::milliseconds delay)
 {
     bool cancelling = timer.expires_from_now(delay);
     update_timer();
     return cancelling;
 }
 
-bool mir::scheduler::AsioTimerService::AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
+bool mir::scheduler::AsioAlarmLoop::AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
 {
     bool cancelling = timer.expires_at(time_point);
     update_timer();
     return cancelling;
 }
 
-void mir::scheduler::AsioTimerService::AlarmImpl::update_timer()
+void mir::scheduler::AsioAlarmLoop::AlarmImpl::update_timer()
 {
     auto new_internal_state = std::make_shared<InternalState>(data->callback);
 
@@ -219,38 +221,38 @@ void mir::scheduler::AsioTimerService::AlarmImpl::update_timer()
     data = new_internal_state;
 }
 
-mir::scheduler::AsioTimerService::AsioTimerService(std::shared_ptr<time::Clock> const& clock) : work{io}, clock(clock)
+mir::scheduler::AsioAlarmLoop::AsioAlarmLoop(std::shared_ptr<time::Clock> const& clock) : work{io}, clock(clock)
 {
     MirClockTimerTraits::set_clock(clock);
 }
 
-mir::scheduler::AsioTimerService::~AsioTimerService() noexcept(true)
+mir::scheduler::AsioAlarmLoop::~AsioAlarmLoop() noexcept(true)
 {
 }
 
-void mir::scheduler::AsioTimerService::run()
+void mir::scheduler::AsioAlarmLoop::run()
 {
     io.run();
 }
 
-void mir::scheduler::AsioTimerService::stop()
+void mir::scheduler::AsioAlarmLoop::stop()
 {
     io.stop();
 }
 
-std::unique_ptr<mir::time::Alarm> mir::scheduler::AsioTimerService::notify_in(std::chrono::milliseconds delay,
-                                                                              std::function<void()> callback)
+std::unique_ptr<mir::scheduler::Alarm> mir::scheduler::AsioAlarmLoop::notify_in(std::chrono::milliseconds delay,
+                                                                                std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, delay, callback}};
+    return std::unique_ptr<mir::scheduler::Alarm>{new AlarmImpl{io, delay, callback}};
 }
 
-std::unique_ptr<mir::time::Alarm> mir::scheduler::AsioTimerService::notify_at(mir::time::Timestamp time_point,
-                                                                              std::function<void()> callback)
+std::unique_ptr<mir::scheduler::Alarm> mir::scheduler::AsioAlarmLoop::notify_at(mir::time::Timestamp time_point,
+                                                                                std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, time_point, callback}};
+    return std::unique_ptr<mir::scheduler::Alarm>{new AlarmImpl{io, time_point, callback}};
 }
 
-std::unique_ptr<mir::time::Alarm> mir::scheduler::AsioTimerService::create_alarm(std::function<void()> callback)
+std::unique_ptr<mir::scheduler::Alarm> mir::scheduler::AsioAlarmLoop::create_alarm(std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, callback}};
+    return std::unique_ptr<mir::scheduler::Alarm>{new AlarmImpl{io, callback}};
 }

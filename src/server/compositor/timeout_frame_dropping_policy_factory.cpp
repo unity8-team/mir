@@ -32,7 +32,7 @@ namespace
 class TimeoutFrameDroppingPolicy : public mc::FrameDroppingPolicy
 {
 public:
-    TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
+    TimeoutFrameDroppingPolicy(std::shared_ptr<mir::scheduler::AlarmService> const& timer,
                                std::chrono::milliseconds timeout,
                                std::function<void(void)> drop_frame);
 
@@ -41,11 +41,11 @@ public:
 
 private:
     std::chrono::milliseconds const timeout;
-    std::unique_ptr<mir::time::Alarm> alarm;
+    std::unique_ptr<mir::scheduler::Alarm> alarm;
     std::atomic<unsigned int> pending_swaps;
 };
 
-TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
+TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::scheduler::AlarmService> const& timer,
                                                        std::chrono::milliseconds timeout,
                                                        std::function<void(void)> drop_frame)
     : timeout{timeout},
@@ -68,7 +68,7 @@ void TimeoutFrameDroppingPolicy::swap_now_blocking()
 
 void TimeoutFrameDroppingPolicy::swap_unblocked()
 {
-    if (alarm->state() != mir::time::Alarm::cancelled && alarm->cancel())
+    if (alarm->state() != mir::scheduler::Alarm::cancelled && alarm->cancel())
     {
         if (--pending_swaps > 0)
         {
@@ -78,7 +78,7 @@ void TimeoutFrameDroppingPolicy::swap_unblocked()
 }
 }
 
-mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(std::shared_ptr<mir::time::Timer> const& timer,
+mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(std::shared_ptr<mir::scheduler::AlarmService> const& timer,
                                                                          std::chrono::milliseconds timeout)
     : timer{timer},
       timeout{timeout}

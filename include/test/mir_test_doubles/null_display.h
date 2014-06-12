@@ -47,11 +47,11 @@ class NullDisplay : public graphics::Display
     }
     void configure(graphics::DisplayConfiguration const&) {}
     void register_configuration_change_handler(
-        graphics::EventHandlerRegister&,
+        scheduler::EventHandlerRegister&,
         graphics::DisplayConfigurationChangeHandler const&) override
     {
     }
-    void register_pause_resume_handlers(graphics::EventHandlerRegister&,
+    void register_pause_resume_handlers(scheduler::EventHandlerRegister&,
                                         graphics::DisplayPauseHandler const&,
                                         graphics::DisplayResumeHandler const&) override
     {
@@ -60,7 +60,7 @@ class NullDisplay : public graphics::Display
     void resume() {}
     std::shared_ptr<graphics::Cursor> create_hardware_cursor(std::shared_ptr<graphics::CursorImage> const& /* initial_image */)
     {
-         return {}; 
+         return {};
     }
     std::unique_ptr<graphics::GLContext> create_gl_context()
     {

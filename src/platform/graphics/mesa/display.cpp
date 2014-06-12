@@ -29,6 +29,7 @@
 #include "mir/graphics/display_report.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/display_configuration_policy.h"
+#include "mir/scheduler/event_handler_register.h"
 #include "mir/geometry/rectangle.h"
 
 #include <boost/throw_exception.hpp>
@@ -228,7 +229,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 }
 
 void mgm::Display::register_configuration_change_handler(
-    EventHandlerRegister& handlers,
+    scheduler::EventHandlerRegister& handlers,
     DisplayConfigurationChangeHandler const& conf_change_handler)
 {
     handlers.register_fd_handler(
@@ -245,7 +246,7 @@ void mgm::Display::register_configuration_change_handler(
 }
 
 void mgm::Display::register_pause_resume_handlers(
-    EventHandlerRegister& handlers,
+    scheduler::EventHandlerRegister& handlers,
     DisplayPauseHandler const& pause_handler,
     DisplayResumeHandler const& resume_handler)
 {

@@ -37,7 +37,7 @@
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
 
-#include "scheduler/asio_timer_service.h"
+#include "scheduler/asio_alarm_loop.h"
 #include "scheduler/asio_main_loop.h"
 
 #include <map>
@@ -55,21 +55,21 @@ namespace mi = mir::input;
 
 namespace
 {
-class AsioTimerServiceThread : public mir::scheduler::AsioTimerService
+class AsioAlarmLoopThread : public mir::scheduler::AsioAlarmLoop
 {
 public:
-    AsioTimerServiceThread(std::shared_ptr<mir::time::Clock> const& clock)
-        : AsioTimerService(clock)
+    AsioAlarmLoopThread(std::shared_ptr<mir::time::Clock> const& clock)
+        : AsioAlarmLoop(clock)
     {}
     void run() override
     {
-        service_thread = std::thread([this]{mir::scheduler::AsioTimerService::run();});
+        service_thread = std::thread([this]{mir::scheduler::AsioAlarmLoop::run();});
     }
     void stop() override
     {
         if (service_thread.joinable())
         {
-            mir::scheduler::AsioTimerService::stop();
+            mir::scheduler::AsioAlarmLoop::stop();
             service_thread.join();
         }
     }
@@ -205,12 +205,12 @@ std::shared_ptr<mir::scheduler::MainLoop> mir::DefaultServerConfiguration::the_m
         });
 }
 
-std::shared_ptr<mir::scheduler::TimerService> mir::DefaultServerConfiguration::the_timer_service()
+std::shared_ptr<mir::scheduler::AlarmLoop> mir::DefaultServerConfiguration::the_alarm_loop()
 {
-    return timer_service(
+    return alarm_loop(
         [this]()
         {
-            return std::make_shared<AsioTimerServiceThread>(the_clock());
+            return std::make_shared<AsioAlarmLoopThread>(the_clock());
         });
 }
 

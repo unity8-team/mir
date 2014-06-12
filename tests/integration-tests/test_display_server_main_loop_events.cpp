@@ -21,7 +21,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/display_configuration_policy.h"
 #include "mir/scheduler/server_action_queue.h"
-#include "mir/graphics/event_handler_register.h"
+#include "mir/scheduler/event_handler_register.h"
 #include "mir/server_status_listener.h"
 
 #include "mir_test/pipe.h"
@@ -30,7 +30,7 @@
 #include "mir_test_doubles/mock_input_manager.h"
 #include "mir_test_doubles/mock_input_dispatcher.h"
 #include "mir_test_doubles/mock_compositor.h"
-#include "mir_test_doubles/mock_timer_service.h"
+#include "mir_test_doubles/mock_alarm_loop.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/mock_server_status_listener.h"
 #include "mir/run_mir.h"
@@ -100,7 +100,7 @@ public:
     MOCK_METHOD1(configure, void(mg::DisplayConfiguration const&));
 
     void register_configuration_change_handler(
-        mg::EventHandlerRegister& handlers,
+        mir::scheduler::EventHandlerRegister& handlers,
         mg::DisplayConfigurationChangeHandler const& conf_change_handler) override
     {
         handlers.register_fd_handler(
@@ -118,7 +118,7 @@ public:
     }
 
     void register_pause_resume_handlers(
-        mg::EventHandlerRegister& handlers,
+        mir::scheduler::EventHandlerRegister& handlers,
         mg::DisplayPauseHandler const& pause_handler,
         mg::DisplayResumeHandler const& resume_handler) override
     {
@@ -255,12 +255,12 @@ public:
         return mock_input_dispatcher;
     }
 
-    std::shared_ptr<mir::scheduler::TimerService> the_timer_service() override
+    std::shared_ptr<mir::scheduler::AlarmLoop> the_alarm_loop() override
     {
-        if (!mock_timer_service)
-            mock_timer_service = std::make_shared<mtd::MockTimerService>();
+        if (!mock_alarm_loop)
+            mock_alarm_loop = std::make_shared<mtd::MockAlarmLoop>();
 
-        return mock_timer_service;
+        return mock_alarm_loop;
     }
 
     std::shared_ptr<MockDisplay> the_mock_display()
@@ -281,10 +281,10 @@ public:
         return mock_connector;
     }
 
-    std::shared_ptr<mtd::MockTimerService> the_mock_timer_service()
+    std::shared_ptr<mtd::MockAlarmLoop> the_mock_alarm_loop()
     {
-        the_timer_service();
-        return mock_timer_service;
+        the_alarm_loop();
+        return mock_alarm_loop;
     }
 
     std::shared_ptr<mtd::MockInputManager> the_mock_input_manager()
@@ -335,7 +335,7 @@ private:
     std::shared_ptr<MockConnector> mock_connector;
     std::shared_ptr<mtd::MockInputManager> mock_input_manager;
     std::shared_ptr<mtd::MockInputDispatcher> mock_input_dispatcher;
-    std::shared_ptr<mtd::MockTimerService> mock_timer_service;
+    std::shared_ptr<mtd::MockAlarmLoop> mock_alarm_loop;
 
     mt::Pipe p;
     int const pause_signal;
@@ -398,7 +398,7 @@ TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -408,10 +408,10 @@ TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Pause */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -423,11 +423,11 @@ TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
         EXPECT_CALL(*mock_connector, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
         EXPECT_CALL(*mock_compositor, start()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -459,7 +459,7 @@ TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -469,10 +469,10 @@ TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Pause */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -480,7 +480,7 @@ TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
         EXPECT_CALL(*mock_display, pause()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -511,7 +511,7 @@ TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_f
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -521,10 +521,10 @@ TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_f
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Pause failure */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -537,10 +537,10 @@ TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_f
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -571,7 +571,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -581,7 +581,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Change configuration */
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -589,7 +589,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -621,7 +621,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
     auto mock_connector = server_config.the_mock_connector();
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -631,10 +631,10 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
 
         /* Pause event */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -646,7 +646,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
         EXPECT_CALL(*mock_connector, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
         EXPECT_CALL(*mock_compositor, start()).Times(1);
 
         /* Change configuration (after resuming) */
@@ -655,7 +655,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -691,7 +691,7 @@ TEST(DisplayServerMainLoopEvents, server_status_listener)
     auto mock_input_manager = server_config.the_mock_input_manager();
     auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
     auto mock_server_status_listener = server_config.the_mock_server_status_listener();
-    auto mock_timer_service = server_config.the_mock_timer_service();
+    auto mock_alarm_loop = server_config.the_mock_alarm_loop();
 
     {
         InSequence s;
@@ -701,11 +701,11 @@ TEST(DisplayServerMainLoopEvents, server_status_listener)
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
         EXPECT_CALL(*mock_server_status_listener, started()).Times(1);
 
         /* "paused" is emitted after all components have been paused/stopped */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
@@ -718,12 +718,12 @@ TEST(DisplayServerMainLoopEvents, server_status_listener)
         EXPECT_CALL(*mock_connector, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_timer_service, run()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, run()).Times(1);
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_server_status_listener, resumed()).Times(1);
 
         /* Stop */
-        EXPECT_CALL(*mock_timer_service, stop()).Times(1);
+        EXPECT_CALL(*mock_alarm_loop, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);

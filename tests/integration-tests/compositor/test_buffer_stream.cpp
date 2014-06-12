@@ -18,13 +18,13 @@
 
 #include "src/server/compositor/buffer_stream_surfaces.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
-#include "mir/time/timer.h"
+#include "mir/scheduler/alarm_service.h"
 #include "src/server/compositor/buffer_queue.h"
 #include "src/server/compositor/timeout_frame_dropping_policy_factory.h"
 
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/mock_timer.h"
+#include "mir_test_doubles/fake_alarm_service.h"
 #include "mir_test/signal.h"
 
 #include <gmock/gmock.h>
@@ -75,7 +75,7 @@ struct BufferStreamTest : public ::testing::Test
 {
     BufferStreamTest()
         : clock{std::make_shared<mt::FakeClock>()},
-          timer{std::make_shared<mtd::FakeTimer>(clock)},
+          timer{std::make_shared<mtd::FakeAlarmService>(clock)},
           frame_drop_timeout{1000},
           nbuffers{3},
           buffer_stream{create_bundle()}
@@ -105,7 +105,7 @@ struct BufferStreamTest : public ::testing::Test
     }
 
     std::shared_ptr<mt::FakeClock> clock;
-    std::shared_ptr<mtd::FakeTimer> timer;
+    std::shared_ptr<mtd::FakeAlarmService> timer;
     std::chrono::milliseconds const frame_drop_timeout;
     const int nbuffers;
     std::shared_ptr<mc::BufferQueue> buffer_queue;

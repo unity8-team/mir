@@ -33,7 +33,7 @@ class NullVirtualTerminal : public graphics::mesa::VirtualTerminal
 public:
     void set_graphics_mode() {}
 
-    void register_switch_handlers(graphics::EventHandlerRegister&,
+    void register_switch_handlers(scheduler::EventHandlerRegister&,
                                   std::function<bool()> const&,
                                   std::function<bool()> const&)
     {

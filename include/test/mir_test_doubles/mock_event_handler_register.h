@@ -19,7 +19,7 @@
 #ifndef MOCK_EVENT_HANDLER_REGISTER_H_
 #define MOCK_EVENT_HANDLER_REGISTER_H_
 
-#include "mir/graphics/event_handler_register.h"
+#include "mir/scheduler/event_handler_register.h"
 
 #include <gmock/gmock.h>
 
@@ -30,7 +30,7 @@ namespace test
 namespace doubles
 {
 
-class MockEventHandlerRegister : public graphics::EventHandlerRegister
+class MockEventHandlerRegister : public scheduler::EventHandlerRegister
 {
 public:
     ~MockEventHandlerRegister() noexcept {}

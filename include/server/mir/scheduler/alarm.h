@@ -16,14 +16,14 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#ifndef MIR_TIME_ALARM_H_
-#define MIR_TIME_ALARM_H_
+#ifndef MIR_SCHEDULER_ALARM_H_
+#define MIR_SCHEDULER_ALARM_H_
 
 #include "mir/time/clock.h"
 
 namespace mir
 {
-namespace time
+namespace scheduler
 {
 
 /**
@@ -74,7 +74,7 @@ public:
      *
      * \note This cancels any previous timeout set.
      */
-    virtual bool reschedule_for(Timestamp timeout) = 0;
+    virtual bool reschedule_for(time::Timestamp timeout) = 0;
 
     Alarm(Alarm const&) = delete;
     Alarm& operator=(Alarm const&) = delete;

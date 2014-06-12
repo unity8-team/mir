@@ -143,13 +143,13 @@ void mgo::Display::configure(mg::DisplayConfiguration const& conf)
 }
 
 void mgo::Display::register_configuration_change_handler(
-    EventHandlerRegister&,
+    scheduler::EventHandlerRegister&,
     DisplayConfigurationChangeHandler const&)
 {
 }
 
 void mgo::Display::register_pause_resume_handlers(
-    EventHandlerRegister&,
+    scheduler::EventHandlerRegister&,
     DisplayPauseHandler const&,
     DisplayResumeHandler const&)
 {

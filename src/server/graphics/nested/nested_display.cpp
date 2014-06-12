@@ -233,14 +233,14 @@ void mgn::NestedDisplay::apply_to_connection(mg::DisplayConfiguration const& con
 }
 
 void mgn::NestedDisplay::register_configuration_change_handler(
-        EventHandlerRegister& /*handlers*/,
+        scheduler::EventHandlerRegister& /*handlers*/,
         DisplayConfigurationChangeHandler const& conf_change_handler)
 {
     connection->set_display_config_change_callback(conf_change_handler);
 }
 
 void mgn::NestedDisplay::register_pause_resume_handlers(
-        EventHandlerRegister& /*handlers*/,
+        scheduler::EventHandlerRegister& /*handlers*/,
         DisplayPauseHandler const& /*pause_handler*/,
         DisplayResumeHandler const& /*resume_handler*/)
 {

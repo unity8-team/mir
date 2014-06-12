@@ -73,7 +73,7 @@ public:
 
     MOCK_METHOD0(set_graphics_mode, void());
     MOCK_METHOD3(register_switch_handlers,
-                 void(mg::EventHandlerRegister&,
+                 void(mir::scheduler::EventHandlerRegister&,
                       std::function<bool()> const&,
                       std::function<bool()> const&));
 };

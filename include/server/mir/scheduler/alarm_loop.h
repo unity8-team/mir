@@ -16,33 +16,23 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_MOCK_TIMER_SERVICE_H_
-#define MIR_MOCK_TIMER_SERVICE_H_
+#ifndef MIR_SCHEDULER_ALARM_LOOP_H_
+#define MIR_SCHEDULER_ALARM_LOOP_H_
 
-#include "mir/scheduler/timer_service.h"
-
-#include "mir_test/gmock_fixes.h"
+#include "mir/scheduler/alarm_service.h"
 
 namespace mir
 {
-namespace test
-{
-namespace doubles
+namespace scheduler
 {
 
-class MockTimerService : public mir::scheduler::TimerService
+class AlarmLoop : public scheduler::AlarmService
 {
 public:
-    MOCK_METHOD2(notify_in,std::unique_ptr<mir::time::Alarm>(std::chrono::milliseconds,
-                                                             std::function<void()>));
-    MOCK_METHOD2(notify_at,std::unique_ptr<mir::time::Alarm>(mir::time::Timestamp,
-                                                             std::function<void()>));
-    MOCK_METHOD1(create_alarm,std::unique_ptr<mir::time::Alarm>(std::function<void()>));
-    MOCK_METHOD0(run, void());
-    MOCK_METHOD0(stop, void());
+    virtual void run() = 0;
+    virtual void stop() = 0;
 };
 
-}
 }
 }
 
