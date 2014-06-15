@@ -21,6 +21,7 @@
 #include "mir/display_server.h"
 #include "mir/server_configuration.h"
 #include "mir/main_loop.h"
+#include "mir/loop.h"
 #include "mir/server_status_listener.h"
 #include "mir/display_changer.h"
 
@@ -30,7 +31,6 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
-#include "mir/time/timer_service.h"
 
 #include <stdexcept>
 
@@ -82,7 +82,7 @@ struct mir::DisplayServer::Private
           main_loop{config.the_main_loop()},
           server_status_listener{config.the_server_status_listener()},
           display_changer{config.the_display_changer()},
-          timer_service{config.the_timer_service()}
+          timer_loop{config.the_timer_loop()}
     {
         display->register_configuration_change_handler(
             *main_loop,
@@ -99,8 +99,8 @@ struct mir::DisplayServer::Private
         try
         {
             TryButRevertIfUnwinding timers{
-                [this] { timer_service->stop(); },
-                [this] { timer_service->run(); }};
+                [this] { timer_loop->stop(); },
+                [this] { timer_loop->run(); }};
 
             TryButRevertIfUnwinding dispatcher{
                 [this] { input_dispatcher->stop(); },
@@ -159,8 +159,8 @@ struct mir::DisplayServer::Private
                 [this] { input_dispatcher->stop(); }};
 
             TryButRevertIfUnwinding timers{
-                [this] { timer_service->run(); },
-                [this] { timer_service->stop(); }};
+                [this] { timer_loop->run(); },
+                [this] { timer_loop->stop(); }};
 
             compositor->start();
         }
@@ -194,7 +194,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mir::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
     std::shared_ptr<mir::DisplayChanger> const display_changer;
-    std::shared_ptr<mir::time::TimerService> const timer_service;
+    std::shared_ptr<mir::Loop> const timer_loop;
 };
 
 mir::DisplayServer::DisplayServer(ServerConfiguration& config) :
@@ -217,13 +217,13 @@ void mir::DisplayServer::run()
     p->compositor->start();
     p->input_manager->start();
     p->input_dispatcher->start();
-    p->timer_service->run();
+    p->timer_loop->run();
 
     p->server_status_listener->started();
 
     p->main_loop->run();
 
-    p->timer_service->stop();
+    p->timer_loop->stop();
     p->input_dispatcher->stop();
     p->input_manager->stop();
     p->compositor->stop();

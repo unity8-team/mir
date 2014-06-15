@@ -26,10 +26,6 @@ namespace compositor
 {
 class Compositor;
 }
-namespace time
-{
-class TimerService;
-}
 namespace frontend
 {
 class Connector;
@@ -54,6 +50,7 @@ class InputConfiguration;
 }
 
 class MainLoop;
+class Loop;
 class ServerStatusListener;
 class DisplayChanger;
 class EmergencyCleanup;
@@ -69,7 +66,7 @@ public:
     virtual std::shared_ptr<input::InputManager> the_input_manager() = 0;
     virtual std::shared_ptr<input::InputDispatcher> the_input_dispatcher() = 0;
     virtual std::shared_ptr<MainLoop> the_main_loop() = 0;
-    virtual std::shared_ptr<time::TimerService> the_timer_service() = 0;
+    virtual std::shared_ptr<Loop> the_timer_loop() = 0;
     virtual std::shared_ptr<ServerStatusListener> the_server_status_listener() = 0;
     virtual std::shared_ptr<DisplayChanger> the_display_changer() = 0;
     virtual std::shared_ptr<graphics::Platform>  the_graphics_platform() = 0;

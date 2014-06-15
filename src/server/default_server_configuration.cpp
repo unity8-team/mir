@@ -205,9 +205,18 @@ std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
         });
 }
 
-std::shared_ptr<mir::time::TimerService> mir::DefaultServerConfiguration::the_timer_service()
+std::shared_ptr<mir::time::Timer> mir::DefaultServerConfiguration::the_timer()
 {
-    return timer_service(
+    return timer_loop(
+        [this]()
+        {
+            return std::make_shared<AsioTimerServiceThread>(the_clock());
+        });
+}
+
+std::shared_ptr<mir::Loop> mir::DefaultServerConfiguration::the_timer_loop()
+{
+    return timer_loop(
         [this]()
         {
             return std::make_shared<AsioTimerServiceThread>(the_clock());

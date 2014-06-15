@@ -16,23 +16,28 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_TIME_TIMER_SERVICE_H_
-#define MIR_TIME_TIMER_SERVICE_H_
+#ifndef MIR_MOCK_LOOP_H_
+#define MIR_MOCK_LOOP_H_
 
-#include "mir/time/timer.h"
+#include "mir/loop.h"
+
+#include "mir_test/gmock_fixes.h"
 
 namespace mir
 {
-namespace time
+namespace test
+{
+namespace doubles
 {
 
-class TimerService : public Timer
+class MockLoop : public mir::Loop
 {
 public:
-    virtual void run() = 0;
-    virtual void stop() = 0;
+    MOCK_METHOD0(run, void());
+    MOCK_METHOD0(stop, void());
 };
 
+}
 }
 }
 

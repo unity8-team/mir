@@ -73,6 +73,8 @@ class DisplayLayout;
 namespace time
 {
 class Clock;
+class Timer;
+class TimerLoop;
 }
 namespace scene
 {
@@ -157,7 +159,7 @@ public:
     virtual std::shared_ptr<compositor::Compositor> the_compositor();
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
     virtual std::shared_ptr<MainLoop>               the_main_loop();
-    virtual std::shared_ptr<time::TimerService>     the_timer_service();
+    virtual std::shared_ptr<Loop>                   the_timer_loop();
     virtual std::shared_ptr<ServerStatusListener>   the_server_status_listener();
     virtual std::shared_ptr<DisplayChanger>         the_display_changer();
     virtual std::shared_ptr<graphics::Platform>     the_graphics_platform();
@@ -276,6 +278,7 @@ public:
 
     virtual std::shared_ptr<time::Clock> the_clock();
     virtual std::shared_ptr<ServerActionQueue> the_server_action_queue();
+    virtual std::shared_ptr<mir::time::Timer> the_timer();
 
 protected:
     std::shared_ptr<options::Option> the_options() const;
@@ -360,7 +363,7 @@ protected:
     CachedPtr<graphics::DisplayReport> display_report;
     CachedPtr<time::Clock> clock;
     CachedPtr<MainLoop> main_loop;
-    CachedPtr<time::TimerService> timer_service;
+    CachedPtr<time::TimerLoop> timer_loop;
     CachedPtr<ServerStatusListener> server_status_listener;
     CachedPtr<graphics::DisplayConfigurationPolicy> display_configuration_policy;
     CachedPtr<graphics::nested::HostConnection> host_connection;
