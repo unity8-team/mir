@@ -69,18 +69,6 @@ struct MockLogger : public ml::Logger
     ~MockLogger() noexcept(true) {}
 };
 
-class MockVirtualTerminal : public mgm::VirtualTerminal
-{
-public:
-    ~MockVirtualTerminal() noexcept(true) {}
-
-    MOCK_METHOD0(set_graphics_mode, void());
-    MOCK_METHOD3(register_switch_handlers,
-                 void(mg::EventHandlerRegister&,
-                      std::function<bool()> const&,
-                      std::function<bool()> const&));
-};
-
 class MesaDisplayTest : public ::testing::Test
 {
 public:

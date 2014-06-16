@@ -57,13 +57,15 @@ TEST(SynchronousServerActionTest, enqueues_action_if_thread_differs)
 
     class DirectlyExecutingServerActionQueue : public StrictMock<mtd::MockServerActionQueue>
     {
-        void enqueue(void const*, mir::ServerAction const& action) override
+        void enqueue(void const* ptr, mir::ServerAction const& action) override
         {
             action();
+            StrictMock<mtd::MockServerActionQueue>::enqueue(ptr, action);
         }
     };
 
     DirectlyExecutingServerActionQueue execute_it;
+    EXPECT_CALL(execute_it, enqueue(_, _));
 
     int val = 0;
     std::thread::id arbitrary_thread;
