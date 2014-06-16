@@ -24,7 +24,7 @@
 #include <time.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#include <unistd.h>
+
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 float mir_eglapp_background_opacity = 1.0f;
@@ -81,7 +81,6 @@ void mir_eglapp_swap_buffers(void)
     if (!running)
         return;
 
-    sleep(4);
     eglSwapBuffers(egldisplay, eglsurface);
 
     count++;
