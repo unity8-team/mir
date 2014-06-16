@@ -107,6 +107,14 @@ void mga::HwcDevice::post_gl(SwappingGLContext const& context)
     onscreen_overlay_buffers.clear();
 }
 
+bool mga::HwcDevice::reset_invalidate()
+{
+    std::lock_guard<decltype(procs_guard)> lk(procs_guard);
+    auto invalidate_tmp(invalidated);
+    invalidated = false;
+    return invalidate_tmp;
+}
+
 bool mga::HwcDevice::post_overlays(
     SwappingGLContext const& context,
     RenderableList const& renderables,
@@ -137,7 +145,8 @@ bool mga::HwcDevice::post_overlays(
     list_compositor.render(rejected_renderables, context);
     post(context);
     onscreen_overlay_buffers = std::move(next_onscreen_overlay_buffers);
-    return true;
+
+    return !reset_invalidate();
 }
 
 void mga::HwcDevice::post(SwappingGLContext const& context)

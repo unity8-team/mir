@@ -27,8 +27,11 @@ namespace mga=mir::graphics::android;
 
 namespace
 {
-static void invalidate_hook(const struct hwc_procs* /*procs*/)
+static void invalidate_hook(const struct hwc_procs* procs)
 {
+    auto self = reinterpret_cast<mga::HWCCallbacks const*>(procs)->self;
+    printf("INVALIDATE\n");
+    self->invalidate();
 }
 
 static void vsync_hook(const struct hwc_procs* procs, int /*disp*/, int64_t /*timestamp*/)
@@ -45,6 +48,7 @@ static void hotplug_hook(const struct hwc_procs* /*procs*/, int /*disp*/, int /*
 mga::HWCCommonDevice::HWCCommonDevice(std::shared_ptr<hwc_composer_device_1> const& hwc_device,
                                       std::shared_ptr<mga::HWCVsyncCoordinator> const& coordinator)
     : coordinator(coordinator),
+      invalidated{false},
       hwc_device(hwc_device),
       current_mode(mir_power_mode_on)
 {
@@ -68,6 +72,12 @@ mga::HWCCommonDevice::~HWCCommonDevice() noexcept
 void mga::HWCCommonDevice::notify_vsync()
 {
     coordinator->notify_vsync();
+}
+
+void mga::HWCCommonDevice::invalidate()
+{
+    std::lock_guard<decltype(procs_guard)> lk(procs_guard);
+    invalidated = true;
 }
 
 void mga::HWCCommonDevice::mode(MirPowerMode mode_request)

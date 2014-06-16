@@ -47,6 +47,7 @@ public:
     virtual ~HWCCommonDevice() noexcept;
 
     void notify_vsync();
+    void invalidate();
     void mode(MirPowerMode mode);
     bool apply_orientation(MirOrientation orientation) const;
 
@@ -56,6 +57,9 @@ protected:
 
     std::shared_ptr<HWCVsyncCoordinator> const coordinator;
     std::unique_lock<std::mutex> lock_unblanked();
+    //hwc implementations often call procs hooks on a different thread
+    std::mutex procs_guard;
+    bool invalidated;
 
 private:
     int turn_screen_on() const noexcept(true);
