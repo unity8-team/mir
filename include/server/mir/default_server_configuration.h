@@ -278,7 +278,7 @@ public:
 
     virtual std::shared_ptr<time::Clock> the_clock();
     virtual std::shared_ptr<ServerActionQueue> the_server_action_queue();
-    virtual std::shared_ptr<mir::time::Timer> the_timer();
+    virtual std::shared_ptr<time::Timer> the_timer();
 
 protected:
     std::shared_ptr<options::Option> the_options() const;
