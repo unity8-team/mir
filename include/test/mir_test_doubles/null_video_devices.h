@@ -32,7 +32,7 @@ class NullVideoDevices : public graphics::mesa::VideoDevices
 {
 public:
     void register_change_handler(
-        graphics::EventHandlerRegister&,
+        scheduler::EventHandlerRegister&,
         std::function<void()> const&)
     {
     }

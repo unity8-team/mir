@@ -13,6 +13,7 @@ set(
   test_protobuf_socket_server.cpp
   fake_alarm_service.cpp
   mock_frame_dropping_policy_factory.cpp
+  platform_factory.cpp
 )
 
 set(

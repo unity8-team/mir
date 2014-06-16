@@ -43,6 +43,7 @@ public:
         scheduler::EventHandlerRegister& handlers,
         std::function<bool()> const& switch_away,
         std::function<bool()> const& switch_back) = 0;
+    virtual void restore() = 0;
 
 protected:
     VirtualTerminal() = default;

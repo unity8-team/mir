@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,34 +16,31 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_NULL_VIRTUAL_TERMINAL_H_
-#define MIR_TEST_DOUBLES_NULL_VIRTUAL_TERMINAL_H_
+#ifndef MIR_TEST_DOUBLES_PLATFORM_FACTORY_H_
+#define MIR_TEST_DOUBLES_PLATFORM_FACTORY_H_
 
-#include "src/platform/graphics/mesa/virtual_terminal.h"
+#include <memory>
 
 namespace mir
 {
+namespace graphics
+{
+class Platform;
+namespace mesa { class Platform; }
+}
 namespace test
 {
 namespace doubles
 {
 
-class NullVirtualTerminal : public graphics::mesa::VirtualTerminal
-{
-public:
-    void set_graphics_mode() override {}
+std::shared_ptr<graphics::Platform> create_platform_with_null_dependencies();
 
-    void register_switch_handlers(scheduler::EventHandlerRegister&,
-                                  std::function<bool()> const&,
-                                  std::function<bool()> const&) override
-    {
-    }
-
-    void restore() override {}
-};
+#ifndef ANDROID
+std::shared_ptr<graphics::mesa::Platform> create_mesa_platform_with_null_dependencies();
+#endif
 
 }
 }
 }
 
-#endif /* MIR_TEST_DOUBLES_NULL_VIRTUAL_TERMINAL_H_ */
+#endif /* MIR_TEST_DOUBLES_PLATFORM_FACTORY_H_ */
