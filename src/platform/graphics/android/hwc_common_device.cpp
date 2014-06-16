@@ -30,7 +30,6 @@ namespace
 static void invalidate_hook(const struct hwc_procs* procs)
 {
     auto self = reinterpret_cast<mga::HWCCallbacks const*>(procs)->self;
-    printf("INVALIDATE\n");
     self->invalidate();
 }
 
