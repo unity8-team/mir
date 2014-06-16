@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
                pkg-config,
+               libboost-system-dev,
                libfontconfig1-dev,
                libglib2.0-dev,
                libplatform-api1-dev,
@@ -12,6 +13,7 @@ Build-Depends: debhelper (>= 9),
                libunity-api-dev (>= 7.80.6),
                libubuntu-app-launch2-dev,
                libudev-dev,
+               liburl-dispatcher1-dev,
                libxrender-dev,
                libxkbcommon-dev,
                mircommon-dev,
@@ -21,6 +23,7 @@ Build-Depends: debhelper (>= 9),
                qtdeclarative5-dev,
                qtdeclarative5-private-dev,
                qtsensors5-dev,
+               protobuf-compiler,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/qtmir
 # If you aren't a member of ~mir-team but need to upload packaging changes,

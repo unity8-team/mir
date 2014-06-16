@@ -16,6 +16,7 @@
 
 #include "mirserverconfiguration.h"
 
+#include "connectioncreator.h"
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
 #include "mirinputdispatcherconfiguration.h"
@@ -25,6 +26,7 @@
 #include "sessionauthorizer.h"
 #include "qtcompositor.h"
 #include "logging.h"
+#include "unityprotobufservice.h"
 
 #include <QDebug>
 
@@ -34,6 +36,7 @@ namespace ms = mir::scene;
 MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QObject* parent)
     : QObject(parent)
     , DefaultServerConfiguration(argc, argv)
+    , m_unityService(std::make_shared<UnityProtobufService>())
 {
     DLOG("MirServerConfiguration created");
 }
@@ -115,6 +118,19 @@ MirServerConfiguration::the_server_status_listener()
         []()
         {
             return std::make_shared<MirServerStatusListener>();
+        });
+}
+
+std::shared_ptr<mir::frontend::ConnectionCreator>
+MirServerConfiguration::the_connection_creator()
+{
+    return connection_creator([this]
+        {
+            return std::make_shared<ConnectionCreator>(
+                m_unityService,
+                the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                the_session_authorizer(),
+                the_message_processor_report());
         });
 }
 

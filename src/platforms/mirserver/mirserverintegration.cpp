@@ -52,7 +52,7 @@
 #include "miropenglcontext.h"
 #include "nativeinterface.h"
 #include "qmirserver.h"
-#include "../common/ubuntuplatformservices.h"
+#include "services.h"
 #include "../common/ubuntutheme.h"
 
 namespace mg = mir::graphics;
@@ -60,7 +60,7 @@ namespace mg = mir::graphics;
 MirServerIntegration::MirServerIntegration()
     : m_accessibility(new QPlatformAccessibility())
     , m_fontDb(new QGenericUnixFontDatabase())
-    , m_services(new UbuntuPlatformServices())
+    , m_services(new Services)
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
     , m_eventDispatcher(createUnixEventDispatcher())
 #endif

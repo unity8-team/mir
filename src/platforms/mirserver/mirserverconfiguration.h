@@ -20,6 +20,12 @@
 #include <QObject>
 #include <mir/default_server_configuration.h>
 
+namespace unity {
+    namespace protobuf {
+        class UnityService;
+    }
+}
+
 class SessionListener;
 class SessionAuthorizer;
 class SurfaceConfigurator;
@@ -45,6 +51,7 @@ public:
     std::shared_ptr<mir::input::InputDispatcherConfiguration> the_input_dispatcher_configuration() override;
     std::shared_ptr<mir::graphics::GLConfig> the_gl_config() override;
     std::shared_ptr<mir::ServerStatusListener> the_server_status_listener() override;
+    std::shared_ptr<mir::frontend::ConnectionCreator> the_connection_creator() override;
 
     /* qt specific */
     // getters
@@ -53,6 +60,7 @@ public:
     SurfaceConfigurator *surfaceConfigurator();
 
 private:
+    std::shared_ptr<unity::protobuf::UnityService> m_unityService;
 };
 
 #endif // MIRSERVERCONFIGURATION_H
