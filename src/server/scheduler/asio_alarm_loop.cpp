@@ -29,7 +29,7 @@ namespace
 struct MirClockTimerTraits
 {
     // TODO the clock used by the timer service is a global setting, this is a restriction
-    // of boost::asio only allowing static methods inside the taits type.
+    // of boost::asio only allowing static methods inside the traits type.
     struct AlarmLoopClockStorage
     {
     public:

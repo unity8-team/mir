@@ -28,7 +28,6 @@
 
 #include "mir/frontend/screencast.h"
 #include "mir/options/configuration.h"
-#include "mir/scheduler/alarm_loop.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -53,7 +52,7 @@ mir::DefaultServerConfiguration::the_frame_dropping_policy_factory()
     return frame_dropping_policy_factory(
         [this]()
         {
-            return std::make_shared<mc::TimeoutFrameDroppingPolicyFactory>(the_alarm_loop(),
+            return std::make_shared<mc::TimeoutFrameDroppingPolicyFactory>(the_alarm_service(),
                                                                            std::chrono::milliseconds{100});
         });
 }

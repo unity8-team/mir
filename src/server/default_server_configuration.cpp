@@ -205,7 +205,16 @@ std::shared_ptr<mir::scheduler::MainLoop> mir::DefaultServerConfiguration::the_m
         });
 }
 
-std::shared_ptr<mir::scheduler::AlarmLoop> mir::DefaultServerConfiguration::the_alarm_loop()
+std::shared_ptr<mir::scheduler::AlarmService> mir::DefaultServerConfiguration::the_alarm_service()
+{
+    return alarm_loop(
+        [this]()
+        {
+            return std::make_shared<AsioAlarmLoopThread>(the_clock());
+        });
+}
+
+std::shared_ptr<mir::scheduler::Loop> mir::DefaultServerConfiguration::the_alarm_loop()
 {
     return alarm_loop(
         [this]()

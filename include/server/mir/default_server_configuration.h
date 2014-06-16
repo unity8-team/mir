@@ -37,6 +37,8 @@ namespace mir
 namespace scheduler
 {
 class ServerActionQueue;
+class AlarmService;
+class AlarmLoop;
 }
 
 namespace compositor
@@ -160,7 +162,7 @@ public:
     virtual std::shared_ptr<compositor::Compositor> the_compositor();
     virtual std::shared_ptr<input::InputManager>    the_input_manager();
     virtual std::shared_ptr<scheduler::MainLoop>    the_main_loop();
-    virtual std::shared_ptr<scheduler::AlarmLoop>     the_alarm_loop();
+    virtual std::shared_ptr<scheduler::Loop>        the_alarm_loop();
     virtual std::shared_ptr<ServerStatusListener>   the_server_status_listener();
     virtual std::shared_ptr<DisplayChanger>         the_display_changer();
     virtual std::shared_ptr<graphics::Platform>     the_graphics_platform();
@@ -279,6 +281,7 @@ public:
 
     virtual std::shared_ptr<time::Clock> the_clock();
     virtual std::shared_ptr<scheduler::ServerActionQueue> the_server_action_queue();
+    virtual std::shared_ptr<scheduler::AlarmService> the_alarm_service();
 
 protected:
     std::shared_ptr<options::Option> the_options() const;

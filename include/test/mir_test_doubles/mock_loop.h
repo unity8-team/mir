@@ -16,21 +16,28 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_SCHEDULER_ALARM_LOOP_H_
-#define MIR_SCHEDULER_ALARM_LOOP_H_
+#ifndef MIR_MOCK_LOOP_H_
+#define MIR_MOCK_LOOP_H_
 
-#include "mir/scheduler/alarm_service.h"
 #include "mir/scheduler/loop.h"
+
+#include <gmock/gmock.h>
 
 namespace mir
 {
-namespace scheduler
+namespace test
+{
+namespace doubles
 {
 
-class AlarmLoop : public AlarmService, public Loop
+class MockLoop : public mir::scheduler::Loop
 {
+public:
+    MOCK_METHOD0(run, void());
+    MOCK_METHOD0(stop, void());
 };
 
+}
 }
 }
 

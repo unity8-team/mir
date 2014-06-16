@@ -30,7 +30,7 @@
 #include "mir_test_doubles/mock_input_manager.h"
 #include "mir_test_doubles/mock_input_dispatcher.h"
 #include "mir_test_doubles/mock_compositor.h"
-#include "mir_test_doubles/mock_alarm_loop.h"
+#include "mir_test_doubles/mock_loop.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/mock_server_status_listener.h"
 #include "mir/run_mir.h"
@@ -255,11 +255,10 @@ public:
         return mock_input_dispatcher;
     }
 
-    std::shared_ptr<mir::scheduler::AlarmLoop> the_alarm_loop() override
+    std::shared_ptr<mir::scheduler::Loop> the_alarm_loop() override
     {
         if (!mock_alarm_loop)
-            mock_alarm_loop = std::make_shared<mtd::MockAlarmLoop>();
-
+            mock_alarm_loop = std::make_shared<mtd::MockLoop>();
         return mock_alarm_loop;
     }
 
@@ -281,7 +280,7 @@ public:
         return mock_connector;
     }
 
-    std::shared_ptr<mtd::MockAlarmLoop> the_mock_alarm_loop()
+    std::shared_ptr<mtd::MockLoop> the_mock_alarm_loop()
     {
         the_alarm_loop();
         return mock_alarm_loop;
@@ -335,7 +334,7 @@ private:
     std::shared_ptr<MockConnector> mock_connector;
     std::shared_ptr<mtd::MockInputManager> mock_input_manager;
     std::shared_ptr<mtd::MockInputDispatcher> mock_input_dispatcher;
-    std::shared_ptr<mtd::MockAlarmLoop> mock_alarm_loop;
+    std::shared_ptr<mtd::MockLoop> mock_alarm_loop;
 
     mt::Pipe p;
     int const pause_signal;

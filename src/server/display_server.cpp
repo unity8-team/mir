@@ -21,6 +21,7 @@
 #include "mir/display_server.h"
 #include "mir/server_configuration.h"
 #include "mir/scheduler/main_loop.h"
+#include "mir/scheduler/loop.h"
 #include "mir/server_status_listener.h"
 #include "mir/display_changer.h"
 
@@ -30,7 +31,6 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
-#include "mir/scheduler/alarm_loop.h"
 
 #include <stdexcept>
 
@@ -194,7 +194,7 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mir::scheduler::MainLoop> const main_loop;
     std::shared_ptr<mir::ServerStatusListener> const server_status_listener;
     std::shared_ptr<mir::DisplayChanger> const display_changer;
-    std::shared_ptr<mir::scheduler::AlarmLoop> const alarm_loop;
+    std::shared_ptr<mir::scheduler::Loop> const alarm_loop;
 };
 
 mir::DisplayServer::DisplayServer(ServerConfiguration& config) :

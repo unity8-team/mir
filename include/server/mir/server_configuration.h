@@ -51,7 +51,7 @@ class InputConfiguration;
 namespace scheduler
 {
 class MainLoop;
-class AlarmLoop;
+class Loop;
 }
 class ServerStatusListener;
 class DisplayChanger;
@@ -68,7 +68,7 @@ public:
     virtual std::shared_ptr<input::InputManager> the_input_manager() = 0;
     virtual std::shared_ptr<input::InputDispatcher> the_input_dispatcher() = 0;
     virtual std::shared_ptr<scheduler::MainLoop> the_main_loop() = 0;
-    virtual std::shared_ptr<scheduler::AlarmLoop> the_alarm_loop() = 0;
+    virtual std::shared_ptr<scheduler::Loop> the_alarm_loop() = 0;
     virtual std::shared_ptr<ServerStatusListener> the_server_status_listener() = 0;
     virtual std::shared_ptr<DisplayChanger> the_display_changer() = 0;
     virtual std::shared_ptr<graphics::Platform>  the_graphics_platform() = 0;
