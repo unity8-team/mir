@@ -34,6 +34,8 @@
 #include "mir_test_doubles/stub_gl_config.h"
 #include "mir_test_doubles/mock_gl_config.h"
 #include "mir_test_doubles/platform_factory.h"
+#include "mir_test_doubles/mock_virtual_terminal.h"
+#include "mir_test_doubles/null_emergency_cleanup.h"
 
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
@@ -628,13 +630,16 @@ TEST_F(MesaDisplayTest, constructor_sets_vt_graphics_mode)
 {
     using namespace testing;
 
-    auto mock_vt = std::make_shared<MockVirtualTerminal>();
+    auto mock_vt = std::make_shared<mtd::MockVirtualTerminal>();
 
     EXPECT_CALL(*mock_vt, set_graphics_mode())
         .Times(1);
 
     auto platform = std::make_shared<mgm::Platform>(
-        null_report, mock_vt, mgm::BypassOption::allowed);
+        null_report,
+        mock_vt,
+        *std::make_shared<mtd::NullEmergencyCleanup>(),
+        mgm::BypassOption::allowed);
 
     auto display = create_display(platform);
 }
@@ -679,6 +684,7 @@ TEST_F(MesaDisplayTest, set_or_drop_drm_master_failure_throws_and_reports_error)
     auto platform = std::make_shared<mgm::Platform>(
         mock_report,
         std::make_shared<mtd::NullVirtualTerminal>(),
+        *std::make_shared<mtd::NullEmergencyCleanup>(),
         mgm::BypassOption::allowed);
     auto display = std::make_shared<mgm::Display>(
                         platform,
