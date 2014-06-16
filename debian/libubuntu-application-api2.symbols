@@ -3,11 +3,11 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  u_application_description_new@Base 0.18.1daily13.06.21
  u_application_description_set_application_id@Base 0.18.1daily13.06.21
  u_application_description_set_application_lifecycle_delegate@Base 0.18.1daily13.06.21
- u_application_finish@Base 0replaceme
+ u_application_finish@Base 2.0.0+14.10.20140612
  u_application_id_compare@Base 0.18.1daily13.06.21
  u_application_id_destroy@Base 0.18.1daily13.06.21
  u_application_id_new_from_stringn@Base 0.18.1daily13.06.21
- u_application_init@Base 0replaceme
+ u_application_init@Base 2.0.0+14.10.20140612
  u_application_instance_new_from_description_with_options@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_new@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_ref@Base 0.18.1daily13.06.21
@@ -15,7 +15,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  u_application_lifecycle_delegate_set_application_resumed_cb@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_set_context@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_unref@Base 0.18.1daily13.06.21
- u_application_module_version@Base 0replaceme
+ u_application_module_version@Base 2.0.0+14.10.20140612
  u_application_options_destroy@Base 0.18.1daily13.06.21
  u_application_options_get_form_factor@Base 0.18.1daily13.06.21
  u_application_options_get_stage@Base 0.18.1daily13.06.21
@@ -65,11 +65,11 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_accelerometer_get_resolution@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_new@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_set_reading_cb@Base 0.18.1daily13.06.21
- ua_sensors_haptic_disable@Base 0replaceme
- ua_sensors_haptic_enable@Base 0replaceme
- ua_sensors_haptic_new@Base 0replaceme
- ua_sensors_haptic_vibrate_once@Base 0replaceme
- ua_sensors_haptic_vibrate_with_pattern@Base 0replaceme
+ ua_sensors_haptic_disable@Base 2.0.0+14.10.20140612
+ ua_sensors_haptic_enable@Base 2.0.0+14.10.20140612
+ ua_sensors_haptic_new@Base 2.0.0+14.10.20140612
+ ua_sensors_haptic_vibrate_once@Base 2.0.0+14.10.20140612
+ ua_sensors_haptic_vibrate_with_pattern@Base 2.0.0+14.10.20140612
  ua_sensors_light_disable@Base 0.18.2+13.10.20130708
  ua_sensors_light_enable@Base 0.18.1daily13.06.21
  ua_sensors_light_get_max_value@Base 0.18.1daily13.06.21
@@ -107,14 +107,14 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_ui_set_clipboard_content@Base 0.18.1daily13.06.21
  ua_ui_window_destroy@Base 0.18.1daily13.06.21
  ua_ui_window_get_native_type@Base 0.18.1daily13.06.21
- ua_ui_window_get_size@Base 2.0.0-0ubuntu1
+ ua_ui_window_get_size@Base 2.0.0+14.10.20140612
  ua_ui_window_hide@Base 0.18.1daily13.06.21
  ua_ui_window_move@Base 0.18.1daily13.06.21
  ua_ui_window_new_for_application_with_properties@Base 0.18.1daily13.06.21
  ua_ui_window_properties_destroy@Base 0.18.1daily13.06.21
  ua_ui_window_properties_get_title@Base 0.18.1daily13.06.21
  ua_ui_window_properties_new_for_normal_window@Base 0.18.1daily13.06.21
- ua_ui_window_properties_set_dimensions@Base 2.0.0-0ubuntu1
+ ua_ui_window_properties_set_dimensions@Base 2.0.0+14.10.20140612
  ua_ui_window_properties_set_input_cb_and_ctx@Base 0.18.1daily13.06.21
  ua_ui_window_properties_set_role@Base 0.18.1daily13.06.21
  ua_ui_window_properties_set_titlen@Base 0.18.1daily13.06.21
