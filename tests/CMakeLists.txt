@@ -7,12 +7,17 @@ include_directories(${PROCESS_CPP_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 
 add_executable(
-    test_ubuntu_application_sensors
-    test_ubuntu_application_sensors.cpp
+    test_ua_sensors_real
+    test_ua_sensors_real.cpp
+)
+
+add_executable(
+    test_ua_sensors_mock
+    test_ua_sensors_mock.cpp
 )
 
 target_link_libraries(
-    test_ubuntu_application_sensors
+    test_ua_sensors_mock
 
     ubuntu_application_api
     gtest
@@ -20,11 +25,25 @@ target_link_libraries(
     ${PROCESS_CPP_LIBRARIES}
 )
 
-# we need to call the tests with pointing to the locally built test platform
-# library
-add_test(
-    test_ubuntu_application_sensors
-    
-    env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu/testbackend ${CMAKE_CURRENT_BINARY_DIR}/test_ubuntu_application_sensors
+target_link_libraries(
+    test_ua_sensors_real
+
+    ubuntu_application_api
+    gtest
+    gtest_main
+    ${PROCESS_CPP_LIBRARIES}
 )
 
+add_test(
+    test_ua_sensors_mock
+    
+    env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu:${CMAKE_BINARY_DIR}/src/ubuntu/application/testbackend ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_mock
+)
+
+if(DEFINED ENV{UBUNTU_PLATFORM_API_BACKEND})
+    add_test(
+        test_ua_sensors_real
+
+        env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/src/ubuntu:${CMAKE_BINARY_DIR}/src/ubuntu/application/touch:${CMAKE_BINARY_DIR}/src/ubuntu/desktop ${CMAKE_CURRENT_BINARY_DIR}/test_ua_sensors_real
+    )
+endif()
