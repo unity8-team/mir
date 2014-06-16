@@ -583,3 +583,28 @@ TEST_F(HwcDevice, rejects_list_containing_alpha)
     mg::RenderableList renderlist2{std::make_shared<mtd::StubShapedRenderable>()};
     EXPECT_FALSE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
+
+//Note: adreno drivers in MDP composition tend to call this hook periodically.
+TEST_F(HwcDevice, forces_gl_after_driver_calls_invalidate_hook)
+{
+    using namespace testing;
+
+    hwc_procs_t const* procs{nullptr};
+    mg::RenderableList updated_list({
+        stub_renderable1,
+        stub_renderable2
+    });
+    EXPECT_CALL(*mock_device, registerProcs_interface(this->mock_device.get(), _))
+        .Times(1)
+        .WillOnce(SaveArg<1>(&procs));
+
+    mga::HwcDevice device(mock_device, mock_hwc_device_wrapper, mock_vsync, mock_file_ops);
+    EXPECT_TRUE(device.post_overlays(stub_context, updated_list, stub_compositor));
+
+    ASSERT_THAT(procs, Ne(nullptr));
+    ASSERT_THAT(procs->invalidate, Ne(nullptr));
+    procs->invalidate(procs);
+
+    EXPECT_FALSE(device.post_overlays(stub_context, updated_list, stub_compositor));
+    EXPECT_TRUE(device.post_overlays(stub_context, updated_list, stub_compositor));
+}
