@@ -40,8 +40,8 @@ extern "C" {
     } UAUiWindowRole;
 
 
-    typedef void (*input_event_cb)(void* ctx, const Event* ev);
-    typedef input_event_cb UAUiWindowInputEventCb;
+    typedef void (*event_cb)(void* ctx, const Event* ev);
+    typedef event_cb UAUiWindowEventCb;
 
     typedef void UAUiWindowProperties;
     
@@ -72,9 +72,9 @@ extern "C" {
         UAUiWindowProperties *properties);
    
     UBUNTU_DLL_PUBLIC void
-    ua_ui_window_properties_set_input_cb_and_ctx(
+    ua_ui_window_properties_set_event_cb_and_ctx(
         UAUiWindowProperties *properties,
-        UAUiWindowInputEventCb cb,
+        UAUiWindowEventCb cb,
         void *ctx);
 
     UBUNTU_DLL_PUBLIC void

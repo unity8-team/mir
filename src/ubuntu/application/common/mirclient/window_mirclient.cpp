@@ -35,12 +35,6 @@ namespace mir
 namespace client
 {
 
-struct InputContext
-{
-    UAUiWindowInputEventCb cb;
-    void *ctx;
-};
-
 static void
 ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void* ctx)
 {
@@ -49,13 +43,15 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
 
     Event ubuntu_ev;
     auto translated_event = uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
-    
-    // Mir sends some events such as focus gained/lost which the platform API does not represent as input events.
-    if (translated_event)
-    {
-        auto mir_ctx = static_cast<uamc::InputContext*>(ctx);
-        mir_ctx->cb(mir_ctx->ctx, &ubuntu_ev);
-    }
+
+    // Mir sends some events such as focus gained/lost which the platform API does not represent
+    // as platform-api events.
+    if (!translated_event)
+        return;
+
+    auto window = static_cast<uamc::Window*>(ctx);
+    UAUiWindowEventCb user_callback = window->get_user_callback();
+    user_callback(window->get_user_callback_context(), &ubuntu_ev);
 }
 
 }
@@ -86,6 +82,9 @@ uamc::Window::Window(uamc::Instance& instance,
                      uamc::WindowProperties* properties)
     : instance(instance)
 {
+    user_event_callback = properties->event_cb();
+    user_event_callback_context = properties->event_cb_context();
+
     window_properties = WindowPropertiesPtr(properties,
         [](uamc::WindowProperties *p)
         {
@@ -98,11 +97,6 @@ uamc::Window::Window(uamc::Instance& instance,
 
     auto mir_surface = mir_connection_create_surface_sync(connection, &parameters);
     // TODO: create_surface_sync is unsafe as there is a race between setting the event handler and receiving surfaces
-    input_ctx = InputContextPtr(new uamc::InputContext{properties->input_cb(), properties->input_context()},
-        [](InputContext *c)
-        {
-            delete c;
-        });
 
     if (properties->surface_type()) {
         // TODO: Should I bother checking the result?
@@ -112,7 +106,7 @@ uamc::Window::Window(uamc::Instance& instance,
     MirEventDelegate delegate = 
         { 
             uamc::ua_ui_window_mir_handle_event,
-            input_ctx.get()
+            this
         };
     mir_surface_set_event_handler(mir_surface, &delegate);
     surface = SurfacePtr(mir_surface, 

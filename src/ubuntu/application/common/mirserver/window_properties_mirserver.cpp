@@ -45,7 +45,7 @@ void uams::WindowProperties::set_title(char const* title, size_t length)
     parameters = parameters.of_name(std::string(title, length));
 }
 
-void uams::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callback, void* ctx)
+void uams::WindowProperties::set_input_cb_and_ctx(UAUiWindowEventCb callback, void* ctx)
 {
     cb = callback;
     input_ctx = ctx;
@@ -66,7 +66,7 @@ ms::SurfaceCreationParameters const& uams::WindowProperties::surface_parameters(
     return parameters;
 }
 
-UAUiWindowInputEventCb uams::WindowProperties::input_cb() const
+UAUiWindowEventCb uams::WindowProperties::input_cb() const
 {
     return cb;
 }

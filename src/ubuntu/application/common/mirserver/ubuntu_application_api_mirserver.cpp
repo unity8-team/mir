@@ -255,7 +255,7 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties* properties, UAUiWind
     (void) role;
 }
 
-void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowInputEventCb cb, void* ctx)
+void ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowEventCb cb, void* ctx)
 {
     auto properties = uams::WindowProperties::from_u_window_properties(u_properties);
     properties->set_input_cb_and_ctx(cb, ctx);
