@@ -206,7 +206,7 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties*, UAUiWindowRole)
 {
 }
 
-void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties*, UAUiWindowInputEventCb, void*)
+void ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties*, UAUiWindowEventCb, void*)
 {
 }
 
