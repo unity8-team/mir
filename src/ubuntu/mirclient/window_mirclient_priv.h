@@ -54,7 +54,10 @@ public:
     EGLNativeWindowType get_native_type();
 
     UApplicationUiWindowState state() const;
-    void set_state(const UApplicationUiWindowState);
+
+    void hide();
+    void show();
+    void request_fullscreen();
 
     void get_size(uint32_t *width, uint32_t *height);
 
@@ -67,6 +70,8 @@ protected:
     Window& operator=(Window const&) = delete;
 
 private:
+    void set_state(const UApplicationUiWindowState);
+
     Instance& instance;
 
     typedef std::unique_ptr<WindowProperties, std::function<void(WindowProperties*)>> WindowPropertiesPtr;
@@ -77,6 +82,8 @@ private:
 
     UAUiWindowEventCb user_event_callback;
     void *user_event_callback_context;
+
+    UApplicationUiWindowState state_before_hiding;
 };
     
 }

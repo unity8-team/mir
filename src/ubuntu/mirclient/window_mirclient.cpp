@@ -114,6 +114,8 @@ uamc::Window::Window(uamc::Instance& instance,
         {
             mir_surface_release_sync(s);
         });
+
+    state_before_hiding = U_MAXIMIZED_STATE;
 }
 
 UAUiWindow* uamc::Window::as_u_window()
@@ -147,4 +149,22 @@ void uamc::Window::get_size(uint32_t *width, uint32_t *height)
     mir_surface_get_parameters(surface.get(), &parameters);
     *width = parameters.width;
     *height = parameters.height;
+}
+
+void uamc::Window::hide()
+{
+    state_before_hiding = state();
+    set_state(U_MINIMIZED_STATE);
+}
+
+void uamc::Window::show()
+{
+    if (state() == U_MINIMIZED_STATE) {
+        set_state(state_before_hiding);
+    }
+}
+
+void uamc::Window::request_fullscreen()
+{
+    set_state(U_FULLSCREEN_STATE);
 }
