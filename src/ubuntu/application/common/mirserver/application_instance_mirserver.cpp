@@ -58,8 +58,8 @@ public:
     virtual void show() override {}
     virtual void send_display_config(mir::graphics::DisplayConfiguration const&) override {}
 
-    virtual void start_prompt_session() {}
-    virtual void stop_prompt_session() {}
+    virtual void start_prompt_session() override {}
+    virtual void stop_prompt_session() override {}
 private:
     std::shared_ptr<ms::Surface> const surface;
 };
