@@ -27,7 +27,7 @@ SOURCES += \
     ubuntuinput.cpp \
     ubuntunativeinterface.cpp \
     ubuntuopenglcontext.cpp \
-    ../common/ubuntuplatformservices.cpp \
+    ubuntuplatformservices.cpp \
     ubuntuscreen.cpp \
     ../common/ubuntutheme.cpp \
     ubuntuwindow.cpp \
@@ -41,7 +41,7 @@ HEADERS += \
     ubuntuinput.h \
     ubuntunativeinterface.h \
     ubuntuopenglcontext.h \
-    ../common/ubuntuplatformservices.h \
+    ubuntuplatformservices.h \
     ubuntuscreen.h \
     ../common/ubuntutheme.h \
     ubuntuwindow.h \
