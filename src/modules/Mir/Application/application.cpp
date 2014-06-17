@@ -360,6 +360,8 @@ void Application::setSurface(MirSurfaceItem *newSurface)
     if (previousSurface != surface()) {
         emitSurfaceChanged();
     }
+
+    updateFullscreenProperty();
 }
 
 void Application::emitSurfaceChanged()
