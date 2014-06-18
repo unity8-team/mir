@@ -19,7 +19,7 @@
 
 #include <qpa/qplatformintegration.h>
 
-#include "../common/ubuntuplatformservices.h"
+#include "ubuntuplatformservices.h"
 
 // platform-api
 #include <ubuntu/application/description.h>
