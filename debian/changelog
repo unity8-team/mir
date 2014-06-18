@@ -1,3 +1,56 @@
+platform-api (2.1.0+14.10.20140612-0ubuntu2) UNRELEASED; urgency=medium
+
+  * Bump API version to 2.1
+  * Add window resize support
+
+ -- Gerry Boland <gerry.boland@canonical.com>  Tue, 17 Jun 2014 16:27:47 +0100
+
+platform-api (2.0.0+14.10.20140612-0ubuntu1) utopic; urgency=medium
+
+  [ Ricardo Mendoza ]
+  * Bump API version to 2.0
+  * Introduce support for dynamic backend loading
+  * Package naming changes
+  * Further support for test backend
+  * Unified bridge
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 12 Jun 2014 09:48:31 +0000
+
+platform-api (1.2.0+14.10.20140605-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * staging 0.2.0
+
+  [ Kevin Gunn ]
+  * staging 0.2.0
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 05 Jun 2014 14:08:48 +0000
+
+platform-api (1.2.0+14.10.20140522.1-0ubuntu1) utopic; urgency=medium
+
+  [ Manuel de la Pena ]
+  * Add agps hooks in the hardware api to allow the use of supl.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+  [ thomas-voss ]
+  * Add hw alarm api implementation for android's /dev/alarm. Add simple
+    test executable for hw alarm api implementation on android. Adjust
+    interface signatures to make sure that status of operations is
+    reported correctly. Add HW Alarms API interface definition. Add
+    Ubuntu implementation that will bridge over to the android world.
+    (LP: #1299916)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 22 May 2014 15:29:47 +0000
+
 platform-api (1.1.0+14.10.20140515.1-0ubuntu1) utopic; urgency=medium
 
   [ Gerry Boland ]
@@ -7,7 +60,7 @@ platform-api (1.1.0+14.10.20140515.1-0ubuntu1) utopic; urgency=medium
   [Gerry Boland]
   * Bump package version to match library version.
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Fri, 16 May 2014 09:50:45 +0200
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 May 2014 17:18:39 +0000
 
 platform-api (0.21+14.10.20140507-0ubuntu1) utopic; urgency=medium
 
