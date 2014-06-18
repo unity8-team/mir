@@ -23,6 +23,7 @@
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <algorithm>
+#include <cassert>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -93,7 +94,8 @@ void replace(mg::Buffer const* item, std::shared_ptr<mg::Buffer> const& new_buff
 mc::BufferQueue::BufferQueue(
     int nbuffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
-    graphics::BufferProperties const& props)
+    graphics::BufferProperties const& props,
+    mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
       excess{0},
       overlapping_compositors{false},
@@ -129,6 +131,30 @@ mc::BufferQueue::BufferQueue(
      */
     if (nbuffers == 1)
         free_buffers.push_back(current_compositor_buffer);
+
+    framedrop_policy = policy_provider.create_policy([this]
+    {
+       std::unique_lock<decltype(guard)> lock{guard};
+       assert(!pending_client_notifications.empty());
+       if (ready_to_composite_queue.empty())
+       {
+           /*
+            * NOTE: This can only happen under two circumstances:
+            * 1) Client is single buffered. Don't do that, it's a bad idea.
+            * 2) Client already has a buffer, and is asking for a new one
+            *    without submitting the old one.
+            *
+            *    This shouldn't be exposed to the client as swap_buffers
+            *    blocking, as the client already has something to render to.
+            *
+            *    Our current implementation will never hit this case. If we
+            *    later want clients to be able to own multiple buffers simultaneously
+            *    then we might want to add an entry to the CompositorReport here.
+            */
+           return;
+       }
+       drop_frame(std::move(lock));
+    });
 }
 
 void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
@@ -157,9 +183,15 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     /* Last resort, drop oldest buffer from the ready queue */
     if (frame_dropping_enabled && !ready_to_composite_queue.empty())
     {
-        auto const buffer = pop(ready_to_composite_queue);
-        give_buffer_to_client(buffer, std::move(lock));
+        drop_frame(std::move(lock));
+        return;
     }
+
+    /* Can't give the client a buffer yet; they'll just have to wait
+     * until the compositor is done with an old frame, or the policy
+     * says they've waited long enough.
+     */
+    framedrop_policy->swap_now_blocking();
 }
 
 void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
@@ -404,12 +436,12 @@ void mc::BufferQueue::release(
 
     // To avoid reallocating buffers too often (which may be slow), only drop
     // a buffer after it's continually been in excess for a long time...
-    
+
     if (used_buffers > min_buffers())
         ++excess;
     else
         excess = 0;
-    
+
     // If too many frames have had excess buffers then start dropping them now
     if (excess > 300 && buffers.back().get() == buffer && nbuffers > 1)
     {
@@ -417,9 +449,14 @@ void mc::BufferQueue::release(
         excess = 0;
     }
     else if (!pending_client_notifications.empty())
+    {
+        framedrop_policy->swap_unblocked();
         give_buffer_to_client(buffer, std::move(lock));
+    }
     else
+    {
         free_buffers.push_back(buffer);
+    }
 }
 
 /**
@@ -447,4 +484,20 @@ int mc::BufferQueue::min_buffers() const
 
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     return std::min(nbuffers, required_buffers);
+}
+
+void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
+{
+    auto buffer_to_give = pop(ready_to_composite_queue);
+    /* Advance compositor buffer so it always points to the most recent
+     * client content
+     */
+    if (!contains(current_compositor_buffer, buffers_sent_to_compositor))
+    {
+       current_buffer_users.clear();
+       void const* const impossible_user_id = this;
+       current_buffer_users.push_back(impossible_user_id);
+       std::swap(buffer_to_give, current_compositor_buffer);
+    }
+    give_buffer_to_client(buffer_to_give, std::move(lock));
 }

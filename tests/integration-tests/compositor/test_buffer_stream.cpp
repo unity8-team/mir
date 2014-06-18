@@ -18,11 +18,14 @@
 
 #include "src/server/compositor/buffer_stream_surfaces.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
+#include "mir/time/timer.h"
 #include "src/server/compositor/buffer_queue.h"
+#include "src/server/compositor/timeout_frame_dropping_policy_factory.h"
 
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
-#include "multithread_harness.h"
+#include "mir_test_doubles/mock_timer.h"
+#include "mir_test/signal.h"
 
 #include <gmock/gmock.h>
 
@@ -33,39 +36,37 @@
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
-namespace mt = mir::testing;
 namespace mtd = mir::test::doubles;
+namespace mt =mir::test;
 namespace geom = mir::geometry;
 
 using namespace ::testing;
 
 namespace
 {
+
 struct BufferStreamSurfaces : mc::BufferStreamSurfaces
 {
     using mc::BufferStreamSurfaces::BufferStreamSurfaces;
 
+    void acquire_client_buffer_async(mg::Buffer*& buffer,
+        std::shared_ptr<mt::Signal> const& signal)
+    {
+        acquire_client_buffer(
+            [signal, &buffer](mg::Buffer* new_buffer)
+            {
+               buffer = new_buffer;
+               signal->raise();
+            });
+    }
+
     // Convenient functions to allow tests to be written in linear style
     mg::Buffer* acquire_client_buffer_blocking()
     {
-        std::mutex mutex;
-        std::condition_variable cv;
-        bool done = false;
         mg::Buffer* buffer = nullptr;
-
-        acquire_client_buffer(
-            [&](mg::Buffer* new_buffer)
-             {
-                std::unique_lock<decltype(mutex)> lock(mutex);
-                buffer = new_buffer;
-                done = true;
-                cv.notify_one();
-             });
-
-        std::unique_lock<decltype(mutex)> lock(mutex);
-
-        cv.wait(lock, [&]{ return done; });
-
+        auto signal = std::make_shared<mt::Signal>();
+        acquire_client_buffer_async(buffer, signal);
+        signal->wait();
         return buffer;
     }
 
@@ -81,7 +82,10 @@ struct BufferStreamSurfaces : mc::BufferStreamSurfaces
 struct BufferStreamTest : public ::testing::Test
 {
     BufferStreamTest()
-        : nbuffers{3},
+        : clock{std::make_shared<mt::FakeClock>()},
+          timer{std::make_shared<mtd::FakeTimer>(clock)},
+          frame_drop_timeout{1000},
+          nbuffers{3},
           buffer_stream{create_bundle()}
     {
     }
@@ -97,14 +101,20 @@ struct BufferStreamTest : public ::testing::Test
         mg::BufferProperties properties{geom::Size{380, 210},
                                         mir_pixel_format_abgr_8888,
                                         mg::BufferUsage::hardware};
+        mc::TimeoutFrameDroppingPolicyFactory policy_factory{timer,
+                                                             frame_drop_timeout};
 
         buffer_queue = std::make_shared<mc::BufferQueue>(nbuffers,
                                                          allocator,
-                                                         properties);
+                                                         properties,
+                                                         policy_factory);
 
         return buffer_queue;
     }
 
+    std::shared_ptr<mt::FakeClock> clock;
+    std::shared_ptr<mtd::FakeTimer> timer;
+    std::chrono::milliseconds const frame_drop_timeout;
     const int nbuffers;
     std::shared_ptr<mc::BufferQueue> buffer_queue;
     BufferStreamSurfaces buffer_stream;
@@ -369,4 +379,22 @@ TEST_F(BufferStreamTest, stress_test_distinct_buffers)
 
     for (auto &s : snapshotters)
         s->join();
+}
+
+TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
+{
+    using namespace testing;
+
+    mg::Buffer* placeholder{nullptr};
+
+    for (int i = 0; i < nbuffers - 1; ++i)
+        buffer_stream.swap_client_buffers_blocking(placeholder);
+
+    auto swap_completed = std::make_shared<mt::Signal>();
+    buffer_stream.acquire_client_buffer([swap_completed](mg::Buffer*) {swap_completed->raise();});
+
+    EXPECT_FALSE(swap_completed->raised());
+    clock->advance_time(frame_drop_timeout + std::chrono::milliseconds{1});
+
+    EXPECT_TRUE(swap_completed->wait_for(std::chrono::milliseconds{100}));
 }
