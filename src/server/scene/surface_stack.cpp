@@ -38,14 +38,74 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
+class ms::detail::RenderingTracker
+{
+public:
+    RenderingTracker(std::weak_ptr<ms::Surface> const& weak_surface)
+        : weak_surface{weak_surface}
+    {
+    }
+
+    void rendered_in(void const* cid)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        occlusions.erase(cid);
+        if (auto const surface = weak_surface.lock())
+            surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
+    }
+
+    void occluded_in(void const* cid)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        occlusions.insert(cid);
+        if (occlusions == compositors)
+        {
+            if (auto const surface = weak_surface.lock())
+                surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+        }
+    }
+
+    void active_compositors(std::set<void const*> const& cids)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+
+        compositors = cids;
+
+        std::set<void const*> intersection;
+
+        std::set_intersection(
+            compositors.begin(), compositors.end(),
+            occlusions.begin(), occlusions.end(),
+            std::inserter(intersection, intersection.begin()));
+
+        occlusions = std::move(intersection);
+
+        if (occlusions == compositors)
+        {
+            if (auto const surface = weak_surface.lock())
+                surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+        }
+    }
+
+private:
+    std::weak_ptr<ms::Surface> const weak_surface;
+    std::set<void const*> occlusions;
+    std::set<void const*> compositors;
+    std::mutex mutex;
+};
+
+
 namespace
 {
 
 class SurfaceSceneElement : public mc::SceneElement
 {
 public:
-    SurfaceSceneElement(std::shared_ptr<ms::Surface> const& surface, mc::Scene::CompositorID cid)
-        : renderable_(surface->compositor_snapshot(cid))
+    SurfaceSceneElement(
+        std::shared_ptr<mg::Renderable> renderable,
+        std::shared_ptr<ms::detail::RenderingTracker> const& tracker)
+        : renderable_{renderable},
+          tracker{tracker}
     {
     }
 
@@ -54,8 +114,19 @@ public:
         return renderable_;
     }
 
+    void rendered_in(void const* cid) override
+    {
+        tracker->rendered_in(cid);
+    }
+
+    void occluded_in(void const* cid) override
+    {
+        tracker->occluded_in(cid);
+    }
+
 private:
     std::shared_ptr<mg::Renderable> const renderable_;
+    std::shared_ptr<ms::detail::RenderingTracker> const tracker;
 };
 
 }
@@ -72,11 +143,11 @@ mc::SceneElementList ms::SurfaceStack::scene_elements_for(CompositorID id)
     mc::SceneElementList list;
     for (auto const& layer : layers_by_depth)
     {
-        for (auto const& surface : layer.second) 
+        for (auto const& surface : layer.second)
         {
+            auto renderable = surface->compositor_snapshot(id);
             list.emplace_back(
-                std::make_shared<SurfaceSceneElement>(surface, id));
-            surface_for_renderable.emplace(list.back()->renderable().get(), surface.get());
+                std::make_shared<SurfaceSceneElement>(std::move(renderable), rendering_trackers[surface.get()]));
         }
     }
     return list;
@@ -91,37 +162,13 @@ void ms::SurfaceStack::rendering_result_for(
 
     for (auto const& element : not_rendered)
     {
-        auto const& renderable = element->renderable();
-        if (renderable->visible())
-        {
-            auto const iter = surface_for_renderable.find(renderable.get());
-            if (iter != surface_for_renderable.end())
-            {
-                auto& tracker = rendering_trackers[iter->second];
-                tracker.occluded_in(cid);
-                if (tracker.is_occluded_in_all(registered_compositors))
-                {
-                    tracker.clear();
-                    iter->second->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
-                }
-            }
-        }
-
-        surface_for_renderable.erase(renderable.get());
+        if (element->renderable()->visible())
+            element->occluded_in(cid);
     }
 
     for (auto const& element : rendered)
     {
-        auto const& renderable = element->renderable();
-        auto const iter = surface_for_renderable.find(renderable.get());
-        if (iter != surface_for_renderable.end())
-        {
-            auto& tracker = rendering_trackers[iter->second];
-            tracker.rendered_in(cid);
-            iter->second->configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
-        }
-
-        surface_for_renderable.erase(renderable.get());
+        element->rendered_in(cid);
     }
 }
 
@@ -130,6 +177,7 @@ void ms::SurfaceStack::register_compositor(CompositorID cid)
     std::lock_guard<decltype(guard)> lg(guard);
 
     registered_compositors.insert(cid);
+    update_rendering_tracker_compositors();
 }
 
 void ms::SurfaceStack::unregister_compositor(CompositorID cid)
@@ -137,6 +185,13 @@ void ms::SurfaceStack::unregister_compositor(CompositorID cid)
     std::lock_guard<decltype(guard)> lg(guard);
 
     registered_compositors.erase(cid);
+    update_rendering_tracker_compositors();
+}
+
+void ms::SurfaceStack::update_rendering_tracker_compositors()
+{
+    for (auto const& pair : rendering_trackers)
+        pair.second->active_compositors(registered_compositors);
 }
 
 void ms::SurfaceStack::add_surface(
@@ -147,6 +202,9 @@ void ms::SurfaceStack::add_surface(
     {
         std::lock_guard<decltype(guard)> lg(guard);
         layers_by_depth[depth].push_back(surface);
+        auto const tracker = std::make_shared<detail::RenderingTracker>(surface);
+        tracker->active_compositors(registered_compositors);
+        rendering_trackers[surface.get()] = tracker;
     }
     surface->set_reception_mode(input_mode);
     observers.surface_added(surface.get());
@@ -171,7 +229,6 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
             if (p != surfaces.end())
             {
                 surfaces.erase(p);
-                clear_renderables_for(keep_alive.get());
                 rendering_trackers.erase(keep_alive.get());
                 found_surface = true;
                 break;
@@ -249,19 +306,6 @@ void ms::SurfaceStack::remove_observer(std::weak_ptr<ms::Observer> const& observ
     o->end_observation();
     
     observers.remove_observer(o);
-}
-
-
-void ms::SurfaceStack::clear_renderables_for(Surface const* surface)
-{
-    for (auto iter = surface_for_renderable.begin();
-         iter != surface_for_renderable.end();)
-    {
-        if (iter->second == surface)
-            iter = surface_for_renderable.erase(iter);
-        else
-            ++iter;
-    }
 }
 
 void ms::Observers::surface_added(ms::Surface* surface) 

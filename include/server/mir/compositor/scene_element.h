@@ -34,6 +34,8 @@ public:
     virtual ~SceneElement() = default;
 
     virtual std::shared_ptr<graphics::Renderable> renderable() = 0;
+    virtual void rendered_in(void const* cid) = 0;
+    virtual void occluded_in(void const* cid) = 0;
 
 protected:
     SceneElement() = default;

@@ -45,6 +45,7 @@ namespace scene
 class InputRegistrar;
 class BasicSurface;
 class SceneReport;
+namespace detail { class RenderingTracker; }
 
 class Observers : public Observer
 {
@@ -98,33 +99,16 @@ public:
 private:
     SurfaceStack(const SurfaceStack&) = delete;
     SurfaceStack& operator=(const SurfaceStack&) = delete;
-    void clear_renderables_for(Surface const* surface);
+    void update_rendering_tracker_compositors();
 
     std::mutex mutable guard;
 
     std::shared_ptr<InputRegistrar> const input_registrar;
     std::shared_ptr<SceneReport> const report;
 
-    struct RenderingTracker
-    {
-        void clear() { occlusions.clear(); }
-        void rendered_in(CompositorID cid) { occlusions.erase(cid); }
-        void occluded_in(CompositorID cid)
-        {
-            occlusions.insert(cid);
-        }
-        bool is_occluded_in_all(std::set<CompositorID> const& cids)
-        {
-            return cids == occlusions;
-        }
-    private:
-        std::set<CompositorID> occlusions;
-    };
-
     typedef std::vector<std::shared_ptr<Surface>> Layer;
     std::map<DepthId, Layer> layers_by_depth;
-    mutable std::map<graphics::Renderable const*,Surface*> surface_for_renderable;
-    std::map<Surface*,RenderingTracker> rendering_trackers;
+    std::map<Surface*,std::shared_ptr<detail::RenderingTracker>> rendering_trackers;
     std::set<CompositorID> registered_compositors;
 
     Observers observers;

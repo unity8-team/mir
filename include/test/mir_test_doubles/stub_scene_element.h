@@ -35,9 +35,17 @@ struct StubSceneElement : public compositor::SceneElement
     {
     }
 
-    std::shared_ptr<graphics::Renderable> renderable()
+    std::shared_ptr<graphics::Renderable> renderable() override
     {
         return renderable_;
+    }
+
+    void rendered_in(void const*) override
+    {
+    }
+
+    void occluded_in(void const*) override
+    {
     }
 
     std::shared_ptr<graphics::Renderable> const renderable_;
