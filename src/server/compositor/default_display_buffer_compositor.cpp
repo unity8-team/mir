@@ -51,7 +51,8 @@ void mc::DefaultDisplayBufferCompositor::composite()
 
     auto const& view_area = display_buffer.view_area();
     auto renderable_list = scene->renderable_list_for(this);
-    mc::filter_occlusions_from(renderable_list, view_area);
+    auto occluded_list = mc::filter_occlusions_from(renderable_list, view_area);
+    scene->rendering_result_for(this, renderable_list, occluded_list);
 
     if (display_buffer.post_renderables_if_optimizable(renderable_list))
     {

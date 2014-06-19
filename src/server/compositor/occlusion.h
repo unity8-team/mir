@@ -29,7 +29,7 @@ namespace mir
 namespace compositor
 {
 
-void filter_occlusions_from(graphics::RenderableList& list, geometry::Rectangle const& area);
+graphics::RenderableList filter_occlusions_from(graphics::RenderableList& list, geometry::Rectangle const& area);
 
 } // namespace compositor
 } // namespace mir

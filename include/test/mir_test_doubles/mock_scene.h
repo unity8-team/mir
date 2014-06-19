@@ -39,6 +39,9 @@ public:
     }
 
     MOCK_CONST_METHOD1(renderable_list_for, graphics::RenderableList(void const*));
+    MOCK_METHOD3(rendering_result_for, void(CompositorID,
+                                            graphics::RenderableList const&,
+                                            graphics::RenderableList const&));
 
     MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::Observer> const&));
     MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::Observer> const&));

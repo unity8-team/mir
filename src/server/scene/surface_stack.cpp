@@ -21,6 +21,7 @@
 #include "mir/graphics/buffer_properties.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "surface_stack.h"
+#include "mir/scene/surface.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
 #include "mir/scene/scene_report.h"
@@ -57,9 +58,33 @@ mg::RenderableList ms::SurfaceStack::renderable_list_for(CompositorID id) const
     std::lock_guard<decltype(guard)> lg(guard);
     mg::RenderableList list;
     for (auto const& layer : layers_by_depth)
+    {
         for (auto const& surface : layer.second) 
+        {
             list.emplace_back(surface->compositor_snapshot(id));
+            surface_for_renderable.emplace(list.back().get(), surface.get());
+        }
+    }
     return list;
+}
+
+void ms::SurfaceStack::rendering_result_for(
+    CompositorID,
+    graphics::RenderableList const& rendered,
+    graphics::RenderableList const& not_rendered)
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+    for (auto const& renderable : not_rendered)
+    {
+        if (renderable->visible())
+            set_visibility_for_surface_of(renderable.get(), mir_surface_visibility_occluded);
+        surface_for_renderable.erase(renderable.get());
+    }
+    for (auto const& renderable : rendered)
+    {
+        set_visibility_for_surface_of(renderable.get(), mir_surface_visibility_exposed);
+        surface_for_renderable.erase(renderable.get());
+    }
 }
 
 void ms::SurfaceStack::add_surface(
@@ -94,6 +119,7 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
             if (p != surfaces.end())
             {
                 surfaces.erase(p);
+                clear_renderables_for(keep_alive.get());
                 found_surface = true;
                 break;
             }
@@ -170,6 +196,29 @@ void ms::SurfaceStack::remove_observer(std::weak_ptr<ms::Observer> const& observ
     o->end_observation();
     
     observers.remove_observer(o);
+}
+
+void ms::SurfaceStack::set_visibility_for_surface_of(
+    mg::Renderable const* renderable, MirSurfaceVisibility visibility)
+{
+    auto const iter = surface_for_renderable.find(renderable);
+    if (iter != surface_for_renderable.end())
+    {
+        auto const surface = iter->second;
+        surface->configure(mir_surface_attrib_visibility, visibility);
+    }
+}
+
+void ms::SurfaceStack::clear_renderables_for(Surface const* surface)
+{
+    for (auto iter = surface_for_renderable.begin();
+         iter != surface_for_renderable.end();)
+    {
+        if (iter->second == surface)
+            iter = surface_for_renderable.erase(iter);
+        else
+            ++iter;
+    }
 }
 
 void ms::Observers::surface_added(ms::Surface* surface) 

@@ -25,6 +25,7 @@
 #include "mir/scene/depth_id.h"
 #include "mir/scene/observer.h"
 #include "mir/input/input_targets.h"
+#include "mir_toolkit/common.h"
 
 #include <memory>
 #include <vector>
@@ -85,6 +86,10 @@ public:
 
     // From Scene
     graphics::RenderableList renderable_list_for(CompositorID id) const;
+    void rendering_result_for(
+        CompositorID id,
+        graphics::RenderableList const& rendered,
+        graphics::RenderableList const& not_rendered) override;
 
     // From InputTargets
     void for_each(std::function<void(std::shared_ptr<input::Surface> const&)> const& callback);
@@ -104,6 +109,9 @@ public:
 private:
     SurfaceStack(const SurfaceStack&) = delete;
     SurfaceStack& operator=(const SurfaceStack&) = delete;
+    void clear_renderables_for(Surface const* surface);
+    void set_visibility_for_surface_of(graphics::Renderable const* renderable,
+                                       MirSurfaceVisibility visibility);
 
     std::mutex mutable guard;
 
@@ -112,6 +120,7 @@ private:
 
     typedef std::vector<std::shared_ptr<Surface>> Layer;
     std::map<DepthId, Layer> layers_by_depth;
+    mutable std::map<graphics::Renderable const*,Surface*> surface_for_renderable;
 
     Observers observers;
 };

@@ -53,6 +53,9 @@ public:
      */
     typedef void const* CompositorID;
     virtual graphics::RenderableList renderable_list_for(CompositorID id) const = 0;
+    virtual void rendering_result_for(CompositorID id,
+                                      graphics::RenderableList const& rendered,
+                                      graphics::RenderableList const& not_rendered) = 0;
 
     virtual void add_observer(std::shared_ptr<scene::Observer> const& observer) = 0;
     virtual void remove_observer(std::weak_ptr<scene::Observer> const& observer) = 0;

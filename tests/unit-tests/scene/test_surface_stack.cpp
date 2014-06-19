@@ -28,6 +28,7 @@
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/stub_buffer_stream.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/mock_surface.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -506,4 +507,61 @@ TEST_F(SurfaceStack, generates_renderlist_that_allows_only_one_buffer_acquisitio
     list.front()->buffer();
     list.front()->buffer();
     list.front()->buffer();
+}
+
+struct MockConfigureSurface : public ms::BasicSurface
+{
+    MockConfigureSurface() :
+        ms::BasicSurface(
+            {},
+            {{},{}},
+            true,
+            std::make_shared<mtd::StubBufferStream>(),
+            {},
+            {},
+            {},
+            mir::report::null_scene_report())
+    {
+    }
+    MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));
+};
+
+TEST_F(SurfaceStack, configures_not_rendered_surface_as_occluded)
+{
+    using namespace testing;
+
+    auto old_buffer = reinterpret_cast<mg::Buffer*>(this);
+    auto const mock_surface = std::make_shared<MockConfigureSurface>();
+    mock_surface->show();
+    mock_surface->swap_buffers(old_buffer, [](mg::Buffer*){});
+
+    stack.add_surface(mock_surface, default_params.depth, default_params.input_mode);
+
+    auto list = stack.renderable_list_for(compositor_id);
+    ASSERT_THAT(list.size(), Eq(1u));
+
+    mg::RenderableList rendered;
+    mg::RenderableList not_rendered{list.back()};
+
+    EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded));
+
+    stack.rendering_result_for(compositor_id, rendered, not_rendered);
+}
+
+TEST_F(SurfaceStack, configures_rendered_surface_as_exposed)
+{
+    using namespace testing;
+
+    auto const mock_surface = std::make_shared<MockConfigureSurface>();
+    stack.add_surface(mock_surface, default_params.depth, default_params.input_mode);
+
+    auto list = stack.renderable_list_for(compositor_id);
+    ASSERT_THAT(list.size(), Eq(1u));
+
+    mg::RenderableList rendered{list.back()};
+    mg::RenderableList not_rendered;
+
+    EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed));
+
+    stack.rendering_result_for(compositor_id, rendered, not_rendered);
 }

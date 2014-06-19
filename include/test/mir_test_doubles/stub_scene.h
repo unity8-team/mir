@@ -36,6 +36,11 @@ public:
     {
           return {};
     }
+    void rendering_result_for(CompositorID,
+                              graphics::RenderableList const&,
+                              graphics::RenderableList const&) override
+    {
+    }
     void add_observer(std::shared_ptr<scene::Observer> const&) override
     {
     }

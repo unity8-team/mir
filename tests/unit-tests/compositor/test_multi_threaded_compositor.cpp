@@ -104,6 +104,12 @@ public:
         return mg::RenderableList{};
     }
 
+    void rendering_result_for(CompositorID,
+                              mg::RenderableList const&,
+                              mg::RenderableList const&) override
+    {
+    }
+
     void add_observer(std::shared_ptr<ms::Observer> const& observer_)
     {
         std::lock_guard<std::mutex> lock{observer_mutex};

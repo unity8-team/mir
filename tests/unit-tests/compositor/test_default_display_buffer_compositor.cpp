@@ -60,6 +60,12 @@ struct FakeScene : mc::Scene
         return renderlist;
     }
 
+    void rendering_result_for(CompositorID,
+                              mg::RenderableList const&,
+                              mg::RenderableList const&)
+    {
+    }
+
     void add_observer(std::shared_ptr<ms::Observer> const& /* observer */) override
     {
     }
