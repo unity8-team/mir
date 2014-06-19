@@ -151,6 +151,7 @@ ms::BasicSurface::BasicSurface(
     report(report),
     type_value(mir_surface_type_normal),
     state_value(mir_surface_state_restored),
+    visibility_value(mir_surface_visibility_exposed),
     dpi_value(0)
 {
     report->surface_created(this, surface_name);
@@ -431,6 +432,7 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
 {
     int result = 0;
     bool allow_dropping = false;
+
     /*
      * TODO: In future, query the shell implementation for the subset of
      *       attributes/types it implements.
@@ -462,6 +464,11 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
         if (value >= 0 && !set_dpi(value))  // Negative means query only
             BOOST_THROW_EXCEPTION(std::logic_error("Invalid DPI value"));
         result = dpi();
+        break;
+    case mir_surface_attrib_visibility:
+        if (!set_visibility(static_cast<MirSurfaceVisibility>(value)))
+            BOOST_THROW_EXCEPTION(std::logic_error("Invalid visibility value"));
+        result = visibility_value;
         break;
     default:
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface "
@@ -515,6 +522,24 @@ bool ms::BasicSurface::set_dpi(int new_dpi)
         observers.attrib_changed(mir_surface_attrib_dpi, dpi_value);
     }
     
+    return valid;
+}
+
+bool ms::BasicSurface::set_visibility(MirSurfaceVisibility new_visibility)
+{
+    bool valid = false;
+
+    if (new_visibility == mir_surface_visibility_occluded ||
+        new_visibility == mir_surface_visibility_exposed)
+    {
+        valid = true;
+        if (visibility_value != new_visibility)
+        {
+            visibility_value = new_visibility;
+            observers.attrib_changed(mir_surface_attrib_visibility, visibility_value);
+        }
+    }
+
     return valid;
 }
 

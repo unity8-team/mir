@@ -23,6 +23,7 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/displacement.h"
 #include "mir/scene/surface_configurator.h"
+#include "mir/scene/null_surface_observer.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/stub_buffer.h"
@@ -53,6 +54,12 @@ public:
     MOCK_METHOD0(call, void());
 };
 
+class MockSurfaceAttribObserver : public ms::NullSurfaceObserver
+{
+public:
+    MOCK_METHOD2(attrib_changed, void(MirSurfaceAttrib, int));
+};
+
 class StubEventSink : public mir::frontend::EventSink
 {
 public:
@@ -63,7 +70,7 @@ public:
 
 struct StubSurfaceConfigurator : ms::SurfaceConfigurator
 {
-    int select_attribute_value(ms::Surface const&, MirSurfaceAttrib, int) override { return 0; }
+    int select_attribute_value(ms::Surface const&, MirSurfaceAttrib, int value) override { return value; }
 
     void attribute_set(ms::Surface const&, MirSurfaceAttrib, int) override { }
 };
@@ -510,4 +517,56 @@ TEST_F(BasicSurfaceTest, reception_mode_can_be_changed)
     surface.set_reception_mode(mi::InputReceptionMode::receives_all_input);
 
     EXPECT_EQ(mi::InputReceptionMode::receives_all_input, surface.reception_mode());
+}
+
+TEST_F(BasicSurfaceTest, notifies_about_visibility_changes)
+{
+    using namespace testing;
+    MockSurfaceAttribObserver mock_surface_observer;
+
+    ms::BasicSurface surface{
+        name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report};
+
+    InSequence s;
+    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_occluded))
+        .Times(1);
+    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_exposed))
+        .Times(1);
+
+    surface.add_observer(mt::fake_shared(mock_surface_observer));
+
+    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
+}
+
+TEST_F(BasicSurfaceTest, does_not_notify_if_visibility_is_unchanged)
+{
+    using namespace testing;
+    MockSurfaceAttribObserver mock_surface_observer;
+
+    ms::BasicSurface surface{
+        name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report};
+
+    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_occluded))
+        .Times(1);
+
+    surface.add_observer(mt::fake_shared(mock_surface_observer));
+
+    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
+    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
 }
