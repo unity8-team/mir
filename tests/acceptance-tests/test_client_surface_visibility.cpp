@@ -70,14 +70,14 @@ struct CompositorTrackingScene : mc::Scene
     {
     }
 
-    mg::RenderableList renderable_list_for(CompositorID id) const override
+    mc::SceneElementList scene_elements_for(CompositorID id) override
     {
-        return wrapped_scene->renderable_list_for(id);
+        return wrapped_scene->scene_elements_for(id);
     }
 
     void rendering_result_for(CompositorID id,
-                              mg::RenderableList const& rendered,
-                              mg::RenderableList const& not_rendered) override
+                              mc::SceneElementList const& rendered,
+                              mc::SceneElementList const& not_rendered) override
     {
         wrapped_scene->rendering_result_for(id, rendered, not_rendered);
     }

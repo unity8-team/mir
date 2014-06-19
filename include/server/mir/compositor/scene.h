@@ -19,11 +19,8 @@
 #ifndef MIR_COMPOSITOR_SCENE_H_
 #define MIR_COMPOSITOR_SCENE_H_
 
-#include "mir/geometry/forward.h"
-#include "mir/graphics/renderable.h"
-
 #include <memory>
-#include <functional>
+#include <list>
 
 namespace mir
 {
@@ -34,6 +31,9 @@ class Observer;
 
 namespace compositor
 {
+
+class SceneElement;
+using SceneElementList = std::list<std::shared_ptr<SceneElement>>;
 
 class Scene
 {
@@ -52,10 +52,10 @@ public:
      *          stacking order from back to front.
      */
     typedef void const* CompositorID;
-    virtual graphics::RenderableList renderable_list_for(CompositorID id) const = 0;
+    virtual SceneElementList scene_elements_for(CompositorID id) = 0;
     virtual void rendering_result_for(CompositorID id,
-                                      graphics::RenderableList const& rendered,
-                                      graphics::RenderableList const& not_rendered) = 0;
+                                      SceneElementList const& rendered,
+                                      SceneElementList const& not_rendered) = 0;
 
     virtual void register_compositor(CompositorID id) = 0;
     virtual void unregister_compositor(CompositorID id) = 0;

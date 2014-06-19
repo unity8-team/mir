@@ -17,11 +17,15 @@
  */
 
 #include "mir/geometry/rectangle.h"
+#include "mir/compositor/scene_element.h"
 #include "mir/graphics/renderable.h"
 #include "occlusion.h"
 
+#include <vector>
+
 using namespace mir::geometry;
 using namespace mir::graphics;
+namespace mc = mir::compositor;
 
 namespace
 {
@@ -62,16 +66,17 @@ bool renderable_is_occluded(
 }
 }
 
-RenderableList mir::compositor::filter_occlusions_from(
-    RenderableList& list,
+mc::SceneElementList mir::compositor::filter_occlusions_from(
+    SceneElementList& list,
     Rectangle const& area)
 {
-    RenderableList occluded;
+    SceneElementList occluded;
     std::vector<Rectangle> coverage;
     auto it = list.rbegin();
     while (it != list.rend())
     {
-        if (renderable_is_occluded(**it, area, coverage))
+        auto const renderable = (*it)->renderable();
+        if (renderable_is_occluded(*renderable, area, coverage))
         {
             occluded.push_front(*it);
             list.erase(std::prev(it.base()));

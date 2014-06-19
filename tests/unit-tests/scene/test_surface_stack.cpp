@@ -21,6 +21,7 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/scene/observer.h"
 #include "mir/scene/surface_creation_parameters.h"
+#include "mir/compositor/scene_element.h"
 #include "src/server/report/null_report_factory.h"
 #include "src/server/scene/basic_surface.h"
 #include "mir/input/input_channel_factory.h"
@@ -174,14 +175,14 @@ TEST_F(SurfaceStack, stacking_order)
     stack.add_surface(stub_surface2, default_params.depth, default_params.input_mode);
     stack.add_surface(stub_surface3, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(3u));
     auto it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
 }
 
 TEST_F(SurfaceStack, surfaces_are_emitted_by_layer)
@@ -192,14 +193,14 @@ TEST_F(SurfaceStack, surfaces_are_emitted_by_layer)
     stack.add_surface(stub_surface2, ms::DepthId{1}, default_params.input_mode);
     stack.add_surface(stub_surface3, ms::DepthId{0}, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(3u));
     auto it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
 }
 
 
@@ -230,25 +231,25 @@ TEST_F(SurfaceStack, raise_to_top_alters_render_ordering)
     stack.add_surface(stub_surface2, default_params.depth, default_params.input_mode);
     stack.add_surface(stub_surface3, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(3u));
     auto it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
 
     stack.raise(stub_surface1);
 
-    list = stack.renderable_list_for(compositor_id);
+    list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), 3u);
     it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
 }
 
 TEST_F(SurfaceStack, depth_id_trumps_raise)
@@ -259,25 +260,25 @@ TEST_F(SurfaceStack, depth_id_trumps_raise)
     stack.add_surface(stub_surface2, ms::DepthId{0}, default_params.input_mode);
     stack.add_surface(stub_surface3, ms::DepthId{1}, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), 3u);
     auto it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
 
     stack.raise(stub_surface1);
 
-    list = stack.renderable_list_for(compositor_id);
+    list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), 3u);
     it = list.begin();
-    EXPECT_THAT((*it)->id(), Eq(stub_surface2.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface2.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface1.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface1.get()));
     std::advance(it, 1);
-    EXPECT_THAT((*it)->id(), Eq(stub_surface3.get()));
+    EXPECT_THAT((*it)->renderable()->id(), Eq(stub_surface3.get()));
 }
 
 TEST_F(SurfaceStack, raise_throw_behavior)
@@ -290,7 +291,7 @@ TEST_F(SurfaceStack, raise_throw_behavior)
     }, std::runtime_error);
 }
 
-TEST_F(SurfaceStack, generate_renderlist)
+TEST_F(SurfaceStack, generate_elementlist)
 {
     using namespace testing;
 
@@ -313,14 +314,14 @@ TEST_F(SurfaceStack, generate_renderlist)
         stack.add_surface(surface, default_params.depth, default_params.input_mode);
     }
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
 
     ASSERT_THAT(list.size(), Eq(num_surfaces));
 
     auto surface_it = surfacelist.begin();
-    for(auto& renderable : list)
+    for(auto& element : list)
     {
-        EXPECT_THAT(renderable->screen_position().top_left, Eq((*surface_it++)->top_left()));
+        EXPECT_THAT(element->renderable()->screen_position().top_left, Eq((*surface_it++)->top_left()));
     }
 
     for(auto& surface : surfacelist)
@@ -337,7 +338,7 @@ TEST_F(SurfaceStack, scene_observer_notified_of_add_and_remove)
     EXPECT_CALL(observer, surface_added(stub_surface1.get())).Times(1);
     EXPECT_CALL(observer, surface_removed(stub_surface1.get()))
         .Times(1);
-    
+
     stack.add_observer(mt::fake_shared(observer));
 
     stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
@@ -353,7 +354,7 @@ TEST_F(SurfaceStack, multiple_observers)
     InSequence seq;
     EXPECT_CALL(observer1, surface_added(stub_surface1.get())).Times(1);
     EXPECT_CALL(observer2, surface_added(stub_surface1.get())).Times(1);
-    
+
     stack.add_observer(mt::fake_shared(observer1));
     stack.add_observer(mt::fake_shared(observer2));
 
@@ -373,7 +374,7 @@ TEST_F(SurfaceStack, remove_scene_observer)
     EXPECT_CALL(observer, end_observation()).Times(1);
     EXPECT_CALL(observer, surface_removed(stub_surface1.get()))
         .Times(0);
-    
+
     stack.add_observer(mt::fake_shared(observer));
 
     stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
@@ -413,7 +414,7 @@ TEST_F(SurfaceStack, surfaces_reordered)
     EXPECT_CALL(observer, surface_removed(_)).Times(AnyNumber());
 
     EXPECT_CALL(observer, surfaces_reordered()).Times(1);
-    
+
     stack.add_observer(mt::fake_shared(observer));
 
     stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
@@ -442,15 +443,15 @@ TEST_F(SurfaceStack, renderlist_is_snapshot_of_positioning_info)
         stack.add_surface(surface, default_params.depth, default_params.input_mode);
     }
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
 
     auto const changed_position = geom::Point{43,44};
     for(auto const& surface : surfacelist)
         surface->move_to(changed_position);
 
     //check that the renderables are not at changed_pos
-    for(auto& renderable : list)
-        EXPECT_THAT(changed_position, testing::Ne(renderable->screen_position().top_left));
+    for(auto& element : list)
+        EXPECT_THAT(changed_position, testing::Ne(element->renderable()->screen_position().top_left));
 }
 
 TEST_F(SurfaceStack, generates_renderlist_that_delays_buffer_acquisition)
@@ -472,14 +473,14 @@ TEST_F(SurfaceStack, generates_renderlist_that_delays_buffer_acquisition)
         report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
-   
-    Mock::VerifyAndClearExpectations(mock_stream.get()); 
+    auto list = stack.scene_elements_for(compositor_id);
+
+    Mock::VerifyAndClearExpectations(mock_stream.get());
     EXPECT_CALL(*mock_stream, lock_compositor_buffer(compositor_id))
         .Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
     ASSERT_THAT(list.size(), Eq(1u));
-    list.front()->buffer();
+    list.front()->renderable()->buffer();
 }
 
 TEST_F(SurfaceStack, generates_renderlist_that_allows_only_one_buffer_acquisition)
@@ -502,11 +503,11 @@ TEST_F(SurfaceStack, generates_renderlist_that_allows_only_one_buffer_acquisitio
         report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id); 
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(1u));
-    list.front()->buffer();
-    list.front()->buffer();
-    list.front()->buffer();
+    list.front()->renderable()->buffer();
+    list.front()->renderable()->buffer();
+    list.front()->renderable()->buffer();
 }
 
 struct MockConfigureSurface : public ms::BasicSurface
@@ -539,11 +540,11 @@ TEST_F(SurfaceStack, configures_not_rendered_surface_as_occluded)
 
     stack.add_surface(mock_surface, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(1u));
 
-    mg::RenderableList rendered;
-    mg::RenderableList not_rendered{list.back()};
+    mc::SceneElementList rendered;
+    mc::SceneElementList not_rendered{list.back()};
 
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded));
 
@@ -559,11 +560,11 @@ TEST_F(SurfaceStack, configures_rendered_surface_as_exposed)
     auto const mock_surface = std::make_shared<MockConfigureSurface>();
     stack.add_surface(mock_surface, default_params.depth, default_params.input_mode);
 
-    auto list = stack.renderable_list_for(compositor_id);
+    auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(1u));
 
-    mg::RenderableList rendered{list.back()};
-    mg::RenderableList not_rendered;
+    mc::SceneElementList rendered{list.back()};
+    mc::SceneElementList not_rendered;
 
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed));
 

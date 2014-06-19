@@ -18,20 +18,11 @@
  *   Thomas Voss <thomas.voss@canonical.com>
  */
 
-#include "mir/graphics/buffer_properties.h"
-#include "mir/scene/surface_creation_parameters.h"
 #include "surface_stack.h"
 #include "mir/scene/surface.h"
-#include "mir/compositor/buffer_stream.h"
-#include "mir/input/input_channel_factory.h"
 #include "mir/scene/scene_report.h"
-
-// TODO Including this doesn't seem right - why would SurfaceStack "know" about BasicSurface
-// It is needed by the following member function:
-//  for_each()
-// to access:
-//  buffer_stream() and input_channel()
-#include "basic_surface.h"
+#include "mir/compositor/scene_element.h"
+#include "mir/graphics/renderable.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -47,22 +38,45 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
+namespace
+{
+
+class SurfaceSceneElement : public mc::SceneElement
+{
+public:
+    SurfaceSceneElement(std::shared_ptr<ms::Surface> const& surface, mc::Scene::CompositorID cid)
+        : renderable_(surface->compositor_snapshot(cid))
+    {
+    }
+
+    std::shared_ptr<mg::Renderable> renderable() override
+    {
+        return renderable_;
+    }
+
+private:
+    std::shared_ptr<mg::Renderable> const renderable_;
+};
+
+}
+
 ms::SurfaceStack::SurfaceStack(
     std::shared_ptr<SceneReport> const& report) :
     report{report}
 {
 }
 
-mg::RenderableList ms::SurfaceStack::renderable_list_for(CompositorID id) const
+mc::SceneElementList ms::SurfaceStack::scene_elements_for(CompositorID id)
 {
     std::lock_guard<decltype(guard)> lg(guard);
-    mg::RenderableList list;
+    mc::SceneElementList list;
     for (auto const& layer : layers_by_depth)
     {
         for (auto const& surface : layer.second) 
         {
-            list.emplace_back(surface->compositor_snapshot(id));
-            surface_for_renderable.emplace(list.back().get(), surface.get());
+            list.emplace_back(
+                std::make_shared<SurfaceSceneElement>(surface, id));
+            surface_for_renderable.emplace(list.back()->renderable().get(), surface.get());
         }
     }
     return list;
@@ -70,13 +84,14 @@ mg::RenderableList ms::SurfaceStack::renderable_list_for(CompositorID id) const
 
 void ms::SurfaceStack::rendering_result_for(
     CompositorID cid,
-    graphics::RenderableList const& rendered,
-    graphics::RenderableList const& not_rendered)
+    mc::SceneElementList const& rendered,
+    mc::SceneElementList const& not_rendered)
 {
     std::lock_guard<decltype(guard)> lg(guard);
 
-    for (auto const& renderable : not_rendered)
+    for (auto const& element : not_rendered)
     {
+        auto const& renderable = element->renderable();
         if (renderable->visible())
         {
             auto const iter = surface_for_renderable.find(renderable.get());
@@ -95,8 +110,9 @@ void ms::SurfaceStack::rendering_result_for(
         surface_for_renderable.erase(renderable.get());
     }
 
-    for (auto const& renderable : rendered)
+    for (auto const& element : rendered)
     {
+        auto const& renderable = element->renderable();
         auto const iter = surface_for_renderable.find(renderable.get());
         if (iter != surface_for_renderable.end())
         {

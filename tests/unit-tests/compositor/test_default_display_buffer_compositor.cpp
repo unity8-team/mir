@@ -33,6 +33,7 @@
 #include "mir_test_doubles/mock_compositor_report.h"
 #include "mir_test_doubles/mock_scene.h"
 #include "mir_test_doubles/stub_scene.h"
+#include "mir_test_doubles/stub_scene_element.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -52,21 +53,28 @@ namespace
 struct FakeScene : mtd::StubScene
 {
     FakeScene(mg::RenderableList const& renderlist)
-        : renderlist{renderlist}
     {
+        create_element_list_from(renderlist);
     }
 
-    mg::RenderableList renderable_list_for(void const*) const override
+    mc::SceneElementList scene_elements_for(void const*) override
     {
-        return renderlist;
+        return element_list;
     }
 
     void change(mg::RenderableList const& new_renderlist)
     {
-        renderlist = new_renderlist;
+        create_element_list_from(new_renderlist);
     }
 
-    mg::RenderableList renderlist;
+    void create_element_list_from(mg::RenderableList const& renderlist)
+    {
+        element_list.clear();
+        for (auto const& renderable : renderlist)
+            element_list.push_back(std::make_shared<mtd::StubSceneElement>(renderable));
+    }
+
+    mc::SceneElementList element_list;
 };
 
 struct DefaultDisplayBufferCompositor : public testing::Test
@@ -106,7 +114,7 @@ TEST_F(DefaultDisplayBufferCompositor, render)
         .Times(AtLeast(1));
     EXPECT_CALL(display_buffer, make_current())
         .Times(1);
-    EXPECT_CALL(scene, renderable_list_for(_))
+    EXPECT_CALL(scene, scene_elements_for(_))
         .Times(1);
     EXPECT_CALL(display_buffer, post_update())
         .Times(1);

@@ -20,6 +20,8 @@
 #include "default_display_buffer_compositor.h"
 
 #include "mir/compositor/scene.h"
+#include "mir/compositor/scene_element.h"
+#include "mir/compositor/renderer.h"
 #include "mir/compositor/renderer.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/display_buffer.h"
@@ -56,9 +58,14 @@ void mc::DefaultDisplayBufferCompositor::composite()
     report->began_frame(this);
 
     auto const& view_area = display_buffer.view_area();
-    auto renderable_list = scene->renderable_list_for(this);
-    auto occluded_list = mc::filter_occlusions_from(renderable_list, view_area);
-    scene->rendering_result_for(this, renderable_list, occluded_list);
+    auto scene_elements_list = scene->scene_elements_for(this);
+    auto occluded_list = mc::filter_occlusions_from(scene_elements_list, view_area);
+    scene->rendering_result_for(this, scene_elements_list, occluded_list);
+
+    mg::RenderableList renderable_list;
+    for (auto const& se : scene_elements_list)
+        renderable_list.push_back(se->renderable());
+
 
     if (display_buffer.post_renderables_if_optimizable(renderable_list))
     {

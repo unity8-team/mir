@@ -16,8 +16,8 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_SCENE_SCENETACK_H_
-#define MIR_SCENE_SCENETACK_H_
+#ifndef MIR_SCENE_SURFACE_STACK_H_
+#define MIR_SCENE_SURFACE_STACK_H_
 
 #include "surface_stack_model.h"
 
@@ -25,7 +25,6 @@
 #include "mir/scene/depth_id.h"
 #include "mir/scene/observer.h"
 #include "mir/input/input_targets.h"
-#include "mir_toolkit/common.h"
 
 #include <memory>
 #include <vector>
@@ -35,23 +34,10 @@
 
 namespace mir
 {
-namespace compositor
+namespace graphics
 {
-class FilterForScene;
-class OperatorForScene;
+class Renderable;
 }
-
-namespace frontend
-{
-struct SurfaceCreationParameters;
-}
-
-namespace input
-{
-class InputChannelFactory;
-class Surface;
-}
-
 /// Management of Surface objects. Includes the model (SurfaceStack and Surface
 /// classes) and controller (SurfaceController) elements of an MVC design.
 namespace scene
@@ -86,11 +72,11 @@ public:
     virtual ~SurfaceStack() noexcept(true) {}
 
     // From Scene
-    graphics::RenderableList renderable_list_for(CompositorID id) const;
+    compositor::SceneElementList scene_elements_for(CompositorID id) override;
     void rendering_result_for(
         CompositorID id,
-        graphics::RenderableList const& rendered,
-        graphics::RenderableList const& not_rendered) override;
+        compositor::SceneElementList const& rendered,
+        compositor::SceneElementList const& not_rendered) override;
     void register_compositor(CompositorID cid) override;
     void unregister_compositor(CompositorID cid) override;
 
@@ -147,4 +133,4 @@ private:
 }
 }
 
-#endif /* MIR_SCENE_SCENETACK_H_ */
+#endif /* MIR_SCENE_SURFACE_STACK_H_ */
