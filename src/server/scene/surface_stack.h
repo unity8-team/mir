@@ -45,7 +45,7 @@ namespace scene
 class InputRegistrar;
 class BasicSurface;
 class SceneReport;
-namespace detail { class RenderingTracker; }
+class RenderingTracker;
 
 class Observers : public Observer
 {
@@ -95,6 +95,7 @@ public:
 private:
     SurfaceStack(const SurfaceStack&) = delete;
     SurfaceStack& operator=(const SurfaceStack&) = delete;
+    void create_rendering_tracker_for(std::shared_ptr<Surface> const&);
     void update_rendering_tracker_compositors();
 
     std::mutex mutable guard;
@@ -104,7 +105,7 @@ private:
 
     typedef std::vector<std::shared_ptr<Surface>> Layer;
     std::map<DepthId, Layer> layers_by_depth;
-    std::map<Surface*,std::shared_ptr<detail::RenderingTracker>> rendering_trackers;
+    std::map<Surface*,std::shared_ptr<RenderingTracker>> rendering_trackers;
     std::set<CompositorID> registered_compositors;
 
     Observers observers;

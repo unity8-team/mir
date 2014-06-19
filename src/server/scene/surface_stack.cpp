@@ -19,6 +19,7 @@
  */
 
 #include "surface_stack.h"
+#include "rendering_tracker.h"
 #include "mir/scene/surface.h"
 #include "mir/scene/scene_report.h"
 #include "mir/compositor/scene_element.h"
@@ -38,63 +39,6 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
-class ms::detail::RenderingTracker
-{
-public:
-    RenderingTracker(std::weak_ptr<ms::Surface> const& weak_surface)
-        : weak_surface{weak_surface}
-    {
-    }
-
-    void rendered_in(void const* cid)
-    {
-        std::lock_guard<std::mutex> lock{mutex};
-        occlusions.erase(cid);
-        if (auto const surface = weak_surface.lock())
-            surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
-    }
-
-    void occluded_in(void const* cid)
-    {
-        std::lock_guard<std::mutex> lock{mutex};
-        occlusions.insert(cid);
-        if (occlusions == compositors)
-        {
-            if (auto const surface = weak_surface.lock())
-                surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
-        }
-    }
-
-    void active_compositors(std::set<void const*> const& cids)
-    {
-        std::lock_guard<std::mutex> lock{mutex};
-
-        compositors = cids;
-
-        std::set<void const*> intersection;
-
-        std::set_intersection(
-            compositors.begin(), compositors.end(),
-            occlusions.begin(), occlusions.end(),
-            std::inserter(intersection, intersection.begin()));
-
-        occlusions = std::move(intersection);
-
-        if (occlusions == compositors)
-        {
-            if (auto const surface = weak_surface.lock())
-                surface->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
-        }
-    }
-
-private:
-    std::weak_ptr<ms::Surface> const weak_surface;
-    std::set<void const*> occlusions;
-    std::set<void const*> compositors;
-    std::mutex mutex;
-};
-
-
 namespace
 {
 
@@ -103,7 +47,7 @@ class SurfaceSceneElement : public mc::SceneElement
 public:
     SurfaceSceneElement(
         std::shared_ptr<mg::Renderable> renderable,
-        std::shared_ptr<ms::detail::RenderingTracker> const& tracker)
+        std::shared_ptr<ms::RenderingTracker> const& tracker)
         : renderable_{renderable},
           tracker{tracker}
     {
@@ -126,7 +70,7 @@ public:
 
 private:
     std::shared_ptr<mg::Renderable> const renderable_;
-    std::shared_ptr<ms::detail::RenderingTracker> const tracker;
+    std::shared_ptr<ms::RenderingTracker> const tracker;
 };
 
 }
@@ -166,13 +110,8 @@ void ms::SurfaceStack::unregister_compositor(CompositorID cid)
     std::lock_guard<decltype(guard)> lg(guard);
 
     registered_compositors.erase(cid);
-    update_rendering_tracker_compositors();
-}
 
-void ms::SurfaceStack::update_rendering_tracker_compositors()
-{
-    for (auto const& pair : rendering_trackers)
-        pair.second->active_compositors(registered_compositors);
+    update_rendering_tracker_compositors();
 }
 
 void ms::SurfaceStack::add_surface(
@@ -183,10 +122,9 @@ void ms::SurfaceStack::add_surface(
     {
         std::lock_guard<decltype(guard)> lg(guard);
         layers_by_depth[depth].push_back(surface);
-        auto const tracker = std::make_shared<detail::RenderingTracker>(surface);
-        tracker->active_compositors(registered_compositors);
-        rendering_trackers[surface.get()] = tracker;
+        create_rendering_tracker_for(surface);
     }
+
     surface->set_reception_mode(input_mode);
     observers.surface_added(surface.get());
 
@@ -287,6 +225,19 @@ void ms::SurfaceStack::remove_observer(std::weak_ptr<ms::Observer> const& observ
     o->end_observation();
     
     observers.remove_observer(o);
+}
+
+void ms::SurfaceStack::create_rendering_tracker_for(std::shared_ptr<Surface> const& surface)
+{
+    auto const tracker = std::make_shared<RenderingTracker>(surface);
+    tracker->active_compositors(registered_compositors);
+    rendering_trackers[surface.get()] = tracker;
+}
+
+void ms::SurfaceStack::update_rendering_tracker_compositors()
+{
+    for (auto const& pair : rendering_trackers)
+        pair.second->active_compositors(registered_compositors);
 }
 
 void ms::Observers::surface_added(ms::Surface* surface) 
