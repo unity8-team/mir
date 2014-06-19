@@ -32,6 +32,7 @@
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/mock_compositor_report.h"
 #include "mir_test_doubles/mock_scene.h"
+#include "mir_test_doubles/stub_scene.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -48,38 +49,22 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct FakeScene : mc::Scene
+struct FakeScene : mtd::StubScene
 {
     FakeScene(mg::RenderableList const& renderlist)
-     : renderlist{renderlist}
+        : renderlist{renderlist}
     {
     }
 
-    mg::RenderableList renderable_list_for(void const*) const
+    mg::RenderableList renderable_list_for(void const*) const override
     {
         return renderlist;
-    }
-
-    void rendering_result_for(CompositorID,
-                              mg::RenderableList const&,
-                              mg::RenderableList const&)
-    {
-    }
-
-    void add_observer(std::shared_ptr<ms::Observer> const& /* observer */) override
-    {
-    }
-    void remove_observer(std::weak_ptr<ms::Observer> const& /* observer */) override
-    {
     }
 
     void change(mg::RenderableList const& new_renderlist)
     {
         renderlist = new_renderlist;
     }
-
-    void lock() {}
-    void unlock() {}
 
     mg::RenderableList renderlist;
 };

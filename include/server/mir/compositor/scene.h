@@ -38,7 +38,7 @@ namespace compositor
 class Scene
 {
 public:
-    virtual ~Scene() {}
+    virtual ~Scene() = default;
 
     /**
      * Generate a valid list of renderables based on the current state of the Scene.
@@ -56,6 +56,9 @@ public:
     virtual void rendering_result_for(CompositorID id,
                                       graphics::RenderableList const& rendered,
                                       graphics::RenderableList const& not_rendered) = 0;
+
+    virtual void register_compositor(CompositorID id) = 0;
+    virtual void unregister_compositor(CompositorID id) = 0;
 
     virtual void add_observer(std::shared_ptr<scene::Observer> const& observer) = 0;
     virtual void remove_observer(std::weak_ptr<scene::Observer> const& observer) = 0;

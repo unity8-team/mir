@@ -530,6 +530,8 @@ TEST_F(SurfaceStack, configures_not_rendered_surface_as_occluded)
 {
     using namespace testing;
 
+    stack.register_compositor(compositor_id);
+
     auto old_buffer = reinterpret_cast<mg::Buffer*>(this);
     auto const mock_surface = std::make_shared<MockConfigureSurface>();
     mock_surface->show();
@@ -551,6 +553,8 @@ TEST_F(SurfaceStack, configures_not_rendered_surface_as_occluded)
 TEST_F(SurfaceStack, configures_rendered_surface_as_exposed)
 {
     using namespace testing;
+
+    stack.register_compositor(compositor_id);
 
     auto const mock_surface = std::make_shared<MockConfigureSurface>();
     stack.add_surface(mock_surface, default_params.depth, default_params.input_mode);

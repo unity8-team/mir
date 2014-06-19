@@ -29,13 +29,19 @@
 #include "mir_test/event_matchers.h"
 #include "mir_test/wait_condition.h"
 
+#include <mutex>
+#include <condition_variable>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace mtf = mir_test_framework;
 namespace mt = mir::test;
 namespace ms = mir::scene;
+namespace mc = mir::compositor;
 namespace msh = mir::shell;
+namespace mg = mir::graphics;
+namespace geom = mir::geometry;
 
 namespace
 {
@@ -57,8 +63,75 @@ struct StoringSurfaceCoordinator : msh::SurfaceCoordinatorWrapper
 
 };
 
+struct CompositorTrackingScene : mc::Scene
+{
+    CompositorTrackingScene(std::shared_ptr<mc::Scene> const& wrapped_scene)
+        : wrapped_scene{wrapped_scene}
+    {
+    }
+
+    mg::RenderableList renderable_list_for(CompositorID id) const override
+    {
+        return wrapped_scene->renderable_list_for(id);
+    }
+
+    void rendering_result_for(CompositorID id,
+                              mg::RenderableList const& rendered,
+                              mg::RenderableList const& not_rendered) override
+    {
+        wrapped_scene->rendering_result_for(id, rendered, not_rendered);
+    }
+
+    void register_compositor(CompositorID id) override
+    {
+        wrapped_scene->register_compositor(id);
+
+        std::lock_guard<std::mutex> lock{mutex};
+        ++registered_compositors;
+        compositor_registered.notify_one();
+    }
+
+    void unregister_compositor(CompositorID id) override
+    {
+        wrapped_scene->unregister_compositor(id);
+    }
+
+    void add_observer(std::shared_ptr<ms::Observer> const& observer) override
+    {
+        wrapped_scene->add_observer(observer);
+    }
+
+    void remove_observer(std::weak_ptr<ms::Observer> const& observer) override
+    {
+        wrapped_scene->remove_observer(observer);
+    }
+
+    void wait_for_compositor_registration(int ncompositors)
+    {
+        std::unique_lock<std::mutex> lock{mutex};
+        compositor_registered.wait_for(
+            lock,
+            std::chrono::seconds{1},
+            [&] { return ncompositors == registered_compositors;});
+    }
+
+    std::mutex mutex;
+    std::condition_variable compositor_registered;
+    std::shared_ptr<mc::Scene> const wrapped_scene;
+    int registered_compositors = 0;
+};
+
 struct StubServerConfig : mtf::StubbedServerConfiguration
 {
+    StubServerConfig()
+        : mtf::StubbedServerConfiguration(
+              std::vector<geom::Rectangle>{
+                  {{0,0},{800,600}},
+                  {{800,0},{640,480}}}),
+          ncompositors{2}
+    {
+    }
+
     std::shared_ptr<ms::SurfaceCoordinator> wrap_surface_coordinator(
         std::shared_ptr<ms::SurfaceCoordinator> const& wrapped) override
     {
@@ -73,6 +146,29 @@ struct StubServerConfig : mtf::StubbedServerConfiguration
         };
         return std::make_shared<NullFocusSetter>();
     }
+
+    std::shared_ptr<mc::Scene> the_scene() override
+    {
+        return the_compositor_tracking_scene();
+    }
+
+    std::shared_ptr<CompositorTrackingScene> the_compositor_tracking_scene()
+    {
+        return scene(
+            [this]
+            {
+                return std::make_shared<CompositorTrackingScene>(
+                    mtf::StubbedServerConfiguration::the_scene());
+            });
+    }
+
+    void wait_for_compositors_to_start()
+    {
+        the_compositor_tracking_scene()->wait_for_compositor_registration(ncompositors);
+    }
+
+    mir::CachedPtr<CompositorTrackingScene> scene;
+    int const ncompositors;
 };
 
 using BasicFixture = mtf::BasicClientServerFixture<StubServerConfig>;
@@ -101,6 +197,16 @@ struct MirSurfaceVisibilityEvent : BasicFixture
     {
         BasicFixture::SetUp();
 
+        /*
+         * Bring system to a stable state to avoid test race conditions.
+         * For example, if compositor for pseudo-display A starts up
+         * first and we create the surface on pseudo-display B before
+         * B starts compositing, there is a chance that the surface will
+         * receive an occlusion event. This is fine in a production system
+         * but it messes up our testing expectations, so we want to ensure
+         * that all compositors are running when we create the surface.
+         */
+        server_configuration.wait_for_compositors_to_start();
         client_create_surface();
     }
 
@@ -162,12 +268,12 @@ struct MirSurfaceVisibilityEvent : BasicFixture
 
     void move_surface_off_screen()
     {
-        server_surface(0)->move_to(mir::geometry::Point{10000, 10000});
+        server_surface(0)->move_to(geom::Point{10000, 10000});
     }
 
     void move_surface_into_screen()
     {
-        server_surface(0)->move_to(mir::geometry::Point{0, 0});
+        server_surface(0)->move_to(geom::Point{0, 0});
     }
 
     void raise_surface_on_top()
@@ -200,14 +306,14 @@ struct MirSurfaceVisibilityEvent : BasicFixture
 
 }
 
-TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_goes_off_screen)
+TEST_F(MirSurfaceVisibilityEvent, occlusion_received_when_surface_goes_off_screen)
 {
     expect_surface_visibility_event_after(
         [this] { move_surface_off_screen(); },
         mir_surface_visibility_occluded);
 }
 
-TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_reenters_screen)
+TEST_F(MirSurfaceVisibilityEvent, exposure_received_when_surface_reenters_screen)
 {
     expect_surface_visibility_event_after(
         [this] { move_surface_off_screen(); },
@@ -218,14 +324,14 @@ TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_reenters_screen)
         mir_surface_visibility_exposed);
 }
 
-TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_occluded_by_other_surface)
+TEST_F(MirSurfaceVisibilityEvent, occlusion_received_when_surface_occluded_by_other_surface)
 {
     expect_surface_visibility_event_after(
         [this] { create_larger_surface_on_top(); },
         mir_surface_visibility_occluded);
 }
 
-TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_raised_over_occluding_surface)
+TEST_F(MirSurfaceVisibilityEvent, exposure_received_when_surface_raised_over_occluding_surface)
 {
     expect_surface_visibility_event_after(
         [this] { create_larger_surface_on_top(); },

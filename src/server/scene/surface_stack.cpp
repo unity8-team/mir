@@ -69,22 +69,58 @@ mg::RenderableList ms::SurfaceStack::renderable_list_for(CompositorID id) const
 }
 
 void ms::SurfaceStack::rendering_result_for(
-    CompositorID,
+    CompositorID cid,
     graphics::RenderableList const& rendered,
     graphics::RenderableList const& not_rendered)
 {
     std::lock_guard<decltype(guard)> lg(guard);
+
     for (auto const& renderable : not_rendered)
     {
         if (renderable->visible())
-            set_visibility_for_surface_of(renderable.get(), mir_surface_visibility_occluded);
+        {
+            auto const iter = surface_for_renderable.find(renderable.get());
+            if (iter != surface_for_renderable.end())
+            {
+                auto& tracker = rendering_trackers[iter->second];
+                tracker.occluded_in(cid);
+                if (tracker.is_occluded_in_all(registered_compositors))
+                {
+                    tracker.clear();
+                    iter->second->configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+                }
+            }
+        }
+
         surface_for_renderable.erase(renderable.get());
     }
+
     for (auto const& renderable : rendered)
     {
-        set_visibility_for_surface_of(renderable.get(), mir_surface_visibility_exposed);
+        auto const iter = surface_for_renderable.find(renderable.get());
+        if (iter != surface_for_renderable.end())
+        {
+            auto& tracker = rendering_trackers[iter->second];
+            tracker.rendered_in(cid);
+            iter->second->configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
+        }
+
         surface_for_renderable.erase(renderable.get());
     }
+}
+
+void ms::SurfaceStack::register_compositor(CompositorID cid)
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+
+    registered_compositors.insert(cid);
+}
+
+void ms::SurfaceStack::unregister_compositor(CompositorID cid)
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+
+    registered_compositors.erase(cid);
 }
 
 void ms::SurfaceStack::add_surface(
@@ -120,6 +156,7 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
             {
                 surfaces.erase(p);
                 clear_renderables_for(keep_alive.get());
+                rendering_trackers.erase(keep_alive.get());
                 found_surface = true;
                 break;
             }
@@ -198,16 +235,6 @@ void ms::SurfaceStack::remove_observer(std::weak_ptr<ms::Observer> const& observ
     observers.remove_observer(o);
 }
 
-void ms::SurfaceStack::set_visibility_for_surface_of(
-    mg::Renderable const* renderable, MirSurfaceVisibility visibility)
-{
-    auto const iter = surface_for_renderable.find(renderable);
-    if (iter != surface_for_renderable.end())
-    {
-        auto const surface = iter->second;
-        surface->configure(mir_surface_attrib_visibility, visibility);
-    }
-}
 
 void ms::SurfaceStack::clear_renderables_for(Surface const* surface)
 {

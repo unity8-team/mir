@@ -43,6 +43,12 @@ mc::DefaultDisplayBufferCompositor::DefaultDisplayBufferCompositor(
       renderer{renderer},
       report{report}
 {
+    scene->register_compositor(this);
+}
+
+mc::DefaultDisplayBufferCompositor::~DefaultDisplayBufferCompositor() noexcept
+{
+    scene->unregister_compositor(this);
 }
 
 void mc::DefaultDisplayBufferCompositor::composite()

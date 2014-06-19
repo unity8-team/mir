@@ -43,6 +43,7 @@ public:
         std::shared_ptr<Scene> const& scene,
         std::shared_ptr<Renderer> const& renderer,
         std::shared_ptr<CompositorReport> const& report);
+    ~DefaultDisplayBufferCompositor() noexcept;
 
     void composite() override;
 

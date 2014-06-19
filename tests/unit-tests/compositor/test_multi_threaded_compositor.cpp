@@ -29,6 +29,7 @@
 #include "mir_test_doubles/null_display_buffer.h"
 #include "mir_test_doubles/mock_display_buffer.h"
 #include "mir_test_doubles/mock_compositor_report.h"
+#include "mir_test_doubles/stub_scene.h"
 #include "mir_test_doubles/mock_scene.h"
 
 #include <boost/throw_exception.hpp>
@@ -89,7 +90,7 @@ private:
     std::vector<testing::NiceMock<mtd::MockDisplayBuffer>> buffers;
 };
 
-class StubScene : public mc::Scene
+class StubScene : public mtd::StubScene
 {
 public:
     StubScene(mg::RenderableList const& list)
@@ -99,18 +100,7 @@ public:
     }
     StubScene() : StubScene(mg::RenderableList{}) {}
 
-    mg::RenderableList renderable_list_for(void const*) const
-    {
-        return mg::RenderableList{};
-    }
-
-    void rendering_result_for(CompositorID,
-                              mg::RenderableList const&,
-                              mg::RenderableList const&) override
-    {
-    }
-
-    void add_observer(std::shared_ptr<ms::Observer> const& observer_)
+    void add_observer(std::shared_ptr<ms::Observer> const& observer_) override
     {
         std::lock_guard<std::mutex> lock{observer_mutex};
 
@@ -121,7 +111,7 @@ public:
         observer = observer_;
     }
 
-    void remove_observer(std::weak_ptr<ms::Observer> const& /* observer */)
+    void remove_observer(std::weak_ptr<ms::Observer> const& /* observer */) override
     {
         std::lock_guard<std::mutex> lock{observer_mutex};
         observer.reset();

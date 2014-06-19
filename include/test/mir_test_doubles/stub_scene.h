@@ -41,6 +41,8 @@ public:
                               graphics::RenderableList const&) override
     {
     }
+    void register_compositor(CompositorID) override {}
+    void unregister_compositor(CompositorID) override {}
     void add_observer(std::shared_ptr<scene::Observer> const&) override
     {
     }

@@ -31,6 +31,7 @@
 #include <vector>
 #include <mutex>
 #include <map>
+#include <set>
 
 namespace mir
 {
@@ -90,6 +91,8 @@ public:
         CompositorID id,
         graphics::RenderableList const& rendered,
         graphics::RenderableList const& not_rendered) override;
+    void register_compositor(CompositorID cid) override;
+    void unregister_compositor(CompositorID cid) override;
 
     // From InputTargets
     void for_each(std::function<void(std::shared_ptr<input::Surface> const&)> const& callback);
@@ -110,17 +113,33 @@ private:
     SurfaceStack(const SurfaceStack&) = delete;
     SurfaceStack& operator=(const SurfaceStack&) = delete;
     void clear_renderables_for(Surface const* surface);
-    void set_visibility_for_surface_of(graphics::Renderable const* renderable,
-                                       MirSurfaceVisibility visibility);
 
     std::mutex mutable guard;
 
     std::shared_ptr<InputRegistrar> const input_registrar;
     std::shared_ptr<SceneReport> const report;
 
+    struct RenderingTracker
+    {
+        void clear() { occlusions.clear(); }
+        void rendered_in(CompositorID cid) { occlusions.erase(cid); }
+        void occluded_in(CompositorID cid)
+        {
+            occlusions.insert(cid);
+        }
+        bool is_occluded_in_all(std::set<CompositorID> const& cids)
+        {
+            return cids == occlusions;
+        }
+    private:
+        std::set<CompositorID> occlusions;
+    };
+
     typedef std::vector<std::shared_ptr<Surface>> Layer;
     std::map<DepthId, Layer> layers_by_depth;
     mutable std::map<graphics::Renderable const*,Surface*> surface_for_renderable;
+    std::map<Surface*,RenderingTracker> rendering_trackers;
+    std::set<CompositorID> registered_compositors;
 
     Observers observers;
 };
