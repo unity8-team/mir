@@ -95,7 +95,7 @@ void event_callback(MirSurface* surface, MirEvent const* event, void* ctx)
     }
 }
 
-struct MirSurfaceVisibilityTest : BasicFixture
+struct MirSurfaceVisibilityEvent : BasicFixture
 {
     void SetUp()
     {
@@ -200,14 +200,14 @@ struct MirSurfaceVisibilityTest : BasicFixture
 
 }
 
-TEST_F(MirSurfaceVisibilityTest, client_gets_notification_when_surface_goes_off_screen)
+TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_goes_off_screen)
 {
     expect_surface_visibility_event_after(
         [this] { move_surface_off_screen(); },
         mir_surface_visibility_occluded);
 }
 
-TEST_F(MirSurfaceVisibilityTest, client_gets_notification_when_surface_reenters_screen)
+TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_reenters_screen)
 {
     expect_surface_visibility_event_after(
         [this] { move_surface_off_screen(); },
@@ -218,14 +218,14 @@ TEST_F(MirSurfaceVisibilityTest, client_gets_notification_when_surface_reenters_
         mir_surface_visibility_exposed);
 }
 
-TEST_F(MirSurfaceVisibilityTest, client_gets_notification_when_surface_occluded_by_other_surface)
+TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_occluded_by_other_surface)
 {
     expect_surface_visibility_event_after(
         [this] { create_larger_surface_on_top(); },
         mir_surface_visibility_occluded);
 }
 
-TEST_F(MirSurfaceVisibilityTest, client_gets_notification_when_surface_raised_over_occluding_surface)
+TEST_F(MirSurfaceVisibilityEvent, sent_when_surface_raised_over_occluding_surface)
 {
     expect_surface_visibility_event_after(
         [this] { create_larger_surface_on_top(); },
