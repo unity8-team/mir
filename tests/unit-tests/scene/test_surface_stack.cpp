@@ -544,12 +544,9 @@ TEST_F(SurfaceStack, configures_not_rendered_surface_as_occluded)
     auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(1u));
 
-    mc::SceneElementList rendered;
-    mc::SceneElementList not_rendered{list.back()};
-
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded));
 
-    stack.rendering_result_for(compositor_id, rendered, not_rendered);
+    list.back()->occluded_in(compositor_id);
 }
 
 TEST_F(SurfaceStack, configures_rendered_surface_as_exposed)
@@ -564,10 +561,7 @@ TEST_F(SurfaceStack, configures_rendered_surface_as_exposed)
     auto list = stack.scene_elements_for(compositor_id);
     ASSERT_THAT(list.size(), Eq(1u));
 
-    mc::SceneElementList rendered{list.back()};
-    mc::SceneElementList not_rendered;
-
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed));
 
-    stack.rendering_result_for(compositor_id, rendered, not_rendered);
+    list.back()->rendered_in(compositor_id);
 }

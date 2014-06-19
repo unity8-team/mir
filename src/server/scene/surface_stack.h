@@ -74,10 +74,6 @@ public:
 
     // From Scene
     compositor::SceneElementList scene_elements_for(CompositorID id) override;
-    void rendering_result_for(
-        CompositorID id,
-        compositor::SceneElementList const& rendered,
-        compositor::SceneElementList const& not_rendered) override;
     void register_compositor(CompositorID cid) override;
     void unregister_compositor(CompositorID cid) override;
 

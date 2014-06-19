@@ -153,25 +153,6 @@ mc::SceneElementList ms::SurfaceStack::scene_elements_for(CompositorID id)
     return list;
 }
 
-void ms::SurfaceStack::rendering_result_for(
-    CompositorID cid,
-    mc::SceneElementList const& rendered,
-    mc::SceneElementList const& not_rendered)
-{
-    std::lock_guard<decltype(guard)> lg(guard);
-
-    for (auto const& element : not_rendered)
-    {
-        if (element->renderable()->visible())
-            element->occluded_in(cid);
-    }
-
-    for (auto const& element : rendered)
-    {
-        element->rendered_in(cid);
-    }
-}
-
 void ms::SurfaceStack::register_compositor(CompositorID cid)
 {
     std::lock_guard<decltype(guard)> lg(guard);

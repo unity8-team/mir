@@ -75,13 +75,6 @@ struct CompositorTrackingScene : mc::Scene
         return wrapped_scene->scene_elements_for(id);
     }
 
-    void rendering_result_for(CompositorID id,
-                              mc::SceneElementList const& rendered,
-                              mc::SceneElementList const& not_rendered) override
-    {
-        wrapped_scene->rendering_result_for(id, rendered, not_rendered);
-    }
-
     void register_compositor(CompositorID id) override
     {
         wrapped_scene->register_compositor(id);

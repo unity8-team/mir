@@ -60,11 +60,17 @@ void mc::DefaultDisplayBufferCompositor::composite()
     auto const& view_area = display_buffer.view_area();
     auto scene_elements_list = scene->scene_elements_for(this);
     auto occluded_list = mc::filter_occlusions_from(scene_elements_list, view_area);
-    scene->rendering_result_for(this, scene_elements_list, occluded_list);
+
+    for (auto const& element : occluded_list)
+        if (element->renderable()->visible())
+            element->occluded_in(this);
 
     mg::RenderableList renderable_list;
-    for (auto const& se : scene_elements_list)
-        renderable_list.push_back(se->renderable());
+    for (auto const& element : scene_elements_list)
+    {
+        element->rendered_in(this);
+        renderable_list.push_back(element->renderable());
+    }
 
 
     if (display_buffer.post_renderables_if_optimizable(renderable_list))

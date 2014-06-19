@@ -39,9 +39,6 @@ public:
     }
 
     MOCK_METHOD1(scene_elements_for, compositor::SceneElementList(void const*));
-    MOCK_METHOD3(rendering_result_for, void(CompositorID,
-                                            compositor::SceneElementList const&,
-                                            compositor::SceneElementList const&));
     MOCK_METHOD1(register_compositor, void(CompositorID));
     MOCK_METHOD1(unregister_compositor, void(CompositorID));
 

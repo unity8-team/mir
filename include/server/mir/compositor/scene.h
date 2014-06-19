@@ -53,9 +53,6 @@ public:
      */
     typedef void const* CompositorID;
     virtual SceneElementList scene_elements_for(CompositorID id) = 0;
-    virtual void rendering_result_for(CompositorID id,
-                                      SceneElementList const& rendered,
-                                      SceneElementList const& not_rendered) = 0;
 
     virtual void register_compositor(CompositorID id) = 0;
     virtual void unregister_compositor(CompositorID id) = 0;
