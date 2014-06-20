@@ -51,6 +51,20 @@ using namespace std;
  *
  ***************************************/
 
+enum ubuntu_sensor_type
+{
+    first_defined_sensor_type = 0,
+    ubuntu_sensor_type_accelerometer = first_defined_sensor_type,
+    ubuntu_sensor_type_magnetic_field,
+    ubuntu_sensor_type_gyroscope,
+    ubuntu_sensor_type_light,
+    ubuntu_sensor_type_proximity,
+    ubuntu_sensor_type_orientation,
+    ubuntu_sensor_type_linear_acceleration,
+    ubuntu_sensor_type_rotation_vector,
+    undefined_sensor_type
+};
+
 // this is only internal API, so we make everything public
 struct TestSensor
 {
