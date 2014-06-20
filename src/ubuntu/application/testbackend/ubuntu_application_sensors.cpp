@@ -16,7 +16,6 @@
  * Authored by: Martin Pitt <martin.pitti@ubuntu.com>
  */
 
-#include <ubuntu/application/sensors/ubuntu_application_sensors.h>
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
