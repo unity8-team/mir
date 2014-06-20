@@ -2,7 +2,7 @@ TARGET = mirapplicationplugin
 TEMPLATE = lib
 
 QT       += core quick dbus
-QT       += qml-private core-private
+QT       += quick-private qml-private core-private
 QT       += gui-private # annoyingly needed by included NativeInterface
 CONFIG   += link_pkgconfig plugin debug
 
