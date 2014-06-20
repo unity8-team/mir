@@ -16,6 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include "session_container.h"
+#include "session.h"
 #include "mir_client_host_connection.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/mir_client_library_drm.h"
@@ -38,6 +40,15 @@ void drm_auth_magic_callback(int status, void* context)
 void display_config_callback_thunk(MirConnection* /*connection*/, void* context)
 {
     (*static_cast<std::function<void()>*>(context))();
+}
+
+static void nested_lifecycle_event_callback(MirConnection* /*connection*/, MirLifecycleState state, void* context)
+{
+	(*static_cast<std::shared_ptr<ms::SessionContainer>*>(context))->for_each(
+	        [&state](std::shared_ptr<ms::Session> const& session)
+	        {
+	            session->set_lifecycle_state(state);
+	        });
 }
 
 class MirClientHostSurface : public mgn::HostSurface
@@ -80,9 +91,11 @@ private:
 }
 
 mgn::MirClientHostConnection::MirClientHostConnection(
-    std::string const& host_socket, std::string const& name)
+    std::string const& host_socket, std::string const& name,
+    std::shared_ptr<ms::SessionContainer> session_container)
     : mir_connection{mir_connect_sync(host_socket.c_str(), name.c_str())},
-      conf_change_callback{[]{}}
+      conf_change_callback{[]{}},
+      session_container(session_container)
 {
     if (!mir_connection_is_valid(mir_connection))
     {
@@ -92,6 +105,11 @@ mgn::MirClientHostConnection::MirClientHostConnection(
 
         BOOST_THROW_EXCEPTION(std::runtime_error(msg));
     }
+
+	mir_connection_set_lifecycle_event_callback(
+        mir_connection,
+        nested_lifecycle_event_callback,
+        &session_container);
 }
 
 mgn::MirClientHostConnection::~MirClientHostConnection()

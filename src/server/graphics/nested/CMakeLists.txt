@@ -1,5 +1,7 @@
 include_directories(
     ${PROJECT_SOURCE_DIR}/include/client
+    ${PROJECT_SOURCE_DIR}/include/server/mir/scene
+    ${PROJECT_SOURCE_DIR}/src/server/scene
 )
 
 add_library(
