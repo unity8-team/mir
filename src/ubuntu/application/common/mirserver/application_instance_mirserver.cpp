@@ -58,6 +58,8 @@ public:
     virtual void show() override {}
     virtual void send_display_config(mir::graphics::DisplayConfiguration const&) override {}
 
+    virtual void start_prompt_session() override {}
+    virtual void stop_prompt_session() override {}
 private:
     std::shared_ptr<ms::Surface> const surface;
 };
@@ -77,7 +79,7 @@ uams::Instance::Instance(std::shared_ptr<ms::SurfaceCoordinator> const &surface_
       session_listener(session_listener),
       ref_count(1)
 {
-    description = DescriptionPtr(description_, 
+    description = DescriptionPtr(description_,
         [] (uam::Description* p)
         {
             delete p;
