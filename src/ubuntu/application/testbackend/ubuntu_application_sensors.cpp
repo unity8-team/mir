@@ -418,6 +418,11 @@ UStatus ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s, float
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_accelerometer_set_event_rate(UASensorsAccelerometer* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_accelerometer_set_reading_cb(UASensorsAccelerometer* s, on_accelerometer_event_cb cb, void* ctx)
 {
     TestSensor* sensor = static_cast<TestSensor*>(s);
@@ -519,6 +524,11 @@ UStatus ua_sensors_proximity_get_resolution(UASensorsProximity*, float* value)
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_proximity_set_event_rate(UASensorsProximity* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_proximity_set_reading_cb(UASensorsProximity* s, on_proximity_event_cb cb, void* ctx)
 {
     TestSensor* sensor = static_cast<TestSensor*>(s);
@@ -592,6 +602,11 @@ UStatus ua_sensors_light_get_resolution(UASensorsLight* s, float* value)
 
     *value = static_cast<TestSensor*>(s)->resolution;
 
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_light_set_event_rate(UASensorsLight* s, uint32_t rate)
+{
     return U_STATUS_SUCCESS;
 }
 
