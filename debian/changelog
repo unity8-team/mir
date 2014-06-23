@@ -1,7 +1,11 @@
 platform-api (2.1.0-0ubuntu1) UNRELEASED; urgency=medium
 
+  [ Ricardo Mendoza ]
   * Added orientation sensor, extended existing sensor API to allow
     for dynamic event rate setting.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
 
  -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Fri, 20 Jun 2014 14:28:10 +0200
 
