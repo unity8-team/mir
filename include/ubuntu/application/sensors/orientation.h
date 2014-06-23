@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -16,58 +16,58 @@
  * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
-#ifndef UBUNTU_APPLICATION_SENSORS_PROXIMITY_H_
-#define UBUNTU_APPLICATION_SENSORS_PROXIMITY_H_
+#ifndef UBUNTU_APPLICATION_SENSORS_ORIENTATION_H_
+#define UBUNTU_APPLICATION_SENSORS_ORIENTATION_H_
 
 #include <ubuntu/status.h>
 #include <ubuntu/visibility.h>
 
-#include <ubuntu/application/sensors/event/proximity.h>
+#include <ubuntu/application/sensors/event/orientation.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
     /**
-     * \brief Opaque type that models the proximity sensor.
+     * \brief Opaque type that models the orientation.
      * \ingroup sensor_access
      */
-    typedef void UASensorsProximity;
+    typedef void UASensorsOrientation;
 
     /**
-     * \brief Callback type used by applications to subscribe to proximity sensor events.
+     * \brief Callback type used by applications to subscribe to orientation events.
      * \ingroup sensor_access
      */
-    typedef void (*on_proximity_event_cb)(UASProximityEvent* event,
-                                          void* context);
+    typedef void (*on_orientation_event_cb)(UASOrientationEvent* event,
+                                              void* context);
 
     /**
-     * \brief Create a new object for accessing the proximity sensor.
+     * \brief Create a new object for accessing the orientation sensor.
      * \ingroup sensor_access
      * \returns A new instance or NULL in case of errors.
      */
-    UBUNTU_DLL_PUBLIC UASensorsProximity*
-    ua_sensors_proximity_new();
+    UBUNTU_DLL_PUBLIC UASensorsOrientation*
+    ua_sensors_orientation_new();
 
     /**
-     * \brief Enables the supplied proximity sensor.
+     * \brief Enables the supplied orientation sensor.
      * \ingroup sensor_access
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be enabled.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_enable(
-        UASensorsProximity* sensor);
+    ua_sensors_orientation_enable(
+        UASensorsOrientation* sensor);
 
     /**
-     * \brief Disables the supplied proximity sensor.
+     * \brief Disables the supplied orientation sensor.
      * \ingroup sensor_access
      * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
      * \param[in] sensor The sensor instance to be disabled.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_disable(
-        UASensorsProximity* sensor);
+    ua_sensors_orientation_disable(
+        UASensorsOrientation* sensor);
 
     /**
      * \brief Queries the minimum delay between two readings for the supplied sensor.
@@ -76,8 +76,8 @@ extern "C" {
      * \param[in] sensor The sensor instance to be queried.
      */
     UBUNTU_DLL_PUBLIC uint32_t
-    ua_sensors_proximity_get_min_delay(
-        UASensorsProximity* sensor);
+    ua_sensors_orientation_get_min_delay(
+        UASensorsOrientation* sensor);
 
     /**
      * \brief Queries the minimum value that can be reported by the sensor.
@@ -86,8 +86,8 @@ extern "C" {
      * \param[in] sensor The sensor instance to be queried.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_get_min_value(
-        UASensorsProximity* sensor,
+    ua_sensors_orientation_get_min_value(
+        UASensorsOrientation* sensor,
         float* value);
 
     /**
@@ -97,8 +97,8 @@ extern "C" {
      * \param[in] sensor The sensor instance to be queried.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_get_max_value(
-        UASensorsProximity* sensor,
+    ua_sensors_orientation_get_max_value(
+        UASensorsOrientation* sensor,
         float* value);
 
     /**
@@ -108,8 +108,8 @@ extern "C" {
      * \param[in] sensor The sensor instance to be queried.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_get_resolution(
-        UASensorsProximity* sensor,
+    ua_sensors_orientation_get_resolution(
+        UASensorsOrientation* sensor,
         float* value);
 
     /**
@@ -120,9 +120,9 @@ extern "C" {
      * \param[in] ctx The context supplied to the callback invocation.
      */
     UBUNTU_DLL_PUBLIC void
-    ua_sensors_proximity_set_reading_cb(
-        UASensorsProximity* sensor,
-        on_proximity_event_cb cb,
+    ua_sensors_orientation_set_reading_cb(
+        UASensorsOrientation* sensor,
+        on_orientation_event_cb cb,
         void *ctx);
 
     /**
@@ -133,12 +133,12 @@ extern "C" {
      * \param[in] rate The new event delivery rate.
      */
     UBUNTU_DLL_PUBLIC UStatus
-    ua_sensors_proximity_set_event_rate(
-        UASensorsProximity* sensor,
+    ua_sensors_orientation_set_event_rate(
+        UASensorsOrientation* sensor,
         uint32_t rate);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* UBUNTU_APPLICATION_SENSORS_PROXIMITY_H_ */
+#endif /* UBUNTU_APPLICATION_SENSORS_ORIENTATION_H_ */

@@ -64,6 +64,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_accelerometer_get_min_value@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_get_resolution@Base 0.18.1daily13.06.21
  ua_sensors_accelerometer_new@Base 0.18.1daily13.06.21
+ ua_sensors_accelerometer_set_event_rate@Base 0replaceme
  ua_sensors_accelerometer_set_reading_cb@Base 0.18.1daily13.06.21
  ua_sensors_haptic_disable@Base 2.0.0+14.10.20140612
  ua_sensors_haptic_enable@Base 2.0.0+14.10.20140612
@@ -77,7 +78,17 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_light_get_min_value@Base 0.18.1daily13.06.21
  ua_sensors_light_get_resolution@Base 0.18.1daily13.06.21
  ua_sensors_light_new@Base 0.18.1daily13.06.21
+ ua_sensors_light_set_event_rate@Base 0replaceme
  ua_sensors_light_set_reading_cb@Base 0.18.1daily13.06.21
+ ua_sensors_orientation_disable@Base 0replaceme
+ ua_sensors_orientation_enable@Base 0replaceme
+ ua_sensors_orientation_get_max_value@Base 0replaceme
+ ua_sensors_orientation_get_min_delay@Base 0replaceme
+ ua_sensors_orientation_get_min_value@Base 0replaceme
+ ua_sensors_orientation_get_resolution@Base 0replaceme
+ ua_sensors_orientation_new@Base 0replaceme
+ ua_sensors_orientation_set_event_rate@Base 0replaceme
+ ua_sensors_orientation_set_reading_cb@Base 0replaceme
  ua_sensors_proximity_disable@Base 0.18.1daily13.06.21
  ua_sensors_proximity_enable@Base 0.18.1daily13.06.21
  ua_sensors_proximity_get_max_value@Base 0.18.1daily13.06.21
@@ -85,6 +96,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_proximity_get_min_value@Base 0.18.1daily13.06.21
  ua_sensors_proximity_get_resolution@Base 0.18.1daily13.06.21
  ua_sensors_proximity_new@Base 0.18.1daily13.06.21
+ ua_sensors_proximity_set_event_rate@Base 0replaceme
  ua_sensors_proximity_set_reading_cb@Base 0.18.1daily13.06.21
  ua_ui_display_destroy@Base 0.18.1daily13.06.21
  ua_ui_display_get_native_type@Base 0.18.1daily13.06.21
@@ -121,5 +133,9 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  uas_accelerometer_event_get_timestamp@Base 0.18.1daily13.06.21
  uas_light_event_get_light@Base 0.18.1daily13.06.21
  uas_light_event_get_timestamp@Base 0.18.1daily13.06.21
+ uas_orientation_event_get_azimuth@Base 0replaceme
+ uas_orientation_event_get_pitch@Base 0replaceme
+ uas_orientation_event_get_roll@Base 0replaceme
+ uas_orientation_event_get_timestamp@Base 0replaceme
  uas_proximity_event_get_distance@Base 0.18.1daily13.06.21
  uas_proximity_event_get_timestamp@Base 0.18.1daily13.06.21

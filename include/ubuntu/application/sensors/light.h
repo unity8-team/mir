@@ -125,6 +125,18 @@ extern "C" {
         on_light_event_cb cb,
         void *ctx);
 
+    /**
+     * \brief Set the sensor event delivery rate in nanoseconds..
+     * \ingroup sensor_access
+     * \returns U_STATUS_SUCCESS if successful or U_STATUS_ERROR if an error occured.
+     * \param[in] sensor The sensor instance to be modified.
+     * \param[in] rate The new event delivery rate.
+     */
+    UBUNTU_DLL_PUBLIC UStatus
+    ua_sensors_light_set_event_rate(
+        UASensorsLight* sensor,
+        uint32_t rate);
+
 #ifdef __cplusplus
 }
 #endif

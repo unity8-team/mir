@@ -28,6 +28,40 @@ namespace application
 {
 namespace sensors
 {
+class OrientationEvent : public platform::ReferenceCountedBase
+{
+public:
+    OrientationEvent(uint64_t timestamp, float azimuth, float pitch, float roll)
+        : timestamp(timestamp),
+          azimuth(azimuth),
+          pitch(pitch),
+          roll(roll)
+    {}
+
+    typedef ubuntu::platform::shared_ptr<OrientationEvent> Ptr;
+
+    uint64_t get_timestamp()
+    {
+        return this->timestamp;
+    }
+
+    float get_azimuth() { return this->azimuth; }
+    float get_pitch() { return this->pitch; }
+    float get_roll() { return this->roll; }
+
+private:
+    uint64_t timestamp;
+    float azimuth;
+    float pitch;
+    float roll;
+
+protected:
+    virtual ~OrientationEvent() {}
+
+    OrientationEvent(const OrientationEvent&) = delete;
+    OrientationEvent& operator=(const OrientationEvent&) = delete;
+};
+
 class AccelerometerEvent : public platform::ReferenceCountedBase
 {
 public:
