@@ -180,16 +180,21 @@ struct SurfaceObservingServerConfiguration : mtf::TestingServerConfiguration
     {
     }
 
-    void on_start() override
+    std::shared_ptr<mir::compositor::Scene> the_scene() override
     {
-        auto scene = the_scene();
-        scene->add_observer(std::make_shared<SurfaceObserverInstaller>(observer));
-        
-        set_expectations(*observer);
+        return scene_cache([this]
+        {
+            auto scene = mtf::TestingServerConfiguration::the_scene();
+            scene->add_observer(std::make_shared<SurfaceObserverInstaller>(observer));
+
+            set_expectations(*observer);
+            return scene;
+        });
     }
 
     std::function<void(MockSurfaceObserver&)> const set_expectations;
     std::shared_ptr<MockSurfaceObserver> const observer;
+    mir::CachedPtr<mir::compositor::Scene> scene_cache;
 };
 
 typedef unsigned ClientCount;
