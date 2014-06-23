@@ -65,7 +65,7 @@ ua_location_service_controller_query_status(
     if (service->does_satellite_based_positioning().get())
         *out_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
     else
-        *out_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
+        *out_flags |= UA_LOCATION_SERVICE_GPS_DISABLED;
 
     return U_STATUS_SUCCESS;
 }
