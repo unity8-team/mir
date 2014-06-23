@@ -39,6 +39,12 @@ bool mt::Signal::raised()
     return signalled;
 }
 
+void mt::Signal::reset()
+{
+    std::lock_guard<decltype(mutex)> lock(mutex);
+    signalled = false;
+}
+
 void mt::Signal::wait()
 {
     std::unique_lock<decltype(mutex)> lock(mutex);

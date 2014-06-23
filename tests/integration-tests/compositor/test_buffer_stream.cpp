@@ -385,10 +385,17 @@ TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
 {
     using namespace testing;
 
-    mg::Buffer* placeholder{nullptr};
+    mg::Buffer* buffer{nullptr};
+    auto signal = std::make_shared<mt::Signal>();
 
-    for (int i = 0; i < nbuffers - 1; ++i)
-        buffer_stream.swap_client_buffers_blocking(placeholder);
+    // acquire all possible buffers until blocked
+    do
+    {
+        signal->reset();
+        buffer_stream.acquire_client_buffer_async(buffer, signal);
+        if (signal->raised())
+            buffer_stream.release_client_buffer(buffer);
+    } while (signal->raised());
 
     auto swap_completed = std::make_shared<mt::Signal>();
     buffer_stream.acquire_client_buffer([swap_completed](mg::Buffer*) {swap_completed->raise();});
