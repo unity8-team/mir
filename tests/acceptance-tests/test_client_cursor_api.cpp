@@ -175,8 +175,7 @@ struct SurfaceObserverInstaller : public ms::NullObserver
 struct SurfaceObservingServerConfiguration : mtf::TestingServerConfiguration
 {
     SurfaceObservingServerConfiguration(std::function<void(MockSurfaceObserver&)> const& set_expectations)
-        : set_expectations(set_expectations),
-          observer(std::make_shared<MockSurfaceObserver>())
+        : set_expectations(set_expectations)
     {
     }
 
@@ -184,16 +183,17 @@ struct SurfaceObservingServerConfiguration : mtf::TestingServerConfiguration
     {
         return scene_cache([this]
         {
-            auto scene = mtf::TestingServerConfiguration::the_scene();
-            scene->add_observer(std::make_shared<SurfaceObserverInstaller>(observer));
+            auto const scene = mtf::TestingServerConfiguration::the_scene();
+            auto const observer = std::make_shared<MockSurfaceObserver>();
 
             set_expectations(*observer);
+            scene->add_observer(std::make_shared<SurfaceObserverInstaller>(observer));
+
             return scene;
         });
     }
 
     std::function<void(MockSurfaceObserver&)> const set_expectations;
-    std::shared_ptr<MockSurfaceObserver> const observer;
     mir::CachedPtr<mir::compositor::Scene> scene_cache;
 };
 
