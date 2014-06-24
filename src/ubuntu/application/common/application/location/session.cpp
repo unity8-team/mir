@@ -18,6 +18,8 @@
 
 #include "ubuntu/application/location/session.h"
 
+#include <com/ubuntu/location/logging.h>
+
 #include "session_p.h"
 
 #include "heading_update_p.h"
@@ -49,12 +51,21 @@ ua_location_service_session_set_position_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->updates().position.changed().connect(
-        [handler, context](const location::Update<location::Position>& new_position)
-        {
-            UbuntuApplicationLocationPositionUpdate pu{new_position};
-            handler(std::addressof(pu), context);
-        });
+    try
+    {
+        s->session->updates().position.changed().connect(
+            [handler, context](const location::Update<location::Position>& new_position)
+            {
+                UbuntuApplicationLocationPositionUpdate pu{new_position};
+                handler(std::addressof(pu), context);
+            });
+    } catch(const std::exception& e)
+    {
+        LOG(ERROR) << e.what();
+    } catch(...)
+    {
+        LOG(ERROR) << __PRETTY_FUNCTION__;
+    }
 }
 
 void
@@ -64,12 +75,21 @@ ua_location_service_session_set_heading_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->updates().heading.changed().connect(
-        [handler, context](const location::Update<location::Heading>& new_heading)
+    try
+    {
+        s->session->updates().heading.changed().connect(
+                    [handler, context](const location::Update<location::Heading>& new_heading)
         {
             UbuntuApplicationLocationHeadingUpdate hu{new_heading};
             handler(std::addressof(hu), context);
         });
+    } catch(const std::exception& e)
+    {
+        LOG(ERROR) << e.what();
+    } catch(...)
+    {
+        LOG(ERROR) << __PRETTY_FUNCTION__;
+    }
 }
 
 void
@@ -79,12 +99,21 @@ ua_location_service_session_set_velocity_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->updates().velocity.changed().connect(
-        [handler, context](const location::Update<location::Velocity>& new_velocity)
+    try
+    {
+        s->session->updates().velocity.changed().connect(
+                    [handler, context](const location::Update<location::Velocity>& new_velocity)
         {
             UbuntuApplicationLocationVelocityUpdate vu{new_velocity};
             handler(std::addressof(vu), context);
         });
+    } catch(const std::exception& e)
+    {
+        LOG(ERROR) << e.what();
+    } catch(...)
+    {
+        LOG(ERROR) << __PRETTY_FUNCTION__;
+    }
 }
 
 UStatus

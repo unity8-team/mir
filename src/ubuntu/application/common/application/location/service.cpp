@@ -22,6 +22,7 @@
 #include "instance.h"
 #include "session_p.h"
 
+#include <com/ubuntu/location/logging.h>
 #include <com/ubuntu/location/service/stub.h>
 
 #include <core/dbus/resolver.h>
@@ -43,8 +44,21 @@ UALocationServiceSession*
 ua_location_service_create_session_for_high_accuracy(
     UALocationServiceRequirementsFlags /*flags*/)
 {
-    return new UbuntuApplicationLocationServiceSession{
-        Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})};
+    try
+    {
+        return new UbuntuApplicationLocationServiceSession
+        {
+            Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
+        };
+    } catch(const std::exception& e)
+    {
+        LOG(ERROR) << e.what();
+    } catch(...)
+    {
+        LOG(ERROR) << __PRETTY_FUNCTION__;
+    }
+
+    return NULL;
 }
 
 UALocationServiceController*
