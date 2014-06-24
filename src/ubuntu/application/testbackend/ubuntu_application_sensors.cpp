@@ -19,6 +19,7 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
 
 #include <cstddef>
 #include <cstdlib>
