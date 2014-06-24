@@ -462,27 +462,22 @@ void mc::BufferQueue::release(
 /**
  * Measure the actual number of buffers we presently need concurrently
  * to avoid starving any compositors of fresh frames or starving clients of
- * any buffers at all. Typically in a multi-buffer client min_buffers will
- * be 2. However when DRM bypass is active or frame dropping enabled, the
- * result of min_buffers could be 3. If you had bypass and frame dropping
- * enabled simultaneously then required_buffers could reach 4 (LP: #1317403)
+ * any buffers at all.
  */
 int mc::BufferQueue::min_buffers() const
 {
-    if (nbuffers <= 1)
-        return nbuffers;
+    if (nbuffers == 1)
+        return 1;
 
     // else for multi-buffering with exclusivity guarantees:
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
-    // FIXME: LP: #1308844 / LP: #1308843 is inflating compositor_demand
+
     int compositor_demand = overlapping_compositors ? 2 : 1;
     int min_compositors = std::max(1, compositor_demand);
     int min_clients = std::max(1, client_demand);
-    int min_free = frame_dropping_enabled ? 1 : 0;
-    int required_buffers = min_compositors + min_clients + min_free;
+    int required_buffers = min_compositors + min_clients;
 
-    // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     return std::min(nbuffers, required_buffers);
 }
 
