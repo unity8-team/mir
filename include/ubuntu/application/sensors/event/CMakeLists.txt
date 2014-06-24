@@ -3,6 +3,7 @@ set(
   accelerometer.h
   light.h
   proximity.h
+  orientation.h
 )
 
 install(

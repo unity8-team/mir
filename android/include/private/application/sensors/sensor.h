@@ -66,6 +66,9 @@ public:
     /** Returns an estimate of the sensor's power consumption, normalized to [0,1]. */
     virtual float power_consumption() = 0;
 
+    /** Set event delivery rate for the given sensor, in nanoseconds */
+    virtual int set_event_rate(uint32_t nsecs) = 0;
+
     /** Returns the minimum delay between two consecutive sensor readings. */
     virtual int32_t min_delay() = 0;
 
