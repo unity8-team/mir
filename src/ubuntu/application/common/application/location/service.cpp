@@ -51,10 +51,10 @@ ua_location_service_create_session_for_high_accuracy(
         };
     } catch(const std::exception& e)
     {
-        sprintf(STDERR, "Error creating session for high accuracy: %s \n", e.what());
+        fprintf(stderr, "Error creating session for high accuracy: %s \n", e.what());
     } catch(...)
     {
-        sprintf(STDERR, "Error creating session for high accuracy.\n");
+        fprintf(stderr, "Error creating session for high accuracy.\n");
     }
 
     return NULL;

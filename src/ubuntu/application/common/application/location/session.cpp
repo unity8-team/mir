@@ -59,10 +59,10 @@ ua_location_service_session_set_position_updates_handler(
             });
     } catch(const std::exception& e)
     {
-        sprintf(STDERR, "Error setting up position updates handler: %s \n", e.what());
+        fprintf(stderr, "Error setting up position updates handler: %s \n", e.what());
     } catch(...)
     {
-        sprintf(STDERR, "Error setting up position updates handler.\n");
+        fprintf(stderr, "Error setting up position updates handler.\n");
     }
 }
 
@@ -83,10 +83,10 @@ ua_location_service_session_set_heading_updates_handler(
         });
     } catch(const std::exception& e)
     {
-        sprintf(STDERR, "Error setting up heading updates handler: %s \n", e.what());
+        fprintf(stderr, "Error setting up heading updates handler: %s \n", e.what());
     } catch(...)
     {
-        sprintf(STDERR, "Error setting up heading updates handler. \n");
+        fprintf(stderr, "Error setting up heading updates handler. \n");
     }
 }
 
@@ -107,10 +107,10 @@ ua_location_service_session_set_velocity_updates_handler(
         });
     } catch(const std::exception& e)
     {
-        sprintf(STDERR, "Error setting up velocity updates handler: %s \n", e.what());
+        fprintf(stderr, "Error setting up velocity updates handler: %s \n", e.what());
     } catch(...)
     {
-        sprintf(STDERR, "Error setting up velocity updates handler.");
+        fprintf(stderr, "Error setting up velocity updates handler.");
     }
 }
 
