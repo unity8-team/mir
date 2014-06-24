@@ -631,3 +631,97 @@ UStatus uas_light_event_get_light(UASLightEvent* e, float* value)
 
     return U_STATUS_SUCCESS;
 }
+
+UASensorsOrientation* ua_sensors_orientation_new()
+{
+    return NULL;
+}
+
+UStatus ua_sensors_orientation_enable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+UStatus ua_sensors_orientation_disable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+uint32_t ua_sensors_orientation_get_min_delay(UASensorsOrientation*)
+{
+    return 0;
+}
+
+UStatus ua_sensors_orientation_get_min_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_max_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_resolution(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_set_event_rate(UASensorsOrientation* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
+void ua_sensors_orientation_set_reading_cb(UASensorsOrientation*, on_orientation_event_cb, void*)
+{
+}
+
+uint64_t uas_orientation_event_get_timestamp(UASOrientationEvent*)
+{
+    return 0;
+}
+
+UStatus uas_orientation_event_get_azimuth(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_pitch(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_roll(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
