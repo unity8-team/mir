@@ -54,6 +54,24 @@ ua_sensors_haptic_new()
 }
 
 UStatus
+ua_sensors_haptic_enable(UASensorsHaptic* sensor)
+{
+    auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
+    s->value->enabled = true;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
+ua_sensors_haptic_disable(UASensorsHaptic* sensor)
+{
+    auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
+    s->value->enabled = false;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus
 ua_sensors_haptic_vibrate_once(
     UASensorsHaptic* sensor,
     uint32_t duration)
@@ -62,6 +80,9 @@ ua_sensors_haptic_vibrate_once(
         return U_STATUS_ERROR;
 
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
+
+    if (s->value->enabled == false)
+        return U_STATUS_ERROR;
 
     try
     {
@@ -86,6 +107,9 @@ ua_sensors_haptic_vibrate_with_pattern(
         return U_STATUS_ERROR;
 
     auto s = static_cast<Holder<UbuntuApplicationSensorsHaptic*>*>(sensor);
+
+    if (s->value->enabled == false)
+        return U_STATUS_ERROR;
 
     std::vector<uint32_t> p_arg (pattern, pattern + MAX_PATTERN_SIZE);
 
