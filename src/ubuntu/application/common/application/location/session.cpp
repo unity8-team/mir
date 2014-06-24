@@ -18,8 +18,6 @@
 
 #include "ubuntu/application/location/session.h"
 
-#include <com/ubuntu/location/logging.h>
-
 #include "session_p.h"
 
 #include "heading_update_p.h"
@@ -61,10 +59,10 @@ ua_location_service_session_set_position_updates_handler(
             });
     } catch(const std::exception& e)
     {
-        LOG(ERROR) << e.what();
+        sprintf(STDERR, "Error setting up position updates handler: %s \n", e.what());
     } catch(...)
     {
-        LOG(ERROR) << __PRETTY_FUNCTION__;
+        sprintf(STDERR, "Error setting up position updates handler.\n");
     }
 }
 
@@ -85,10 +83,10 @@ ua_location_service_session_set_heading_updates_handler(
         });
     } catch(const std::exception& e)
     {
-        LOG(ERROR) << e.what();
+        sprintf(STDERR, "Error setting up heading updates handler: %s \n", e.what());
     } catch(...)
     {
-        LOG(ERROR) << __PRETTY_FUNCTION__;
+        sprintf(STDERR, "Error setting up heading updates handler. \n");
     }
 }
 
@@ -109,10 +107,10 @@ ua_location_service_session_set_velocity_updates_handler(
         });
     } catch(const std::exception& e)
     {
-        LOG(ERROR) << e.what();
+        sprintf(STDERR, "Error setting up velocity updates handler: %s \n", e.what());
     } catch(...)
     {
-        LOG(ERROR) << __PRETTY_FUNCTION__;
+        sprintf(STDERR, "Error setting up velocity updates handler.");
     }
 }
 

@@ -22,7 +22,6 @@
 #include "instance.h"
 #include "session_p.h"
 
-#include <com/ubuntu/location/logging.h>
 #include <com/ubuntu/location/service/stub.h>
 
 #include <core/dbus/resolver.h>
@@ -52,10 +51,10 @@ ua_location_service_create_session_for_high_accuracy(
         };
     } catch(const std::exception& e)
     {
-        LOG(ERROR) << e.what();
+        sprintf(STDERR, "Error creating session for high accuracy: %s \n", e.what());
     } catch(...)
     {
-        LOG(ERROR) << __PRETTY_FUNCTION__;
+        sprintf(STDERR, "Error creating session for high accuracy.\n");
     }
 
     return NULL;
