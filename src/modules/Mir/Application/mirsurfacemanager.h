@@ -23,6 +23,7 @@
 // Qt
 #include <QAbstractListModel>
 #include <QHash>
+#include <QLoggingCategory>
 #include <QMutex>
 
 // Mir
@@ -34,6 +35,8 @@
 class ShellServerConfiguration;
 namespace mir { namespace shell { class Surface; }}
 namespace mir { namespace scene { class Surface; class Session; }}
+
+Q_DECLARE_LOGGING_CATEGORY(MIRQML_MIR_SURFACE_MANAGER)
 
 class MirSurfaceManager : public QAbstractListModel
 {
@@ -81,6 +84,7 @@ private:
     static MirSurfaceManager *the_surface_manager;
     QHash<int, QByteArray> m_roleNames;
     QMutex m_mutex;
+    QLoggingCategory m_log;
 };
 
 #endif // MIR_SURFACE_MANAGER_H

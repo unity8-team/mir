@@ -27,7 +27,8 @@
 #include "mirserverconfiguration.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
-#include "logging.h"
+
+Q_LOGGING_CATEGORY(MIRQML_MIR_SURFACE_MANAGER, "MirSurfaceManager")
 
 namespace ms = mir::scene;
 
@@ -42,16 +43,17 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 }
 
 MirSurfaceManager::MirSurfaceManager(QObject *parent)
-    : QAbstractListModel(parent)
+    : QAbstractListModel(parent),
+    m_log("MirSurfaceManager")
 {
-    DLOG("MirSurfaceManager::MirSurfaceManager (this=%p)", this);
+    qCDebug(m_log, "constructor (this=%p)", this);
 
     m_roleNames.insert(RoleSurface, "surface");
 
     NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
 
     if (!nativeInterface) {
-        LOG("ERROR: Unity.Application QML plugin requires use of the 'mirserver' QPA plugin");
+        qCCritical(m_log, "Unity.Application QML plugin requires use of the 'mirserver' QPA plugin");
         QGuiApplication::quit();
         return;
     }
@@ -70,7 +72,7 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
 
 MirSurfaceManager::~MirSurfaceManager()
 {
-    DLOG("MirSurfaceManager::~MirSurfaceManager (this=%p)", this);
+    qCDebug(m_log, "destructor (this=%p)", this);
 
     m_mirSurfaceToItemHash.clear();
 }
@@ -78,7 +80,7 @@ MirSurfaceManager::~MirSurfaceManager()
 void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,
         const std::shared_ptr<mir::scene::Surface> &surface)
 {
-    DLOG("MirSurfaceManager::onSessionCreatedSurface (this=%p) with Surface(%p,name='%s')",
+    qCDebug(m_log, "onSessionCreatedSurface (this=%p) with Surface(%p,name='%s')",
             this, surface.get(), surface->name().c_str());
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
 
@@ -124,7 +126,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
 void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
         const std::shared_ptr<mir::scene::Surface> &surface)
 {
-    DLOG("MirSurfaceManager::onSessionDestroyingSurface (this=%p) with Surface(%p, name='%s')",
+    qCDebug(m_log, "onSessionDestroyingSurface (this=%p) with Surface(%p, name='%s')",
             this, surface.get(), surface->name().c_str());
 
     // TODO - tell Application the surface closed
@@ -151,7 +153,7 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
         return;
     }
 
-    DLOG("MirSurfaceManager::onSessionDestroyingSurface: unable to find MirSurfaceItem"
+    qCDebug(m_log, "onSessionDestroyingSurface: unable to find MirSurfaceItem"
             " corresponding to Surface(%p,name='%s')", surface.get(), surface->name().c_str());
 }
 
@@ -159,7 +161,7 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *,
 void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
         const MirSurfaceAttrib attribute, const int value)
 {
-    DLOG("MirSurfaceManager::onSurfaceAttributeChanged (surface=%p, attrib=%d, value=%d)",
+    qCDebug(m_log, "onSurfaceAttributeChanged (surface=%p, attrib=%d, value=%d)",
          surface, static_cast<int>(attribute), value);
 
     QMutexLocker lock(&m_mutex);
