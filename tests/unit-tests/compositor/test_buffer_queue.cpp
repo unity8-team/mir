@@ -1391,7 +1391,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
 
 TEST_F(BufferQueueTest, synchronous_clients_only_get_two_real_buffers)
 {
-    for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
+    for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
@@ -1413,6 +1413,35 @@ TEST_F(BufferQueueTest, synchronous_clients_only_get_two_real_buffers)
         }
 
         EXPECT_THAT(buffers_acquired.size(), Eq(2));
+    }
+}
+
+TEST_F(BufferQueueTest, asynchronous_clients_get_all_buffers)
+{
+    for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
+    {
+        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+
+        std::vector<std::shared_ptr<AcquireWaitHandle>> handles;
+        for (int i = 0; i < nbuffers; i++)
+        {
+            handles.push_back(client_acquire_async(q));
+        }
+
+        std::unordered_set<mg::Buffer *> buffers_acquired;
+        for (int i = 0; i < nbuffers; i++)
+        {
+            auto& handle = handles[i];
+            ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
+
+            buffers_acquired.insert(handle->buffer());
+            handle->release_buffer();
+
+            auto comp_buffer = q.compositor_acquire(this);
+            q.compositor_release(comp_buffer);
+        }
+
+        EXPECT_THAT(buffers_acquired.size(), Eq(nbuffers));
     }
 }
 
