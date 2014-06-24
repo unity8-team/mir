@@ -19,7 +19,6 @@
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
-#include <ubuntu/application/sensors/haptic.h>
 #include <ubuntu/application/sensors/orientation.h>
 
 #include <stddef.h>
@@ -362,36 +361,6 @@ UStatus uas_orientation_event_get_roll(UASOrientationEvent*, float* value)
         return U_STATUS_ERROR;
 
     *value = 0.f;
-
-    return U_STATUS_SUCCESS;
-}
-
-UASensorsHaptic* ua_sensors_haptic_new()
-{
-    return NULL;
-}
-
-UStatus ua_sensors_haptic_enable(UASensorsHaptic*)
-{
-    return U_STATUS_SUCCESS;
-}
-
-UStatus ua_sensors_haptic_disable(UASensorsHaptic*)
-{
-    return U_STATUS_SUCCESS;
-}
-
-UStatus ua_sensors_haptic_vibrate_once(UASensorsHaptic*, uint32_t duration)
-{
-    (void) duration; 
-
-    return U_STATUS_SUCCESS;
-}
-
-UStatus ua_sensors_haptic_vibrate_with_pattern(UASensorsHaptic*, uint32_t pattern[MAX_PATTERN_SIZE], uint32_t repeat)
-{
-    (void) pattern;
-    (void) repeat;
 
     return U_STATUS_SUCCESS;
 }
