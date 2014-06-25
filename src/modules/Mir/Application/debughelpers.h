@@ -19,17 +19,9 @@
 
 #include <QString>
 
-#include <mir_toolkit/common.h>
-
 class QTouchEvent;
 
 QString touchPointStateToString(Qt::TouchPointState state);
 QString touchEventToString(const QTouchEvent *ev);
-
-QString mirSurfaceAttribAndValueToString(MirSurfaceAttrib attrib, int value);
-const char *mirSurfaceTypeToStr(int value);
-const char *mirSurfaceStateToStr(int value);
-const char *mirSurfaceFocusStateToStr(int value);
-const char *mirSurfaceVisibilityToStr(int value);
 
 #endif // UBUNTUGESTURES_DEBUG_HELPER_H
