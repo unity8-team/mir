@@ -20,11 +20,13 @@
 #include "window_manager.h"
 
 #include "mir/shell/focus_controller.h"
+#include "session_container.h"
 #include "mir/scene/session.h"
 #include "mir/scene/surface.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/compositor/compositor.h"
+#include "mir/options/configuration.h"
 
 #include <linux/input.h>
 #include <android/keycodes.h>  // TODO remove this dependency
@@ -33,10 +35,15 @@
 #include <cstdlib>
 #include <cmath>
 
+#include <sys/types.h>
+#include <unistd.h>
+
 namespace me = mir::examples;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
+namespace ms = mir::scene;
+namespace mo = mir::options;
 
 namespace
 {
@@ -61,6 +68,17 @@ void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
 void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
+}
+
+void me::WindowManager::set_session_container(std::shared_ptr<ms::SessionContainer> const& sc)
+{
+	session_container = sc;
+}
+
+void me::WindowManager::set_options(
+		std::shared_ptr<mo::Option> const& o)
+{
+	options = o;
 }
 
 namespace
@@ -133,6 +151,19 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             focus_controller->focus_next();
             return true;
+        }
+        else if ((event.key.modifiers & mir_key_modifier_alt &&
+                  event.key.scan_code == KEY_L))
+        {
+            if (!options->is_set(mo::host_socket_opt))
+            {
+                printf("[Host]: Triggering LC callback\r\n");
+				session_container->for_each(
+							[](std::shared_ptr<ms::Session> const& session)
+							{
+								session->set_lifecycle_state(mir_lifecycle_state_will_suspend);
+							});
+            }
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||

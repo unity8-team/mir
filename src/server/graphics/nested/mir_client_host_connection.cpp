@@ -46,10 +46,12 @@ static void nested_lifecycle_event_callback(MirConnection* /*connection*/, MirLi
 {
     ms::SessionContainer *sc = (ms::SessionContainer *)context;
 
+    printf("[Nested]: Forwarding LC callback to all sessions\n");
     sc->for_each(
     [&state](std::shared_ptr<ms::Session> const& session)
         {
             session->set_lifecycle_state(state);
+            printf("[Nested]: Forwarded LC callback to session\n");
         });
 }
 

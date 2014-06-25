@@ -280,9 +280,9 @@ public:
     virtual std::shared_ptr<time::Clock> the_clock();
     virtual std::shared_ptr<ServerActionQueue> the_server_action_queue();
 
-protected:
     std::shared_ptr<options::Option> the_options() const;
 
+protected:
     virtual std::shared_ptr<graphics::GLProgramFactory> the_gl_program_factory();
     virtual std::shared_ptr<input::InputChannelFactory> the_input_channel_factory();
     virtual std::shared_ptr<scene::MediatingDisplayChanger> the_mediating_display_changer();

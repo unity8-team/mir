@@ -27,6 +27,14 @@
 
 namespace mir
 {
+namespace options
+{
+class Option;
+}
+namespace scene
+{
+class SessionContainer;
+}
 namespace shell
 {
 class FocusController;
@@ -51,7 +59,9 @@ public:
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
-    
+    void set_session_container(std::shared_ptr<scene::SessionContainer> const& sc);
+    void set_options(std::shared_ptr<options::Option> const& o);
+
     bool handle(MirEvent const& event) override;
 
 protected:
@@ -62,6 +72,8 @@ private:
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
+    std::shared_ptr<scene::SessionContainer> session_container;
+    std::shared_ptr<options::Option> options;
 
     geometry::Point click;
     geometry::Point old_pos;

@@ -103,6 +103,7 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/platform
   ${GLESv2_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/src/server/scene
 )
 
 add_executable(mir_demo_standalone_render_to_fb
