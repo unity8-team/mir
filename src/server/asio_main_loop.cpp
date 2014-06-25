@@ -21,6 +21,7 @@
 #include "boost/date_time/posix_time/conversion.hpp"
 
 #include <cassert>
+#include <atomic>
 #include <mutex>
 #include <condition_variable>
 
@@ -290,14 +291,12 @@ void mir::AsioMainLoop::register_fd_handler(
 
 void mir::AsioMainLoop::unregister_fd_handler(void const* owner)
 {
-    // synchronous_server_action makes sure that with the
+    // execute makes sure that with the
     // completion of the method unregister_fd_handler the
     // handler will no longer be called.
     // There is a chance for a fd handler callback to happen before
     // the completion of this method.
-    synchronous_server_action(
-        *this,
-        main_loop_thread,
+    execute(
         [this,owner]()
         {
             std::lock_guard<std::mutex> lock(fd_handlers_mutex);
@@ -318,14 +317,17 @@ class AlarmImpl : public mir::time::Alarm
 {
 public:
     AlarmImpl(boost::asio::io_service& io,
+              mir::AsioMainLoop& queue,
               std::chrono::milliseconds delay,
               std::function<void(void)> callback);
 
     AlarmImpl(boost::asio::io_service& io,
+              mir::AsioMainLoop& queue,
               mir::time::Timestamp time_point,
               std::function<void(void)> callback);
 
     AlarmImpl(boost::asio::io_service& io,
+              mir::AsioMainLoop& queue,
               std::function<void(void)> callback);
 
     ~AlarmImpl() noexcept override;
@@ -336,7 +338,9 @@ public:
     bool reschedule_in(std::chrono::milliseconds delay) override;
     bool reschedule_for(mir::time::Timestamp time_point) override;
 private:
-    void update_timer();
+    bool cancel_alarm_non_blocking();
+    bool cancel_alarm_blocking();
+    void update_timer(mir::ServerActionQueue& queue);
     struct InternalState
     {
         explicit InternalState(std::function<void(void)> callback)
@@ -344,34 +348,37 @@ private:
         {
         }
 
-        mutable std::mutex m;
         std::function<void(void)> callback;
-        State state;
+        std::atomic<State> state{pending};
     };
 
+    mir::AsioMainLoop& loop;
     ::deadline_timer timer;
     std::shared_ptr<InternalState> data;
 };
 
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                     mir::AsioMainLoop& loop,
                      std::chrono::milliseconds delay,
                      std::function<void ()> callback)
-    : AlarmImpl(io, callback)
+    : AlarmImpl(io, loop, callback)
 {
     reschedule_in(delay);
 }
 
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                     mir::AsioMainLoop& loop,
                      mir::time::Timestamp time_point,
                      std::function<void ()> callback)
-    : AlarmImpl(io, callback)
+    : AlarmImpl(io, loop, callback)
 {
     reschedule_for(time_point);
 }
 
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
+                     mir::AsioMainLoop& loop,
                      std::function<void(void)> callback)
-    : timer{io},
+    : loop(loop), timer{io},
       data{std::make_shared<InternalState>(callback)}
 {
     data->state = triggered;
@@ -379,81 +386,103 @@ AlarmImpl::AlarmImpl(boost::asio::io_service& io,
 
 AlarmImpl::~AlarmImpl() noexcept
 {
-    AlarmImpl::cancel();
+    cancel_alarm_non_blocking();
 }
 
 bool AlarmImpl::cancel()
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
-    if (data->state == triggered)
-        return false;
+    return cancel_alarm_blocking();
+}
 
-    data->state = cancelled;
-    timer.cancel();
-    return true;
+bool AlarmImpl::cancel_alarm_non_blocking()
+{
+    State expected_state = pending;
+    if (data->state.compare_exchange_strong(expected_state, cancelled))
+    {
+        timer.cancel();
+        return true;
+    }
+    return false;
+}
+
+bool AlarmImpl::cancel_alarm_blocking()
+{
+    bool ret = false;
+    loop.execute(
+        [this,&ret]
+        {
+            ret = cancel_alarm_non_blocking();
+        });
+    return ret;
 }
 
 mir::time::Alarm::State AlarmImpl::state() const
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
-
     return data->state;
 }
 
 bool AlarmImpl::reschedule_in(std::chrono::milliseconds delay)
 {
     bool cancelling = timer.expires_from_now(delay);
-    update_timer();
+    update_timer(loop);
     return cancelling;
 }
 
 bool AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
 {
     bool cancelling = timer.expires_at(time_point);
-    update_timer();
+    update_timer(loop);
     return cancelling;
 }
 
-void AlarmImpl::update_timer()
+void AlarmImpl::update_timer(mir::ServerActionQueue& queue)
 {
-    std::lock_guard<decltype(data->m)> lock(data->m);
+    auto new_internal_state = std::make_shared<InternalState>(data->callback);
     // Awkwardly, we can't stop the async_wait handler from being called
     // on a destroyed AlarmImpl. This means we need to wedge a shared_ptr
     // into the async_wait callback.
-    std::weak_ptr<InternalState> possible_data = data;
-    timer.async_wait([possible_data](boost::system::error_code const& ec)
+    std::weak_ptr<InternalState> possible_data = new_internal_state;
+    timer.async_wait([possible_data,&queue](boost::system::error_code const& ec)
     {
+        if (ec)
+            return;
+
         auto data = possible_data.lock();
         if (!data)
             return;
 
-        std::unique_lock<decltype(data->m)> lock(data->m);
-        if (!ec && data->state == pending)
-        {
-            data->state = triggered;
-            lock.unlock();
-            data->callback();
-        }
+        queue.enqueue(
+            data.get(),
+            [possible_data]()
+            {
+                auto data = possible_data.lock();
+                if (!data)
+                    return;
+
+                State expected_state = pending;
+                if (data->state.compare_exchange_strong(expected_state, triggered))
+                    data->callback();
+            });
     });
-    data->state = pending;
+    data = new_internal_state;
 }
 }
 
 std::unique_ptr<mir::time::Alarm> mir::AsioMainLoop::notify_in(std::chrono::milliseconds delay,
                                                                std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, delay, callback}};
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, *this, delay, callback}};
 }
 
 std::unique_ptr<mir::time::Alarm> mir::AsioMainLoop::notify_at(mir::time::Timestamp time_point,
                                                                std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, time_point, callback}};
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, *this, time_point, callback}};
 }
 
 std::unique_ptr<mir::time::Alarm> mir::AsioMainLoop::create_alarm(std::function<void()> callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, callback}};
+    return std::unique_ptr<mir::time::Alarm>{new AlarmImpl{io, *this, callback}};
 }
 
 void mir::AsioMainLoop::enqueue(void const* owner, ServerAction const& action)
@@ -516,4 +545,12 @@ void mir::AsioMainLoop::process_server_actions()
             ++i;
         }
     }
+}
+
+void mir::AsioMainLoop::execute(ServerAction const& action)
+{
+    synchronous_server_action(
+        *this,
+        main_loop_thread,
+        action);
 }

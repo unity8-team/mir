@@ -35,6 +35,7 @@ public:
     TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                std::chrono::milliseconds timeout,
                                std::function<void(void)> drop_frame);
+    ~TimeoutFrameDroppingPolicy();
 
     void swap_now_blocking() override;
     void swap_unblocked() override;
@@ -58,6 +59,10 @@ TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time
        if (--pending_swaps > 0)
            alarm->reschedule_in(this->timeout);
     });
+}
+TimeoutFrameDroppingPolicy::~TimeoutFrameDroppingPolicy()
+{
+    alarm->cancel();
 }
 
 void TimeoutFrameDroppingPolicy::swap_now_blocking()

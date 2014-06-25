@@ -69,6 +69,9 @@ public:
     void pause_processing_for(void const* owner);
     void resume_processing_for(void const* owner);
 
+    /** Executes the given ServerAction within the thread of the
+     * ServerActionQueue, and returns after that*/
+    void execute(ServerAction const& action);
 private:
     class SignalHandler;
     class FDHandler;
