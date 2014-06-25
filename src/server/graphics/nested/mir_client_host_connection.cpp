@@ -44,11 +44,13 @@ void display_config_callback_thunk(MirConnection* /*connection*/, void* context)
 
 static void nested_lifecycle_event_callback(MirConnection* /*connection*/, MirLifecycleState state, void* context)
 {
-	(*static_cast<std::shared_ptr<ms::SessionContainer>*>(context))->for_each(
-	        [&state](std::shared_ptr<ms::Session> const& session)
-	        {
-	            session->set_lifecycle_state(state);
-	        });
+    ms::SessionContainer *sc = (ms::SessionContainer *)context;
+
+    sc->for_each(
+    [&state](std::shared_ptr<ms::Session> const& session)
+        {
+            session->set_lifecycle_state(state);
+        });
 }
 
 class MirClientHostSurface : public mgn::HostSurface
@@ -109,7 +111,7 @@ mgn::MirClientHostConnection::MirClientHostConnection(
 	mir_connection_set_lifecycle_event_callback(
         mir_connection,
         nested_lifecycle_event_callback,
-        &session_container);
+        std::static_pointer_cast<void>(session_container).get());
 }
 
 mgn::MirClientHostConnection::~MirClientHostConnection()
