@@ -1,3 +1,15 @@
+mir (0.4.0+0ubuntu1) UNRELEASED; urgency=medium
+
+  *  New upstream release 0.4.0 (https://launchpad.net/mir/+milestone/0.4.0)
+    - mirclient ABI unchanged, still at 7. Clients do not need rebuilding.
+    - mirserver ABI bumped to 22. Shells need rebuilding.
+      . TODO add changes on server abi break
+    - TODO add other changes
+    - Bugs fixed:
+       . TODO add bug fixes
+
+ -- Kevin Gunn <kevin.gunn@canonical.com>  Wed, 25 Jun 2014 20:30:14 -0500
+
 mir (0.3.0+14.10.20140618.1-0ubuntu1) utopic; urgency=medium
 
   [ Cemil Azizoglu ]
