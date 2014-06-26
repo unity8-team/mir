@@ -49,7 +49,8 @@ struct SwapperSwappingStress : public ::testing::Test
                                           mir_pixel_format_abgr_8888,
                                           mg::BufferUsage::hardware};
         mtd::StubFrameDroppingPolicyFactory policy_factory;
-        switching_bundle = std::make_shared<mc::BufferQueue>(3, allocator, properties, policy_factory);
+        mc::BufferAllocationPolicy alloc_policy;
+        switching_bundle = std::make_shared<mc::BufferQueue>(3, allocator, properties, policy_factory, alloc_policy);
     }
 
     std::shared_ptr<mc::BufferQueue> switching_bundle;

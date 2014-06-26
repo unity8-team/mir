@@ -103,11 +103,13 @@ struct BufferStreamTest : public ::testing::Test
                                         mg::BufferUsage::hardware};
         mc::TimeoutFrameDroppingPolicyFactory policy_factory{timer,
                                                              frame_drop_timeout};
+        mc::BufferAllocationPolicy alloc_policy;
 
         buffer_queue = std::make_shared<mc::BufferQueue>(nbuffers,
                                                          allocator,
                                                          properties,
-                                                         policy_factory);
+                                                         policy_factory,
+                                                         alloc_policy);
 
         return buffer_queue;
     }
