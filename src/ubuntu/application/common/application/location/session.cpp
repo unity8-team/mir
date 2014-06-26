@@ -51,12 +51,9 @@ ua_location_service_session_set_position_updates_handler(
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
     try
     {
-        s->session->updates().position.changed().connect(
-            [handler, context](const location::Update<location::Position>& new_position)
-            {
-                UbuntuApplicationLocationPositionUpdate pu{new_position};
-                handler(std::addressof(pu), context);
-            });
+        std::lock_guard<std::mutex> lg(s->position_updates.guard);
+        s->position_updates.handler = handler;
+        s->position_updates.context = context;
     } catch(const std::exception& e)
     {
         fprintf(stderr, "Error setting up position updates handler: %s \n", e.what());
@@ -75,12 +72,9 @@ ua_location_service_session_set_heading_updates_handler(
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
     try
     {
-        s->session->updates().heading.changed().connect(
-                    [handler, context](const location::Update<location::Heading>& new_heading)
-        {
-            UbuntuApplicationLocationHeadingUpdate hu{new_heading};
-            handler(std::addressof(hu), context);
-        });
+        std::lock_guard<std::mutex> lg(s->heading_updates.guard);
+        s->heading_updates.handler = handler;
+        s->heading_updates.context = context;
     } catch(const std::exception& e)
     {
         fprintf(stderr, "Error setting up heading updates handler: %s \n", e.what());
@@ -99,12 +93,9 @@ ua_location_service_session_set_velocity_updates_handler(
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
     try
     {
-        s->session->updates().velocity.changed().connect(
-                    [handler, context](const location::Update<location::Velocity>& new_velocity)
-        {
-            UbuntuApplicationLocationVelocityUpdate vu{new_velocity};
-            handler(std::addressof(vu), context);
-        });
+        std::lock_guard<std::mutex> lg(s->velocity_updates.guard);
+        s->velocity_updates.handler = handler;
+        s->velocity_updates.context = context;
     } catch(const std::exception& e)
     {
         fprintf(stderr, "Error setting up velocity updates handler: %s \n", e.what());
