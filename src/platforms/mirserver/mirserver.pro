@@ -26,7 +26,6 @@ SOURCES += \
     sessionlistener.cpp \
     surfaceconfigurator.cpp \
     messageprocessor.cpp \
-    mirinputdispatcherconfiguration.cpp \
     mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
     mirserverstatuslistener.cpp \
@@ -52,7 +51,6 @@ HEADERS += \
     surfaceconfigurator.h \
     logging.h \
     messageprocessor.h \
-    mirinputdispatcherconfiguration.h \
     mirglconfig.h \
     mirplacementstrategy.h \
     mirserverconfiguration.h \

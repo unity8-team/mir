@@ -32,7 +32,8 @@ public:
         m_wrapped(wrapped),
         m_unityService(unityService) {}
 
-    bool dispatch(mir::frontend::detail::Invocation const& invocation);
+    bool dispatch(mir::frontend::detail::Invocation const& invocation) override;
+    void client_pid(int pid) override;
 
     void send_response(::google::protobuf::uint32 id, ::google::protobuf::Message* response);
 

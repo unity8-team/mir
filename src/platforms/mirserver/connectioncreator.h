@@ -36,7 +36,7 @@ public:
 
     std::shared_ptr<mir::frontend::detail::MessageProcessor> create_processor(
         std::shared_ptr<mir::frontend::detail::ProtobufMessageSender> const& sender,
-        std::shared_ptr<mir::protobuf::DisplayServer> const& display_server,
+        std::shared_ptr<mir::frontend::detail::DisplayServer> const& display_server,
         std::shared_ptr<mir::frontend::MessageProcessorReport> const& report) const override;
 private:
     std::shared_ptr<unity::protobuf::UnityService> m_unityService;

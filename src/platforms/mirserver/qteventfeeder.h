@@ -27,8 +27,7 @@ class QTouchDevice;
 /*
   Fills Qt's event loop with input events from Mir
  */
-class QtEventFeeder : public mir::input::InputDispatcher,
-                      public mir::shell::InputTargeter
+class QtEventFeeder : public mir::input::InputDispatcher
 {
 public:
     QtEventFeeder();
@@ -37,14 +36,11 @@ public:
     static const int MirEventActionPointerIndexMask;
     static const int MirEventActionPointerIndexShift;
 
-    // From mir::input::InputDispatcher
+    void configuration_changed(nsecs_t when) override;
+    void device_reset(int32_t device_id, nsecs_t when) override;
     void dispatch(MirEvent const& event) override;
     void start() override;
     void stop() override;
-
-    // From mir::shell::InputTargeter
-    void focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel) override;
-    void focus_cleared() override;
 
 private:
     void dispatchKey(MirKeyEvent const& event);

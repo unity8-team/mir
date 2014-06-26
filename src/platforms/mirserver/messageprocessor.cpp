@@ -38,6 +38,11 @@ bool MessageProcessor::dispatch(mir::frontend::detail::Invocation const& invocat
     }
 }
 
+void MessageProcessor::client_pid(int pid)
+{
+    m_wrapped->client_pid(pid);
+}
+
 void MessageProcessor::send_response(::google::protobuf::uint32 id, ::google::protobuf::Message* response)
 {
     m_sender->send_response(id, response, {});

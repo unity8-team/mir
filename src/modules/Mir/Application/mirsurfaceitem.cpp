@@ -190,7 +190,8 @@ void MirSurfaceObserver::setListener(QObject *listener) {
     m_listener = listener;
 }
 
-void MirSurfaceObserver::frame_posted() {
+void MirSurfaceObserver::frame_posted(int frames_available) {
+    Q_UNUSED(frames_available);
     QMetaObject::invokeMethod(m_listener, "surfaceDamaged");
 }
 

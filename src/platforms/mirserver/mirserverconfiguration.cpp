@@ -19,12 +19,12 @@
 #include "connectioncreator.h"
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
-#include "mirinputdispatcherconfiguration.h"
 #include "mirserverstatuslistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
 #include "qtcompositor.h"
+#include "qteventfeeder.h"
 #include "logging.h"
 #include "unityprotobufservice.h"
 
@@ -91,13 +91,13 @@ MirServerConfiguration::the_compositor()
         });
 }
 
-std::shared_ptr<mir::input::InputDispatcherConfiguration>
-MirServerConfiguration::the_input_dispatcher_configuration()
+std::shared_ptr<mir::input::InputDispatcher>
+MirServerConfiguration::the_input_dispatcher()
 {
-    return input_dispatcher_configuration(
+    return input_dispatcher(
     [this]()
     {
-        return std::make_shared<MirInputDispatcherConfiguration>();
+        return std::make_shared<QtEventFeeder>();
     });
 }
 

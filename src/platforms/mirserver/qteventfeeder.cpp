@@ -157,6 +157,9 @@ void QtEventFeeder::dispatch(MirEvent const& event)
     case mir_event_type_motion:
         dispatchMotion(event.motion);
         break;
+    case mir_event_type_surface:
+        // Just ignore these events: it doesn't make sense to pass them on.
+        break;
     default:
         // mir_event_type_surface and mir_event_type_resize events go through
         // mir's own protobuf channel instead of the android_input one. The latter
@@ -307,13 +310,13 @@ void QtEventFeeder::stop()
     // not used
 }
 
-void QtEventFeeder::focus_changed(std::shared_ptr<mir::input::InputChannel const> const& focusChannel)
+void QtEventFeeder::configuration_changed(nsecs_t when)
 {
-    Q_UNUSED(focusChannel);
-    // This makes no sense as the concept of focus lives solely inside the QML scene
+    Q_UNUSED(when);
 }
 
-void QtEventFeeder::focus_cleared()
+void QtEventFeeder::device_reset(int32_t device_id, nsecs_t when)
 {
-    // This makes no sense as the concept of focus lives solely inside the QML scene
+    Q_UNUSED(device_id);
+    Q_UNUSED(when);
 }

@@ -97,7 +97,7 @@ void MirBufferSGTexture::bind()
 
     glBindTexture(GL_TEXTURE_2D, m_textureId);
     updateBindOptions(true/* force */);
-    m_mirBuffer->bind_to_texture();
+    m_mirBuffer->gl_bind_to_texture();
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 3, 0)
     qint64 bindTime = 0;

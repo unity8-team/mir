@@ -50,10 +50,13 @@ public:
     void hidden_set_to(bool) override {}
 
     // Get new frame notifications from Mir, called from a Mir thread.
-    void frame_posted() override;
+    void frame_posted(int frames_available) override;
 
     void alpha_set_to(float) override {}
     void transformation_set_to(glm::mat4 const&) override {}
+    void reception_mode_set_to(mir::input::InputReceptionMode) override {}
+    void cursor_image_set_to(mir::graphics::CursorImage const&) override {}
+    void orientation_set_to(MirOrientation) override {}
 private:
     QObject *m_listener;
 };
