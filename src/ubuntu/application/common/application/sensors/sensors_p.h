@@ -35,9 +35,11 @@ namespace dbus = core::dbus;
 struct UbuntuApplicationSensorsHaptic
 {
     UbuntuApplicationSensorsHaptic(std::shared_ptr<dbus::Object> session)
-        : session(session)
+        : enabled(false), 
+          session(session)
     {
     }
 
+    bool enabled;
     std::shared_ptr<dbus::Object> session;
 };
