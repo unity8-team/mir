@@ -90,6 +90,17 @@ struct UbuntuApplicationLocationServiceSession : public detail::RefCounted
     {
     }
 
+    ~UbuntuApplicationLocationServiceSession()
+    {
+        std::lock_guard<std::mutex> lgp(position_updates.guard);
+        std::lock_guard<std::mutex> lgh(heading_updates.guard);
+        std::lock_guard<std::mutex> lgv(velocity_updates.guard);
+
+        position_updates.handler = nullptr;
+        heading_updates.handler = nullptr;
+        velocity_updates.handler = nullptr;
+    }
+
     culss::Interface::Ptr session;
 
     struct
