@@ -105,13 +105,6 @@ struct UbuntuApplicationLocationServiceSession : public detail::RefCounted
 
     struct
     {
-        core::ScopedConnection position_updates;
-        core::ScopedConnection heading_updates;
-        core::ScopedConnection velocity_updates;
-    } connections;
-
-    struct
-    {
         std::mutex guard;
         UALocationServiceSessionPositionUpdatesHandler handler{nullptr};
         void* context{nullptr};
@@ -130,6 +123,13 @@ struct UbuntuApplicationLocationServiceSession : public detail::RefCounted
         UALocationServiceSessionVelocityUpdatesHandler handler{nullptr};
         void* context{nullptr};
     } velocity_updates{};
+
+    struct
+    {
+        core::ScopedConnection position_updates;
+        core::ScopedConnection heading_updates;
+        core::ScopedConnection velocity_updates;
+    } connections;
 };
 
 #endif // SESSION_PRIVATE_H_
