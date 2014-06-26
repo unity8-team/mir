@@ -5,6 +5,7 @@ add_library(
 
   module.cpp
   module_version.h
+  ubuntu_application_sensors_desktop.cpp
 )
 
 add_library(
@@ -12,6 +13,7 @@ add_library(
 
   module.cpp
   module_version.h
+  ubuntu_application_sensors_desktop.cpp
 )
 
 target_link_libraries(
@@ -20,7 +22,6 @@ target_link_libraries(
   "-Wl,--whole-archive"
   ubuntu_application_api_mirclient
   ubuntu_application_api_mircommon
-  #TODO: ubuntu_application_api_d_sensors
   ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
   "-Wl,--no-whole-archive"
   #TODO: Alarms
@@ -32,7 +33,6 @@ target_link_libraries(
   "-Wl,--whole-archive"
   ubuntu_application_api_mirserver
   ubuntu_application_api_mircommon
-  #TODO: ubuntu_application_api_d_sensors
   ${UBUNTU_APPLICATION_API_LINK_LIBRARIES}
   "-Wl,--no-whole-archive"
   #TODO: Alarms
