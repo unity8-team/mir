@@ -100,10 +100,11 @@ mc::BufferQueue::BufferQueue(
     mc::FrameDroppingPolicyFactory const& policy_provider,
     BufferAllocationPolicy const& alloc_policy)
     : nbuffers{nbuffers},
-      excess{0},
+      queue_size_excess{0},
       alloc_policy{alloc_policy},
-      overlapping_compositors{false},
       frame_dropping_enabled{false},
+      force_use_current_buffer{false},
+      multiple_compositor_buffers{false},
       the_properties{props},
       gralloc{gralloc}
 {
@@ -223,7 +224,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
-    bool use_current_buffer = false;
+    bool use_current_buffer = force_use_current_buffer;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
     {
         use_current_buffer = true;
@@ -252,11 +253,10 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         current_buffer_users.push_back(user_id);
     }
 
+    force_use_current_buffer = false;
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
-    // Detect bypassing compositors (those that need to hold multiple different
-    // buffers simultaneously).
-    overlapping_compositors =
+    multiple_compositor_buffers =
         buffers_sent_to_compositor.size() > current_buffer_users.size();
 
     std::shared_ptr<mg::Buffer> const acquired_buffer =
@@ -300,8 +300,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         // Ensure current_compositor_buffer gets reused by the next
         // compositor_acquire:
         current_buffer_users.clear();
-        void const* const impossible_user_id = this;
-        current_buffer_users.push_back(impossible_user_id);
+        force_use_current_buffer = true;
     }
 
     if (current_compositor_buffer != buffer.get())
@@ -446,17 +445,17 @@ void mc::BufferQueue::release(
     // To avoid reallocating buffers too often (which may be slow), only drop
     // a buffer after it's continually been in excess for a long time...
     if (alloced_buffers > min_buffers())
-        ++excess;
+        ++queue_size_excess;
     else
-        excess = 0;
+        queue_size_excess = 0;
 
     // If too many frames have had excess buffers then start dropping them now
     if (alloc_policy.alloc_behavior == BufferAllocBehavior::on_demand &&
-        excess > alloc_policy.shrink_treshold &&
+        queue_size_excess > alloc_policy.shrink_treshold &&
         nbuffers > 1)
     {
         remove(buffer, buffers);
-        excess = 0;
+        queue_size_excess = 0;
     }
     else if (!pending_client_notifications.empty())
     {
@@ -479,14 +478,19 @@ int mc::BufferQueue::min_buffers() const
     if (nbuffers == 1)
         return 1;
 
-    // else for multi-buffering with exclusivity guarantees:
-    int const client_demand = buffers_owned_by_client.size() +
-                        pending_client_notifications.size();
-
-    int const compositor_demand = overlapping_compositors ? 2 : 1;
-    int const min_compositors = std::max(1, compositor_demand);
-    int const min_clients = std::max(1, client_demand);
-    int const required_buffers = min_compositors + min_clients;
+    /* When framedropping is enabled and there are multiple compositors
+     * they can be out of phase enough that the compositor buffer is
+     * practically always owned by one of the compositors, which prevents it
+     * from being updated to the latest client content during frame-dropping
+     */
+    bool const increase_demand = multiple_compositor_buffers ||
+                                 current_buffer_users.size() > 1;
+    int const frame_drop_demand = increase_demand ? 1 : 0;
+    int const client_requests = buffers_owned_by_client.size() +
+                                pending_client_notifications.size();
+    int const client_demand = std::max(1, client_requests);
+    int const compositor_demand = 1;
+    int const required_buffers = compositor_demand + client_demand + frame_drop_demand;
 
     return std::min(nbuffers, required_buffers);
 }
@@ -500,8 +504,7 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
     if (!contains(current_compositor_buffer, buffers_sent_to_compositor))
     {
        current_buffer_users.clear();
-       void const* const impossible_user_id = this;
-       current_buffer_users.push_back(impossible_user_id);
+       force_use_current_buffer = true;
        std::swap(buffer_to_give, current_compositor_buffer);
     }
     give_buffer_to_client(buffer_to_give, std::move(lock));

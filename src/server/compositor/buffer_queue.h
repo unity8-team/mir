@@ -119,10 +119,11 @@ private:
     std::deque<Callback> pending_client_notifications;
 
     int nbuffers;
-    int excess;
+    int queue_size_excess;
     BufferAllocationPolicy const alloc_policy;
-    bool overlapping_compositors;
     bool frame_dropping_enabled;
+    bool force_use_current_buffer;
+    bool multiple_compositor_buffers;
     std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
     graphics::BufferProperties the_properties;
 
