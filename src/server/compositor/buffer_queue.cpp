@@ -37,12 +37,14 @@ mg::Buffer* pop(std::deque<mg::Buffer*>& q)
     return buffer;
 }
 
-bool remove(mg::Buffer const* item, std::vector<mg::Buffer*>& list)
+template<typename Type>
+bool remove(mg::Buffer const* item, std::vector<Type>& list)
 {
     int const size = list.size();
     for (int i = 0; i < size; ++i)
     {
-        if (list[i] == item)
+        //The &* is so that it works with both shared_ptrs and raw pointers
+        if (&*list[i] == item)
         {
             list.erase(list.begin() + i);
             return true;
@@ -95,9 +97,11 @@ mc::BufferQueue::BufferQueue(
     int nbuffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
-    mc::FrameDroppingPolicyFactory const& policy_provider)
+    mc::FrameDroppingPolicyFactory const& policy_provider,
+    BufferAllocationPolicy const& alloc_policy)
     : nbuffers{nbuffers},
       excess{0},
+      alloc_policy{alloc_policy},
       overlapping_compositors{false},
       frame_dropping_enabled{false},
       the_properties{props},
@@ -109,11 +113,10 @@ mc::BufferQueue::BufferQueue(
             std::logic_error("invalid number of buffers for BufferQueue"));
     }
 
-    /* By default not all buffers are allocated.
-     * If there is increased pressure by the client to acquire
-     * more buffers, more will be allocated at that time (up to nbuffers)
-     */
-    for(int i = 0; i < std::min(nbuffers, 2); i++)
+    int const nalloc =
+        alloc_policy.alloc_behavior == BufferAllocBehavior::allocate_all ?
+            nbuffers : std::min(nbuffers, 2);
+    for(int i = 0; i < nalloc; i++)
     {
         buffers.push_back(gralloc->alloc_buffer(the_properties));
     }
@@ -172,7 +175,8 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     }
 
     int const allocated_buffers = buffers.size();
-    if (allocated_buffers < min_buffers())
+    if (alloc_policy.alloc_behavior == BufferAllocBehavior::on_demand &&
+        allocated_buffers < min_buffers())
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -341,6 +345,11 @@ bool mc::BufferQueue::framedropping_allowed() const
     return frame_dropping_enabled;
 }
 
+int mc::BufferQueue::allocated_buffers() const
+{
+    return buffers.size();
+}
+
 void mc::BufferQueue::force_requests_to_complete()
 {
     std::unique_lock<std::mutex> lock(guard);
@@ -432,20 +441,21 @@ void mc::BufferQueue::release(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
-    int used_buffers = buffers.size() - free_buffers.size();
+    int const alloced_buffers = buffers.size();
 
     // To avoid reallocating buffers too often (which may be slow), only drop
     // a buffer after it's continually been in excess for a long time...
-
-    if (used_buffers > min_buffers())
+    if (alloced_buffers > min_buffers())
         ++excess;
     else
         excess = 0;
 
     // If too many frames have had excess buffers then start dropping them now
-    if (excess > 300 && buffers.back().get() == buffer && nbuffers > 1)
+    if (alloc_policy.alloc_behavior == BufferAllocBehavior::on_demand &&
+        excess > alloc_policy.shrink_treshold &&
+        nbuffers > 1)
     {
-        buffers.pop_back();
+        remove(buffer, buffers);
         excess = 0;
     }
     else if (!pending_client_notifications.empty())
@@ -470,13 +480,13 @@ int mc::BufferQueue::min_buffers() const
         return 1;
 
     // else for multi-buffering with exclusivity guarantees:
-    int client_demand = buffers_owned_by_client.size() +
+    int const client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
 
-    int compositor_demand = overlapping_compositors ? 2 : 1;
-    int min_compositors = std::max(1, compositor_demand);
-    int min_clients = std::max(1, client_demand);
-    int required_buffers = min_compositors + min_clients;
+    int const compositor_demand = overlapping_compositors ? 2 : 1;
+    int const min_compositors = std::max(1, compositor_demand);
+    int const min_clients = std::max(1, client_demand);
+    int const required_buffers = min_compositors + min_clients;
 
     return std::min(nbuffers, required_buffers);
 }
