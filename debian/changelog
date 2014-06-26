@@ -1,9 +1,40 @@
+platform-api (2.1.0+14.10.20140624.4-0ubuntu1) utopic; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Add missing enable/disable functions for haptic
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 24 Jun 2014 20:22:48 +0000
+
+platform-api (2.1.0+14.10.20140623.1-0ubuntu1) utopic; urgency=medium
+
+  [ Ricardo Mendoza ]
+  * Added orientation sensor, extended existing sensor API to allow
+    for dynamic event rate setting.
+
+  [ Ubuntu daily release ]
+  * debian/*symbols: auto-update new symbols to released version
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 23 Jun 2014 16:39:59 +0000
+
 platform-api (2.1.0+14.10.20140612-0ubuntu2) UNRELEASED; urgency=medium
 
   * Bump API version to 2.1
   * Add window resize support
 
  -- Gerry Boland <gerry.boland@canonical.com>  Tue, 17 Jun 2014 16:27:47 +0100
+
+platform-api (2.0.0+14.10.20140618.1-0ubuntu1) utopic; urgency=low
+
+  [ Tarmac ]
+  * Updated for Mir 0.3.0 release.
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * Updated for Mir 0.3.0 release.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 18 Jun 2014 19:31:24 +0000
 
 platform-api (2.0.0+14.10.20140612-0ubuntu1) utopic; urgency=medium
 

@@ -162,6 +162,11 @@ struct Sensor : public ubuntu::application::sensors::Sensor
         return sensor->getPowerUsage();
     }
 
+    int set_event_rate(uint32_t nsecs)
+    {
+        return sensor_event_queue->setEventRate(sensor, nsecs);
+    }
+
     const android::Sensor* sensor;
     ubuntu::application::sensors::SensorListener::Ptr listener;
     android::List<ubuntu::application::sensors::SensorListener::Ptr> listeners;

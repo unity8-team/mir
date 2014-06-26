@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2014 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -13,13 +13,13 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Thomas Voss <thomas.voss@canonical.com>
- *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
+ * Authored by: Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
 
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
 
 #include <stddef.h>
 
@@ -73,6 +73,11 @@ UStatus ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer*, float* 
 
     *value = 0.f;
 
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_accelerometer_set_event_rate(UASensorsAccelerometer* s, uint32_t rate)
+{
     return U_STATUS_SUCCESS;
 }
 
@@ -167,6 +172,11 @@ UStatus ua_sensors_proximity_get_resolution(UASensorsProximity*, float* value)
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_proximity_set_event_rate(UASensorsProximity* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_proximity_set_reading_cb(UASensorsProximity*, on_proximity_event_cb, void*)
 {
 }
@@ -234,6 +244,11 @@ UStatus ua_sensors_light_get_resolution(UASensorsLight*, float* value)
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_light_set_event_rate(UASensorsLight* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_light_set_reading_cb(UASensorsLight*, on_light_event_cb, void*)
 {
 }
@@ -245,6 +260,102 @@ uint64_t uas_light_event_get_timestamp(UASLightEvent*)
 }
 
 UStatus uas_light_event_get_light(UASLightEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+// Orientation Sensor
+UASensorsOrientation* ua_sensors_orientation_new()
+{
+    return NULL;
+}
+
+UStatus ua_sensors_orientation_enable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+UStatus ua_sensors_orientation_disable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+uint32_t ua_sensors_orientation_get_min_delay(UASensorsOrientation*)
+{
+    return 0;
+}
+
+UStatus ua_sensors_orientation_get_min_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_max_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_resolution(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_set_event_rate(UASensorsOrientation* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
+void ua_sensors_orientation_set_reading_cb(UASensorsOrientation*, on_orientation_event_cb, void*)
+{
+}
+
+// Orientation Sensor Event
+uint64_t uas_orientation_event_get_timestamp(UASOrientationEvent*)
+{
+    return 0;
+}
+
+UStatus uas_orientation_event_get_azimuth(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_pitch(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_roll(UASOrientationEvent*, float* value)
 {
     if (!value)
         return U_STATUS_ERROR;

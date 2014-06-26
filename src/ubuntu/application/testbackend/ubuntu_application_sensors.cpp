@@ -16,10 +16,11 @@
  * Authored by: Martin Pitt <martin.pitti@ubuntu.com>
  */
 
-#include <ubuntu/application/sensors/ubuntu_application_sensors.h>
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
 #include <ubuntu/application/sensors/light.h>
+#include <ubuntu/application/sensors/orientation.h>
+#include <ubuntu/application/sensors/haptic.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -51,6 +52,20 @@ using namespace std;
  * test sensor implementation
  *
  ***************************************/
+
+enum ubuntu_sensor_type
+{
+    first_defined_sensor_type = 0,
+    ubuntu_sensor_type_accelerometer = first_defined_sensor_type,
+    ubuntu_sensor_type_magnetic_field,
+    ubuntu_sensor_type_gyroscope,
+    ubuntu_sensor_type_light,
+    ubuntu_sensor_type_proximity,
+    ubuntu_sensor_type_orientation,
+    ubuntu_sensor_type_linear_acceleration,
+    ubuntu_sensor_type_rotation_vector,
+    undefined_sensor_type
+};
 
 // this is only internal API, so we make everything public
 struct TestSensor
@@ -405,6 +420,11 @@ UStatus ua_sensors_accelerometer_get_resolution(UASensorsAccelerometer* s, float
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_accelerometer_set_event_rate(UASensorsAccelerometer* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_accelerometer_set_reading_cb(UASensorsAccelerometer* s, on_accelerometer_event_cb cb, void* ctx)
 {
     TestSensor* sensor = static_cast<TestSensor*>(s);
@@ -506,6 +526,11 @@ UStatus ua_sensors_proximity_get_resolution(UASensorsProximity*, float* value)
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_proximity_set_event_rate(UASensorsProximity* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_proximity_set_reading_cb(UASensorsProximity* s, on_proximity_event_cb cb, void* ctx)
 {
     TestSensor* sensor = static_cast<TestSensor*>(s);
@@ -582,6 +607,11 @@ UStatus ua_sensors_light_get_resolution(UASensorsLight* s, float* value)
     return U_STATUS_SUCCESS;
 }
 
+UStatus ua_sensors_light_set_event_rate(UASensorsLight* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
 void ua_sensors_light_set_reading_cb(UASensorsLight* s, on_light_event_cb cb, void* ctx)
 {
     TestSensor* sensor = static_cast<TestSensor*>(s);
@@ -600,6 +630,100 @@ UStatus uas_light_event_get_light(UASLightEvent* e, float* value)
         return U_STATUS_ERROR;
 
     *value = static_cast<TestSensor*>(e)->x;
+
+    return U_STATUS_SUCCESS;
+}
+
+UASensorsOrientation* ua_sensors_orientation_new()
+{
+    return NULL;
+}
+
+UStatus ua_sensors_orientation_enable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+UStatus ua_sensors_orientation_disable(UASensorsOrientation*)
+{
+    return (UStatus) 0;
+}
+
+uint32_t ua_sensors_orientation_get_min_delay(UASensorsOrientation*)
+{
+    return 0;
+}
+
+UStatus ua_sensors_orientation_get_min_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_max_value(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_get_resolution(UASensorsOrientation*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus ua_sensors_orientation_set_event_rate(UASensorsOrientation* s, uint32_t rate)
+{
+    return U_STATUS_SUCCESS;
+}
+
+void ua_sensors_orientation_set_reading_cb(UASensorsOrientation*, on_orientation_event_cb, void*)
+{
+}
+
+uint64_t uas_orientation_event_get_timestamp(UASOrientationEvent*)
+{
+    return 0;
+}
+
+UStatus uas_orientation_event_get_azimuth(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_pitch(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
+
+    return U_STATUS_SUCCESS;
+}
+
+UStatus uas_orientation_event_get_roll(UASOrientationEvent*, float* value)
+{
+    if (!value)
+        return U_STATUS_ERROR;
+
+    *value = 0.f;
 
     return U_STATUS_SUCCESS;
 }
