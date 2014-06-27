@@ -52,6 +52,7 @@ ua_sensors_haptic_new()
 
     auto holder = make_holder(new UbuntuApplicationSensorsHaptic(stub));
     holder->value->bus_thread = std::thread{[bus](){ bus->run(); }};
+    holder->value->bus = bus;
 
     return make_holder(new UbuntuApplicationSensorsHaptic(stub));
 }
