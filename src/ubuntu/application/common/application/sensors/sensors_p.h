@@ -40,6 +40,13 @@ struct UbuntuApplicationSensorsHaptic
     {
     }
 
+    ~UbuntuApplicationSensorsHaptic()
+    {
+        if (bus_thread.joinable())
+            bus_thread.join();
+    }
+
     bool enabled;
     std::shared_ptr<dbus::Object> session;
+    std::thread bus_thread;
 };
