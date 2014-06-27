@@ -425,7 +425,7 @@ TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
     }
 }
 
-TEST_F(BufferQueueTest, async_clients_get_all_buffers)
+TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
 {
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
