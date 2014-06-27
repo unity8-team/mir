@@ -57,6 +57,7 @@ protected:
     mg::BufferProperties buffer_properties;
     std::shared_ptr<mtd::GraphicsRegionFactory> graphics_region_factory;
     mir::test::doubles::StubFrameDroppingPolicyFactory policy_factory;
+    mc::BufferAllocationPolicy alloc_policy;
 };
 
 auto client_acquire_blocking(mc::BufferQueue& switching_bundle)
@@ -119,7 +120,7 @@ TEST_F(AndroidBufferIntegration, swapper_creation_is_sane)
 
     auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
 
-    mc::BufferQueue swapper(2, allocator, buffer_properties, policy_factory);
+    mc::BufferQueue swapper(2, allocator, buffer_properties, policy_factory, alloc_policy);
 
     auto returned_buffer = client_acquire_blocking(swapper);
 
