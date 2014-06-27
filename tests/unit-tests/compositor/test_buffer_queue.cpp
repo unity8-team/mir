@@ -825,17 +825,17 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
 /* Regression test LP: #1241369 / LP: #1241371 */
 TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
 {
-    for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; nbuffers++)
+    for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; nbuffers++)
     {
         TestBufferQueue q(nbuffers);
         unsigned long client_frames = 0;
-        unsigned long const compose_frames = 100;
-        auto const compositor_holding_time = std::chrono::milliseconds{1};
+        unsigned long const compose_frames = 10;
+        auto const compositor_holding_time = std::chrono::milliseconds{16};
         //simulate a client rendering time that's very close to the deadline
         //simulated by the compositor holding time but not the same as that
         //would imply the client will always misses its window to the next vsync
         //and its framerate would be roughly half of the compositor rate
-        auto const client_rendering_time = std::chrono::microseconds{900};
+        auto const client_rendering_time = std::chrono::milliseconds{15};
 
         q.allow_framedropping(false);
 
@@ -872,8 +872,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         compositor_thread.stop();
 
         // Roughly compose_frames == client_frames within 20%
-        ASSERT_THAT(client_frames, Gt(compose_frames * 0.8f));
-        ASSERT_THAT(client_frames, Lt(compose_frames * 1.2f));
+        ASSERT_THAT(client_frames, Ge(compose_frames * 0.8f));
     }
 }
 
