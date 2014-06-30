@@ -51,26 +51,54 @@ double
 ua_location_position_update_get_latitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    return update->update.value.latitude().value.value();
+    return update->update.value.latitude.value.value();
 }
 
 double
 ua_location_position_update_get_longitude_in_degree(
     UALocationPositionUpdate *update)
 {
-    return update->update.value.longitude().value.value();
+    return update->update.value.longitude.value.value();
 }
 
 bool
 ua_location_position_update_has_altitude(
     UALocationPositionUpdate *update)
 {
-    return update->update.value.has_altitude();
+    return update->update.value.altitude;
 }
 
 double
 ua_location_position_update_get_altitude_in_meter(
     UALocationPositionUpdate *update)
 {
-    return update->update.value.altitude().value.value();
+    return update->update.value.altitude->value.value();
+}
+
+bool
+ua_location_position_update_has_horizontal_accuracy(
+    UALocationPositionUpdate *update)
+{
+    return update->update.value.accuracy.horizontal;
+}
+
+double
+ua_location_position_update_get_horizontal_accuracy_in_meter(
+    UALocationPositionUpdate *update)
+{
+    return update->update.value.accuracy.horizontal->value();
+}
+
+bool
+ua_location_position_update_has_vertical_accuracy(
+    UALocationPositionUpdate *update)
+{
+    return update->update.value.accuracy.vertical;
+}
+
+double
+ua_location_position_update_get_vertical_accuracy_in_meter(
+    UALocationPositionUpdate *update)
+{
+    return update->update.value.accuracy.vertical->value();
 }

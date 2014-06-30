@@ -32,7 +32,7 @@ class RefCounted
     bool operator==(const RefCounted&) const = delete;
 
     void ref() { counter.fetch_add(1); }
-    void unref() { if (0 == counter.fetch_sub(1)) { delete this; } }
+    void unref() { if (1 == counter.fetch_sub(1)) { delete this; } }
 
   protected:
     RefCounted() : counter(1)

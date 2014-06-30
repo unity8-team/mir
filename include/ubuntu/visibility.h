@@ -21,8 +21,10 @@
 
 #if __GNUC__ >= 4
 #define UBUNTU_DLL_PUBLIC __attribute__ ((visibility ("default")))
+#define UBUNTU_DLL_LOCAL __attribute__ ((visibility ("hidden")))
 #else
 #define UBUNTU_DLL_PUBLIC
+#define UBUNTU_DLL_LOCAL
 #endif
 
 #endif /* UBUNTU_VISIBILITY_H_ */

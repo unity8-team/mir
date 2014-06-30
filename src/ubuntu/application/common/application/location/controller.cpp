@@ -19,6 +19,7 @@
 #include "ubuntu/application/location/controller.h"
 
 #include "controller_p.h"
+#include "instance.h"
 
 void
 ua_location_service_controller_ref(
@@ -51,7 +52,20 @@ ua_location_service_controller_query_status(
     UALocationServiceStatusFlags *out_flags)
 {
     (void) controller;
-    (void) out_flags;
+
+    *out_flags = 0;
+
+    auto service = Instance::instance().get_service();
+
+    if (service->is_online().get())
+        *out_flags |= UA_LOCATION_SERVICE_ENABLED;
+    else
+        *out_flags |= UA_LOCATION_SERVICE_DISABLED;
+
+    if (service->does_satellite_based_positioning().get())
+        *out_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
+    else
+        *out_flags |= UA_LOCATION_SERVICE_GPS_DISABLED;
 
     return U_STATUS_SUCCESS;
 }
@@ -62,6 +76,9 @@ ua_location_service_controller_enable_service(
 {
     (void) controller;
 
+    auto service = Instance::instance().get_service();
+    service->is_online().set(true);
+
     return U_STATUS_SUCCESS;
 }
 
@@ -70,6 +87,9 @@ ua_location_service_controller_disable_service(
     UALocationServiceController *controller)
 {
     (void) controller;
+
+    auto service = Instance::instance().get_service();
+    service->is_online().set(false);
     
     return U_STATUS_SUCCESS;
 }
@@ -80,6 +100,9 @@ ua_location_service_controller_enable_gps(
 {
     (void) controller;
 
+    auto service = Instance::instance().get_service();
+    service->does_satellite_based_positioning().set(true);
+
     return U_STATUS_SUCCESS;
 }
 
@@ -88,6 +111,9 @@ ua_location_service_controller_disable_gps(
     UALocationServiceController *controller)
 {
     (void) controller;
+
+    auto service = Instance::instance().get_service();
+    service->does_satellite_based_positioning().set(false);
 
     return U_STATUS_SUCCESS;
 }
