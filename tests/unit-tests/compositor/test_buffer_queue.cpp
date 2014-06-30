@@ -818,7 +818,8 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
         compositor_thread.stop();
 
         // Roughly compose_frames == client_frames within 90%
-        ASSERT_THAT(client_frames, Gt(compose_frames * 0.90f));
+        ASSERT_THAT(client_frames, Ge(compose_frames * 0.90f));
+        ASSERT_THAT(client_frames, Le(compose_frames * 1.1f));
     }
 }
 
@@ -873,6 +874,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
 
         // Roughly compose_frames == client_frames within 20%
         ASSERT_THAT(client_frames, Ge(compose_frames * 0.8f));
+        ASSERT_THAT(client_frames, Le(compose_frames * 1.2f));
     }
 }
 
