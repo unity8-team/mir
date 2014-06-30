@@ -830,7 +830,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
     {
         TestBufferQueue q(nbuffers);
         unsigned long client_frames = 0;
-        unsigned long const compose_frames = 10;
+        unsigned long const compose_frames = 20;
         auto const compositor_holding_time = std::chrono::milliseconds{16};
         //simulate a client rendering time that's very close to the deadline
         //simulated by the compositor holding time but not the same as that
