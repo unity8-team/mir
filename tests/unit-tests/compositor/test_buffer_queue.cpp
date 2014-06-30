@@ -836,7 +836,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         //simulated by the compositor holding time but not the same as that
         //would imply the client will always misses its window to the next vsync
         //and its framerate would be roughly half of the compositor rate
-        auto const client_rendering_time = std::chrono::milliseconds{15};
+        auto const client_rendering_time = std::chrono::milliseconds{14};
 
         q.allow_framedropping(false);
 
