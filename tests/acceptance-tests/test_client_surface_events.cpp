@@ -105,7 +105,7 @@ struct ClientSurfaceEvents : BasicClientServerFixture
     MirSurface* last_event_surface = nullptr;
     MirEventDelegate delegate{&event_callback, this};
 
-    std::shared_ptr<ms::Surface> scene_surface;
+    std::weak_ptr<ms::Surface> weak_scene_surface;
 
     static void event_callback(MirSurface* surface, MirEvent const* event, void* ctx)
     {
@@ -130,6 +130,11 @@ struct ClientSurfaceEvents : BasicClientServerFixture
         last_event_surface = nullptr;
     }
 
+    std::shared_ptr<ms::Surface> scene_surface()
+    {
+        return weak_scene_surface.lock();
+    }
+
     void SetUp() override
     {
         BasicClientServerFixture::SetUp();
@@ -137,7 +142,7 @@ struct ClientSurfaceEvents : BasicClientServerFixture
         surface = mir_connection_create_surface_sync(connection, &request_params);
         mir_surface_set_event_handler(surface, &delegate);
 
-        scene_surface = server_configuration.the_latest_surface();
+        weak_scene_surface = server_configuration.the_latest_surface();
 
         other_surface = mir_connection_create_surface_sync(connection, &request_params);
         mir_surface_set_event_handler(other_surface, nullptr);
@@ -220,7 +225,7 @@ TEST_P(OrientationEvents, surface_receives_orientation_events)
 {
     auto const direction = GetParam();
 
-    scene_surface->set_orientation(direction);
+    scene_surface()->set_orientation(direction);
 
     EXPECT_TRUE(wait_for_event(mir_event_type_orientation, std::chrono::seconds(1)));
 
@@ -244,7 +249,7 @@ TEST_F(ClientSurfaceEvents, client_can_query_current_orientation)
     {
         reset_last_event();
 
-        scene_surface->set_orientation(direction);
+        scene_surface()->set_orientation(direction);
 
         EXPECT_TRUE(wait_for_event(mir_event_type_orientation, std::chrono::seconds(1)));
 
