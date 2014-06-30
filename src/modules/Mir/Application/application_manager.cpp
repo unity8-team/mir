@@ -716,13 +716,13 @@ void ApplicationManager::add(Application* application)
 
     connect(application, &Application::screenshotChanged, this, &ApplicationManager::screenshotUpdated);
 
-    beginInsertRows(QModelIndex(), 0, 0);
-    m_applications.prepend(application);
+    beginInsertRows(QModelIndex(), m_applications.count(), m_applications.count());
+    m_applications.append(application);
     endInsertRows();
     emit countChanged();
     emit applicationAdded(application->appId());
-    emit topmostApplicationChanged(application);
     if (m_applications.size() == 1) {
+        emit topmostApplicationChanged(application);
         emit emptyChanged();
     }
 }
