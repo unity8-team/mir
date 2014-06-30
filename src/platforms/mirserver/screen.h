@@ -33,9 +33,6 @@ class Screen : public QObject, public QPlatformScreen
 public:
     Screen(mir::graphics::DisplayConfigurationOutput const&);
 
-    // QObject methods.
-    void customEvent(QEvent* event) override;
-
     // QPlatformScreen methods.
     QRect geometry() const override { return m_geometry; }
     int depth() const override { return m_depth; }
@@ -44,12 +41,6 @@ public:
     qreal refreshRate() const override { return m_refreshRate; }
     Qt::ScreenOrientation nativeOrientation() const override { return m_nativeOrientation; }
     Qt::ScreenOrientation orientation() const override { return m_currentOrientation; }
-
-public Q_SLOTS:
-    void onOrientationReadingChanged();
-
-private Q_SLOTS:
-    void commitPendingOrientation();
 
 private:
     void readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const&);
@@ -62,9 +53,6 @@ private:
 
     Qt::ScreenOrientation m_nativeOrientation;
     Qt::ScreenOrientation m_currentOrientation;
-    Qt::ScreenOrientation m_pendingOrientation;
-    QTimer m_pendingOrientationTimer;
-    QOrientationSensor *m_orientationSensor;
 };
 
 #endif // SCREEN_H

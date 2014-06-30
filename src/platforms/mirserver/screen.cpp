@@ -78,21 +78,6 @@ enum QImage::Format qImageFormatFromMirPixelFormat(MirPixelFormat mirPixelFormat
     }
 }
 
-
-class OrientationReadingEvent : public QEvent
-{
-public:
-    OrientationReadingEvent(QOrientationReading::Orientation orientation)
-        : QEvent(orientationReadingEventType)
-        , orientation(orientation) {
-    }
-
-    static const QEvent::Type orientationReadingEventType;
-    QOrientationReading::Orientation orientation;
-};
-const QEvent::Type OrientationReadingEvent::orientationReadingEventType =
-    static_cast<QEvent::Type>(QEvent::registerEventType());
-
 } // namespace {
 
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
@@ -105,18 +90,6 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
         ? Qt::LandscapeOrientation : Qt::PortraitOrientation;
 
     m_currentOrientation = m_nativeOrientation;
-
-    m_pendingOrientationTimer.setSingleShot(true);
-    m_pendingOrientationTimer.setInterval(600);
-    connect(&m_pendingOrientationTimer, &QTimer::timeout,
-            this, &Screen::commitPendingOrientation);
-
-    m_orientationSensor = new QOrientationSensor(this);
-    connect(m_orientationSensor, &QOrientationSensor::readingChanged,
-                     this, &Screen::onOrientationReadingChanged);
-
-    // TODO: Stop when display is off
-    m_orientationSensor->start();
 }
 
 void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const &screen)
@@ -137,62 +110,4 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_geometry.setHeight(mode.size.height.as_int());
 
     m_refreshRate = 60; //FIXME: mode.vrefresh_hz value seems to be incorrect??
-}
-
-void Screen::commitPendingOrientation()
-{
-    m_currentOrientation = m_pendingOrientation;
-
-    // Raise the event signal so that client apps know the orientation changed
-    QWindowSystemInterface::handleScreenOrientationChange(screen(), m_currentOrientation);
-}
-
-void Screen::customEvent(QEvent* event)
-{
-    Q_ASSERT(QThread::currentThread() == thread());
-
-    OrientationReadingEvent* oReadingEvent = static_cast<OrientationReadingEvent*>(event);
-    switch (oReadingEvent->orientation) {
-
-    case QOrientationReading::TopUp:
-        m_pendingOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
-            Qt::LandscapeOrientation : Qt::PortraitOrientation;
-        m_pendingOrientationTimer.start();
-        break;
-
-    case QOrientationReading::TopDown:
-        m_pendingOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
-            Qt::InvertedLandscapeOrientation : Qt::InvertedPortraitOrientation;
-        m_pendingOrientationTimer.start();
-        break;
-
-    case QOrientationReading::LeftUp:
-        m_pendingOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
-            Qt::InvertedPortraitOrientation : Qt::LandscapeOrientation;
-        m_pendingOrientationTimer.start();
-        break;
-
-    case QOrientationReading::RightUp:
-        m_pendingOrientation = (m_nativeOrientation == Qt::LandscapeOrientation) ?
-            Qt::PortraitOrientation : Qt::InvertedLandscapeOrientation;
-        m_pendingOrientationTimer.start();
-        break;
-
-    case QOrientationReading::FaceUp:
-    case QOrientationReading::FaceDown:
-        // maintain screen orientation
-        m_pendingOrientationTimer.stop();
-        break;
-
-    default:
-        qFatal("[mirserver QPA] Unknown orientation.");
-    }
-
-}
-
-void Screen::onOrientationReadingChanged()
-{
-    // Make sure to switch to the main Qt thread context
-    QCoreApplication::postEvent(this,
-            new OrientationReadingEvent(m_orientationSensor->reading()->orientation()));
 }
