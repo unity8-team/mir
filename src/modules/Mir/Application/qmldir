@@ -1,3 +1,0 @@
-module Mir.Application
-plugin mirapplicationplugin
-ApplicationImage 0.1 ApplicationImage.qml

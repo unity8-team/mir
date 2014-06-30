@@ -1,4 +1,4 @@
-TARGET = mirapplicationplugin
+TARGET = unityapplicationplugin
 TEMPLATE = lib
 
 QT       += core quick dbus
@@ -20,7 +20,7 @@ QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so i
 PRE_TARGETDEPS += $${OUT_PWD}/../../../platforms/mirserver/libqpa-mirserver.so
 
 TARGET = $$qtLibraryTarget($$TARGET)
-uri = Mir.Application
+uri = Unity.Application
 
 SOURCES += application_manager.cpp \
     application.cpp \
