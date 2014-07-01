@@ -42,9 +42,10 @@ class TaskController;
 
 class Application : public unity::shell::application::ApplicationInfoInterface
 {
+    Q_OBJECT
+
     Q_FLAGS(Orientation SupportedOrientations)
 
-    Q_OBJECT
     Q_PROPERTY(QString desktopFile READ desktopFile CONSTANT)
     Q_PROPERTY(QString exec READ exec CONSTANT)
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)

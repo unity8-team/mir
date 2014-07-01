@@ -52,7 +52,7 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
     Q_OBJECT
     Q_ENUMS(MoreRoles)
     Q_FLAGS(ExecFlags)
-    Q_PROPERTY(Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
+    Q_PROPERTY(qtmir::Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
@@ -88,12 +88,12 @@ public:
     QString focusedApplicationId() const override;
     bool suspended() const override;
     void setSuspended(bool suspended) override;
-    Q_INVOKABLE Application* get(int index) const override;
-    Q_INVOKABLE Application* findApplication(const QString &appId) const override;
+    Q_INVOKABLE qtmir::Application* get(int index) const override;
+    Q_INVOKABLE qtmir::Application* findApplication(const QString &appId) const override;
     Q_INVOKABLE bool requestFocusApplication(const QString &appId) override;
     Q_INVOKABLE bool focusApplication(const QString &appId) override;
     Q_INVOKABLE void unfocusCurrentApplication() override;
-    Q_INVOKABLE Application* startApplication(const QString &appId, const QStringList &arguments) override;
+    Q_INVOKABLE qtmir::Application* startApplication(const QString &appId, const QStringList &arguments) override;
     Q_INVOKABLE bool stopApplication(const QString &appId) override;
     Q_INVOKABLE bool updateScreenshot(const QString &appId) override;
 
@@ -101,16 +101,16 @@ public:
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
     QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
 
-    Application* topmostApplication() const;
+    qtmir::Application* topmostApplication() const;
 
-    Q_INVOKABLE Application *startApplication(const QString &appId, ExecFlags flags,
+    Q_INVOKABLE qtmir::Application *startApplication(const QString &appId, ExecFlags flags,
                                               const QStringList &arguments = QStringList());
     Q_INVOKABLE void move(int from, int to);
 
     bool isEmpty() const { return rowCount() == 0; }
 
     const QList<Application*> &list() const { return m_applications; }
-    Application* findApplicationWithPid(const qint64 pid);
+    qtmir::Application* findApplicationWithPid(const qint64 pid);
 
 public Q_SLOTS:
     void authorizeSession(const quint64 pid, bool &authorized);
