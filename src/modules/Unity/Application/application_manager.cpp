@@ -812,7 +812,6 @@ void ApplicationManager::setFocused(Application *application)
 
     m_focusedApplication = application;
     m_focusedApplication->setFocused(true);
-    m_focusedApplication->setState(Application::Running);
     move(m_applications.indexOf(application), 0);
     Q_EMIT focusedApplicationIdChanged();
     m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
