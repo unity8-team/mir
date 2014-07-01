@@ -19,6 +19,7 @@
 #include "ubuntu/application/location/service.h"
 
 #include "controller_p.h"
+#include "instance.h"
 #include "session_p.h"
 
 #include <com/ubuntu/location/service/stub.h>
@@ -29,45 +30,6 @@
 namespace dbus = core::dbus;
 namespace cul = com::ubuntu::location;
 namespace culs = com::ubuntu::location::service;
-
-namespace
-{
-class Instance
-{
-  public:
-    static Instance& instance()
-    {
-        static Instance inst;
-        return inst;
-    }
-
-    const culs::Interface::Ptr& get_service() const
-    {
-        return service;
-    }
-
-  private:
-    Instance() : bus(std::make_shared<dbus::Bus>(dbus::WellKnownBus::system)),
-                 executor(dbus::asio::make_executor(bus)),
-                 service(dbus::resolve_service_on_bus<culs::Interface, culs::Stub>(bus))
-    {
-        bus->install_executor(executor);
-        worker = std::move(std::thread([&]() { bus->run(); }));
-    }
-
-    ~Instance() noexcept
-    {
-        if (worker.joinable())
-            worker.join();
-    }
-
-    dbus::Bus::Ptr bus;
-    dbus::Executor::Ptr executor;
-    culs::Interface::Ptr service;
-    std::thread worker;
-};
-
-}
 
 UALocationServiceSession*
 ua_location_service_create_session_for_low_accuracy(
@@ -81,8 +43,21 @@ UALocationServiceSession*
 ua_location_service_create_session_for_high_accuracy(
     UALocationServiceRequirementsFlags /*flags*/)
 {
-    return new UbuntuApplicationLocationServiceSession{
-        Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})};
+    try
+    {
+        return new UbuntuApplicationLocationServiceSession
+        {
+            Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
+        };
+    } catch(const std::exception& e)
+    {
+        fprintf(stderr, "Error creating session for high accuracy: %s \n", e.what());
+    } catch(...)
+    {
+        fprintf(stderr, "Error creating session for high accuracy.\n");
+    }
+
+    return NULL;
 }
 
 UALocationServiceController*

@@ -103,6 +103,46 @@ extern "C"
     ua_location_position_update_get_altitude_in_meter(
         UALocationPositionUpdate *update);
 
+    /**
+     * \brief Checks if the position update contains a horizontal accuracy estimate.
+     * \ingroup location_service
+     * \returns TRUE if the update contains a horizontal accuracy estimate, else FALSE.
+     * \param[in] update The position update instance to be queried.
+     */
+    UBUNTU_DLL_PUBLIC bool
+    ua_location_position_update_has_horizontal_accuracy(
+        UALocationPositionUpdate *update);
+
+    /**
+     * \brief Queries the horizontal accuracy contained in the position update.
+     * \ingroup location_service
+     * \returns The horizontal accuracy of the position update in [m].
+     * \param[in] update The position update instance to be queried.
+     */
+    UBUNTU_DLL_PUBLIC double
+    ua_location_position_update_get_horizontal_accuracy_in_meter(
+        UALocationPositionUpdate *update);
+
+    /**
+     * \brief Checks if the position update contains a vertical accuracy estimate.
+     * \ingroup location_service
+     * \returns TRUE if the update contains a vertical accuracy estimate, else FALSE.
+     * \param[in] update The position update instance to be queried.
+     */
+    UBUNTU_DLL_PUBLIC bool
+    ua_location_position_update_has_vertical_accuracy(
+        UALocationPositionUpdate *update);
+
+    /**
+     * \brief Queries the vertical accuracy contained in the position update.
+     * \ingroup location_service
+     * \returns The vertical accuracy of the position update in [m].
+     * \param[in] update The position update instance to be queried.
+     */
+    UBUNTU_DLL_PUBLIC double
+    ua_location_position_update_get_vertical_accuracy_in_meter(
+        UALocationPositionUpdate *update);
+
 #ifdef __cplusplus
 }
 #endif
