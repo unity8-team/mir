@@ -51,5 +51,5 @@ double
 ua_location_heading_update_get_heading_in_degree(
     UALocationHeadingUpdate *update)
 {
-    return update->update.value.value.value();
+    return update->update.value.value();
 }

@@ -51,5 +51,5 @@ double
 ua_location_velocity_update_get_velocity_in_meters_per_second(
     UALocationVelocityUpdate *update)
 {
-    return update->update.value.value.value();
+    return update->update.value.value();
 }
