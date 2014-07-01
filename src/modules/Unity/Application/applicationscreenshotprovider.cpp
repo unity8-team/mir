@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -19,14 +19,14 @@
 #include "application_manager.h"
 #include "application.h"
 
-// unity-mir
+// QPA-mirserver
 #include "logging.h"
 
 // mir
 #include <mir/scene/session.h>
 
-// fallback grid unit used if GRID_UNIT_PX is not in the environment.
-const int defaultGridUnitPx = 8;
+namespace qtmir
+{
 
 ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager *appManager)
     : QQuickImageProvider(QQuickImageProvider::Image)
@@ -34,34 +34,36 @@ ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager 
 {
 }
 
-QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize * size,
-                                                     const QSize &requestedSize)
+QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize *size,
+                                                   const QSize &requestedSize)
 {
     // We ignore requestedSize here intentionally to avoid keeping scaled copies around
     Q_UNUSED(requestedSize)
 
-    DLOG("ApplicationScreenshotProvider::requestImage (this=%p, id=%s)", this, imageId.toLatin1().constData());
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - appId=" << imageId;
 
     QString appId = imageId.split('/').first();
 
     Application* app = static_cast<Application*>(m_appManager->findApplication(appId));
     if (app == nullptr) {
-        LOG("ApplicationScreenshotProvider - app with appId %s not found", appId.toLatin1().constData());
+        qWarning() << "ApplicationScreenshotProvider - app with appId" << appId << "not found";
         return QImage();
     }
 
     // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
     // return the screenshot that was saved to disk.
     if (!app->session() || !app->session()->default_surface()) {
-        LOG("ApplicationScreenshotProvider - app session not found - asking for screenshot too early");
+        qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
         return QImage();
     }
 
     QImage image = app->screenshotImage();
 
-    DLOG("ApplicationScreenshotProvider - working with size %d x %d", image.width(), image.height());
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - working with size" << image;
     size->setWidth(image.width());
     size->setHeight(image.height());
 
     return image;
 }
+
+} // namespace qtmir

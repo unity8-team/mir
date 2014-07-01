@@ -12,24 +12,26 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
-#ifndef WINDOW_SCREENSHOT_PROVIDER_H_
-#define WINDOW_SCREENSHOT_PROVIDER_H_
+#ifndef MOCK_PROC_INFO_H
+#define MOCK_PROC_INFO_H
 
-#include <QQuickImageProvider>
+#include <Unity/Application/proc_info.h>
 
-namespace qtmir {
+#include <gmock/gmock.h>
 
-class WindowScreenshotProvider : public QQuickImageProvider
+namespace testing
 {
-public:
-    WindowScreenshotProvider();
-
-    // id is ignored for now
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
+struct MockProcInfo : public qtmir::ProcInfo
+{
+    MOCK_METHOD1(command_line, QByteArray(quint64));
+    std::unique_ptr<CommandLine> commandLine(quint64 pid)
+    {
+      return std::unique_ptr<CommandLine>(new CommandLine{command_line(pid)});
+    }
 };
+}
 
-} // namespace qtmir
-
-#endif // WINDOW_SCREENSHOT_PROVIDER_H_
+#endif // MOCK_OOM_CONTROLLER_H

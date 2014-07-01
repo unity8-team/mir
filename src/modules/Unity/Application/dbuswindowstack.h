@@ -20,6 +20,8 @@
 #include <QObject>
 #include <QDBusArgument>
 
+namespace qtmir {
+
 class ApplicationManager;
 
 class AppIdDesktopFile
@@ -56,13 +58,15 @@ public:
     Q_INVOKABLE Q_SCRIPTABLE QList<WindowInfo> GetWindowStack();
     Q_INVOKABLE Q_SCRIPTABLE QStringList GetWindowProperties(unsigned int window_id, const QString &app_id, const QStringList &names);
 
-signals:
+Q_SIGNALS:
     void FocusedWindowChanged(unsigned int window_id, const QString &app_id, unsigned int stage);
     void WindowCreated(unsigned int window_id, const QString &app_id);
     void WindowDestroyed(unsigned int window_id, const QString &app_id);
 };
 
-Q_DECLARE_METATYPE(AppIdDesktopFile);
-Q_DECLARE_METATYPE(WindowInfo);
+} // namespace qtmir
+
+Q_DECLARE_METATYPE(qtmir::AppIdDesktopFile);
+Q_DECLARE_METATYPE(qtmir::WindowInfo);
 
 #endif // DBUSWINDOWSTACK_H

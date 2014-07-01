@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -23,7 +23,6 @@
 // Qt
 #include <QAbstractListModel>
 #include <QHash>
-#include <QLoggingCategory>
 #include <QMutex>
 
 // Mir
@@ -32,11 +31,11 @@
 // local
 #include "mirsurfaceitem.h"
 
-class ShellServerConfiguration;
-namespace mir { namespace shell { class Surface; }}
 namespace mir { namespace scene { class Surface; class Session; }}
 
-Q_DECLARE_LOGGING_CATEGORY(MIRQML_MIR_SURFACE_MANAGER)
+namespace qtmir {
+
+class ShellServerConfiguration;
 
 class MirSurfaceManager : public QAbstractListModel
 {
@@ -72,10 +71,10 @@ Q_SIGNALS:
 //    void fullscreenSurfaceChanged();
 
 public Q_SLOTS:
-    void onSessionCreatedSurface(mir::scene::Session const* session, std::shared_ptr<mir::scene::Surface> const&);
-    void onSessionDestroyingSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void onSessionCreatedSurface(const mir::scene::Session *, const std::shared_ptr<mir::scene::Surface> &);
+    void onSessionDestroyingSurface(const mir::scene::Session *, const std::shared_ptr<mir::scene::Surface> &);
 
-    void onSurfaceAttributeChanged(mir::scene::Surface const*, MirSurfaceAttrib, int);
+    void onSurfaceAttributeChanged(const mir::scene::Surface *, MirSurfaceAttrib, int);
 
 private:
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
@@ -84,7 +83,8 @@ private:
     static MirSurfaceManager *the_surface_manager;
     QHash<int, QByteArray> m_roleNames;
     QMutex m_mutex;
-    QLoggingCategory m_log;
 };
+
+} // namespace qtmir
 
 #endif // MIR_SURFACE_MANAGER_H

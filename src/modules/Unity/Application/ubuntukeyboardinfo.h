@@ -20,6 +20,8 @@
 #include <QLocalSocket>
 #include <QTimer>
 
+namespace qtmir {
+
 // Temporary solution to get information about the onscreen keyboard
 // This shouldn't be needed once the OSK is a properly sized surface
 // instead of a fullscreen one.
@@ -74,5 +76,7 @@ private:
     // Path to the socket file created by ubuntu-keyboard
     QString m_socketFilePath;
 };
+
+} // namespace qtmir
 
 #endif // UBUNTU_KEYBOARD_INFO_H

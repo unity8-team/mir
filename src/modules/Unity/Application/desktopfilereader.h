@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -21,22 +21,39 @@
 #include <QVector>
 #include <QFileInfo>
 
+namespace qtmir
+{
+
 class DesktopFileReader {
 public:
-    DesktopFileReader(const QString &appId);
-    DesktopFileReader(const QFileInfo &desktopFile);
-    ~DesktopFileReader();
+    class Factory
+    {
+    public:
+        Factory();
+        Factory(const Factory&) = delete;
+        virtual ~Factory();
 
-    QString file() const { return file_; }
-    QString appId() const { return appId_; }
-    QString name() const { return entries_[kNameIndex]; }
-    QString comment() const { return entries_[kCommentIndex]; }
-    QString icon() const { return entries_[kIconIndex]; }
-    QString exec() const { return entries_[kExecIndex]; }
-    QString path() const { return entries_[kPathIndex]; }
-    QString stageHint() const { return entries_[kStageHintIndex]; }
-    bool loaded() const { return loaded_; }
-    QString findDesktopFile(const QString &appId) const;
+        Factory& operator=(const Factory&) = delete;
+
+        virtual DesktopFileReader* createInstance(const QString &appId, const QFileInfo& fi);
+    };
+
+    virtual ~DesktopFileReader();
+
+    virtual QString file() const { return file_; }
+    virtual QString appId() const { return appId_; }
+    virtual QString name() const { return entries_[kNameIndex]; }
+    virtual QString comment() const { return entries_[kCommentIndex]; }
+    virtual QString icon() const { return entries_[kIconIndex]; }
+    virtual QString exec() const { return entries_[kExecIndex]; }
+    virtual QString path() const { return entries_[kPathIndex]; }
+    virtual QString stageHint() const { return entries_[kStageHintIndex]; }
+    virtual bool loaded() const { return loaded_; }
+
+protected:
+    friend class DesktopFileReaderFactory;
+
+    DesktopFileReader(const QString &appId, const QFileInfo &desktopFile);
 
 private:
     static const int kNameIndex = 0,
@@ -47,12 +64,14 @@ private:
     kStageHintIndex = 5,
     kNumberOfEntries = 6;
 
-    bool loadDesktopFile(QString desktopFile);
+    virtual bool loadDesktopFile(QString desktopFile);
 
     QString appId_;
     QString file_;
     QVector<QString> entries_;
     bool loaded_;
 };
+
+} // namespace qtmir
 
 #endif // DESKTOPFILEREADER_H

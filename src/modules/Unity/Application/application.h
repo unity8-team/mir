@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -23,19 +23,25 @@
 //Qt
 #include <QtCore/QtCore>
 #include <QImage>
+#include <QSharedPointer>
 
 // Unity API
 #include <unity/shell/application/ApplicationInfoInterface.h>
 
+// local
 #include "mirsurfaceitem.h"
 
-class ApplicationManager;
-class QImage;
-class DesktopFileReader;
-class TaskController;
 namespace mir { namespace scene { class Session; }}
 
-class Application : public unity::shell::application::ApplicationInfoInterface {
+namespace qtmir
+{
+
+class ApplicationManager;
+class DesktopFileReader;
+class TaskController;
+
+class Application : public unity::shell::application::ApplicationInfoInterface
+{
     Q_FLAGS(Orientation SupportedOrientations)
 
     Q_OBJECT
@@ -47,6 +53,8 @@ class Application : public unity::shell::application::ApplicationInfoInterface {
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
 
 public:
+    Q_DECLARE_FLAGS(Stages, Stage)
+
     // Matching Qt::ScreenOrientation values for convenience
     enum Orientation {
         PortraitOrientation = 0x1,
@@ -56,8 +64,11 @@ public:
     };
     Q_DECLARE_FLAGS(SupportedOrientations, Orientation)
 
-    Application(const QString &appId, State state, const QStringList &arguments, ApplicationManager *parent = 0);
-    Application(DesktopFileReader *desktopFileReader, State state, const QStringList &arguments, ApplicationManager *parent = 0);
+    Application(const QSharedPointer<TaskController>& taskController,
+                DesktopFileReader *desktopFileReader,
+                State state,
+                const QStringList &arguments,
+                ApplicationManager *parent);
     virtual ~Application();
 
     // ApplicationInfoInterface
@@ -70,13 +81,15 @@ public:
     bool focused() const override;
     QUrl screenshot() const override;
 
-    MirSurfaceItem* surface() const;
-
     void setStage(Stage stage);
-    void setSurface(MirSurfaceItem *surface);
+
+    MirSurfaceItem* surface() const;
 
     QImage screenshotImage() const;
     void updateScreenshot();
+
+    bool canBeResumed() const;
+    void setCanBeResumed(const bool);
 
     bool isValid() const;
     QString desktopFile() const;
@@ -84,6 +97,7 @@ public:
     bool fullscreen() const;
     std::shared_ptr<mir::scene::Session> session() const;
 
+    Stages supportedStages() const;
     SupportedOrientations supportedOrientations() const;
 
 public Q_SLOTS:
@@ -103,6 +117,7 @@ private Q_SLOTS:
     void emitSurfaceChanged();
 
 private:
+    QString longAppId() const;
     pid_t pid() const;
     void setPid(pid_t pid);
     void setState(State state);
@@ -110,6 +125,8 @@ private:
     void setFullscreen(bool fullscreen);
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
     void setSessionName(const QString& name);
+    void setSurface(MirSurfaceItem *surface);
+
     void updateFullscreenProperty();
 
     // FIXME: This is a hack. Remove once we have a real implementation for knowning
@@ -117,13 +134,17 @@ private:
     void deduceSupportedOrientationsFromAppId();
 
     ApplicationManager* m_appMgr;
+    QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
+    QString m_longAppId;
     qint64 m_pid;
     Stage m_stage;
+    Stages m_supportedStages;
     State m_state;
     bool m_focused;
     QUrl m_screenshot;
     QImage m_screenshotImage;
+    bool m_canBeResumed;
     bool m_fullscreen;
     std::shared_ptr<mir::scene::Session> m_session;
     QString m_sessionName;
@@ -133,11 +154,13 @@ private:
     MirSurfaceItem *m_surface;
 
     friend class ApplicationManager;
-    friend class ApplicationListModel;
     friend class MirSurfaceManager;
+    friend class MirSurfaceItem;
 };
 
-Q_DECLARE_METATYPE(Application*)
-Q_DECLARE_OPERATORS_FOR_FLAGS(Application::SupportedOrientations)
+} // namespace qtmir
+
+Q_DECLARE_METATYPE(qtmir::Application*)
+Q_DECLARE_OPERATORS_FOR_FLAGS(qtmir::Application::SupportedOrientations)
 
 #endif  // APPLICATION_H

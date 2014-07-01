@@ -19,6 +19,9 @@
 
 #include <QQuickImageProvider>
 
+namespace qtmir
+{
+
 class ApplicationManager;
 class ApplicationScreenshotProvider : public QQuickImageProvider
 {
@@ -30,5 +33,7 @@ public:
 private:
     ApplicationManager* m_appManager;
 };
+
+} // namespace qtmir
 
 #endif // APPLICATIONSCREENSHOTPROVIDER_H

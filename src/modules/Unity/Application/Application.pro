@@ -4,13 +4,13 @@ TEMPLATE = lib
 QT       += core quick dbus
 QT       += quick-private qml-private core-private
 QT       += gui-private # annoyingly needed by included NativeInterface
-CONFIG   += link_pkgconfig plugin debug
+CONFIG   += link_pkgconfig plugin debug no_keywords # keywords clash with ProcessC++
 
 # CONFIG += c++11 # only enables C++0x
-QMAKE_CXXFLAGS = -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Werror -Wall
+QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
-PKGCONFIG += mircommon mirclient mirserver glib-2.0 ubuntu-app-launch-2
+PKGCONFIG += mircommon mirclient mirserver glib-2.0 process-cpp ubuntu-app-launch-2
 
 INCLUDEPATH += ../../../platforms/mirserver
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
@@ -34,9 +34,14 @@ SOURCES += application_manager.cpp \
     ubuntukeyboardinfo.cpp \
     mirsurfaceitem.cpp \
     mirbuffersgtexture.cpp \
-    windowscreenshotprovider.cpp
+    processcontroller.cpp \
+    proc_info.cpp \
+    windowscreenshotprovider.cpp \
+    upstart/applicationcontroller.cpp \
+
 
 HEADERS += application_manager.h \
+    applicationcontroller.h \
     application.h \
     debughelpers.h \
     desktopfilereader.h \
@@ -48,8 +53,11 @@ HEADERS += application_manager.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
     mirsurfaceitem.h \
-    mirbuffersgtexture.h
-    windowscreenshotprovider.h
+    mirbuffersgtexture.h \
+    processcontroller.h \
+    proc_info.h \
+    windowscreenshotprovider.h \
+    upstart/applicationcontroller.h
 
 installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 

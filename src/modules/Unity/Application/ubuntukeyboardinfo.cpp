@@ -18,6 +18,8 @@
 
 #include <QDir>
 
+namespace qtmir {
+
 namespace {
     const int gConnectionAttemptIntervalMs = 5000;
     const int gMaxConsecutiveAttempts = 10;
@@ -149,5 +151,6 @@ void UbuntuKeyboardInfo::buildSocketFilePath()
     } else {
         m_socketFilePath = QDir("/tmp").filePath(gServerName);
     }
-
 }
+
+} // namespace qtmir

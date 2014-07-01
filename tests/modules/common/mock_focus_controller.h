@@ -12,24 +12,26 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
-#ifndef WINDOW_SCREENSHOT_PROVIDER_H_
-#define WINDOW_SCREENSHOT_PROVIDER_H_
+#ifndef MOCK_MIR_SHELL_FOCUS_CONTROLLER_H
+#define MOCK_MIR_SHELL_FOCUS_CONTROLLER_H
 
-#include <QQuickImageProvider>
+#include <mir/shell/focus_controller.h>
+#include <gmock/gmock.h>
 
-namespace qtmir {
+#include <string>
 
-class WindowScreenshotProvider : public QQuickImageProvider
+namespace testing
+{
+class MockFocusController : public mir::shell::FocusController
 {
 public:
-    WindowScreenshotProvider();
-
-    // id is ignored for now
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
+    MOCK_METHOD0(focus_next, void());
+    MOCK_CONST_METHOD0(focussed_application, std::weak_ptr<mir::scene::Session>());
+    MOCK_METHOD1(set_focus_to, void(std::shared_ptr<mir::scene::Session>const&));
 };
+}
 
-} // namespace qtmir
-
-#endif // WINDOW_SCREENSHOT_PROVIDER_H_
+#endif // MOCK_MIR_SHELL_FOCUS_CONTROLLER_H_

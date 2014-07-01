@@ -29,11 +29,7 @@
 
 // local
 #include "application.h"
-
-class MirServerConfiguration;
-class DBusWindowStack;
-class MirSurfaceManager;
-class TaskController;
+#include "desktopfilereader.h"
 
 namespace mir {
     namespace scene {
@@ -41,6 +37,15 @@ namespace mir {
         class Surface;
     }
 }
+
+class MirServerConfiguration;
+
+namespace qtmir {
+
+class DBusWindowStack;
+class MirSurfaceManager;
+class ProcInfo;
+class TaskController;
 
 class ApplicationManager : public unity::shell::application::ApplicationManagerInterface
 {
@@ -51,6 +56,12 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
     Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
+    class Factory
+    {
+    public:
+        ApplicationManager* create();
+    };
+
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
@@ -65,7 +76,12 @@ public:
 
     static ApplicationManager* singleton();
 
-    explicit ApplicationManager(QObject *parent = 0);
+    explicit ApplicationManager(
+            const QSharedPointer<MirServerConfiguration> &mirConfig,
+            const QSharedPointer<TaskController> &taskController,
+            const QSharedPointer<DesktopFileReader::Factory> &desktopFileReaderFactory,
+            const QSharedPointer<ProcInfo> &processInfo,
+            QObject *parent = 0);
     virtual ~ApplicationManager();
 
     // ApplicationManagerInterface
@@ -101,13 +117,12 @@ public Q_SLOTS:
 
     void onSessionStarting(std::shared_ptr<mir::scene::Session> const& session);
     void onSessionStopping(std::shared_ptr<mir::scene::Session> const& session);
-    void onSessionFocused(std::shared_ptr<mir::scene::Session> const& session);
-    void onSessionUnfocused();
 
     void onSessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
-    void onProcessStartReportReceived(const QString& appId, const bool failure);
-    void onProcessStopped(const QString& appId, const bool unexpected);
+    void onProcessStarting(const QString& appId);
+    void onProcessStopped(const QString& appId);
+    void onProcessFailed(const QString& appId, const bool duringStartup);
     void onFocusRequested(const QString& appId);
     void onResumeRequested(const QString& appId);
 
@@ -125,18 +140,25 @@ private:
     void remove(Application* application);
     Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
     Application* findApplicationWithSession(const mir::scene::Session *session);
+    Application* applicationForStage(Application::Stage stage);
     QModelIndex findIndex(Application* application);
-    void suspendApplication(Application *application);
+    bool suspendApplication(Application *application);
     void resumeApplication(Application *application);
     QString toString() const;
 
+    QSharedPointer<MirServerConfiguration> m_mirConfig;
+
     QList<Application*> m_applications;
     Application* m_focusedApplication; // remove as Mir has API for this
-    Application* m_applicationToBeFocused; // a basic form of focus stealing prevention
+    Application* m_mainStageApplication;
+    Application* m_sideStageApplication;
+    Application* m_msApplicationToBeFocused; // placeholder store for async focusing
+    Application* m_ssApplicationToBeFocused; // placeholder store for async focusing
     QStringList m_lifecycleExceptions;
-    QSharedPointer<MirServerConfiguration> m_mirConfig;
     DBusWindowStack* m_dbusWindowStack;
-    QScopedPointer<TaskController> m_taskController;
+    QSharedPointer<TaskController> m_taskController;
+    QSharedPointer<DesktopFileReader::Factory> m_desktopFileReaderFactory;
+    QSharedPointer<ProcInfo> m_procInfo;
     static ApplicationManager* the_application_manager;
     bool m_fenceNext;
     QString m_nextFocusedAppId;
@@ -147,6 +169,8 @@ private:
     friend class MirSurfaceManager;
 };
 
-Q_DECLARE_METATYPE(ApplicationManager*)
+} // namespace qtmir
+
+Q_DECLARE_METATYPE(qtmir::ApplicationManager*)
 
 #endif // APPLICATIONMANAGER_H

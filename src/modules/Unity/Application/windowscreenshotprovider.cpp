@@ -19,6 +19,8 @@
 #include <QGuiApplication>
 #include <QQuickWindow>
 
+namespace qtmir {
+
 WindowScreenshotProvider::WindowScreenshotProvider()
     : QQuickImageProvider(QQmlImageProviderBase::Image, 0)
 {
@@ -57,3 +59,5 @@ QImage WindowScreenshotProvider::requestImage(const QString &id, QSize *size, co
     size->rheight() = image.height();
     return image;
 }
+
+} // namespace qtmir

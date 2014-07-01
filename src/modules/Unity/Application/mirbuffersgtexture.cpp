@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -24,10 +24,14 @@
 #include <mir/graphics/buffer.h>
 #include <mir/geometry/size.h>
 
-#include <QDebug>
-
 #if QT_VERSION >= QT_VERSION_CHECK(5, 3, 0)
+#define emit Q_EMIT
+#define signals Q_SIGNALS
+#define slots Q_SLOTS
 #include <private/qquickprofiler_p.h>
+#undef emit
+#undef signals
+#undef slots
 #include <QElapsedTimer>
 static QElapsedTimer qsg_renderer_timer;
 static bool qsg_render_timing = !qgetenv("QSG_RENDER_TIMING").isEmpty();
@@ -117,5 +121,5 @@ void MirBufferSGTexture::bind()
             0,  // swizzle (not relevant)
             0,  // upload (not relevant)
             0)); // mipmap (not used ever...)
-#endif
 }
+#endif

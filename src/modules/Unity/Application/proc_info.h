@@ -14,22 +14,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WINDOW_SCREENSHOT_PROVIDER_H_
-#define WINDOW_SCREENSHOT_PROVIDER_H_
+// Process Information
 
-#include <QQuickImageProvider>
+#ifndef PROC_INFO_H
+#define PROC_INFO_H
 
-namespace qtmir {
+// std
+#include <memory>
 
-class WindowScreenshotProvider : public QQuickImageProvider
+// boost
+#include <boost/optional.hpp>
+
+// Qt
+#include <QByteArray>
+#include <QStringList>
+
+class QString;
+
+namespace qtmir
+{
+
+class ProcInfo
 {
 public:
-    WindowScreenshotProvider();
+    class CommandLine
+    {
+    public:
+        QByteArray m_command;
 
-    // id is ignored for now
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
+        bool startsWith(const char* prefix) const;
+        bool contains(const char* prefix) const;
+        boost::optional<QString> getParameter(const char* name) const;
+        QStringList asStringList() const;
+    };
+    virtual std::unique_ptr<CommandLine> commandLine(quint64 pid);
+    virtual ~ProcInfo();
 };
 
 } // namespace qtmir
 
-#endif // WINDOW_SCREENSHOT_PROVIDER_H_
+#endif

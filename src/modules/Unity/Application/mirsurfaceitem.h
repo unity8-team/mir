@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -32,6 +32,8 @@
 #include <mir_toolkit/common.h>
 
 #include "ubuntukeyboardinfo.h"
+
+namespace qtmir {
 
 class MirSurfaceManager;
 class QSGMirSurfaceNode;
@@ -73,6 +75,7 @@ class MirSurfaceItem : public QQuickItem
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
+                            QPointer<Application> application,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -100,6 +103,7 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
+    Application *application() const;
 
     Q_INVOKABLE void release();
 
@@ -181,6 +185,8 @@ private:
     friend class MirSurfaceManager;
 };
 
-Q_DECLARE_METATYPE(MirSurfaceItem*)
+} // namespace qtmir
+
+Q_DECLARE_METATYPE(qtmir::MirSurfaceItem*)
 
 #endif // MIRSURFACEITEM_H

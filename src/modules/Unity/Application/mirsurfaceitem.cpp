@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -41,6 +41,8 @@
 #include <mir_toolkit/event.h>
 
 namespace mg = mir::graphics;
+
+namespace qtmir {
 
 namespace {
 
@@ -198,13 +200,15 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
+                               QPointer<Application> application,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
+    , m_application(application)
     , m_firstFrameDrawn(false)
     , m_textureProvider(nullptr)
 {
-    DLOG("MirSurfaceItem::MirSurfaceItem");
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
 
     m_surfaceObserver = std::make_shared<MirSurfaceObserver>();
     m_surfaceObserver->setListener(this);
@@ -247,10 +251,28 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
 
 MirSurfaceItem::~MirSurfaceItem()
 {
-    DLOG("MirSurfaceItem::~MirSurfaceItem(this=%p)", this);
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
+    QMutexLocker locker(&m_mutex);
     m_surface->remove_observer(m_surfaceObserver);
     if (m_textureProvider)
         m_textureProvider->deleteLater();
+}
+
+// For QML to destroy this surface
+void MirSurfaceItem::release()
+{
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::release - this=" << this;
+    if (m_application) {
+        m_application->setSurface(nullptr);
+    }
+    if (!parent()) {
+        deleteLater();
+    }
+}
+
+Application* MirSurfaceItem::application() const
+{
+    return m_application.data();
 }
 
 MirSurfaceItem::Type MirSurfaceItem::type() const
@@ -561,13 +583,6 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
     }
 }
 
-void MirSurfaceItem::release()
-{
-    if (!parent()) {
-        deleteLater();
-    }
-}
-
 bool MirSurfaceItem::clientIsRunning() const
 {
     return (m_application &&
@@ -575,5 +590,7 @@ bool MirSurfaceItem::clientIsRunning() const
              || m_application->state() == Application::Starting))
         || !m_application;
 }
+
+} // namespace qtmir
 
 #include "mirsurfaceitem.moc"

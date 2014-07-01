@@ -33,12 +33,14 @@
 namespace msh = mir::shell;
 namespace ms = mir::scene;
 
+Q_LOGGING_CATEGORY(QTMIR_MIR_MESSAGES, "qtmir.mir")
+
 MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QObject* parent)
     : QObject(parent)
     , DefaultServerConfiguration(argc, argv)
     , m_unityService(std::make_shared<UnityProtobufService>())
 {
-    DLOG("MirServerConfiguration created");
+    qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration created";
 }
 
 std::shared_ptr<ms::PlacementStrategy>

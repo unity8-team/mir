@@ -26,22 +26,23 @@
 #include "ubuntukeyboardinfo.h"
 #include "windowscreenshotprovider.h"
 
-// unity-mir
+// qtmir
 #include "logging.h"
 
 static QObject* applicationManagerSingleton(QQmlEngine* engine, QJSEngine* scriptEngine) {
     Q_UNUSED(engine);
     Q_UNUSED(scriptEngine);
-    DLOG("applicationManagerSingleton (engine=%p, scriptEngine=%p)", engine, scriptEngine);
+    qCDebug(QTMIR_APPLICATIONS) << "applicationManagerSingleton - engine=" << engine << "scriptEngine=" << scriptEngine;
 
-    return ApplicationManager::singleton();
+    return qtmir::ApplicationManager::singleton();
 }
 
 static QObject* surfaceManagerSingleton(QQmlEngine* engine, QJSEngine* scriptEngine) {
     Q_UNUSED(engine);
     Q_UNUSED(scriptEngine);
-    DLOG("surfaceManagerSingleton (engine=%p, scriptEngine=%p)", engine, scriptEngine);
-    return MirSurfaceManager::singleton();
+    qCDebug(QTMIR_APPLICATIONS) << "surfaceManagerSingleton - engine=" << engine << "scriptEngine=" << scriptEngine;
+
+    return qtmir::MirSurfaceManager::singleton();
 }
 
 class UnityApplicationPlugin : public QQmlExtensionPlugin {
@@ -50,33 +51,34 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
 
     virtual void registerTypes(const char* uri)
     {
-        DLOG("UnityApplicationPlugin::registerTypes (this=%p, uri='%s')", this, uri);
-        ASSERT(QLatin1String(uri) == QLatin1String("Unity.Application"));
+        qCDebug(QTMIR_APPLICATIONS) << "UnityApplicationPlugin::registerTypes - this=" << this << "uri=" << uri;
+        Q_ASSERT(QLatin1String(uri) == QLatin1String("Unity.Application"));
 
-        qRegisterMetaType<ApplicationManager*>("ApplicationManager*"); //need for queueing signals
+        qRegisterMetaType<qtmir::ApplicationManager*>("ApplicationManager*"); //need for queueing signals
 
         qmlRegisterUncreatableType<unity::shell::application::ApplicationManagerInterface>(
                     uri, 0, 1, "ApplicationManagerInterface", "Abstract interface. Cannot be created in QML");
-        qmlRegisterSingletonType<ApplicationManager>(
+        qmlRegisterSingletonType<qtmir::ApplicationManager>(
                     uri, 0, 1, "ApplicationManager", applicationManagerSingleton);
         qmlRegisterUncreatableType<unity::shell::application::ApplicationInfoInterface>(
                     uri, 0, 1, "ApplicationInfoInterface", "Abstract interface. Cannot be created in QML");
-        qmlRegisterUncreatableType<Application>(
+        qmlRegisterUncreatableType<qtmir::Application>(
                     uri, 0, 1, "ApplicationInfo", "ApplicationInfo can't be instantiated");
-        qmlRegisterSingletonType<MirSurfaceManager>(
+        qmlRegisterSingletonType<qtmir::MirSurfaceManager>(
                     uri, 0, 1, "SurfaceManager", surfaceManagerSingleton);
-        qmlRegisterUncreatableType<MirSurfaceItem>(
+        qmlRegisterUncreatableType<qtmir::MirSurfaceItem>(
                     uri, 0, 1, "MirSurfaceItem", "MirSurfaceItem can't be instantiated from QML");
-        qmlRegisterType<UbuntuKeyboardInfo>(uri, 0, 1, "UbuntuKeyboardInfo");
+        qmlRegisterType<qtmir::UbuntuKeyboardInfo>(uri, 0, 1, "UbuntuKeyboardInfo");
     }
 
     virtual void initializeEngine(QQmlEngine *engine, const char *uri)
     {
         QQmlExtensionPlugin::initializeEngine(engine, uri);
 
-        ApplicationManager* appManager = static_cast<ApplicationManager*>(applicationManagerSingleton(engine, NULL));
-        engine->addImageProvider(QLatin1String("application"), new ApplicationScreenshotProvider(appManager));
-        engine->addImageProvider(QLatin1String("window"), new WindowScreenshotProvider);
+        qtmir::ApplicationManager* appManager
+                = static_cast<qtmir::ApplicationManager*>(applicationManagerSingleton(engine, nullptr));
+        engine->addImageProvider(QLatin1String("application"), new qtmir::ApplicationScreenshotProvider(appManager));
+        engine->addImageProvider(QLatin1String("window"), new qtmir::WindowScreenshotProvider);
     }
 };
 

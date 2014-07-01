@@ -22,6 +22,8 @@
 #include <QDBusConnection>
 #include <QDBusMetaType>
 
+namespace qtmir {
+
 DBusWindowStack::DBusWindowStack(ApplicationManager *parent) : QObject(parent)
 {
     qRegisterMetaType<AppIdDesktopFile>();
@@ -57,7 +59,7 @@ QList<WindowInfo> DBusWindowStack::GetWindowStack()
     QList<WindowInfo> res;
     ApplicationManager *appMgr = static_cast<ApplicationManager*>(parent());
     const QList<Application*> &applications = appMgr->list();
-    foreach(Application* app, applications) {
+    Q_FOREACH(Application* app, applications) {
         WindowInfo wi;
         wi.window_id = 0;
         wi.app_id = app->appId();
@@ -110,3 +112,5 @@ const QDBusArgument &operator>>(const QDBusArgument &a, WindowInfo &wi)
 
     return a;
 }
+
+} // namespace qtmir
