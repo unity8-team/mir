@@ -35,7 +35,9 @@
 // mir
 #include <mir/scene/surface.h>
 #include <mir/scene/session.h>
-#include <mir/shell/focus_controller.h>
+#include <mir/graphics/display.h>
+#include <mir/graphics/display_buffer.h>
+#include <mircommon/mir/geometry/rectangles.h>
 
 // Qt
 #include <QGuiApplication>
@@ -373,6 +375,9 @@ void ApplicationManager::unfocusCurrentApplication()
     // Clear both stages
     m_msApplicationToBeFocused = nullptr;
     m_ssApplicationToBeFocused = nullptr;
+
+    m_focusedApplication = nullptr;
+    Q_EMIT focusedApplicationIdChanged();
 }
 
 /**
