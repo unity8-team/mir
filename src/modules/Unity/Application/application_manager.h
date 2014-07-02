@@ -152,8 +152,6 @@ private:
     Application* m_focusedApplication; // remove as Mir has API for this
     Application* m_mainStageApplication;
     Application* m_sideStageApplication;
-    Application* m_msApplicationToBeFocused; // placeholder store for async focusing
-    Application* m_ssApplicationToBeFocused; // placeholder store for async focusing
     QStringList m_lifecycleExceptions;
     DBusWindowStack* m_dbusWindowStack;
     QSharedPointer<TaskController> m_taskController;

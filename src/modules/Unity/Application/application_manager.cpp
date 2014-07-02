@@ -186,8 +186,6 @@ ApplicationManager::ApplicationManager(
     , m_focusedApplication(nullptr)
     , m_mainStageApplication(nullptr)
     , m_sideStageApplication(nullptr)
-    , m_msApplicationToBeFocused(nullptr)
-    , m_ssApplicationToBeFocused(nullptr)
     , m_lifecycleExceptions(QStringList() << "com.ubuntu.music")
     , m_dbusWindowStack(new DBusWindowStack(this))
     , m_taskController(taskController)
@@ -366,11 +364,6 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
     if (application->stage() == Application::MainStage && m_sideStageApplication)
         suspendApplication(m_sideStageApplication);
 
-    if (application->stage() == Application::MainStage)
-        m_msApplicationToBeFocused = application;
-    else
-        m_ssApplicationToBeFocused = application;
-
     if (application->state() == Application::Stopped) {
         // Respawning this app, move to end of application list so onSessionStarting works ok
         // FIXME: this happens pretty late, shell could request respawn earlier
@@ -398,10 +391,6 @@ void ApplicationManager::unfocusCurrentApplication()
 
     suspendApplication(m_sideStageApplication);
     suspendApplication(m_mainStageApplication);
-
-    // Clear both stages
-    m_msApplicationToBeFocused = nullptr;
-    m_ssApplicationToBeFocused = nullptr;
 
     m_focusedApplication = nullptr;
     Q_EMIT focusedApplicationIdChanged();
@@ -767,10 +756,6 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
     Application* application = findApplicationWithPid(session->process_id());
     if (application && application->state() != Application::Running) {
         application->setSession(session);
-        if (application->stage() == Application::MainStage)
-            m_msApplicationToBeFocused = application;
-        else
-            m_ssApplicationToBeFocused = application;
     } else {
         qCritical() << "ApplicationManager::onSessionStarting - unauthorized application!!";
     }
