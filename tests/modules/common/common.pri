@@ -10,10 +10,7 @@ HEADERS += ../common/mock_application_controller.h \
     ../common/mock_oom_controller.h \
     ../common/mock_process_controller.h \
     ../common/mock_proc_info.h \
-    ../common/mock_session.h \
-    ../../../src/modules/Unity/Application/applicationcontroller.h \
-    ../../../src/modules/Unity/Application/processcontroller.h \
-    ../../../src/modules/Unity/Application/taskcontroller.h
+    ../common/mock_session.h
 
 INCLUDEPATH += ../../../src/modules \
     ../common
