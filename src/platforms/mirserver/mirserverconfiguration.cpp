@@ -17,6 +17,7 @@
 #include "mirserverconfiguration.h"
 
 #include "connectioncreator.h"
+#include "focussetter.h"
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
 #include "mirserverstatuslistener.h"
@@ -131,6 +132,16 @@ MirServerConfiguration::the_connection_creator()
                 the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
                 the_session_authorizer(),
                 the_message_processor_report());
+        });
+}
+
+std::shared_ptr<mir::shell::FocusSetter>
+MirServerConfiguration::the_shell_focus_setter()
+{
+    return shell_focus_setter(
+        [this]
+        {
+            return std::make_shared<FocusSetter>();
         });
 }
 

@@ -53,6 +53,7 @@ public:
     std::shared_ptr<mir::graphics::GLConfig> the_gl_config() override;
     std::shared_ptr<mir::ServerStatusListener> the_server_status_listener() override;
     std::shared_ptr<mir::frontend::ConnectionCreator> the_connection_creator() override;
+    std::shared_ptr<mir::shell::FocusSetter> the_shell_focus_setter() override;
 
     /* qt specific */
     // getters

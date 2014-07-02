@@ -19,6 +19,7 @@ LIBS += -lboost_system
 
 SOURCES += \
     connectioncreator.cpp \
+    focussetter.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
     qmirserver.cpp \
@@ -43,6 +44,7 @@ SOURCES += \
 
 HEADERS += \
     connectioncreator.h \
+    focussetter.h \
     qteventfeeder.h \
     plugin.h \
     qmirserver.h \

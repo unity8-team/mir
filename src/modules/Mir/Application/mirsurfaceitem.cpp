@@ -243,6 +243,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(&m_updateMirSurfaceSizeTimer, &QTimer::timeout, this, &MirSurfaceItem::updateMirSurfaceSize);
     connect(this, &QQuickItem::widthChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
     connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
+
+    m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
+    connect(this, &QQuickItem::focusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
@@ -481,6 +484,15 @@ void MirSurfaceItem::updateMirSurfaceSize()
         mir::geometry::Size newMirSize(qmlWidth, qmlHeight);
         m_surface->resize(newMirSize);
         setImplicitSize(qmlWidth, qmlHeight);
+    }
+}
+
+void MirSurfaceItem::updateMirSurfaceFocus(bool focused)
+{
+    if (focused) {
+        m_surface->configure(mir_surface_attrib_focus, mir_surface_focused);
+    } else {
+        m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     }
 }
 
