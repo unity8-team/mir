@@ -762,7 +762,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
          */
         if (!application->canBeResumed()
                 || application->state() == Application::Starting
-                || application->state() == Application::Running) { qDebug() << "A" << application->canBeResumed() << application->state();
+                || application->state() == Application::Running) {
             m_dbusWindowStack->WindowDestroyed(0, application->appId());
             remove(application);
             delete application;
