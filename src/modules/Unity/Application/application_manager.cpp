@@ -54,6 +54,33 @@ namespace qtmir
 
 namespace {
 
+// FIXME: AppManager should not implement policy based on display geometry, shell should do that
+bool forceAllAppsIntoMainStage(const QSharedPointer<MirServerConfiguration> &mirConfig)
+{
+    const int tabletModeMinimimWithGU = 100;
+
+    // Obtain display size
+    mir::geometry::Rectangles view_area;
+    mirConfig->the_display()->for_each_display_buffer(
+        [&view_area](const mir::graphics::DisplayBuffer & db)
+        {
+            view_area.add(db.view_area());
+        });
+
+    // Get current Grid Unit value
+    int gridUnitPx = 8;
+    QByteArray gridUnitString = qgetenv("GRID_UNIT_PX");
+    if (!gridUnitString.isEmpty()) {
+        bool ok;
+        int value = gridUnitString.toInt(&ok);
+        if (ok) {
+            gridUnitPx = value;
+        }
+    }
+
+    return (view_area.bounding_rectangle().size.width.as_int() < tabletModeMinimimWithGU * gridUnitPx);
+}
+
 // FIXME: To be removed once shell has fully adopted short appIds!!
 QString toShortAppIdIfPossible(const QString &appId) {
     QRegExp longAppIdMask("[a-z0-9][a-z0-9+.-]+_[a-zA-Z0-9+.-]+_[0-9][a-zA-Z0-9.+:~-]*");
@@ -455,6 +482,10 @@ void ApplicationManager::onProcessStarting(const QString &appId)
             qWarning() << "Unable to instantiate application with appId" << appId;
             return;
         }
+
+        // override stage if necessary (i.e. side stage invalid on phone)
+        if (application->stage() == Application::SideStage && forceAllAppsIntoMainStage(m_mirConfig))
+            application->setStage(Application::MainStage);
 
         add(application);
         Q_EMIT focusRequested(appId);
