@@ -50,6 +50,10 @@ ua_sensors_haptic_new()
     auto stub_service = dbus::Service::use_service(bus, dbus::traits::Service<uas::USensorD>::interface_name());
     auto stub = stub_service->object_for_path(dbus::types::ObjectPath("/com/canonical/usensord/haptic"));
 
+    auto holder = make_holder(new UbuntuApplicationSensorsHaptic(stub));
+    holder->value->bus_thread = std::thread{[bus](){ bus->run(); }};
+    holder->value->bus = bus;
+
     return make_holder(new UbuntuApplicationSensorsHaptic(stub));
 }
 
