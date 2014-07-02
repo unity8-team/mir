@@ -115,8 +115,14 @@ typedef enum {
         KEY_EVENT_TYPE, ///< Event originates from a keyboard.
         MOTION_EVENT_TYPE, ///< Event originates from something moving, e.g., a wheel, a mouse, a finger on a touchpad.
         HW_SWITCH_EVENT_TYPE, ///< Event originates from an additional button attached to the device's HW, e.g., power button.
-        RESIZE_EVENT_TYPE ///< Surface has been resized
+        RESIZE_EVENT_TYPE, ///< Surface has been resized
+        SURFACE_EVENT_TYPE //< A surface attribute has changed its value
     } EventType;
+
+    typedef enum
+    {
+        SURFACE_ATTRIBUTE_FOCUS
+    } SurfaceAttributeType;
 
     /** Models an event. */
     typedef struct
@@ -188,6 +194,11 @@ typedef enum {
                 int32_t width; ///< The new surface width
                 int32_t height; ///< The new surface height.
             } resize;
+            struct SurfaceEvent
+            {
+                SurfaceAttributeType attribute; ///< The surface attribute that has changed
+                int32_t value; ///< The new value of that surface attribute.
+            } surface;
         } details;
     } Event;
 

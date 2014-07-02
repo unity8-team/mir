@@ -42,14 +42,14 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
     (void) surface;
 
     Event ubuntu_ev;
-    auto translated_event = uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
+    bool translated_event = uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
 
-    // Mir sends some events such as focus gained/lost which the platform API does not represent
-    // as platform-api events.
+    // Mir sends some events which platform API does not represent as platform-api events.
     if (!translated_event)
         return;
 
     auto window = static_cast<uamc::Window*>(ctx);
+    window->process_event(ubuntu_ev);
     UAUiWindowEventCb user_callback = window->get_user_callback();
     user_callback(window->get_user_callback_context(), &ubuntu_ev);
 }
@@ -80,7 +80,8 @@ create_surface_with_parameters(MirConnection *connection,
 
 uamc::Window::Window(uamc::Instance& instance,
                      uamc::WindowProperties* properties)
-    : instance(instance)
+    : instance(instance),
+      focused(0)
 {
     user_event_callback = properties->event_cb();
     user_event_callback_context = properties->event_cb_context();
@@ -167,4 +168,11 @@ void uamc::Window::show()
 void uamc::Window::request_fullscreen()
 {
     set_state(U_FULLSCREEN_STATE);
+}
+
+void uamc::Window::process_event(const Event &ev)
+{
+    if (ev.type == SURFACE_EVENT_TYPE && ev.details.surface.attribute == SURFACE_ATTRIBUTE_FOCUS) {
+        focused = ev.details.surface.value;
+    }
 }

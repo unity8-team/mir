@@ -20,8 +20,6 @@
 
 namespace uaum = ubuntu::application::ui::mir;
 
-// TODO<mir>: This begs the question: Why does MirEvent exist? It's difficult to ensure this function is kept in sync 
-// at the unit test level.
 bool
 uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
 {
@@ -76,6 +74,15 @@ uaum::event_to_ubuntu_event(MirEvent const* mir_event, Event& ubuntu_ev)
         ubuntu_ev.details.resize.width = mir_event->resize.width;
         ubuntu_ev.details.resize.height = mir_event->resize.height;
         return true;
+    case mir_event_type_surface:
+        ubuntu_ev.type = SURFACE_EVENT_TYPE;
+        if (mir_event->surface.attrib == mir_surface_attrib_focus) {
+            ubuntu_ev.details.surface.attribute = SURFACE_ATTRIBUTE_FOCUS;
+            ubuntu_ev.details.surface.value = mir_event->surface.value == mir_surface_focused;
+            return true;
+        } else {
+            return false;
+        }
     default:
         return false;
     }

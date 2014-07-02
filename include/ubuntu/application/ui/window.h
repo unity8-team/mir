@@ -85,6 +85,10 @@ extern "C" {
     ua_ui_window_get_native_type(
         UAUiWindow *window);
 
+    UBUNTU_DLL_PUBLIC int
+    ua_ui_window_is_focused(
+        UAUiWindow *window);
+
 #ifdef __cplusplus
 }
 #endif

@@ -61,6 +61,9 @@ public:
 
     void get_size(uint32_t *width, uint32_t *height);
 
+    void process_event(const Event &ev);
+    int is_focused() const { return focused; }
+
     // user as in "platform-api user"
     UAUiWindowEventCb get_user_callback() { return user_event_callback;}
     void *get_user_callback_context() { return user_event_callback_context; }
@@ -84,6 +87,8 @@ private:
     void *user_event_callback_context;
 
     UApplicationUiWindowState state_before_hiding;
+
+    int focused;
 };
     
 }

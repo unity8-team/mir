@@ -370,5 +370,11 @@ EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* u_window)
     return window->get_native_type();
 }
 
+int ua_ui_window_is_focused(UAUiWindow *u_window)
+{
+    auto window = uamc::Window::from_u_window(u_window);
+    return window->is_focused();
+}
+
 // TODO: Sensors
 }
