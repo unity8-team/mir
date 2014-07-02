@@ -3,34 +3,35 @@ Section: libs
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
-               pkg-config,
                google-mock (>= 1.6.0+svn437),
                libboost-system-dev,
                libfontconfig1-dev,
                libglib2.0-dev,
-               libqt5sensors5-dev,
-               libmirserver-dev (>= 0.4.0),
                libmirclient-dev (>= 0.4.0),
+               libmirserver-dev (>= 0.4.0),
                libprocess-cpp-dev,
-               libunity-api-dev (>= 7.80.6),
+               libqt5sensors5-dev,
                libubuntu-app-launch2-dev,
                libubuntu-application-api-dev (>= 2.1.0),
                libudev-dev,
+               libunity-api-dev (>= 7.80.6),
                liburl-dispatcher1-dev,
-               libxrender-dev,
                libxkbcommon-dev,
+               libxrender-dev,
                mircommon-dev,
+               pkg-config,
+               protobuf-compiler,
                qt5-default,
                qtbase5-dev,
                qtbase5-private-dev,
                qtdeclarative5-dev,
                qtdeclarative5-private-dev,
-               protobuf-compiler,
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 Homepage: https://launchpad.net/qtmir
-# If you aren't a member of ~mir-team but need to upload packaging changes,
-# just go ahead. ~mir-team will notice and sync up the code again.
-Vcs-Bzr: https://code.launchpad.net/~mir-team/qtmir/trunk
+# if you don't have have commit access to this branch but would like to upload
+# directly to Ubuntu, don't worry: your changes will be merged back into the
+# upstream branch
+Vcs-Bzr: lp:qtmir
 Vcs-Browser: http://bazaar.launchpad.net/~mir-team/unity-mir/trunk/files
 
 Package: libqtmir
@@ -45,5 +46,5 @@ Provides: qtmir,
           unity-application-impl,
           unity-application-impl-2,
 Description: Qt plugins for Unity specific Mir APIs
- QtMir provides Qt bindings for Mir features that are not exposed 
+ QtMir provides Qt bindings for Mir features that are not exposed
  through the QtUbuntu QPA plugins but needed for shell functionality.
