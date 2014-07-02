@@ -25,10 +25,6 @@
 #include "applicationcontroller.h"
 #include "processcontroller.h"
 
-extern "C" {
-    #include "ubuntu-app-launch.h"
-}
-
 namespace qtmir
 {
 

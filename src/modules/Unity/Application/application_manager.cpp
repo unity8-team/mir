@@ -43,6 +43,9 @@
 #include <QGuiApplication>
 #include <QDebug>
 
+// std
+#include <csignal>
+
 namespace ms = mir::scene;
 
 Q_LOGGING_CATEGORY(QTMIR_APPLICATIONS, "qtmir.applications")
