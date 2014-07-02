@@ -38,7 +38,7 @@ SOURCES += \
     nativeinterface.cpp \
     qtcompositor.cpp \
     services.cpp \
-    ../common/ubuntutheme.cpp \
+    ubuntutheme.cpp \
     unityprotobufservice.cpp \
     unityrpc.cpp
 
@@ -65,7 +65,7 @@ HEADERS += \
     nativeinterface.h \
     qtcompositor.h \
     services.h \
-    ../common/ubuntutheme.h \
+    ubuntutheme.h \
     unityprotobufservice.h \
     unityrpc.h
 

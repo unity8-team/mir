@@ -25,7 +25,7 @@ Q_DECLARE_METATYPE(std::shared_ptr<ms::Surface>)
 SessionListener::SessionListener(QObject *parent) :
     QObject(parent)
 {
-    DLOG("SessionListener::SessionListener (this=%p)", this);
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::SessionListener - this=" << this;
     // need to register type to send over threads with signal/slot
     qRegisterMetaType<std::shared_ptr<ms::Session>>("std::shared_ptr<mir::scene::Session>");
     qRegisterMetaType<std::shared_ptr<ms::Surface>>("std::shared_ptr<mir::scene::Surface>");
@@ -33,41 +33,43 @@ SessionListener::SessionListener(QObject *parent) :
 
 SessionListener::~SessionListener()
 {
-    DLOG("SessionListener::~SessionListener (this=%p)", this);
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::~SessionListener - this=" << this;
 }
 
 void SessionListener::starting(std::shared_ptr<ms::Session> const& session)
 {
-    DLOG("SessionListener::starting (this=%p, session=%p)", this, (void*)session.get());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::starting - this=" << this << "session=" << session.get();
     Q_EMIT sessionStarting(session);
 }
 
 void SessionListener::stopping(std::shared_ptr<ms::Session> const& session)
 {
-    DLOG("SessionListener::stopping (this=%p, session=%p)", this, (void*)session.get());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::stopping - this=" << this << "session=" << session.get();
     Q_EMIT sessionStopping(session);
 }
 
 void SessionListener::focused(std::shared_ptr<ms::Session> const& session)
 {
-    DLOG("SessionListener::focused (this=%p, session=%p)", this, (void*)session.get());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::focused - this=" << this << "session=" << session.get();
     Q_EMIT sessionFocused(session);
 }
 
 void SessionListener::unfocused()
 {
-    DLOG("SessionListener::unfocused (this=%p)", this);
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::unfocused - this=" << this;
     Q_EMIT sessionUnfocused();
 }
 
 void SessionListener::surface_created(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
-    DLOG("SessionListener::surface_created (this=%p, session=%p, surface=%p)", this, &session, (void*)surface.get());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::surface_created - this=" << this << "session=" << &session
+                                   << "surface=" << surface.get();
     Q_EMIT sessionCreatedSurface(&session, surface);
 }
 
 void SessionListener::destroying_surface(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
-    DLOG("SessionListener::destroying_surface (this=%p, session=%p, surface=%p)", this, &session, (void*)surface.get());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::destroying_surface - this=" << this << "session=" << &session
+                                   << "surface=" << surface.get();
     Q_EMIT sessionDestroyingSurface(&session, surface);
 }

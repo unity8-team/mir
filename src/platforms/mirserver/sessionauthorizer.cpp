@@ -23,7 +23,7 @@
 using mir::frontend::SessionCredentials;
 
 SessionAuthorizer::SessionAuthorizer(QObject *parent)
-    :   QObject(parent)
+    : QObject(parent)
 {
 }
 
@@ -33,7 +33,7 @@ SessionAuthorizer::~SessionAuthorizer()
 
 bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
 {
-    DLOG("SessionAuthorizer::connection_is_allowed (this=%p, pid=%d", this, creds.pid());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::connection_is_allowed - this=" << this << "pid=" << creds.pid();
     bool authorized = true;
 
     Q_EMIT requestAuthorizationForSession(creds.pid(), authorized); // needs to block until authorized value returned
@@ -42,7 +42,7 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
 
 bool SessionAuthorizer::configure_display_is_allowed(SessionCredentials const& creds)
 {
-    DLOG("SessionAuthorizer::configure_display_is_allowed (this=%p, pid=%d)", this, creds.pid());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::configure_display_is_allowed - this=" << this << "pid=" << creds.pid();
 
     //FIXME(ricmm) Actually mediate this access for clients
     Q_UNUSED(creds)
@@ -51,7 +51,9 @@ bool SessionAuthorizer::configure_display_is_allowed(SessionCredentials const& c
 
 bool SessionAuthorizer::screencast_is_allowed(SessionCredentials const& creds)
 {
-    DLOG("SessionAuthorizer::screencast_is_allowed(this=%p, pid=%d)", this, creds.pid());
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::screencast_is_allowed - this=" << this << "pid=" << creds.pid();
+
+    //FIXME Actually mediate this access for clients
     Q_UNUSED(creds)
     return true;
 }

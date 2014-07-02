@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Canonical, Ltd.
+ * Copyright (C) 2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -14,12 +14,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UBUNTU_APPLICATION_PLUGIN_LOGGING_H
-#define UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+#ifndef WINDOW_SCREENSHOT_PROVIDER_H_
+#define WINDOW_SCREENSHOT_PROVIDER_H_
 
-#include <QLoggingCategory>
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_APPLICATIONS)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_SURFACES)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_MIR_MESSAGES)
+#include <QQuickImageProvider>
 
-#endif // UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+namespace qtmir {
+
+class WindowScreenshotProvider : public QQuickImageProvider
+{
+public:
+    WindowScreenshotProvider();
+
+    // id is ignored for now
+    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
+};
+
+} // namespace qtmir
+
+#endif // WINDOW_SCREENSHOT_PROVIDER_H_

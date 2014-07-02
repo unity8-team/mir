@@ -28,7 +28,7 @@ MirPlacementStrategy::MirPlacementStrategy(
         std::shared_ptr<msh::DisplayLayout> const& display_layout)
     : m_displayLayout(display_layout)
 {
-    DLOG("MirPlacementStrategy::MirPlacementStrategy");
+    qCDebug(QTMIR_MIR_MESSAGES) << "MirPlacementStrategy::MirPlacementStrategy";
 }
 
 ms::SurfaceCreationParameters
@@ -46,9 +46,9 @@ MirPlacementStrategy::place(ms::Session const& /*session*/,
     m_displayLayout->size_to_output(rect);
     placedParameters.size = rect.size;
 
-    DLOG("MirPlacementStrategy: requested %d x %d, returning %d x %d",
-        requestParameters.size.width.as_int(), requestParameters.size.height.as_int(),
-        placedParameters.size.width.as_int(), placedParameters.size.height.as_int());
+    qCDebug(QTMIR_MIR_MESSAGES) << "MirPlacementStrategy: requested ("
+        << requestParameters.size.width.as_int() << "," << requestParameters.size.height.as_int() << ") and returned ("
+        << placedParameters.size.width.as_int() << "," << placedParameters.size.height.as_int() << ")";
 
     return placedParameters;
 }

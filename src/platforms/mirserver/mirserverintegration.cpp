@@ -53,7 +53,7 @@
 #include "nativeinterface.h"
 #include "qmirserver.h"
 #include "services.h"
-#include "../common/ubuntutheme.h"
+#include "ubuntutheme.h"
 
 namespace mg = mir::graphics;
 

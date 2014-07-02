@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Canonical, Ltd.
+ * Copyright (C) 2013 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -12,14 +12,22 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
+#ifndef MOCK_OOM_CONTROLLER_H
+#define MOCK_OOM_CONTROLLER_H
 
-#ifndef UBUNTU_APPLICATION_PLUGIN_LOGGING_H
-#define UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+#include <Unity/Application/processcontroller.h>
 
-#include <QLoggingCategory>
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_APPLICATIONS)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_SURFACES)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_MIR_MESSAGES)
+#include <gmock/gmock.h>
 
-#endif // UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+namespace testing
+{
+struct MockOomController : public qtmir::ProcessController::OomController
+{
+    MOCK_METHOD1(ensureProcessLikelyToBeKilled, void(pid_t));
+    MOCK_METHOD1(ensureProcessUnlikelyToBeKilled, void(pid_t));
+};
+}
+
+#endif // MOCK_OOM_CONTROLLER_H

@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS += Mir/Application
+SUBDIRS += Unity/Application
