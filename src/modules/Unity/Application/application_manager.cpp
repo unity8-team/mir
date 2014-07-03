@@ -248,7 +248,6 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
 
 Application* ApplicationManager::get(int index) const
 {
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::get - index=" << index  << "count=" << m_applications.count();
     if (index < 0 || index >= m_applications.count()) {
         return nullptr;
     }
@@ -349,7 +348,7 @@ void ApplicationManager::resumeApplication(Application *application)
         return;
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::resumeApplication - appId=" << application->appId();
 
-    if (application->state() != Application::Running)
+    if (application->state() == Application::Suspended || application->state() == Application::Stopped)
         application->setState(Application::Running);
 }
 
@@ -364,23 +363,31 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
         return false;
     }
 
-    if (application->stage() == Application::MainStage && m_sideStageApplication)
-        suspendApplication(m_sideStageApplication);
+    resumeApplication(application);
+    if (application == m_focusedApplication)
+        return true;
 
-    if (application->state() == Application::Stopped) {
-        // Respawning this app, move to end of application list so onSessionStarting works ok
-        // FIXME: this happens pretty late, shell could request respawn earlier
-        application->setState(Application::Running);
-        int from = m_applications.indexOf(application);
-        move(from, m_applications.length()-1);
-    } else {
-        if (application->session()) {
-            int from = m_applications.indexOf(application);
-            move(from, 0);
-        }
+    // set state of previously focused app to suspended
+    if (m_focusedApplication) {
+        m_focusedApplication->setFocused(false);
+        Application *lastApplication = applicationForStage(application->stage());
+        suspendApplication(lastApplication);
     }
 
-    setFocused(application);
+    if (application->stage() == Application::MainStage) {
+        m_mainStageApplication = application;
+        resumeApplication(m_sideStageApplication); // in case unfocusCurrentApplication() was last called
+    } else {
+        m_sideStageApplication = application;
+        resumeApplication(m_mainStageApplication); // in case unfocusCurrentApplication() was last called
+    }
+
+    m_focusedApplication = application;
+    m_focusedApplication->setFocused(true);
+
+    move(m_applications.indexOf(application), 0);
+    Q_EMIT focusedApplicationIdChanged();
+    m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 
     // FIXME(dandrader): lying here. The operation is async. So we will only know whether
     // the focusing was successful once the server replies. Maybe the API in unity-api should
@@ -809,33 +816,6 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
         m_dbusWindowStack->WindowCreated(0, application->appId());
         application->setState(Application::Running);
     }
-}
-
-void ApplicationManager::setFocused(Application *application)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::setFocused - appId=" << application->appId();
-
-    if (application == m_focusedApplication)
-        return;
-
-    // set state of previously focused app to suspended
-    if (m_focusedApplication && m_lifecycleExceptions.filter(m_focusedApplication->appId().section('_',0,0)).empty()) {
-        Application *lastApplication = applicationForStage(application->stage());
-        suspendApplication(lastApplication);
-    }
-
-    if (application->stage() == Application::MainStage)
-        m_mainStageApplication = application;
-    else
-        m_sideStageApplication = application;
-
-    m_focusedApplication = application;
-    m_focusedApplication->setFocused(true);
-    if (m_focusedApplication->state() != Application::Starting)
-        m_focusedApplication->setState(Application::Running);
-    move(m_applications.indexOf(application), 0);
-    Q_EMIT focusedApplicationIdChanged();
-    m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 }
 
 Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session)
