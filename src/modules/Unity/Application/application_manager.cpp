@@ -760,7 +760,7 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
     if (application && application->state() != Application::Running) {
         application->setSession(session);
     } else {
-        qCritical() << "ApplicationManager::onSessionStarting - unauthorized application!!";
+        qCWarning(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - unmanaged application starting";
     }
 }
 
