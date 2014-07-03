@@ -70,10 +70,49 @@ nsecs_t systemTime()
     return nsecs_t(t.tv_sec)*1000000000LL + t.tv_nsec;
 }
 
-MirEvent createMirEvent(QTouchEvent *qtEvent)
+bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
 {
-    MirEvent mirEvent;
+    mirEvent.type = mir_event_type_key;
 
+    // don't care
+    mirEvent.key.device_id = 0;
+    mirEvent.key.source_id = 0;
+
+    switch (qtEvent->type()) {
+        case QEvent::KeyPress:
+            mirEvent.key.action = mir_key_action_down;
+            break;
+        case QEvent::KeyRelease:
+            mirEvent.key.action = mir_key_action_up;
+            break;
+        default:
+            return false;
+    }
+
+    // don't care
+    mirEvent.key.flags = (MirKeyFlag)0;
+
+    mirEvent.key.modifiers = qtEvent->nativeModifiers();
+    mirEvent.key.key_code = qtEvent->nativeVirtualKey();
+    mirEvent.key.scan_code = qtEvent->nativeScanCode();
+
+    // TODO: Investigate how to pass it from mir to qt in the first place.
+    //       Then implement the reverse here.
+    mirEvent.key.repeat_count = 0;
+
+    // Don't care
+    mirEvent.key.down_time = 0;
+
+    mirEvent.key.event_time = qtEvent->timestamp() * 1000000;
+
+    // Don't care
+    mirEvent.key.is_system_key = 0;
+
+    return true;
+}
+
+bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
+{
     mirEvent.type = mir_event_type_motion;
 
     // Hardcoding it for now
@@ -155,7 +194,7 @@ MirEvent createMirEvent(QTouchEvent *qtEvent)
         pointer.tool_type = mir_motion_tool_type_unknown;
     }
 
-    return mirEvent;
+    return true;
 }
 
 } // namespace {
@@ -249,7 +288,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
 
     m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
-    connect(this, &QQuickItem::focusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
+    connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
@@ -384,7 +423,7 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
 
 void MirSurfaceItem::mousePressEvent(QMouseEvent *event)
 {
-    // we don't care about them for now
+    // TODO: Implement for desktop support
     event->ignore();
 }
 
@@ -403,23 +442,33 @@ void MirSurfaceItem::wheelEvent(QWheelEvent *event)
     Q_UNUSED(event);
 }
 
-void MirSurfaceItem::keyPressEvent(QKeyEvent *event)
+void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 {
-    Q_UNUSED(event);
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyPressEvent" << qtEvent;
+    MirEvent mirEvent;
+    if (fillInMirEvent(mirEvent, qtEvent)) {
+        m_surface->consume(mirEvent);
+    }
 }
 
-void MirSurfaceItem::keyReleaseEvent(QKeyEvent *event)
+void MirSurfaceItem::keyReleaseEvent(QKeyEvent *qtEvent)
 {
-    Q_UNUSED(event);
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyReleaseEvent" << qtEvent;
+    MirEvent mirEvent;
+    if (fillInMirEvent(mirEvent, qtEvent)) {
+        m_surface->consume(mirEvent);
+    }
 }
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
+    MirEvent mirEvent;
     if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
         // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
         if (hasTouchInsideUbuntuKeyboard(event)) {
-            MirEvent mirEvent = createMirEvent(event);
-            m_surface->consume(mirEvent);
+            if (fillInMirEvent(mirEvent, event)) {
+                m_surface->consume(mirEvent);
+            }
         } else {
             event->ignore();
         }
@@ -427,8 +476,9 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
     } else {
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        MirEvent mirEvent = createMirEvent(event);
-        m_surface->consume(mirEvent);
+        if (fillInMirEvent(mirEvent, event)) {
+            m_surface->consume(mirEvent);
+        }
     }
 }
 
@@ -511,6 +561,7 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
 void MirSurfaceItem::updateMirSurfaceFocus(bool focused)
 {
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceFocus" << focused;
     if (focused) {
         m_surface->configure(mir_surface_attrib_focus, mir_surface_focused);
     } else {

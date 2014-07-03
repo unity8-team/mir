@@ -210,7 +210,10 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
 
     QPlatformInputContext* context = QGuiApplicationPrivate::platformIntegration()->inputContext();
     if (context) {
-        QKeyEvent qKeyEvent(keyType, keyCode, modifiers, text);
+        // TODO: consider event.repeat_count
+        QKeyEvent qKeyEvent(keyType, keyCode, modifiers,
+                            event.scan_code, event.key_code, event.modifiers,
+                            text);
         qKeyEvent.setTimestamp(timestamp);
         if (context->filterEvent(&qKeyEvent)) {
             // key event filtered out by input context
