@@ -1024,7 +1024,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         int const nbuffers_to_use = q.buffers_free_for_client();
         ASSERT_THAT(nbuffers_to_use, Gt(0));
 
-        for (int produce = 0; produce < max_ownable_buffers(nbuffers); ++produce)
+        for (int produce = 0; produce < nbuffers_to_use; ++produce)
         {
             geom::Size new_size{width, height};
             width += dx;
@@ -1049,7 +1049,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         width = width0;
         height = height0;
 
-        for (int consume = 0; consume < max_ownable_buffers(nbuffers); ++consume)
+        for (int consume = 0; consume < nbuffers_to_use; ++consume)
         {
             geom::Size expect_size{width, height};
             width += dx;
