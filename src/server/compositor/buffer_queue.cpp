@@ -473,7 +473,6 @@ int mc::BufferQueue::min_buffers() const
     // else for multi-buffering with exclusivity guarantees:
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
-    // FIXME: LP: #1308844 / LP: #1308843 is inflating compositor_demand
     int compositor_demand = overlapping_compositors ? 2 : 1;
     int min_compositors = std::max(1, compositor_demand);
     int min_clients = std::max(1, client_demand);
