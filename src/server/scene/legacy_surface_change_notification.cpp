@@ -19,6 +19,7 @@
 #include "legacy_surface_change_notification.h"
 
 namespace ms = mir::scene;
+namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
@@ -55,6 +56,11 @@ void ms::LegacySurfaceChangeNotification::alpha_set_to(float /*alpha*/)
     notify_scene_change();
 }
 
+// An orientation change alone is not enough to trigger recomposition.
+void ms::LegacySurfaceChangeNotification::orientation_set_to(MirOrientation /*orientation*/)
+{
+}
+
 void ms::LegacySurfaceChangeNotification::transformation_set_to(glm::mat4 const& /*t*/)
 {
     notify_scene_change();
@@ -62,6 +68,11 @@ void ms::LegacySurfaceChangeNotification::transformation_set_to(glm::mat4 const&
 
 // An attrib change alone is not enough to trigger recomposition.
 void ms::LegacySurfaceChangeNotification::attrib_changed(MirSurfaceAttrib /* attrib */, int /* value */)
+{
+}
+
+// Cursor image change request is not enough to trigger recomposition.
+void ms::LegacySurfaceChangeNotification::cursor_image_set_to(mg::CursorImage const& /* image */)
 {
 }
 

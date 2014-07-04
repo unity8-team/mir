@@ -21,7 +21,7 @@
 #include "mir/graphics/gl_texture.h"
 #include "mir/graphics/tessellation_helpers.h"
 #include "hwc_fallback_gl_renderer.h"
-#include "gl_context.h"
+#include "swapping_gl_context.h"
 #include "buffer.h"
 
 #define GLM_FORCE_RADIANS
@@ -105,12 +105,17 @@ void mga::HWCFallbackGLRenderer::render(
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
-    
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnableVertexAttribArray(position_attr);
     glEnableVertexAttribArray(texcoord_attr);
 
     for(auto const& renderable : renderlist)
     {
+        if (renderable->alpha_enabled())
+            glEnable(GL_BLEND);
+        else
+            glDisable(GL_BLEND);
+
         auto const primitive = mg::tessellate_renderable_into_rectangle(*renderable);
         glVertexAttribPointer(position_attr, 3, GL_FLOAT, GL_FALSE, sizeof(mg::GLVertex),
                               &primitive.vertices[0].position);

@@ -37,6 +37,7 @@
 #include "mir/time/high_resolution_clock.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
+#include "mir/scene/null_prompt_session_listener.h"
 
 #include <map>
 #include <vector>
@@ -90,27 +91,13 @@ mir::DefaultServerConfiguration::the_session_listener()
         });
 }
 
-std::shared_ptr<mi::CursorListener>
-mir::DefaultServerConfiguration::the_cursor_listener()
+std::shared_ptr<ms::PromptSessionListener>
+mir::DefaultServerConfiguration::the_prompt_session_listener()
 {
-    struct DefaultCursorListener : mi::CursorListener
-    {
-        DefaultCursorListener(std::shared_ptr<mg::Cursor> const& cursor) :
-            cursor(cursor)
+    return prompt_session_listener(
+        [this]
         {
-        }
-
-        void cursor_moved_to(float abs_x, float abs_y)
-        {
-            cursor->move_to(geom::Point{abs_x, abs_y});
-        }
-
-        std::shared_ptr<mg::Cursor> const cursor;
-    };
-    return cursor_listener(
-        [this]() -> std::shared_ptr<mi::CursorListener>
-        {
-            return std::make_shared<DefaultCursorListener>(the_cursor());
+            return std::make_shared<ms::NullPromptSessionListener>();
         });
 }
 
@@ -159,6 +146,8 @@ mir::DefaultServerConfiguration::the_session_authorizer()
             return std::make_shared<DefaultSessionAuthorizer>();
         });
 }
+
+mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
 
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {

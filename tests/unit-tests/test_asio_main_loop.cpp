@@ -20,6 +20,7 @@
 #include "mir/time/high_resolution_clock.h"
 #include "mir_test/pipe.h"
 #include "mir_test/auto_unblock_thread.h"
+#include "mir_test/signal.h"
 #include "mir_test/wait_object.h"
 
 #include <gtest/gtest.h>
@@ -108,6 +109,33 @@ public:
     };
 };
 
+class Counter
+{
+public:
+    int operator++()
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        cv.notify_one();
+        return ++counter;
+    }
+
+    bool wait_for(std::chrono::milliseconds const& delay, int expected)
+    {
+        std::unique_lock<decltype(mutex)> lock(mutex);
+        return cv.wait_for(lock, delay, [&]{ return counter == expected;});
+    }
+
+    operator int() const
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
+        return counter;
+    }
+
+private:
+    std::mutex mutable mutex;
+    std::condition_variable cv;
+    int counter{0};
+};
 }
 
 TEST_F(AsioMainLoopTest, signal_handled)
@@ -230,6 +258,7 @@ TEST_F(AsioMainLoopTest, fd_data_handled)
 
     ml.register_fd_handler(
         {p.read_fd()},
+        this,
         [&handled_fd, &data_read, this](int fd)
         {
             handled_fd = fd;
@@ -254,6 +283,7 @@ TEST_F(AsioMainLoopTest, multiple_fds_with_single_handler_handled)
 
     ml.register_fd_handler(
         {pipes[0].read_fd(), pipes[1].read_fd()},
+        this,
         [&handled_fds, &elems_read, &num_handled_fds](int fd)
         {
             handled_fds.push_back(fd);
@@ -301,6 +331,7 @@ TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
 
     ml.register_fd_handler(
         {pipes[0].read_fd()},
+        this,
         [&handled_fds, &elems_read, this](int fd)
         {
             EXPECT_EQ(static_cast<ssize_t>(sizeof(elems_read[0])),
@@ -316,6 +347,7 @@ TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
 
     ml.register_fd_handler(
         {pipes[1].read_fd()},
+        this,
         [&handled_fds, &elems_read, this](int fd)
         {
             EXPECT_EQ(static_cast<ssize_t>(sizeof(elems_read[1])),
@@ -331,6 +363,7 @@ TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
 
     ml.register_fd_handler(
         {pipes[2].read_fd()},
+        this,
         [&handled_fds, &elems_read, this](int fd)
         {
             EXPECT_EQ(static_cast<ssize_t>(sizeof(elems_read[2])),
@@ -362,50 +395,110 @@ TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
     EXPECT_EQ(elems_to_send[2], elems_read[2]);
 }
 
+TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_callbacks)
+{
+    mt::Pipe p1, p2;
+    char const data_to_write{'a'};
+    int p2_handler_executes{-1};
+    char data_read{0};
+
+    ml.register_fd_handler(
+        {p1.read_fd()},
+        this,
+        [this](int)
+        {
+            FAIL() << "unregistered handler called";
+            ml.stop();
+        });
+
+    ml.register_fd_handler(
+        {p2.read_fd()},
+        this+2,
+        [&p2_handler_executes,&data_read,this](int fd)
+        {
+            p2_handler_executes = fd;
+            EXPECT_EQ(1, read(fd, &data_read, 1));
+            ml.stop();
+        });
+
+    ml.unregister_fd_handler(this);
+
+    EXPECT_EQ(1, write(p1.write_fd(), &data_to_write, 1));
+    EXPECT_EQ(1, write(p2.write_fd(), &data_to_write, 1));
+
+    ml.run();
+
+    EXPECT_EQ(data_to_write, data_read);
+    EXPECT_EQ(p2.read_fd(), p2_handler_executes);
+}
+
+TEST_F(AsioMainLoopTest, unregister_does_not_close_fds)
+{
+    mt::Pipe p1, p2;
+    char const data_to_write{'b'};
+    char data_read{0};
+
+    ml.register_fd_handler(
+        {p1.read_fd()},
+        this,
+        [this](int)
+        {
+            FAIL() << "unregistered handler called";
+            ml.stop();
+        });
+
+    ml.unregister_fd_handler(this);
+
+    ml.register_fd_handler(
+        {p1.read_fd()},
+        this,
+        [this,&data_read](int fd)
+        {
+            EXPECT_EQ(1, read(fd, &data_read, 1));
+            ml.stop();
+        });
+
+    EXPECT_EQ(1, write(p1.write_fd(), &data_to_write, 1));
+
+    ml.run();
+
+    EXPECT_EQ(data_to_write, data_read);
+}
+
 TEST_F(AsioMainLoopAlarmTest, main_loop_runs_until_stop_called)
 {
-    std::mutex checkpoint_mutex;
-    std::condition_variable checkpoint;
-    bool hit_checkpoint{false};
+    auto mainloop_started = std::make_shared<mt::Signal>();
 
     auto fire_on_mainloop_start = ml.notify_in(std::chrono::milliseconds{0},
-                                               [&checkpoint_mutex, &checkpoint, &hit_checkpoint]()
+                                               [mainloop_started]()
     {
-        std::unique_lock<decltype(checkpoint_mutex)> lock(checkpoint_mutex);
-        hit_checkpoint = true;
-        checkpoint.notify_all();
+        mainloop_started->raise();
     });
 
     UnblockMainLoop unblocker(ml);
 
-    // TODO time dependency:
-    {
-        std::unique_lock<decltype(checkpoint_mutex)> lock(checkpoint_mutex);
-        ASSERT_TRUE(checkpoint.wait_for(lock, std::chrono::milliseconds{500}, [&hit_checkpoint]() { return hit_checkpoint; }));
-    }
+    ASSERT_TRUE(mainloop_started->wait_for(std::chrono::milliseconds{100}));
 
-    auto alarm = ml.notify_in(std::chrono::milliseconds{10}, [this]
+    auto timer_fired = std::make_shared<mt::Signal>();
+    auto alarm = ml.notify_in(std::chrono::milliseconds{10}, [timer_fired]
     {
-        wait.notify_ready();
+        timer_fired->raise();
     });
 
     clock->advance_by(std::chrono::milliseconds{10}, ml);
-    EXPECT_NO_THROW(wait.wait_until_ready(std::chrono::milliseconds{500}));
+    EXPECT_TRUE(timer_fired->wait_for(std::chrono::milliseconds{500}));
 
     ml.stop();
     // Main loop should be stopped now
 
-    hit_checkpoint = false;
+    timer_fired = std::make_shared<mt::Signal>();
     auto should_not_fire =  ml.notify_in(std::chrono::milliseconds{0},
-                                         [&checkpoint_mutex, &checkpoint, &hit_checkpoint]()
+                                         [timer_fired]()
     {
-        std::unique_lock<decltype(checkpoint_mutex)> lock(checkpoint_mutex);
-        hit_checkpoint = true;
-        checkpoint.notify_all();
+        timer_fired->raise();
     });
 
-    std::unique_lock<decltype(checkpoint_mutex)> lock(checkpoint_mutex);
-    EXPECT_FALSE(checkpoint.wait_for(lock, std::chrono::milliseconds{50}, [&hit_checkpoint]() { return hit_checkpoint; }));
+    EXPECT_FALSE(timer_fired->wait_for(std::chrono::milliseconds{100}));
 }
 
 TEST_F(AsioMainLoopAlarmTest, alarm_starts_in_pending_state)
@@ -432,8 +525,10 @@ TEST_F(AsioMainLoopAlarmTest, alarm_fires_with_correct_delay)
 
 TEST_F(AsioMainLoopAlarmTest, multiple_alarms_fire)
 {
+    using namespace testing;
+
     int const alarm_count{10};
-    std::atomic<int> call_count{0};
+    Counter call_count;
     std::array<std::unique_ptr<mir::time::Alarm>, alarm_count> alarms;
 
     for (auto& alarm : alarms)
@@ -442,8 +537,27 @@ TEST_F(AsioMainLoopAlarmTest, multiple_alarms_fire)
     UnblockMainLoop unblocker(ml);
     clock->advance_by(delay, ml);
 
+    call_count.wait_for(delay, alarm_count);
+    EXPECT_THAT(call_count, Eq(alarm_count));
+
     for (auto const& alarm : alarms)
         EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
+}
+
+TEST_F(AsioMainLoopAlarmTest, alarm_changes_to_triggered_state)
+{
+    auto alarm_fired = std::make_shared<mt::Signal>();
+    auto alarm = ml.notify_in(std::chrono::milliseconds{5}, [alarm_fired]()
+    {
+        alarm_fired->raise();
+    });
+
+    UnblockMainLoop unblocker(ml);
+
+    clock->advance_by(delay, ml);
+    ASSERT_TRUE(alarm_fired->wait_for(std::chrono::milliseconds{100}));
+
+    EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
 TEST_F(AsioMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
