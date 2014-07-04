@@ -1078,8 +1078,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
     }
 }
 
-// FIXME
-TEST_F(BufferQueueTest, DISABLED_uncomposited_client_swaps_when_policy_triggered)
+TEST_F(BufferQueueTest, uncomposited_client_swaps_when_policy_triggered)
 {
     for (int nbuffers = 2;
          nbuffers < max_nbuffers_to_test;
@@ -1091,7 +1090,8 @@ TEST_F(BufferQueueTest, DISABLED_uncomposited_client_swaps_when_policy_triggered
                           basic_properties,
                           policy_factory);
 
-        for (int i = 0; i < max_ownable_buffers(nbuffers); i++)
+        auto max_ownable_buffers = q.buffers_free_for_client();
+        for (int i = 0; i < max_ownable_buffers; i++)
         {
             auto client = client_acquire_sync(q);
             q.client_release(client);
