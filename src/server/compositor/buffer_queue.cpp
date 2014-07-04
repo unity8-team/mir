@@ -135,6 +135,7 @@ mc::BufferQueue::BufferQueue(
     framedrop_policy = policy_provider.create_policy([this]
     {
        std::unique_lock<decltype(guard)> lock{guard};
+
        assert(!pending_client_notifications.empty());
        if (ready_to_composite_queue.empty())
        {
