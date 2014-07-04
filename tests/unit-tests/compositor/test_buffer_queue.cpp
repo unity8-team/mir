@@ -805,8 +805,7 @@ TEST_F(BufferQueueTest, bypass_clients_get_more_than_two_buffers)
     }
 }
 
-// FIXME: Doesn't work since merging latest development-branch
-TEST_F(BufferQueueTest, framedropping_clients_get_multiple_buffers)
+TEST_F(BufferQueueTest, framedropping_clients_get_max_2_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
