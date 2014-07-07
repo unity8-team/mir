@@ -16,6 +16,7 @@
 
 #include "mirserverconfiguration.h"
 
+// local
 #include "connectioncreator.h"
 #include "focussetter.h"
 #include "mirglconfig.h"
@@ -29,7 +30,11 @@
 #include "logging.h"
 #include "unityprotobufservice.h"
 
+// Qt
 #include <QDebug>
+
+// egl
+#include <EGL/egl.h>
 
 namespace msh = mir::shell;
 namespace ms = mir::scene;
@@ -110,6 +115,10 @@ MirServerConfiguration::the_gl_config()
     return gl_config(
     [this]()
     {
+#ifdef QTMIR_USE_OPENGL
+        // Should desktop-GL be desired, need to bind that API before a context is created
+        eglBindAPI(EGL_OPENGL_API);
+#endif
         return std::make_shared<MirGLConfig>();
     });
 }

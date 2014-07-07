@@ -72,7 +72,14 @@ MirOpenGLContext::MirOpenGLContext(const QSharedPointer<mir::DefaultServerConfig
         qFatal("Unable to select EGL Config with the supposed current config ID");
     }
 
-    m_format = q_glFormatFromConfig(eglDisplay, eglConfig, format);
+    QSurfaceFormat formatCopy = format;
+#ifdef QTMIR_USE_OPENGL
+    formatCopy.setRenderableType(QSurfaceFormat::OpenGL);
+#else
+    formatCopy.setRenderableType(QSurfaceFormat::OpenGLES);
+#endif
+
+    m_format = q_glFormatFromConfig(eglDisplay, eglConfig, formatCopy);
 
 
 #ifndef QT_NO_DEBUG
@@ -102,6 +109,10 @@ QSurfaceFormat MirOpenGLContext::format() const
 
 void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 {
+#ifdef QTMIR_USE_OPENGL
+        eglBindAPI(EGL_OPENGL_API);
+#endif
+
     // ultimately calls Mir's DisplayBuffer::post_update()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     displayBuffer->swapBuffers(); //blocks for vsync
@@ -109,6 +120,10 @@ void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 
 bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
 {
+#ifdef QTMIR_USE_OPENGL
+        eglBindAPI(EGL_OPENGL_API);
+#endif
+
     // ultimately calls Mir's DisplayBuffer::make_current()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     if (displayBuffer) {
@@ -134,5 +149,9 @@ void MirOpenGLContext::doneCurrent()
 
 QFunctionPointer MirOpenGLContext::getProcAddress(const QByteArray &procName)
 {
+#ifdef QTMIR_USE_OPENGL
+        eglBindAPI(EGL_OPENGL_API);
+#endif
+
     return eglGetProcAddress(procName.constData());
 }
