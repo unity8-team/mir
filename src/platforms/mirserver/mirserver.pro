@@ -8,6 +8,8 @@ CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
 CONFIG += qpa/genericunixfontdatabase
 
+DEFINES += MESA_EGL_NO_X11_HEADERS
+
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
