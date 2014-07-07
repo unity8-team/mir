@@ -3,6 +3,55 @@
 
 export DPKG_GENSYMBOLS_CHECK_LEVEL=4
 
+ANDROID_DIR = build-android
+DESKTOP_DIR = build-desktop
+TMP1_DIR = $(CURDIR)/debian/tmp1
+TMP2_DIR = $(CURDIR)/debian/tmp2
+
+# We only want to build qtmir-android on arches using Qt built with OpenGL ES2.0
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+gles2_architectures = armhf
+
 %:
 	dh $@ --parallel --fail-missing
+
+override_dh_clean:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	rm -rf $(TMP1_DIR)
+endif
+	rm -rf $(TMP2_DIR)
+	dh_clean
+
+override_dh_auto_configure:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR)
+endif
+	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- "QMAKE_CXXFLAGS=-DQTMIR_USE_OPENGL" $(CURDIR)
+
+override_dh_auto_build:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	dh_auto_build -B$(ANDROID_DIR)
+endif
+	dh_auto_build -B$(DESKTOP_DIR)
+
+override_dh_auto_test:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	dh_auto_test -B$(ANDROID_DIR)
+endif
+	dh_auto_test -B$(DESKTOP_DIR)
+
+override_dh_auto_install:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	mkdir -p $(TMP1_DIR) && cd $(ANDROID_DIR) && INSTALL_ROOT=$(TMP1_DIR) make install
+	cd $(CURDIR)
+endif
+	mkdir -p $(TMP2_DIR) && cd $(DESKTOP_DIR) && INSTALL_ROOT=$(TMP2_DIR) make install
+	cd $(CURDIR)
+
+override_dh_install:
+ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+	dh_install --sourcedir=$(TMP1_DIR) -pqtmir-android
+endif
+	dh_install --sourcedir=$(TMP2_DIR) -pqtmir-desktop
+	dh_install --sourcedir=$(TMP2_DIR) -pqtdeclarative5-qtmir-plugin
 

@@ -1,8 +1,7 @@
-TEMPLATE = app
-TARGET = application_manager_test
-CONFIG += testcase
-
+include(../../test-includes.pri)
 include(../common/common.pri)
+
+TARGET = application_manager_test
 
 INCLUDEPATH += \
     ../../../src/platforms/mirserver
