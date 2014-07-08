@@ -83,8 +83,7 @@ Replaces: libunity-mir1,
           libqtmir,
 Conflicts: libunity-mir1,
            libqtmir,
-Provides: qtmir,
-          unity-application-impl,
+Provides: unity-application-impl,
           unity-application-impl-2,
 Description: Qt plugin for Unity specific Mir APIs
  QtMir provides Qt/QML bindings for Mir features that are exposed through the
