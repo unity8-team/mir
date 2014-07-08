@@ -37,46 +37,17 @@ class GraphicBufferAllocator;
 namespace compositor
 {
 
-enum class BufferAllocBehavior
-{
-    /* The queue will allocate all buffers at construction time */
-    allocate_all,
-    /* The queue will shrink and grow depending on client and compositor demand */
-    on_demand
-};
-
-struct BufferAllocationPolicy
-{
-    BufferAllocationPolicy()
-        : alloc_behavior {BufferAllocBehavior::on_demand},
-          shrink_treshold{300}
-    {
-    }
-
-    BufferAllocationPolicy(BufferAllocBehavior behavior, int treshold)
-        : alloc_behavior{behavior}, shrink_treshold{treshold}
-    {
-    }
-
-    BufferAllocBehavior alloc_behavior;
-    /* The shrink threshold is ignored if alloc_behavior is allocate_all
-     * With on_demand behavior it specifies when to shrink the queue after it has expanded.
-     * It signifies the number of times the queue must be found in excess of buffers
-     * before it shrinks. This is used to avoid rapid growth and shrink behavior.
-     */
-    int const shrink_treshold;
-};
-
 class BufferQueue : public BufferBundle
 {
 public:
     typedef std::function<void(graphics::Buffer* buffer)> Callback;
 
-    BufferQueue(int nbuffers,
+    BufferQueue(int static_min_buffers,
+                int max_buffers,
                 std::shared_ptr<graphics::GraphicBufferAllocator> const& alloc,
                 graphics::BufferProperties const& props,
                 FrameDroppingPolicyFactory const& policy_provider,
-                BufferAllocationPolicy const& alloc_policy);
+                int shrink_threshold = 300);
 
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
@@ -102,7 +73,7 @@ private:
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
     void drop_frame(std::unique_lock<std::mutex> lock);
-    int min_buffers() const;
+    int dynamic_min_buffers() const;
 
     mutable std::mutex guard;
 
@@ -118,9 +89,10 @@ private:
 
     std::deque<Callback> pending_client_notifications;
 
-    int nbuffers;
+    int const static_min_buffers;
+    int const max_buffers;
+    int const shrink_threshold;
     int queue_size_excess;
-    BufferAllocationPolicy const alloc_policy;
     bool frame_dropping_enabled;
     bool force_use_current_buffer;
     bool multiple_compositor_buffers;

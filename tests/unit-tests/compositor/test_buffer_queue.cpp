@@ -58,11 +58,11 @@ public:
     {}
 
     TestBufferQueue(int nbuffers, mc::FrameDroppingPolicyFactory const& policy_provider)
-        : mc::BufferQueue(nbuffers,
+        : mc::BufferQueue((nbuffers >= 2) ? 2 : 1, nbuffers,
           std::make_shared<mtd::StubBufferAllocator>(),
           { geom::Size{3, 4}, mir_pixel_format_abgr_8888, mg::BufferUsage::hardware },
           policy_provider,
-          mc::BufferAllocationPolicy(mc::BufferAllocBehavior::on_demand, default_shrink_threshold))
+          default_shrink_threshold)
     {}
 
 };

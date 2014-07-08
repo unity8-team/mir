@@ -94,30 +94,28 @@ void replace(mg::Buffer const* item, std::shared_ptr<mg::Buffer> const& new_buff
 }
 
 mc::BufferQueue::BufferQueue(
-    int nbuffers,
+    int static_min_buffers, int max_buffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider,
-    BufferAllocationPolicy const& alloc_policy)
-    : nbuffers{nbuffers},
+    int shrink_threshold)
+    : static_min_buffers{static_min_buffers},
+      max_buffers{max_buffers},
+      shrink_threshold{shrink_threshold},
       queue_size_excess{0},
-      alloc_policy{alloc_policy},
       frame_dropping_enabled{false},
       force_use_current_buffer{false},
       multiple_compositor_buffers{false},
       the_properties{props},
       gralloc{gralloc}
 {
-    if (nbuffers < 1)
+    if (static_min_buffers < 0 || max_buffers < 1 || static_min_buffers > max_buffers)
     {
         BOOST_THROW_EXCEPTION(
             std::logic_error("invalid number of buffers for BufferQueue"));
     }
 
-    int const nalloc =
-        alloc_policy.alloc_behavior == BufferAllocBehavior::allocate_all ?
-            nbuffers : std::min(nbuffers, 2);
-    for(int i = 0; i < nalloc; i++)
+    for (int i = 0; i < static_min_buffers; i++)
     {
         buffers.push_back(gralloc->alloc_buffer(the_properties));
     }
@@ -133,7 +131,7 @@ mc::BufferQueue::BufferQueue(
     /* Special case: with one buffer both clients and compositors
      * need to share the same buffer
      */
-    if (nbuffers == 1)
+    if (max_buffers == 1)
         free_buffers.push_back(current_compositor_buffer);
 
     framedrop_policy = policy_provider.create_policy([this]
@@ -176,8 +174,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     }
 
     int const allocated_buffers = buffers.size();
-    if (alloc_policy.alloc_behavior == BufferAllocBehavior::on_demand &&
-        allocated_buffers < min_buffers())
+    if (allocated_buffers < dynamic_min_buffers())
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -282,7 +279,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     if (contains(buffer.get(), buffers_sent_to_compositor))
         return;
 
-    if (nbuffers <= 1)
+    if (max_buffers <= 1)
         return;
 
     /*
@@ -384,7 +381,7 @@ int mc::BufferQueue::buffers_ready_for_compositor() const
 int mc::BufferQueue::buffers_free_for_client() const
 {
     std::lock_guard<decltype(guard)> lock(guard);
-    return nbuffers > 1 ? free_buffers.size() : 1;
+    return max_buffers > 1 ? free_buffers.size() : 1;
 }
 
 void mc::BufferQueue::give_buffer_to_client(
@@ -404,7 +401,7 @@ void mc::BufferQueue::give_buffer_to_client(
         /* Special case: the current compositor buffer also needs to be
          * replaced as it's shared with the client
          */
-        if (nbuffers == 1)
+        if (max_buffers == 1)
             current_compositor_buffer = buffer;
     }
 
@@ -444,15 +441,14 @@ void mc::BufferQueue::release(
 
     // To avoid reallocating buffers too often (which may be slow), only drop
     // a buffer after it's continually been in excess for a long time...
-    if (alloced_buffers > min_buffers())
+    if (alloced_buffers > dynamic_min_buffers())
         ++queue_size_excess;
     else
         queue_size_excess = 0;
 
     // If too many frames have had excess buffers then start dropping them now
-    if (alloc_policy.alloc_behavior == BufferAllocBehavior::on_demand &&
-        queue_size_excess > alloc_policy.shrink_treshold &&
-        nbuffers > 1)
+    if (queue_size_excess > shrink_threshold &&
+        alloced_buffers > static_min_buffers)
     {
         remove(buffer, buffers);
         queue_size_excess = 0;
@@ -473,10 +469,13 @@ void mc::BufferQueue::release(
  * to avoid starving any compositors of fresh frames or starving clients of
  * any buffers at all.
  */
-int mc::BufferQueue::min_buffers() const
+int mc::BufferQueue::dynamic_min_buffers() const
 {
-    if (nbuffers == 1)
+    if (max_buffers == 1)
         return 1;
+
+    if (static_min_buffers == max_buffers)
+        return static_min_buffers;
 
     /* When framedropping is enabled and there are multiple compositors
      * they can be out of phase enough that the compositor buffer is
@@ -492,7 +491,7 @@ int mc::BufferQueue::min_buffers() const
     int const compositor_demand = 1;
     int const required_buffers = compositor_demand + client_demand + frame_drop_demand;
 
-    return std::min(nbuffers, required_buffers);
+    return std::min(max_buffers, required_buffers);
 }
 
 void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
