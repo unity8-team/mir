@@ -62,7 +62,6 @@ public:
     void resize(const geometry::Size &newsize) override;
     int buffers_ready_for_compositor() const override;
     int buffers_free_for_client() const override;
-
     bool framedropping_allowed() const;
     int allocated_buffers() const;
 

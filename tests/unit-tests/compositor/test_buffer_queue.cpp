@@ -1118,15 +1118,15 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
         y->release_buffer();
 
         auto b = q.compositor_acquire(this);
-
+    
         ASSERT_NE(a.get(), b.get());
-
+    
         q.compositor_release(a);
 
         auto w = client_acquire_async(q);
         ASSERT_TRUE(w->has_acquired_buffer());
         w->release_buffer();
-
+    
         q.compositor_release(b);
 
         auto z = client_acquire_async(q);
