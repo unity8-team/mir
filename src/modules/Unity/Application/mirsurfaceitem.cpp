@@ -170,6 +170,24 @@ bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
         auto touchPoint = touchPoints.at(i);
         auto &pointer = mirEvent.motion.pointer_coordinates[i];
 
+        // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
+        // When multiple touch points are transmitted with a MirEvent
+        // and one of them (only one is allowed) indicates a pressed
+        // state change the index is encoded in the second byte of the
+        // action value.
+        const int mir_motion_event_pointer_index_shift = 8;
+        if (mirEvent.motion.action == mir_motion_action_pointer_up &&
+            touchPoint.state() == Qt::TouchPointReleased)
+        {
+            mirEvent.motion.action |= i << mir_motion_event_pointer_index_shift;
+        }
+        if (mirEvent.motion.action == mir_motion_action_pointer_down &&
+            touchPoint.state() == Qt::TouchPointPressed)
+        {
+            mirEvent.motion.action |= i << mir_motion_event_pointer_index_shift;
+        }
+
+
         pointer.id = touchPoint.id();
         pointer.x = touchPoint.pos().x();
         pointer.y = touchPoint.pos().y();
