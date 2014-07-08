@@ -116,6 +116,7 @@ uamc::Window::Window(uamc::Instance& instance,
             mir_surface_release_sync(s);
         });
 
+    // FIXME: this only really applicable for phone & tablet case
     state_before_hiding = U_MAXIMIZED_STATE;
 }
 
