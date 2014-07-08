@@ -12,36 +12,38 @@ TMP2_DIR = $(CURDIR)/debian/tmp2
 DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 gles2_architectures = armhf
 
+USES_GLES2 = $(findstring $(DEB_HOST_ARCH), $(gles2_architectures))
+
 %:
 	dh $@ --parallel --fail-missing
 
 override_dh_clean:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	rm -rf $(TMP1_DIR)
 endif
 	rm -rf $(TMP2_DIR)
 	dh_clean
 
 override_dh_auto_configure:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR)
 endif
 	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- "QMAKE_CXXFLAGS=-DQTMIR_USE_OPENGL" $(CURDIR)
 
 override_dh_auto_build:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	dh_auto_build -B$(ANDROID_DIR)
 endif
 	dh_auto_build -B$(DESKTOP_DIR)
 
 override_dh_auto_test:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	dh_auto_test -B$(ANDROID_DIR)
 endif
 	dh_auto_test -B$(DESKTOP_DIR)
 
 override_dh_auto_install:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	mkdir -p $(TMP1_DIR) && cd $(ANDROID_DIR) && INSTALL_ROOT=$(TMP1_DIR) make install
 	cd $(CURDIR)
 endif
@@ -49,7 +51,7 @@ endif
 	cd $(CURDIR)
 
 override_dh_install:
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH), $(gles2_architectures)))
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	dh_install --sourcedir=$(TMP1_DIR) -pqtmir-android
 endif
 	dh_install --sourcedir=$(TMP2_DIR) -pqtmir-desktop
