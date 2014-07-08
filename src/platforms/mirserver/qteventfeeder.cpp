@@ -221,7 +221,7 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
         }
     }
 
-    QWindowSystemInterface::handleKeyEvent(window, timestamp, keyType, keyCode, modifiers, text);
+    QWindowSystemInterface::handleExtendedKeyEvent(window, timestamp, keyType, keyCode, modifiers, event.scan_code, event.key_code, event.modifiers, text);
 }
 
 void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
