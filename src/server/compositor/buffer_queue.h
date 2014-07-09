@@ -87,7 +87,6 @@ private:
 
     int nbuffers;
     int excess;
-    bool overlapping_compositors;
     bool frame_dropping_enabled;
     std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
     graphics::BufferProperties the_properties;

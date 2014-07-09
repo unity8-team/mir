@@ -100,7 +100,6 @@ mc::BufferQueue::BufferQueue(
     mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
       excess{0},
-      overlapping_compositors{false},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -221,7 +220,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
-    fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
+    //fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
 
     bool use_current_buffer = false;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
@@ -253,11 +252,6 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     }
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
-
-    // Detect bypassing compositors (those that need to hold multiple different
-    // buffers simultaneously).
-    overlapping_compositors =
-        buffers_sent_to_compositor.size() > current_buffer_users.size();
 
     std::shared_ptr<mg::Buffer> const acquired_buffer =
         buffer_for(current_compositor_buffer, buffers);
@@ -466,10 +460,7 @@ void mc::BufferQueue::release(
 /**
  * Measure the actual number of buffers we presently need concurrently
  * to avoid starving any compositors of fresh frames or starving clients of
- * any buffers at all. Typically in a multi-buffer client min_buffers will
- * be 2. However when DRM bypass is active or frame dropping enabled, the
- * result of min_buffers could be 3. If you had bypass and frame dropping
- * enabled simultaneously then required_buffers could reach 4 (LP: #1317403)
+ * any buffers at all.
  */
 int mc::BufferQueue::min_buffers() const
 {
@@ -479,15 +470,13 @@ int mc::BufferQueue::min_buffers() const
     // else for multi-buffering with exclusivity guarantees:
     int client_demand = buffers_owned_by_client.size() +
                         pending_client_notifications.size();
-    int compositor_demand = overlapping_compositors ? 2 : 1;
-    int min_compositors = std::max(1, compositor_demand);
+    int min_compositors = 1;
     int min_clients = std::max(1, client_demand);
     int min_free = frame_dropping_enabled ? 1 : 0;
     int required_buffers = min_compositors + min_clients + min_free;
 
-    // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     int ret = std::min(nbuffers, required_buffers);
-    fprintf(stderr, "min_buffers = %d\n", ret);
+    //fprintf(stderr, "min_buffers = %d\n", ret);
     return ret;
 }
 
