@@ -30,6 +30,8 @@ namespace mg = mir::graphics;
 
 namespace
 {
+static int const buffers_shrinkage_delay = 300; // in frames
+
 mg::Buffer* pop(std::deque<mg::Buffer*>& q)
 {
     auto const buffer = q.front();
@@ -445,7 +447,9 @@ void mc::BufferQueue::release(
         excess = 0;
     
     // If too many frames have had excess buffers then start dropping them now
-    if (excess > 300 && buffers.back().get() == buffer && nbuffers > 1)
+    if (excess > buffers_shrinkage_delay &&
+        buffers.back().get() == buffer &&
+        nbuffers > 1)
     {
         buffers.pop_back();
         excess = 0;
