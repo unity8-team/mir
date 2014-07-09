@@ -219,7 +219,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
-    //fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
+    fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
 
     bool use_current_buffer = false;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
@@ -483,7 +483,7 @@ int mc::BufferQueue::min_buffers() const
 
     // FIXME: Sometimes required_buffers > nbuffers (LP: #1317403)
     int ret = std::min(nbuffers, required_buffers);
-    //fprintf(stderr, "min_buffers = %d\n", ret);
+    fprintf(stderr, "min_buffers = %d\n", ret);
     return ret;
 }
 
