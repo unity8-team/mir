@@ -133,7 +133,18 @@ mc::BufferQueue::BufferQueue(
     framedrop_policy = policy_provider.create_policy([this]
     {
        std::unique_lock<decltype(guard)> lock{guard};
-       assert(!pending_client_notifications.empty());
+
+       if (pending_client_notifications.empty())
+       {
+           /*
+            * This is a benign race between the policy calling back due to a
+            * timeout and invoking framedrop_policy->swap_unblocked().
+            * A client request may already have been fulfilled just before
+            * invoking framedrop_policy->swap_unblocked()
+            */
+           return;
+       }
+
        if (ready_to_composite_queue.empty())
        {
            /*
@@ -193,6 +204,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
      * until the compositor is done with an old frame, or the policy
      * says they've waited long enough.
      */
+    lock.unlock();
     framedrop_policy->swap_now_blocking();
 }
 
@@ -434,8 +446,8 @@ void mc::BufferQueue::release(
 {
     if (!pending_client_notifications.empty())
     {
-        framedrop_policy->swap_unblocked();
         give_buffer_to_client(buffer, std::move(lock));
+        framedrop_policy->swap_unblocked();
     }
     else
         free_buffers.push_back(buffer);
