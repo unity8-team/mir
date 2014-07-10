@@ -20,8 +20,7 @@
 
 #include "timeout_frame_dropping_policy_factory.h"
 
-#include <cassert>
-#include <atomic>
+#include <mutex>
 #include <chrono>
 #include <boost/throw_exception.hpp>
 
@@ -42,7 +41,8 @@ public:
 private:
     std::chrono::milliseconds const timeout;
     std::unique_ptr<mir::time::Alarm> const alarm;
-    std::atomic<unsigned int> pending_swaps;
+    std::mutex mutex;
+    unsigned int pending_swaps;
 };
 
 TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
@@ -51,10 +51,16 @@ TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time
     : timeout{timeout},
       alarm{timer->create_alarm([this, drop_frame]
         {
-            assert(pending_swaps.load() > 0);
-            drop_frame();
-            if (--pending_swaps > 0)
-                alarm->reschedule_in(this->timeout);
+            bool call_drop{false};
+            bool reshedule{false};
+
+            {
+                std::lock_guard<std::mutex> lock{mutex};
+                call_drop = pending_swaps > 0;
+                reshedule = call_drop && --pending_swaps > 0;
+            }
+            if (call_drop) drop_frame();
+            if (reshedule) alarm->reschedule_in(this->timeout);
         })},
       pending_swaps{0}
 {
@@ -62,18 +68,21 @@ TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time
 
 void TimeoutFrameDroppingPolicy::swap_now_blocking()
 {
-    if (pending_swaps++ == 0)
+    if ([&]{ std::lock_guard<std::mutex> lock{mutex}; return pending_swaps++ == 0; }())
         alarm->reschedule_in(timeout);
 }
 
 void TimeoutFrameDroppingPolicy::swap_unblocked()
 {
-    if (alarm->state() != mir::time::Alarm::cancelled && alarm->cancel())
+    if (alarm->state() == mir::time::Alarm::cancelled) return;
+
+    if ([&]{ std::lock_guard<std::mutex> lock{mutex}; return --pending_swaps > 0; }())
     {
-        if (--pending_swaps > 0)
-        {
-            alarm->reschedule_in(timeout);
-        }
+        alarm->reschedule_in(timeout);
+    }
+    else
+    {
+        alarm->cancel();
     }
 }
 }
