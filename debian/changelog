@@ -1,7 +1,10 @@
 mir (0.4.1-0ubuntu1) UNRELEASED; urgency=medium
 
   * New upstream release 0.4.1 (https://launchpad.net/mir/+milestone/0.4.1)
-    - Bug fix for deadlock in BufferQueue framedrop_policy (LP: #1339700)
+    - mirclient ABI unchanged, still at 8. Clients do not need rebuilding.
+    - mirserver ABI unchanged, still at 22. Shells do not need rebuilding.
+    - Bugs fixed:
+      . fix for deadlock in BufferQueue framedrop_policy (LP: #1339700)
 
  -- Kevin Gunn <kevin.gunn@canonical.com>  Thu, 10 Jul 2014 09:13:24 -0500
 
