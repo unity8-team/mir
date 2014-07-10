@@ -139,6 +139,11 @@ mir::DefaultServerConfiguration::the_session_authorizer()
         {
             return true;
         }
+
+        bool prompt_session_is_allowed(mf::SessionCredentials const& /* creds */) override
+        {
+            return true;
+        }
     };
     return session_authorizer(
         [&]()
@@ -146,6 +151,8 @@ mir::DefaultServerConfiguration::the_session_authorizer()
             return std::make_shared<DefaultSessionAuthorizer>();
         });
 }
+
+mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
 
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {

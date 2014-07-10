@@ -80,6 +80,7 @@ private:
 
     boost::asio::io_service io;
     boost::asio::io_service::work work;
+    std::mutex thread_id_mutex;
     boost::optional<std::thread::id> main_loop_thread;
     std::vector<std::unique_ptr<SignalHandler>> signal_handlers;
     std::vector<std::shared_ptr<FDHandler>> fd_handlers;

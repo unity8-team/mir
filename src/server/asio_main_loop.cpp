@@ -183,6 +183,14 @@ public:
         }
     }
 
+    ~FDHandler()
+    {
+        for (auto & desc : stream_descriptors)
+        {
+            desc->release(); // release native handle which is not owned by main loop
+        }
+    }
+
     bool is_owned_by(void const* possible_owner) const
     {
         return owner == possible_owner;
@@ -250,12 +258,16 @@ mir::AsioMainLoop::~AsioMainLoop() noexcept(true)
 
 void mir::AsioMainLoop::run()
 {
-    main_loop_thread = std::this_thread::get_id();
+    {
+        std::lock_guard<std::mutex> lock(thread_id_mutex);
+        main_loop_thread = std::this_thread::get_id();
+    }
     io.run();
 }
 
 void mir::AsioMainLoop::stop()
 {
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
     io.stop();
     main_loop_thread.reset();
 }
@@ -340,7 +352,7 @@ public:
 private:
     bool cancel_alarm_non_blocking();
     bool cancel_alarm_blocking();
-    void update_timer(mir::ServerActionQueue& queue);
+    void update_timer();
     struct InternalState
     {
         explicit InternalState(std::function<void(void)> callback)
@@ -355,7 +367,39 @@ private:
     mir::AsioMainLoop& loop;
     ::deadline_timer timer;
     std::shared_ptr<InternalState> data;
+
+    friend auto make_handler(std::weak_ptr<InternalState> possible_data, mir::ServerActionQueue& queue)
+    -> std::function<void(boost::system::error_code const& ec)>;
 };
+
+auto make_handler(std::weak_ptr<AlarmImpl::InternalState> possible_data, mir::ServerActionQueue& queue)
+-> std::function<void(boost::system::error_code const& ec)>
+{
+    // Awkwardly, we can't stop the async_wait handler from being called
+    // on a destroyed AlarmImpl. This means we need to wedge a weak_ptr
+    // into the async_wait callback.
+    return [possible_data,&queue](boost::system::error_code const& ec)
+    {
+        if (ec)
+            return;
+        if (auto data = possible_data.lock())
+        {
+            queue.enqueue(
+                data.get(),
+                [possible_data]()
+                {
+                    auto data = possible_data.lock();
+                    if (!data)
+                        return;
+
+                    mir::time::Alarm::State expected_state = mir::time::Alarm::pending;
+                    if (data->state.compare_exchange_strong(expected_state, mir::time::Alarm::triggered))
+                        data->callback();
+                });
+        }
+    };
+}
+
 
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
                      mir::AsioMainLoop& loop,
@@ -386,7 +430,7 @@ AlarmImpl::AlarmImpl(boost::asio::io_service& io,
 
 AlarmImpl::~AlarmImpl() noexcept
 {
-    cancel_alarm_non_blocking();
+    cancel_alarm_blocking();
 }
 
 bool AlarmImpl::cancel()
@@ -424,47 +468,21 @@ mir::time::Alarm::State AlarmImpl::state() const
 bool AlarmImpl::reschedule_in(std::chrono::milliseconds delay)
 {
     bool cancelling = timer.expires_from_now(delay);
-    update_timer(loop);
+    update_timer();
     return cancelling;
 }
 
 bool AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
 {
     bool cancelling = timer.expires_at(time_point);
-    update_timer(loop);
+    update_timer();
     return cancelling;
 }
 
-void AlarmImpl::update_timer(mir::ServerActionQueue& queue)
+void AlarmImpl::update_timer()
 {
-    auto new_internal_state = std::make_shared<InternalState>(data->callback);
-    // Awkwardly, we can't stop the async_wait handler from being called
-    // on a destroyed AlarmImpl. This means we need to wedge a shared_ptr
-    // into the async_wait callback.
-    std::weak_ptr<InternalState> possible_data = new_internal_state;
-    timer.async_wait([possible_data,&queue](boost::system::error_code const& ec)
-    {
-        if (ec)
-            return;
-
-        auto data = possible_data.lock();
-        if (!data)
-            return;
-
-        queue.enqueue(
-            data.get(),
-            [possible_data]()
-            {
-                auto data = possible_data.lock();
-                if (!data)
-                    return;
-
-                State expected_state = pending;
-                if (data->state.compare_exchange_strong(expected_state, triggered))
-                    data->callback();
-            });
-    });
-    data = new_internal_state;
+    data = std::make_shared<InternalState>(data->callback);
+    timer.async_wait(make_handler(data, loop));
 }
 }
 
@@ -549,6 +567,7 @@ void mir::AsioMainLoop::process_server_actions()
 
 void mir::AsioMainLoop::execute(ServerAction const& action)
 {
+    std::lock_guard<std::mutex> lock(thread_id_mutex);
     synchronous_server_action(
         *this,
         main_loop_thread,
