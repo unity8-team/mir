@@ -430,7 +430,7 @@ AlarmImpl::AlarmImpl(boost::asio::io_service& io,
 
 AlarmImpl::~AlarmImpl() noexcept
 {
-    cancel_alarm_blocking();
+    cancel_alarm_non_blocking();
 }
 
 bool AlarmImpl::cancel()
