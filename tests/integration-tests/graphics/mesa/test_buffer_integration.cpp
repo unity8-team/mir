@@ -20,9 +20,14 @@
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/buffer_initializer.h"
+#include "mir/options/configuration.h"
+#include "mir/options/option.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/null_platform.h"
+#include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_gl_program_factory.h"
+#include "mir_test_doubles/null_emergency_cleanup.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
 #include "src/server/report/null_report_factory.h"
 
@@ -49,7 +54,7 @@ public:
         creation_thread_id{std::this_thread::get_id()}
     {}
 
-    void bind_to_texture()
+    void gl_bind_to_texture() override
     {
         /*
          * If we are trying to bind the texture from a different thread from
@@ -95,12 +100,22 @@ protected:
         auto options = mtf::TestingServerConfiguration().the_options();
 
         if (options->get<bool>("tests-use-real-graphics"))
-            platform = mg::create_platform(options, mr::null_display_report());
+        {
+            platform = mg::create_platform(
+                options,
+                std::make_shared<mtd::NullEmergencyCleanup>(),
+                mr::null_display_report());
+        }
         else
+        {
             platform = std::make_shared<StubGraphicPlatform>();
+        }
 
         auto conf_policy = std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
-        display = platform->create_display(conf_policy);
+        display = platform->create_display(
+            conf_policy,
+            std::make_shared<mtd::StubGLProgramFactory>(),
+            std::make_shared<mtd::StubGLConfig>());
         auto buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
         allocator = platform->create_buffer_allocator(buffer_initializer);
         size = geom::Size{100, 100};
@@ -167,7 +182,7 @@ struct BufferTextureInstantiatorThread
 
         try
         {
-            buffer->bind_to_texture();
+            buffer->gl_bind_to_texture();
         }
         catch(std::runtime_error const&)
         {
@@ -199,7 +214,7 @@ TEST_F(MesaBufferIntegration, buffer_destruction_from_arbitrary_thread_works)
 
     EXPECT_NO_THROW({
         auto buffer = allocator->alloc_buffer(buffer_properties);
-        buffer->bind_to_texture();
+        buffer->gl_bind_to_texture();
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
 
         BufferDestructorThread destructor{std::move(buffer)};

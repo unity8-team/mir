@@ -17,35 +17,104 @@
  */
 
 #include "published_socket_connector.h"
-#include "protobuf_session_creator.h"
+#include "protobuf_connection_creator.h"
 
+#include "mir/frontend/connection_context.h"
 #include "mir/frontend/connector_report.h"
+#include "mir/emergency_cleanup_registry.h"
+#include "mir/thread_name.h"
 
-#include <boost/signals2.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
 #include <sys/socket.h>
+#include <sys/stat.h>
+
+#include <cstdio>
+#include <fstream>
 
 namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
 namespace ba = boost::asio;
 
+namespace
+{
+
+bool socket_file_exists(std::string const& filename)
+{
+    struct stat statbuf;
+    bool exists = (0 == stat(filename.c_str(), &statbuf));
+    /* Avoid removing non-socket files */
+    bool is_socket_type = (statbuf.st_mode & S_IFMT) == S_IFSOCK;
+    return exists && is_socket_type;
+}
+
+bool socket_exists(std::string const& socket_name)
+{
+    try
+    {
+        std::string socket_path{socket_name};
+
+        /* In case an abstract socket name exists with the same name*/
+        socket_path.insert(std::begin(socket_path), ' ');
+
+        /* If the name is contained in this table, it signifies
+         * a process is truly using that socket connection
+         */
+        std::ifstream socket_names_file("/proc/net/unix");
+        std::string line;
+        while (std::getline(socket_names_file, line))
+        {
+           auto index = line.find(socket_path);
+           /* check for complete match */
+           if (index != std::string::npos &&
+               (index + socket_path.length()) == line.length())
+           {
+               return true;
+           }
+        }
+    }
+    catch (...)
+    {
+        /* Assume the socket exists */
+        return true;
+    }
+    return false;
+}
+
+std::string remove_if_stale(std::string const& socket_name)
+{
+    if (socket_file_exists(socket_name) && !socket_exists(socket_name))
+    {
+        if (std::remove(socket_name.c_str()) != 0)
+        {
+            BOOST_THROW_EXCEPTION(
+                boost::enable_error_info(
+                    std::runtime_error("Failed removing stale socket file")) << boost::errinfo_errno(errno));
+        }
+    }
+    return socket_name;
+}
+}
+
 mf::PublishedSocketConnector::PublishedSocketConnector(
     const std::string& socket_file,
-    std::shared_ptr<SessionCreator> const& session_creator,
+    std::shared_ptr<ConnectionCreator> const& connection_creator,
     int threads,
+    EmergencyCleanupRegistry& emergency_cleanup_registry,
     std::shared_ptr<ConnectorReport> const& report)
-:   BasicConnector(session_creator, threads, report),
-    socket_file(socket_file),
+:   BasicConnector(connection_creator, threads, report),
+    socket_file(remove_if_stale(socket_file)),
     acceptor(io_service, socket_file)
 {
+    emergency_cleanup_registry.add(
+        [socket_file] { std::remove(socket_file.c_str()); });
     start_accept();
 }
 
 mf::PublishedSocketConnector::~PublishedSocketConnector() noexcept
 {
-    remove_endpoint();
+    std::remove(socket_file.c_str());
 }
 
 void mf::PublishedSocketConnector::start_accept()
@@ -56,16 +125,10 @@ void mf::PublishedSocketConnector::start_accept()
 
     acceptor.async_accept(
         *socket,
-        boost::bind(
-            &PublishedSocketConnector::on_new_connection,
-            this,
-            socket,
-            ba::placeholders::error));
-}
-
-void mf::PublishedSocketConnector::remove_endpoint() const
-{
-    std::remove(socket_file.c_str());
+        [this,socket](boost::system::error_code const& ec)
+        {
+            on_new_connection(socket, ec);
+        });
 }
 
 void mf::PublishedSocketConnector::on_new_connection(
@@ -74,19 +137,19 @@ void mf::PublishedSocketConnector::on_new_connection(
 {
     if (!ec)
     {
-        create_session_for(socket);
+        create_session_for(socket, [](std::shared_ptr<mf::Session> const&) {});
     }
     start_accept();
 }
 
 mf::BasicConnector::BasicConnector(
-    std::shared_ptr<SessionCreator> const& session_creator,
+    std::shared_ptr<ConnectionCreator> const& connection_creator,
     int threads,
     std::shared_ptr<ConnectorReport> const& report)
 :   work(io_service),
     report(report),
     io_service_threads(threads),
-    session_creator{session_creator}
+    connection_creator{connection_creator}
 {
 }
 
@@ -94,6 +157,7 @@ void mf::BasicConnector::start()
 {
     auto run_io_service = [this]
     {
+        mir::set_thread_name("Mir/IPC");
         while (true)
         try
         {
@@ -135,13 +199,26 @@ void mf::BasicConnector::stop()
     io_service.reset();
 }
 
-void mf::BasicConnector::create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& server_socket) const
+void mf::BasicConnector::create_session_for(
+    std::shared_ptr<boost::asio::local::stream_protocol::socket> const& server_socket,
+    std::function<void(std::shared_ptr<Session> const& session)> const& connect_handler) const
 {
     report->creating_session_for(server_socket->native_handle());
-    session_creator->create_session_for(server_socket);
+
+    /* We set the SO_PASSCRED socket option in order to receive credentials */
+    auto const optval = 1;
+    if (setsockopt(server_socket->native_handle(), SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1)
+        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to set SO_PASSCRED"));
+
+    connection_creator->create_connection_for(server_socket, {connect_handler, this});
 }
 
 int mf::BasicConnector::client_socket_fd() const
+{
+    return client_socket_fd([](std::shared_ptr<mf::Session> const&) {});
+}
+
+int mf::BasicConnector::client_socket_fd(std::function<void(std::shared_ptr<Session> const& session)> const& connect_handler) const
 {
     enum { server, client, size };
     int socket_fd[size];
@@ -158,13 +235,9 @@ int mf::BasicConnector::client_socket_fd() const
 
     report->creating_socket_pair(socket_fd[server], socket_fd[client]);
 
-    create_session_for(server_socket);
+    create_session_for(server_socket, connect_handler);
 
     return socket_fd[client];
-}
-
-void mf::BasicConnector::remove_endpoint() const
-{
 }
 
 mf::BasicConnector::~BasicConnector() noexcept

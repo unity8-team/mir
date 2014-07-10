@@ -39,7 +39,7 @@ public:
 
     MOCK_METHOD1(client_acquire,     void(std::function<void(graphics::Buffer*)>));
     MOCK_METHOD1(client_release,     void(graphics::Buffer*));
-    MOCK_METHOD1(compositor_acquire, std::shared_ptr<graphics::Buffer>(unsigned long));
+    MOCK_METHOD1(compositor_acquire, std::shared_ptr<graphics::Buffer>(void const*));
     MOCK_METHOD1(compositor_release, void(std::shared_ptr<graphics::Buffer> const&));
     MOCK_METHOD0(snapshot_acquire, std::shared_ptr<graphics::Buffer>());
     MOCK_METHOD1(snapshot_release, void(std::shared_ptr<graphics::Buffer> const&));
@@ -48,6 +48,8 @@ public:
     MOCK_METHOD0(force_client_abort, void());
     MOCK_METHOD0(force_requests_to_complete, void());
     MOCK_METHOD1(resize, void(const geometry::Size &));
+    int buffers_ready_for_compositor() const override { return 1; }
+    int buffers_free_for_client() const override { return 1; }
 };
 
 }

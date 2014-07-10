@@ -39,10 +39,11 @@ public:
     BufferStreamSurfaces(std::shared_ptr<BufferBundle> const& swapper);
     ~BufferStreamSurfaces();
 
-    void swap_client_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete) override;
+    void acquire_client_buffer(std::function<void(graphics::Buffer* buffer)> complete) override;
+    void release_client_buffer(graphics::Buffer* buf) override;
 
     std::shared_ptr<graphics::Buffer>
-        lock_compositor_buffer(unsigned long frameno) override;
+        lock_compositor_buffer(void const* user_id) override;
     std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() override;
 
     MirPixelFormat get_stream_pixel_format() override;
@@ -50,6 +51,7 @@ public:
     void resize(geometry::Size const& size) override;
     void allow_framedropping(bool) override;
     void force_requests_to_complete() override;
+    int buffers_ready_for_compositor() const override;
 
 protected:
     BufferStreamSurfaces(const BufferStreamSurfaces&) = delete;

@@ -43,6 +43,7 @@ public:
         std::shared_ptr<Scene> const& scene,
         std::shared_ptr<Renderer> const& renderer,
         std::shared_ptr<CompositorReport> const& report);
+    ~DefaultDisplayBufferCompositor();
 
     void composite() override;
 
@@ -52,8 +53,6 @@ private:
     std::shared_ptr<Scene> const scene;
     std::shared_ptr<Renderer> const renderer;
     std::shared_ptr<CompositorReport> const report;
-
-    unsigned long local_frameno;
 };
 
 }

@@ -32,6 +32,7 @@ namespace graphics
 {
 
 class DisplayReport;
+class GLConfig;
 
 namespace mesa
 {
@@ -49,6 +50,7 @@ public:
                   GBMSurfaceUPtr surface_gbm,
                   geometry::Rectangle const& area,
                   MirOrientation rot,
+                  GLConfig const& gl_config,
                   EGLContext shared_context);
     ~DisplayBuffer();
 
@@ -56,16 +58,16 @@ public:
     void make_current();
     void release_current();
     void post_update();
+    bool post_renderables_if_optimizable(RenderableList const& renderlist);
 
-    bool can_bypass() const override;
-    void post_update(std::shared_ptr<graphics::Buffer> bypass_buf) override;
-    void render_and_post_update(std::list<std::shared_ptr<Renderable>> const& renderlist,
-                                std::function<void(Renderable const&)> const& render_fn);
     MirOrientation orientation() const override;
+    bool uses_alpha() const override;
     void schedule_set_crtc();
     void wait_for_page_flip();
 
 private:
+    void post_update(std::shared_ptr<graphics::Buffer> bypass_buf);
+
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
     bool schedule_page_flip(BufferObject* bufobj);

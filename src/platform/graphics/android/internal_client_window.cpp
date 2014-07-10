@@ -65,7 +65,7 @@ void mga::InternalClientWindow::driver_returns_buffer(ANativeWindowBuffer* key, 
     buffer = it->second.buffer;
     lookup.erase(it);
 
-    handle->update_fence(fence_fd);
+    handle->update_usage(fence_fd, mga::BufferAccess::write);
     surface->swap_buffers(buffer);
 }
 
@@ -93,6 +93,8 @@ int mga::InternalClientWindow::driver_requests_info(int key) const
             return 0;
         case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
             return 1;
+        case NATIVE_WINDOW_CONCRETE_TYPE:
+            return NATIVE_WINDOW_SURFACE;
         default:
             {
             std::stringstream sstream;

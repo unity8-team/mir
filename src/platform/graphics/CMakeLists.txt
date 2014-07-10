@@ -10,6 +10,10 @@ set(
   display_configuration.cpp
   buffer_basic.cpp
   pixel_format_utils.cpp
+  overlapping_output_grouping.cpp
+  gl_program.cpp
+  gl_texture.cpp
+  tessellation_helpers.cpp
 )
 
 add_library(

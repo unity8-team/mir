@@ -73,12 +73,14 @@ int mcla::ClientSurfaceInterpreter::driver_requests_info(int key) const
             return 0;
         case NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS:
             return 2;
+        case NATIVE_WINDOW_CONCRETE_TYPE:
+            return NATIVE_WINDOW_SURFACE;
         default:
             throw std::runtime_error("driver requested unsupported query");
     }
 }
 
-void mcla::ClientSurfaceInterpreter::sync_to_display(bool)
-{
-    //note: clients run with the swapinterval of the display. ignore their request for now
+void mcla::ClientSurfaceInterpreter::sync_to_display(bool should_sync)
+{ 
+    surface.request_and_wait_for_configure(mir_surface_attrib_swapinterval, should_sync);
 }

@@ -3,10 +3,10 @@ set(
 
   default_focus_mechanism.cpp
   consuming_placement_strategy.cpp
-  organising_surface_factory.cpp
-  surface_creation_parameters.cpp
   graphics_display_layout.cpp
   default_configuration.cpp
+  session_coordinator_wrapper.cpp
+  surface_coordinator_wrapper.cpp
 )
 
 add_library(

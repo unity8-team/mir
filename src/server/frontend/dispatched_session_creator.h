@@ -26,26 +26,27 @@
 #include <uuid/uuid.h>
 
 #include "mir/frontend/session_authorizer.h"
-#include "mir/frontend/session_creator.h"
+#include "mir/frontend/connection_creator.h"
 
 namespace mir
 {
 namespace frontend
 {
-class DispatchedSessionCreator
+class DispatchedConnectionCreator
 {
 public:
-    DispatchedSessionCreator() = default;
-    virtual ~DispatchedSessionCreator() = default;
+    DispatchedConnectionCreator() = default;
+    virtual ~DispatchedConnectionCreator() = default;
 
-    virtual void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
-                                    std::string const& connection_data) = 0;
+    virtual void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
+                                       ConnectionContext const& connection_context,
+                                       std::string const& connection_data) = 0;
 
     virtual void protocol_id(uuid_t id) const = 0;
     virtual size_t header_size() const = 0;
 private:
-    DispatchedSessionCreator(DispatchedSessionCreator const&) = delete;
-    DispatchedSessionCreator& operator=(DispatchedSessionCreator const&) = delete;
+    DispatchedConnectionCreator(DispatchedConnectionCreator const&) = delete;
+    DispatchedConnectionCreator& operator=(DispatchedConnectionCreator const&) = delete;
 };
 }
 }

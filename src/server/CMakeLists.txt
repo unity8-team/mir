@@ -8,7 +8,6 @@ add_subdirectory(input/)
 add_subdirectory(report/)
 add_subdirectory(logging/)
 add_subdirectory(scene/)
-add_subdirectory(options/)
 add_subdirectory(frontend/)
 add_subdirectory(shell/)
 add_subdirectory(time/)
@@ -29,9 +28,9 @@ set(
   run_mir.cpp
   report_exception.cpp
   display_server.cpp
-  default_configuration_options.cpp
   default_server_configuration.cpp
   asio_main_loop.cpp
+  default_emergency_cleanup.cpp
 )
 
 set(MIRSERVER_LINKAGE SHARED)
@@ -51,6 +50,8 @@ list(APPEND MIRSERVER_ARCHIVES
   mirsharedlogging
   mirsharedenv
   mirsharedsharedlibrary
+  mirsharedthreadname
+  mirshell
   mirscene
   mirtime
   mirlttng
@@ -65,6 +66,7 @@ list(APPEND MIRSERVER_LINKS
   mirplatform
   mirclient
   3rd_party
+  xcursorloader
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
@@ -96,7 +98,7 @@ else()
   )
 endif()
 
-set(MIRSERVER_ABI 15)
+set(MIRSERVER_ABI 22) # Be sure to increment MIR_VERSION_MINOR at the same time
 
 set_target_properties(
   mirserver

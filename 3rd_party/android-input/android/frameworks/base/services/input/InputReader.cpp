@@ -244,9 +244,9 @@ void InputReaderConfiguration::setDisplayInfo(int32_t displayId, bool external,
 
 // --- InputReader ---
 
-InputReader::InputReader(const sp<EventHubInterface>& eventHub,
-        const sp<InputReaderPolicyInterface>& policy,
-        const sp<InputListenerInterface>& listener) :
+InputReader::InputReader(std::shared_ptr<EventHubInterface> const& eventHub,
+        std::shared_ptr<InputReaderPolicyInterface> const& policy,
+        std::shared_ptr<InputListenerInterface> const& listener) :
         mContext(this), mEventHub(eventHub), mPolicy(policy),
         mGlobalMetaState(0), mGeneration(1),
         mDisableVirtualKeysTimeout(LLONG_MIN), mNextTimeout(LLONG_MAX),
@@ -851,7 +851,7 @@ EventHubInterface* InputReader::ContextImpl::getEventHub() {
 
 // --- InputReaderThread ---
 
-InputReaderThread::InputReaderThread(const sp<InputReaderInterface>& reader) :
+InputReaderThread::InputReaderThread(std::shared_ptr<InputReaderInterface> const& reader) :
         Thread(/*canCallJava*/ true), mReader(reader) {
 }
 
@@ -922,7 +922,7 @@ void InputDevice::addMapper(InputMapper* mapper) {
     mMappers.add(mapper);
 }
 
-void InputDevice::configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes) {
+void InputDevice::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     mSources = 0;
 
     if (!isIgnored()) {
@@ -1760,7 +1760,7 @@ void InputMapper::populateDeviceInfo(InputDeviceInfo* info) {
 void InputMapper::dump(String8& dump) {
 }
 
-void InputMapper::configure(nsecs_t when,
+void InputMapper::configure(nsecs_t when, 
         const InputReaderConfiguration* config, uint32_t changes) {
 }
 
@@ -1998,8 +1998,7 @@ void KeyboardInputMapper::dump(String8& dump) {
 }
 
 
-void KeyboardInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void KeyboardInputMapper::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only
@@ -2284,8 +2283,7 @@ void CursorInputMapper::dump(String8& dump) {
     appendFormat(dump, INDENT3 "DownTime: %lld\n", mDownTime);
 }
 
-void CursorInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void CursorInputMapper::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only
@@ -2694,8 +2692,8 @@ void TouchInputMapper::dump(String8& dump) {
     }
 }
 
-void TouchInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void TouchInputMapper::configure(nsecs_t when, const InputReaderConfiguration* config,
+    uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     mConfig = *config;
@@ -2792,16 +2790,9 @@ void TouchInputMapper::configureParameters() {
     getDevice()->getConfiguration().tryGetProperty(String8("touch.orientationAware"),
             mParameters.orientationAware);
 
-    mParameters.associatedDisplayId = -1;
-    mParameters.associatedDisplayIsExternal = false;
-    if (mParameters.orientationAware
-            || mParameters.deviceType == Parameters::DEVICE_TYPE_TOUCH_SCREEN
-            || mParameters.deviceType == Parameters::DEVICE_TYPE_POINTER) {
-        mParameters.associatedDisplayIsExternal =
-                mParameters.deviceType == Parameters::DEVICE_TYPE_TOUCH_SCREEN
-                        && getDevice()->isExternal();
-        mParameters.associatedDisplayId = 0;
-    }
+    mContext->getPolicy()->getAssociatedDisplayInfo(getDevice()->getIdentifier(),
+        mParameters.associatedDisplayId, mParameters.associatedDisplayIsExternal);
+    
 }
 
 void TouchInputMapper::dumpParameters(String8& dump) {
@@ -6055,8 +6046,7 @@ void JoystickInputMapper::dump(String8& dump) {
     }
 }
 
-void JoystickInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void JoystickInputMapper::configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only

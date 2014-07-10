@@ -20,40 +20,13 @@
 #define MIR_COMPOSITOR_OCCLUSION_H_
 
 #include "mir/compositor/scene.h"
-#include <vector>
-#include <set>
 
 namespace mir
 {
 namespace compositor
 {
-class CompositingCriteria;
 
-class OcclusionFilter : public FilterForScene
-{
-public:
-    OcclusionFilter(const geometry::Rectangle &area);
-    bool operator()(const CompositingCriteria &criteria) override;
-
-private:
-    const geometry::Rectangle &area;
-
-    typedef std::vector<geometry::Rectangle> RectangleList;
-    RectangleList coverage;
-};
-
-class OcclusionMatch : public OperatorForScene
-{
-public:
-    void operator()(const CompositingCriteria &,
-                    BufferStream &stream) override;
-
-    bool occluded(const CompositingCriteria &criteria) const;
-
-private:
-    typedef std::set<const CompositingCriteria*> RenderableSet;
-    RenderableSet hidden;
-};
+SceneElementSequence filter_occlusions_from(SceneElementSequence& list, geometry::Rectangle const& area);
 
 } // namespace compositor
 } // namespace mir

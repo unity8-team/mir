@@ -36,11 +36,12 @@
 
 namespace mgm = mir::graphics::mesa;
 
-mgm::LinuxVirtualTerminal::LinuxVirtualTerminal(
-    std::shared_ptr<VTFileOperations> const& fops,
+mgm::LinuxVirtualTerminal::LinuxVirtualTerminal(std::shared_ptr<VTFileOperations> const& fops,
+    std::unique_ptr<PosixProcessOperations> pops,
     int vt_number,
     std::shared_ptr<DisplayReport> const& report)
     : fops{fops},
+      pops{std::move(pops)},
       report{report},
       vt_fd{fops, open_vt(vt_number)},
       prev_kd_mode{0},
@@ -96,23 +97,7 @@ mgm::LinuxVirtualTerminal::LinuxVirtualTerminal(
 
 mgm::LinuxVirtualTerminal::~LinuxVirtualTerminal() noexcept(true)
 {
-    if (vt_fd.fd() > 0)
-    {
-        fops->tcsetattr(vt_fd.fd(), TCSANOW, &prev_tcattr);
-        fops->ioctl(vt_fd.fd(), KDSKBMODE, prev_tty_mode);
-        fops->ioctl(vt_fd.fd(), KDSETMODE, prev_kd_mode);
-
-        /*
-         * Only restore the previous mode if it was VT_AUTO. VT_PROCESS mode is
-         * always bound to the calling process, so "restoring" VT_PROCESS will
-         * not work; it will just bind the notification signals to our process
-         * again. Not "restoring" VT_PROCESS also ensures we don't mess up the
-         * VT state of the previous controlling process, in case it had set
-         * VT_PROCESS and we fail during setup.
-         */
-        if (prev_vt_mode.mode == VT_AUTO)
-            fops->ioctl(vt_fd.fd(), VT_SETMODE, &prev_vt_mode);
-    }
+    restore();
 }
 
 void mgm::LinuxVirtualTerminal::set_graphics_mode()
@@ -181,6 +166,28 @@ void mgm::LinuxVirtualTerminal::register_switch_handlers(
     }
 }
 
+void mgm::LinuxVirtualTerminal::restore()
+{
+    if (vt_fd.fd() > 0)
+    {
+        fops->tcsetattr(vt_fd.fd(), TCSANOW, &prev_tcattr);
+        fops->ioctl(vt_fd.fd(), KDSKBMODE, prev_tty_mode);
+        fops->ioctl(vt_fd.fd(), KDSETMODE, prev_kd_mode);
+
+        /*
+         * Only restore the previous mode if it was VT_AUTO. VT_PROCESS mode is
+         * always bound to the calling process, so "restoring" VT_PROCESS will
+         * not work; it will just bind the notification signals to our process
+         * again. Not "restoring" VT_PROCESS also ensures we don't mess up the
+         * VT state of the previous controlling process, in case it had set
+         * VT_PROCESS and we fail during setup.
+         */
+        if (prev_vt_mode.mode == VT_AUTO)
+            fops->ioctl(vt_fd.fd(), VT_SETMODE, &prev_vt_mode);
+    }
+}
+
+
 int mgm::LinuxVirtualTerminal::find_active_vt_number()
 {
     static std::vector<std::string> const paths{"/dev/tty", "/dev/tty0"};
@@ -233,9 +240,9 @@ int mgm::LinuxVirtualTerminal::open_vt(int vt_number)
     {
         // we should only try to create a new session in order to become the session
         // and group leader if we are not already the session leader
-        if (getpid() != getsid(0))
+        if (pops->getpid() != pops->getsid(0))
         {
-            if (getpid() == getpgid(0) && setpgid(0, getpgid(getppid())) < 0)
+            if (pops->getpid() == pops->getpgid(0) && pops->setpgid(0, pops->getpgid(pops->getppid())) < 0)
             {
                 BOOST_THROW_EXCEPTION(
                     boost::enable_error_info(
@@ -244,7 +251,7 @@ int mgm::LinuxVirtualTerminal::open_vt(int vt_number)
             }
 
             /* become process group leader */
-            if (setsid() < 0)
+            if (pops->setsid() < 0)
             {
                 BOOST_THROW_EXCEPTION(
                     boost::enable_error_info(

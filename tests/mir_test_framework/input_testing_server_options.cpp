@@ -19,9 +19,8 @@
 #include "mir_test_framework/input_testing_server_configuration.h"
 
 #include "mir/input/input_channel.h"
-#include "mir/scene/input_registrar.h"
 #include "mir/input/surface.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "mir/scene/surface_creation_parameters.h"
 #include "mir/frontend/shell.h"
 #include "mir/frontend/session.h"
 #include "mir/input/composite_event_filter.h"
@@ -39,11 +38,18 @@ namespace mtf = mir_test_framework;
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
+namespace ms = mir::shell;
 namespace mia = mi::android;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 
 mtf::InputTestingServerConfiguration::InputTestingServerConfiguration()
+{
+}
+
+mtf::InputTestingServerConfiguration::InputTestingServerConfiguration(
+    std::vector<geom::Rectangle> const& display_rects) :
+    TestingServerConfiguration(display_rects)
 {
 }
 
@@ -57,21 +63,35 @@ void mtf::InputTestingServerConfiguration::on_exit()
     input_injection_thread.join();
 }
 
+std::shared_ptr<ms::InputTargeter> mtf::InputTestingServerConfiguration::the_input_targeter()
+{
+    return DefaultServerConfiguration::the_input_targeter();
+}
+
+std::shared_ptr<mi::InputDispatcher> mtf::InputTestingServerConfiguration::the_input_dispatcher()
+{
+    return DefaultServerConfiguration::the_input_dispatcher();
+}
+
+std::shared_ptr<mi::InputSender> mtf::InputTestingServerConfiguration::the_input_sender()
+{
+    return DefaultServerConfiguration::the_input_sender();
+}
+
 std::shared_ptr<mi::InputConfiguration> mtf::InputTestingServerConfiguration::the_input_configuration()
 {
     if (!input_configuration)
     {
-        std::shared_ptr<mi::CursorListener> null_cursor_listener{nullptr};
-
         input_configuration = std::make_shared<mtd::FakeEventHubInputConfiguration>(
-            the_composite_event_filter(),
+            the_input_dispatcher(),
             the_input_region(),
-            null_cursor_listener,
+            the_cursor_listener(),
             the_input_report());
         fake_event_hub = input_configuration->the_fake_event_hub();
 
         fake_event_hub->synthesize_builtin_keyboard_added();
         fake_event_hub->synthesize_builtin_cursor_added();
+        fake_event_hub->synthesize_usb_touchscreen_added();
         fake_event_hub->synthesize_device_scan_complete();
     }
 

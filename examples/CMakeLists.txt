@@ -24,6 +24,12 @@ add_executable(mir_demo_client_egltriangle
 target_link_libraries(mir_demo_client_egltriangle
   eglapp
 )
+add_executable(mir_demo_client_eglcounter
+  eglcounter.cpp
+)
+target_link_libraries(mir_demo_client_eglcounter
+  eglapp
+)
 add_executable(mir_demo_client_eglplasma
   eglplasma.c
 )
@@ -86,6 +92,9 @@ target_link_libraries(mir_demo_client_scroll
 
 )
 
+add_executable(mir_demo_client_prompt_session prompt_session.c)
+target_link_libraries(mir_demo_client_prompt_session mirclient)
+
 add_library(mirdraw STATIC graphics_utils.cpp)
 target_link_libraries(mirdraw ${GLESv2_LIBRARIES})
 
@@ -93,7 +102,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/platform
-  ${PROJECT_SOURCE_DIR}/include/test/mir_test/draw
   ${GLESv2_INCLUDE_DIRS}
 )
 
@@ -138,7 +146,7 @@ add_executable(mir_demo_standalone_input_filter
   server_configuration.cpp
 )
 
-target_link_libraries(mir_demo_standalone_input_filter  
+target_link_libraries(mir_demo_standalone_input_filter
   mirserver
 )
 
@@ -153,8 +161,9 @@ set (INSTALL_DEMOS
   mir_demo_client_multiwin
   mir_demo_client_display_config
   mir_demo_client_progressbar
+  mir_demo_client_prompt_session
   mir_demo_standalone_input_filter
-  mir_demo_standalone_render_to_fb 
+  mir_demo_standalone_render_to_fb
   mir_demo_standalone_render_surfaces
 )
 
@@ -178,6 +187,11 @@ install(TARGETS mir_demo_server_basic
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+add_executable(mir_demo_server_minimal minimal_server.cpp)
+target_link_libraries(mir_demo_server_minimal mirserver)
+install(TARGETS mir_demo_server_minimal
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
 add_executable(mir_demo_server_translucent
   translucent_server.cpp

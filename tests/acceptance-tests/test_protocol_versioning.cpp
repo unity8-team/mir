@@ -21,7 +21,7 @@
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/stubbed_server_configuration.h"
 
-#include "src/server/frontend/protobuf_session_creator.h"
+#include "src/server/frontend/protobuf_connection_creator.h"
 #include "src/server/frontend/dispatching_session_creator.h"
 #include "src/server/frontend/dispatched_session_creator.h"
 
@@ -43,7 +43,7 @@ class ProtocolVersioningTest : public mtf::InProcessServer
 public:
     ProtocolVersioningTest()
     {
-        protocol_impls = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+        protocol_impls = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     }
 
     ~ProtocolVersioningTest()
@@ -56,35 +56,36 @@ public:
         return config;
     }
 
-    static std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>> protocol_impls;
+    static std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> protocol_impls;
 
     class DispatcherOverridingServerConfig : public mir_test_framework::StubbedServerConfiguration
     {
     public:
-        std::shared_ptr<mir::frontend::ProtobufSessionCreator> make_protobuf_session_creator()
+        std::shared_ptr<mir::frontend::ProtobufConnectionCreator> make_protobuf_connection_creator()
         {
-            return std::make_shared<mir::frontend::ProtobufSessionCreator>(
+            return std::make_shared<mir::frontend::ProtobufConnectionCreator>(
                 the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
                 the_session_authorizer(),
                 the_message_processor_report());
         }
 
-        std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>> the_session_protocols() override
+        std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> the_connection_protocols() override
         {
             return protocol_impls;
         }
     } config;
 };
-std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>> ProtocolVersioningTest::protocol_impls;
+std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> ProtocolVersioningTest::protocol_impls;
 
-class DummySessionCreator : public mir::frontend::DispatchedSessionCreator
+class DummySessionCreator : public mir::frontend::DispatchedConnectionCreator
 {
 public:
     DummySessionCreator()
     {
     }
 
-    void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& /*socket*/,
+    void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& /*socket*/,
+                            mir::frontend::ConnectionContext const&,
                             std::string const& /*connection_data*/) override
     {
     }
@@ -103,8 +104,8 @@ public:
 
 TEST_F(ProtocolVersioningTest, ClientV1ConnectsToServerV1or2)
 {
-    config.the_session_protocols()->push_back(std::make_shared<DummySessionCreator>());
-    config.the_session_protocols()->push_back(config.make_protobuf_session_creator());
+    config.the_connection_protocols()->push_back(std::make_shared<DummySessionCreator>());
+    config.the_connection_protocols()->push_back(config.make_protobuf_connection_creator());
 
     auto connection = mir_connect_sync(new_connection().c_str(), "test-client");
     ASSERT_TRUE(mir_connection_is_valid(connection));

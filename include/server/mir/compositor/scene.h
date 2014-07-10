@@ -19,70 +19,47 @@
 #ifndef MIR_COMPOSITOR_SCENE_H_
 #define MIR_COMPOSITOR_SCENE_H_
 
-#include "mir/geometry/forward.h"
+#include "compositor_id.h"
 
 #include <memory>
-#include <functional>
+#include <vector>
 
 namespace mir
 {
+namespace scene
+{
+class Observer;
+}
+
 namespace compositor
 {
-class BufferStream;
-class CompositingCriteria;
 
-class FilterForScene
-{
-public:
-    virtual ~FilterForScene() {}
-
-    virtual bool operator()(CompositingCriteria const&) = 0;
-
-protected:
-    FilterForScene() = default;
-    FilterForScene(const FilterForScene&) = delete;
-    FilterForScene& operator=(const FilterForScene&) = delete;
-};
-
-class OperatorForScene
-{
-public:
-    virtual ~OperatorForScene() {}
-
-    virtual void operator()(CompositingCriteria const&, BufferStream&) = 0;
-
-protected:
-    OperatorForScene() = default;
-    OperatorForScene(const OperatorForScene&) = delete;
-    OperatorForScene& operator=(const OperatorForScene&) = delete;
-
-};
+class SceneElement;
+using SceneElementSequence = std::vector<std::shared_ptr<SceneElement>>;
 
 class Scene
 {
 public:
     virtual ~Scene() {}
 
-    // Back to front; normal rendering order
-    virtual void for_each_if(FilterForScene& filter, OperatorForScene& op) = 0;
-
-    // Front to back; as used when scanning for occlusions
-    virtual void reverse_for_each_if(FilterForScene& filter,
-                                     OperatorForScene& op) = 0;
-
     /**
-     * Sets a callback to be called whenever the state of the
-     * Scene changes.
-     *
-     * The supplied callback should not directly or indirectly (e.g.,
-     * by changing a property of a surface) change the state of
-     * the Scene, otherwise a deadlock may occur.
+     * Generate a valid sequence of scene elements based on the current state of the Scene.
+     * \param [in] id      An arbitrary unique identifier used to distinguish
+     *                     separate compositors which need to receive a sequence
+     *                     for rendering. Calling with the same id will return
+     *                     a new (different) sequence to that user each time. For
+     *                     consistency, all callers need to determine their id
+     *                     in the same way (e.g. always use "this" pointer).
+     * \returns a sequence of mc::SceneElements for the compositor id. The
+     *          sequence is in stacking order from back to front.
      */
-    virtual void set_change_callback(std::function<void()> const& f) = 0;
+    virtual SceneElementSequence scene_elements_for(CompositorID id) = 0;
 
-    // Implement BasicLockable, to temporarily lock scene state:
-    virtual void lock() = 0;
-    virtual void unlock() = 0;
+    virtual void register_compositor(CompositorID id) = 0;
+    virtual void unregister_compositor(CompositorID id) = 0;
+
+    virtual void add_observer(std::shared_ptr<scene::Observer> const& observer) = 0;
+    virtual void remove_observer(std::weak_ptr<scene::Observer> const& observer) = 0;
 
 protected:
     Scene() = default;

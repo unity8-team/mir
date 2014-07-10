@@ -17,83 +17,160 @@
  *   Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "swapping_gl_context.h"
 #include "hwc_device.h"
 #include "hwc_layerlist.h"
 #include "hwc_vsync_coordinator.h"
+#include "hwc_wrapper.h"
 #include "framebuffer_bundle.h"
 #include "buffer.h"
-#include "mir/graphics/android/native_buffer.h"
-#include "mir/graphics/buffer.h"
-
-#include <EGL/eglext.h>
-#include <boost/throw_exception.hpp>
-#include <stdexcept>
+#include "hwc_fallback_gl_renderer.h"
+#include <limits>
 
 namespace mg = mir::graphics;
 namespace mga=mir::graphics::android;
 namespace geom = mir::geometry;
 
+namespace
+{
+static const size_t fbtarget_plus_skip_size = 2;
+static const size_t fbtarget_size = 1;
+
+bool plane_alpha_is_translucent(mg::Renderable const& renderable)
+{
+    float static const tolerance
+    {
+        1.0f/(2.0 * static_cast<float>(std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max()))
+    };
+    return renderable.alpha_enabled() && (renderable.alpha() < 1.0f - tolerance);
+}
+
+bool renderable_list_is_hwc_incompatible(mg::RenderableList const& list)
+{
+    if (list.empty())
+        return true;
+
+    for(auto const& renderable : list)
+    {
+        //TODO: enable planeAlpha for (hwc version >= 1.2), 90 deg rotation
+        static glm::mat4 const identity;
+        if (plane_alpha_is_translucent(*renderable) ||
+           (renderable->transformation() != identity))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+}
+
 mga::HwcDevice::HwcDevice(std::shared_ptr<hwc_composer_device_1> const& hwc_device,
+                          std::shared_ptr<HwcWrapper> const& hwc_wrapper,
                           std::shared_ptr<HWCVsyncCoordinator> const& coordinator,
                           std::shared_ptr<SyncFileOps> const& sync_ops)
     : HWCCommonDevice(hwc_device, coordinator),
+      hwc_list{{}, fbtarget_plus_skip_size},
+      hwc_wrapper(hwc_wrapper), 
       sync_ops(sync_ops)
 {
 }
 
-void mga::HwcDevice::prepare_gl()
-{
-    auto rc = 0;
-    auto display_list = layer_list.native_list().lock();
-    if (display_list)
-    {
-        //note, although we only have a primary display right now,
-        //      set the external and virtual displays to null as some drivers check for that
-        hwc_display_contents_1_t* displays[num_displays] {display_list.get(), nullptr, nullptr};
-        rc = hwc_device->prepare(hwc_device.get(), 1, displays);
-    }
-
-    if ((rc != 0) || (!display_list))
-    {
-        BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc prepare()"));
-    }
-}
-
-void mga::HwcDevice::prepare_gl_and_overlays(std::list<std::shared_ptr<Renderable>> const&)
-{
-    prepare_gl();
-}
-
-void mga::HwcDevice::gpu_render(EGLDisplay dpy, EGLSurface sur)
-{
-    if (eglSwapBuffers(dpy, sur) == EGL_FALSE)
-    {
-        BOOST_THROW_EXCEPTION(std::runtime_error("eglSwapBuffers failure\n"));
-    }
-}
-
-void mga::HwcDevice::post(mg::Buffer const& buffer)
+void mga::HwcDevice::post_gl(SwappingGLContext const& context)
 {
     auto lg = lock_unblanked();
+    hwc_list.update_list({}, fbtarget_plus_skip_size);
+    auto& skip = *hwc_list.additional_layers_begin();
+    auto& fbtarget = *(++hwc_list.additional_layers_begin());
 
-    layer_list.set_fb_target(buffer);
+    auto buffer = context.last_rendered_buffer();
+    geom::Rectangle const disp_frame{{0,0}, {buffer->size()}};
+    skip.layer.setup_layer(mga::LayerType::skip, disp_frame, false, *buffer);
+    fbtarget.layer.setup_layer(mga::LayerType::framebuffer_target, disp_frame, false, *buffer);
 
-    auto rc = 0;
-    auto display_list = layer_list.native_list().lock();
-    if (display_list)
+    hwc_wrapper->prepare(*hwc_list.native_list().lock());
+
+    context.swap_buffers();
+
+    buffer = context.last_rendered_buffer();
+    skip.layer.setup_layer(mga::LayerType::skip, disp_frame, false, *buffer);
+    fbtarget.layer.setup_layer(mga::LayerType::framebuffer_target, disp_frame, false, *buffer);
+
+    for(auto& layer : hwc_list)
+        layer.layer.set_acquirefence_from(*buffer);
+
+    hwc_wrapper->set(*hwc_list.native_list().lock());
+    onscreen_overlay_buffers.clear();
+
+    for(auto& layer : hwc_list)
+        layer.layer.update_from_releasefence(*buffer);
+
+    mga::SyncFence retire_fence(sync_ops, hwc_list.retirement_fence());
+}
+
+bool mga::HwcDevice::post_overlays(
+    SwappingGLContext const& context,
+    RenderableList const& renderables,
+    RenderableListCompositor const& list_compositor)
+{
+    if (renderable_list_is_hwc_incompatible(renderables))
+        return false;
+
+    hwc_list.update_list(renderables, fbtarget_size);
+
+    bool needs_commit{false};
+    for(auto& layer : hwc_list)
+        needs_commit |= layer.needs_commit;
+    if (!needs_commit)
+        return false;
+
+    auto lg = lock_unblanked();
+    auto& fbtarget = *hwc_list.additional_layers_begin();
+
+    auto buffer = context.last_rendered_buffer();
+    geom::Rectangle const disp_frame{{0,0}, {buffer->size()}};
+    fbtarget.layer.setup_layer(mga::LayerType::framebuffer_target, disp_frame, false, *buffer);
+
+    hwc_wrapper->prepare(*hwc_list.native_list().lock());
+
+    mg::RenderableList rejected_renderables;
+    std::vector<std::shared_ptr<mg::Buffer>> next_onscreen_overlay_buffers;
+    auto it = hwc_list.begin();
+    for(auto const& renderable : renderables)
     {
-        hwc_display_contents_1_t* displays[num_displays] {display_list.get(), nullptr, nullptr};
-        rc = hwc_device->set(hwc_device.get(), 1, displays);
-
-        mga::SyncFence retire_fence(sync_ops, layer_list.retirement_fence());
-
-        int framebuffer_fence = layer_list.fb_target_fence();
-        auto native_buffer = buffer.native_buffer_handle();
-        native_buffer->update_fence(framebuffer_fence);
+        if (it->layer.needs_gl_render())
+        {
+            rejected_renderables.push_back(renderable);
+        }
+        else
+        {
+            if (it->needs_commit)
+                it->layer.set_acquirefence_from(*renderable->buffer());
+            next_onscreen_overlay_buffers.push_back(renderable->buffer());
+        }
+        it++;
     }
 
-    if ((rc != 0) || (!display_list))
+    if (!rejected_renderables.empty())
     {
-        BOOST_THROW_EXCEPTION(std::runtime_error("error during hwc set()"));
+        list_compositor.render(rejected_renderables, context);
+
+        buffer = context.last_rendered_buffer();
+        fbtarget.layer.setup_layer(mga::LayerType::framebuffer_target, disp_frame, false, *buffer);
+        fbtarget.layer.set_acquirefence_from(*buffer);
     }
+
+    hwc_wrapper->set(*hwc_list.native_list().lock());
+    onscreen_overlay_buffers = std::move(next_onscreen_overlay_buffers);
+
+    it = hwc_list.begin();
+    for(auto const& renderable : renderables)
+    {
+        it->layer.update_from_releasefence(*renderable->buffer());
+        it++;
+    }
+    if (!rejected_renderables.empty())
+        fbtarget.layer.update_from_releasefence(*buffer);
+
+    mga::SyncFence retire_fence(sync_ops, hwc_list.retirement_fence());
+    return true;
 }

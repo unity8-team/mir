@@ -17,12 +17,16 @@
  */
 
 #include "mir_toolkit/mir_client_library.h"
-#include "src/server/compositor/renderer.h"
-#include "src/server/compositor/renderer_factory.h"
+#include "mir/compositor/renderer.h"
+#include "mir/compositor/renderer_factory.h"
+#include "mir/compositor/display_buffer_compositor.h"
+#include "mir/compositor/display_buffer_compositor_factory.h"
 #include "mir/input/composite_event_filter.h"
+#include "mir/run_mir.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test/fake_event_hub_input_configuration.h"
+#include "mir_test/fake_event_hub.h"
 #include "mir_test_framework/cross_process_sync.h"
 #include "mir_test_doubles/stub_renderer.h"
 
@@ -49,9 +53,28 @@ char const* const mir_test_socket = mtf::test_socket_file().c_str();
 class StubRendererFactory : public mc::RendererFactory
 {
 public:
-    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&)
+    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&, mc::DestinationAlpha)
     {
         return std::unique_ptr<mc::Renderer>(new mtd::StubRenderer());
+    }
+};
+
+class ExceptionThrowingDisplayBufferCompositorFactory : public mc::DisplayBufferCompositorFactory
+{
+public:
+    std::unique_ptr<mc::DisplayBufferCompositor>
+        create_compositor_for(mg::DisplayBuffer&) override
+    {
+        struct ExceptionThrowingDisplayBufferCompositor : mc::DisplayBufferCompositor
+        {
+            void composite() override
+            {
+                throw std::runtime_error("ExceptionThrowingDisplayBufferCompositor");
+            }
+        };
+
+        return std::unique_ptr<mc::DisplayBufferCompositor>(
+            new ExceptionThrowingDisplayBufferCompositor{});
     }
 };
 
@@ -94,6 +117,51 @@ private:
     std::string const flag_file;
 };
 
+struct FakeEventHubServerConfig : TestingServerConfiguration
+{
+    std::shared_ptr<mi::InputConfiguration> the_input_configuration() override
+    {
+        if (!input_configuration)
+        {
+            input_configuration =
+                std::make_shared<mtd::FakeEventHubInputConfiguration>(
+                    the_input_dispatcher(),
+                    the_input_region(),
+                    std::shared_ptr<mi::CursorListener>(),
+                    the_input_report());
+        }
+
+        return input_configuration;
+    }
+
+    std::shared_ptr<mi::InputManager> the_input_manager() override
+    {
+        return DefaultServerConfiguration::the_input_manager();
+    }
+
+    std::shared_ptr<mir::shell::InputTargeter> the_input_targeter() override
+    {
+        return DefaultServerConfiguration::the_input_targeter();
+    }
+
+    std::shared_ptr<mir::input::InputDispatcher> the_input_dispatcher() override
+    {
+        return DefaultServerConfiguration::the_input_dispatcher();
+    }
+
+    mia::FakeEventHub* the_fake_event_hub()
+    {
+        the_input_configuration();
+        return input_configuration->the_fake_event_hub();
+    }
+
+    std::shared_ptr<mtd::FakeEventHubInputConfiguration> input_configuration;
+};
+
+void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
+{
+}
+
 }
 
 using ServerShutdown = BespokeDisplayServerTestFixture;
@@ -130,6 +198,9 @@ TEST_F(ServerShutdown, server_can_shut_down_when_clients_are_blocked)
 
             ASSERT_TRUE(connection != NULL);
 
+            /* Default lifecycle handler terminates the process on disconnect, so override it */
+            mir_connection_set_lifecycle_event_callback(connection, null_lifecycle_callback, nullptr);
+
             MirSurfaceParameters const request_params =
             {
                 __PRETTY_FUNCTION__,
@@ -149,13 +220,7 @@ TEST_F(ServerShutdown, server_can_shut_down_when_clients_are_blocked)
             next_buffer_done.set();
             server_done.wait();
 
-            /*
-             * TODO: Releasing the connection to a shut down server blocks
-             * the client. We should handle unexpected server shutdown more
-             * gracefully on the client side.
-             *
-             * mir_connection_release(connection);
-             */
+            mir_connection_release(connection);
         }
 
         Flag& next_buffer_done;
@@ -194,42 +259,7 @@ TEST_F(ServerShutdown, server_releases_resources_on_shutdown_with_connected_clie
     Flag resources_freed_success{"resources_free_success_7e9c69fc.tmp"};
     Flag resources_freed_failure{"resources_free_failure_7e9c69fc.tmp"};
 
-    /* Use the real input manager, but with a fake event hub */
-    struct ServerConfig : TestingServerConfiguration
-    {
-        std::shared_ptr<mi::InputConfiguration> the_input_configuration() override
-        {
-            if (!input_configuration)
-            {
-                input_configuration =
-                    std::make_shared<mtd::FakeEventHubInputConfiguration>(
-                        the_composite_event_filter(),
-                        the_input_region(),
-                        std::shared_ptr<mi::CursorListener>(),
-                        the_input_report());
-            }
-
-            return input_configuration;
-        }
-
-        std::shared_ptr<mi::InputManager> the_input_manager() override
-        {
-            return DefaultServerConfiguration::the_input_manager();
-        }
-
-        std::shared_ptr<mir::shell::InputTargeter> the_input_targeter() override
-        {
-            return DefaultServerConfiguration::the_input_targeter();
-        }
-        std::shared_ptr<mir::scene::InputRegistrar> the_input_registrar() override
-        {
-            return DefaultServerConfiguration::the_input_registrar();
-        }
-
-        std::shared_ptr<mi::InputConfiguration> input_configuration;
-    };
-
-    auto server_config = std::make_shared<ServerConfig>();
+    auto server_config = std::make_shared<FakeEventHubServerConfig>();
     launch_server_process(*server_config);
 
     struct ClientConfig : TestingClientConfiguration
@@ -427,3 +457,74 @@ TEST_P(OnSignal, removes_endpoint_on_signal)
 INSTANTIATE_TEST_CASE_P(ServerShutdown,
     OnSignal,
     ::testing::Values(SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS));
+
+TEST(ServerShutdownWithThreadException,
+     server_releases_resources_on_abnormal_input_thread_termination)
+{
+    auto server_config = std::make_shared<FakeEventHubServerConfig>();
+    auto fake_event_hub = server_config->the_fake_event_hub();
+
+    std::thread server{
+        [&]
+        {
+            EXPECT_THROW(
+                mir::run_mir(*server_config, [](mir::DisplayServer&){}),
+                std::runtime_error);
+        }};
+
+    fake_event_hub->throw_exception_in_next_get_events();
+    server.join();
+
+    std::weak_ptr<mir::graphics::Display> display = server_config->the_display();
+    std::weak_ptr<mir::compositor::Compositor> compositor = server_config->the_compositor();
+    std::weak_ptr<mir::frontend::Connector> connector = server_config->the_connector();
+    std::weak_ptr<mir::input::InputManager> input_manager = server_config->the_input_manager();
+
+    server_config.reset();
+
+    EXPECT_EQ(0, display.use_count());
+    EXPECT_EQ(0, compositor.use_count());
+    EXPECT_EQ(0, connector.use_count());
+    EXPECT_EQ(0, input_manager.use_count());
+}
+
+TEST(ServerShutdownWithThreadException,
+     server_releases_resources_on_abnormal_compositor_thread_termination)
+{
+    struct ServerConfig : TestingServerConfiguration
+    {
+        std::shared_ptr<mc::DisplayBufferCompositorFactory>
+            the_display_buffer_compositor_factory() override
+        {
+            return display_buffer_compositor_factory(
+                [this]()
+                {
+                    return std::make_shared<ExceptionThrowingDisplayBufferCompositorFactory>();
+                });
+        }
+    };
+
+    auto server_config = std::make_shared<ServerConfig>();
+
+    std::thread server{
+        [&]
+        {
+            EXPECT_THROW(
+                mir::run_mir(*server_config, [](mir::DisplayServer&){}),
+                std::runtime_error);
+        }};
+
+    server.join();
+
+    std::weak_ptr<mir::graphics::Display> display = server_config->the_display();
+    std::weak_ptr<mir::compositor::Compositor> compositor = server_config->the_compositor();
+    std::weak_ptr<mir::frontend::Connector> connector = server_config->the_connector();
+    std::weak_ptr<mir::input::InputManager> input_manager = server_config->the_input_manager();
+
+    server_config.reset();
+
+    EXPECT_EQ(0, display.use_count());
+    EXPECT_EQ(0, compositor.use_count());
+    EXPECT_EQ(0, connector.use_count());
+    EXPECT_EQ(0, input_manager.use_count());
+}

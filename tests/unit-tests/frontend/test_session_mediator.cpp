@@ -25,6 +25,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/platform.h"
 #include "mir/graphics/platform_ipc_package.h"
+#include "mir/input/cursor_images.h"
 #include "src/server/scene/basic_surface.h"
 #include "mir_test_doubles/mock_display.h"
 #include "mir_test_doubles/mock_display_changer.h"
@@ -36,14 +37,13 @@
 #include "mir_test_doubles/mock_frontend_surface.h"
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/stub_session.h"
-#include "mir_test_doubles/stub_surface_builder.h"
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/null_screencast.h"
 #include "mir_test/display_config_matchers.h"
 #include "mir_test/fake_shared.h"
+#include "mir/frontend/connector.h"
 #include "mir/frontend/event_sink.h"
-#include "mir/shell/surface.h"
 
 #include "gmock_set_arg.h"
 #include <gtest/gtest.h>
@@ -85,13 +85,20 @@ struct MockConfig : public mg::DisplayConfiguration
 {
     MOCK_CONST_METHOD1(for_each_card, void(std::function<void(mg::DisplayConfigurationCard const&)>));
     MOCK_CONST_METHOD1(for_each_output, void(std::function<void(mg::DisplayConfigurationOutput const&)>));
-    MOCK_METHOD7(configure_output, void(mg::DisplayConfigurationOutputId, bool, geom::Point, size_t, MirPixelFormat, MirPowerMode, MirOrientation));
+    MOCK_METHOD1(for_each_output, void(std::function<void(mg::UserDisplayConfigurationOutput&)>));
 };
 
-}
-
-namespace
+struct MockConnector : public mf::Connector
 {
+public:
+    void start() override {}
+    void stop() override {}
+
+    int client_socket_fd() const override { return 0; }
+
+    MOCK_CONST_METHOD1(client_socket_fd, int (std::function<void(std::shared_ptr<mf::Session> const&)> const&));
+};
+
 class StubbedSession : public mtd::StubSession
 {
 public:
@@ -103,7 +110,7 @@ public:
         mock_surfaces[mf::SurfaceId{1}] = mock_surface;
         mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>(geom::Size(), geom::Stride(), MirPixelFormat());
 
-        EXPECT_CALL(*mock_surface, size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
+        EXPECT_CALL(*mock_surface, client_size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
         EXPECT_CALL(*mock_surface, pixel_format()).Times(AnyNumber()).WillRepeatedly(Return(MirPixelFormat()));
         EXPECT_CALL(*mock_surface, swap_buffers(_, _)).Times(AnyNumber())
             .WillRepeatedly(InvokeArgument<1>(mock_buffer.get()));
@@ -117,14 +124,14 @@ public:
         return mock_surfaces.at(surface);
     }
 
-    mf::SurfaceId create_surface(msh::SurfaceCreationParameters const& /* params */) override
+    mf::SurfaceId create_surface(ms::SurfaceCreationParameters const& /* params */) override
     {
         using namespace ::testing;
         auto id = mf::SurfaceId{last_surface_id};
         if (last_surface_id != 1) {
             mock_surfaces[id] = std::make_shared<mtd::MockFrontendSurface>();
 
-            EXPECT_CALL(*mock_surfaces[id], size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
+            EXPECT_CALL(*mock_surfaces[id], client_size()).Times(AnyNumber()).WillRepeatedly(Return(geom::Size()));
             EXPECT_CALL(*mock_surfaces[id], pixel_format()).Times(AnyNumber()).WillRepeatedly(Return(MirPixelFormat()));
             EXPECT_CALL(*mock_surfaces[id], swap_buffers(_, _)).Times(AnyNumber())
                 .WillRepeatedly(InvokeArgument<1>(mock_buffer.get()));
@@ -141,7 +148,6 @@ public:
         mock_surfaces.erase(surface);
     }
 
-    mtd::StubSurfaceBuilder surface_builder;
     std::shared_ptr<mtd::MockFrontendSurface> mock_surface;
     std::map<mf::SurfaceId, std::shared_ptr<mtd::MockFrontendSurface>> mock_surfaces;
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
@@ -171,19 +177,22 @@ class MockPlatform : public mg::Platform
         using namespace testing;
         ON_CALL(*this, create_buffer_allocator(_))
             .WillByDefault(Return(std::shared_ptr<mg::GraphicBufferAllocator>()));
-        ON_CALL(*this, create_display(_))
+        ON_CALL(*this, create_display(_,_,_))
             .WillByDefault(Return(std::make_shared<mtd::NullDisplay>()));
         ON_CALL(*this, get_ipc_package())
             .WillByDefault(Return(std::make_shared<mg::PlatformIPCPackage>()));
     }
 
     MOCK_METHOD1(create_buffer_allocator, std::shared_ptr<mg::GraphicBufferAllocator>(std::shared_ptr<mg::BufferInitializer> const&));
-    MOCK_METHOD1(create_display,
+    MOCK_METHOD3(create_display,
                  std::shared_ptr<mg::Display>(
-                     std::shared_ptr<mg::DisplayConfigurationPolicy> const&));
+                     std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
+                     std::shared_ptr<mg::GLProgramFactory> const&,
+                     std::shared_ptr<mg::GLConfig> const&));
     MOCK_METHOD0(get_ipc_package, std::shared_ptr<mg::PlatformIPCPackage>());
     MOCK_METHOD0(create_internal_client, std::shared_ptr<mg::InternalClient>());
-    MOCK_CONST_METHOD2(fill_ipc_package, void(mg::BufferIPCPacker*, mg::Buffer const*));
+    MOCK_CONST_METHOD3(fill_buffer_package,
+        void(mg::BufferIPCPacker*, mg::Buffer const*, mg::BufferIpcMsgType));
     MOCK_CONST_METHOD0(egl_native_display, EGLNativeDisplayType());
 };
 
@@ -207,10 +216,10 @@ struct SessionMediatorTest : public ::testing::Test
           report{mr::null_session_mediator_report()},
           resource_cache{std::make_shared<mf::ResourceCache>()},
           stub_screencast{std::make_shared<StubScreencast>()},
-          mediator{__LINE__, shell, graphics_platform, graphics_changer,
+          mediator{shell, graphics_platform, graphics_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
-                   resource_cache, stub_screencast},
+                   resource_cache, stub_screencast, &connector, {}},
           stubbed_session{std::make_shared<StubbedSession>()},
           null_callback{google::protobuf::NewPermanentCallback(google::protobuf::DoNothing)}
     {
@@ -221,6 +230,7 @@ struct SessionMediatorTest : public ::testing::Test
             .WillByDefault(WithArg<1>(Invoke(stubbed_session.get(), &StubbedSession::create_surface)));
     }
 
+    MockConnector connector;
     std::shared_ptr<testing::NiceMock<mtd::MockShell>> const shell;
     std::shared_ptr<MockPlatform> const graphics_platform;
     std::shared_ptr<mf::DisplayChanger> const graphics_changer;
@@ -246,6 +256,41 @@ TEST_F(SessionMediatorTest, disconnect_releases_session)
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+}
+
+TEST_F(SessionMediatorTest, connect_calls_connect_handler)
+{
+    int connects_handled_count = 0;
+
+    mf::ConnectionContext const context =
+    {
+        [&](std::shared_ptr<mf::Session> const&) { ++connects_handled_count; },
+        nullptr
+    };
+
+    mf::SessionMediator mediator{
+        shell,
+        graphics_platform,
+        graphics_changer,
+        surface_pixel_formats,
+        report,
+        std::make_shared<mtd::NullEventSink>(),
+        resource_cache,
+        stub_screencast,
+        context, nullptr};
+
+    mp::ConnectParameters connect_parameters;
+    mp::Connection connection;
+
+    using namespace ::testing;
+
+    EXPECT_THAT(connects_handled_count, Eq(0));
+
+    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    EXPECT_THAT(connects_handled_count, Eq(1));
+
+    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+    EXPECT_THAT(connects_handled_count, Eq(1));
 }
 
 TEST_F(SessionMediatorTest, calling_methods_before_connect_throws)
@@ -371,10 +416,11 @@ TEST_F(SessionMediatorTest, connect_packs_display_configuration)
         .Times(1)
         .WillOnce(Return(mt::fake_shared(config)));
     mf::SessionMediator mediator(
-        __LINE__, shell, graphics_platform, mock_display,
+        shell, graphics_platform, mock_display,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
-        resource_cache, std::make_shared<mtd::NullScreencast>());
+        resource_cache, std::make_shared<mtd::NullScreencast>(),
+        nullptr, nullptr);
 
     mp::ConnectParameters connect_parameters;
     mp::Connection connection;
@@ -429,7 +475,7 @@ TEST_F(SessionMediatorTest, no_input_channel_is_nonfatal)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediatorTest, session_only_sends_needed_buffers)
+TEST_F(SessionMediatorTest, session_only_sends_mininum_information_for_buffers)
 {
     using namespace testing;
 
@@ -453,8 +499,23 @@ TEST_F(SessionMediatorTest, session_only_sends_needed_buffers)
         mp::SurfaceId buffer_request;
         mp::Buffer buffer_response[3];
 
-        EXPECT_CALL(*graphics_platform, fill_ipc_package(_, stubbed_session->mock_buffer.get()))
-            .Times(2);
+        Sequence seq;
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::full_msg))
+            .InSequence(seq);
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::full_msg))
+            .InSequence(seq);
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::update_msg))
+            .InSequence(seq);
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::update_msg))
+            .InSequence(seq);
 
         mp::SurfaceParameters surface_request;
         mediator.create_surface(nullptr, &surface_request, &surface_response, null_callback.get());
@@ -501,7 +562,13 @@ TEST_F(SessionMediatorTest, session_with_multiple_surfaces_only_sends_needed_buf
         mp::SurfaceId buffer_request[2];
         mp::Buffer buffer_response[6];
 
-        EXPECT_CALL(*graphics_platform, fill_ipc_package(_, stubbed_session->mock_buffer.get()))
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::full_msg))
+            .Times(4);
+        EXPECT_CALL(*graphics_platform,
+            fill_buffer_package(
+                _, stubbed_session->mock_buffer.get(), mg::BufferIpcMsgType::update_msg))
             .Times(4);
 
         mp::SurfaceParameters surface_request;
@@ -588,14 +655,6 @@ TEST_F(SessionMediatorTest, display_config_request)
     EXPECT_CALL(*mock_display_selector, active_configuration())
         .InSequence(seq)
         .WillOnce(Return(mt::fake_shared(mock_display_config)));
-    EXPECT_CALL(mock_display_config,
-                configure_output(id0, used0, pt0, mode_index0, format0,
-                                 mir_power_mode_on, mir_orientation_left))
-        .InSequence(seq);
-    EXPECT_CALL(mock_display_config,
-                configure_output(id1, used1, pt1, mode_index1, format1,
-                                 mir_power_mode_off, mir_orientation_inverted))
-        .InSequence(seq);
     EXPECT_CALL(*mock_display_selector, configure(_,_))
         .InSequence(seq);
     EXPECT_CALL(*mock_display_selector, active_configuration())
@@ -603,10 +662,11 @@ TEST_F(SessionMediatorTest, display_config_request)
         .WillOnce(Return(mt::fake_shared(stub_display_config)));
 
     mf::SessionMediator session_mediator{
-        __LINE__, shell, graphics_platform, mock_display_selector,
+        shell, graphics_platform, mock_display_selector,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(), resource_cache,
-        std::make_shared<mtd::NullScreencast>()};
+        std::make_shared<mtd::NullScreencast>(),
+          nullptr, nullptr};
 
     session_mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
@@ -648,7 +708,7 @@ TEST_F(SessionMediatorTest, fully_packs_buffer_for_create_screencast)
     mp::Screencast screencast;
     auto const& stub_buffer = stub_screencast->stub_buffer;
 
-    EXPECT_CALL(*graphics_platform, fill_ipc_package(_, &stub_buffer));
+    EXPECT_CALL(*graphics_platform, fill_buffer_package(_, &stub_buffer, _));
 
     mediator.create_screencast(nullptr, &screencast_parameters,
                                &screencast, null_callback.get());
@@ -665,12 +725,63 @@ TEST_F(SessionMediatorTest, partially_packs_buffer_for_screencast_buffer)
     mp::Buffer protobuf_buffer;
     auto const& stub_buffer = stub_screencast->stub_buffer;
 
-    EXPECT_CALL(*graphics_platform, fill_ipc_package(_, &stub_buffer))
-        .Times(0);
+    EXPECT_CALL(*graphics_platform,
+        fill_buffer_package(
+            _, &stub_buffer, mg::BufferIpcMsgType::update_msg))
+        .Times(1);
 
     mediator.screencast_buffer(nullptr, &screencast_id,
                                &protobuf_buffer, null_callback.get());
 
     EXPECT_EQ(stub_buffer.id().as_uint32_t(),
               protobuf_buffer.buffer_id());
+}
+
+TEST_F(SessionMediatorTest, new_fds_for_prompt_providers_calls_connector_client_socket_fd)
+{
+    int const fd_count = 1;
+    int const dummy_fd = __LINE__;
+
+    mp::ConnectParameters connect_parameters;
+    mp::Connection connection;
+
+    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+
+    ::mir::protobuf::SocketFDRequest request;
+    ::mir::protobuf::SocketFD response;
+    request.set_number(1);
+
+    using namespace ::testing;
+
+    EXPECT_CALL(connector, client_socket_fd(_)).Times(1).WillOnce(Return(dummy_fd));
+    mediator.new_fds_for_prompt_providers(nullptr, &request, &response, null_callback.get());
+
+    EXPECT_THAT(response.fd_size(), Eq(fd_count));
+    EXPECT_THAT(response.fd(0), Eq(dummy_fd));
+
+    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
+}
+
+TEST_F(SessionMediatorTest, new_fds_for_prompt_providers_allocates_requested_number_of_fds)
+{
+    int const fd_count = 11;
+    int const dummy_fd = __LINE__;
+
+    mp::ConnectParameters connect_parameters;
+    mp::Connection connection;
+
+    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+
+    ::mir::protobuf::SocketFDRequest request;
+    ::mir::protobuf::SocketFD response;
+    request.set_number(fd_count);
+
+    using namespace ::testing;
+
+    EXPECT_CALL(connector, client_socket_fd(_)).Times(fd_count).WillRepeatedly(Return(dummy_fd));
+    mediator.new_fds_for_prompt_providers(nullptr, &request, &response, null_callback.get());
+
+    EXPECT_THAT(response.fd_size(), Eq(fd_count));
+
+    mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }

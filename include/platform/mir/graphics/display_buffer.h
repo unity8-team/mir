@@ -20,11 +20,10 @@
 #define MIR_GRAPHICS_DISPLAY_BUFFER_H_
 
 #include <mir/geometry/rectangle.h>
+#include <mir/graphics/renderable.h>
 #include <mir_toolkit/common.h>
 
 #include <memory>
-#include <functional>
-#include <list>
 
 namespace mir
 {
@@ -32,7 +31,6 @@ namespace graphics
 {
 
 class Buffer;
-class Renderable;
 
 /**
  * Interface to an output framebuffer.
@@ -52,17 +50,22 @@ public:
     /** This will trigger OpenGL rendering and post the result to the screen. */
     virtual void post_update() = 0;
 
-    /** This will render renderlist to the screen and post the result to the screen.
-        For each renderable, the DisplayBuffer will decide if its more efficient to render
-        that Renderable via OpenGL, or via another method. If the Renderable is to be rendered
-        via OpenGL, render_fn will be invoked on that Renderable. */
-    virtual void render_and_post_update(
-        std::list<std::shared_ptr<Renderable>> const& renderlist,
-        std::function<void(Renderable const&)> const& render_fn) = 0;
-
-    /** to be deprecated */
-    virtual bool can_bypass() const = 0;
-    virtual void post_update(std::shared_ptr<Buffer> /* bypass_buf */) {}
+    /** This will render renderlist to the screen and post the result to the 
+     *  screen if there is a hardware optimization that can be done.
+     *  \param [in] renderlist 
+     *      The renderables that should appear on the screen if the hardware
+     *      is capable of optmizing that list somehow. If what you want
+     *      displayed on the screen cannot be represented by a RenderableList,
+     *      then you should draw using OpenGL and use post_update()
+     *  \returns
+     *      true if the hardware can optimize the rendering of the list.
+     *      When this call completes, the renderlist will have been posted
+     *      to the screen.
+     *      false if the hardware platform cannot optimize the list. The screen
+     *      will not be updated. The caller should render the list another way,
+     *      and post using post_update()
+    **/
+    virtual bool post_renderables_if_optimizable(RenderableList const& renderlist) = 0;
 
     /** Returns the orientation of the display buffer relative to how the
      *  user should see it (the orientation of the output).
@@ -73,6 +76,12 @@ public:
      *  amount of rotation the renderer must do to make things "look right".
      */
     virtual MirOrientation orientation() const = 0;
+
+    /** Returns true if the display buffer has an alpha channel and the alpha 
+     *  channel will be read from at some point - in which case the renderer
+     *  must produce valid alpha channel content
+     */
+    virtual bool uses_alpha() const = 0;
 
 protected:
     DisplayBuffer() = default;

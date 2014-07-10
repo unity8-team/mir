@@ -20,7 +20,8 @@
 #define MIR_GRAPHICS_NESTED_NESTED_DISPLAY_CONFIGURATION_H_
 
 #include "mir/graphics/display_configuration.h"
-#include "mir_api_wrappers.h"
+#include "mir_toolkit/client_types.h"
+#include <memory>
 
 namespace mir
 {
@@ -31,20 +32,17 @@ namespace nested
 class NestedDisplayConfiguration : public DisplayConfiguration
 {
 public:
-    explicit NestedDisplayConfiguration(MirDisplayConfiguration* display_config);
-    virtual ~NestedDisplayConfiguration() noexcept;
+    NestedDisplayConfiguration(
+        std::shared_ptr<MirDisplayConfiguration> const& display_config);
 
     void for_each_card(std::function<void(DisplayConfigurationCard const&)>) const override;
     void for_each_output(std::function<void(DisplayConfigurationOutput const&)>) const override;
+    void for_each_output(std::function<void(UserDisplayConfigurationOutput&)>) override;
 
-    void configure_output(DisplayConfigurationOutputId id, bool used,
-                          geometry::Point top_left, size_t mode_index,
-                          MirPixelFormat format, MirPowerMode power_mode,
-                          MirOrientation orientation) override;
+    operator MirDisplayConfiguration*() const { return display_config.get(); }
 
-    operator MirDisplayConfiguration*() const { return display_config; }
 private:
-    mir_api_wrappers::MirDisplayConfigHandle display_config;
+    std::shared_ptr<MirDisplayConfiguration> const display_config;
 };
 }
 }

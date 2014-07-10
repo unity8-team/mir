@@ -19,13 +19,14 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display_configuration.h"
-#include "src/platform/graphics/mesa/platform.h"
-#include "src/server/report/null_report_factory.h"
+#include "mir/graphics/platform.h"
 
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "mir/graphics/display_configuration_policy.h"
-#include "mir_test_doubles/null_virtual_terminal.h"
+#include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_gl_program_factory.h"
+#include "mir_test_doubles/platform_factory.h"
 
 #include "mir_test_framework/udev_environment.h"
 
@@ -38,11 +39,9 @@
 #include <unordered_set>
 
 namespace mg = mir::graphics;
-namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 namespace mtf = mir::mir_test_framework;
-namespace mr = mir::report;
 
 namespace
 {
@@ -53,25 +52,20 @@ public:
     void apply_to(mg::DisplayConfiguration& conf)
     {
         conf.for_each_output(
-            [&](mg::DisplayConfigurationOutput const& conf_output)
+            [&](mg::UserDisplayConfigurationOutput& conf_output)
             {
                 if (conf_output.connected && conf_output.modes.size() > 0)
                 {
-                    conf.configure_output(conf_output.id, true,
-                                          geom::Point{0, 0},
-                                          conf_output.preferred_mode_index,
-                                          conf_output.current_format,
-                                          mir_power_mode_on,
-                                          conf_output.orientation);
+                    conf_output.used = true;
+                    conf_output.top_left = geom::Point{0, 0};
+                    conf_output.current_mode_index =
+                        conf_output.preferred_mode_index;
+                    conf_output.power_mode = mir_power_mode_on;
                 }
                 else
                 {
-                    conf.configure_output(conf_output.id, false,
-                                          conf_output.top_left,
-                                          conf_output.current_mode_index,
-                                          conf_output.current_format,
-                                          mir_power_mode_on,
-                                          conf_output.orientation);
+                    conf_output.used = false;
+                    conf_output.power_mode = mir_power_mode_off;
                 }
             });
     }
@@ -85,26 +79,22 @@ public:
         int max_x = 0;
 
         conf.for_each_output(
-            [&](mg::DisplayConfigurationOutput const& conf_output)
+            [&](mg::UserDisplayConfigurationOutput& conf_output)
             {
                 if (conf_output.connected && conf_output.modes.size() > 0)
                 {
-                    conf.configure_output(conf_output.id, true,
-                                          geom::Point{max_x, 0},
-                                          conf_output.preferred_mode_index,
-                                          conf_output.current_format,
-                                          mir_power_mode_on,
-                                          conf_output.orientation);
+                    conf_output.used = true;
+                    conf_output.top_left = geom::Point{max_x, 0};
+                    conf_output.current_mode_index =
+                        conf_output.preferred_mode_index;
+                    conf_output.power_mode = mir_power_mode_on;
+                    conf_output.orientation = mir_orientation_normal;
                     max_x += conf_output.modes[conf_output.preferred_mode_index].size.width.as_int();
                 }
                 else
                 {
-                    conf.configure_output(conf_output.id, false,
-                                          conf_output.top_left,
-                                          conf_output.current_mode_index,
-                                          conf_output.current_format,
-                                          mir_power_mode_on,
-                                          conf_output.orientation);
+                    conf_output.used = false;
+                    conf_output.power_mode = mir_power_mode_off;
                 }
             });
     }
@@ -143,25 +133,27 @@ public:
         fake_devices.add_standard_device("standard-drm-devices");
     }
 
-    std::shared_ptr<mgm::Platform> create_platform()
+    std::shared_ptr<mg::Platform> create_platform()
     {
-        return std::make_shared<mgm::Platform>(
-            mr::null_display_report(),
-            std::make_shared<mtd::NullVirtualTerminal>());
+        return mtd::create_platform_with_null_dependencies();
     }
 
     std::shared_ptr<mg::Display> create_display_cloned(
         std::shared_ptr<mg::Platform> const& platform)
     {
-        auto conf_policy = std::make_shared<ClonedDisplayConfigurationPolicy>();
-        return platform->create_display(conf_policy);
+        return platform->create_display(
+            std::make_shared<ClonedDisplayConfigurationPolicy>(),
+            std::make_shared<mtd::StubGLProgramFactory>(),
+            std::make_shared<mtd::StubGLConfig>());
     }
 
     std::shared_ptr<mg::Display> create_display_side_by_side(
         std::shared_ptr<mg::Platform> const& platform)
     {
-        auto conf_policy = std::make_shared<SideBySideDisplayConfigurationPolicy>();
-        return platform->create_display(conf_policy);
+        return platform->create_display(
+            std::make_shared<SideBySideDisplayConfigurationPolicy>(),
+            std::make_shared<mtd::StubGLProgramFactory>(),
+            std::make_shared<mtd::StubGLConfig>());
     }
 
     void setup_outputs(int connected, int disconnected)
@@ -494,13 +486,12 @@ TEST_F(MesaDisplayMultiMonitorTest, configure_clears_unused_connected_outputs)
     auto conf = display->configuration();
 
     conf->for_each_output(
-        [&](mg::DisplayConfigurationOutput const& conf_output)
+        [&](mg::UserDisplayConfigurationOutput& output)
         {
-            conf->configure_output(conf_output.id, false, conf_output.top_left,
-                                   conf_output.preferred_mode_index,
-                                   mir_pixel_format_xrgb_8888,
-                                   mir_power_mode_on,
-                                   conf_output.orientation);
+            output.used = false;
+            output.current_mode_index = output.preferred_mode_index;
+            output.current_format = mir_pixel_format_xrgb_8888;
+            output.power_mode = mir_power_mode_on;
         });
 
     display->configure(*conf);
@@ -533,12 +524,12 @@ TEST_F(MesaDisplayMultiMonitorTest, resume_clears_unused_connected_outputs)
     auto conf = display->configuration();
 
     conf->for_each_output(
-        [&](mg::DisplayConfigurationOutput const& conf_output)
+        [&](mg::UserDisplayConfigurationOutput& output)
         {
-            conf->configure_output(conf_output.id, false, conf_output.top_left,
-                                   conf_output.preferred_mode_index,
-                                   mir_pixel_format_xrgb_8888,
-                                   mir_power_mode_on, conf_output.orientation);
+            output.used = false;
+            output.current_mode_index = output.preferred_mode_index;
+            output.current_format = mir_pixel_format_xrgb_8888;
+            output.power_mode = mir_power_mode_on;
         });
 
     display->configure(*conf);

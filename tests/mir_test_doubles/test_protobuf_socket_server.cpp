@@ -20,11 +20,11 @@
 #include "mir_test_doubles/stub_ipc_factory.h"
 #include "mir_test_doubles/stub_session_authorizer.h"
 #include "mir/frontend/connector_report.h"
-#include "src/server/frontend/protobuf_session_creator.h"
+#include "src/server/frontend/protobuf_connection_creator.h"
 #include "src/server/frontend/published_socket_connector.h"
 #include "src/server/frontend/dispatching_session_creator.h"
 #include "src/server/report/null_report_factory.h"
-#include "src/server/report/null_report_factory.h"
+#include "mir_test_doubles/null_emergency_cleanup.h"
 
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -37,27 +37,33 @@ std::shared_ptr<mf::Connector> make_connector(std::string const& socket_name,
                                               std::shared_ptr<mf::ProtobufIpcFactory> const& factory,
                                               std::shared_ptr<mf::ConnectorReport> const& report)
 {
-    auto protobuf_session = std::make_shared<mf::ProtobufSessionCreator>(
+    auto protobuf_session = std::make_shared<mf::ProtobufConnectionCreator>(
         factory, std::make_shared<mtd::StubSessionAuthorizer>(), mr::null_message_processor_report());
-    auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>>();
+    auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
     sessions->push_back(protobuf_session);
+
+    mtd::NullEmergencyCleanup null_emergency_cleanup;
+
     return std::make_shared<mf::PublishedSocketConnector>(
         socket_name,
-        std::make_shared<mf::DispatchingSessionCreator>(sessions, std::make_shared<mtd::StubSessionAuthorizer>()),
+        std::make_shared<mf::DispatchingConnectionCreator>(sessions, std::make_shared<mtd::StubSessionAuthorizer>()),
         10,
+        null_emergency_cleanup,
         report);
 }
 }
 
-mt::TestProtobufServer::TestProtobufServer(std::string const& socket_name,
-                                           const std::shared_ptr<protobuf::DisplayServer>& tool)
-    : TestProtobufServer(socket_name, tool, mr::null_connector_report())
+mt::TestProtobufServer::TestProtobufServer(
+    std::string const& socket_name,
+    const std::shared_ptr<mf::detail::DisplayServer>& tool) :
+    TestProtobufServer(socket_name, tool, mr::null_connector_report())
 {
 }
 
-mt::TestProtobufServer::TestProtobufServer(std::string const& socket_name,
-                                           const std::shared_ptr<protobuf::DisplayServer>& tool,
-                                           std::shared_ptr<frontend::ConnectorReport> const& report)
-    : comm(make_connector(socket_name, std::make_shared<mtd::StubIpcFactory>(*tool), report))
+mt::TestProtobufServer::TestProtobufServer(
+    std::string const& socket_name,
+    const std::shared_ptr<mf::detail::DisplayServer>& tool,
+    std::shared_ptr<frontend::ConnectorReport> const& report) :
+    comm(make_connector(socket_name, std::make_shared<mtd::StubIpcFactory>(*tool), report))
 {
 }

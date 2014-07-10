@@ -16,12 +16,13 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-
 #ifndef MIR_FRONTEND_SESSION_MEDIATOR_H_
 #define MIR_FRONTEND_SESSION_MEDIATOR_H_
 
-#include "mir_protobuf.pb.h"
+#include "display_server.h"
+#include "mir/frontend/connection_context.h"
 #include "mir/frontend/surface_id.h"
+#include "mir/graphics/platform.h"
 #include "mir_toolkit/common.h"
 
 #include <functional>
@@ -39,7 +40,10 @@ class Platform;
 class Display;
 class GraphicBufferAllocator;
 }
-
+namespace input
+{
+class CursorImages;
+}
 
 /// Frontend interface. Mediates the interaction between client
 /// processes and the core of the mir system.
@@ -54,13 +58,14 @@ class SessionMediatorReport;
 class EventSink;
 class DisplayChanger;
 class Screencast;
+class PromptSession;
 
 // SessionMediator relays requests from the client process into the server.
-class SessionMediator : public mir::protobuf::DisplayServer
+class SessionMediator : public detail::DisplayServer
 {
 public:
+
     SessionMediator(
-        pid_t client_pid,
         std::shared_ptr<Shell> const& shell,
         std::shared_ptr<graphics::Platform> const& graphics_platform,
         std::shared_ptr<frontend::DisplayChanger> const& display_changer,
@@ -68,9 +73,13 @@ public:
         std::shared_ptr<SessionMediatorReport> const& report,
         std::shared_ptr<EventSink> const& event_sink,
         std::shared_ptr<ResourceCache> const& resource_cache,
-        std::shared_ptr<Screencast> const& screencast);
+        std::shared_ptr<Screencast> const& screencast,
+        ConnectionContext const& connection_context,
+        std::shared_ptr<input::CursorImages> const& cursor_images);
 
     ~SessionMediator() noexcept;
+
+    void client_pid(int pid) override;
 
     /* Platform independent requests */
     void connect(::google::protobuf::RpcController* controller,
@@ -105,24 +114,44 @@ public:
                            google::protobuf::Closure* done) override;
 
     void configure_display(::google::protobuf::RpcController* controller,
-                       const ::mir::protobuf::DisplayConfiguration* request,
-                       ::mir::protobuf::DisplayConfiguration* response,
-                       ::google::protobuf::Closure* done) override;
+                           const ::mir::protobuf::DisplayConfiguration* request,
+                           ::mir::protobuf::DisplayConfiguration* response,
+                           ::google::protobuf::Closure* done) override;
 
     void create_screencast(google::protobuf::RpcController*,
                            const mir::protobuf::ScreencastParameters*,
                            mir::protobuf::Screencast*,
-                           google::protobuf::Closure* done);
+                           google::protobuf::Closure* done) override;
 
     void release_screencast(google::protobuf::RpcController*,
                             const mir::protobuf::ScreencastId*,
                             mir::protobuf::Void*,
-                            google::protobuf::Closure* done);
+                            google::protobuf::Closure* done) override;
 
     void screencast_buffer(google::protobuf::RpcController*,
                            const mir::protobuf::ScreencastId*,
                            mir::protobuf::Buffer*,
                            google::protobuf::Closure* done);
+
+    void configure_cursor(google::protobuf::RpcController*,
+                          mir::protobuf::CursorSetting const*,
+                          mir::protobuf::Void*,
+                          google::protobuf::Closure* done);
+
+    void start_prompt_session(::google::protobuf::RpcController* controller,
+                            const ::mir::protobuf::PromptSessionParameters* request,
+                            ::mir::protobuf::Void* response,
+                            ::google::protobuf::Closure* done);
+
+    void add_prompt_provider(::google::protobuf::RpcController* controller,
+                             const ::mir::protobuf::PromptProvider* request,
+                             ::mir::protobuf::Void*,
+                             ::google::protobuf::Closure* done);
+
+    void stop_prompt_session(::google::protobuf::RpcController* controller,
+                            const ::mir::protobuf::Void* request,
+                            ::mir::protobuf::Void* response,
+                            ::google::protobuf::Closure* done);
 
     /* Platform specific requests */
     void drm_auth_magic(google::protobuf::RpcController* controller,
@@ -130,13 +159,25 @@ public:
                         mir::protobuf::DRMAuthMagicStatus* response,
                         google::protobuf::Closure* done) override;
 
+    void new_fds_for_prompt_providers(
+        ::google::protobuf::RpcController* controller,
+        ::mir::protobuf::SocketFDRequest const* parameters,
+        ::mir::protobuf::SocketFD* response,
+        ::google::protobuf::Closure* done) override;
+
 private:
     void pack_protobuf_buffer(protobuf::Buffer& protobuf_buffer,
                               graphics::Buffer* graphics_buffer,
-                              bool need_full_ipc);
+                              graphics::BufferIpcMsgType msg_type);
 
-    void advance_buffer(SurfaceId surf_id, Surface& surface, std::function<void(graphics::Buffer*, bool)> complete);
-    pid_t client_pid;
+    void advance_buffer(
+        SurfaceId surf_id,
+        Surface& surface,
+        std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete);
+
+    virtual std::function<void(std::shared_ptr<Session> const&)> prompt_session_connect_handler() const;
+
+    pid_t client_pid_;
     std::shared_ptr<Shell> const shell;
     std::shared_ptr<graphics::Platform> const graphics_platform;
 
@@ -147,16 +188,18 @@ private:
     std::shared_ptr<EventSink> const event_sink;
     std::shared_ptr<ResourceCache> const resource_cache;
     std::shared_ptr<Screencast> const screencast;
+    ConnectionContext const connection_context;
+    std::shared_ptr<input::CursorImages> const cursor_images;
 
     std::unordered_map<SurfaceId,graphics::Buffer*> client_buffer_resource;
     std::unordered_map<SurfaceId, std::shared_ptr<ClientBufferTracker>> client_buffer_tracker;
 
     std::mutex session_mutex;
     std::weak_ptr<Session> weak_session;
+    std::weak_ptr<PromptSession> weak_prompt_session;
 };
 
 }
 }
-
 
 #endif /* MIR_FRONTEND_SESSION_MEDIATOR_H_ */

@@ -1,13 +1,6 @@
-
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  set (UMOCKDEV_REQUIRED YES)
-endif()
-
-if (UMOCKDEV_REQUIRED)
-  pkg_check_modules(UMOCKDEV REQUIRED umockdev-1.0)
-  if (NOT UMOCKDEV_FOUND)
-    message(FATAL_ERROR "Umockdev not found, cannot build without disabling tests (via MIR_ENABLE_TESTS).")
-  endif()
+pkg_check_modules(UMOCKDEV REQUIRED umockdev-1.0>=0.6)
+if (NOT UMOCKDEV_FOUND)
+  message(FATAL_ERROR "Umockdev not found, cannot build without disabling tests (via MIR_ENABLE_TESTS).")
 endif()
 
 include_directories(${MIR_3RD_PARTY_INCLUDE_DIRECTORIES})
@@ -33,6 +26,7 @@ include_directories(
 
 option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" ON)
 option(MIR_BUILD_INTEGRATION_TESTS "Build integration tests" ON)
+option(MIR_BUILD_PERFORMANCE_TESTS "Build performance tests" ON)
 option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
@@ -43,6 +37,10 @@ if (MIR_BUILD_INTEGRATION_TESTS)
   add_subdirectory(integration-tests/)
 endif (MIR_BUILD_INTEGRATION_TESTS)
 
+if (MIR_BUILD_PERFORMANCE_TESTS)
+    add_subdirectory(performance-tests/)
+endif(MIR_BUILD_PERFORMANCE_TESTS)
+
 if (MIR_BUILD_UNIT_TESTS)
   add_subdirectory(unit-tests/)
 endif (MIR_BUILD_UNIT_TESTS)
@@ -50,7 +48,6 @@ endif (MIR_BUILD_UNIT_TESTS)
 add_subdirectory(mir_test/)
 add_subdirectory(mir_test_framework/)
 add_subdirectory(mir_test_doubles/)
-add_subdirectory(draw/)
 add_subdirectory(client-language/)
 add_subdirectory(mir-stress/)
 

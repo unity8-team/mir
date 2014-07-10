@@ -18,6 +18,9 @@
 
 #include "src/server/frontend/dispatching_session_creator.h"
 #include "src/server/frontend/dispatched_session_creator.h"
+#include "mir/frontend/connection_context.h"
+
+#include "mir_test_doubles/stub_session_authorizer.h"
 
 #include <sys/socket.h>
 #include <boost/asio.hpp>
@@ -27,6 +30,8 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+
+namespace mtd = mir::test::doubles;
 
 namespace
 {
@@ -41,7 +46,7 @@ void write_header(int socket, std::string const& uuid, uint16_t header_size)
                 == static_cast<ssize_t>(36));
 }
 
-class MockDispatchedSessionCreator : public mir::frontend::DispatchedSessionCreator
+class MockDispatchedSessionCreator : public mir::frontend::DispatchedConnectionCreator
 {
 public:
     MockDispatchedSessionCreator()
@@ -51,34 +56,22 @@ public:
             .WillByDefault(Invoke([](uuid_t id){ uuid_parse(mock_uuid, id); }));
     }
 
-    MOCK_METHOD2(create_session_for, void(const std::shared_ptr<boost::asio::local::stream_protocol::socket> &, std::string const&));
+    MOCK_METHOD3(create_connection_for, void(const std::shared_ptr<boost::asio::local::stream_protocol::socket> &, mir::frontend::ConnectionContext const&, std::string const&));
     MOCK_CONST_METHOD1(protocol_id, void(uuid_t id));
     MOCK_CONST_METHOD0(header_size, size_t(void));
 };
 
-class NullSessionAuthorizer : public mir::frontend::SessionAuthorizer
-{
-public:
-    bool connection_is_allowed(pid_t /*pid*/)
-    {
-        return true;
-    }
-    bool configure_display_is_allowed(pid_t /*pid*/)
-    {
-        return true;
-    }
-};
 }
 
-TEST(DispatchingSessionCreatorTest, DispatchesSingleUUIDSupported)
+TEST(DispatchingConnectionCreatorTest, DispatchesSingleUUIDSupported)
 {
     using namespace testing;
-    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
     auto mock_proto = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
-    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     protos->push_back(mock_proto);
 
-    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+    mir::frontend::DispatchingConnectionCreator dispatcher(protos, authorizer);
 
     boost::asio::io_service io_service;
     int socket_fds[2];
@@ -89,26 +82,26 @@ TEST(DispatchingSessionCreatorTest, DispatchesSingleUUIDSupported)
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
 
-    EXPECT_CALL(*mock_proto, create_session_for(_, StrEq("")));
+    EXPECT_CALL(*mock_proto, create_connection_for(_, _,StrEq("")));
 
-    dispatcher.create_session_for(reader);
+    dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
     io_service.run();
 }
 
-TEST(DispatchingSessionCreatorTest, DispatchesToCorrectUUID)
+TEST(DispatchingConnectionCreatorTest, DispatchesToCorrectUUID)
 {
     using namespace testing;
-    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
     auto mock_proto_one = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
     auto mock_proto_two = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
-    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     protos->push_back(mock_proto_one);
     protos->push_back(mock_proto_two);
 
     char const* proto_two_uuid = "eba0cf92-30c2-4375-9560-305f592a4161";
 
-    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+    mir::frontend::DispatchingConnectionCreator dispatcher(protos, authorizer);
 
     boost::asio::io_service io_service;
     int socket_fds[2];
@@ -121,27 +114,27 @@ TEST(DispatchingSessionCreatorTest, DispatchesToCorrectUUID)
 
     ON_CALL(*mock_proto_two, protocol_id(_))
         .WillByDefault(Invoke([proto_two_uuid](uuid_t id) { uuid_parse(proto_two_uuid, id);}));
-    EXPECT_CALL(*mock_proto_two, create_session_for(_, StrEq("")));
+    EXPECT_CALL(*mock_proto_two, create_connection_for(_, _, StrEq("")));
 
-    dispatcher.create_session_for(reader);
+    dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
     io_service.run();
 }
 
-TEST(DispatchingSessionCreatorTest, NoCommonProtocolRaisesException)
+TEST(DispatchingConnectionCreatorTest, NoCommonProtocolRaisesException)
 {
     using namespace testing;
-    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
     auto mock_proto_one = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
     auto mock_proto_two = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
-    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     protos->push_back(mock_proto_one);
     protos->push_back(mock_proto_two);
 
     char const* proto_two_uuid = "eba0cf92-30c2-4375-9560-305f592a4161";
     std::string unknown_client_proto("d29d39ba-c5fe-44a8-93c0-126ca9c4a41f");
 
-    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+    mir::frontend::DispatchingConnectionCreator dispatcher(protos, authorizer);
 
     boost::asio::io_service io_service;
     int socket_fds[2];
@@ -155,20 +148,20 @@ TEST(DispatchingSessionCreatorTest, NoCommonProtocolRaisesException)
     ON_CALL(*mock_proto_two, protocol_id(_))
         .WillByDefault(Invoke([proto_two_uuid](uuid_t id) { uuid_parse(proto_two_uuid, id);}));
 
-    dispatcher.create_session_for(reader);
+    dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
     EXPECT_THROW({ io_service.run(); }, std::runtime_error);
 }
 
-TEST(DispatchingSessionCreatorTest, LazyClientTimesOutInConnect)
+TEST(DispatchingConnectionCreatorTest, LazyClientTimesOutInConnect)
 {
     using namespace testing;
-    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
     auto mock_proto = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
-    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     protos->push_back(mock_proto);
 
-    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+    mir::frontend::DispatchingConnectionCreator dispatcher(protos, authorizer);
 
     boost::asio::io_service io_service;
     int socket_fds[2];
@@ -183,7 +176,7 @@ TEST(DispatchingSessionCreatorTest, LazyClientTimesOutInConnect)
     ON_CALL(*mock_proto, header_size())
         .WillByDefault(Return(8));
 
-    dispatcher.create_session_for(reader);
+    dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
     std::mutex m;
     std::condition_variable cv;
@@ -212,15 +205,15 @@ TEST(DispatchingSessionCreatorTest, LazyClientTimesOutInConnect)
 }
 
 
-TEST(DispatchingSessionCreatorTest, IncorrectProtocolSizeRaisesException)
+TEST(DispatchingConnectionCreatorTest, IncorrectProtocolSizeRaisesException)
 {
     using namespace testing;
-    auto authorizer = std::make_shared<NullSessionAuthorizer> ();
+    auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
     auto mock_proto = std::make_shared<NiceMock<MockDispatchedSessionCreator>>();
-    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedSessionCreator>>>();
+    auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
     protos->push_back(mock_proto);
 
-    mir::frontend::DispatchingSessionCreator dispatcher(protos, authorizer);
+    mir::frontend::DispatchingConnectionCreator dispatcher(protos, authorizer);
 
     boost::asio::io_service io_service;
     int socket_fds[2];
@@ -235,7 +228,7 @@ TEST(DispatchingSessionCreatorTest, IncorrectProtocolSizeRaisesException)
     ON_CALL(*mock_proto, header_size())
         .WillByDefault(Return(mock_header_length));
 
-    dispatcher.create_session_for(reader);
+    dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
     EXPECT_THROW({ io_service.run(); }, std::runtime_error);
 }

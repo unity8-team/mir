@@ -20,6 +20,9 @@
 #define MIR_TEST_FRAMEWORK_STUBBED_SERVER_CONFIGURATION_H_
 
 #include "mir/default_server_configuration.h"
+#include "mir/geometry/rectangle.h"
+
+#include <vector>
 
 namespace mir_test_framework
 {
@@ -33,16 +36,23 @@ class StubbedServerConfiguration : public DefaultServerConfiguration
 {
 public:
     StubbedServerConfiguration();
+    explicit StubbedServerConfiguration(std::vector<geometry::Rectangle> const& display_rects);
 
-    std::shared_ptr<graphics::Platform> the_graphics_platform();
-    std::shared_ptr<compositor::RendererFactory> the_renderer_factory();
+    std::shared_ptr<graphics::Platform> the_graphics_platform() override;
+    std::shared_ptr<compositor::RendererFactory> the_renderer_factory() override;
     // We override the_input_manager in the default server configuration
     // to avoid starting and stopping the full android input stack for tests
     // which do not leverage input.
-    std::shared_ptr<input::InputConfiguration> the_input_configuration();
+    std::shared_ptr<input::InputConfiguration> the_input_configuration() override;
+    std::shared_ptr<input::InputDispatcher> the_input_dispatcher() override;
+    std::shared_ptr<shell::InputTargeter> the_input_targeter() override;
+    std::shared_ptr<input::InputSender> the_input_sender() override;
+
+    std::shared_ptr<graphics::Cursor> the_cursor() override;
 
 private:
     std::shared_ptr<graphics::Platform> graphics_platform;
+    std::vector<geometry::Rectangle> const display_rects;
 };
 }
 

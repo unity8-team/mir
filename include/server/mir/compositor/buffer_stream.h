@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -41,15 +41,18 @@ class BufferStream
 public:
     virtual ~BufferStream() = default;
 
-    virtual void swap_client_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete) = 0;
+    virtual void acquire_client_buffer(
+        std::function<void(graphics::Buffer* buffer)> complete) = 0;
+    virtual void release_client_buffer(graphics::Buffer* buf) = 0;
     virtual std::shared_ptr<graphics::Buffer>
-        lock_compositor_buffer(unsigned long frameno) = 0;
+        lock_compositor_buffer(void const* user_id) = 0;
     virtual std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() = 0;
     virtual MirPixelFormat get_stream_pixel_format() = 0;
     virtual geometry::Size stream_size() = 0;
     virtual void resize(geometry::Size const& size) = 0;
     virtual void allow_framedropping(bool) = 0;
     virtual void force_requests_to_complete() = 0;
+    virtual int buffers_ready_for_compositor() const = 0;
 };
 
 }

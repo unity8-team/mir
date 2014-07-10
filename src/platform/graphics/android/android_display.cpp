@@ -17,27 +17,28 @@
  */
 
 #include "mir/graphics/platform.h"
-#include "mir/graphics/display_configuration.h"
+#include "android_display_configuration.h"
 #include "mir/graphics/display_report.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/egl_resources.h"
 #include "android_display.h"
 #include "display_builder.h"
-#include "display_device.h"
 #include "mir/geometry/rectangle.h"
+
+#include <boost/throw_exception.hpp>
 
 namespace mga=mir::graphics::android;
 namespace mg=mir::graphics;
 namespace geom=mir::geometry;
 
 mga::AndroidDisplay::AndroidDisplay(std::shared_ptr<mga::DisplayBuilder> const& display_builder,
+                                    std::shared_ptr<mg::GLProgramFactory> const& gl_program_factory,
+                                    std::shared_ptr<GLConfig> const& gl_config,
                                     std::shared_ptr<DisplayReport> const& display_report)
     : display_builder{display_builder},
-      gl_context{display_builder->display_format(), *display_report},
-      display_device(display_builder->create_display_device()),
-      display_buffer{display_builder->create_display_buffer(display_device, gl_context)},
-      current_configuration{display_buffer->view_area().size}
+      gl_context{display_builder->display_format(), *gl_config, *display_report},
+      display_buffer{display_builder->create_display_buffer(*gl_program_factory, gl_context)}
 {
     display_report->report_successful_setup_of_native_resources();
 
@@ -49,37 +50,34 @@ mga::AndroidDisplay::AndroidDisplay(std::shared_ptr<mga::DisplayBuilder> const& 
 
 void mga::AndroidDisplay::for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f)
 {
-    f(*display_buffer);
+    std::lock_guard<decltype(configuration_mutex)> lock{configuration_mutex};
+
+    if (display_buffer->configuration().power_mode == mir_power_mode_on)
+        f(*display_buffer);
 }
 
 std::unique_ptr<mg::DisplayConfiguration> mga::AndroidDisplay::configuration() const
 {
+    std::lock_guard<decltype(configuration_mutex)> lock{configuration_mutex};
+
     return std::unique_ptr<mg::DisplayConfiguration>(
-        new mga::AndroidDisplayConfiguration(current_configuration)
-    );
+        new mga::AndroidDisplayConfiguration(display_buffer->configuration()));
 }
 
 void mga::AndroidDisplay::configure(mg::DisplayConfiguration const& configuration)
 {
-    MirOrientation orientation = mir_orientation_normal;
+    if (!configuration.valid())
+    {
+        BOOST_THROW_EXCEPTION(
+            std::logic_error("Invalid or inconsistent display configuration"));
+    }
+
+    std::lock_guard<decltype(configuration_mutex)> lock{configuration_mutex};
 
     configuration.for_each_output([&](mg::DisplayConfigurationOutput const& output)
     {
-        // TODO: Properly support multiple outputs
-        display_device->mode(output.power_mode);
-        orientation = output.orientation;
+        display_buffer->configure(output);
     });
-    current_configuration = dynamic_cast<mga::AndroidDisplayConfiguration const&>(configuration);
-
-    /*
-     * It's tempting to put orient() into the base class and so avoid this
-     * cast, but we only need it in the Android implementation right now.
-     */
-    if (android::DisplayBuffer* db =
-            dynamic_cast<mga::DisplayBuffer*>(display_buffer.get()))
-    {
-        db->orient(orientation);
-    }
 }
 
 void mga::AndroidDisplay::register_configuration_change_handler(
@@ -103,13 +101,12 @@ void mga::AndroidDisplay::resume()
 {
 }
 
-auto mga::AndroidDisplay::the_cursor() -> std::weak_ptr<Cursor>
+auto mga::AndroidDisplay::create_hardware_cursor(std::shared_ptr<mg::CursorImage> const& /* initial_image */) -> std::shared_ptr<Cursor>
 {
-    return std::weak_ptr<Cursor>();
+    return std::shared_ptr<Cursor>();
 }
 
 std::unique_ptr<mg::GLContext> mga::AndroidDisplay::create_gl_context()
 {
-    return std::unique_ptr<mg::GLContext>{
-        new mga::GLContext(gl_context, mga::create_dummy_pbuffer_surface)};
+    return std::unique_ptr<mg::GLContext>{new mga::PbufferGLContext(gl_context)};
 }

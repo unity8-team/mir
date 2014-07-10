@@ -24,23 +24,24 @@
 #include <vector>
 
 #include "mir/frontend/session_authorizer.h"
-#include "mir/frontend/session_creator.h"
+#include "mir/frontend/connection_creator.h"
 
 namespace mir
 {
 namespace frontend
 {
-class DispatchedSessionCreator;
+class DispatchedConnectionCreator;
 
-class DispatchingSessionCreator : public SessionCreator
+class DispatchingConnectionCreator : public ConnectionCreator
 {
 public:
-    DispatchingSessionCreator(std::shared_ptr<std::vector<std::shared_ptr<DispatchedSessionCreator> > > protocol_implementors,
-                              std::shared_ptr<SessionAuthorizer> const& session_authorizer);
+    DispatchingConnectionCreator(std::shared_ptr<std::vector<std::shared_ptr<DispatchedConnectionCreator>>> protocol_implementors,
+                                 std::shared_ptr<SessionAuthorizer> const& session_authorizer);
 
-    void create_session_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket) override;
+    void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
+                               ConnectionContext const& connection_context) override;
 private:
-    std::shared_ptr<std::vector<std::shared_ptr<DispatchedSessionCreator>>> const implementations;
+    std::shared_ptr<std::vector<std::shared_ptr<DispatchedConnectionCreator>>> const implementations;
     std::shared_ptr<SessionAuthorizer> const session_authorizer;
 };
 }

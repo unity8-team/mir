@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -17,27 +17,31 @@
  */
 
 #include "mir_test_framework/stubbed_server_configuration.h"
+#include "mir_test_framework/command_line_server_configuration.h"
 
-#include "mir/geometry/rectangle.h"
+#include "mir/options/default_configuration.h"
 #include "mir/graphics/buffer_ipc_packer.h"
+#include "mir/graphics/cursor.h"
 #include "mir/input/input_channel.h"
 #include "mir/input/input_manager.h"
 
-#include "mir_test_doubles/null_display.h"
-#include "mir_test_doubles/null_display_configuration.h"
+#include "mir_test_doubles/stub_display.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_renderer.h"
+#include "mir_test_doubles/stub_input_sender.h"
 
 #ifdef ANDROID
 #include "mir_test_doubles/mock_android_native_buffer.h"
 #endif
 
-#include "src/server/compositor/renderer.h"
-#include "src/server/compositor/renderer_factory.h"
+#include "mir/compositor/renderer.h"
+#include "mir/compositor/renderer_factory.h"
 #include "src/server/input/null_input_configuration.h"
+#include "src/server/input/null_input_dispatcher.h"
+#include "src/server/input/null_input_targeter.h"
 
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
@@ -48,17 +52,15 @@
 
 namespace geom = mir::geometry;
 namespace mc = mir::compositor;
+namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
+namespace mo = mir::options;
 namespace mtd = mir::test::doubles;
 namespace mtf = mir_test_framework;
 
 namespace
 {
-char const* dummy[] = {0};
-int argc = 0;
-char const** argv = dummy;
-
 class StubFDBuffer : public mtd::StubBuffer
 {
 public:
@@ -118,141 +120,100 @@ class StubGraphicBufferAllocator : public mtd::StubBufferAllocator
     }
 };
 
-class StubDisplayConfiguration : public mtd::NullDisplayConfiguration
+class StubCursor : public mg::Cursor
 {
-public:
-    StubDisplayConfiguration(geom::Rectangle const& rect)
-         : modes{mg::DisplayConfigurationMode{rect.size, 1.0f}}
-    {
-    }
-
-    void for_each_output(std::function<void(mg::DisplayConfigurationOutput const&)> f) const override
-    {
-        mg::DisplayConfigurationOutput dummy_output_config{
-            mg::DisplayConfigurationOutputId{1},
-            mg::DisplayConfigurationCardId{0},
-            mg::DisplayConfigurationOutputType::vga,
-            std::vector<MirPixelFormat>{mir_pixel_format_abgr_8888},
-            modes, 0, geom::Size{}, true, true, geom::Point{0,0}, 0,
-            mir_pixel_format_abgr_8888, mir_power_mode_on,
-            mir_orientation_normal};
-
-        f(dummy_output_config);
-    }
-private:
-    std::vector<mg::DisplayConfigurationMode> modes;
-};
-
-class StubDisplay : public mtd::NullDisplay
-{
-public:
-    StubDisplay()
-        : rect{geom::Point{0,0}, geom::Size{1600,1600}},
-          display_buffer(rect)
-    {
-    }
-
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f) override
-    {
-        f(display_buffer);
-    }
-
-    std::unique_ptr<mg::DisplayConfiguration> configuration() const override
-    {
-        return std::unique_ptr<mg::DisplayConfiguration>(
-            new StubDisplayConfiguration(rect)
-        );
-    }
-
-private:
-    geom::Rectangle rect;
-    mtd::StubDisplayBuffer display_buffer;
+    void show(mg::CursorImage const&) override {}
+    void hide() override {}
+    void move_to(geom::Point) override {}
 };
 
 class StubGraphicPlatform : public mtd::NullPlatform
 {
+public:
+    StubGraphicPlatform(std::vector<geom::Rectangle> const& display_rects)
+        : display_rects{display_rects}
+    {
+    }
+
     std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
         const std::shared_ptr<mg::BufferInitializer>& /*buffer_initializer*/) override
     {
         return std::make_shared<StubGraphicBufferAllocator>();
     }
 
-    void fill_ipc_package(mg::BufferIPCPacker* packer, mg::Buffer const* buffer) const override
+    void fill_buffer_package(
+        mg::BufferIPCPacker* packer, mg::Buffer const* buffer, mg::BufferIpcMsgType msg_type) const override
     {
+        if (msg_type == mg::BufferIpcMsgType::full_msg)
+        {
 #ifndef ANDROID
-        auto native_handle = buffer->native_buffer_handle();
-        for(auto i=0; i<native_handle->data_items; i++)
-        {
-            packer->pack_data(native_handle->data[i]);
-        }
-        for(auto i=0; i<native_handle->fd_items; i++)
-        {
-            packer->pack_fd(native_handle->fd[i]);
-        }
+            auto native_handle = buffer->native_buffer_handle();
+            for(auto i=0; i<native_handle->data_items; i++)
+            {
+                packer->pack_data(native_handle->data[i]);
+            }
+            for(auto i=0; i<native_handle->fd_items; i++)
+            {
+                packer->pack_fd(native_handle->fd[i]);
+            }
 
-        packer->pack_flags(native_handle->flags);
+            packer->pack_flags(native_handle->flags);
 #endif
-        packer->pack_stride(buffer->stride());
-        packer->pack_size(buffer->size());
+            packer->pack_stride(buffer->stride());
+            packer->pack_size(buffer->size());
+        }
     }
 
     std::shared_ptr<mg::Display> create_display(
-        std::shared_ptr<mg::DisplayConfigurationPolicy> const&) override
+        std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
+        std::shared_ptr<mg::GLProgramFactory> const&,
+        std::shared_ptr<mg::GLConfig> const&) override
     {
-        return std::make_shared<StubDisplay>();
+        return std::make_shared<mtd::StubDisplay>(display_rects);
     }
+    
+    std::vector<geom::Rectangle> const display_rects;
 };
 
 class StubRendererFactory : public mc::RendererFactory
 {
 public:
-    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&)
+    std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&, mc::DestinationAlpha)
     {
         return std::unique_ptr<mc::Renderer>(new mtd::StubRenderer());
     }
 };
 
-struct StubInputChannel : public mi::InputChannel
-{
-    int client_fd() const
-    {
-        return 0;
-    }
-
-    int server_fd() const
-    {
-        return 0;
-    }
-};
-
-class StubInputManager : public mi::InputManager
-{
-  public:
-    void start() {}
-    void stop() {}
-
-    std::shared_ptr<mi::InputChannel> make_input_channel()
-    {
-        return std::make_shared<StubInputChannel>();
-    }
-};
 }
 
-mtf::StubbedServerConfiguration::StubbedServerConfiguration() :
-    DefaultServerConfiguration(::argc, ::argv)
+mtf::StubbedServerConfiguration::StubbedServerConfiguration()
+    : StubbedServerConfiguration({geom::Rectangle{{0,0},{1600,1600}}})
 {
-    namespace po = boost::program_options;
+}
 
-    add_options()
-        ("tests-use-real-graphics", po::value<bool>()->default_value(false), "Use real graphics in tests.")
-        ("tests-use-real-input", po::value<bool>()->default_value(false), "Use real input in tests.");
+mtf::StubbedServerConfiguration::StubbedServerConfiguration(
+    std::vector<geom::Rectangle> const& display_rects)
+    : DefaultServerConfiguration([]
+      {
+          auto result = mtf::configuration_from_commandline();
+
+          namespace po = boost::program_options;
+
+          result->add_options()
+                  ("tests-use-real-graphics", po::value<bool>()->default_value(false), "Use real graphics in tests.")
+                  ("tests-use-real-input", po::value<bool>()->default_value(false), "Use real input in tests.");
+
+          return result;
+      }()),
+      display_rects{display_rects}
+{
 }
 
 std::shared_ptr<mg::Platform> mtf::StubbedServerConfiguration::the_graphics_platform()
 {
     if (!graphics_platform)
     {
-        graphics_platform = std::make_shared<StubGraphicPlatform>();
+        graphics_platform = std::make_shared<StubGraphicPlatform>(display_rects);
     }
 
     return graphics_platform;
@@ -282,15 +243,37 @@ std::shared_ptr<mi::InputConfiguration> mtf::StubbedServerConfiguration::the_inp
         return std::make_shared<mi::NullInputConfiguration>();
 }
 
-int main(int argc, char** argv)
+std::shared_ptr<msh::InputTargeter> mtf::StubbedServerConfiguration::the_input_targeter()
 {
-    ::argc = std::remove_if(
-        argv,
-        argv+argc,
-        [](char const* arg) { return !strncmp(arg, "--gtest_", 8); }) - argv;
-    ::argv = const_cast<char const**>(argv);
+    auto options = the_options();
 
-  ::testing::InitGoogleTest(&argc, argv);
+    if (options->get<bool>("tests-use-real-input"))
+        return DefaultServerConfiguration::the_input_targeter();
+    else
+        return std::make_shared<mi::NullInputTargeter>();
+}
 
-  return RUN_ALL_TESTS();
+std::shared_ptr<mi::InputDispatcher> mtf::StubbedServerConfiguration::the_input_dispatcher()
+{
+    auto options = the_options();
+
+    if (options->get<bool>("tests-use-real-input"))
+        return DefaultServerConfiguration::the_input_dispatcher();
+    else
+        return std::make_shared<mi::NullInputDispatcher>();
+}
+
+std::shared_ptr<mi::InputSender> mtf::StubbedServerConfiguration::the_input_sender()
+{
+    auto options = the_options();
+
+    if (options->get<bool>("tests-use-real-input"))
+        return DefaultServerConfiguration::the_input_sender();
+    else
+        return std::make_shared<mtd::StubInputSender>();
+}
+
+std::shared_ptr<mg::Cursor> mtf::StubbedServerConfiguration::the_cursor()
+{
+    return std::make_shared<StubCursor>();
 }

@@ -20,8 +20,8 @@
 #include "window_manager.h"
 
 #include "mir/shell/focus_controller.h"
-#include "mir/shell/session.h"
-#include "mir/shell/surface.h"
+#include "mir/scene/session.h"
+#include "mir/scene/surface.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/compositor/compositor.h"
@@ -140,23 +140,14 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             compositor->stop();
             auto conf = display->configuration();
-            conf->for_each_output([&](mg::DisplayConfigurationOutput const& output) -> void
-            {
-                MirPowerMode power_mode;
-                if (!output.used) return;
-
-                if (display_off == true)
-                    power_mode = mir_power_mode_on;
-                else
-                    power_mode = mir_power_mode_off;
-
-                conf->configure_output(output.id, output.used,
-                                       output.top_left,
-                                       output.current_mode_index,
-                                       output.current_format,
-                                       power_mode,
-                                       output.orientation);
-            });
+            MirPowerMode new_power_mode = display_off ?
+                mir_power_mode_on : mir_power_mode_off;
+            conf->for_each_output(
+                [&](mg::UserDisplayConfigurationOutput& output) -> void
+                {
+                    output.power_mode = new_power_mode;
+                }
+            );
             display_off = !display_off;
 
             display->configure(*conf.get());
@@ -165,10 +156,19 @@ bool me::WindowManager::handle(MirEvent const& event)
             return true;
         }
         else if ((event.key.modifiers & mir_key_modifier_alt) &&
+                 (event.key.modifiers & mir_key_modifier_ctrl) &&
+                 (event.key.scan_code == KEY_ESC))
+        {
+            std::abort();
+            return true;
+        }
+        else if ((event.key.modifiers & mir_key_modifier_alt) &&
                  (event.key.modifiers & mir_key_modifier_ctrl))
         {
             MirOrientation orientation = mir_orientation_normal;
             bool rotating = true;
+            int mode_change = 0;
+            bool preferred_mode = false;
 
             switch (event.key.scan_code)
             {
@@ -179,19 +179,41 @@ bool me::WindowManager::handle(MirEvent const& event)
             default:        rotating = false; break;
             }
 
-            if (rotating)
+            switch (event.key.scan_code)
+            {
+            case KEY_MINUS: mode_change = -1;      break;
+            case KEY_EQUAL: mode_change = +1;      break;
+            case KEY_0:     preferred_mode = true; break;
+            default:                               break;
+            }
+
+            if (rotating || mode_change || preferred_mode)
             {
                 compositor->stop();
                 auto conf = display->configuration();
                 conf->for_each_output(
-                    [&](mg::DisplayConfigurationOutput const& output) -> void
+                    [&](mg::UserDisplayConfigurationOutput& output) -> void
                     {
-                        conf->configure_output(output.id, output.used,
-                                               output.top_left,
-                                               output.current_mode_index,
-                                               output.current_format,
-                                               output.power_mode,
-                                               orientation);
+                        // Only apply changes to the monitor the cursor is on
+                        if (!output.extents().contains(old_cursor))
+                            return;
+
+                        if (rotating)
+                            output.orientation = orientation;
+
+                        if (preferred_mode)
+                        {
+                            output.current_mode_index =
+                                output.preferred_mode_index;
+                        }
+                        else if (mode_change)
+                        {
+                            size_t nmodes = output.modes.size();
+                            if (nmodes)
+                                output.current_mode_index =
+                                    (output.current_mode_index + nmodes +
+                                     mode_change) % nmodes;
+                        }
                     }
                 );
                 display->configure(*conf);
@@ -206,11 +228,10 @@ bool me::WindowManager::handle(MirEvent const& event)
     {
         geometry::Point cursor = average_pointer(event.motion);
 
-        // FIXME: https://bugs.launchpad.net/mir/+bug/1197108
+        // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
         MirMotionAction action = static_cast<MirMotionAction>(event.motion.action & ~0xff00);
 
-        std::shared_ptr<msh::Session> app =
-            focus_controller->focussed_application().lock();
+        auto const app = focus_controller->focussed_application().lock();
 
         int fingers = static_cast<int>(event.motion.pointer_count);
 
@@ -221,7 +242,7 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             // FIXME: We need to be able to select individual surfaces in
             //        future and not just the "default" one.
-            std::shared_ptr<msh::Surface> surf = app->default_surface();
+            auto const surf = app->default_surface();
 
             if (surf &&
                 (event.motion.modifiers & mir_key_modifier_alt ||
@@ -250,8 +271,6 @@ bool me::WindowManager::handle(MirEvent const& event)
                                     drag.dx.as_int();
                         int height = old_size.height.as_int() +
                                      drag.dy.as_int();
-                        if (width <= 0) width = 1;
-                        if (height <= 0) height = 1; 
                         surf->resize({width, height});
                     }
                     else
@@ -282,8 +301,6 @@ bool me::WindowManager::handle(MirEvent const& event)
 
                         int width = old_size.width.as_int() + dx;
                         int height = old_size.height.as_int() + dy;
-                        if (width <= 0) width = 1; 
-                        if (height <= 0) height = 1; 
                         surf->resize({width, height});
                     }
 
@@ -305,7 +322,6 @@ bool me::WindowManager::handle(MirEvent const& event)
                 old_pos = surf->top_left();
                 old_size = surf->size();
                 old_pinch_diam = pinch_diam;
-                old_cursor = cursor;
             }
         }
 
@@ -318,6 +334,8 @@ bool me::WindowManager::handle(MirEvent const& event)
                 handled = true;
             }
         }
+
+        old_cursor = cursor;
     }
     return handled;
 }

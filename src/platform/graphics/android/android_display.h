@@ -19,12 +19,11 @@
 #ifndef MIR_GRAPHICS_ANDROID_ANDROID_DISPLAY_H_
 #define MIR_GRAPHICS_ANDROID_ANDROID_DISPLAY_H_
 
-#include "display_buffer.h"
 #include "mir/graphics/display.h"
-#include "android_display_configuration.h"
 #include "gl_context.h"
 
 #include <memory>
+#include <mutex>
 
 namespace mir
 {
@@ -32,18 +31,21 @@ namespace graphics
 {
 
 class DisplayReport;
+class GLConfig;
+class GLProgramFactory;
 
 namespace android
 {
-class DisplayDevice;
-
 class DisplayBuilder;
 class DisplaySupportProvider;
+class ConfigurableDisplayBuffer;
 
 class AndroidDisplay : public Display
 {
 public:
     explicit AndroidDisplay(std::shared_ptr<DisplayBuilder> const& display_builder,
+                            std::shared_ptr<GLProgramFactory> const& gl_program_factory,
+                            std::shared_ptr<GLConfig> const& gl_config,
                             std::shared_ptr<DisplayReport> const& display_report);
 
     void for_each_display_buffer(std::function<void(graphics::DisplayBuffer&)> const& f);
@@ -63,16 +65,16 @@ public:
     void pause();
     void resume();
 
-    std::weak_ptr<Cursor> the_cursor();
+    std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image);
     std::unique_ptr<graphics::GLContext> create_gl_context();
 
 private:
     std::shared_ptr<DisplayBuilder> const display_builder;
-    GLContext gl_context;
-    std::shared_ptr<DisplayDevice> const display_device;
+    PbufferGLContext gl_context;
+    mutable std::mutex configuration_mutex;
+
     //we only have a primary display at the moment
-    std::unique_ptr<graphics::DisplayBuffer> const display_buffer;
-    AndroidDisplayConfiguration current_configuration;
+    std::unique_ptr<ConfigurableDisplayBuffer> const display_buffer;
 };
 
 }

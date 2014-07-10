@@ -32,27 +32,16 @@ namespace doubles
 class MockInputSurface : public input::Surface
 {
 public:
-    MockInputSurface()
-    {
-        using namespace testing;
-        ON_CALL(*this, position())
-            .WillByDefault(
-                Return(geometry::Point{}));
-        ON_CALL(*this, size())
-            .WillByDefault(
-                Return(geometry::Size{}));
-        static std::string n;
-        ON_CALL(*this, name())
-            .WillByDefault(testing::ReturnRef(n));
-    }
     ~MockInputSurface() noexcept {}
-    MOCK_CONST_METHOD0(position, geometry::Point());
-    MOCK_CONST_METHOD0(size, geometry::Size());
-    MOCK_CONST_METHOD0(name, std::string const&());
-    MOCK_CONST_METHOD1(contains, bool(geometry::Point const&));
+    MOCK_CONST_METHOD0(name, std::string());
+    MOCK_CONST_METHOD0(input_bounds, geometry::Rectangle());
+    MOCK_CONST_METHOD1(input_area_contains, bool(geometry::Point const&));
+    MOCK_CONST_METHOD0(input_channel, std::shared_ptr<input::InputChannel>());
+    MOCK_CONST_METHOD0(cursor_image, std::shared_ptr<graphics::CursorImage>());
+    MOCK_CONST_METHOD0(reception_mode, input::InputReceptionMode());
+    MOCK_METHOD1(consume, void(MirEvent const&));
 };
 
-typedef ::testing::NiceMock<MockInputSurface> StubInputSurface;
 }
 }
 }

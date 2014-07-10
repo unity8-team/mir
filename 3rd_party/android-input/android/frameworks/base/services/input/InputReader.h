@@ -240,6 +240,10 @@ public:
 
     /* Gets a user-supplied alias for a particular input device, or an empty string if none. */
     virtual String8 getDeviceAlias(const InputDeviceIdentifier& identifier) = 0;
+
+    /* Retrieve the display association for a given device. */
+    virtual void getAssociatedDisplayInfo(InputDeviceIdentifier const& identifier,
+        int& out_associated_display_id, bool& out_associated_display_is_external) = 0;
 };
 
 
@@ -334,9 +338,9 @@ public:
  */
 class InputReader : public InputReaderInterface {
 public:
-    InputReader(const sp<EventHubInterface>& eventHub,
-            const sp<InputReaderPolicyInterface>& policy,
-            const sp<InputListenerInterface>& listener);
+    InputReader(const std::shared_ptr<EventHubInterface>& eventHub,
+            const std::shared_ptr<InputReaderPolicyInterface>& policy,
+            const std::shared_ptr<InputListenerInterface>& listener);
     virtual ~InputReader();
 
     virtual void dump(String8& dump);
@@ -393,8 +397,8 @@ private:
 
     Condition mReaderIsAliveCondition;
 
-    sp<EventHubInterface> mEventHub;
-    sp<InputReaderPolicyInterface> mPolicy;
+    std::shared_ptr<EventHubInterface> mEventHub;
+    std::shared_ptr<InputReaderPolicyInterface> mPolicy;
     sp<QueuedInputListener> mQueuedListener;
 
     InputReaderConfiguration mConfig;
@@ -449,11 +453,11 @@ private:
 /* Reads raw events from the event hub and processes them, endlessly. */
 class InputReaderThread : public Thread {
 public:
-    InputReaderThread(const sp<InputReaderInterface>& reader);
+    InputReaderThread(std::shared_ptr<InputReaderInterface> const& reader);
     virtual ~InputReaderThread();
 
 private:
-    sp<InputReaderInterface> mReader;
+    std::shared_ptr<InputReaderInterface> mReader;
 
     virtual bool threadLoop();
 };
@@ -472,6 +476,7 @@ public:
     inline const String8& getName() { return mIdentifier.name; }
     inline uint32_t getClasses() { return mClasses; }
     inline uint32_t getSources() { return mSources; }
+    inline InputDeviceIdentifier const& getIdentifier() { return mIdentifier; }
 
     inline bool isExternal() { return mIsExternal; }
     inline void setExternal(bool external) { mIsExternal = external; }
@@ -480,7 +485,7 @@ public:
 
     void dump(String8& dump);
     void addMapper(InputMapper* mapper);
-    void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    void configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes);
     void reset(nsecs_t when);
     void process(const RawEvent* rawEvents, size_t count);
     void timeoutExpired(nsecs_t when);
@@ -892,7 +897,7 @@ public:
     virtual uint32_t getSources() = 0;
     virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
     virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes);
     virtual void reset(nsecs_t when);
     virtual void process(const RawEvent* rawEvent) = 0;
     virtual void timeoutExpired(nsecs_t when);
@@ -974,7 +979,8 @@ public:
     virtual uint32_t getSources();
     virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
     virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void configure(nsecs_t when, 
+        InputReaderConfiguration const* config, uint32_t changes);
     virtual void reset(nsecs_t when);
     virtual void process(const RawEvent* rawEvent);
 
@@ -1042,7 +1048,8 @@ public:
     virtual uint32_t getSources();
     virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
     virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void configure(nsecs_t when, 
+        InputReaderConfiguration const* config, uint32_t changes);
     virtual void reset(nsecs_t when);
     virtual void process(const RawEvent* rawEvent);
 
@@ -1107,7 +1114,8 @@ public:
     virtual uint32_t getSources();
     virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
     virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void configure(nsecs_t when, 
+        InputReaderConfiguration const* config, uint32_t changes);
     virtual void reset(nsecs_t when);
     virtual void process(const RawEvent* rawEvent);
 
@@ -1679,7 +1687,8 @@ public:
     virtual uint32_t getSources();
     virtual void populateDeviceInfo(InputDeviceInfo* deviceInfo);
     virtual void dump(String8& dump);
-    virtual void configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes);
+    virtual void configure(nsecs_t when,
+        InputReaderConfiguration const* config, uint32_t changes);
     virtual void reset(nsecs_t when);
     virtual void process(const RawEvent* rawEvent);
 

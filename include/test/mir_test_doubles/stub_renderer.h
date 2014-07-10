@@ -19,7 +19,8 @@
 #ifndef MIR_TEST_DOUBLES_STUB_RENDERER_H_
 #define MIR_TEST_DOUBLES_STUB_RENDERER_H_
 
-#include "src/server/compositor/renderer.h"
+#include "mir/compositor/renderer.h"
+#include "mir/graphics/renderable.h"
 
 namespace mir
 {
@@ -43,9 +44,10 @@ public:
     {
     }
 
-    void render(compositor::CompositingCriteria const&,
-                graphics::Buffer&) const override
+    void render(graphics::RenderableList const& renderables) const override
     {
+        for (auto const& r : renderables)
+            r->buffer(); // We need to consume a buffer to unblock client tests
     }
 
     void end() const override

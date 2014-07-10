@@ -16,6 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include "device_quirks.h"
 #include "output_builder.h"
 #include "display_resource_factory.h"
 #include "display_buffer.h"
@@ -33,11 +34,13 @@ namespace geom = mir::geometry;
 mga::OutputBuilder::OutputBuilder(
     std::shared_ptr<mga::GraphicBufferAllocator> const& buffer_allocator,
     std::shared_ptr<mga::DisplayResourceFactory> const& res_factory,
-    std::shared_ptr<mg::DisplayReport> const& display_report)
+    std::shared_ptr<mg::DisplayReport> const& display_report,
+    mga::OverlayOptimization overlay_optimization)
     : buffer_allocator(buffer_allocator),
       res_factory(res_factory),
       display_report(display_report),
-      force_backup_display(false)
+      force_backup_display(false),
+      overlay_optimization(overlay_optimization)
 {
     try
     {
@@ -54,7 +57,10 @@ mga::OutputBuilder::OutputBuilder(
     }
     else
     {
-        framebuffers = std::make_shared<mga::Framebuffers>(buffer_allocator, hwc_native);
+        mga::PropertiesOps ops;
+        mga::DeviceQuirks quirks(ops);
+        framebuffers = std::make_shared<mga::Framebuffers>(
+            buffer_allocator, hwc_native, quirks.num_framebuffers());
     }
 }
 
@@ -63,7 +69,9 @@ MirPixelFormat mga::OutputBuilder::display_format()
     return framebuffers->fb_format();
 }
 
-std::shared_ptr<mga::DisplayDevice> mga::OutputBuilder::create_display_device()
+std::unique_ptr<mga::ConfigurableDisplayBuffer> mga::OutputBuilder::create_display_buffer(
+    GLProgramFactory const& gl_program_factory,
+    GLContext const& gl_context)
 {
     std::shared_ptr<mga::DisplayDevice> device;
     if (force_backup_display)
@@ -98,14 +106,12 @@ std::shared_ptr<mga::DisplayDevice> mga::OutputBuilder::create_display_device()
         } 
     }
 
-    return device;
-}
-
-std::unique_ptr<mg::DisplayBuffer> mga::OutputBuilder::create_display_buffer(
-    std::shared_ptr<DisplayDevice> const& display_device,
-    GLContext const& gl_context)
-{
     auto native_window = res_factory->create_native_window(framebuffers);
-    return std::unique_ptr<mg::DisplayBuffer>(
-        new DisplayBuffer(framebuffers, display_device, native_window, gl_context));
+    return std::unique_ptr<mga::DisplayBuffer>(new DisplayBuffer(
+        framebuffers,
+        device,
+        native_window,
+        gl_context,
+        gl_program_factory,
+        overlay_optimization));
 }

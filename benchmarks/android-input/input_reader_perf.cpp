@@ -24,6 +24,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 
 // local
 #include "ntrig_input_events.h"
@@ -42,11 +43,9 @@ class FakeInputReaderPolicy : public InputReaderPolicyInterface {
     InputReaderConfiguration mConfig;
     Vector<InputDeviceInfo> mInputDevices;
 
-protected:
-    virtual ~FakeInputReaderPolicy() { }
-
 public:
     FakeInputReaderPolicy() {}
+    virtual ~FakeInputReaderPolicy() { }
 
     void setDisplayInfo(int32_t displayId, int32_t width, int32_t height, int32_t orientation) {
         // Set the size of both the internal and external display at the same time.
@@ -60,6 +59,12 @@ public:
 
     const Vector<InputDeviceInfo>& getInputDevices() const {
         return mInputDevices;
+    }
+
+    void getAssociatedDisplayInfo(InputDeviceIdentifier const& /* identifier */,
+        int& out_associated_display_id, bool& out_associated_display_is_external) {
+        out_associated_display_id = 0;
+        out_associated_display_is_external = false;
     }
 
 private:
@@ -119,7 +124,7 @@ int main(int argc, char *argv[])
     const int32_t DEVICE_ID = 2;
     const int32_t DISPLAY_ID = 0;
 
-    sp<FakeEventHub> fakeEventHub = new FakeEventHub;
+    std::shared_ptr<FakeEventHub> fakeEventHub = std::make_shared<FakeEventHub>();
     fakeEventHub->addDevice(DEVICE_ID, String8("N-Trig MultiTouch"), INPUT_DEVICE_CLASS_TOUCH_MT);
     fakeEventHub->addConfigurationProperty(DEVICE_ID, "touch.deviceType", "touchScreen");
     fakeEventHub->addConfigurationProperty(DEVICE_ID, "device.internal", "1");
@@ -130,10 +135,10 @@ int main(int argc, char *argv[])
     fakeEventHub->addAbsoluteAxis(DEVICE_ID, ABS_MT_TOUCH_MINOR, 0, 7200, 0, 0, 37);
     fakeEventHub->addAbsoluteAxis(DEVICE_ID, ABS_MT_ORIENTATION, 0, 1, 0, 0, 0);
 
-    sp<FakeInputReaderPolicy> fakePolicy = new FakeInputReaderPolicy;
+    std::shared_ptr<FakeInputReaderPolicy> fakePolicy = std::make_shared<FakeInputReaderPolicy>();
     fakePolicy->setDisplayInfo(DISPLAY_ID, 1024, 768, DISPLAY_ORIENTATION_0);
 
-    sp<InputListener> listener = new InputListener;
+    std::shared_ptr<InputListener> listener = std::make_shared<InputListener>();
 
     int32_t total_duration = 0;
     int32_t execution_number;

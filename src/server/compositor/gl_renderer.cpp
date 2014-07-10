@@ -15,18 +15,22 @@
  * Authored By: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "gl_renderer.h"
-#include "mir/compositor/compositing_criteria.h"
+#include "mir/compositor/gl_renderer.h"
 #include "mir/compositor/buffer_stream.h"
+#include "mir/compositor/destination_alpha.h"
+#include "mir/graphics/renderable.h"
 #include "mir/graphics/buffer.h"
+#include "mir/graphics/gl_texture_cache.h"
+#include "mir/graphics/gl_texture.h"
+#include "mir/graphics/tessellation_helpers.h"
 
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <cmath>
-#include <mutex>
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
@@ -42,9 +46,12 @@ const GLchar* vertex_shader_src =
     "uniform mat4 screen_to_gl_coords;\n"
     "uniform mat4 display_transform;\n"
     "uniform mat4 transform;\n"
+    "uniform vec2 centre;\n"
     "varying vec2 v_texcoord;\n"
     "void main() {\n"
-    "   gl_Position = display_transform * screen_to_gl_coords * transform * vec4(position, 1.0);\n"
+    "   vec4 mid = vec4(centre, 0.0, 0.0);\n"
+    "   vec4 transformed = (transform * (vec4(position, 1.0) - mid)) + mid;\n"
+    "   gl_Position = display_transform * screen_to_gl_coords * transformed;\n"
     "   v_texcoord = texcoord;\n"
     "}\n"
 };
@@ -57,147 +64,38 @@ const GLchar* fragment_shader_src =
     "varying vec2 v_texcoord;\n"
     "void main() {\n"
     "   vec4 frag = texture2D(tex, v_texcoord);\n"
-    "   gl_FragColor = vec4(frag.xyz, frag.a * alpha);\n"
+    "   gl_FragColor = alpha*frag;\n"
     "}\n"
 };
-
-struct VertexAttributes
-{
-    glm::vec3 position;
-    glm::vec2 texcoord;
-};
-
-/*
- * The texture coordinates are y-inverted to account for the difference in the
- * texture and renderable pixel data row order. In particular, GL textures
- * expect pixel data in rows starting from the bottom and moving up the image,
- * whereas our renderables provide data in rows starting from the top and
- * moving down the image.
- */
-VertexAttributes vertex_attribs[4] =
-{
-    {
-        glm::vec3{-0.5f, -0.5f, 0.0f},
-        glm::vec2{0.0f, 0.0f}
-    },
-    {
-        glm::vec3{-0.5f, 0.5f, 0.0f},
-        glm::vec2{0.0f, 1.0f},
-    },
-    {
-        glm::vec3{0.5f, -0.5f, 0.0f},
-        glm::vec2{1.0f, 0.0f},
-    },
-    {
-        glm::vec3{0.5f, 0.5f, 0.0f},
-        glm::vec2{1.0f, 1.0f}
-    }
-};
-
-typedef void(*MirGLGetObjectInfoLog)(GLuint, GLsizei, GLsizei *, GLchar *);
-typedef void(*MirGLGetObjectiv)(GLuint, GLenum, GLint *);
-
-void GetObjectLogAndThrow(MirGLGetObjectInfoLog getObjectInfoLog,
-                          MirGLGetObjectiv      getObjectiv,
-                          std::string const &   msg,
-                          GLuint                object)
-{
-    GLint object_log_length = 0;
-    (*getObjectiv)(object, GL_INFO_LOG_LENGTH, &object_log_length);
-
-    const GLuint object_log_buffer_length = object_log_length + 1;
-    std::string  object_info_log;
-
-    object_info_log.resize(object_log_buffer_length);
-    (*getObjectInfoLog)(object, object_log_length, NULL,
-                        const_cast<GLchar *>(object_info_log.data()));
-
-    std::string object_info_err(msg + "\n");
-    object_info_err += object_info_log;
-
-    BOOST_THROW_EXCEPTION(std::runtime_error(object_info_err));
 }
 
-}
-
-mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
-    vertex_shader(0),
-    fragment_shader(0),
-    program(0),
-    position_attr_loc(0),
-    texcoord_attr_loc(0),
-    transform_uniform_loc(0),
-    alpha_uniform_loc(0),
-    vertex_attribs_vbo(0),
-    rotation(NAN) // ensure the first set_rotation succeeds
+mc::GLRenderer::GLRenderer(
+    mg::GLProgramFactory const& program_factory,
+    std::unique_ptr<mg::GLTextureCache> && texture_cache, 
+    geom::Rectangle const& display_area,
+    DestinationAlpha dest_alpha)
+    : program(program_factory.create_gl_program(vertex_shader_src, fragment_shader_src)),
+      texture_cache(std::move(texture_cache)),
+      position_attr_loc(0),
+      texcoord_attr_loc(0),
+      centre_uniform_loc(0),
+      transform_uniform_loc(0),
+      alpha_uniform_loc(0),
+      rotation(NAN), // ensure the first set_rotation succeeds
+      dest_alpha(dest_alpha)
 {
-    /*
-     * We need to serialize renderer creation because some GL calls used
-     * during renderer construction that create unique resource ids
-     * (e.g. glCreateProgram) are not thread-safe when the threads are
-     * have the same or shared EGL contexts.
-     */
-    static std::mutex mutex;
-    std::lock_guard<std::mutex> lock(mutex);
-
-    GLint param = 0;
-
-    /* Create shaders and program */
-    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_src, 0);
-    glCompileShader(vertex_shader);
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &param);
-    if (param == GL_FALSE)
-    {
-        GetObjectLogAndThrow(glGetShaderInfoLog,
-            glGetShaderiv,
-            "Failed to compile vertex shader:",
-            vertex_shader);
-    }
-
-    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_src, 0);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &param);
-    if (param == GL_FALSE)
-    {
-        GetObjectLogAndThrow(glGetShaderInfoLog,
-            glGetShaderiv,
-            "Failed to compile fragment shader:",
-            fragment_shader);
-    }
-
-    program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &param);
-    if (param == GL_FALSE)
-    {
-        GetObjectLogAndThrow(glGetProgramInfoLog,
-            glGetProgramiv,
-            "Failed to link program:",
-            program);
-    }
-
-    glUseProgram(program);
+    glUseProgram(*program);
 
     /* Set up program variables */
-    GLint tex_loc = glGetUniformLocation(program, "tex");
-    display_transform_uniform_loc = glGetUniformLocation(program, "display_transform");
-    transform_uniform_loc = glGetUniformLocation(program, "transform");
-    alpha_uniform_loc = glGetUniformLocation(program, "alpha");
-    position_attr_loc = glGetAttribLocation(program, "position");
-    texcoord_attr_loc = glGetAttribLocation(program, "texcoord");
+    GLint tex_loc = glGetUniformLocation(*program, "tex");
+    display_transform_uniform_loc = glGetUniformLocation(*program, "display_transform");
+    transform_uniform_loc = glGetUniformLocation(*program, "transform");
+    alpha_uniform_loc = glGetUniformLocation(*program, "alpha");
+    position_attr_loc = glGetAttribLocation(*program, "position");
+    texcoord_attr_loc = glGetAttribLocation(*program, "texcoord");
+    centre_uniform_loc = glGetUniformLocation(*program, "centre");
 
     glUniform1i(tex_loc, 0);
-
-    /* Create VBO */
-    glGenBuffers(1, &vertex_attribs_vbo);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_attribs_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_attribs),
-            glm::value_ptr(vertex_attribs[0].position), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
@@ -206,28 +104,28 @@ mc::GLRenderer::GLRenderer(geom::Rectangle const& display_area) :
     set_rotation(0.0f);
 }
 
-mc::GLRenderer::~GLRenderer() noexcept
+void mc::GLRenderer::tessellate(std::vector<mg::GLPrimitive>& primitives,
+                                mg::Renderable const& renderable) const
 {
-    if (vertex_shader)
-        glDeleteShader(vertex_shader);
-    if (fragment_shader)
-        glDeleteShader(fragment_shader);
-    if (program)
-        glDeleteProgram(program);
-    if (vertex_attribs_vbo)
-        glDeleteBuffers(1, &vertex_attribs_vbo);
-    for (auto& t : textures)
-        glDeleteTextures(1, &t.second.id);
+    primitives.resize(1);
+    primitives[0] = mg::tessellate_renderable_into_rectangle(renderable);
 }
 
-void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buffer) const
+void mc::GLRenderer::render(mg::RenderableList const& renderables) const
 {
-    glUseProgram(program);
+    for (auto const& r : renderables)
+        render(*r);
+}
 
-    if (criteria.shaped() || criteria.alpha() < 1.0f)
+void mc::GLRenderer::render(mg::Renderable const& renderable) const
+{
+
+    glUseProgram(*program);
+
+    if (renderable.shaped() || renderable.alpha() < 1.0f)
     {
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     }
     else
     {
@@ -235,45 +133,46 @@ void mc::GLRenderer::render(CompositingCriteria const& criteria, mg::Buffer& buf
     }
     glActiveTexture(GL_TEXTURE0);
 
+    auto const& rect = renderable.screen_position();
+    GLfloat centrex = rect.top_left.x.as_int() +
+                      rect.size.width.as_int() / 2.0f;
+    GLfloat centrey = rect.top_left.y.as_int() +
+                      rect.size.height.as_int() / 2.0f;
+    glUniform2f(centre_uniform_loc, centrex, centrey);
+
     glUniformMatrix4fv(transform_uniform_loc, 1, GL_FALSE,
-                       glm::value_ptr(criteria.transformation()));
-    glUniform1f(alpha_uniform_loc, criteria.alpha());
-
-    /* Set up vertex attribute data */
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_attribs_vbo);
-    glVertexAttribPointer(position_attr_loc, 3, GL_FLOAT,
-                          GL_FALSE, sizeof(VertexAttributes), 0);
-    glVertexAttribPointer(texcoord_attr_loc, 2, GL_FLOAT,
-                          GL_FALSE, sizeof(VertexAttributes),
-                          reinterpret_cast<void*>(sizeof(glm::vec3)));
-
-    SurfaceID surf = &criteria; // temporary hack till we rearrange classes
-    auto& tex = textures[surf];
-    bool changed = true;
-    auto const& buf_id = buffer.id();
-    if (!tex.id)
-    {
-        glGenTextures(1, &tex.id);
-        glBindTexture(GL_TEXTURE_2D, tex.id);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    else
-    {
-        glBindTexture(GL_TEXTURE_2D, tex.id);
-        changed = (tex.origin != buf_id) || skipped;
-    }
-    tex.origin = buf_id;
-    tex.used = true;
-    if (changed)  // Don't upload a new texture unless the surface has changed
-        buffer.bind_to_texture();
+                       glm::value_ptr(renderable.transformation()));
+    glUniform1f(alpha_uniform_loc, renderable.alpha());
 
     /* Draw */
     glEnableVertexAttribArray(position_attr_loc);
     glEnableVertexAttribArray(texcoord_attr_loc);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    std::vector<mg::GLPrimitive> primitives;
+    tessellate(primitives, renderable);
+
+    auto surface_tex = texture_cache->load(renderable);
+
+    for (auto const& p : primitives)
+    {
+        // Note a primitive tex_id of zero means use the surface texture,
+        // which is what you normally want. Other textures could be used
+        // in decorations etc.
+        if (p.tex_id) //tessalate() can be overridden, and that code can set to nonzero  
+            glBindTexture(GL_TEXTURE_2D, p.tex_id);
+        else
+            surface_tex->bind();
+
+        glVertexAttribPointer(position_attr_loc, 3, GL_FLOAT,
+                              GL_FALSE, sizeof(mg::GLVertex),
+                              &p.vertices[0].position);
+        glVertexAttribPointer(texcoord_attr_loc, 2, GL_FLOAT,
+                              GL_FALSE, sizeof(mg::GLVertex),
+                              &p.vertices[0].texcoord);
+
+        glDrawArrays(p.type, 0, p.vertices.size());
+    }
+
     glDisableVertexAttribArray(texcoord_attr_loc);
     glDisableVertexAttribArray(position_attr_loc);
 }
@@ -289,18 +188,33 @@ void mc::GLRenderer::set_viewport(geometry::Rectangle const& rect)
      * (top-left is (0,0), bottom-right is (W,H)) to the normalized GL coordinate system
      * (top-left is (-1,1), bottom-right is (1,-1))
      */
-    glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4{1.0f}, glm::vec3{-1.0f, 1.0f, 0.0f});
+    glm::mat4 screen_to_gl_coords = glm::translate(glm::mat4(1.0f), glm::vec3{-1.0f, 1.0f, 0.0f});
+
+    /*
+     * Perspective division is one thing that can't be done in a matrix
+     * multiplication. It happens after the matrix multiplications. GL just
+     * scales {x,y} by 1/w. So modify the final part of the projection matrix
+     * to set w ([3]) to be the incoming z coordinate ([2]).
+     */
+    screen_to_gl_coords[2][3] = -1.0f;
+
+    float const vertical_fov_degrees = 30.0f;
+    float const near =
+        (rect.size.height.as_float() / 2.0f) /
+        std::tan((vertical_fov_degrees * M_PI / 180.0f) / 2.0f);
+    float const far = -near;
+
     screen_to_gl_coords = glm::scale(screen_to_gl_coords,
             glm::vec3{2.0f / rect.size.width.as_float(),
                       -2.0f / rect.size.height.as_float(),
-                      1.0f});
+                      2.0f / (near - far)});
     screen_to_gl_coords = glm::translate(screen_to_gl_coords,
             glm::vec3{-rect.top_left.x.as_float(),
                       -rect.top_left.y.as_float(),
                       0.0f});
 
-    glUseProgram(program);
-    GLint mat_loc = glGetUniformLocation(program, "screen_to_gl_coords");
+    glUseProgram(*program);
+    GLint mat_loc = glGetUniformLocation(*program, "screen_to_gl_coords");
     glUniformMatrix4fv(mat_loc, 1, GL_FALSE, glm::value_ptr(screen_to_gl_coords));
     glUseProgram(0);
 
@@ -319,7 +233,7 @@ void mc::GLRenderer::set_rotation(float degrees)
                        -sin, cos,  0.0f, 0.0f,
                        0.0f, 0.0f, 1.0f, 0.0f,
                        0.0f, 0.0f, 0.0f, 1.0f};
-    glUseProgram(program);
+    glUseProgram(*program);
     glUniformMatrix4fv(display_transform_uniform_loc, 1, GL_FALSE, rot);
     glUseProgram(0);
 
@@ -328,30 +242,29 @@ void mc::GLRenderer::set_rotation(float degrees)
 
 void mc::GLRenderer::begin() const
 {
+    if (dest_alpha == DestinationAlpha::opaque)
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    else
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    if (dest_alpha == DestinationAlpha::opaque)
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
 }
 
 void mc::GLRenderer::end() const
 {
-    auto t = textures.begin();
-    while (t != textures.end())
-    {
-        auto& tex = t->second;
-        if (tex.used)
-        {
-            tex.used = false;
-            ++t;
-        }
-        else
-        {
-            glDeleteTextures(1, &tex.id);
-            t = textures.erase(t);
-        }
-    }
-    skipped = false;
+    texture_cache->drop_unused();
 }
 
 void mc::GLRenderer::suspend()
 {
-    skipped = true;
+    texture_cache->invalidate();
+}
+
+mc::DestinationAlpha mc::GLRenderer::destination_alpha() const
+{
+    return dest_alpha;
 }

@@ -171,25 +171,21 @@ static bool validateMotionEvent(int32_t action, size_t pointerCount,
 
 // --- InputDispatcher ---
 
-InputDispatcher::InputDispatcher(const sp<InputDispatcherPolicyInterface>& policy, 
-    std::shared_ptr<mi::InputReport> const& input_report) :
+InputDispatcher::InputDispatcher(std::shared_ptr<InputDispatcherPolicyInterface> const& policy,
+    std::shared_ptr<mi::InputReport> const& input_report,
+    std::shared_ptr<InputEnumerator> const& enumerator) :
         input_report(input_report),
         mPolicy(policy),
         mPendingEvent(NULL), mAppSwitchSawKeyDown(false), mAppSwitchDueTime(LONG_LONG_MAX),
         mNextUnblockedEvent(NULL),
         mDispatchEnabled(false), mDispatchFrozen(false), mInputFilterEnabled(false),
+        mEnumerator(enumerator),
         mInputTargetWaitCause(INPUT_TARGET_WAIT_CAUSE_NONE) {
     mLooper = new Looper(false);
 
     mKeyRepeatState.lastKeyEntry = NULL;
 
     policy->getDispatcherConfiguration(&mConfig);
-}
-
-void InputDispatcher::setInputEnumerator(sp<InputEnumerator> const& enumerator)
-{
-    AutoMutex _l(mLock);
-    mEnumerator = enumerator;
 }
 
 InputDispatcher::~InputDispatcher() {
@@ -432,6 +428,7 @@ bool InputDispatcher::enqueueInboundEventLocked(EventEntry* entry) {
 sp<InputWindowHandle> InputDispatcher::findTouchedWindowAtLocked(int32_t x, int32_t y) {
     sp<InputWindowHandle> foundHandle = NULL;
     mEnumerator->for_each([&](sp<InputWindowHandle> windowHandle) {
+        windowHandle->updateInfo();
         const InputWindowInfo* windowInfo = windowHandle->getInfo();
         int32_t flags = windowInfo->layoutParamsFlags;
 
@@ -1151,6 +1148,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
 
         // Traverse windows from front to back to find touched window and outside targets.
         mEnumerator->for_each([&](sp<InputWindowHandle> const& windowHandle){
+            windowHandle->updateInfo();
             const InputWindowInfo* windowInfo = windowHandle->getInfo();
             int32_t flags = windowInfo->layoutParamsFlags;
 
@@ -2742,6 +2740,12 @@ void InputDispatcher::setKeyboardFocusLocked(const sp<InputWindowHandle>& newFoc
                   c_str(newFocusedWindowHandle->getName()));
 #endif
         }
+
+        if (mInputTargetWaitCause != INPUT_TARGET_WAIT_CAUSE_NONE) {
+            releasePendingEventLocked();
+            drainInboundQueueLocked();
+        }
+
         mFocusedWindowHandle = newFocusedWindowHandle;
     }
 }
@@ -4276,7 +4280,7 @@ bool InputDispatcher::TouchState::isSlippery() const {
 
 // --- InputDispatcherThread ---
 
-InputDispatcherThread::InputDispatcherThread(const sp<InputDispatcherInterface>& dispatcher) :
+InputDispatcherThread::InputDispatcherThread(std::shared_ptr<InputDispatcherInterface> const& dispatcher) :
         Thread(/*canCallJava*/ true), mDispatcher(dispatcher) {
 }
 

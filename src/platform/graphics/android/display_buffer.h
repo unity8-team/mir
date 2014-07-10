@@ -19,9 +19,13 @@
 #ifndef MIR_GRAPHICS_ANDROID_DISPLAY_BUFFER_H_
 #define MIR_GRAPHICS_ANDROID_DISPLAY_BUFFER_H_
 
-#include "mir/graphics/display_buffer.h"
+#include "configurable_display_buffer.h"
 #include "mir/graphics/egl_resources.h"
+#include "mir/graphics/gl_program_factory.h"
+#include "android_display_configuration.h"
 #include "gl_context.h"
+#include "hwc_fallback_gl_renderer.h"
+#include "overlay_optimization.h"
 #include <system/window.h>
 
 namespace mir
@@ -34,33 +38,37 @@ namespace android
 class DisplayDevice;
 class FramebufferBundle;
 
-class DisplayBuffer : public graphics::DisplayBuffer
+class DisplayBuffer : public ConfigurableDisplayBuffer
 {
 public:
     DisplayBuffer(std::shared_ptr<FramebufferBundle> const& fb_bundle,
                   std::shared_ptr<DisplayDevice> const& display_device,
                   std::shared_ptr<ANativeWindow> const& native_window,
-                  GLContext const& shared_gl_context);
+                  GLContext const& shared_gl_context,
+                  GLProgramFactory const& program_factory,
+                  OverlayOptimization overlay_option);
 
     geometry::Rectangle view_area() const;
     void make_current();
     void release_current();
     void post_update();
-    bool can_bypass() const override;
+    bool post_renderables_if_optimizable(RenderableList const& renderlist);
 
-    void render_and_post_update(
-        std::list<std::shared_ptr<Renderable>> const& renderlist,
-        std::function<void(Renderable const&)> const& render_fn);
     MirOrientation orientation() const override;
-    void orient(MirOrientation);
+    bool uses_alpha() const override;
+
+    DisplayConfigurationOutput configuration() const;
+    void configure(DisplayConfigurationOutput const&);
 
 private:
-    void render_and_post();
-
     std::shared_ptr<FramebufferBundle> const fb_bundle;
     std::shared_ptr<DisplayDevice> const display_device;
     std::shared_ptr<ANativeWindow> const native_window;
-    GLContext gl_context;
+    FramebufferGLContext gl_context;
+    HWCFallbackGLRenderer overlay_program;
+    bool prepared;
+    bool overlay_enabled;
+    DisplayConfigurationOutput current_configuration;
     MirOrientation rotation;
 };
 

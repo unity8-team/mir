@@ -46,6 +46,7 @@ typedef void* MirEGLNativeDisplayType;
 typedef struct MirConnection MirConnection;
 typedef struct MirSurface MirSurface;
 typedef struct MirScreencast MirScreencast;
+typedef struct MirPromptSession MirPromptSession;
 
 /**
  * Returned by asynchronous functions. Must not be free'd by
@@ -102,6 +103,19 @@ typedef void (*mir_lifecycle_event_callback)(
 
 typedef void (*mir_display_config_callback)(
     MirConnection* connection, void* context);
+
+/**
+ * Callback called when a request for client file descriptors completes
+ *   \param [in] prompt_session  The prompt session
+ *   \param [in] count          The number of FDs allocated
+ *   \param [in] fds            Array of FDs
+ *   \param [in,out] context    The context provided by client
+ *
+ *   \note Copy the FDs as the array will be invalidated after callback completes
+ */
+
+typedef void (*mir_client_fd_callback)(
+    MirPromptSession *prompt_session, size_t count, int const* fds, void* context);
 
 /**
  * MirBufferUsage specifies how a surface can and will be used. A "hardware"
@@ -267,15 +281,35 @@ typedef struct MirEventDelegate
     void *context;
 } MirEventDelegate;
 
+typedef struct MirRectangle
+{
+    int left;
+    int top;
+    unsigned int width;
+    unsigned int height;
+} MirRectangle;
+
 /**
  * MirScreencastParameters is the structure of required information that
  * you must provide to Mir in order to create a MirScreencast.
+ * The width and height parameters can be used to down-scale the screencast
+ * For no scaling set them to the region width and height.
  */
 typedef struct MirScreencastParameters
 {
-    uint32_t output_id;
-    uint32_t width;
-    uint32_t height;
+    /**
+     * The rectangular region of the screen to capture -
+     * The region is specified in virtual screen space hence multiple screens can be captured simultaneously
+     */
+    MirRectangle region;
+    /** The width of the screencast which can be different than the screen region capture width */
+    unsigned int width;
+    /** The height of the screencast which can be different than the screen region capture height */
+    unsigned int height;
+    /**
+     * The pixel format of the screencast.
+     * It must be a supported format obtained from mir_connection_get_available_surface_formats.
+     */
     MirPixelFormat pixel_format;
 } MirScreencastParameters;
 
@@ -285,6 +319,31 @@ typedef struct MirScreencastParameters
  *   \param [in,out] client_context  context provided by the client
  */
 typedef void (*mir_screencast_callback)(MirScreencast *screencast, void *client_context);
+
+/**
+ * Callback member of MirPromptSession for handling of prompt sessions.
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_callback)(MirPromptSession* prompt_provider, void* context);
+
+/**
+ * Callback member of MirPromptSession for adding prompt providers
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in] added            True if the session was added, false otherwise
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_add_prompt_provider_callback)(
+    MirPromptSession* prompt_provider, MirBool added, void* context);
+
+/**
+ * Callback member of MirPromptSession for handling of prompt sessions events.
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in] state            The state of the prompt session
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_state_change_callback)(
+    MirPromptSession* prompt_provider, MirPromptSessionState state, void* context);
 
 #ifdef __cplusplus
 }

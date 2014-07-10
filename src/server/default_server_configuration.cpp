@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -17,16 +17,19 @@
  */
 
 #include "mir/default_server_configuration.h"
+#include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
 #include "mir/asio_main_loop.h"
 #include "mir/default_server_status_listener.h"
+#include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 
 #include "mir/options/program_option.h"
+#include "mir/frontend/session_credentials.h"
 #include "mir/frontend/session_authorizer.h"
-#include "mir/shell/surface_configurator.h"
+#include "mir/scene/surface_configurator.h"
 #include "mir/graphics/cursor.h"
-#include "mir/shell/null_session_listener.h"
+#include "mir/scene/null_session_listener.h"
 #include "mir/graphics/display.h"
 #include "mir/input/cursor_listener.h"
 #include "mir/input/vt_filter.h"
@@ -34,26 +37,38 @@
 #include "mir/time/high_resolution_clock.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
-
-#include <map>
+#include "mir/scene/null_prompt_session_listener.h"
+#include "default_emergency_cleanup.h"
 
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
+namespace mo = mir::options;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mi = mir::input;
 
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
-    DefaultConfigurationOptions(argc, argv),
+        DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
+{
+}
+
+mir::DefaultServerConfiguration::DefaultServerConfiguration(std::shared_ptr<mo::Configuration> const& configuration_options) :
+    configuration_options(configuration_options),
     default_filter(std::make_shared<mi::VTFilter>())
 {
 }
 
+auto mir::DefaultServerConfiguration::the_options() const
+->std::shared_ptr<options::Option>
+{
+    return configuration_options->the_options();
+}
+
 std::string mir::DefaultServerConfiguration::the_socket_file() const
 {
-    auto socket_file = the_options()->get<std::string>(server_socket_opt);
+    auto socket_file = the_options()->get<std::string>(options::server_socket_opt);
 
     // Record this for any children that want to know how to connect to us.
     // By both listening to this env var on startup and resetting it here,
@@ -63,56 +78,39 @@ std::string mir::DefaultServerConfiguration::the_socket_file() const
     return socket_file;
 }
 
-std::shared_ptr<msh::SessionListener>
-mir::DefaultServerConfiguration::the_shell_session_listener()
+std::shared_ptr<ms::SessionListener>
+mir::DefaultServerConfiguration::the_session_listener()
 {
-    return shell_session_listener(
+    return session_listener(
         [this]
         {
-            return std::make_shared<msh::NullSessionListener>();
+            return std::make_shared<ms::NullSessionListener>();
         });
 }
 
-std::shared_ptr<mi::CursorListener>
-mir::DefaultServerConfiguration::the_cursor_listener()
+std::shared_ptr<ms::PromptSessionListener>
+mir::DefaultServerConfiguration::the_prompt_session_listener()
 {
-    struct DefaultCursorListener : mi::CursorListener
-    {
-        DefaultCursorListener(std::weak_ptr<mg::Cursor> const& cursor) :
-            cursor(cursor)
+    return prompt_session_listener(
+        [this]
         {
-        }
-
-        void cursor_moved_to(float abs_x, float abs_y)
-        {
-            if (auto c = cursor.lock())
-            {
-                c->move_to(geom::Point{abs_x, abs_y});
-            }
-        }
-
-        std::weak_ptr<mg::Cursor> const cursor;
-    };
-    return cursor_listener(
-        [this]() -> std::shared_ptr<mi::CursorListener>
-        {
-            return std::make_shared<DefaultCursorListener>(the_display()->the_cursor());
+            return std::make_shared<ms::NullPromptSessionListener>();
         });
 }
 
-std::shared_ptr<msh::SurfaceConfigurator> mir::DefaultServerConfiguration::the_shell_surface_configurator()
+std::shared_ptr<ms::SurfaceConfigurator> mir::DefaultServerConfiguration::the_surface_configurator()
 {
-    struct DefaultSurfaceConfigurator : public msh::SurfaceConfigurator
+    struct DefaultSurfaceConfigurator : public ms::SurfaceConfigurator
     {
-        int select_attribute_value(msh::Surface const&, MirSurfaceAttrib, int requested_value)
+        int select_attribute_value(ms::Surface const&, MirSurfaceAttrib, int requested_value)
         {
             return requested_value;
         }
-        void attribute_set(msh::Surface const&, MirSurfaceAttrib, int)
+        void attribute_set(ms::Surface const&, MirSurfaceAttrib, int)
         {
         }
     };
-    return shell_surface_configurator(
+    return surface_configurator(
         [this]()
         {
             return std::make_shared<DefaultSurfaceConfigurator>();
@@ -124,12 +122,22 @@ mir::DefaultServerConfiguration::the_session_authorizer()
 {
     struct DefaultSessionAuthorizer : public mf::SessionAuthorizer
     {
-        bool connection_is_allowed(pid_t /* pid */)
+        bool connection_is_allowed(mf::SessionCredentials const& /* creds */)
         {
             return true;
         }
 
-        bool configure_display_is_allowed(pid_t /* pid */)
+        bool configure_display_is_allowed(mf::SessionCredentials const& /* creds */)
+        {
+            return true;
+        }
+
+        bool screencast_is_allowed(mf::SessionCredentials const& /* creds */)
+        {
+            return true;
+        }
+
+        bool prompt_session_is_allowed(mf::SessionCredentials const& /* creds */) override
         {
             return true;
         }
@@ -141,10 +149,7 @@ mir::DefaultServerConfiguration::the_session_authorizer()
         });
 }
 
-std::shared_ptr<mi::InputChannelFactory> mir::DefaultServerConfiguration::the_input_channel_factory()
-{
-    return the_input_manager();
-}
+mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
 
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {
@@ -158,12 +163,16 @@ std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
 {
     return main_loop(
-        []()
+        [this]()
         {
-            return std::make_shared<mir::AsioMainLoop>();
+            return std::make_shared<mir::AsioMainLoop>(the_clock());
         });
 }
 
+std::shared_ptr<mir::ServerActionQueue> mir::DefaultServerConfiguration::the_server_action_queue()
+{
+    return the_main_loop();
+}
 
 std::shared_ptr<mir::ServerStatusListener> mir::DefaultServerConfiguration::the_server_status_listener()
 {
@@ -171,5 +180,14 @@ std::shared_ptr<mir::ServerStatusListener> mir::DefaultServerConfiguration::the_
         []()
         {
             return std::make_shared<mir::DefaultServerStatusListener>();
+        });
+}
+
+std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emergency_cleanup()
+{
+    return emergency_cleanup(
+        []()
+        {
+            return std::make_shared<DefaultEmergencyCleanup>();
         });
 }

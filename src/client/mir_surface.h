@@ -32,6 +32,7 @@
 #include <memory>
 #include <functional>
 #include <mutex>
+#include <unordered_set>
 
 namespace mir
 {
@@ -74,7 +75,6 @@ public:
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;
-    bool is_valid() const;
     MirWaitHandle* next_buffer(mir_surface_callback callback, void * context);
     MirWaitHandle* get_create_wait_handle();
 
@@ -87,6 +87,9 @@ public:
 
     MirWaitHandle* configure(MirSurfaceAttrib a, int value);
     int attrib(MirSurfaceAttrib a) const;
+    MirOrientation get_orientation() const;
+    
+    MirWaitHandle* configure_cursor(MirCursorConfiguration const* cursor);
 
     void set_event_handler(MirEventDelegate const* delegate);
     void handle_event(MirEvent const& e);
@@ -95,10 +98,12 @@ public:
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
 
+    static bool is_valid(MirSurface* query);
 private:
     mutable std::mutex mutex; // Protects all members of *this
 
     void on_configured();
+    void on_cursor_configured();
     void process_incoming_buffer();
     void populate(MirBufferPackage& buffer_package);
     void created(mir_surface_callback callback, void * context);
@@ -106,16 +111,16 @@ private:
     MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf);
     void release_cpu_region();
 
-    /* todo: race condition. protobuf does not guarantee that callbacks will be synchronized. potential
-             race in surface, last_buffer_id */
     mir::protobuf::DisplayServer::Stub & server;
     mir::protobuf::Surface surface;
     std::string error_message;
+    mir::protobuf::Void void_response;
 
     MirConnection* const connection;
     MirWaitHandle create_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
     MirWaitHandle configure_wait_handle;
+    MirWaitHandle configure_cursor_wait_handle;
 
     std::shared_ptr<mir::client::MemoryRegion> secured_region;
     std::shared_ptr<mir::client::ClientBufferDepository> buffer_depository;
@@ -127,6 +132,7 @@ private:
 
     // Cache of latest SurfaceSettings returned from the server
     int attrib_cache[mir_surface_attribs];
+    MirOrientation orientation = mir_orientation_normal;
 
     std::function<void(MirEvent const*)> handle_event_callback;
     std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;

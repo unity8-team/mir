@@ -25,7 +25,7 @@
 
 namespace mir
 {
-namespace input { class EventFilter; }
+namespace input { class InputDispatcher; }
 namespace graphics
 {
 namespace nested
@@ -36,7 +36,7 @@ class NestedPlatform : public Platform
 public:
     NestedPlatform(
         std::shared_ptr<HostConnection> const& connection,
-        std::shared_ptr<input::EventFilter> const& event_handler,
+        std::shared_ptr<input::InputDispatcher> const& dispatcher,
         std::shared_ptr<DisplayReport> const& display_report,
         std::shared_ptr<NativePlatform> const& native_platform);
 
@@ -44,15 +44,18 @@ public:
     std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
             std::shared_ptr<BufferInitializer> const& buffer_initializer) override;
     std::shared_ptr<Display> create_display(
-            std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy) override;
+            std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
+            std::shared_ptr<GLProgramFactory> const& gl_program_factory,
+            std::shared_ptr<GLConfig> const& gl_config);
     std::shared_ptr<PlatformIPCPackage> get_ipc_package() override;
     std::shared_ptr<InternalClient> create_internal_client() override;
-    void fill_ipc_package(BufferIPCPacker* packer, Buffer const* Buffer) const override;
+    void fill_buffer_package(
+        BufferIPCPacker* packer, Buffer const* Buffer, BufferIpcMsgType msg_type) const override;
     EGLNativeDisplayType egl_native_display() const;
 
 private:
     std::shared_ptr<NativePlatform> const native_platform;
-    std::shared_ptr<input::EventFilter> const event_handler;
+    std::shared_ptr<input::InputDispatcher> const dispatcher;
     std::shared_ptr<DisplayReport> const display_report;
     std::shared_ptr<HostConnection> const connection;
 };

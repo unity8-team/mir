@@ -39,7 +39,7 @@ public:
     geometry::Stride stride() const;
     MirPixelFormat pixel_format() const;
     mg::BufferID id() const;
-    void bind_to_texture();
+    void gl_bind_to_texture() override;
     std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const;
     bool can_bypass() const override;
 
@@ -52,7 +52,7 @@ class TemporaryCompositorBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporaryCompositorBuffer(
-        std::shared_ptr<BufferBundle> const& bun, unsigned long frameno);
+        std::shared_ptr<BufferBundle> const& bun, void const* user_id);
     ~TemporaryCompositorBuffer();
 
 private:

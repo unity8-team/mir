@@ -17,17 +17,20 @@
  */
 
 #include "mir/graphics/display.h"
+#include "mir/graphics/display_configuration.h"
 #include "mir/graphics/gl_context.h"
+#include "mir/graphics/platform.h"
 #include "mir/options/program_option.h"
 
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
+#include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_gl_program_factory.h"
+#include "mir_test_doubles/platform_factory.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
 #ifndef ANDROID
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
-#include "mir_test_doubles/null_virtual_terminal.h"
-#include "src/platform/graphics/mesa/platform.h"
 #include "mir_test_framework/udev_environment.h"
 #else
 #include "src/platform/graphics/android/android_platform.h"
@@ -35,13 +38,11 @@
 #include "mir_test_doubles/mock_display_device.h"
 #endif
 
-#include "src/server/report/null_report_factory.h"
-
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace mg = mir::graphics;
 namespace mtd = mir::test::doubles;
-namespace mr = mir::report;
 #ifndef ANDROID
 namespace mtf = mir::mir_test_framework;
 #endif
@@ -73,17 +74,11 @@ public:
 
     std::shared_ptr<mg::Display> create_display()
     {
-        auto conf_policy = std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
-        auto report = mr::null_display_report();
-#ifdef ANDROID
-        auto platform = mg::create_platform(
-            std::make_shared<mir::options::ProgramOption>(),
-            report);
-#else
-        auto platform = std::make_shared<mg::mesa::Platform>(report,
-            std::make_shared<mir::test::doubles::NullVirtualTerminal>());
-#endif
-        return platform->create_display(conf_policy);
+        auto const platform = mtd::create_platform_with_null_dependencies();
+        return platform->create_display(
+            std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+            std::make_shared<mtd::StubGLProgramFactory>(),
+            std::make_shared<mtd::StubGLConfig>());
     }
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
@@ -96,6 +91,38 @@ public:
     mtf::UdevEnvironment fake_devices;
 #endif
 };
+
+namespace
+{
+
+class MockDisplayConfiguration : public mg::DisplayConfiguration
+{
+public:
+    MOCK_CONST_METHOD1(for_each_card,
+        void(std::function<void(mg::DisplayConfigurationCard const&)>));
+    MOCK_CONST_METHOD1(for_each_output,
+        void(std::function<void(mg::DisplayConfigurationOutput const&)>));
+    MOCK_METHOD1(for_each_output,
+        void(std::function<void(mg::UserDisplayConfigurationOutput&)>));
+    MOCK_CONST_METHOD0(valid, bool());
+};
+
+}
+
+TEST_F(DisplayTest, configure_disallows_invalid_configuration)
+{
+    using namespace testing;
+    auto display = create_display();
+    MockDisplayConfiguration config;
+
+    EXPECT_CALL(config, valid())
+        .WillOnce(Return(false));
+
+    EXPECT_THROW({display->configure(config);}, std::logic_error);
+
+    // Determining what counts as a valid configuration is a much trickier
+    // platform-dependent exercise, so won't be tested here.
+}
 
 TEST_F(DisplayTest, gl_context_make_current_uses_shared_context)
 {
@@ -162,4 +189,27 @@ TEST_F(DisplayTest, gl_context_releases_context)
     /* Possible display shutdown sequence, depending on the platform */
     EXPECT_CALL(mock_egl, eglMakeCurrent(_,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT))
         .Times(AtLeast(0));
+}
+
+TEST_F(DisplayTest, does_not_expose_display_buffer_for_output_with_power_mode_off)
+{
+    using namespace testing;
+    auto display = create_display();
+    int db_count{0};
+
+    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    EXPECT_THAT(db_count, Eq(1));
+
+    auto conf = display->configuration();
+    conf->for_each_output(
+        [] (mg::UserDisplayConfigurationOutput& output)
+        {
+            output.power_mode = mir_power_mode_off;
+        });
+
+    display->configure(*conf);
+
+    db_count = 0;
+    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    EXPECT_THAT(db_count, Eq(0));
 }

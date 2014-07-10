@@ -20,6 +20,8 @@
 #include "resource_cache.h"
 #include "message_sender.h"
 #include "mir/frontend/client_constants.h"
+#include "mir/variable_length_array.h"
+#include "socket_messenger.h"
 
 namespace mfd = mir::frontend::detail;
 
@@ -29,7 +31,6 @@ mfd::ProtobufResponder::ProtobufResponder(
     sender(sender),
     resource_cache(resource_cache)
 {
-    send_response_buffer.reserve(serialization_buffer_size);
 }
 
 void mfd::ProtobufResponder::send_response(
@@ -37,13 +38,17 @@ void mfd::ProtobufResponder::send_response(
     google::protobuf::Message* response,
     FdSets const& fd_sets)
 {
-    response->SerializeToString(&send_response_buffer);
+    mir::VariableLengthArray<serialization_buffer_size>
+        send_response_buffer{static_cast<size_t>(response->ByteSize())};
+
+    response->SerializeWithCachedSizesToArray(send_response_buffer.data());
 
     send_response_result.set_id(id);
-    send_response_result.set_response(send_response_buffer);
+    send_response_result.set_response(send_response_buffer.data(), send_response_buffer.size());
 
-    send_response_result.SerializeToString(&send_response_buffer);
+    send_response_buffer.resize(send_response_result.ByteSize());
+    send_response_result.SerializeWithCachedSizesToArray(send_response_buffer.data());
 
-    sender->send(send_response_buffer, fd_sets);
+    sender->send(reinterpret_cast<char*>(send_response_buffer.data()), send_response_buffer.size(), fd_sets);
     resource_cache->free_resource(response);
 }

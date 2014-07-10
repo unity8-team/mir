@@ -33,11 +33,25 @@
 
 namespace mtf=mir::mir_test_framework;
 
+namespace
+{
+
+bool KilledByInvalidMemoryAccess(int exit_status)
+{
+    return testing::KilledBySignal(SIGSEGV)(exit_status) ||
+           testing::KilledBySignal(SIGBUS)(exit_status) ||
+           testing::KilledBySignal(SIGABRT)(exit_status) ||
+           // It seems that valgrind kills us with SIGKILL
+           testing::KilledBySignal(SIGKILL)(exit_status);
+}
+
 class UdevWrapperTest : public ::testing::Test
 {
 public:
     mtf::UdevEnvironment udev_environment;
 };
+
+}
 
 TEST_F(UdevWrapperTest, IteratesOverCorrectNumberOfDevices)
 {
@@ -268,7 +282,7 @@ TEST_F(UdevWrapperDeathTest, DereferencingEndReturnsInvalidObject)
 
     devices.scan_devices();
 
-    EXPECT_EXIT((*devices.end()).subsystem(), testing::KilledBySignal(SIGSEGV), "");
+    EXPECT_EXIT((*devices.end()).subsystem(), KilledByInvalidMemoryAccess, "");
 
     auto iter = devices.begin();
 
@@ -276,7 +290,7 @@ TEST_F(UdevWrapperDeathTest, DereferencingEndReturnsInvalidObject)
     {
         iter++;
     }
-    EXPECT_EXIT((*iter).subsystem(), testing::KilledBySignal(SIGSEGV), "");
+    EXPECT_EXIT((*iter).subsystem(), KilledByInvalidMemoryAccess, "");
 }
 
 TEST_F(UdevWrapperTest, MemberDereferenceWorks)
@@ -303,7 +317,7 @@ TEST_F(UdevWrapperDeathTest, MemberDereferenceOfEndDies)
 
     devices.scan_devices();
 
-    EXPECT_EXIT(devices.end()->subsystem(), testing::KilledBySignal(SIGSEGV), "");
+    EXPECT_EXIT(devices.end()->subsystem(), KilledByInvalidMemoryAccess, "");
 
     auto iter = devices.begin();
 
@@ -311,7 +325,7 @@ TEST_F(UdevWrapperDeathTest, MemberDereferenceOfEndDies)
     {
         iter++;
     }
-    EXPECT_EXIT(iter->subsystem(), testing::KilledBySignal(SIGSEGV), "");
+    EXPECT_EXIT(iter->subsystem(), KilledByInvalidMemoryAccess, "");
 }
 
 TEST_F(UdevWrapperTest, UdevMonitorDoesNotTriggerBeforeEnabling)

@@ -18,10 +18,13 @@
 
 #include "mir/graphics/nested_context.h"
 #include "src/platform/graphics/mesa/native_platform.h"
+#include "mir/graphics/buffer_properties.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
+#include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/mock_buffer_packer.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -30,6 +33,7 @@ namespace mg = mir::graphics;
 namespace mgm = mir::graphics::mesa;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
+namespace geom = mir::geometry;
 
 namespace
 {
@@ -81,4 +85,39 @@ TEST_F(MesaNativePlatformTest, sets_gbm_device_during_initialization)
     EXPECT_CALL(mock_nested_context, drm_set_gbm_device(mock_gbm.fake_gbm.device));
 
     native.initialize(mt::fake_shared(mock_nested_context));
+}
+
+TEST_F(MesaNativePlatformTest, packs_buffer_ipc_package_correctly)
+{
+    using namespace testing;
+
+    int const width{123};
+    int const height{456};
+    geom::Size size{width, height};
+    auto stub_native_buffer = std::make_shared<mtd::StubGBMNativeBuffer>(size);
+    mg::BufferProperties properties{size, mir_pixel_format_abgr_8888, mg::BufferUsage::software};
+    mtd::StubBuffer const stub_buffer(
+        stub_native_buffer, properties, geom::Stride{stub_native_buffer->stride});
+    mtd::MockPacker mock_packer;
+    auto const native_buffer = stub_buffer.native_buffer_handle();
+
+    for(auto i = 0; i < native_buffer->fd_items; i++)
+        EXPECT_CALL(mock_packer, pack_fd(native_buffer->fd[i]))
+            .Times(Exactly(1));
+
+    for(auto i = 0; i < native_buffer->data_items; i++)
+        EXPECT_CALL(mock_packer, pack_data(native_buffer->data[i]))
+            .Times(Exactly(1));
+
+    EXPECT_CALL(mock_packer, pack_stride(stub_buffer.stride()))
+        .Times(Exactly(1));
+    EXPECT_CALL(mock_packer, pack_flags(native_buffer->flags))
+        .Times(Exactly(1));
+    EXPECT_CALL(mock_packer, pack_size(stub_buffer.size()))
+        .Times(Exactly(1));
+
+    mgm::NativePlatform native;
+
+    native.fill_buffer_package(&mock_packer, &stub_buffer, mg::BufferIpcMsgType::full_msg);
+    native.fill_buffer_package(&mock_packer, &stub_buffer, mg::BufferIpcMsgType::update_msg);
 }

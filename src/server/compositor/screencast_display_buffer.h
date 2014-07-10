@@ -59,15 +59,13 @@ public:
 
     void release_current();
 
-    void render_and_post_update(
-        std::list<std::shared_ptr<graphics::Renderable>> const&,
-        std::function<void(graphics::Renderable const&)> const&);
+    bool post_renderables_if_optimizable(graphics::RenderableList const&);
 
     void post_update();
 
-    bool can_bypass() const;
-
     MirOrientation orientation() const;
+
+    bool uses_alpha() const override;
 
 private:
     geometry::Rectangle const rect;

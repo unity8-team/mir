@@ -19,6 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_RENDERABLE_H_
 #define MIR_TEST_DOUBLES_MOCK_RENDERABLE_H_
 
+#include "mir_test_doubles/stub_buffer.h"
 #include <mir/graphics/renderable.h>
 #include <gmock/gmock.h>
 
@@ -30,9 +31,31 @@ namespace doubles
 {
 struct MockRenderable : public graphics::Renderable
 {
+    MockRenderable()
+    {
+        ON_CALL(*this, screen_position())
+            .WillByDefault(testing::Return(geometry::Rectangle{{},{}}));
+        ON_CALL(*this, buffer())
+            .WillByDefault(testing::Return(std::make_shared<StubBuffer>()));
+        ON_CALL(*this, buffers_ready_for_compositor())
+            .WillByDefault(testing::Return(1));
+        ON_CALL(*this, alpha())
+            .WillByDefault(testing::Return(1.0f));
+        ON_CALL(*this, transformation())
+            .WillByDefault(testing::Return(glm::mat4{}));
+        ON_CALL(*this, visible())
+            .WillByDefault(testing::Return(true));
+    }
+
+    MOCK_CONST_METHOD0(id, ID());
     MOCK_CONST_METHOD0(buffer, std::shared_ptr<graphics::Buffer>());
     MOCK_CONST_METHOD0(alpha_enabled, bool());
     MOCK_CONST_METHOD0(screen_position, geometry::Rectangle());
+    MOCK_CONST_METHOD0(alpha, float());
+    MOCK_CONST_METHOD0(transformation, glm::mat4());
+    MOCK_CONST_METHOD0(visible, bool());
+    MOCK_CONST_METHOD0(shaped, bool());
+    MOCK_CONST_METHOD0(buffers_ready_for_compositor, int());
 };
 }
 }

@@ -11,10 +11,16 @@ ADD_LIBRARY(
   mediating_display_changer.cpp
   session_manager.cpp
   surface_allocator.cpp
-  surface_data.cpp
+  surface_creation_parameters.cpp
   surface_stack.cpp
   surface_controller.cpp
-  surface_source.cpp
-  surface_impl.cpp
+  surface_event_source.cpp
+  null_surface_observer.cpp
+  null_observer.cpp
   threaded_snapshot_strategy.cpp
+  legacy_scene_change_notification.cpp
+  legacy_surface_change_notification.cpp
+  prompt_session_container.cpp
+  prompt_session_manager_impl.cpp
+  rendering_tracker.cpp
 )

@@ -44,6 +44,7 @@ namespace client
 class DisplayConfiguration;
 class SurfaceMap;
 class LifecycleControl;
+class EventSink;
 namespace rpc
 {
 
@@ -56,13 +57,15 @@ public:
                         std::shared_ptr<SurfaceMap> const& surface_map,
                         std::shared_ptr<DisplayConfiguration> const& disp_config,
                         std::shared_ptr<RpcReport> const& rpc_report,
-                        std::shared_ptr<LifecycleControl> const& lifecycle_control);
+                        std::shared_ptr<LifecycleControl> const& lifecycle_control,
+                        std::shared_ptr<EventSink> const& event_sink);
 
     MirSocketRpcChannel(int native_socket,
                         std::shared_ptr<SurfaceMap> const& surface_map,
                         std::shared_ptr<DisplayConfiguration> const& disp_config,
                         std::shared_ptr<RpcReport> const& rpc_report,
-                        std::shared_ptr<LifecycleControl> const& lifecycle_control);
+                        std::shared_ptr<LifecycleControl> const& lifecycle_control,
+                        std::shared_ptr<EventSink> const& event_sink);
     ~MirSocketRpcChannel();
 
 private:
@@ -80,9 +83,12 @@ private:
 
     static size_t const size_of_header = 2;
     unsigned char header_bytes[size_of_header];
+    std::vector<char> body_bytes;
 
     void receive_file_descriptors(google::protobuf::Message* response, google::protobuf::Closure* complete);
     void receive_file_descriptors(std::vector<int> &fds);
+    template<class MessageType>
+    void receive_any_file_descriptors_for(MessageType* response);
     void send_message(mir::protobuf::wire::Invocation const& body,
                       mir::protobuf::wire::Invocation const& invocation);
     void on_header_read(const boost::system::error_code& error);
@@ -92,12 +98,14 @@ private:
 
     size_t read_message_header();
 
-    mir::protobuf::wire::Result read_message_body(const size_t body_size);
+    void read_message_body(mir::protobuf::wire::Result& result,
+                           size_t const body_size);
     void notify_disconnected();
 
     std::shared_ptr<SurfaceMap> surface_map;
     std::shared_ptr<DisplayConfiguration> display_configuration;
     std::shared_ptr<LifecycleControl> lifecycle_control;
+    std::shared_ptr<EventSink> event_sink;
     std::atomic<bool> disconnected;
 };
 

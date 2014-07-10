@@ -21,20 +21,20 @@
 #include "mir/compositor/compositor.h"
 #include "src/server/scene/application_session.h"
 #include "src/server/scene/pixel_buffer.h"
-#include "mir/shell/placement_strategy.h"
-#include "mir/shell/surface.h"
-#include "mir/shell/surface_creation_parameters.h"
-#include "mir/shell/null_session_listener.h"
+#include "mir/scene/placement_strategy.h"
+#include "mir/scene/surface.h"
+#include "mir/scene/surface_creation_parameters.h"
+#include "mir/scene/null_session_listener.h"
 #include "mir/compositor/buffer_stream.h"
-#include "src/server/compositor/renderer.h"
-#include "src/server/compositor/renderer_factory.h"
+#include "mir/compositor/renderer.h"
+#include "mir/compositor/renderer_factory.h"
 #include "mir/frontend/connector.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/null_display.h"
+#include "mir_test_doubles/stub_display.h"
 #include "mir_test_doubles/null_event_sink.h"
-#include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_renderer.h"
+#include "mir_test_doubles/null_pixel_buffer.h"
 
 #include <gtest/gtest.h>
 
@@ -69,7 +69,7 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
             void start() {}
             void stop() {}
             int client_socket_fd() const override { return 0; }
-            void remove_endpoint() const override { }
+            int client_socket_fd(std::function<void(std::shared_ptr<mf::Session> const&)> const&) const override { return 0; }
         };
 
         return std::make_shared<NullConnector>();
@@ -88,7 +88,8 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
     {
         struct StubRendererFactory : public mc::RendererFactory
         {
-            std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&)
+            std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&,
+                mc::DestinationAlpha)
             {
                 auto raw = new mtd::StubRenderer{};
                 return std::unique_ptr<mtd::StubRenderer>(raw);
@@ -101,46 +102,24 @@ struct TestServerConfiguration : public mir::DefaultServerConfiguration
 
     std::shared_ptr<ms::PixelBuffer> the_pixel_buffer() override
     {
-        struct StubPixelBuffer : public ms::PixelBuffer
-        {
-            void fill_from(mg::Buffer&) {}
-            void const* as_argb_8888() { return nullptr; }
-            geom::Size size() const { return geom::Size(); }
-            geom::Stride stride() const { return geom::Stride(); }
-        };
-
         return pixel_buffer(
             []
             {
-                return std::make_shared<StubPixelBuffer>();
+                return std::make_shared<mtd::NullPixelBuffer>();
             });
     }
 
     std::shared_ptr<mg::Display> the_display() override
     {
-        struct StubDisplay : public mtd::NullDisplay
-        {
-            StubDisplay()
-                : buffers{mtd::StubDisplayBuffer{geom::Rectangle{{0,0},{100,100}}},
-                          mtd::StubDisplayBuffer{geom::Rectangle{{100,0},{100,100}}},
-                          mtd::StubDisplayBuffer{geom::Rectangle{{0,100},{100,100}}}}
-            {
-
-            }
-
-            void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f)
-            {
-                for (auto& db : buffers)
-                    f(db);
-            }
-
-            std::vector<mtd::StubDisplayBuffer> buffers;
-        };
-
         return display(
             []()
             {
-                return std::make_shared<StubDisplay>();
+                return std::make_shared<mtd::StubDisplay>(
+                    std::vector<geom::Rectangle>{
+                        {{0,0},{100,100}},
+                        {{100,0},{100,100}},
+                        {{0,100},{100,100}}
+                    });
             });
     }
 
@@ -154,14 +133,14 @@ TEST(ApplicationSession, stress_test_take_snapshot)
     TestServerConfiguration conf;
 
     ms::ApplicationSession session{
-        conf.the_shell_surface_factory(),
+        conf.the_surface_coordinator(),
         __LINE__,
         "stress",
         conf.the_snapshot_strategy(),
-        std::make_shared<msh::NullSessionListener>(),
+        std::make_shared<ms::NullSessionListener>(),
         std::make_shared<mtd::NullEventSink>()
     };
-    session.create_surface(msh::a_surface());
+    session.create_surface(ms::a_surface());
 
     auto compositor = conf.the_compositor();
 
@@ -189,9 +168,9 @@ TEST(ApplicationSession, stress_test_take_snapshot)
                 bool snapshot_taken2 = false;
 
                 session.take_snapshot(
-                    [&](msh::Snapshot const&) { snapshot_taken1 = true; });
+                    [&](ms::Snapshot const&) { snapshot_taken1 = true; });
                 session.take_snapshot(
-                    [&](msh::Snapshot const&) { snapshot_taken2 = true; });
+                    [&](ms::Snapshot const&) { snapshot_taken2 = true; });
 
                 while (!snapshot_taken1 || !snapshot_taken2)
                     std::this_thread::sleep_for(std::chrono::microseconds{50});

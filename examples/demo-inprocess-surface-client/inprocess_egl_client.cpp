@@ -22,8 +22,8 @@
 #include "mir/main_loop.h"
 #include "mir/shell/focus_controller.h"
 #include "mir/frontend/surface.h"
-#include "mir/shell/surface_creation_parameters.h"
-#include "mir/shell/session.h"
+#include "mir/scene/surface_creation_parameters.h"
+#include "mir/scene/session.h"
 #include "mir/frontend/session.h"
 #include "mir/frontend/shell.h"
 #include "mir/geometry/size.h"
@@ -49,6 +49,7 @@
 #include <signal.h>
 
 namespace mf = mir::frontend;
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace me = mir::examples;
@@ -91,7 +92,7 @@ void me::InprocessEGLClient::thread_loop()
     geom::Size const surface_size{512, 512};
 
     ///\internal [setup_tag]
-    auto params = msh::a_surface().of_name("Inprocess EGL Demo")
+    auto params = ms::a_surface().of_name("Inprocess EGL Demo")
         .of_size(surface_size)
         .of_buffer_usage(mg::BufferUsage::hardware)
         .of_pixel_format(mir_pixel_format_argb_8888);
@@ -101,7 +102,7 @@ void me::InprocessEGLClient::thread_loop()
 
     auto input_platform = mircv::InputPlatform::create();
     input_thread = input_platform->create_input_thread(
-        surface->client_input_fd(), 
+        surface->client_input_fd(),
             std::bind(std::mem_fn(&me::InprocessEGLClient::handle_event), this, std::placeholders::_1));
     input_thread->start();
 

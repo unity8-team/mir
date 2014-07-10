@@ -42,19 +42,21 @@ class Framebuffers : public FramebufferBundle
 {
 public:
     Framebuffers(std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator,
-                 std::shared_ptr<hwc_composer_device_1> const& hwc);
+                 std::shared_ptr<hwc_composer_device_1> const& hwc, unsigned int num_framebuffers);
     Framebuffers(std::shared_ptr<GraphicBufferAllocator> const& buffer_allocator,
                  std::shared_ptr<framebuffer_device_t> const& fb);
 
     MirPixelFormat fb_format();
     geometry::Size fb_size();
+    double fb_refresh_rate();
     std::shared_ptr<Buffer> buffer_for_render();
     std::shared_ptr<Buffer> last_rendered_buffer();
     void wait_for_consumed_buffer(bool);
 
 private:
     MirPixelFormat const format;
-    geometry::Size const size;
+    geometry::Size size;
+    double refresh_rate_hz;
 
     std::mutex queue_lock;
     std::shared_ptr<Buffer> buffer_being_rendered;

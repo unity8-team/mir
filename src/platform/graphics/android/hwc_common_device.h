@@ -48,12 +48,12 @@ public:
 
     void notify_vsync();
     void mode(MirPowerMode mode);
+    bool apply_orientation(MirOrientation orientation) const;
 
 protected:
     HWCCommonDevice(std::shared_ptr<hwc_composer_device_1> const& hwc_device,
                     std::shared_ptr<HWCVsyncCoordinator> const& coordinator);
 
-    std::shared_ptr<hwc_composer_device_1> const hwc_device;
     std::shared_ptr<HWCVsyncCoordinator> const coordinator;
     std::unique_lock<std::mutex> lock_unblanked();
 
@@ -62,6 +62,8 @@ private:
     int turn_screen_off() const noexcept(true);
 
     HWCCallbacks callbacks;
+
+    std::shared_ptr<hwc_composer_device_1> const hwc_device;
 
     std::mutex blanked_mutex;
     std::condition_variable blanked_cond;

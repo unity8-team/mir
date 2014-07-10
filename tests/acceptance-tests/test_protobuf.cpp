@@ -21,7 +21,7 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "mir/client/private.h"
 #include "mir/frontend/protobuf_message_sender.h"
-#include "src/server/frontend/protobuf_session_creator.h"
+#include "src/server/frontend/protobuf_connection_creator.h"
 #include "mir/frontend/template_protobuf_message_processor.h"
 
 #include "mir_test_framework/stubbed_server_configuration.h"
@@ -76,6 +76,8 @@ struct DemoMessageProcessor : mfd::MessageProcessor
         sender(sender),
         wrapped(wrapped) {}
 
+    void client_pid(int /*pid*/) override {}
+
     bool dispatch(mfd::Invocation const& invocation)
     {
         if ("function" == invocation.method_name())
@@ -100,22 +102,22 @@ struct DemoMessageProcessor : mfd::MessageProcessor
     std::shared_ptr<mfd::MessageProcessor> const wrapped;
 };
 
-struct DemoSessionCreator : mf::ProtobufSessionCreator
+struct DemoConnectionCreator : mf::ProtobufConnectionCreator
 {
-    using ProtobufSessionCreator::ProtobufSessionCreator;
+    using ProtobufConnectionCreator::ProtobufConnectionCreator;
 
     MOCK_CONST_METHOD3(create_processor,
         std::shared_ptr<mfd::MessageProcessor>(
         std::shared_ptr<mfd::ProtobufMessageSender> const& sender,
-        std::shared_ptr<mir::protobuf::DisplayServer> const& display_server,
+        std::shared_ptr<mfd::DisplayServer> const& display_server,
         std::shared_ptr<mf::MessageProcessorReport> const& report));
 
     std::shared_ptr<mfd::MessageProcessor> create_wrapped_processor(
         std::shared_ptr<mfd::ProtobufMessageSender> const& sender,
-        std::shared_ptr<mir::protobuf::DisplayServer> const& display_server,
+        std::shared_ptr<mfd::DisplayServer> const& display_server,
         std::shared_ptr<mf::MessageProcessorReport> const& report) const
     {
-        auto const wrapped = mf::ProtobufSessionCreator::create_processor(
+        auto const wrapped = mf::ProtobufConnectionCreator::create_processor(
             sender,
             display_server,
             report);
@@ -125,10 +127,10 @@ struct DemoSessionCreator : mf::ProtobufSessionCreator
 
     std::shared_ptr<mfd::MessageProcessor> create_unwrapped_processor(
         std::shared_ptr<mfd::ProtobufMessageSender> const& sender,
-        std::shared_ptr<mir::protobuf::DisplayServer> const& display_server,
+        std::shared_ptr<mfd::DisplayServer> const& display_server,
         std::shared_ptr<mf::MessageProcessorReport> const& report) const
     {
-        return mf::ProtobufSessionCreator::create_processor(
+        return mf::ProtobufConnectionCreator::create_processor(
             sender,
             display_server,
             report);
@@ -137,15 +139,15 @@ struct DemoSessionCreator : mf::ProtobufSessionCreator
 
 struct DemoServerConfiguration : mir_test_framework::StubbedServerConfiguration
 {
-    std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>> the_session_protocols() override
+    std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>> the_connection_protocols() override
     {
-        return session_protocols([this]
+        return connection_protocols([this]
             {
-                auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedSessionCreator>>>();
-                protocols->push_back(std::make_shared<DemoSessionCreator>(
-                                         the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
-                                         the_session_authorizer(),
-                                         the_message_processor_report()));
+                auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
+                protocols->push_back(std::make_shared<DemoConnectionCreator>(
+		    new_ipc_factory(the_session_authorizer()),
+                    the_session_authorizer(),
+                    the_message_processor_report()));
                 return protocols;
             });
     }
@@ -158,20 +160,20 @@ struct DemoPrivateProtobuf : mir_test_framework::InProcessServer
 
     DemoServerConfiguration my_server_config;
 
-    std::shared_ptr<DemoSessionCreator> demo_session_creator;
+    std::shared_ptr<DemoConnectionCreator> demo_connection_creator;
 
     void SetUp()
     {
         ::demo_mir_server = &demo_mir_server;
 
         mir_test_framework::InProcessServer::SetUp();
-        demo_session_creator = std::dynamic_pointer_cast<DemoSessionCreator>(my_server_config.the_session_protocols()->front());
+        demo_connection_creator = std::dynamic_pointer_cast<DemoConnectionCreator>(my_server_config.the_connection_protocols()->front());
 
         using namespace testing;
-        ASSERT_THAT(demo_session_creator, NotNull());
+        ASSERT_THAT(demo_connection_creator, NotNull());
 
-        ON_CALL(*demo_session_creator, create_processor(_, _, _))
-            .WillByDefault(Invoke(demo_session_creator.get(), &DemoSessionCreator::create_unwrapped_processor));
+        ON_CALL(*demo_connection_creator, create_processor(_, _, _))
+            .WillByDefault(Invoke(demo_connection_creator.get(), &DemoConnectionCreator::create_unwrapped_processor));
     }
 
     testing::NiceMock<DemoMirServer> demo_mir_server;
@@ -184,7 +186,7 @@ char const* const nothing_returned = "Nothing returned";
 TEST_F(DemoPrivateProtobuf, client_calls_server)
 {
     using namespace testing;
-    EXPECT_CALL(*demo_session_creator, create_processor(_, _, _));
+    EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _));
 
     auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     ASSERT_TRUE(mir_connection_is_valid(connection));
@@ -212,6 +214,11 @@ TEST_F(DemoPrivateProtobuf, client_calls_server)
         &result,
         NewCallback(&callback, &called_back));
 
+    // FIXME - This test is somehow racy. If I add:
+    //    EXPECT_TRUE(false) << connection;
+    // then I can get mir_connection_release to generate an exception during
+    // disconnect() internally, sometimes. Although that exception is caught
+    // internally by the client library so we don't see it here.
     mir_connection_release(connection);
 
     EXPECT_TRUE(called_back);
@@ -221,9 +228,9 @@ TEST_F(DemoPrivateProtobuf, client_calls_server)
 TEST_F(DemoPrivateProtobuf, wrapping_message_processor)
 {
     using namespace testing;
-    EXPECT_CALL(*demo_session_creator, create_processor(_, _, _))
+    EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))
         .Times(1)
-        .WillOnce(Invoke(demo_session_creator.get(), &DemoSessionCreator::create_wrapped_processor));
+        .WillOnce(Invoke(demo_connection_creator.get(), &DemoConnectionCreator::create_wrapped_processor));
 
     auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -233,8 +240,8 @@ TEST_F(DemoPrivateProtobuf, wrapping_message_processor)
 TEST_F(DemoPrivateProtobuf, server_receives_function_call)
 {
     using namespace testing;
-    EXPECT_CALL(*demo_session_creator, create_processor(_, _, _))
-        .WillRepeatedly(Invoke(demo_session_creator.get(), &DemoSessionCreator::create_wrapped_processor));
+    EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))
+        .WillRepeatedly(Invoke(demo_connection_creator.get(), &DemoConnectionCreator::create_wrapped_processor));
 
     auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     ASSERT_TRUE(mir_connection_is_valid(connection));
@@ -261,8 +268,8 @@ TEST_F(DemoPrivateProtobuf, server_receives_function_call)
 TEST_F(DemoPrivateProtobuf, client_receives_result)
 {
     using namespace testing;
-    EXPECT_CALL(*demo_session_creator, create_processor(_, _, _))
-        .WillRepeatedly(Invoke(demo_session_creator.get(), &DemoSessionCreator::create_wrapped_processor));
+    EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))
+        .WillRepeatedly(Invoke(demo_connection_creator.get(), &DemoConnectionCreator::create_wrapped_processor));
     EXPECT_CALL(demo_mir_server, on_call(_)).WillRepeatedly(Return(__PRETTY_FUNCTION__));
 
     auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);

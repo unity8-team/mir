@@ -39,42 +39,38 @@ class Buffer;
 namespace android
 {
 
-class LayerListBase
+struct HwcLayerEntry
+{
+    HwcLayerEntry(HWCLayer && layer, bool needs_commit);
+    HWCLayer layer;
+    bool needs_commit;
+};
+
+/* this is a partitioned list. renderlist makes up the first renderlist.size() elements
+   of the list, and there are additional_layers added to the end. 
+   std::distance(begin(), additional_layers_begin()) == renderlist.size() 
+   std::distance(additional_layers_begin(), end()) == additional_layers
+   std::distance(begin(), end()) == renderlist.size() + additional_layers 
+*/ 
+class LayerList
 {
 public:
+    LayerList(RenderableList const& renderlist, size_t additional_layers);
+    void update_list(RenderableList const& renderlist, size_t additional_layers);
+
+    std::list<HwcLayerEntry>::iterator begin();
+    std::list<HwcLayerEntry>::iterator additional_layers_begin();
+    std::list<HwcLayerEntry>::iterator end();
+
     std::weak_ptr<hwc_display_contents_1_t> native_list();
     NativeFence retirement_fence();
-
-protected:
-    LayerListBase(size_t initial_list_size);
-
-    void update_representation(size_t needed_size); 
-    std::list<HWCLayer> layers;
-
 private:
-    LayerListBase& operator=(LayerListBase const&) = delete;
-    LayerListBase(LayerListBase const&) = delete;
+    LayerList& operator=(LayerList const&) = delete;
+    LayerList(LayerList const&) = delete;
 
+    std::list<HwcLayerEntry> layers;
     std::shared_ptr<hwc_display_contents_1_t> hwc_representation;
-};
-
-class LayerList : public LayerListBase
-{
-public:
-    LayerList();
-};
-
-class FBTargetLayerList : public LayerListBase
-{
-public:
-    FBTargetLayerList();
-    void set_composition_layers(std::list<std::shared_ptr<graphics::Renderable>> const& list);
-    void reset_composition_layers(); 
-    NativeFence fb_target_fence();
-    void set_fb_target(Buffer const&);
-
-private:
-    bool skip_layers_present{true};
+    std::list<HwcLayerEntry>::iterator first_additional_layer;
 };
 
 }

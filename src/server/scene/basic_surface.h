@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,23 +19,27 @@
 #ifndef MIR_SCENE_BASIC_SURFACE_H_
 #define MIR_SCENE_BASIC_SURFACE_H_
 
-#include "mir_toolkit/common.h"
+#include "mir/scene/surface.h"
+#include "mir/scene/surface_observer.h"
+
 #include "mir/geometry/rectangle.h"
-#include "mir/graphics/buffer_properties.h"
+
+#include "mir_toolkit/common.h"
 
 #include <glm/glm.hpp>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace mir
 {
 namespace compositor
 {
-class CompositingCriteria;
 struct BufferIPCPackage;
 class BufferStream;
 }
+namespace frontend { class EventSink; }
 namespace graphics
 {
 class Buffer;
@@ -43,67 +47,138 @@ class Buffer;
 namespace input
 {
 class InputChannel;
+class InputSender;
 class Surface;
 }
 namespace scene
 {
-class SurfaceData;
 class SceneReport;
+class SurfaceConfigurator;
 
-class BasicSurface
+class SurfaceObservers : public SurfaceObserver
 {
 public:
-    BasicSurface(std::shared_ptr<SurfaceData> const& surface_data,
-        std::shared_ptr<compositor::BufferStream> const& buffer_stream,
-        std::shared_ptr<input::InputChannel> const& input_channel,
-        std::shared_ptr<SceneReport> const& report);
 
-    virtual ~BasicSurface();
+    void attrib_changed(MirSurfaceAttrib attrib, int value) override;
+    void resized_to(geometry::Size const& size) override;
+    void moved_to(geometry::Point const& top_left) override;
+    void hidden_set_to(bool hide) override;
+    void frame_posted(int frames_available) override;
+    void alpha_set_to(float alpha) override;
+    void orientation_set_to(MirOrientation orientation) override;
+    void transformation_set_to(glm::mat4 const& t) override;
+    void reception_mode_set_to(input::InputReceptionMode mode) override;
+    void cursor_image_set_to(graphics::CursorImage const& image) override;
 
-    virtual std::string const& name() const;
-    virtual void move_to(geometry::Point const& top_left);
-    virtual void set_rotation(float degrees, glm::vec3 const& axis);
-    virtual float alpha() const;
-    virtual void set_alpha(float alpha);
-    virtual void set_hidden(bool is_hidden);
-
-    virtual geometry::Point top_left() const;
-    virtual geometry::Size size() const;
-
-    virtual MirPixelFormat pixel_format() const;
-
-    virtual std::shared_ptr<graphics::Buffer> snapshot_buffer() const;
-    virtual void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete);
-    virtual void force_requests_to_complete();
-
-    virtual bool supports_input() const;
-    virtual int client_input_fd() const;
-    virtual void allow_framedropping(bool);
-    virtual std::shared_ptr<input::InputChannel> input_channel() const;
-
-    virtual void set_input_region(std::vector<geometry::Rectangle> const& input_rectangles);
-
-    virtual std::shared_ptr<compositor::CompositingCriteria> compositing_criteria();
-
-    virtual std::shared_ptr<compositor::BufferStream> buffer_stream() const;
-
-    virtual std::shared_ptr<input::Surface> input_surface() const;
-
-    /**
-     * Resize the surface.
-     * \returns true if the size changed, false if it was already that size.
-     * \throws std::logic_error For impossible sizes like {0,0}.
-     */
-    virtual bool resize(geometry::Size const& size);
+    void add(std::shared_ptr<SurfaceObserver> const& observer);
+    void remove(std::shared_ptr<SurfaceObserver> const& observer);
 
 private:
-    BasicSurface(BasicSurface const&) = delete;
-    BasicSurface& operator=(BasicSurface const&) = delete;
+    std::mutex mutex;
+    std::vector<std::shared_ptr<SurfaceObserver>> observers;
+};
 
-    std::shared_ptr<SurfaceData> surface_data;
-    std::shared_ptr<compositor::BufferStream> surface_buffer_stream;
+class BasicSurface : public Surface
+{
+public:
+    BasicSurface(
+        std::string const& name,
+        geometry::Rectangle rect,
+        bool nonrectangular,
+        std::shared_ptr<compositor::BufferStream> const& buffer_stream,
+        std::shared_ptr<input::InputChannel> const& input_channel,
+        std::shared_ptr<input::InputSender> const& sender,
+        std::shared_ptr<SurfaceConfigurator> const& configurator,
+        std::shared_ptr<graphics::CursorImage> const& cursor_image,
+        std::shared_ptr<SceneReport> const& report);
+
+    ~BasicSurface() noexcept;
+
+    std::string name() const override;
+    void move_to(geometry::Point const& top_left) override;
+    float alpha() const override;
+    void set_hidden(bool is_hidden);
+
+    geometry::Size size() const override;
+    geometry::Size client_size() const override;
+
+    MirPixelFormat pixel_format() const;
+
+    std::shared_ptr<graphics::Buffer> snapshot_buffer() const;
+    void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete);
+    void force_requests_to_complete();
+
+    bool supports_input() const;
+    int client_input_fd() const;
+    void allow_framedropping(bool);
+    std::shared_ptr<input::InputChannel> input_channel() const override;
+    input::InputReceptionMode reception_mode() const override;
+    void set_reception_mode(input::InputReceptionMode mode) override;
+
+    void set_input_region(std::vector<geometry::Rectangle> const& input_rectangles) override;
+
+    std::shared_ptr<compositor::BufferStream> buffer_stream() const;
+
+    void resize(geometry::Size const& size) override;
+    geometry::Point top_left() const override;
+    geometry::Rectangle input_bounds() const override;
+    bool input_area_contains(geometry::Point const& point) const override;
+    void consume(MirEvent const& event);
+    void set_alpha(float alpha) override;
+    void set_orientation(MirOrientation orientation) override;
+    void set_transformation(glm::mat4 const&) override;
+
+    bool visible() const;
+    
+    std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const;
+
+    void with_most_recent_buffer_do(
+        std::function<void(graphics::Buffer&)> const& exec) override;
+
+    MirSurfaceType type() const override;
+    MirSurfaceState state() const override;
+    void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) override;
+    int configure(MirSurfaceAttrib attrib, int value) override;
+    void hide() override;
+    void show() override;
+    
+    void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image);
+    std::shared_ptr<graphics::CursorImage> cursor_image() const;
+
+    void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
+    void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
+
+    int dpi() const;
+
+private:
+    bool visible(std::unique_lock<std::mutex>&) const;
+    bool set_type(MirSurfaceType t);  // Use configure() to make public changes
+    bool set_state(MirSurfaceState s);
+    bool set_dpi(int);
+    void set_visibility(MirSurfaceVisibility v);
+
+    SurfaceObservers observers;
+    std::mutex mutable guard;
+    std::string const surface_name;
+    geometry::Rectangle surface_rect;
+    glm::mat4 transformation_matrix;
+    float surface_alpha;
+    bool first_frame_posted;
+    bool hidden;
+    input::InputReceptionMode input_mode;
+    const bool nonrectangular;
+    std::vector<geometry::Rectangle> custom_input_rectangles;
+    std::shared_ptr<compositor::BufferStream> const surface_buffer_stream;
     std::shared_ptr<input::InputChannel> const server_input_channel;
+    std::shared_ptr<input::InputSender> const input_sender;
+    std::shared_ptr<SurfaceConfigurator> const configurator;
+    std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
+
+    MirSurfaceType type_value;
+    MirSurfaceState state_value;
+    MirSurfaceVisibility visibility_value;
+    int dpi_value;
 };
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -18,21 +18,12 @@
  *   Thomas Voss <thomas.voss@canonical.com>
  */
 
-#include "mir/graphics/buffer_properties.h"
-#include "mir/shell/surface_creation_parameters.h"
 #include "surface_stack.h"
-#include "basic_surface_factory.h"
-#include "mir/compositor/buffer_stream.h"
-#include "mir/scene/input_registrar.h"
-#include "mir/input/input_channel_factory.h"
+#include "rendering_tracker.h"
+#include "mir/scene/surface.h"
 #include "mir/scene/scene_report.h"
-
-// TODO Including this doesn't seem right - why would SurfaceStack "know" about BasicSurface
-// It is needed by the following member functions:
-//  for_each(), for_each_if(), reverse_for_each_if(), create_surface() and destroy_surface()
-// to access:
-//  compositing_criteria(), buffer_stream() and input_channel()
-#include "basic_surface.h"
+#include "mir/compositor/scene_element.h"
+#include "mir/graphics/renderable.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -48,90 +39,116 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
+namespace
+{
+
+class SurfaceSceneElement : public mc::SceneElement
+{
+public:
+    SurfaceSceneElement(
+        std::shared_ptr<mg::Renderable> renderable,
+        std::shared_ptr<ms::RenderingTracker> const& tracker)
+        : renderable_{renderable},
+          tracker{tracker}
+    {
+    }
+
+    std::shared_ptr<mg::Renderable> renderable() const override
+    {
+        return renderable_;
+    }
+
+    void rendered_in(mc::CompositorID cid) override
+    {
+        tracker->rendered_in(cid);
+    }
+
+    void occluded_in(mc::CompositorID cid) override
+    {
+        tracker->occluded_in(cid);
+    }
+
+private:
+    std::shared_ptr<mg::Renderable> const renderable_;
+    std::shared_ptr<ms::RenderingTracker> const tracker;
+};
+
+}
+
 ms::SurfaceStack::SurfaceStack(
-    std::shared_ptr<BasicSurfaceFactory> const& surface_factory,
-    std::shared_ptr<InputRegistrar> const& input_registrar,
     std::shared_ptr<SceneReport> const& report) :
-    surface_factory{surface_factory},
-    input_registrar{input_registrar},
-    report{report},
-    notify_change{[]{}}
+    report{report}
 {
 }
 
-void ms::SurfaceStack::for_each_if(mc::FilterForScene& filter, mc::OperatorForScene& op)
+mc::SceneElementSequence ms::SurfaceStack::scene_elements_for(mc::CompositorID id)
 {
-    std::lock_guard<std::recursive_mutex> lg(guard);
-    for (auto &layer : layers_by_depth)
+    std::lock_guard<decltype(guard)> lg(guard);
+    mc::SceneElementSequence elements;
+    for (auto const& layer : layers_by_depth)
     {
-        auto surfaces = layer.second;
-        for (auto it = surfaces.begin(); it != surfaces.end(); ++it)
+        for (auto const& surface : layer.second) 
         {
-            mc::CompositingCriteria& info = *((*it)->compositing_criteria());
-            mc::BufferStream& stream = *((*it)->buffer_stream());
-            if (filter(info)) op(info, stream);
+            auto element = std::make_shared<SurfaceSceneElement>(
+                surface->compositor_snapshot(id),
+                rendering_trackers[surface.get()]);
+            elements.emplace_back(element);
         }
     }
+    return elements;
 }
 
-void ms::SurfaceStack::reverse_for_each_if(mc::FilterForScene& filter,
-                                           mc::OperatorForScene& op)
+void ms::SurfaceStack::register_compositor(mc::CompositorID cid)
 {
-    std::lock_guard<std::recursive_mutex> lg(guard);
-    for (auto layer = layers_by_depth.rbegin();
-         layer != layers_by_depth.rend();
-         ++layer)
+    std::lock_guard<decltype(guard)> lg(guard);
+
+    registered_compositors.insert(cid);
+
+    update_rendering_tracker_compositors();
+}
+
+void ms::SurfaceStack::unregister_compositor(mc::CompositorID cid)
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+
+    registered_compositors.erase(cid);
+
+    update_rendering_tracker_compositors();
+}
+
+void ms::SurfaceStack::add_surface(
+    std::shared_ptr<Surface> const& surface,
+    DepthId depth,
+    mi::InputReceptionMode input_mode)
+{
     {
-        auto surfaces = layer->second;
-        for (auto it = surfaces.rbegin(); it != surfaces.rend(); ++it)
-        {
-            mc::CompositingCriteria& info = *((*it)->compositing_criteria());
-            mc::BufferStream& stream = *((*it)->buffer_stream());
-            if (filter(info)) op(info, stream);
-        }
+        std::lock_guard<decltype(guard)> lg(guard);
+        layers_by_depth[depth].push_back(surface);
+        create_rendering_tracker_for(surface);
     }
-}
-
-void ms::SurfaceStack::set_change_callback(std::function<void()> const& f)
-{
-    std::lock_guard<std::mutex> lg{notify_change_mutex};
-    assert(f);
-    notify_change = f;
-}
-
-std::weak_ptr<ms::BasicSurface> ms::SurfaceStack::create_surface(shell::SurfaceCreationParameters const& params)
-{
-    auto change_cb = [this]() { emit_change_notification(); };
-    auto surface = surface_factory->create_surface(params, change_cb);
-    {
-        std::lock_guard<std::recursive_mutex> lg(guard);
-        layers_by_depth[params.depth].push_back(surface);
-    }
-
-    input_registrar->input_channel_opened(surface->input_channel(), surface->input_surface(), params.input_mode);
+    surface->set_reception_mode(input_mode);
+    observers.surface_added(surface.get());
 
     report->surface_added(surface.get(), surface.get()->name());
-    emit_change_notification();
-
-    return surface;
 }
 
-void ms::SurfaceStack::destroy_surface(std::weak_ptr<BasicSurface> const& surface)
+void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
 {
-    auto keep_alive = surface.lock();
+    auto const keep_alive = surface.lock();
 
     bool found_surface = false;
     {
-        std::lock_guard<std::recursive_mutex> lg(guard);
+        std::lock_guard<decltype(guard)> lg(guard);
 
         for (auto &layer : layers_by_depth)
         {
             auto &surfaces = layer.second;
-            auto const p = std::find(surfaces.begin(), surfaces.end(), surface.lock());
+            auto const p = std::find(surfaces.begin(), surfaces.end(), keep_alive);
 
             if (p != surfaces.end())
             {
                 surfaces.erase(p);
+                rendering_trackers.erase(keep_alive.get());
                 found_surface = true;
                 break;
             }
@@ -139,36 +156,30 @@ void ms::SurfaceStack::destroy_surface(std::weak_ptr<BasicSurface> const& surfac
     }
 
     if (found_surface)
-        input_registrar->input_channel_closed(keep_alive->input_channel());
+    {
+        observers.surface_removed(keep_alive.get());
 
-    report->surface_removed(keep_alive.get(), keep_alive.get()->name());
-
-    emit_change_notification();
+        report->surface_removed(keep_alive.get(), keep_alive.get()->name());
+    }
     // TODO: error logging when surface not found
 }
 
-void ms::SurfaceStack::emit_change_notification()
+void ms::SurfaceStack::for_each(std::function<void(std::shared_ptr<mi::Surface> const&)> const& callback)
 {
-    std::lock_guard<std::mutex> lg{notify_change_mutex};
-    notify_change();
-}
-
-void ms::SurfaceStack::for_each(std::function<void(std::shared_ptr<mi::InputChannel> const&)> const& callback)
-{
-    std::lock_guard<std::recursive_mutex> lg(guard);
+    std::lock_guard<decltype(guard)> lg(guard);
     for (auto &layer : layers_by_depth)
     {
         for (auto it = layer.second.begin(); it != layer.second.end(); ++it)
-            callback((*it)->input_channel());
+            callback(*it);
     }
 }
 
-void ms::SurfaceStack::raise(std::weak_ptr<BasicSurface> const& s)
+void ms::SurfaceStack::raise(std::weak_ptr<Surface> const& s)
 {
     auto surface = s.lock();
 
     {
-        std::unique_lock<std::recursive_mutex> ul(guard);
+        std::unique_lock<decltype(guard)> ul(guard);
         for (auto &layer : layers_by_depth)
         {
             auto &surfaces = layer.second;
@@ -180,7 +191,7 @@ void ms::SurfaceStack::raise(std::weak_ptr<BasicSurface> const& s)
                 surfaces.push_back(surface);
 
                 ul.unlock();
-                emit_change_notification();
+                observers.surfaces_reordered();
 
                 return;
             }
@@ -190,12 +201,99 @@ void ms::SurfaceStack::raise(std::weak_ptr<BasicSurface> const& s)
     BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
 }
 
-void ms::SurfaceStack::lock()
+void ms::SurfaceStack::create_rendering_tracker_for(std::shared_ptr<Surface> const& surface)
 {
-    guard.lock();
+    auto const tracker = std::make_shared<RenderingTracker>(surface);
+    tracker->active_compositors(registered_compositors);
+    rendering_trackers[surface.get()] = tracker;
 }
 
-void ms::SurfaceStack::unlock()
+void ms::SurfaceStack::update_rendering_tracker_compositors()
 {
-    guard.unlock();
+    for (auto const& pair : rendering_trackers)
+        pair.second->active_compositors(registered_compositors);
+}
+
+void ms::SurfaceStack::add_observer(std::shared_ptr<ms::Observer> const& observer)
+{
+    observers.add_observer(observer);
+
+    // Notify observer of existing surfaces
+    {
+        std::unique_lock<decltype(guard)> ul(guard);
+        for (auto &layer : layers_by_depth)
+        {
+            for (auto &surface : layer.second)
+                observer->surface_exists(surface.get());
+        }
+    }
+}
+
+void ms::SurfaceStack::remove_observer(std::weak_ptr<ms::Observer> const& observer)
+{
+    auto o = observer.lock();
+    if (!o)
+        BOOST_THROW_EXCEPTION(std::logic_error("Invalid observer (destroyed)"));
+    
+    o->end_observation();
+    
+    observers.remove_observer(o);
+}
+
+void ms::Observers::surface_added(ms::Surface* surface) 
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+    
+    for (auto observer : observers)
+        observer->surface_added(surface);
+}
+
+void ms::Observers::surface_removed(ms::Surface* surface)
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+
+    for (auto observer : observers)
+        observer->surface_removed(surface);
+}
+
+void ms::Observers::surfaces_reordered()
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+    
+    for (auto observer : observers)
+        observer->surfaces_reordered();
+}
+
+void ms::Observers::surface_exists(ms::Surface* surface)
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+    
+    for (auto observer : observers)
+        observer->surface_exists(surface);
+}
+
+void ms::Observers::end_observation()
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+    
+    for (auto observer : observers)
+        observer->end_observation();
+}
+
+void ms::Observers::add_observer(std::shared_ptr<ms::Observer> const& observer)
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+
+    observers.push_back(observer);
+}
+
+void ms::Observers::remove_observer(std::shared_ptr<ms::Observer> const& observer)
+{
+    std::unique_lock<decltype(mutex)> lg(mutex);
+    
+    auto it = std::find(observers.begin(), observers.end(), observer);
+    if (it == observers.end())
+        BOOST_THROW_EXCEPTION(std::runtime_error("Invalid observer (not previously added)"));
+    
+    observers.erase(it);
 }

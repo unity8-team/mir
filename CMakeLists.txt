@@ -27,10 +27,15 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 set(MIR_VERSION_MAJOR 0)
-set(MIR_VERSION_MINOR 1)
-set(MIR_VERSION_PATCH 6)
+set(MIR_VERSION_MINOR 5) # This should change at least with every MIRSERVER_ABI
+set(MIR_VERSION_PATCH 0)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+execute_process(
+  COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
+  OUTPUT_VARIABLE TARGET_ARCH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
 option(use_debflags "Use build flags from dpkg-buildflags." OFF)
 if(use_debflags)
@@ -42,14 +47,20 @@ include (cmake/Doxygen.cmake)
 include (cmake/PrePush.cmake)
 include (GNUInstallDirs)
 
+set(build_types "None;Debug;Release;RelWithDebInfo;MinSizeRel;Coverage;AddressSanitizer")
+# Change informational string for CMAKE_BUILD_TYPE
+set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "${build_types}" FORCE)
+# Enable cmake-gui to display a drop down list for CMAKE_BUILD_TYPE
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "${build_types}")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -g -Werror -Wall -pedantic -Wextra -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -std=c++0x -Werror -Wall -fno-strict-aliasing -pedantic -Wnon-virtual-dtor -Wextra -fPIC")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-undefined")
 
 if ("${CMAKE_CXX_COMPILER}" MATCHES "clang")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type-c-linkage -Wno-mismatched-tags")
 endif()
+
+string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_lower)
 
 #####################################################################
 # Enable code coverage calculation with gcov/gcovr/lcov
@@ -59,19 +70,30 @@ endif()
 #  * Find html report in subdir coveragereport
 #  * Find xml report feasible for jenkins in coverage.xml
 #####################################################################
-IF(CMAKE_BUILD_TYPE MATCHES [cC][oO][vV][eE][rR][aA][gG][eE])
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftest-coverage -fprofile-arcs" )
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ftest-coverage -fprofile-arcs" )
-  SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -ftest-coverage -fprofile-arcs" )
-  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ftest-coverage -fprofile-arcs" )
-ENDIF(CMAKE_BUILD_TYPE MATCHES [cC][oO][vV][eE][rR][aA][gG][eE])
+if(cmake_build_type_lower MATCHES "coverage")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftest-coverage -fprofile-arcs")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ftest-coverage -fprofile-arcs")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -ftest-coverage -fprofile-arcs")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ftest-coverage -fprofile-arcs")
+endif()
+
+if(cmake_build_type_lower MATCHES "addresssanitizer")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
+else()
+  # AddressSanitizer builds fail if we disallow undefined symbols
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-undefined")
+endif()
 
 enable_testing()
 
 include_directories(include/shared)
 
 # Check for boost
-find_package(Boost 1.48.0 COMPONENTS chrono date_time filesystem system thread program_options regex REQUIRED)
+find_package(Boost 1.48.0 COMPONENTS chrono date_time filesystem system thread program_options regex iostreams REQUIRED)
 include_directories (
   ${Boost_INCLUDE_DIRS}
 )
@@ -108,7 +130,6 @@ foreach(platform IN LISTS MIR_PLATFORM)
      set(MIR_BUILD_PLATFORM_ANDROID TRUE)
   endif()
 endforeach(platform)
-message(STATUS "${MIR_TEST_PLATFORM} ${MIR_BUILD_PLATFORM_MESA} ${MIR_BUILD_PLATFORM_ANDROID}")
 
 find_package(EGL REQUIRED)
 find_package(GLESv2 REQUIRED)
@@ -126,6 +147,7 @@ include_directories (${EGL_INCLUDE_DIRS})
 include_directories (${GLM_INCLUDE_DIRS})
 
 if (MIR_BUILD_PLATFORM_ANDROID)
+  find_package(AndroidProperties REQUIRED)
   find_package(LibHardware REQUIRED)
 endif()
 
@@ -137,6 +159,7 @@ endif()
 
 set(MIR_ANDROID_INCLUDE_DIRECTORIES) # to be filled by android-input
 set(MIR_ANDROID_INPUT_COMPILE_FLAGS) # to be filled by android-input
+set(MIR_XCURSOR_INCLUDE_DIRECTORIES)
 set(MIR_3RD_PARTY_INCLUDE_DIRECTORIES)
 add_subdirectory(3rd_party/)
 
@@ -148,14 +171,6 @@ macro(uses_android_input _target_name)
 endmacro()
 add_subdirectory(src/)
 include_directories(${MIR_GENERATED_INCLUDE_DIRECTORIES})
-
-set (OLD_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-# Don't treat warnings as errors in 3rd_party/{gmock}
-string (REPLACE " -Werror " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
-
-# Restore -Werror for non-3rd-party code
-set (CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
 
 option(MIR_ENABLE_TESTS "Build tests" ON)
 

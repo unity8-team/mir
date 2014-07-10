@@ -17,14 +17,16 @@
  */
 
 #include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
-#include "src/server/compositor/switching_bundle.h"
+#include "src/server/compositor/buffer_queue.h"
 #include "mir/graphics/buffer_initializer.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/graphics/buffer_properties.h"
 
-#include "mir_test/draw/graphics_region_factory.h"
-#include "mir_test/draw/patterns.h"
+#include "testdraw/graphics_region_factory.h"
+#include "testdraw/patterns.h"
+
+#include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 
 #include <gtest/gtest.h>
 
@@ -54,9 +56,10 @@ protected:
     MirPixelFormat pf;
     mg::BufferProperties buffer_properties;
     std::shared_ptr<mtd::GraphicsRegionFactory> graphics_region_factory;
+    mir::test::doubles::StubFrameDroppingPolicyFactory policy_factory;
 };
 
-auto client_acquire_blocking(mc::SwitchingBundle& switching_bundle)
+auto client_acquire_blocking(mc::BufferQueue& switching_bundle)
 -> mg::Buffer*
 {
     std::mutex mutex;
@@ -116,7 +119,7 @@ TEST_F(AndroidBufferIntegration, swapper_creation_is_sane)
 
     auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
 
-    mc::SwitchingBundle swapper(2, allocator, buffer_properties);
+    mc::BufferQueue swapper(2, allocator, buffer_properties, policy_factory);
 
     auto returned_buffer = client_acquire_blocking(swapper);
 

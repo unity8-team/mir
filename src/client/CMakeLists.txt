@@ -32,10 +32,13 @@ set(
   aging_buffer.cpp
   client_buffer_depository.cpp
   display_configuration.cpp
-  mir_client_library.cpp
+  error_connections.cpp
   mir_connection.cpp
+  mir_connection_api.cpp
   mir_wait_handle.cpp
+  mir_wait_api.cpp
   mir_surface.cpp
+  mir_surface_api.cpp
   logging/rpc_report.cpp
   logging/input_receiver_report.cpp
   default_connection_configuration.cpp
@@ -44,6 +47,10 @@ set(
   private.cpp
   mir_screencast.cpp
   mir_screencast_api.cpp
+  mir_cursor_api.cpp
+  mir_prompt_session.cpp
+  mir_prompt_session_api.cpp
+  mir_event_distributor.cpp
 )
 
 add_library(
@@ -52,7 +59,7 @@ add_library(
   ${CLIENT_SOURCES}
 )
 
-set(MIRCLIENT_ABI 7)
+set(MIRCLIENT_ABI 8)
 
 set_target_properties(
   mirclient
@@ -60,9 +67,6 @@ set_target_properties(
   PROPERTIES
   SOVERSION ${MIRCLIENT_ABI}
 )
-
-# Ensure mirclient_compat_links exist before any dependents of mirclient
-add_dependencies(mirclient mirclient_compat_links)
 
 set(
   MIR_CLIENT_LIBRARIES
@@ -75,12 +79,13 @@ set(
   mirsharedinput
   mirsharedlogging
   mirsharedenv
+  mirsharedgeometry
   mirsharedsharedlibrary
   mirclientrpc
   mirclientlttngstatic
 
   ${MIR_COMMON_PLATFORM_LIBRARIES}
- 
+
   3rd_party
 )
 

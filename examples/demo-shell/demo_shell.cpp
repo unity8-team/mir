@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -18,51 +18,79 @@
 
 /// \example demo_shell.cpp A simple mir shell
 
+#include "demo_renderer.h"
 #include "window_manager.h"
 #include "fullscreen_placement_strategy.h"
 #include "../server_configuration.h"
 
+#include "mir/options/default_configuration.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
 #include "mir/graphics/display.h"
 #include "mir/input/composite_event_filter.h"
+#include "mir/compositor/renderer_factory.h"
 
 #include <iostream>
 
 namespace me = mir::examples;
-namespace msh = mir::shell;
+namespace ms = mir::scene;
 namespace mg = mir::graphics;
 namespace mf = mir::frontend;
 namespace mi = mir::input;
+namespace mo = mir::options;
 
 namespace mir
 {
 namespace examples
 {
 
-struct DemoServerConfiguration : mir::examples::ServerConfiguration
+class DemoRendererFactory : public compositor::RendererFactory
 {
-    DemoServerConfiguration(int argc, char const* argv[],
-                            std::initializer_list<std::shared_ptr<mi::EventFilter>> const& filter_list)
-      : ServerConfiguration(argc, argv),
-        filter_list(filter_list)
+public:
+    DemoRendererFactory(std::shared_ptr<graphics::GLProgramFactory> const& gl_program_factory) :
+        gl_program_factory(gl_program_factory)
     {
-        namespace po = boost::program_options;
-
-        add_options()
-            ("fullscreen-surfaces", po::value<bool>(),
-                "Make all surfaces fullscreen [bool:default=false]");
     }
 
-    std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
+    std::unique_ptr<compositor::Renderer> create_renderer_for(
+        geometry::Rectangle const& rect,
+        mir::compositor::DestinationAlpha dest_alpha) override
+    {
+        return std::unique_ptr<compositor::Renderer>(new DemoRenderer(*gl_program_factory, rect, dest_alpha));
+    }
+private:
+    std::shared_ptr<graphics::GLProgramFactory> const gl_program_factory;
+};
+
+class DemoServerConfiguration : public mir::examples::ServerConfiguration
+{
+public:
+    DemoServerConfiguration(int argc, char const* argv[],
+                            std::initializer_list<std::shared_ptr<mi::EventFilter>> const& filter_list)
+      : ServerConfiguration([argc, argv]
+        {
+            auto result = std::make_shared<mo::DefaultConfiguration>(argc, argv);
+
+            namespace po = boost::program_options;
+
+            result->add_options()
+                ("fullscreen-surfaces", "Make all surfaces fullscreen");
+
+            return result;
+        }()),
+        filter_list(filter_list)
+    {
+    }
+
+    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
     {
         return shell_placement_strategy(
-            [this]() -> std::shared_ptr<msh::PlacementStrategy>
+            [this]() -> std::shared_ptr<ms::PlacementStrategy>
             {
                 if (the_options()->is_set("fullscreen-surfaces"))
                     return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
                 else
-                    return DefaultServerConfiguration::the_shell_placement_strategy();
+                    return DefaultServerConfiguration::the_placement_strategy();
             });
     }
 
@@ -75,6 +103,12 @@ struct DemoServerConfiguration : mir::examples::ServerConfiguration
         return composite_filter;
     }
 
+    std::shared_ptr<compositor::RendererFactory> the_renderer_factory() override
+    {
+        return std::make_shared<DemoRendererFactory>(the_gl_program_factory());
+    }
+
+private:
     std::vector<std::shared_ptr<mi::EventFilter>> const filter_list;
 };
 

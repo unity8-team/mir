@@ -17,42 +17,33 @@
  */
 
 #include "nested_output.h"
-#include "mir/input/event_filter.h"
-
-#include "mir_toolkit/mir_client_library.h"
+#include "host_connection.h"
+#include "mir/input/input_dispatcher.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 
+namespace mg = mir::graphics;
 namespace mgn = mir::graphics::nested;
 namespace geom = mir::geometry;
 
-mgn::detail::MirSurfaceHandle::MirSurfaceHandle(MirSurface* mir_surface) :
-    mir_surface(mir_surface)
-{
-}
-
-mgn::detail::MirSurfaceHandle::~MirSurfaceHandle() noexcept
-{
-    mir_surface_release_sync(mir_surface);
-}
-
 mgn::detail::NestedOutput::NestedOutput(
     EGLDisplayHandle const& egl_display,
-    MirSurface* mir_surface,
+    std::shared_ptr<HostSurface> const& host_surface,
     geometry::Rectangle const& area,
-    std::shared_ptr<input::EventFilter> const& event_handler,
+    std::shared_ptr<input::InputDispatcher> const& dispatcher,
     MirPixelFormat preferred_format) :
+    uses_alpha_{mg::contains_alpha(preferred_format)},
     egl_display(egl_display),
-    mir_surface{mir_surface},
+    host_surface{host_surface},
     egl_config{egl_display.choose_windowed_es_config(preferred_format)},
     egl_context{egl_display, eglCreateContext(egl_display, egl_config, egl_display.egl_context(), nested_egl_context_attribs)},
     area{area.top_left, area.size},
-    event_handler{event_handler},
-    egl_surface{egl_display, egl_display.native_window(egl_config, mir_surface), egl_config}
+    dispatcher{dispatcher},
+    egl_surface{egl_display, host_surface->egl_native_window(), egl_config}
 {
     MirEventDelegate ed = {event_thunk, this};
-    mir_surface_set_event_handler(mir_surface, &ed);
+    host_surface->set_event_handler(&ed);
 }
 
 geom::Rectangle mgn::detail::NestedOutput::view_area() const
@@ -76,16 +67,9 @@ void mgn::detail::NestedOutput::post_update()
     eglSwapBuffers(egl_display, egl_surface);
 }
 
-bool mgn::detail::NestedOutput::can_bypass() const
+bool mgn::detail::NestedOutput::post_renderables_if_optimizable(RenderableList const&)
 {
-    // TODO we really should return "true" - but we need to support bypass properly then
     return false;
-}
-
-void mgn::detail::NestedOutput::render_and_post_update(
-    std::list<std::shared_ptr<Renderable>> const&,
-    std::function<void(Renderable const&)> const&)
-{
 }
 
 MirOrientation mgn::detail::NestedOutput::orientation() const
@@ -95,6 +79,11 @@ MirOrientation mgn::detail::NestedOutput::orientation() const
      * native display.
      */
     return mir_orientation_normal;
+}
+
+bool mgn::detail::NestedOutput::uses_alpha() const
+{
+    return uses_alpha_;
 }
 
 mgn::detail::NestedOutput::~NestedOutput() noexcept
@@ -121,10 +110,10 @@ void mgn::detail::NestedOutput::mir_event(MirEvent const& event)
         auto my_event = event;
         my_event.motion.x_offset += area.top_left.x.as_float();
         my_event.motion.y_offset += area.top_left.y.as_float();
-        event_handler->handle(my_event);
+        dispatcher->dispatch(my_event);
     }
     else
     {
-        event_handler->handle(event);
+        dispatcher->dispatch(event);
     }
 }

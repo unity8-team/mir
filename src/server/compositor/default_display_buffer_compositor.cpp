@@ -19,52 +19,20 @@
 
 #include "default_display_buffer_compositor.h"
 
-#include "rendering_operator.h"
 #include "mir/compositor/scene.h"
-#include "mir/compositor/compositing_criteria.h"
+#include "mir/compositor/scene_element.h"
+#include "mir/compositor/renderer.h"
+#include "mir/graphics/renderable.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/buffer.h"
 #include "mir/compositor/buffer_stream.h"
-#include "bypass.h"
 #include "occlusion.h"
 #include <mutex>
 #include <cstdlib>
-#include <vector>
+#include <algorithm>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
-
-namespace
-{
-
-struct FilterForVisibleSceneInRegion : public mc::FilterForScene
-{
-    FilterForVisibleSceneInRegion(
-        mir::geometry::Rectangle const& enclosing_region,
-        mc::OcclusionMatch const& occlusions)
-        : enclosing_region(enclosing_region),
-          occlusions(occlusions)
-    {
-    }
-    bool operator()(mc::CompositingCriteria const& info)
-    {
-        return info.should_be_rendered_in(enclosing_region) &&
-               !occlusions.occluded(info);
-    }
-
-    mir::geometry::Rectangle const& enclosing_region;
-    mc::OcclusionMatch const& occlusions;
-};
-
-std::mutex global_frameno_lock;
-unsigned long global_frameno = 0;
-
-bool wrapped_greater_or_equal(unsigned long a, unsigned long b)
-{
-    return (a - b) < (~0UL / 2UL);
-}
-
-}
 
 mc::DefaultDisplayBufferCompositor::DefaultDisplayBufferCompositor(
     mg::DisplayBuffer& display_buffer,
@@ -74,90 +42,53 @@ mc::DefaultDisplayBufferCompositor::DefaultDisplayBufferCompositor(
     : display_buffer(display_buffer),
       scene{scene},
       renderer{renderer},
-      report{report},
-      local_frameno{global_frameno}
+      report{report}
 {
+    scene->register_compositor(this);
 }
 
+mc::DefaultDisplayBufferCompositor::~DefaultDisplayBufferCompositor()
+{
+    scene->unregister_compositor(this);
+}
 
 void mc::DefaultDisplayBufferCompositor::composite()
 {
     report->began_frame(this);
 
-    /*
-     * Increment frame counts for each tick of the fastest instance of
-     * DefaultDisplayBufferCompositor. This means for the fastest refresh
-     * rate of all attached outputs.
-     */
-    local_frameno++;
+    auto const& view_area = display_buffer.view_area();
+    auto scene_elements = scene->scene_elements_for(this);
+    auto const& occlusions = mc::filter_occlusions_from(scene_elements, view_area);
+
+    for (auto const& element : occlusions)
     {
-        std::lock_guard<std::mutex> lock(global_frameno_lock);
-        if (wrapped_greater_or_equal(local_frameno, global_frameno))
-            global_frameno = local_frameno;
-        else
-            local_frameno = global_frameno;
+        if (element->renderable()->visible())
+            element->occluded_in(this);
     }
 
-    static bool const bypass_env{[]
+    mg::RenderableList renderable_list;
+    for (auto const& element : scene_elements)
     {
-        auto const env = getenv("MIR_BYPASS");
-        return !env || env[0] != '0';
-    }()};
-    bool bypassed = false;
-
-    if (bypass_env && display_buffer.can_bypass())
-    {
-        std::unique_lock<Scene> lock(*scene);
-
-        mc::BypassFilter filter(display_buffer);
-        mc::BypassMatch match;
-
-        // It would be *really* nice if Scene had an iterator to simplify this
-        scene->for_each_if(filter, match);
-
-        if (filter.fullscreen_on_top())
-        {
-            auto bypass_buf =
-                match.topmost_fullscreen()->lock_compositor_buffer(
-                    local_frameno);
-
-            if (bypass_buf->can_bypass())
-            {
-                lock.unlock();
-                display_buffer.post_update(bypass_buf);
-                bypassed = true;
-                renderer->suspend();
-            }
-        }
+        element->rendered_in(this);
+        renderable_list.push_back(element->renderable());
     }
 
-    if (!bypassed)
+    if (display_buffer.post_renderables_if_optimizable(renderable_list))
     {
-        // preserves buffers used in rendering until after post_update()
-        std::vector<std::shared_ptr<void>> saved_resources;
-        auto save_resource = [&](std::shared_ptr<void> const& r)
-        {
-            saved_resources.push_back(r);
-        };
-
+        renderer->suspend();
+        report->finished_frame(true, this);
+    }
+    else
+    {
         display_buffer.make_current();
 
-        auto const& view_area = display_buffer.view_area();
-
-        mc::OcclusionFilter occlusion_search(view_area);
-        mc::OcclusionMatch occlusion_match;
-        scene->reverse_for_each_if(occlusion_search, occlusion_match);
-
         renderer->set_rotation(display_buffer.orientation());
-        renderer->begin();
-        mc::RenderingOperator applicator(*renderer, save_resource, local_frameno);
-        FilterForVisibleSceneInRegion selector(view_area, occlusion_match);
-        scene->for_each_if(selector, applicator);
+
+        renderer->begin();  // TODO deprecatable now?
+        renderer->render(renderable_list);
+        display_buffer.post_update();
         renderer->end();
 
-        display_buffer.post_update();
+        report->finished_frame(false, this);
     }
-
-    report->finished_frame(bypassed, this);
 }
-

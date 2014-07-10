@@ -26,9 +26,8 @@
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "mir_test_doubles/mock_buffer_initializer.h"
-#include "mir_test_doubles/null_virtual_terminal.h"
+#include "mir_test_doubles/platform_factory.h"
 #include "mir_test_framework/udev_environment.h"
-#include "src/server/report/null_report_factory.h"
 
 #include <cstdlib>
 #include <memory>
@@ -43,7 +42,6 @@ namespace mg = mir::graphics;
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
-namespace mr = mir::report;
 namespace mtf = mir::mir_test_framework;
 
 class MesaBufferAllocatorTest  : public ::testing::Test
@@ -52,7 +50,6 @@ protected:
     virtual void SetUp()
     {
         using namespace testing;
-        unsetenv("MIR_BYPASS");
 
         fake_devices.add_standard_device("standard-drm-devices");
 
@@ -64,11 +61,10 @@ protected:
         ON_CALL(mock_gbm, gbm_bo_get_handle(_))
         .WillByDefault(Return(mock_gbm.fake_gbm.bo_handle));
 
-        platform = std::make_shared<mgm::Platform>(
-            mr::null_display_report(),
-            std::make_shared<mtd::NullVirtualTerminal>());
+        platform = mtd::create_mesa_platform_with_null_dependencies();
         mock_buffer_initializer = std::make_shared<testing::NiceMock<mtd::MockBufferInitializer>>();
-        allocator.reset(new mgm::BufferAllocator(platform->gbm.device, mock_buffer_initializer));
+        allocator.reset(new mgm::BufferAllocator(
+            platform->gbm.device, mock_buffer_initializer, mgm::BypassOption::allowed));
     }
 
     // Defaults
@@ -139,7 +135,7 @@ TEST_F(MesaBufferAllocatorTest, software_buffers_dont_bypass)
     EXPECT_FALSE(buf->can_bypass());
 }
 
-TEST_F(MesaBufferAllocatorTest, bypass_disables_via_environment)
+TEST_F(MesaBufferAllocatorTest, bypass_disables_when_option_is_disabled)
 {
     using namespace testing;
     EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,_));
@@ -149,13 +145,13 @@ TEST_F(MesaBufferAllocatorTest, bypass_disables_via_environment)
                                           mir_pixel_format_argb_8888,
                                           mg::BufferUsage::hardware);
 
-    setenv("MIR_BYPASS", "0", 1);
-    mgm::BufferAllocator alloc(platform->gbm.device,
-                               mock_buffer_initializer);
+    mgm::BufferAllocator alloc(
+        platform->gbm.device,
+        mock_buffer_initializer,
+        mgm::BypassOption::prohibited);
     auto buf = alloc.alloc_buffer(properties);
     ASSERT_TRUE(buf.get() != NULL);
     EXPECT_FALSE(buf->can_bypass());
-    unsetenv("MIR_BYPASS");
 }
 
 TEST_F(MesaBufferAllocatorTest, correct_buffer_format_translation_argb_8888)
@@ -255,7 +251,8 @@ TEST_F(MesaBufferAllocatorTest, null_buffer_initializer_does_not_crash)
     using namespace testing;
 
     auto null_buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
-    allocator.reset(new mgm::BufferAllocator(platform->gbm.device, null_buffer_initializer));
+    allocator.reset(new mgm::BufferAllocator(
+        platform->gbm.device, null_buffer_initializer, mgm::BypassOption::allowed));
 
     EXPECT_NO_THROW({
         allocator->alloc_buffer(buffer_properties);

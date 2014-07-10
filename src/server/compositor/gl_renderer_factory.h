@@ -19,19 +19,26 @@
 #ifndef MIR_COMPOSITOR_GL_RENDERER_FACTORY_H_
 #define MIR_COMPOSITOR_GL_RENDERER_FACTORY_H_
 
-#include "renderer_factory.h"
+#include "mir/compositor/renderer_factory.h"
 
 namespace mir
 {
+namespace graphics
+{
+class GLProgramFactory;
+}
 namespace compositor
 {
 
 class GLRendererFactory : public RendererFactory
 {
 public:
-    std::unique_ptr<Renderer> create_renderer_for(geometry::Rectangle const& rect);
+    GLRendererFactory(std::shared_ptr<graphics::GLProgramFactory> const& factory);
+    std::unique_ptr<Renderer> create_renderer_for(geometry::Rectangle const& rect,
+        DestinationAlpha dest_alpha);
+private:
+    std::shared_ptr<graphics::GLProgramFactory> const program_factory;
 };
-
 }
 }
 

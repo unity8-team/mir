@@ -26,6 +26,7 @@
 #include "default_connection_configuration.h"
 
 #include "display_configuration.h"
+#include "rpc/make_rpc_channel.h"
 #include "rpc/mir_socket_rpc_channel.h"
 #include "rpc/null_rpc_report.h"
 #include "mir/logging/dumb_console_logger.h"
@@ -39,6 +40,7 @@
 #include "lifecycle_control.h"
 #include "mir/shared_library.h"
 #include "client_platform_factory.h"
+#include "mir_event_distributor.h"
 
 namespace mcl = mir::client;
 
@@ -138,10 +140,8 @@ mcl::DefaultConnectionConfiguration::the_rpc_channel()
     return rpc_channel(
         [this]
         {
-            // MirSocketRpcChannel takes lifetime responsibility for the socket fd
-            owns_socket = false;
-            return std::make_shared<mcl::rpc::MirSocketRpcChannel>(
-                the_socket_fd(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control());
+            return mcl::rpc::make_rpc_channel(
+                the_socket_fd(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink());
         });
 }
 
@@ -163,7 +163,7 @@ mcl::DefaultConnectionConfiguration::the_client_platform_factory()
         {
             auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
             std::string const val{val_raw ? val_raw : default_platform_lib};
-            auto const platform_lib = load_library(val);
+            auto const platform_lib = ::load_library(val);
 
             auto const create_client_platform_factory =
                 platform_lib->load_function<mcl::CreateClientPlatformFactory>(
@@ -240,5 +240,23 @@ std::shared_ptr<mcl::LifecycleControl> mcl::DefaultConnectionConfiguration::the_
         []
         {
             return std::make_shared<mcl::LifecycleControl>();
+        });
+}
+
+std::shared_ptr<mcl::EventSink> mcl::DefaultConnectionConfiguration::the_event_sink()
+{
+    return event_distributor(
+        []
+        {
+            return std::make_shared<MirEventDistributor>();
+        });
+}
+
+std::shared_ptr<mcl::EventHandlerRegister> mcl::DefaultConnectionConfiguration::the_event_handler_register()
+{
+    return event_distributor(
+        []
+        {
+            return std::make_shared<MirEventDistributor>();
         });
 }

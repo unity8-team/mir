@@ -17,25 +17,21 @@
  */
 
 #include "gl_context.h"
+#include "framebuffer_bundle.h"
 #include "android_format_conversion-inl.h"
 #include "mir/graphics/display_report.h"
+#include "mir/graphics/gl_config.h"
 
 #include <algorithm>
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
+#include <sstream>
 
 namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
 
 namespace
 {
-
-static EGLint const required_egl_config_attr [] =
-{
-    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-    EGL_NONE
-};
 
 static EGLint const default_egl_context_attr[] =
 {
@@ -68,8 +64,19 @@ static EGLDisplay create_and_initialize_display()
 
 /* the minimum requirement is to have EGL_WINDOW_BIT and EGL_OPENGL_ES2_BIT, and to select a config
    whose pixel format matches that of the framebuffer. */
-static EGLConfig select_egl_config_with_format(EGLDisplay egl_display, MirPixelFormat display_format)
+EGLConfig select_egl_config_with_format(
+    EGLDisplay egl_display, MirPixelFormat display_format,
+    mg::GLConfig const& gl_config)
 {
+    EGLint const required_egl_config_attr [] =
+    {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_DEPTH_SIZE, gl_config.depth_buffer_bits(),
+        EGL_STENCIL_SIZE, gl_config.stencil_buffer_bits(),
+        EGL_NONE
+    };
+
     int required_visual_id = mga::to_android_format(display_format);
     int num_potential_configs;
     EGLint num_match_configs;
@@ -96,42 +103,7 @@ static EGLConfig select_egl_config_with_format(EGLDisplay egl_display, MirPixelF
 
 }
 
-EGLSurface mga::create_dummy_pbuffer_surface(EGLDisplay disp, EGLConfig config)
-{
-    return eglCreatePbufferSurface(disp, config, dummy_pbuffer_attribs);
-}
-
-EGLSurface mga::create_window_surface(EGLDisplay disp, EGLConfig config, EGLNativeWindowType native)
-{
-    return eglCreateWindowSurface(disp, config, native, NULL);
-}
-
-mga::GLContext::GLContext(MirPixelFormat display_format, mg::DisplayReport& report)
-    : egl_display(create_and_initialize_display()),
-      own_display(true),
-      egl_config(select_egl_config_with_format(egl_display, display_format)),
-      egl_context{egl_display,
-                  eglCreateContext(egl_display, egl_config, EGL_NO_CONTEXT, default_egl_context_attr)},
-      egl_surface{egl_display,
-                    eglCreatePbufferSurface(egl_display, egl_config, dummy_pbuffer_attribs)}
-{
-    report.report_egl_configuration(egl_display, egl_config);
-}
-
-mga::GLContext::GLContext(
-    GLContext const& shared_gl_context,
-    std::function<EGLSurface(EGLDisplay, EGLConfig)> const& create_egl_surface)
-     : egl_display(shared_gl_context.egl_display),
-       own_display(false),
-       egl_config(shared_gl_context.egl_config),
-       egl_context{egl_display,
-                   eglCreateContext(egl_display, egl_config, shared_gl_context.egl_context,
-                                    default_egl_context_attr)},
-       egl_surface{egl_display, create_egl_surface(egl_display, egl_config)}
-{
-}
-
-void mga::GLContext::make_current() const
+void mga::GLContext::make_current(EGLSurface egl_surface) const
 {
     if (eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) == EGL_FALSE)
     {
@@ -145,10 +117,95 @@ void mga::GLContext::release_current() const
     eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
+
 mga::GLContext::~GLContext()
 {
     if (eglGetCurrentContext() == egl_context)
         release_current();
     if (own_display)
         eglTerminate(egl_display);
+}
+
+mga::GLContext::GLContext(
+    MirPixelFormat display_format, mg::GLConfig const& gl_config, mg::DisplayReport& report) :
+    egl_display(create_and_initialize_display()),
+    egl_config(select_egl_config_with_format(egl_display, display_format, gl_config)),
+    egl_context{egl_display,
+                eglCreateContext(egl_display, egl_config, EGL_NO_CONTEXT, default_egl_context_attr)},
+    own_display(true)
+{
+    report.report_egl_configuration(egl_display, egl_config);
+}
+
+mga::GLContext::GLContext(GLContext const& shared_gl_context) :
+    mg::GLContext(),
+    egl_display(shared_gl_context.egl_display),
+    egl_config(shared_gl_context.egl_config),
+    egl_context{egl_display,
+                eglCreateContext(egl_display, egl_config, shared_gl_context.egl_context,
+                                 default_egl_context_attr)},
+    own_display(false)
+{
+}
+
+mga::PbufferGLContext::PbufferGLContext(
+    MirPixelFormat display_format, mg::GLConfig const& gl_config, mg::DisplayReport& report) :
+    GLContext(display_format, gl_config, report),
+    egl_surface{egl_display,
+                eglCreatePbufferSurface(egl_display, egl_config, dummy_pbuffer_attribs)}
+{
+}
+
+mga::PbufferGLContext::PbufferGLContext(PbufferGLContext const& shared_gl_context) :
+    GLContext(shared_gl_context),
+    egl_surface{egl_display,
+                eglCreatePbufferSurface(egl_display, egl_config, dummy_pbuffer_attribs)}
+{
+}
+
+void mga::PbufferGLContext::make_current() const
+{
+    GLContext::make_current(egl_surface);
+}
+
+void mga::PbufferGLContext::release_current() const
+{
+    GLContext::release_current();
+}
+
+mga::FramebufferGLContext::FramebufferGLContext(
+    GLContext const& shared_gl_context,
+    std::shared_ptr<FramebufferBundle> const& fb_bundle,
+    std::shared_ptr<ANativeWindow> const& native_window)
+     : GLContext(shared_gl_context),
+       fb_bundle(fb_bundle),
+       egl_surface{egl_display,
+                   eglCreateWindowSurface(egl_display, egl_config, native_window.get(), NULL)}
+{
+}
+
+void mga::FramebufferGLContext::swap_buffers() const
+{
+    eglGetError();
+    if (eglSwapBuffers(egl_display, egl_surface) == EGL_FALSE)
+    {
+        std::stringstream sstream;
+        sstream << "eglSwapBuffers failure: EGL error code " << std::hex << eglGetError();
+        BOOST_THROW_EXCEPTION(std::runtime_error(sstream.str()));
+    }
+}
+
+std::shared_ptr<mg::Buffer> mga::FramebufferGLContext::last_rendered_buffer() const
+{
+    return fb_bundle->last_rendered_buffer();
+}
+
+void mga::FramebufferGLContext::make_current() const
+{
+    GLContext::make_current(egl_surface);
+}
+
+void mga::FramebufferGLContext::release_current() const
+{
+    GLContext::release_current();
 }

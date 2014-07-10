@@ -19,21 +19,21 @@
 #include "nested_display.h"
 #include "nested_display_configuration.h"
 #include "nested_output.h"
-#include "mir_api_wrappers.h"
+#include "host_connection.h"
 
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/surfaceless_egl_context.h"
 #include "mir/graphics/display_configuration_policy.h"
-#include "host_connection.h"
+#include "mir/graphics/overlapping_output_grouping.h"
+#include "mir/graphics/gl_config.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 
 namespace mg = mir::graphics;
 namespace mgn = mir::graphics::nested;
-namespace mgnw = mir::graphics::nested::mir_api_wrappers;
 namespace geom = mir::geometry;
 
 EGLint const mgn::detail::nested_egl_context_attribs[] =
@@ -57,11 +57,13 @@ mgn::detail::EGLSurfaceHandle::~EGLSurfaceHandle() noexcept
     eglDestroySurface(egl_display, egl_surface);
 }
 
-mgn::detail::EGLDisplayHandle::EGLDisplayHandle(MirConnection* connection)
+mgn::detail::EGLDisplayHandle::EGLDisplayHandle(
+    EGLNativeDisplayType native_display,
+    std::shared_ptr<GLConfig> const& gl_config)
     : egl_display(EGL_NO_DISPLAY),
-    egl_context_(EGL_NO_CONTEXT)
+      egl_context_(EGL_NO_CONTEXT),
+      gl_config{gl_config}
 {
-    auto const native_display = (EGLNativeDisplayType) mir_connection_get_egl_native_display(connection);
     egl_display = eglGetDisplay(native_display);
     if (egl_display == EGL_NO_DISPLAY)
         BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir Display Error: Failed to fetch EGL display."));
@@ -92,6 +94,8 @@ EGLConfig mgn::detail::EGLDisplayHandle::choose_windowed_es_config(MirPixelForma
         EGL_GREEN_SIZE, mg::green_channel_depth(format),
         EGL_BLUE_SIZE, mg::blue_channel_depth(format),
         EGL_ALPHA_SIZE, mg::alpha_channel_depth(format),
+        EGL_DEPTH_SIZE, gl_config->depth_buffer_bits(),
+        EGL_STENCIL_SIZE, gl_config->stencil_buffer_bits(),
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_NONE
     };
@@ -103,16 +107,6 @@ EGLConfig mgn::detail::EGLDisplayHandle::choose_windowed_es_config(MirPixelForma
         BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir Display Error: Failed to choose EGL configuration."));
 
     return result;
-}
-
-EGLNativeWindowType mgn::detail::EGLDisplayHandle::native_window(EGLConfig /*egl_config*/, MirSurface* mir_surface) const
-{
-    auto const native_window =
-        reinterpret_cast<EGLNativeWindowType>(mir_surface_get_egl_native_window(mir_surface));
-    if (!native_window)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir Display Error: Failed to fetch EGL native window."));
-
-    return native_window;
 }
 
 EGLContext mgn::detail::EGLDisplayHandle::egl_context() const
@@ -127,19 +121,19 @@ mgn::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
 
 mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<HostConnection> const& connection,
-    std::shared_ptr<input::EventFilter> const& event_handler,
+    std::shared_ptr<input::InputDispatcher> const& dispatcher,
     std::shared_ptr<mg::DisplayReport> const& display_report,
-    std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy) :
+    std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy,
+    std::shared_ptr<mg::GLConfig> const& gl_config) :
     connection{connection},
-    event_handler{event_handler},
+    dispatcher{dispatcher},
     display_report{display_report},
-    egl_display{*connection},
+    egl_display{connection->egl_native_display(), gl_config},
     outputs{}
 {
-
     std::shared_ptr<DisplayConfiguration> conf(configuration());
     initial_conf_policy->apply_to(*conf);
-    configure(*conf);
+    create_surfaces(*conf);
 }
 
 mgn::NestedDisplay::~NestedDisplay() noexcept
@@ -157,7 +151,7 @@ std::unique_ptr<mg::DisplayConfiguration> mgn::NestedDisplay::configuration() co
 {
     return std::unique_ptr<mg::DisplayConfiguration>(
         new NestedDisplayConfiguration(
-            mir_connection_create_display_config(*connection)
+            connection->create_display_config()
         )
     );
 }
@@ -172,75 +166,73 @@ void mgn::NestedDisplay::complete_display_initialization(MirPixelFormat format)
 
 void mgn::NestedDisplay::configure(mg::DisplayConfiguration const& configuration)
 {
+    create_surfaces(configuration);
+    apply_to_connection(configuration);
+}
+
+void mgn::NestedDisplay::create_surfaces(mg::DisplayConfiguration const& configuration)
+{
+    if (!configuration.valid())
+    {
+        BOOST_THROW_EXCEPTION(std::logic_error("Invalid or inconsistent display configuration"));
+    }
+
     decltype(outputs) result;
+    OverlappingOutputGrouping unique_outputs{configuration};
 
-    // TODO for proper mirrored mode support we will need to detect overlapping outputs and
-    // TODO only use a single surface for them. The OverlappingOutputGrouping utility class
-    // TODO used by the Mesa backend for a similar purpose could help with this.
-    configuration.for_each_output(
-        [&](mg::DisplayConfigurationOutput const& output)
+    unique_outputs.for_each_group(
+        [&](mg::OverlappingOutputGroup const& group)
         {
-            if (output.used)
-            {
-                geometry::Rectangle const& area = output.extents();
-
-                auto const& egl_config_format = output.current_format;
-
-                complete_display_initialization(egl_config_format);
-
-                MirSurfaceParameters const request_params =
+            bool have_output_for_group = false;
+            geometry::Rectangle const& area = group.bounding_rectangle();
+            group.for_each_output([&](mg::DisplayConfigurationOutput output)
+                {
+                    if (!have_output_for_group)
                     {
-                        "Mir nested display",
-                        area.size.width.as_int(),
-                        area.size.height.as_int(),
-                        egl_config_format,
-                        mir_buffer_usage_hardware,
-                        static_cast<uint32_t>(output.id.as_value())
-                    };
+                        auto const& egl_config_format = output.current_format;
 
-                auto const mir_surface = mir_connection_create_surface_sync(*connection, &request_params);
+                        complete_display_initialization(egl_config_format);
 
-                if (!mir_surface_is_valid(mir_surface))
-                    BOOST_THROW_EXCEPTION(std::runtime_error(mir_surface_get_error_message(mir_surface)));
+                        MirSurfaceParameters const request_params = {
+                            "Mir nested display",
+                            area.size.width.as_int(),
+                            area.size.height.as_int(),
+                            egl_config_format,
+                            mir_buffer_usage_hardware,
+                            static_cast<uint32_t>(output.id.as_value())
+                        };
 
-                result[output.id] = std::make_shared<mgn::detail::NestedOutput>(
-                    egl_display,
-                    mir_surface,
-                    area,
-                    event_handler,
-                    output.current_format);
-            }
+                        auto const host_surface = connection->create_surface(request_params);
+
+                        result[output.id] = std::make_shared<mgn::detail::NestedOutput>(
+                            egl_display,
+                            host_surface,
+                            area,
+                            dispatcher,
+                            output.current_format);
+                        have_output_for_group = true;
+                    }
+                });
         });
-
-    if (result.empty())
-        BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir needs at least one output for display"));
-
-    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
 
     {
         std::unique_lock<std::mutex> lock(outputs_mutex);
         outputs.swap(result);
     }
-
-    mir_connection_apply_display_config(*connection, conf);
 }
 
-namespace
+void mgn::NestedDisplay::apply_to_connection(mg::DisplayConfiguration const& configuration)
 {
-void display_config_callback_thunk(MirConnection* /*connection*/, void* context)
-{
-    (*static_cast<mg::DisplayConfigurationChangeHandler*>(context))();
-}
+    auto const& conf = dynamic_cast<NestedDisplayConfiguration const&>(configuration);
+
+    connection->apply_display_config(*conf);
 }
 
 void mgn::NestedDisplay::register_configuration_change_handler(
         EventHandlerRegister& /*handlers*/,
         DisplayConfigurationChangeHandler const& conf_change_handler)
 {
-    mir_connection_set_display_config_change_callback(
-        *connection,
-        &display_config_callback_thunk,
-        &(my_conf_change_handler = conf_change_handler));
+    connection->set_display_config_change_callback(conf_change_handler);
 }
 
 void mgn::NestedDisplay::register_pause_resume_handlers(
@@ -263,10 +255,10 @@ void mgn::NestedDisplay::resume()
     // TODO If we "own" the cursor then we need to restore it
 }
 
-auto mgn::NestedDisplay::the_cursor()->std::weak_ptr<Cursor>
+auto mgn::NestedDisplay::create_hardware_cursor(std::shared_ptr<mg::CursorImage> const& /* initial image */)->std::shared_ptr<Cursor>
 {
     // TODO Do we "own" the cursor or does the host mir?
-    return std::weak_ptr<Cursor>();
+    return std::shared_ptr<Cursor>();
 }
 
 std::unique_ptr<mg::GLContext> mgn::NestedDisplay::create_gl_context()

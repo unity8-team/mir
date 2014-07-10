@@ -35,11 +35,13 @@ class FBDevice : public DisplayDevice
 public:
     FBDevice(std::shared_ptr<framebuffer_device_t> const& fbdev);
 
+    bool apply_orientation(MirOrientation orientation) const;
     void mode(MirPowerMode mode);
-    void prepare_gl();
-    void prepare_gl_and_overlays(std::list<std::shared_ptr<Renderable>> const& list); 
-    void gpu_render(EGLDisplay dpy, EGLSurface sur);
-    void post(Buffer const& buffer);
+    virtual void post_gl(SwappingGLContext const& context);
+    virtual bool post_overlays(
+        SwappingGLContext const& context,
+        RenderableList const& list,
+        RenderableListCompositor const& list_compositor);
 
 private:
     std::shared_ptr<framebuffer_device_t> const fb_device;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -20,7 +20,6 @@
 #include "mir/scene/buffer_stream_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
-#include "surface_data.h"
 #include "basic_surface.h"
 
 namespace geom=mir::geometry;
@@ -39,15 +38,20 @@ static inline bool has_alpha(MirPixelFormat fmt)
 ms::SurfaceAllocator::SurfaceAllocator(
     std::shared_ptr<BufferStreamFactory> const& stream_factory,
     std::shared_ptr<input::InputChannelFactory> const& input_factory,
+    std::shared_ptr<input::InputSender> const& input_sender,
+    std::shared_ptr<SurfaceConfigurator> const& configurator,
+    std::shared_ptr<mg::CursorImage> const& default_cursor_image,
     std::shared_ptr<SceneReport> const& report) :
     buffer_stream_factory(stream_factory),
     input_factory(input_factory),
+    input_sender(input_sender),
+    configurator(configurator),
+    default_cursor_image(default_cursor_image),
     report(report)
 {
 }
 
-std::shared_ptr<ms::BasicSurface> ms::SurfaceAllocator::create_surface(
-    msh::SurfaceCreationParameters const& params, std::function<void()> const& change_callback)
+std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreationParameters const& params)
 {
     mg::BufferProperties buffer_properties{params.size,
                                            params.pixel_format,
@@ -56,10 +60,17 @@ std::shared_ptr<ms::BasicSurface> ms::SurfaceAllocator::create_surface(
     auto actual_size = geom::Rectangle{params.top_left, buffer_stream->stream_size()};
 
     bool nonrectangular = has_alpha(params.pixel_format);
-    auto state = std::make_shared<SurfaceData>(params.name,
-                                                    actual_size,
-                                                    change_callback,
-                                                    nonrectangular);
     auto input_channel = input_factory->make_input_channel();
-    return std::make_shared<BasicSurface>(state, buffer_stream, input_channel, report);
+    auto const surface = std::make_shared<BasicSurface>(
+        params.name,
+        actual_size,
+        nonrectangular,
+        buffer_stream,
+        input_channel,
+        input_sender,
+        configurator,
+        default_cursor_image,
+        report);
+
+    return surface;
 }

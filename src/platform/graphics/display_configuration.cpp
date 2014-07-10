@@ -19,6 +19,7 @@
 #include "mir/graphics/display_configuration.h"
 
 #include <ostream>
+#include <algorithm>
 
 namespace mg = mir::graphics;
 
@@ -182,8 +183,17 @@ bool mg::operator!=(mg::DisplayConfigurationOutput const& val1,
     return !(val1 == val2);
 }
 
-mir::geometry::Rectangle mg::DisplayConfigurationOutput::extents() const
+namespace
 {
+mir::geometry::Rectangle extents_of(
+    std::vector<mg::DisplayConfigurationMode> const& modes,
+    size_t current_mode_index,
+    MirOrientation orientation,
+    mir::geometry::Point top_left)
+{
+    if (current_mode_index > modes.size())
+        return mir::geometry::Rectangle();
+
     auto const& size = modes[current_mode_index].size;
 
     if (orientation == mir_orientation_normal ||
@@ -196,3 +206,66 @@ mir::geometry::Rectangle mg::DisplayConfigurationOutput::extents() const
         return {top_left, {size.height.as_int(), size.width.as_int()}};
     }
 }
+
+}
+
+mir::geometry::Rectangle mg::DisplayConfigurationOutput::extents() const
+{
+    return extents_of(modes, current_mode_index, orientation, top_left);
+}
+
+bool mg::DisplayConfigurationOutput::valid() const
+{
+    if (!connected)
+        return !used;
+
+    auto const& f = std::find(pixel_formats.begin(), pixel_formats.end(),
+                              current_format);
+    if (f == pixel_formats.end())
+        return false;
+
+    auto nmodes = modes.size();
+    if (preferred_mode_index >= nmodes || current_mode_index >= nmodes)
+        return false;
+
+    return true;
+}
+
+bool mg::DisplayConfiguration::valid() const
+{
+    bool all_valid = true;
+
+    for_each_output([&all_valid](DisplayConfigurationOutput const& out)
+        {
+            if (!out.valid())
+                all_valid = false;
+        });
+
+    return all_valid;
+}
+
+mg::UserDisplayConfigurationOutput::UserDisplayConfigurationOutput(
+    DisplayConfigurationOutput& master) :
+        id(master.id),
+        card_id(master.card_id),
+        type(master.type),
+        pixel_formats(master.pixel_formats),
+        modes(master.modes),
+        preferred_mode_index(master.preferred_mode_index),
+        physical_size_mm(master.physical_size_mm),
+        connected(master.connected),
+        used(master.used),
+        top_left(master.top_left),
+        current_mode_index(master.current_mode_index),
+        current_format(master.current_format),
+        power_mode(master.power_mode),
+        orientation(master.orientation)
+{
+}
+
+mir::geometry::Rectangle mg::UserDisplayConfigurationOutput::extents() const
+{
+    return extents_of(modes, current_mode_index, orientation, top_left);
+}
+
+

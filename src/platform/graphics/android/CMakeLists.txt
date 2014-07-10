@@ -2,6 +2,7 @@ include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 include_directories(
     ${EGL_INCLUDE_DIRS}
     ${GLESv2_INCLUDE_DIRS}
+    ${ANDROID_PROPERTIES_INCLUDE_DIRS}
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
@@ -20,6 +21,7 @@ add_library(
   hwc_layerlist.cpp
   hwc_layers.cpp
   hwc_fb_device.cpp
+  hwc_loggers.cpp
   hwc_device.cpp
   hwc_common_device.cpp
   hwc_vsync.cpp
@@ -32,6 +34,9 @@ add_library(
   interpreter_cache.cpp
   internal_client.cpp
   gl_context.cpp
+  device_quirks.cpp
+  real_hwc_wrapper.cpp
+  hwc_fallback_gl_renderer.cpp
 )
 
 set_target_properties(
@@ -43,13 +48,19 @@ set_target_properties(
 target_link_libraries(
   mirplatformgraphicsandroid
 
+  miroptions
   mirplatform
   mirsharedandroid
+  mirsharedenv
 
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${LIBHARDWARE_LIBRARIES}
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
+  ${ANDROID_PROPERTIES_LIBRARIES}
 )
+
+install(TARGETS mirplatformgraphicsandroid LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/platformgraphics/android)
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
   add_custom_command(TARGET mirplatformgraphicsandroid
@@ -58,6 +69,11 @@ if (MIR_TEST_PLATFORM STREQUAL "android")
     COMMAND ${CMAKE_COMMAND} -E create_symlink android/$<TARGET_FILE_NAME:mirplatformgraphicsandroid> libmirplatformgraphics.so
     WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
   )
-endif()
 
-install(TARGETS mirplatformgraphicsandroid LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/platformgraphics/android)
+  install(CODE
+    "execute_process(
+       COMMAND ln -sf mir/platformgraphics/android/libmirplatformgraphics.so
+       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+     )"
+  )
+endif()

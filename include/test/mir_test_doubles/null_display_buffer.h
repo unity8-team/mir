@@ -35,11 +35,9 @@ public:
     void make_current() {}
     void release_current() {}
     void post_update() {}
-    bool can_bypass() const override { return false; }
-    void render_and_post_update(
-        std::list<std::shared_ptr<graphics::Renderable>> const&,
-        std::function<void(graphics::Renderable const&)> const&) {}
+    bool post_renderables_if_optimizable(graphics::RenderableList const&) { return false; }
     MirOrientation orientation() const override { return mir_orientation_normal; }
+    bool uses_alpha() const override { return false; }
 };
 
 }

@@ -16,11 +16,10 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#include "mir/compositor/compositing_criteria.h"
 #include "mir/geometry/rectangle.h"
 #include "src/server/compositor/occlusion.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
-#include "mir_test_doubles/stub_compositing_criteria.h"
+#include "mir_test_doubles/fake_renderable.h"
+#include "mir_test_doubles/stub_scene_element.h"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -28,8 +27,11 @@
 using namespace testing;
 using namespace mir::geometry;
 using namespace mir::compositor;
-using namespace mir::test::doubles;
+namespace mg = mir::graphics;
+namespace mtd = mir::test::doubles;
 
+namespace
+{
 struct OcclusionFilterTest : public Test
 {
     OcclusionFilterTest()
@@ -38,126 +40,172 @@ struct OcclusionFilterTest : public Test
         monitor_rect.size = {1920, 1200};
     }
 
+    SceneElementSequence scene_elements_from(
+        std::vector<std::shared_ptr<mg::Renderable>> renderables)
+    {
+        SceneElementSequence elements;
+        for (auto const& renderable : renderables)
+            elements.push_back(std::make_shared<mtd::StubSceneElement>(renderable));
+
+        return elements;
+    }
+
+    mg::RenderableList renderables_from(SceneElementSequence const& elements)
+    {
+        mg::RenderableList renderables;
+        for (auto const& element : elements)
+            renderables.push_back(element->renderable());
+
+        return renderables;
+    }
+
     Rectangle monitor_rect;
 };
 
+}
+
 TEST_F(OcclusionFilterTest, single_window_not_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto window = std::make_shared<mtd::FakeRenderable>(12, 34, 56, 78);
+    auto elements = scene_elements_from({window});
+ 
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria win(12, 34, 56, 78);
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAre(window));
+}
 
-    EXPECT_FALSE(filter(win));
+TEST_F(OcclusionFilterTest, partially_offscreen_still_visible)
+{ // Regression test for LP: #1301115
+    auto left =   std::make_shared<mtd::FakeRenderable>(-10,   10, 100, 100);
+    auto right =  std::make_shared<mtd::FakeRenderable>(1900,  10, 100, 100);
+    auto top =    std::make_shared<mtd::FakeRenderable>(500,   -1, 100, 100);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(200, 1000, 100, 1000);
+    auto elements = scene_elements_from({left, right, top, bottom});
+ 
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
+
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAre(left, right, top, bottom));
 }
 
 TEST_F(OcclusionFilterTest, smaller_window_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(12, 12, 5, 5);
-    EXPECT_TRUE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(bottom));
+    EXPECT_THAT(renderables_from(elements), ElementsAre(top));
 }
 
 TEST_F(OcclusionFilterTest, translucent_window_occludes_nothing)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 0.5f);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(Rectangle{{12, 12}, {5, 5}}, 1.0f);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10, 0.5f);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(12, 12, 5, 5, 1.0f);
-    EXPECT_FALSE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
 TEST_F(OcclusionFilterTest, hidden_window_is_self_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto window = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
+    auto elements = scene_elements_from({window});
 
-    StubCompositingCriteria front(10, 10, 10, 10, 1.0f, true, false);
-    EXPECT_TRUE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
+
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(window));
+    EXPECT_THAT(renderables_from(elements), IsEmpty());
 }
 
 TEST_F(OcclusionFilterTest, hidden_window_occludes_nothing)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10, 1.0f, true, false);
-    EXPECT_TRUE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(12, 12, 5, 5);
-    EXPECT_FALSE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(top));
+    EXPECT_THAT(renderables_from(elements), ElementsAre(bottom));
 }
 
 TEST_F(OcclusionFilterTest, shaped_window_occludes_nothing)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, false, true);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10, 1.0f, false, true);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(12, 12, 5, 5);
-    EXPECT_FALSE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
 TEST_F(OcclusionFilterTest, identical_window_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(10, 10, 10, 10);
-    EXPECT_TRUE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(bottom));
+    EXPECT_THAT(renderables_from(elements), ElementsAre(top));
 }
 
 TEST_F(OcclusionFilterTest, larger_window_never_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
+    auto bottom = std::make_shared<mtd::FakeRenderable>(9, 9, 12, 12);
+    auto elements = scene_elements_from({bottom, top});
 
-    StubCompositingCriteria front(10, 10, 10, 10);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    StubCompositingCriteria back(9, 9, 12, 12);
-    EXPECT_FALSE(filter(back));
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
 TEST_F(OcclusionFilterTest, cascaded_windows_never_occluded)
 {
-    OcclusionFilter filter(monitor_rect);
+    std::vector<std::shared_ptr<mg::Renderable>> renderables;
+    unsigned int const num_windows{10u};
+    for (auto x = 0u; x < num_windows; x++)
+        renderables.push_back(std::make_shared<mtd::FakeRenderable>(x, x, 200, 100));
 
-    for (int x = 0; x < 10; x++)
-    {
-        StubCompositingCriteria win(x, x, 200, 100);
-        ASSERT_FALSE(filter(win));
-    }
+    auto elements = scene_elements_from(renderables);
+
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
+
+    EXPECT_THAT(renderables_from(occlusions), IsEmpty());
+    EXPECT_THAT(renderables_from(elements), ElementsAreArray(renderables));
 }
 
 TEST_F(OcclusionFilterTest, some_occluded_and_some_not)
 {
-    OcclusionFilter filter(monitor_rect);
+    auto window0 = std::make_shared<mtd::FakeRenderable>(10, 20, 400, 300);
+    auto window1 = std::make_shared<mtd::FakeRenderable>(10, 20, 5, 5);
+    auto window2 = std::make_shared<mtd::FakeRenderable>(100, 100, 20, 20);
+    auto window3 = std::make_shared<mtd::FakeRenderable>(200, 200, 50, 50);
+    auto window4 = std::make_shared<mtd::FakeRenderable>(500, 600, 34, 56);
+    auto window5 = std::make_shared<mtd::FakeRenderable>(200, 200, 1000, 1000);
+    auto elements = scene_elements_from({
+        window5, //not occluded
+        window4, //not occluded
+        window3, //occluded
+        window2, //occluded
+        window1, //occluded
+        window0  //not occluded
+    });
 
-    StubCompositingCriteria front(10, 20, 400, 300);
-    EXPECT_FALSE(filter(front));
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
 
-    EXPECT_TRUE(filter(StubCompositingCriteria(10, 20, 5, 5)));
-    EXPECT_TRUE(filter(StubCompositingCriteria(100, 100, 20, 20)));
-    EXPECT_TRUE(filter(StubCompositingCriteria(200, 200, 50, 50)));
-
-    EXPECT_FALSE(filter(StubCompositingCriteria(500, 600, 34, 56)));
-    EXPECT_FALSE(filter(StubCompositingCriteria(200, 200, 1000, 1000)));
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(window3, window2, window1));
+    EXPECT_THAT(renderables_from(elements), ElementsAre(window5, window4, window0));
 }
-
-TEST(OcclusionMatchTest, remembers_matches)
-{
-    OcclusionMatch match;
-    StubCompositingCriteria win(1, 2, 3, 4);
-    StubBufferStream bufs;
-
-    EXPECT_FALSE(match.occluded(win));
-    match(win, bufs);
-    EXPECT_TRUE(match.occluded(win));
-}
-

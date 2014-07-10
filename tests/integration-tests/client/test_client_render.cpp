@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,8 +25,8 @@
 #include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
 
 #include "mir_test_framework/cross_process_sync.h"
-#include "mir_test/draw/graphics_region_factory.h"
-#include "mir_test/draw/patterns.h"
+#include "testdraw/graphics_region_factory.h"
+#include "testdraw/patterns.h"
 #include "mir_test/stub_server_tool.h"
 #include "mir_test/test_protobuf_server.h"
 
@@ -248,6 +248,18 @@ struct StubServerGenerator : public mt::StubServerTool
             response->add_fd(native_handle->data[i]);
         for(auto i=0; i<native_handle->numInts; i++)
             response->add_data(native_handle->data[native_handle->numFds+i]);
+        done->Run();
+    }
+
+    void configure_surface(
+        google::protobuf::RpcController*,
+        const mir::protobuf::SurfaceSetting* request,
+        mir::protobuf::SurfaceSetting* response,
+        google::protobuf::Closure* done)
+    {
+        response->mutable_surfaceid()->CopyFrom(request->surfaceid());
+        response->set_attrib(request->attrib());
+        response->set_ivalue(request->ivalue());
         done->Run();
     }
 

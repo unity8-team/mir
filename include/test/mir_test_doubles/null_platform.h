@@ -39,7 +39,9 @@ class NullPlatform : public graphics::Platform
     }
 
     std::shared_ptr<graphics::Display> create_display(
-        std::shared_ptr<graphics::DisplayConfigurationPolicy> const&)
+        std::shared_ptr<graphics::DisplayConfigurationPolicy> const&,
+        std::shared_ptr<graphics::GLProgramFactory> const&,
+        std::shared_ptr<graphics::GLConfig> const&)
     {
         return std::make_shared<NullDisplay>();
     }
@@ -54,7 +56,8 @@ class NullPlatform : public graphics::Platform
         return std::shared_ptr<graphics::InternalClient>();
     }
 
-    void fill_ipc_package(graphics::BufferIPCPacker*, graphics::Buffer const*) const
+    void fill_buffer_package(
+        graphics::BufferIPCPacker*, graphics::Buffer const*, graphics::BufferIpcMsgType) const
     {
     }
 

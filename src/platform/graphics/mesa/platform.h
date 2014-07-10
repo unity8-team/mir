@@ -27,10 +27,16 @@
 
 namespace mir
 {
+class EmergencyCleanupRegistry;
 namespace graphics
 {
 namespace mesa
 {
+enum class BypassOption
+{
+    allowed,
+    prohibited
+};
 
 class VirtualTerminal;
 class InternalNativeDisplay;
@@ -40,18 +46,23 @@ class Platform : public graphics::Platform,
 {
 public:
     explicit Platform(std::shared_ptr<DisplayReport> const& reporter,
-                      std::shared_ptr<VirtualTerminal> const& vt);
+                      std::shared_ptr<VirtualTerminal> const& vt,
+                      EmergencyCleanupRegistry& emergency_cleanup_registry,
+                      BypassOption bypass_option);
     ~Platform();
 
     /* From Platform */
     std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator(
             const std::shared_ptr<BufferInitializer>& buffer_initializer);
     std::shared_ptr<graphics::Display> create_display(
-        std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy);
+        std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
+        std::shared_ptr<GLProgramFactory> const& program_factory,
+        std::shared_ptr<GLConfig> const& gl_config);
     std::shared_ptr<PlatformIPCPackage> get_ipc_package();
     std::shared_ptr<InternalClient> create_internal_client();
 
-    void fill_ipc_package(BufferIPCPacker* packer, Buffer const* buffer) const;
+    void fill_buffer_package(
+        BufferIPCPacker* packer, Buffer const* buffer, BufferIpcMsgType msg_type) const;
 
     EGLNativeDisplayType egl_native_display() const;
 
@@ -59,15 +70,19 @@ public:
     void drm_auth_magic(unsigned int magic);
 
     std::shared_ptr<mir::udev::Context> udev;
-    helpers::DRMHelper drm;
+    std::shared_ptr<helpers::DRMHelper> const drm;
     helpers::GBMHelper gbm;
 
     std::shared_ptr<DisplayReport> const listener;
     std::shared_ptr<VirtualTerminal> const vt;
 
+    BypassOption bypass_option() const;
+
     //connection shared by all internal clients
     static bool internal_display_clients_present;
     static std::shared_ptr<InternalNativeDisplay> internal_native_display;
+private:
+    BypassOption const bypass_option_;
 };
 
 extern "C" int mir_server_mesa_egl_native_display_is_valid(MirMesaEGLNativeDisplay* display);

@@ -38,10 +38,10 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_compositor_buffer(
-    unsigned long frameno)
+    void const* user_id)
 {
     return std::make_shared<mc::TemporaryCompositorBuffer>(
-        buffer_bundle, frameno);
+        buffer_bundle, user_id);
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
@@ -49,14 +49,15 @@ std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
     return std::make_shared<mc::TemporarySnapshotBuffer>(buffer_bundle);
 }
 
-void mc::BufferStreamSurfaces::swap_client_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete)
+void mc::BufferStreamSurfaces::acquire_client_buffer(
+    std::function<void(graphics::Buffer* buffer)> complete)
 {
-    if (old_buffer)
-    {
-        buffer_bundle->client_release(old_buffer);
-    }
-
     buffer_bundle->client_acquire(complete);
+}
+
+void mc::BufferStreamSurfaces::release_client_buffer(graphics::Buffer* buf)
+{
+    buffer_bundle->client_release(buf);
 }
 
 MirPixelFormat mc::BufferStreamSurfaces::get_stream_pixel_format()
@@ -82,4 +83,9 @@ void mc::BufferStreamSurfaces::force_requests_to_complete()
 void mc::BufferStreamSurfaces::allow_framedropping(bool allow)
 {
     buffer_bundle->allow_framedropping(allow);
+}
+
+int mc::BufferStreamSurfaces::buffers_ready_for_compositor() const
+{
+    return buffer_bundle->buffers_ready_for_compositor();
 }

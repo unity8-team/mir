@@ -27,34 +27,19 @@ namespace graphics
 {
 namespace nested
 {
+class HostSurface;
+
 namespace detail
 {
-
-class EGLSurfaceHandle;
-class MirSurfaceHandle
-{
-public:
-    explicit MirSurfaceHandle(MirSurface* mir_surface);
-
-    ~MirSurfaceHandle() noexcept;
-
-    operator MirSurface*() const { return mir_surface; }
-
-private:
-    MirSurface* mir_surface;
-
-    MirSurfaceHandle(MirSurfaceHandle const&) = delete;
-    MirSurfaceHandle operator=(MirSurfaceHandle const&) = delete;
-};
 
 class NestedOutput : public DisplayBuffer
 {
 public:
     NestedOutput(
         EGLDisplayHandle const& egl_display,
-        MirSurface* mir_surface,
+        std::shared_ptr<HostSurface> const& host_surface,
         geometry::Rectangle const& area,
-        std::shared_ptr<input::EventFilter> const& event_handler,
+        std::shared_ptr<input::InputDispatcher> const& input_dispatcher,
         MirPixelFormat preferred_format);
 
     ~NestedOutput() noexcept;
@@ -63,22 +48,21 @@ public:
     void make_current() override;
     void release_current() override;
     void post_update() override;
-    virtual bool can_bypass() const override;
     MirOrientation orientation() const override;
+    bool uses_alpha() const override;
 
-    void render_and_post_update(
-        std::list<std::shared_ptr<Renderable>> const& renderlist,
-        std::function<void(Renderable const&)> const& render_fn);
+    bool post_renderables_if_optimizable(RenderableList const& renderlist);
 
     NestedOutput(NestedOutput const&) = delete;
     NestedOutput operator=(NestedOutput const&) = delete;
 private:
+    bool const uses_alpha_;
     EGLDisplayHandle const& egl_display;
-    MirSurfaceHandle const mir_surface;
+    std::shared_ptr<HostSurface> const host_surface;
     EGLConfig const egl_config;
     EGLContextStore const egl_context;
     geometry::Rectangle const area;
-    std::shared_ptr<input::EventFilter> const event_handler;
+    std::shared_ptr<input::InputDispatcher> const dispatcher;
     EGLSurfaceHandle const egl_surface;
 
     static void event_thunk(MirSurface* surface, MirEvent const* event, void* context);

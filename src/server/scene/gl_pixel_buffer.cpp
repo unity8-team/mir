@@ -65,6 +65,13 @@ ms::GLPixelBuffer::GLPixelBuffer(std::unique_ptr<graphics::GLContext> gl_context
 
 ms::GLPixelBuffer::~GLPixelBuffer() noexcept
 {
+    /*
+     * This may be called from a different thread
+     * than the one that called prepare
+     */
+    if (tex != 0 || fbo != 0)
+        gl_context->make_current();
+
     if (tex != 0)
         glDeleteTextures(1, &tex);
     if (fbo != 0)
@@ -96,7 +103,7 @@ void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     prepare();
 
-    buffer.bind_to_texture();
+    buffer.gl_bind_to_texture();
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
 

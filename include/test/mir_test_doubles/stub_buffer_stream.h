@@ -36,11 +36,18 @@ public:
     {
         stub_compositor_buffer = std::make_shared<StubBuffer>();
     }
-    void swap_client_buffers(graphics::Buffer*, std::function<void(graphics::Buffer* new_buffer)> complete) override
+
+    void acquire_client_buffer(
+        std::function<void(graphics::Buffer* buffer)> complete) override
     {
         complete(&stub_client_buffer);
     }
-    std::shared_ptr<graphics::Buffer> lock_compositor_buffer(unsigned long) override
+
+    void release_client_buffer(graphics::Buffer*) override
+    {
+    }
+
+    std::shared_ptr<graphics::Buffer> lock_compositor_buffer(void const*) override
     {
         return stub_compositor_buffer;
     }
@@ -71,6 +78,8 @@ public:
     void allow_framedropping(bool) override
     {
     }
+
+    int buffers_ready_for_compositor() const override { return 1; }
 
     StubBuffer stub_client_buffer;
     std::shared_ptr<graphics::Buffer> stub_compositor_buffer;

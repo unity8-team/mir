@@ -29,8 +29,8 @@ mc::TemporaryBuffer::TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buf
 }
 
 mc::TemporaryCompositorBuffer::TemporaryCompositorBuffer(
-    std::shared_ptr<BufferBundle> const& bun, unsigned long frameno)
-    : TemporaryBuffer(bun->compositor_acquire(frameno)),
+    std::shared_ptr<BufferBundle> const& bun, void const* user_id)
+    : TemporaryBuffer(bun->compositor_acquire(user_id)),
       bundle(bun)
 {
 }
@@ -72,9 +72,9 @@ mg::BufferID mc::TemporaryBuffer::id() const
     return buffer->id();
 }
 
-void mc::TemporaryBuffer::bind_to_texture()
+void mc::TemporaryBuffer::gl_bind_to_texture()
 {
-    buffer->bind_to_texture();
+    buffer->gl_bind_to_texture();
 }
 
 std::shared_ptr<mg::NativeBuffer> mc::TemporaryBuffer::native_buffer_handle() const
