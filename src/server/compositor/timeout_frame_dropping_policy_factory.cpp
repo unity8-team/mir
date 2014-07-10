@@ -52,15 +52,15 @@ TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time
       alarm{timer->create_alarm([this, drop_frame]
         {
             bool call_drop{false};
-            bool reshedule{false};
+            bool reschedule{false};
 
             {
                 std::lock_guard<std::mutex> lock{mutex};
                 call_drop = pending_swaps > 0;
-                reshedule = call_drop && --pending_swaps > 0;
+                reschedule = call_drop && --pending_swaps > 0;
             }
             if (call_drop) drop_frame();
-            if (reshedule) alarm->reschedule_in(this->timeout);
+            if (reschedule) alarm->reschedule_in(this->timeout);
         })},
       pending_swaps{0}
 {
@@ -76,13 +76,18 @@ void TimeoutFrameDroppingPolicy::swap_unblocked()
 {
     if (alarm->state() == mir::time::Alarm::cancelled) return;
 
-    if ([&]{ std::lock_guard<std::mutex> lock{mutex}; return --pending_swaps > 0; }())
+    bool update_alarm{false};
+    bool reschedule{false};
     {
-        alarm->reschedule_in(timeout);
+        std::lock_guard<std::mutex> lock{mutex};
+        update_alarm = pending_swaps > 0;
+        reschedule = update_alarm && --pending_swaps > 0;
     }
-    else
+
+    if (update_alarm)
     {
-        alarm->cancel();
+        if (reschedule) alarm->reschedule_in(timeout);
+        else alarm->cancel();
     }
 }
 }
