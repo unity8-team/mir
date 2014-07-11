@@ -220,7 +220,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
-    //fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
+    fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
 
     bool use_current_buffer = false;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
@@ -464,19 +464,9 @@ void mc::BufferQueue::release(
  */
 int mc::BufferQueue::min_buffers() const
 {
-    if (nbuffers <= 1)
-        return nbuffers;
-
-    // else for multi-buffering with exclusivity guarantees:
-    int client_demand = buffers_owned_by_client.size() +
-                        pending_client_notifications.size();
-    int min_compositors = 1;
-    int min_clients = std::max(1, client_demand);
-    int min_free = frame_dropping_enabled ? 1 : 0;
-    int required_buffers = min_compositors + min_clients + min_free;
-
+    int required_buffers = frame_dropping_enabled ? 3 : 2;
     int ret = std::min(nbuffers, required_buffers);
-    //fprintf(stderr, "min_buffers = %d\n", ret);
+    fprintf(stderr, "min_buffers = %d\n", ret);
     return ret;
 }
 
