@@ -31,11 +31,19 @@
 // local
 #include "mirsurfaceitem.h"
 
-namespace mir { namespace scene { class Surface; class Session; }}
+namespace mir {
+    namespace scene {
+        class Surface;
+        class Session;
+        class PromptSession;
+    }
+}
+
+class MirServerConfiguration;
 
 namespace qtmir {
 
-class ShellServerConfiguration;
+class Application;
 
 class MirSurfaceManager : public QAbstractListModel
 {
@@ -51,7 +59,6 @@ public:
 
     static MirSurfaceManager* singleton();
 
-    MirSurfaceManager(QObject *parent = 0);
     ~MirSurfaceManager();
 
     // from QAbstractItemModel
@@ -76,10 +83,23 @@ public Q_SLOTS:
 
     void onSurfaceAttributeChanged(const mir::scene::Surface *, MirSurfaceAttrib, int);
 
+    void onPromptProviderAdded(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
+    void onPromptProviderRemoved(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
+
+protected:
+    MirSurfaceManager(
+        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        QObject *parent = 0
+    );
+
+    void rehostPromptSessionSurfaces(const mir::scene::Session *);
+
 private:
+    QSharedPointer<MirServerConfiguration> m_mirConfig;
+
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
+    QMultiHash<const mir::scene::Session *, MirSurfaceItem *> m_mirSessionToItemHash;
     QList<MirSurfaceItem*> m_surfaceItems;
-    ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
     QHash<int, QByteArray> m_roleNames;
     QMutex m_mutex;

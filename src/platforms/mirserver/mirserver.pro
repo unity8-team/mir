@@ -28,6 +28,7 @@ SOURCES += \
     sessionauthorizer.cpp \
     sessionlistener.cpp \
     surfaceconfigurator.cpp \
+    promptsessionlistener.cpp \
     messageprocessor.cpp \
     mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
@@ -52,6 +53,7 @@ HEADERS += \
     qmirserver.h \
     sessionauthorizer.h \
     sessionlistener.h \
+    promptsessionlistener.h \
     surfaceconfigurator.h \
     logging.h \
     messageprocessor.h \

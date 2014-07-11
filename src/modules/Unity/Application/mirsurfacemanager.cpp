@@ -29,6 +29,12 @@
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "logging.h"
+#include "promptsessionlistener.h"
+
+// mir
+#include <mir/scene/prompt_session.h>
+#include <mir/scene/prompt_session_manager.h>
+
 
 Q_LOGGING_CATEGORY(QTMIR_SURFACES, "qtmir.surfaces")
 
@@ -38,39 +44,63 @@ namespace qtmir {
 
 MirSurfaceManager *MirSurfaceManager::the_surface_manager = nullptr;
 
+
+void connectToSessionListener(MirSurfaceManager *manager, SessionListener *listener)
+{
+    QObject::connect(listener, &SessionListener::sessionCreatedSurface,
+                     manager, &MirSurfaceManager::onSessionCreatedSurface);
+    QObject::connect(listener, &SessionListener::sessionDestroyingSurface,
+                     manager, &MirSurfaceManager::onSessionDestroyingSurface);
+}
+
+void connectToSurfaceConfigurator(MirSurfaceManager *manager, SurfaceConfigurator *surfaceConfigurator)
+{
+    QObject::connect(surfaceConfigurator, &SurfaceConfigurator::surfaceAttributeChanged,
+                     manager, &MirSurfaceManager::onSurfaceAttributeChanged);
+}
+
+void connectToPromptSessionListener(MirSurfaceManager * manager, PromptSessionListener * listener)
+{
+    QObject::connect(listener, &PromptSessionListener::promptProviderAdded,
+                     manager, &MirSurfaceManager::onPromptProviderAdded);
+    QObject::connect(listener, &PromptSessionListener::promptProviderRemoved,
+                     manager, &MirSurfaceManager::onPromptProviderRemoved);
+}
+
 MirSurfaceManager* MirSurfaceManager::singleton()
 {
     if (!the_surface_manager) {
-        the_surface_manager = new MirSurfaceManager();
+
+        NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
+
+        if (!nativeInterface) {
+            qCritical("ERROR: Unity.Application QML plugin requires use of the 'mirserver' QPA plugin");
+            QGuiApplication::quit();
+            return nullptr;
+        }
+
+        SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
+        SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
+        PromptSessionListener *promptSessionListener = static_cast<PromptSessionListener*>(nativeInterface->nativeResourceForIntegration("PromptSessionListener"));
+
+        the_surface_manager = new MirSurfaceManager(nativeInterface->m_mirConfig);
+
+        connectToSessionListener(the_surface_manager, sessionListener);
+        connectToSurfaceConfigurator(the_surface_manager, surfaceConfigurator);
+        connectToPromptSessionListener(the_surface_manager, promptSessionListener);
     }
     return the_surface_manager;
 }
 
-MirSurfaceManager::MirSurfaceManager(QObject *parent)
+MirSurfaceManager::MirSurfaceManager(
+        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        QObject *parent)
     : QAbstractListModel(parent)
+    , m_mirConfig(mirConfig)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
 
     m_roleNames.insert(RoleSurface, "surface");
-
-    NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
-
-    if (!nativeInterface) {
-        qCritical("ERROR: Unity.Application QML plugin requires use of the 'mirserver' QPA plugin");
-        QGuiApplication::quit();
-        return;
-    }
-
-    SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
-    SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
-
-    QObject::connect(sessionListener, &SessionListener::sessionCreatedSurface,
-                     this, &MirSurfaceManager::onSessionCreatedSurface);
-    QObject::connect(sessionListener, &SessionListener::sessionDestroyingSurface,
-                     this, &MirSurfaceManager::onSessionDestroyingSurface);
-
-    QObject::connect(surfaceConfigurator, &SurfaceConfigurator::surfaceAttributeChanged,
-                     this, &MirSurfaceManager::onSurfaceAttributeChanged);
 }
 
 MirSurfaceManager::~MirSurfaceManager()
@@ -88,11 +118,12 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
 
     ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
 
-    Application* application = appMgr->findApplicationWithSession(session);
+    Application* application = appMgr->findApplicationWithSession(session, false);
     auto qmlSurface = new MirSurfaceItem(surface, application);
     {
         QMutexLocker lock(&m_mutex);
         m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
+        m_mirSessionToItemHash.insert(session, qmlSurface);
     }
 
     beginInsertRows(QModelIndex(), 0, 0);
@@ -120,6 +151,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
         {
             QMutexLocker lock(&m_mutex);
             m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(mirSurfaceItem));
+            m_mirSessionToItemHash.remove(m_mirSessionToItemHash.key(mirSurfaceItem));
         }
 
         int i = m_surfaceItems.indexOf(mirSurfaceItem);
@@ -130,6 +162,8 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
             Q_EMIT countChanged();
         }
     });
+
+    rehostPromptSessionSurfaces(session);
 }
 
 void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *session,
@@ -144,9 +178,12 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
         MirSurfaceItem* item = it.value();
         Q_EMIT item->surfaceDestroyed();
 
+        rehostPromptSessionSurfaces(session);
+
         {
             QMutexLocker lock(&m_mutex);
             m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(item));
+            m_mirSessionToItemHash.remove(m_mirSessionToItemHash.key(item));
         }
 //        m_mirSurfaceToItemHash.erase(it);
 
@@ -157,11 +194,25 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
             endRemoveRows();
             Q_EMIT countChanged();
         }
+
+        delete item;
         return;
     }
 
     qCritical() << "MirSurfaceManager::onSessionDestroyingSurface: unable to find MirSurfaceItem corresponding"
                 << "to surface=" << surface.get() << "surface.name=" << surface->name().c_str();
+}
+
+void MirSurfaceManager::onPromptProviderAdded(const mir::scene::PromptSession *,
+                                              const std::shared_ptr<mir::scene::Session> &session)
+{
+    rehostPromptSessionSurfaces(session.get());
+}
+
+void MirSurfaceManager::onPromptProviderRemoved(const mir::scene::PromptSession *,
+                                                const std::shared_ptr<mir::scene::Session> &session)
+{
+    rehostPromptSessionSurfaces(session.get());
 }
 
 // NB: Surface might be a dangling pointer here, so refrain from dereferencing it.
@@ -201,6 +252,63 @@ QVariant MirSurfaceManager::data(const QModelIndex & index, int role) const
 MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 {
     return m_surfaceItems[index];
+}
+
+void getSurfaceDecendents(QQuickItem* item, QList<MirSurfaceItem*>& surfaceChildren)
+{
+    for(QQuickItem* child : item->childItems()) {
+        auto surface = qobject_cast<MirSurfaceItem*>(child);
+        if (surface) {
+            surfaceChildren.append(surface);
+        }
+        getSurfaceDecendents(child, surfaceChildren);
+    }
+}
+
+void MirSurfaceManager::rehostPromptSessionSurfaces(const mir::scene::Session *session)
+{
+    auto appFn = [&](Application* application) {
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - appId=" << application->name();
+
+        std::shared_ptr<ms::PromptSessionManager> manager = m_mirConfig->the_prompt_session_manager();
+
+        MirSurfaceItem* parentItem = application->surface();
+        if (!parentItem) {
+            return;
+        }
+
+        QList<MirSurfaceItem*> surfaceChildren;
+        getSurfaceDecendents(parentItem, surfaceChildren);
+
+        manager->for_each_provider_in(application->activePromptSession(),
+            [&](const std::shared_ptr<ms::Session> &session) {
+
+            QMutexLocker lock(&m_mutex);
+
+            auto it = m_mirSessionToItemHash.find(session.get());
+            MirSurfaceItem *surfaceItem = NULL;
+            while (it != m_mirSessionToItemHash.end() && it.key() == session.get()) {
+                surfaceItem = it.value();
+
+                qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - " << surfaceItem << " setParent " << parentItem;
+                surfaceItem->setParentItem(parentItem);
+                surfaceChildren.removeOne(surfaceItem);
+
+                ++it;
+            }
+            // last session surface is parent of next provider session surface.
+            if (surfaceItem) {
+                parentItem = surfaceItem;
+            }
+        });
+
+        for(MirSurfaceItem* item : surfaceChildren) {
+            item->setParentItem(nullptr);
+        }
+    };
+
+    ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
+    appMgr->foreachApplicationWithSession(session, appFn);
 }
 
 } // namespace qtmir

@@ -22,6 +22,7 @@
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
 #include "mirserverstatuslistener.h"
+#include "promptsessionlistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
@@ -66,6 +67,16 @@ MirServerConfiguration::the_session_listener()
         [this]
         {
             return std::make_shared<SessionListener>();
+        });
+}
+
+std::shared_ptr<ms::PromptSessionListener>
+MirServerConfiguration::the_prompt_session_listener()
+{
+    return prompt_session_listener(
+        [this]
+        {
+            return std::make_shared<PromptSessionListener>();
         });
 }
 
@@ -184,6 +195,14 @@ SessionListener *MirServerConfiguration::sessionListener()
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionListener*>(sharedPtr.get());
+}
+
+PromptSessionListener *MirServerConfiguration::promptSessionListener()
+{
+    auto sharedPtr = the_prompt_session_listener();
+    if (sharedPtr.unique()) return 0;
+
+    return static_cast<PromptSessionListener*>(sharedPtr.get());
 }
 
 SurfaceConfigurator *MirServerConfiguration::surfaceConfigurator()
