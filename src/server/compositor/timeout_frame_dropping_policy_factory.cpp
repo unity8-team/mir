@@ -76,13 +76,20 @@ void TimeoutFrameDroppingPolicy::swap_unblocked()
 {
     if (alarm->state() == mir::time::Alarm::cancelled) return;
 
-    if ([&]{ std::lock_guard<std::mutex> lock{mutex}; return --pending_swaps > 0; }())
+    bool update_alarm{false};
+    bool reschedule{false};
     {
-        alarm->reschedule_in(timeout);
+        std::lock_guard<std::mutex> lock{mutex};
+        update_alarm = pending_swaps > 0;
+        reschedule = update_alarm && --pending_swaps > 0;
     }
-    else
+
+    if (update_alarm)
     {
-        alarm->cancel();
+        if (reschedule)
+            alarm->reschedule_in(timeout);
+        else
+            alarm->cancel();
     }
 }
 }
