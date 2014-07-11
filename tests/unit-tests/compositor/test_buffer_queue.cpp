@@ -1371,7 +1371,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
            compositor_thread, std::ref(q), std::ref(done));
 
         std::unordered_set<mg::Buffer *> unique_buffers_acquired;
-        int const max_ownable_buffers = nbuffers - 1;
+        int const max_ownable_buffers = q.buffers_free_for_client();
         for (int frame = 0; frame < max_ownable_buffers*2; frame++)
         {
             std::vector<mg::Buffer *> client_buffers;
@@ -1390,7 +1390,9 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
             }
         }
 
-        EXPECT_THAT(unique_buffers_acquired.size(), Eq(nbuffers));
+        // Expect one more than max_ownable_buffers, to include the one that
+        // is silently reserved for compositing.
+        EXPECT_THAT(unique_buffers_acquired.size(), Eq(max_ownable_buffers+1));
 
     }
 }
