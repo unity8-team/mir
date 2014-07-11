@@ -217,8 +217,6 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
-    fprintf(stderr, "#buffers = %d\n", (int)buffers.size());
-
     bool use_current_buffer = false;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
     {
@@ -452,9 +450,7 @@ void mc::BufferQueue::release(
 int mc::BufferQueue::min_buffers() const
 {
     int required_buffers = frame_dropping_enabled ? 3 : 2;
-    int ret = std::min(nbuffers, required_buffers);
-    fprintf(stderr, "min_buffers = %d\n", ret);
-    return ret;
+    return std::min(nbuffers, required_buffers);
 }
 
 void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
