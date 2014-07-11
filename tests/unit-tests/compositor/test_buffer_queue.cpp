@@ -498,7 +498,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
         {
             std::deque<mg::BufferID> client_release_sequence;
             std::vector<mg::Buffer *> buffers;
-            int const max_ownable_buffers = nbuffers - 1;
+            int const max_ownable_buffers = q.buffers_free_for_client();
             for (int i = 0; i < max_ownable_buffers; ++i)
             {
                 auto handle = client_acquire_async(q);
