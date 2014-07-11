@@ -86,7 +86,6 @@ private:
     std::deque<Callback> pending_client_notifications;
 
     int nbuffers;
-    int excess;
     bool frame_dropping_enabled;
     std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
     graphics::BufferProperties the_properties;

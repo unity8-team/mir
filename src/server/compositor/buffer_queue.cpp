@@ -30,8 +30,6 @@ namespace mg = mir::graphics;
 
 namespace
 {
-static int const buffers_shrinkage_delay = 300; // in frames
-
 mg::Buffer* pop(std::deque<mg::Buffer*>& q)
 {
     auto const buffer = q.front();
@@ -99,7 +97,6 @@ mc::BufferQueue::BufferQueue(
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
-      excess{0},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -432,21 +429,11 @@ void mc::BufferQueue::release(
 {
     int used_buffers = buffers.size() - free_buffers.size();
 
-    // To avoid reallocating buffers too often (which may be slow), only drop
-    // a buffer after it's continually been in excess for a long time...
-    
-    if (used_buffers > min_buffers())
-        ++excess;
-    else
-        excess = 0;
-    
-    // If too many frames have had excess buffers then start dropping them now
-    if (excess > buffers_shrinkage_delay &&
+    if (used_buffers > min_buffers() &&
         buffers.back().get() == buffer &&
         nbuffers > 1)
     {
         buffers.pop_back();
-        excess = 0;
     }
     else if (!pending_client_notifications.empty())
     {
