@@ -425,7 +425,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
             compositor_thread, std::ref(q), std::ref(done));
 
         std::unordered_set<uint32_t> ids_acquired;
-        int const max_ownable_buffers = nbuffers - 1;
+        int const max_ownable_buffers = q.buffers_free_for_client();
         for (int i = 0; i < max_ownable_buffers*2; ++i)
         {
             std::vector<mg::Buffer *> client_buffers;
@@ -444,7 +444,9 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
             }
         }
 
-        EXPECT_THAT(ids_acquired.size(), Eq(nbuffers));
+        // Expect only two since we're now double-buffered and are not
+        // allowing frame dropping.
+        EXPECT_THAT(ids_acquired.size(), Eq(2));
     }
 }
 
