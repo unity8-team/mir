@@ -963,14 +963,6 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
     }
 }
 
-namespace
-{
-int max_ownable_buffers(int nbuffers)
-{
-    return (nbuffers == 1) ? 1 : nbuffers - 1;
-}
-}
-
 TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
@@ -1070,8 +1062,7 @@ TEST_F(BufferQueueTest, uncomposited_client_swaps_when_policy_triggered)
     }
 }
 
-// FIXME
-TEST_F(BufferQueueTest, DISABLED_partially_composited_client_swaps_when_policy_triggered)
+TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
 {
     for (int nbuffers = 2;
          nbuffers <= max_nbuffers_to_test;
@@ -1083,7 +1074,8 @@ TEST_F(BufferQueueTest, DISABLED_partially_composited_client_swaps_when_policy_t
                           basic_properties,
                           policy_factory);
 
-        for (int i = 0; i < max_ownable_buffers(nbuffers); i++)
+        int const max_ownable_buffers = q.buffers_free_for_client();
+        for (int i = 0; i < max_ownable_buffers; i++)
         {
             auto client = client_acquire_sync(q);
             q.client_release(client);
