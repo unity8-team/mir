@@ -1,3 +1,13 @@
+mir (0.4.1) UNRELEASED; urgency=medium
+
+  * New upstream release 0.4.1 (https://launchpad.net/mir/+milestone/0.4.1)
+    - mirclient ABI unchanged, still at 8. Clients do not need rebuilding.
+    - mirserver ABI unchanged, still at 22. Shells do not need rebuilding.
+    - Bugs fixed:
+     . fix for deadlock when invoking alarm handlers (LP: #1339700) 
+
+ -- Alberto Aguirre <alberto.aguirre@canonical.com>  Fri, 11 Jul 2014 15:38:20 -0500
+
 mir (0.4.0+14.10.20140701.1-0ubuntu1) utopic; urgency=medium
 
   * New upstream release 0.4.0 (https://launchpad.net/mir/+milestone/0.4.0)
