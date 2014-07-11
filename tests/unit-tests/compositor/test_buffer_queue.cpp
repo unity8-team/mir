@@ -397,6 +397,8 @@ TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
+        q.allow_framedropping(true); // Force enabling of the third buffer
+
         auto handle1 = client_acquire_async(q);
         ASSERT_THAT(handle1->has_acquired_buffer(), Eq(true));
 
