@@ -32,7 +32,7 @@ class SyncFileOps
 {
 public:
     virtual ~SyncFileOps() = default;
-    virtual int ioctl(int, int, void*) = 0;
+    virtual int ioctl(int, unsigned long, void*) = 0;
     virtual int dup(int) = 0;
     virtual int close(int) = 0;
 };
@@ -40,7 +40,7 @@ public:
 class RealSyncFileOps : public SyncFileOps
 {
 public:
-    int ioctl(int fd, int req, void* dat);
+    int ioctl(int fd, unsigned long req, void* dat);
     int dup(int fd);
     int close(int fd);
 };
