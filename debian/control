@@ -81,7 +81,7 @@ Description: Ubuntu Application API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Ubuntu Application API.
 
-Package: ubuntu-application-api-touch
+Package: ubuntu-application-api2-touch
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
