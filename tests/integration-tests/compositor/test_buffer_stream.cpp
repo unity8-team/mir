@@ -387,9 +387,12 @@ TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
 
     mg::Buffer* placeholder{nullptr};
 
-    // Grab all the buffers you can without blocking (one with double buffers)
-    placeholder = buffer_stream.acquire_client_buffer_blocking();
-    buffer_stream.release_client_buffer(placeholder);
+    // Grab all the buffers...
+    for (int i = 0; i < buffers_free_for_client(); ++i)
+    {
+        placeholder = buffer_stream.acquire_client_buffer_blocking();
+        buffer_stream.release_client_buffer(placeholder);
+    }
 
     auto swap_completed = std::make_shared<mt::Signal>();
     buffer_stream.acquire_client_buffer([swap_completed](mg::Buffer*) {swap_completed->raise();});
