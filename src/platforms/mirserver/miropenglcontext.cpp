@@ -20,6 +20,7 @@
 
 #include "displaywindow.h"
 #include "mirserverconfiguration.h"
+#include "mirglconfig.h"
 
 #include <QDebug>
 
@@ -81,6 +82,11 @@ MirOpenGLContext::MirOpenGLContext(const QSharedPointer<mir::DefaultServerConfig
 
     m_format = q_glFormatFromConfig(eglDisplay, eglConfig, formatCopy);
 
+    // FIXME: the temporary gl context created by Mir does not have the attributes we specified
+    // in the GLConfig, so need to set explicitly for now
+    m_format.setDepthBufferSize(config->the_gl_config()->depth_buffer_bits());
+    m_format.setStencilBufferSize(config->the_gl_config()->stencil_buffer_bits());
+    m_format.setSamples(-1);
 
 #ifndef QT_NO_DEBUG
     const char* string = (const char*) glGetString(GL_VENDOR);
@@ -110,7 +116,7 @@ QSurfaceFormat MirOpenGLContext::format() const
 void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 {
 #ifdef QTMIR_USE_OPENGL
-        eglBindAPI(EGL_OPENGL_API);
+    eglBindAPI(EGL_OPENGL_API);
 #endif
 
     // ultimately calls Mir's DisplayBuffer::post_update()
@@ -121,7 +127,7 @@ void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
 {
 #ifdef QTMIR_USE_OPENGL
-        eglBindAPI(EGL_OPENGL_API);
+    eglBindAPI(EGL_OPENGL_API);
 #endif
 
     // ultimately calls Mir's DisplayBuffer::make_current()
@@ -150,7 +156,7 @@ void MirOpenGLContext::doneCurrent()
 QFunctionPointer MirOpenGLContext::getProcAddress(const QByteArray &procName)
 {
 #ifdef QTMIR_USE_OPENGL
-        eglBindAPI(EGL_OPENGL_API);
+    eglBindAPI(EGL_OPENGL_API);
 #endif
 
     return eglGetProcAddress(procName.constData());
