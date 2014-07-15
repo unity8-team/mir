@@ -92,16 +92,16 @@ void replace(mg::Buffer const* item, std::shared_ptr<mg::Buffer> const& new_buff
 }
 
 mc::BufferQueue::BufferQueue(
-    int nbuffers,
+    int max_buffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
-    : nbuffers{nbuffers},
+    : max_buffers{max_buffers},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
 {
-    if (nbuffers < 1)
+    if (max_buffers < 1)
     {
         BOOST_THROW_EXCEPTION(
             std::logic_error("invalid number of buffers for BufferQueue"));
@@ -109,9 +109,9 @@ mc::BufferQueue::BufferQueue(
 
     /* By default not all buffers are allocated.
      * If there is increased pressure by the client to acquire
-     * more buffers, more will be allocated at that time (up to nbuffers)
+     * more buffers, more will be allocated at that time (up to max_buffers)
      */
-    for(int i = 0; i < std::min(nbuffers, 2); i++)
+    for(int i = 0; i < min_buffers(); ++i)
     {
         buffers.push_back(gralloc->alloc_buffer(the_properties));
     }
@@ -127,7 +127,7 @@ mc::BufferQueue::BufferQueue(
     /* Special case: with one buffer both clients and compositors
      * need to share the same buffer
      */
-    if (nbuffers == 1)
+    if (max_buffers == 1)
         free_buffers.push_back(current_compositor_buffer);
 
     framedrop_policy = policy_provider.create_policy([this]
@@ -271,7 +271,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     if (contains(buffer.get(), buffers_sent_to_compositor))
         return;
 
-    if (nbuffers <= 1)
+    if (max_buffers <= 1)
         return;
 
     /*
@@ -369,7 +369,7 @@ int mc::BufferQueue::buffers_ready_for_compositor() const
 int mc::BufferQueue::buffers_free_for_client() const
 {
     std::lock_guard<decltype(guard)> lock(guard);
-    return nbuffers > 1 ? free_buffers.size() : 1;
+    return max_buffers > 1 ? free_buffers.size() : 1;
 }
 
 void mc::BufferQueue::give_buffer_to_client(
@@ -389,7 +389,7 @@ void mc::BufferQueue::give_buffer_to_client(
         /* Special case: the current compositor buffer also needs to be
          * replaced as it's shared with the client
          */
-        if (nbuffers == 1)
+        if (max_buffers == 1)
             current_compositor_buffer = buffer;
     }
 
@@ -429,7 +429,7 @@ void mc::BufferQueue::release(
 
     if (used_buffers > min_buffers() &&
         buffers.back().get() == buffer &&
-        nbuffers > 1)
+        max_buffers > 1)
     {
         buffers.pop_back();
     }
@@ -445,7 +445,7 @@ void mc::BufferQueue::release(
 int mc::BufferQueue::min_buffers() const
 {
     int required_buffers = frame_dropping_enabled ? 3 : 2;
-    return std::min(nbuffers, required_buffers);
+    return std::min(max_buffers, required_buffers);
 }
 
 void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)

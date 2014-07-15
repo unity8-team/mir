@@ -42,7 +42,7 @@ class BufferQueue : public BufferBundle
 public:
     typedef std::function<void(graphics::Buffer* buffer)> Callback;
 
-    BufferQueue(int nbuffers,
+    BufferQueue(int max_buffers,
                 std::shared_ptr<graphics::GraphicBufferAllocator> const& alloc,
                 graphics::BufferProperties const& props,
                 FrameDroppingPolicyFactory const& policy_provider);
@@ -85,7 +85,7 @@ private:
 
     std::deque<Callback> pending_client_notifications;
 
-    int nbuffers;
+    int const max_buffers;
     bool frame_dropping_enabled;
     graphics::BufferProperties the_properties;
 
