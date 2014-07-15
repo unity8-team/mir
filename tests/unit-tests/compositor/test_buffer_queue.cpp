@@ -1467,3 +1467,57 @@ TEST_F(BufferQueueTest, first_user_is_recorded)
         q.compositor_release(comp);
     }
 }
+
+namespace
+{
+    int unique_buffers(mc::BufferQueue& q)
+    {
+        std::atomic<bool> done(false);
+
+        auto unblock = [&done] { done = true; };
+        mt::AutoUnblockThread compositor(unblock,
+           compositor_thread, std::ref(q), std::ref(done));
+
+        std::unordered_set<mg::Buffer*> buffers_acquired;
+        for (int frame = 0; frame < 100; frame++)
+        {
+            auto handle = client_acquire_async(q);
+            handle->wait_for(std::chrono::seconds(1));
+            if (!handle->has_acquired_buffer())
+                return -1;
+            buffers_acquired.insert(handle->buffer());
+            handle->release_buffer();
+        }
+
+        return static_cast<int>(buffers_acquired.size());
+    }
+} // namespace
+
+TEST_F(BufferQueueTest, queue_size_scales_on_demand)
+{
+    for (int max_buffers = 1; max_buffers < max_nbuffers_to_test; ++max_buffers)
+    {
+         mc::BufferQueue q(max_buffers, allocator, basic_properties,
+                           policy_factory);
+
+         // Default: No frame dropping; expect double buffering
+         q.allow_framedropping(false);
+         EXPECT_EQ(std::min(max_buffers, 2), unique_buffers(q));
+
+         // Enable frame dropping; expect triple buffering immediately
+         q.allow_framedropping(true);
+         EXPECT_EQ(std::min(max_buffers, 3), unique_buffers(q));
+
+         // Revert back to no frame dropping; expect double, eventually
+         q.allow_framedropping(false);
+
+         // Exercise the queue and shake out the extraneous buffer...
+         // XXX It takes quite a bit of activity before the right circumstances
+         //     are found to safely drop a buffer. This might want revisiting
+         //     in future, but the delay is not significant enough to worry
+         //     about.
+         (void)unique_buffers(q);
+
+         EXPECT_EQ(std::min(max_buffers, 2), unique_buffers(q));
+    }
+}
