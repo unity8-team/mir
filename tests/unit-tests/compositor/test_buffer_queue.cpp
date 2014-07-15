@@ -769,7 +769,7 @@ TEST_F(BufferQueueTest, stress)
     }
 }
 
-TEST_F(BufferQueueTest, framedropping_clients_get_max_2_buffers)
+TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -777,10 +777,6 @@ TEST_F(BufferQueueTest, framedropping_clients_get_max_2_buffers)
         q.allow_framedropping(true);
 
         int const nframes = 100;
-        // Dynamic queue scaling sensibly limits the framedropping client to
-        // two non-overlapping buffers, before overwriting old ones. Allowing
-        // any more would just waste space (buffers) and time (lag).
-        int max_ownable_buffers = nbuffers <= 2 ? 1 : 2;
 
         std::unordered_set<uint32_t> ids_acquired;
         for (int i = 0; i < nframes; ++i)
@@ -791,6 +787,14 @@ TEST_F(BufferQueueTest, framedropping_clients_get_max_2_buffers)
             handle->release_buffer();
         }
 
+        /*
+         * Dynamic queue scaling sensibly limits the framedropping client to
+         * two non-overlapping buffers, before overwriting old ones. Allowing
+         * any more would just waste space (buffers) and time (lag). So
+         * this means a frame-dropping client won't ever see more than 3
+         * unique buffers
+         */
+        int max_ownable_buffers = std::min(nbuffers, 3);
         EXPECT_THAT(ids_acquired.size(), Eq(max_ownable_buffers));
     }
 }
