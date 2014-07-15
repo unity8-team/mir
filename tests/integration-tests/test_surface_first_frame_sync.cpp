@@ -18,19 +18,23 @@
 
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/display_buffer.h"
-#include "mir/graphics/renderer.h"
-#include "mir/graphics/renderable.h"
+#include "mir/compositor/renderer.h"
+#include "mir/compositor/renderer_factory.h"
 #include "mir/compositor/compositor.h"
-#include "mir/compositor/compositing_strategy.h"
-#include "mir/compositor/renderables.h"
+#include "mir/compositor/display_buffer_compositor.h"
+#include "mir/compositor/display_buffer_compositor_factory.h"
+#include "mir/compositor/scene.h"
+#include "mir/scene/legacy_scene_change_notification.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
-#include "mir_test_doubles/null_display.h"
+#include "mir_test_doubles/stub_display.h"
+#include "mir_test_doubles/stub_renderer.h"
 
 #include "mir_toolkit/mir_client_library.h"
 
 #include <gtest/gtest.h>
 
+#include <unordered_map>
 #include <thread>
 #include <unistd.h>
 #include <fcntl.h>
@@ -38,6 +42,7 @@
 namespace geom = mir::geometry;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
+namespace ms = mir::scene;
 namespace mtf = mir_test_framework;
 namespace mtd = mir::test::doubles;
 
@@ -49,38 +54,54 @@ char const* const mir_test_socket = mtf::test_socket_file().c_str();
 class SynchronousCompositor : public mc::Compositor
 {
 public:
-    SynchronousCompositor(std::shared_ptr<mg::Display> const& display,
-                          std::shared_ptr<mc::Renderables> const& renderables,
-                          std::shared_ptr<mc::CompositingStrategy> const& strategy)
-        : display{display},
-          renderables{renderables},
-          compositing_strategy{strategy}
+    SynchronousCompositor(std::shared_ptr<mg::Display> const& display_,
+                          std::shared_ptr<mc::Scene> const& scene,
+                          std::shared_ptr<mc::DisplayBufferCompositorFactory> const& db_compositor_factory)
+        : display{display_},
+          scene{scene}
     {
+        display->for_each_display_buffer(
+            [this, &db_compositor_factory](mg::DisplayBuffer& display_buffer)
+            {
+                display_buffer_compositor_map[&display_buffer] = db_compositor_factory->create_compositor_for(display_buffer);
+            });
+       
+        auto notify = [this]()
+        {
+            display->for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+            {
+                display_buffer_compositor_map[&display_buffer]->composite();
+            });
+        };
+        auto notify2 = [this](int)
+        {
+            display->for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+            {
+                display_buffer_compositor_map[&display_buffer]->composite();
+            });
+        };
+        observer = std::make_shared<ms::LegacySceneChangeNotification>(notify, notify2);
     }
 
     void start()
     {
-        renderables->set_change_callback([this]()
-        {
-            display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
-            {
-                compositing_strategy->render(buffer);
-            });
-        });
+        scene->add_observer(observer);
     }
 
     void stop()
     {
-        renderables->set_change_callback([]{});
+        scene->remove_observer(observer);
     }
 
 private:
     std::shared_ptr<mg::Display> const display;
-    std::shared_ptr<mc::Renderables> const renderables;
-    std::shared_ptr<mc::CompositingStrategy> const compositing_strategy;
+    std::shared_ptr<mc::Scene> const scene;
+    std::unordered_map<mg::DisplayBuffer*,std::unique_ptr<mc::DisplayBufferCompositor>> display_buffer_compositor_map;
+    
+    std::shared_ptr<ms::Observer> observer;
 };
 
-class StubRenderer : public mg::Renderer
+class StubRenderer : public mtd::StubRenderer
 {
 public:
     StubRenderer(int render_operations_fd)
@@ -88,46 +109,17 @@ public:
     {
     }
 
-    void clear() {}
-
-    void render(std::function<void(std::shared_ptr<void> const&)>, mg::Renderable&)
+    void render(mg::RenderableList const& renderables) const override
     {
-        while (write(render_operations_fd, "a", 1) != 1) continue;
+        for (auto const& r : renderables)
+        {
+            (void)r;
+            while (write(render_operations_fd, "a", 1) != 1) continue;
+        }
     }
 
 private:
     int render_operations_fd;
-};
-
-class StubDisplayBuffer : public mg::DisplayBuffer
-{
-public:
-    geom::Rectangle view_area() const
-    {
-        return geom::Rectangle{geom::Point(),
-                               geom::Size{1600, 1600}};
-    }
-    void make_current() {}
-    void release_current() {}
-    void clear() {}
-    void post_update() {}
-};
-
-class StubDisplay : public mtd::NullDisplay
-{
-public:
-    geom::Rectangle view_area() const override
-    {
-        return display_buffer.view_area();
-    }
-
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f) override
-    {
-        f(display_buffer);
-    }
-
-private:
-    StubDisplayBuffer display_buffer;
 };
 
 }
@@ -163,7 +155,7 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
             }
         }
 
-        ~ServerConfig()
+        ~ServerConfig() noexcept
         {
             if (rendering_ops_pipe[0] >= 0)
                 close(rendering_ops_pipe[0]);
@@ -176,19 +168,36 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
             using namespace testing;
 
             if (!stub_display)
-                stub_display = std::make_shared<StubDisplay>();
+            {
+                stub_display = std::make_shared<mtd::StubDisplay>(
+                    std::vector<geom::Rectangle>{
+                        {{0,0}, {1600,1600}}
+                    });
+            }
 
             return stub_display;
         }
 
-        std::shared_ptr<mg::Renderer> the_renderer() override
+        std::shared_ptr<mc::RendererFactory> the_renderer_factory() override
         {
             using namespace testing;
+            struct StubRendererFactory : public mc::RendererFactory
+            {
+                StubRendererFactory(int ops_fd) : ops_fd{ops_fd} {}
+                std::unique_ptr<mc::Renderer> create_renderer_for(geom::Rectangle const&,
+                    mc::DestinationAlpha)
+                {
+                    auto raw = new StubRenderer{ops_fd};
+                    return std::unique_ptr<StubRenderer>(raw);
+                }
 
-            if (!stub_renderer)
-                stub_renderer = std::make_shared<StubRenderer>(rendering_ops_pipe[1]);
+                int ops_fd;
+            };
 
-            return stub_renderer;
+            if (!stub_renderer_factory)
+                stub_renderer_factory = std::make_shared<StubRendererFactory>(rendering_ops_pipe[1]);
+
+            return stub_renderer_factory;
         }
 
         std::shared_ptr<mc::Compositor> the_compositor() override
@@ -200,8 +209,8 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
                 sync_compositor =
                     std::make_shared<SynchronousCompositor>(
                         the_display(),
-                        the_renderables(),
-                        the_compositing_strategy());
+                        the_scene(),
+                        the_display_buffer_compositor_factory());
             }
 
             return sync_compositor;
@@ -219,8 +228,8 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
         }
 
         int rendering_ops_pipe[2];
-        std::shared_ptr<StubRenderer> stub_renderer;
-        std::shared_ptr<StubDisplay> stub_display;
+        std::shared_ptr<mc::RendererFactory> stub_renderer_factory;
+        std::shared_ptr<mtd::StubDisplay> stub_display;
         std::shared_ptr<SynchronousCompositor> sync_compositor;
     } server_config;
 
@@ -252,7 +261,8 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
                 __PRETTY_FUNCTION__,
                 640, 480,
                 mir_pixel_format_abgr_8888,
-                mir_buffer_usage_hardware
+                mir_buffer_usage_hardware,
+                mir_display_output_id_invalid
             };
 
             auto surface = mir_connection_create_surface_sync(connection, &request_params);

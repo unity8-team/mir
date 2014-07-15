@@ -21,6 +21,7 @@
 #define MIR_TEST_TEST_CLIENT_H_
 
 #include "mir_protobuf.pb.h"
+#include "wait_condition.h"
 
 #include <gmock/gmock.h>
 
@@ -47,13 +48,22 @@ struct TestProtobufClient
     mir::protobuf::Surface surface;
     mir::protobuf::Void ignored;
     mir::protobuf::Connection connection;
+    mir::protobuf::DisplayConfiguration disp_config;
+    mir::protobuf::DisplayConfiguration disp_config_response;
+    mir::protobuf::PromptSessionParameters prompt_session_parameters;
+    mir::protobuf::PromptProvider prompt_provider;
+    mir::protobuf::Void prompt_session;
 
-    MOCK_METHOD0(connect_done, void ());
-    MOCK_METHOD0(create_surface_done, void ());
-    MOCK_METHOD0(next_buffer_done, void ());
-    MOCK_METHOD0(release_surface_done, void ());
-    MOCK_METHOD0(disconnect_done, void ());
-    MOCK_METHOD0(drm_auth_magic_done, void ());
+    MOCK_METHOD0(connect_done, void());
+    MOCK_METHOD0(create_surface_done, void());
+    MOCK_METHOD0(next_buffer_done, void());
+    MOCK_METHOD0(release_surface_done, void());
+    MOCK_METHOD0(disconnect_done, void());
+    MOCK_METHOD0(drm_auth_magic_done, void());
+    MOCK_METHOD0(display_configure_done, void());
+    MOCK_METHOD0(prompt_session_start_done, void());
+    MOCK_METHOD0(prompt_session_add_prompt_provider_done, void());
+    MOCK_METHOD0(prompt_session_stop_done, void());
 
     void on_connect_done();
 
@@ -66,6 +76,8 @@ struct TestProtobufClient
     void on_disconnect_done();
 
     void on_drm_auth_magic_done();
+
+    void on_configure_display_done();
 
     void wait_for_connect_done();
 
@@ -87,6 +99,14 @@ struct TestProtobufClient
 
     void wait_for_tfd_done();
 
+    void wait_for_configure_display_done();
+
+    void wait_for_prompt_session_start_done();
+
+    void wait_for_prompt_session_add_prompt_provider_done();
+
+    void wait_for_prompt_session_stop_done();
+
     const int maxwait;
     std::atomic<bool> connect_done_called;
     std::atomic<bool> create_surface_called;
@@ -94,7 +114,12 @@ struct TestProtobufClient
     std::atomic<bool> release_surface_called;
     std::atomic<bool> disconnect_done_called;
     std::atomic<bool> drm_auth_magic_done_called;
+    std::atomic<bool> configure_display_done_called;
     std::atomic<bool> tfd_done_called;
+
+    WaitCondition wc_prompt_session_start;
+    WaitCondition wc_prompt_session_add;
+    WaitCondition wc_prompt_session_stop;
 
     std::atomic<int> connect_done_count;
     std::atomic<int> create_surface_done_count;

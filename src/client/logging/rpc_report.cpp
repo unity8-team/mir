@@ -22,6 +22,7 @@
 
 #include "mir_protobuf_wire.pb.h"
 
+#include <boost/exception/diagnostic_information.hpp>
 #include <sstream>
 
 namespace ml = mir::logging;
@@ -44,7 +45,7 @@ void mcll::RpcReport::invocation_requested(
     ss << "Invocation request: id: " << invocation.id()
        << " method_name: " << invocation.method_name();
 
-    logger->log<ml::Logger::debug>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
 }
 
 void mcll::RpcReport::invocation_succeeded(
@@ -54,7 +55,7 @@ void mcll::RpcReport::invocation_succeeded(
     ss << "Invocation succeeded: id: " << invocation.id()
        << " method_name: " << invocation.method_name();
 
-    logger->log<ml::Logger::debug>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
 }
 
 void mcll::RpcReport::invocation_failed(
@@ -66,7 +67,7 @@ void mcll::RpcReport::invocation_failed(
        << " method_name: " << invocation.method_name()
        << " error: " << error.message();
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::error, ss.str(), component);
 }
 
 void mcll::RpcReport::header_receipt_failed(
@@ -75,7 +76,7 @@ void mcll::RpcReport::header_receipt_failed(
     std::stringstream ss;
     ss << "Header receipt failed: " << " error: " << error.message();
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::error, ss.str(), component);
 }
 
 void mcll::RpcReport::result_receipt_succeeded(
@@ -84,7 +85,7 @@ void mcll::RpcReport::result_receipt_succeeded(
     std::stringstream ss;
     ss << "Result received: id: " << result.id();
 
-    logger->log<ml::Logger::debug>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
 }
 
 void mcll::RpcReport::result_receipt_failed(
@@ -93,7 +94,7 @@ void mcll::RpcReport::result_receipt_failed(
     std::stringstream ss;
     ss << "Result receipt failed: reason: " << ex.what();
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::error, ss.str(), component);
 }
 
 void mcll::RpcReport::event_parsing_succeeded(
@@ -103,7 +104,7 @@ void mcll::RpcReport::event_parsing_succeeded(
     /* TODO: Log more information about event */
     ss << "Event parsed";
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
 }
 
 void mcll::RpcReport::event_parsing_failed(
@@ -113,7 +114,7 @@ void mcll::RpcReport::event_parsing_failed(
     /* TODO: Log more information about event */
     ss << "Event parsing failed";
 
-    logger->log<ml::Logger::warning>(ss.str(), component);
+    logger->log(ml::Logger::warning, ss.str(), component);
 }
 
 void mcll::RpcReport::orphaned_result(
@@ -122,7 +123,7 @@ void mcll::RpcReport::orphaned_result(
     std::stringstream ss;
     ss << "Orphaned result: " << result.ShortDebugString();
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::error, ss.str(), component);
 }
 
 void mcll::RpcReport::complete_response(
@@ -131,7 +132,7 @@ void mcll::RpcReport::complete_response(
     std::stringstream ss;
     ss << "Complete response: id: " << result.id();
 
-    logger->log<ml::Logger::debug>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
 }
 
 void mcll::RpcReport::result_processing_failed(
@@ -141,7 +142,7 @@ void mcll::RpcReport::result_processing_failed(
     std::stringstream ss;
     ss << "Result processing failed: reason: " << ex.what();
 
-    logger->log<ml::Logger::error>(ss.str(), component);
+    logger->log(ml::Logger::error, ss.str(), component);
 }
 
 void mcll::RpcReport::file_descriptors_received(
@@ -153,5 +154,13 @@ void mcll::RpcReport::file_descriptors_received(
     for (auto f : fds)
         ss << f << " ";
 
-    logger->log<ml::Logger::debug>(ss.str(), component);
+    logger->log(ml::Logger::debug, ss.str(), component);
+}
+
+void mcll::RpcReport::connection_failure(std::exception const& x)
+{
+    std::stringstream ss;
+    ss << "Connection failure: " << boost::diagnostic_information(x) << std::endl;
+
+    logger->log(ml::Logger::warning, ss.str(), component);
 }

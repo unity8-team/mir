@@ -18,7 +18,10 @@
 #ifndef MIR_CLIENT_CLIENT_PLATFORM_H_
 #define MIR_CLIENT_CLIENT_PLATFORM_H_
 
+#include "mir/graphics/native_buffer.h"
 #include "mir_toolkit/client_types.h"
+#include "mir_toolkit/mir_native_buffer.h"
+#include "egl_native_window_factory.h"
 
 #include <EGL/eglplatform.h>
 #include <memory>
@@ -35,7 +38,7 @@ class ClientContext;
  * Interface to client-side platform specific support for graphics operations.
  * \ingroup platform_enablement
  */
-class ClientPlatform
+class ClientPlatform : public EGLNativeWindowFactory
 {
 public:
     ClientPlatform() = default;
@@ -44,10 +47,11 @@ public:
 
     virtual ~ClientPlatform() { /* TODO: make nothrow */ }
 
-    virtual MirPlatformType platform_type() const = 0; 
+    virtual MirPlatformType platform_type() const = 0;
     virtual std::shared_ptr<ClientBufferFactory> create_buffer_factory() = 0;
     virtual std::shared_ptr<EGLNativeWindowType> create_egl_native_window(ClientSurface *surface) = 0;
     virtual std::shared_ptr<EGLNativeDisplayType> create_egl_native_display() = 0;
+    virtual MirNativeBuffer* convert_native_buffer(graphics::NativeBuffer*) const = 0;
 };
 
 }

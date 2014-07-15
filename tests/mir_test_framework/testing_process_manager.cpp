@@ -16,8 +16,11 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
+#include "mir_toolkit/client_types.h"
 #include "mir_test_framework/testing_process_manager.h"
 #include "mir_test_framework/detect_server.h"
+#include "mir_test_framework/using_stub_client_platform.h"
+#include "src/client/mir_connection.h"
 #include "mir/run_mir.h"
 
 #include <gmock/gmock.h>
@@ -25,22 +28,16 @@
 #include <thread>
 #include <stdexcept>
 
+namespace mo = mir::options;
 namespace mc = mir::compositor;
 namespace mtf = mir_test_framework;
-
-namespace mir_test_framework
-{
-void startup_pause()
-{
-    if (!detect_server(test_socket_file(), std::chrono::milliseconds(10000)))
-        throw std::runtime_error("Failed to find server");
-}
-}
 
 mtf::TestingProcessManager::TestingProcessManager() :
     is_test_process(true),
     server_process_was_started(false)
 {
+    // In case an earlier test left a stray file
+    std::remove(test_socket_file().c_str());
 }
 
 mtf::TestingProcessManager::~TestingProcessManager()
@@ -71,12 +68,12 @@ void mtf::TestingProcessManager::launch_server_process(TestingServerConfiguratio
     else
     {
         server_process = std::shared_ptr<Process>(new Process(pid));
-        startup_pause();
+        config.wait_for_server_start();
         server_process_was_started = true;
     }
 }
 
-void mtf::TestingProcessManager::launch_client_process(TestingClientConfiguration& config)
+void mtf::TestingProcessManager::launch_client_process(TestingClientConfiguration& config, mo::Option const& test_options)
 {
     if (!is_test_process)
     {
@@ -108,7 +105,16 @@ void mtf::TestingProcessManager::launch_client_process(TestingClientConfiguratio
         server_process.reset();
 
         SCOPED_TRACE("Client");
-        config.exec();
+        if (!config.use_real_graphics(test_options))
+        {
+            mtf::UsingStubClientPlatform p;
+            config.exec();
+        }
+        else
+        {
+            config.exec();
+        }
+
         exit(::testing::Test::HasFailure() ? EXIT_FAILURE : EXIT_SUCCESS);
     }
     else
@@ -157,6 +163,55 @@ mtf::Result mtf::TestingProcessManager::shutdown_server_process()
     }
 
     return result;
+}
+
+mtf::Result mtf::TestingProcessManager::kill_server_process()
+{
+    Result result;
+
+    if (server_process)
+    {
+        server_process->kill();
+        result = server_process->wait_for_termination();
+        server_process.reset();
+        return result;
+    }
+    else
+    {
+        result.reason = TerminationReason::unknown;
+    }
+
+    return result;
+}
+
+mtf::Result mtf::TestingProcessManager::wait_for_shutdown_server_process()
+{
+    Result result;
+
+    if (server_process)
+    {
+        result = server_process->wait_for_termination();
+        server_process.reset();
+        return result;
+    }
+    else
+    {
+        result.reason = TerminationReason::child_terminated_normally;
+        result.exit_code = EXIT_SUCCESS;
+    }
+
+    return result;
+}
+
+void mtf::TestingProcessManager::terminate_client_processes()
+{
+    if (is_test_process)
+    {
+        for(auto client : clients)
+        {
+            client->terminate();
+        }
+    }
 }
 
 void mtf::TestingProcessManager::kill_client_processes()

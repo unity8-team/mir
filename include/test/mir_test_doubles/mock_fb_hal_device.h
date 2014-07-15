@@ -34,15 +34,10 @@ namespace doubles
 class MockFBHalDevice : public framebuffer_device_t
 {
 public:
-    MockFBHalDevice()
-    {
-        post = hook_post;
-    }
-
     MockFBHalDevice(unsigned int const width, unsigned int const height,
                     int const pf, int const numfbs)
         : framebuffer_device_t({
-            empty_module,
+            hw_device_t(),
             0,
             width,
             height,
@@ -57,10 +52,16 @@ public:
             {0,0,0,0,0,0,0},
             nullptr, nullptr,nullptr,nullptr, nullptr,nullptr,
             {0,0,0,0,0,0}
-          }) 
+          })
     {
         post = hook_post;
-        setSwapInterval = hook_setSwapInterval; 
+        setSwapInterval = hook_setSwapInterval;
+        enableScreen = hook_enableScreen;
+    }
+
+    MockFBHalDevice()
+        : MockFBHalDevice(1,1,1,1)
+    {
     }
 
     static int hook_post(struct framebuffer_device_t* mock_fb, buffer_handle_t handle)
@@ -72,13 +73,19 @@ public:
     static int hook_setSwapInterval(struct framebuffer_device_t* mock_fb, int interval)
     {
         MockFBHalDevice* mocker = static_cast<MockFBHalDevice*>(mock_fb);
-        return mocker->setSwapInterval_interface(mock_fb, interval); 
+        return mocker->setSwapInterval_interface(mock_fb, interval);
     }
 
+    static int hook_enableScreen(struct framebuffer_device_t* mock_fb, int enable)
+    {
+        MockFBHalDevice* mocker = static_cast<MockFBHalDevice*>(mock_fb);
+        return mocker->enableScreen_interface(mock_fb, enable);
+    }
+
+
+    MOCK_METHOD2(enableScreen_interface, int(struct framebuffer_device_t*, int));
     MOCK_METHOD2(post_interface, int(struct framebuffer_device_t*, buffer_handle_t));
     MOCK_METHOD2(setSwapInterval_interface, int(struct framebuffer_device_t*, int));
-    
-    hw_device_t empty_module;
 };
 
 }

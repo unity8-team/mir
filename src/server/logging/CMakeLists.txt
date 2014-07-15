@@ -1,21 +1,22 @@
+include_directories(${MIR_3RD_PARTY_INCLUDE_DIRECTORIES})
+include_directories(${MIR_ANDROID_INCLUDE_DIRECTORIES})
 set(
   LOGGING_SOURCES
 
+  default_configuration.cpp
   glog_logger.cpp
-  session_mediator_report.cpp
-  message_processor_report.cpp
-  display_report.cpp
-  input_report.cpp
 )
 
 add_library(
-  mirlogging STATIC
+  mirlogger STATIC
 
   ${LOGGING_SOURCES}
 )
 
 target_link_libraries(
-  mirlogging
+  mirlogger
+
+  mirplatform
 
   ${GLog_LIBRARY}
   ${GFlags_LIBRARY}

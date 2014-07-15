@@ -17,8 +17,8 @@
  *              Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/frontend/communicator.h"
-#include "mir/frontend/resource_cache.h"
+#include "mir/frontend/connector.h"
+#include "src/server/frontend/resource_cache.h"
 
 #include "mir_test/stub_server_tool.h"
 #include "mir_test/test_protobuf_server.h"
@@ -68,15 +68,6 @@ struct ErrorServer : StubServerTool
         google::protobuf::RpcController*,
         const protobuf::Void*,
         protobuf::Void*,
-        google::protobuf::Closure*)
-    {
-        throw std::runtime_error(test_exception_text);
-    }
-
-    void test_file_descriptors(
-        google::protobuf::RpcController*,
-        const protobuf::Void*,
-        protobuf::Buffer*,
         google::protobuf::Closure*)
     {
         throw std::runtime_error(test_exception_text);

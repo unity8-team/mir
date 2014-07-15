@@ -54,7 +54,7 @@ mtd::MockEGL::MockEGL()
       fake_egl_surface((EGLSurface) 0xa034),
       fake_egl_context((EGLContext) 0xbeef),
       fake_egl_image((EGLImageKHR) 0x1234),
-      fake_visual_id(5)
+      fake_visual_id(1) //HAL_PIXEL_FORMAT_RGBA on android
 {
     using namespace testing;
     assert(global_mock_egl == NULL && "Only one mock object per process is allowed");
@@ -82,10 +82,15 @@ mtd::MockEGL::MockEGL()
                        Return(EGL_TRUE)));
 
     ON_CALL(*this, eglChooseConfig(_,_,_,_,_))
-    .WillByDefault(DoAll(
-                       SetArgPointee<2>(&fake_configs),
-                       SetArgPointee<4>(fake_configs_num),
-                       Return(EGL_TRUE)));
+    .WillByDefault(Invoke(
+        [&] (EGLDisplay, const EGLint *, EGLConfig *configs,
+             EGLint config_size, EGLint *num_config) -> EGLBoolean
+        {
+            EGLint const min_size = std::min(config_size, fake_configs_num);
+            std::copy(fake_configs, fake_configs + min_size, configs);
+            *num_config = min_size;
+            return EGL_TRUE;
+        }));
 
     ON_CALL(*this, eglCreateWindowSurface(_,_,_,_))
     .WillByDefault(Return(fake_egl_surface));
@@ -120,45 +125,6 @@ mtd::MockEGL::MockEGL()
 mtd::MockEGL::~MockEGL()
 {
     global_mock_egl = NULL;
-}
-
-void mtd::MockEGL::silence_uninteresting()
-{
-    using namespace testing;
-    EXPECT_CALL(*this, eglGetCurrentDisplay())
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglGetDisplay(_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglGetDisplay(_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglInitialize(_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglGetConfigs(_,_,_, _))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglGetConfigAttrib(_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglChooseConfig(_,_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglCreateWindowSurface(_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglCreatePbufferSurface(_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglCreateContext(_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglMakeCurrent(_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglDestroyContext(_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglDestroySurface(_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglTerminate(_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglSwapBuffers(_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglCreateImageKHR(_,_,_,_,_))
-        .Times(AtLeast(0));
-    EXPECT_CALL(*this, eglDestroyImageKHR(_,_))
-        .Times(AtLeast(0));
 }
 
 #define CHECK_GLOBAL_MOCK(rettype)         \

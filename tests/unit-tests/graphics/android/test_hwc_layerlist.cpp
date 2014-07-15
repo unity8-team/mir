@@ -16,173 +16,99 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/hwc_layerlist.h"
-#include "mir_test_doubles/mock_buffer.h"
-#include "hwc_struct_helper-inl.h"
+#include "mir_test_doubles/stub_renderable.h"
+#include "mir_test_doubles/stub_buffer.h"
+#include "src/platform/graphics/android/hwc_layerlist.h"
+#include "hwc_struct_helpers.h"
 #include <gtest/gtest.h>
 
+namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
 namespace mtd=mir::test::doubles;
-namespace geom=mir::geometry;
-namespace mc=mir::compositor;
-
-class HWCLayerListTest : public ::testing::Test
+namespace
 {
-public:
-    virtual void SetUp()
-    {
-        using namespace testing;
+struct LayerListTest : public testing::Test
+{
+    LayerListTest() :
+        buffer1{std::make_shared<mtd::StubBuffer>()},
+        buffer2{std::make_shared<mtd::StubBuffer>()},
+        renderables{std::make_shared<mtd::StubRenderable>(buffer1),
+                    std::make_shared<mtd::StubRenderable>(buffer2),
+                    std::make_shared<mtd::StubRenderable>()}
+    {}
 
-        width = 432; 
-        height = 876; 
-        default_size = geom::Size{width, height};
-
-        stub_handle_1 = std::make_shared<ANativeWindowBuffer>();
-        stub_handle_2 = std::make_shared<ANativeWindowBuffer>();
-
-        mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
-        ON_CALL(*mock_buffer, native_buffer_handle())
-            .WillByDefault(Return(stub_handle_1));
-        ON_CALL(*mock_buffer, size())
-            .WillByDefault(Return(default_size));
-
-    }
-
-    int width; 
-    int height; 
-    geom::Size default_size;
-
-    std::shared_ptr<ANativeWindowBuffer> stub_handle_1;
-    std::shared_ptr<ANativeWindowBuffer> stub_handle_2;
-    std::shared_ptr<mtd::MockBuffer> mock_buffer;
+    std::shared_ptr<mtd::StubBuffer> buffer1;
+    std::shared_ptr<mtd::StubBuffer> buffer2;
+    std::list<std::shared_ptr<mg::Renderable>> renderables;
 };
-
-TEST(HWCLayerDeepCopy, hwc_layer)
-{
-    mga::HWCDefaultLayer original({});
-    hwc_layer_1 layer = original;
-    EXPECT_EQ(0u, layer.visibleRegionScreen.numRects); 
-    EXPECT_EQ(nullptr, layer.visibleRegionScreen.rects);
-
-    geom::Rectangle r0{geom::Point{geom::X{0},geom::Y{1}},
-                       geom::Size{2, 3}};
-    geom::Rectangle r1{geom::Point{geom::X{0},geom::Y{1}},
-                       geom::Size{3, 3}};
-    geom::Rectangle r2{geom::Point{geom::X{1},geom::Y{1}},
-                       geom::Size{2, 3}};
-    mga::HWCRect a(r0), b(r1), c(r2);
-    mga::HWCDefaultLayer original2({a, b, c});
-    layer = original2;
-
-    ASSERT_EQ(3u, layer.visibleRegionScreen.numRects);
-    ASSERT_NE(nullptr, layer.visibleRegionScreen.rects);
-    EXPECT_THAT(a, HWCRectMatchesRect(layer.visibleRegionScreen.rects[0],""));
-    EXPECT_THAT(b, HWCRectMatchesRect(layer.visibleRegionScreen.rects[1],""));
-    EXPECT_THAT(c, HWCRectMatchesRect(layer.visibleRegionScreen.rects[2],""));
 }
 
-TEST_F(HWCLayerListTest, default_list)
+TEST_F(LayerListTest, list_defaults)
 {
-    using namespace testing;
+    mga::LayerList layerlist{{}, 0};
 
-    mga::HWCLayerList layerlist;
-
-    auto list = layerlist.native_list(); 
-    ASSERT_EQ(0u, list.size());
+    auto list = layerlist.native_list().lock();
+    EXPECT_EQ(-1, list->retireFenceFd);
+    EXPECT_EQ(HWC_GEOMETRY_CHANGED, list->flags);
+    EXPECT_NE(nullptr, list->dpy);
+    EXPECT_NE(nullptr, list->sur);
+    EXPECT_EQ(layerlist.begin(), layerlist.end());
+    EXPECT_EQ(layerlist.additional_layers_begin(), layerlist.end());
 }
 
-TEST_F(HWCLayerListTest, set_fb_target_figures_out_buffer_size)
+TEST_F(LayerListTest, list_iterators)
 {
-    using namespace testing;
-   
-    hwc_rect_t expected_sc, expected_df, expected_visible;
-    expected_sc = {0, 0, width, height};
-    expected_df = expected_visible = expected_sc;
-    EXPECT_CALL(*mock_buffer, size())
-        .Times(1)
-        .WillOnce(Return(default_size));
+    size_t additional_layers = 2;
+    mga::LayerList list(renderables, additional_layers);
+    EXPECT_EQ(std::distance(list.begin(), list.end()), additional_layers + renderables.size());
+    EXPECT_EQ(std::distance(list.additional_layers_begin(), list.end()), additional_layers);
+    EXPECT_EQ(std::distance(list.begin(), list.additional_layers_begin()), renderables.size());
 
-    mga::HWCLayerList layerlist;
-    layerlist.set_fb_target(mock_buffer);
+    mga::LayerList list2({}, additional_layers);
+    EXPECT_EQ(std::distance(list2.begin(), list2.end()), additional_layers);
+    EXPECT_EQ(std::distance(list2.additional_layers_begin(), list2.end()), additional_layers);
+    EXPECT_EQ(std::distance(list2.begin(), list2.additional_layers_begin()), 0);
 
-    auto list = layerlist.native_list(); 
-    ASSERT_EQ(1u, list.size());
-    hwc_layer_1 target_layer = *list[0];
-    EXPECT_THAT(target_layer.sourceCrop, MatchesRect( expected_sc, "sourceCrop"));
-    EXPECT_THAT(target_layer.displayFrame, MatchesRect( expected_df, "displayFrame"));
-
-    ASSERT_EQ(1u, target_layer.visibleRegionScreen.numRects); 
-    ASSERT_NE(nullptr, target_layer.visibleRegionScreen.rects); 
-    EXPECT_THAT(target_layer.visibleRegionScreen.rects[0], MatchesRect( expected_visible, "visible"));
+    mga::LayerList list3(renderables, 0);
+    EXPECT_EQ(std::distance(list3.begin(), list3.end()), renderables.size());
+    EXPECT_EQ(std::distance(list3.additional_layers_begin(), list3.end()), 0);
+    EXPECT_EQ(std::distance(list3.begin(), list3.additional_layers_begin()), renderables.size());
 }
 
-TEST_F(HWCLayerListTest, set_fb_target_gets_fb_handle)
+TEST_F(LayerListTest, keeps_track_of_needs_commit)
 {
-    using namespace testing;
+    size_t additional_layers = 4;
+    mga::LayerList list(renderables, additional_layers);
 
-    mga::HWCLayerList layerlist;
+    for(auto it = list.begin(); it != list.additional_layers_begin(); it++)
+        EXPECT_TRUE(it->needs_commit);
+    for(auto it = list.additional_layers_begin(); it != list.end(); it++)
+        EXPECT_FALSE(it->needs_commit);
 
-    EXPECT_CALL(*mock_buffer, native_buffer_handle())
-        .Times(1)
-        .WillOnce(Return(stub_handle_1));
+    mg::RenderableList list2{
+        std::make_shared<mtd::StubRenderable>(buffer1),
+        std::make_shared<mtd::StubRenderable>(buffer2),
+        std::make_shared<mtd::StubRenderable>()
+    };
+    list.update_list(list2, additional_layers);
 
-    layerlist.set_fb_target(mock_buffer);
-    auto list = layerlist.native_list(); 
-    ASSERT_EQ(1u, list.size());
-    hwc_layer_1 target_layer = *list[0];
-    EXPECT_EQ(stub_handle_1->handle, target_layer.handle); 
-}
+    //here, all should be needs_commit because they were all HWC_FRAMEBUFFER 
+    for(auto it = list.begin(); it != list.additional_layers_begin(); it++)
+        EXPECT_TRUE(it->needs_commit);
 
-TEST_F(HWCLayerListTest, set_fb_target_2x)
-{
-    using namespace testing;
+    ASSERT_THAT(list.native_list().lock()->numHwLayers, testing::Eq(list2.size() + additional_layers));
+    list.native_list().lock()->hwLayers[2].compositionType = HWC_OVERLAY;
+    list.update_list(list2, additional_layers);
 
-    mga::HWCLayerList layerlist;
-
-    EXPECT_CALL(*mock_buffer, native_buffer_handle())
-        .Times(2)
-        .WillOnce(Return(stub_handle_1))
-        .WillOnce(Return(stub_handle_2));
-
-    layerlist.set_fb_target(mock_buffer);
-    auto list = layerlist.native_list(); 
-    ASSERT_EQ(1u, list.size());
-    hwc_layer_1 target_layer = *list[0];
-    EXPECT_EQ(stub_handle_1->handle, target_layer.handle); 
-
-    layerlist.set_fb_target(mock_buffer);
-    auto list_second = layerlist.native_list();
-    ASSERT_EQ(1u, list.size());
-    target_layer = *list[0];
-    EXPECT_EQ(stub_handle_2->handle, target_layer.handle); 
-}
-
-TEST_F(HWCLayerListTest, set_fb_target_programs_other_struct_members_correctly)
-{
-    using namespace testing;
-
-    mga::HWCLayerList layerlist;
-    layerlist.set_fb_target(mock_buffer);
-
-    hwc_rect_t source_region = {0,0,width, height};
-    hwc_rect_t target_region = source_region;
-    hwc_region_t region {1, nullptr};
-
-    hwc_layer_1 expected_layer;
-    expected_layer.compositionType = HWC_FRAMEBUFFER_TARGET;
-    expected_layer.hints = 0;
-    expected_layer.flags = 0;
-    expected_layer.handle = stub_handle_1->handle;
-    expected_layer.transform = 0;
-    expected_layer.blending = HWC_BLENDING_NONE;
-    expected_layer.sourceCrop = source_region;
-    expected_layer.displayFrame = target_region; 
-    expected_layer.visibleRegionScreen = region;  
-    expected_layer.acquireFenceFd = -1;
-    expected_layer.releaseFenceFd = -1;
-
-    auto list = layerlist.native_list(); 
-    ASSERT_EQ(1u, list.size());
-    hwc_layer_1 target_layer = *list[0];
-    EXPECT_THAT(target_layer, MatchesLayer( expected_layer ));
+    auto i = 0;
+    for(auto it = list.begin(); it != list.additional_layers_begin(); it++)
+    {
+        if (i == 2)
+            EXPECT_FALSE(it->needs_commit);
+        else
+            EXPECT_TRUE(it->needs_commit);
+        i++;
+    }
+    for(auto it = list.additional_layers_begin(); it != list.end(); it++)
+        EXPECT_FALSE(it->needs_commit);
 }

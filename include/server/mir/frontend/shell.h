@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -20,32 +20,49 @@
 #define MIR_FRONTEND_SHELL_H_
 
 #include "mir/frontend/surface_id.h"
+
+#include <sys/types.h>
+
 #include <memory>
 
 namespace mir
 {
-namespace events
-{
-class EventSink;
-}
-namespace shell
+namespace scene
 {
 struct SurfaceCreationParameters;
+struct PromptSessionCreationParameters;
 }
 namespace frontend
 {
+class EventSink;
 class Session;
+class PromptSession;
 
 class Shell
 {
 public:
-    virtual ~Shell() {}
+    virtual ~Shell() = default;
 
-    virtual std::shared_ptr<Session> open_session(std::string const& name, std::shared_ptr<events::EventSink> const& sink) = 0;
+    virtual std::shared_ptr<Session> open_session(
+        pid_t client_pid,
+        std::string const& name,
+        std::shared_ptr<EventSink> const& sink) = 0;
+
     virtual void close_session(std::shared_ptr<Session> const& session)  = 0;
 
-    virtual SurfaceId create_surface_for(std::shared_ptr<Session> const& session,
-                                         shell::SurfaceCreationParameters const& params) = 0;
+    virtual SurfaceId create_surface_for(
+        std::shared_ptr<Session> const& session,
+        scene::SurfaceCreationParameters const& params) = 0;
+
+    virtual void handle_surface_created(std::shared_ptr<Session> const& session) = 0;
+
+    virtual std::shared_ptr<PromptSession> start_prompt_session_for(std::shared_ptr<Session> const& session,
+                                                                  scene::PromptSessionCreationParameters const& params) = 0;
+    virtual void add_prompt_provider_process_for(std::shared_ptr<PromptSession> const& prompt_session,
+                                                                  pid_t process_id) = 0;
+    virtual void add_prompt_provider_for(std::shared_ptr<PromptSession> const& prompt_session,
+                                                                  std::shared_ptr<Session> const& session) = 0;
+    virtual void stop_prompt_session(std::shared_ptr<PromptSession> const& prompt_session) = 0;
 
 protected:
     Shell() = default;

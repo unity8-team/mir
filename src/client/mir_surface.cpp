@@ -20,6 +20,7 @@
 #include "mir/frontend/client_constants.h"
 #include "client_buffer.h"
 #include "mir_surface.h"
+#include "cursor_configuration.h"
 #include "mir_connection.h"
 #include "mir/input/input_receiver_thread.h"
 #include "mir/input/input_platform.h"
@@ -32,6 +33,14 @@ namespace mcl = mir::client;
 namespace mircv = mir::input::receiver;
 namespace mp = mir::protobuf;
 namespace gp = google::protobuf;
+
+namespace
+{
+void null_callback(MirSurface*, void*) {}
+
+std::mutex handle_mutex;
+std::unordered_set<MirSurface*> valid_surfaces;
+}
 
 MirSurface::MirSurface(
     MirConnection *allocating_connection,
@@ -51,19 +60,29 @@ MirSurface::MirSurface(
     message.set_height(params.height);
     message.set_pixel_format(params.pixel_format);
     message.set_buffer_usage(params.buffer_usage);
-    
+    message.set_output_id(params.output_id);
+
+    create_wait_handle.expect_result();
     server.create_surface(0, &message, &surface, gp::NewCallback(this, &MirSurface::created, callback, context));
 
-    for (int i = 0; i < mir_surface_attrib_arraysize_; i++)
+    for (int i = 0; i < mir_surface_attribs; i++)
         attrib_cache[i] = -1;
     attrib_cache[mir_surface_attrib_type] = mir_surface_type_normal;
     attrib_cache[mir_surface_attrib_state] = mir_surface_state_unknown;
     attrib_cache[mir_surface_attrib_swapinterval] = 1;
+
+    std::lock_guard<decltype(handle_mutex)> lock(handle_mutex);
+    valid_surfaces.insert(this);
 }
 
 MirSurface::~MirSurface()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    {
+        std::lock_guard<decltype(handle_mutex)> lock(handle_mutex);
+        valid_surfaces.erase(this);
+    }
+
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     if (input_thread)
     {
@@ -79,19 +98,20 @@ MirSurface::~MirSurface()
 
 MirSurfaceParameters MirSurface::get_parameters() const
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     return MirSurfaceParameters {
         0,
         surface.width(),
         surface.height(),
         static_cast<MirPixelFormat>(surface.pixel_format()),
-        static_cast<MirBufferUsage>(surface.buffer_usage())};
+        static_cast<MirBufferUsage>(surface.buffer_usage()),
+        mir_display_output_id_invalid};
 }
 
 char const * MirSurface::get_error_message()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     if (surface.has_error())
     {
@@ -102,21 +122,24 @@ char const * MirSurface::get_error_message()
 
 int MirSurface::id() const
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     return surface.id().value();
 }
 
-bool MirSurface::is_valid() const
+bool MirSurface::is_valid(MirSurface* query)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(handle_mutex)> lock(handle_mutex);
 
-    return !surface.has_error();
+    if (valid_surfaces.count(query))
+        return !query->surface.has_error();
+
+    return false;
 }
 
 void MirSurface::get_cpu_region(MirGraphicsRegion& region_out)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     auto buffer = buffer_depository->current_buffer();
 
@@ -124,28 +147,28 @@ void MirSurface::get_cpu_region(MirGraphicsRegion& region_out)
     region_out.width = secured_region->width.as_uint32_t();
     region_out.height = secured_region->height.as_uint32_t();
     region_out.stride = secured_region->stride.as_uint32_t();
-    region_out.pixel_format = static_cast<MirPixelFormat>(secured_region->format);
-
+    region_out.pixel_format = secured_region->format;
     region_out.vaddr = secured_region->vaddr.get();
 }
 
 void MirSurface::release_cpu_region()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
-
     secured_region.reset();
 }
 
 MirWaitHandle* MirSurface::next_buffer(mir_surface_callback callback, void * context)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
-
+    std::unique_lock<decltype(mutex)> lock(mutex);
     release_cpu_region();
+    auto const id = &surface.id();
+    auto const mutable_buffer = surface.mutable_buffer();
+    lock.unlock();
 
+    next_buffer_wait_handle.expect_result();
     server.next_buffer(
         0,
-        &surface.id(),
-        surface.mutable_buffer(),
+        id,
+        mutable_buffer,
         google::protobuf::NewCallback(this, &MirSurface::new_buffer, callback, context));
 
     return &next_buffer_wait_handle;
@@ -157,21 +180,28 @@ MirWaitHandle* MirSurface::get_create_wait_handle()
 }
 
 /* todo: all these conversion functions are a bit of a kludge, probably
-         better to have a more developed geometry::PixelFormat that can handle this */
-geom::PixelFormat MirSurface::convert_ipc_pf_to_geometry(gp::int32 pf)
+         better to have a more developed MirPixelFormat that can handle this */
+MirPixelFormat MirSurface::convert_ipc_pf_to_geometry(gp::int32 pf)
 {
-    return static_cast<geom::PixelFormat>(pf);
+    return static_cast<MirPixelFormat>(pf);
 }
 
 void MirSurface::process_incoming_buffer()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
-
     auto const& buffer = surface.buffer();
 
-    auto surface_width = geom::Width(surface.width());
-    auto surface_height = geom::Height(surface.height());
-    auto surface_size = geom::Size{surface_width, surface_height};
+    /*
+     * On most frames when the properties aren't changing, the server won't
+     * fill in the width and height. I think this is an intentional
+     * protocol optimization ("need_full_ipc").
+     */
+    if (buffer.has_width() && buffer.has_height())
+    {
+        surface.set_width(buffer.width());
+        surface.set_height(buffer.height());
+    }
+
+    auto surface_size = geom::Size{surface.width(), surface.height()};
     auto surface_pf = convert_ipc_pf_to_geometry(surface.pixel_format());
 
     auto ipc_package = std::make_shared<MirBufferPackage>();
@@ -191,17 +221,16 @@ void MirSurface::process_incoming_buffer()
 
 void MirSurface::created(mir_surface_callback callback, void * context)
 {
+    auto platform = connection->get_client_platform();
+
     {
-        std::lock_guard<std::recursive_mutex> lock(mutex);
+        std::lock_guard<decltype(mutex)> lock(mutex);
 
         process_incoming_buffer();
-
-        auto platform = connection->get_client_platform();
         accelerated_window = platform->create_egl_native_window(this);
-
-        connection->on_surface_created(id(), this);
     }
 
+    connection->on_surface_created(id(), this);
     callback(this, context);
     create_wait_handle.result_received();
 }
@@ -209,7 +238,7 @@ void MirSurface::created(mir_surface_callback callback, void * context)
 void MirSurface::new_buffer(mir_surface_callback callback, void * context)
 {
     {
-        std::lock_guard<std::recursive_mutex> lock(mutex);
+        std::lock_guard<decltype(mutex)> lock(mutex);
         process_incoming_buffer();
     }
 
@@ -221,29 +250,39 @@ MirWaitHandle* MirSurface::release_surface(
         mir_surface_callback callback,
         void * context)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    {
+        std::lock_guard<decltype(handle_mutex)> lock(handle_mutex);
+        valid_surfaces.erase(this);
+    }
 
     return connection->release_surface(this, callback, context);
 }
 
-std::shared_ptr<MirNativeBuffer> MirSurface::get_current_buffer_package()
+MirNativeBuffer* MirSurface::get_current_buffer_package()
 {
+    auto platform = connection->get_client_platform();
     auto buffer = get_current_buffer();
-    return buffer->native_buffer_handle();
+    auto handle = buffer->native_buffer_handle();
+    return platform->convert_native_buffer(handle.get());
 }
 
 std::shared_ptr<mcl::ClientBuffer> MirSurface::get_current_buffer()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     return buffer_depository->current_buffer();
 }
 
+uint32_t MirSurface::get_current_buffer_id() const
+{
+    std::lock_guard<decltype(mutex)> lock(mutex);
+
+    return buffer_depository->current_buffer_id();
+}
+
 void MirSurface::populate(MirBufferPackage& buffer_package)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
-
-    if (is_valid() && surface.has_buffer())
+    if (!surface.has_error() && surface.has_buffer())
     {
         auto const& buffer = surface.buffer();
 
@@ -261,6 +300,9 @@ void MirSurface::populate(MirBufferPackage& buffer_package)
         }
 
         buffer_package.stride = buffer.stride();
+        buffer_package.flags = buffer.flags();
+        buffer_package.width = buffer.width();
+        buffer_package.height = buffer.height();
     }
     else
     {
@@ -272,19 +314,37 @@ void MirSurface::populate(MirBufferPackage& buffer_package)
 
 EGLNativeWindowType MirSurface::generate_native_window()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     return *accelerated_window;
 }
 
+MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor)
+{
+    mp::CursorSetting setting;
+
+    {
+        std::unique_lock<decltype(mutex)> lock(mutex);
+        setting.mutable_surfaceid()->CopyFrom(surface.id());
+        if (cursor && cursor->name != mir_disabled_cursor_name)
+            setting.set_name(cursor->name.c_str());
+    }
+    
+    configure_cursor_wait_handle.expect_result();
+    server.configure_cursor(0, &setting, &void_response,
+        google::protobuf::NewCallback(this, &MirSurface::on_cursor_configured));
+    
+    return &configure_cursor_wait_handle;
+}
+
 MirWaitHandle* MirSurface::configure(MirSurfaceAttrib at, int value)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
-
+    std::unique_lock<decltype(mutex)> lock(mutex);
     mp::SurfaceSetting setting;
     setting.mutable_surfaceid()->CopyFrom(surface.id());
     setting.set_attrib(at);
     setting.set_ivalue(value);
+    lock.unlock();
 
     configure_wait_handle.expect_result();
     server.configure_surface(0, &setting, &configure_result,
@@ -295,7 +355,7 @@ MirWaitHandle* MirSurface::configure(MirSurfaceAttrib at, int value)
 
 void MirSurface::on_configured()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     if (configure_result.has_surfaceid() &&
         configure_result.surfaceid().value() == surface.id().value() &&
@@ -307,7 +367,9 @@ void MirSurface::on_configured()
         {
         case mir_surface_attrib_type:
         case mir_surface_attrib_state:
+        case mir_surface_attrib_focus:
         case mir_surface_attrib_swapinterval:
+        case mir_surface_attrib_dpi:
             if (configure_result.has_ivalue())
                 attrib_cache[a] = configure_result.ivalue();
             else
@@ -322,16 +384,22 @@ void MirSurface::on_configured()
     }
 }
 
+void MirSurface::on_cursor_configured()
+{
+    configure_cursor_wait_handle.result_received();
+}
+
+
 int MirSurface::attrib(MirSurfaceAttrib at) const
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     return attrib_cache[at];
 }
 
 void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     if (input_thread)
     {
@@ -357,14 +425,24 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 
 void MirSurface::handle_event(MirEvent const& e)
 {
-    std::unique_lock<std::recursive_mutex> lock(mutex);
+    std::unique_lock<decltype(mutex)> lock(mutex);
 
-    if (e.type == mir_event_type_surface)
+    switch (e.type)
+    {
+    case mir_event_type_surface:
     {
         MirSurfaceAttrib a = e.surface.attrib;
-        if (a < mir_surface_attrib_arraysize_)
+        if (a < mir_surface_attribs)
             attrib_cache[a] = e.surface.value;
+        break;
     }
+    case mir_event_type_orientation:
+        orientation = e.orientation.direction;
+        break;
+
+    default:
+        break;
+    };
 
     if (handle_event_callback)
     {
@@ -376,8 +454,23 @@ void MirSurface::handle_event(MirEvent const& e)
 
 MirPlatformType MirSurface::platform_type()
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<decltype(mutex)> lock(mutex);
 
     auto platform = connection->get_client_platform();
     return platform->platform_type();
+}
+
+void MirSurface::request_and_wait_for_next_buffer()
+{
+    next_buffer(null_callback, nullptr)->wait_for_all();
+}
+
+void MirSurface::request_and_wait_for_configure(MirSurfaceAttrib a, int value)
+{
+    configure(a, value)->wait_for_all();
+}
+
+MirOrientation MirSurface::get_orientation() const
+{
+    return orientation;
 }

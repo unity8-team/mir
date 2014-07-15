@@ -19,6 +19,8 @@
 #include "src/shared/input/android/android_input_receiver_thread.h"
 #include "src/shared/input/android/android_input_receiver.h"
 
+#include "mir/input/null_input_receiver_report.h"
+
 #include "mir_toolkit/mir_client_library.h"
 
 #include <gtest/gtest.h>
@@ -30,12 +32,13 @@
 
 #include <fcntl.h>
 
-namespace mircva = mir::input::receiver::android;
+namespace mircv = mir::input::receiver;
+namespace mircva = mircv::android;
 
 namespace
 {
 
-struct MockEventHandler 
+struct MockEventHandler
 {
     MOCK_METHOD1(handle_event, void(MirEvent*));
 };
@@ -43,7 +46,7 @@ struct MockEventHandler
 struct MockInputReceiver : public mircva::InputReceiver
 {
     MockInputReceiver(int fd)
-      : InputReceiver(fd)
+      : InputReceiver(fd, std::make_shared<mircv::NullInputReceiverReport>())
     {
     }
     MOCK_METHOD1(next_event, bool(MirEvent &));
@@ -77,8 +80,8 @@ TEST_F(AndroidInputReceiverThreadSetup, reads_events_until_stopped)
 {
     using namespace ::testing;
 
-    mircva::InputReceiverThread input_thread(input_receiver, 
-        std::function<void(MirEvent*)>());    
+    mircva::InputReceiverThread input_thread(input_receiver,
+        std::function<void(MirEvent*)>());
     {
         InSequence seq;
         EXPECT_CALL(*input_receiver, next_event(_)).Times(1).WillOnce(Return(false));
@@ -124,7 +127,7 @@ TEST_F(AndroidInputReceiverThreadSetup, input_callback_invoked_from_thread)
     using namespace ::testing;
     MockEventHandler mock_handler;
     std::atomic<bool> handled;
-    
+
     handled = false;
 
     struct InputDelegate

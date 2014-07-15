@@ -21,36 +21,37 @@ pushd ${BUILD_DIR} > /dev/null
     # Upload and run the tests!
     # Requires: https://wiki.canonical.com/ProductStrategyTeam/Android/Deploy
     #
-    RUN_DIR=/data/mirtest
+    RUN_DIR=/tmp/mirtest
 
     adb wait-for-device
     adb root
     adb wait-for-device
-    adb shell stop
     adb shell mkdir -p ${RUN_DIR}
 
-    for x in bin/acceptance-tests \
-             bin/integration-tests \
-             bin/unit-tests \
-             lib/libmirclient.so.0 \
-             lib/libmirprotobuf.so.0 \
-             lib/libmirserver.so.0
+    for x in bin/mir_acceptance_tests \
+             bin/mir_integration_tests \
+             bin/mir_unit_tests \
+             lib/libmirclient.so.* \
+             lib/libmirprotobuf.so.* \
+             lib/libmirplatform.so \
+             lib/libmirplatformgraphics.so \
+             lib/libmirclientplatform.so \
+             lib/libmirserver.so.*
     do
         adb push $x ${RUN_DIR}
     done
 
-    echo "ubuntu_chroot shell;
-        cd ${RUN_DIR};
+    echo "cd ${RUN_DIR};
         export GTEST_OUTPUT=xml:./;
         export LD_LIBRARY_PATH=.;
-        ./unit-tests;
-        ./integration-tests;
-        ./acceptance-tests;
+        ./mir_unit_tests;
+        ./mir_integration_tests;
+        ./mir_acceptance_tests;
         exit;
         exit" | adb shell
 
-    adb pull "${RUN_DIR}/acceptance-tests.xml"
-    adb pull "${RUN_DIR}/integration-tests.xml"
-    adb pull "${RUN_DIR}/unit-tests.xml"
+    adb pull "${RUN_DIR}/mir_acceptance_tests.xml"
+    adb pull "${RUN_DIR}/mir_integration_tests.xml"
+    adb pull "${RUN_DIR}/mir_unit_tests.xml"
 
-popd ${BUILD_DIR} > /dev/null 
+popd > /dev/null 

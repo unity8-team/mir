@@ -47,12 +47,18 @@
 
 #include <android/keycodes.h>
 
+#include <std/BitSet.h>
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+
+#if DEBUG_RAW_EVENTS
+#include "InputEventPrinter.h"
+#endif
 
 #define INDENT "  "
 #define INDENT2 "    "
@@ -238,9 +244,9 @@ void InputReaderConfiguration::setDisplayInfo(int32_t displayId, bool external,
 
 // --- InputReader ---
 
-InputReader::InputReader(const sp<EventHubInterface>& eventHub,
-        const sp<InputReaderPolicyInterface>& policy,
-        const sp<InputListenerInterface>& listener) :
+InputReader::InputReader(std::shared_ptr<EventHubInterface> const& eventHub,
+        std::shared_ptr<InputReaderPolicyInterface> const& policy,
+        std::shared_ptr<InputListenerInterface> const& listener) :
         mContext(this), mEventHub(eventHub), mPolicy(policy),
         mGlobalMetaState(0), mGeneration(1),
         mDisableVirtualKeysTimeout(LLONG_MIN), mNextTimeout(LLONG_MAX),
@@ -339,7 +345,7 @@ void InputReader::processEventsLocked(const RawEvent* rawEvents, size_t count) {
                 batchSize += 1;
             }
 #if DEBUG_RAW_EVENTS
-            ALOGD("BatchSize: %d Count: %d", batchSize, count);
+            ALOGD("BatchSize: %zu Count: %zu", batchSize, count);
 #endif
             processEventsForDeviceLocked(deviceId, rawEvent, batchSize);
         } else {
@@ -845,7 +851,7 @@ EventHubInterface* InputReader::ContextImpl::getEventHub() {
 
 // --- InputReaderThread ---
 
-InputReaderThread::InputReaderThread(const sp<InputReaderInterface>& reader) :
+InputReaderThread::InputReaderThread(std::shared_ptr<InputReaderInterface> const& reader) :
         Thread(/*canCallJava*/ true), mReader(reader) {
 }
 
@@ -916,7 +922,7 @@ void InputDevice::addMapper(InputMapper* mapper) {
     mMappers.add(mapper);
 }
 
-void InputDevice::configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes) {
+void InputDevice::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     mSources = 0;
 
     if (!isIgnored()) {
@@ -974,8 +980,9 @@ void InputDevice::process(const RawEvent* rawEvents, size_t count) {
     size_t numMappers = mMappers.size();
     for (const RawEvent* rawEvent = rawEvents; count--; rawEvent++) {
 #if DEBUG_RAW_EVENTS
-        ALOGD("Input event: device=%d type=0x%04x code=0x%04x value=0x%08x",
-                rawEvent->deviceId, rawEvent->type, rawEvent->code, rawEvent->value);
+        char inputStr[200];
+        inputEvToStr(inputStr, rawEvent->type, rawEvent->code, rawEvent->value);
+        ALOGD("Input event: device=%d %s", rawEvent->deviceId, inputStr);
 #endif
 
         if (mDropUntilNextSync) {
@@ -1434,32 +1441,31 @@ RawPointerData::RawPointerData() {
 
 void RawPointerData::clear() {
     pointerCount = 0;
-    clearIdBits();
+    clearIds();
 }
 
 void RawPointerData::copyFrom(const RawPointerData& other) {
     pointerCount = other.pointerCount;
-    hoveringIdBits = other.hoveringIdBits;
-    touchingIdBits = other.touchingIdBits;
+    hoveringIds = other.hoveringIds;
+    touchingIds = other.touchingIds;
 
     for (uint32_t i = 0; i < pointerCount; i++) {
         pointers[i] = other.pointers[i];
 
         int id = pointers[i].id;
-        idToIndex[id] = other.idToIndex[id];
     }
 }
 
 void RawPointerData::getCentroidOfTouchingPointers(float* outX, float* outY) const {
     float x = 0, y = 0;
-    uint32_t count = touchingIdBits.count();
+
+    uint32_t count = touchingIds.count();
     if (count) {
-        for (BitSet32 idBits(touchingIdBits); !idBits.isEmpty(); ) {
-            uint32_t id = idBits.clearFirstMarkedBit();
+        touchingIds.forEach([&](int32_t id) {
             const Pointer& pointer = pointerForId(id);
             x += pointer.x;
             y += pointer.y;
-        }
+        });
         x /= count;
         y /= count;
     }
@@ -1476,21 +1482,18 @@ CookedPointerData::CookedPointerData() {
 
 void CookedPointerData::clear() {
     pointerCount = 0;
-    hoveringIdBits.clear();
-    touchingIdBits.clear();
+    hoveringIds.clear();
+    touchingIds.clear();
 }
 
 void CookedPointerData::copyFrom(const CookedPointerData& other) {
     pointerCount = other.pointerCount;
-    hoveringIdBits = other.hoveringIdBits;
-    touchingIdBits = other.touchingIdBits;
+    hoveringIds = other.hoveringIds;
+    touchingIds = other.touchingIds;
 
     for (uint32_t i = 0; i < pointerCount; i++) {
         pointerProperties[i].copyFrom(other.pointerProperties[i]);
         pointerCoords[i].copyFrom(other.pointerCoords[i]);
-
-        int id = pointerProperties[i].id;
-        idToIndex[id] = other.idToIndex[id];
     }
 }
 
@@ -1673,6 +1676,7 @@ void MultiTouchMotionAccumulator::process(const RawEvent* rawEvent) {
             case ABS_MT_PRESSURE:
                 slot->mInUse = true;
                 slot->mAbsMTPressure = rawEvent->value;
+                slot->mHaveAbsMTPressure = true;
                 break;
             case ABS_MT_DISTANCE:
                 slot->mInUse = true;
@@ -1712,6 +1716,7 @@ void MultiTouchMotionAccumulator::Slot::clear() {
     mInUse = false;
     mHaveAbsMTTouchMinor = false;
     mHaveAbsMTWidthMinor = false;
+    mHaveAbsMTPressure = false;
     mHaveAbsMTToolType = false;
     mAbsMTPositionX = 0;
     mAbsMTPositionY = 0;
@@ -1755,7 +1760,7 @@ void InputMapper::populateDeviceInfo(InputDeviceInfo* info) {
 void InputMapper::dump(String8& dump) {
 }
 
-void InputMapper::configure(nsecs_t when,
+void InputMapper::configure(nsecs_t when, 
         const InputReaderConfiguration* config, uint32_t changes) {
 }
 
@@ -1993,8 +1998,7 @@ void KeyboardInputMapper::dump(String8& dump) {
 }
 
 
-void KeyboardInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void KeyboardInputMapper::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only
@@ -2279,8 +2283,7 @@ void CursorInputMapper::dump(String8& dump) {
     appendFormat(dump, INDENT3 "DownTime: %lld\n", mDownTime);
 }
 
-void CursorInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void CursorInputMapper::configure(nsecs_t when, InputReaderConfiguration const* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only
@@ -2553,7 +2556,9 @@ void CursorInputMapper::fadePointer() {
 TouchInputMapper::TouchInputMapper(InputDevice* device) :
         InputMapper(device),
         mSource(0), mDeviceMode(DEVICE_MODE_DISABLED),
-        mSurfaceOrientation(-1), mSurfaceWidth(-1), mSurfaceHeight(-1) {
+        mSurfaceOrientation(-1), mSurfaceWidth(-1), mSurfaceHeight(-1),
+        mPointerUsage(POINTER_USAGE_NONE),
+        mNextNewPointerId(0) {
 }
 
 TouchInputMapper::~TouchInputMapper() {
@@ -2687,8 +2692,8 @@ void TouchInputMapper::dump(String8& dump) {
     }
 }
 
-void TouchInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void TouchInputMapper::configure(nsecs_t when, const InputReaderConfiguration* config,
+    uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     mConfig = *config;
@@ -2785,16 +2790,9 @@ void TouchInputMapper::configureParameters() {
     getDevice()->getConfiguration().tryGetProperty(String8("touch.orientationAware"),
             mParameters.orientationAware);
 
-    mParameters.associatedDisplayId = -1;
-    mParameters.associatedDisplayIsExternal = false;
-    if (mParameters.orientationAware
-            || mParameters.deviceType == Parameters::DEVICE_TYPE_TOUCH_SCREEN
-            || mParameters.deviceType == Parameters::DEVICE_TYPE_POINTER) {
-        mParameters.associatedDisplayIsExternal =
-                mParameters.deviceType == Parameters::DEVICE_TYPE_TOUCH_SCREEN
-                        && getDevice()->isExternal();
-        mParameters.associatedDisplayId = 0;
-    }
+    mContext->getPolicy()->getAssociatedDisplayInfo(getDevice()->getIdentifier(),
+        mParameters.associatedDisplayId, mParameters.associatedDisplayIsExternal);
+    
 }
 
 void TouchInputMapper::dumpParameters(String8& dump) {
@@ -2912,7 +2910,7 @@ void TouchInputMapper::configureSurface(nsecs_t when, bool* outResetNeeded) {
     }
 
     // If moving between pointer modes, need to reset some state.
-    bool deviceModeChanged;
+    bool deviceModeChanged = false;
     if (mDeviceMode != oldDeviceMode) {
         deviceModeChanged = true;
         mOrientedRanges.clear();
@@ -3498,12 +3496,12 @@ void TouchInputMapper::reset(nsecs_t when) {
     mLastButtonState = 0;
     mCurrentRawVScroll = 0;
     mCurrentRawHScroll = 0;
-    mCurrentFingerIdBits.clear();
-    mLastFingerIdBits.clear();
-    mCurrentStylusIdBits.clear();
-    mLastStylusIdBits.clear();
-    mCurrentMouseIdBits.clear();
-    mLastMouseIdBits.clear();
+    mCurrentFingerIds.clear();
+    mLastFingerIds.clear();
+    mCurrentStylusIds.clear();
+    mLastStylusIds.clear();
+    mCurrentMouseIds.clear();
+    mLastMouseIds.clear();
     mPointerUsage = POINTER_USAGE_NONE;
     mSentHoverEnter = false;
     mDownTime = 0;
@@ -3552,21 +3550,25 @@ void TouchInputMapper::sync(nsecs_t when) {
                 mLastRawPointerData.pointerCount,
                 mCurrentRawPointerData.pointerCount);
     } else {
-        ALOGD("syncTouch: pointerCount %d -> %d, touching ids 0x%08x -> 0x%08x, "
-                "hovering ids 0x%08x -> 0x%08x",
+        std::string lastTouchingIdsString = mLastRawPointerData.touchingIds.toString();
+        std::string currentTouchingIdsString = mCurrentRawPointerData.touchingIds.toString();
+        std::string lastHoveringIdsString = mLastRawPointerData.hoveringIds.toString();
+        std::string currentHoveringIdsString = mCurrentRawPointerData.hoveringIds.toString();
+        ALOGD("syncTouch: pointerCount %u -> %u, touching ids (%s) -> (%s), "
+                "hovering ids (%s) -> (%s)",
                 mLastRawPointerData.pointerCount,
                 mCurrentRawPointerData.pointerCount,
-                mLastRawPointerData.touchingIdBits.value,
-                mCurrentRawPointerData.touchingIdBits.value,
-                mLastRawPointerData.hoveringIdBits.value,
-                mCurrentRawPointerData.hoveringIdBits.value);
+                lastTouchingIdsString.c_str(),
+                currentTouchingIdsString.c_str(),
+                lastHoveringIdsString.c_str(),
+                currentHoveringIdsString.c_str());
     }
 #endif
 
     // Reset state that we will compute below.
-    mCurrentFingerIdBits.clear();
-    mCurrentStylusIdBits.clear();
-    mCurrentMouseIdBits.clear();
+    mCurrentFingerIds.clear();
+    mCurrentStylusIds.clear();
+    mCurrentMouseIds.clear();
     mCurrentCookedPointerData.clear();
 
     if (mDeviceMode == DEVICE_MODE_DISABLED) {
@@ -3616,38 +3618,36 @@ void TouchInputMapper::sync(nsecs_t when) {
 
         // Dispatch the touches either directly or by translation through a pointer on screen.
         if (mDeviceMode == DEVICE_MODE_POINTER) {
-            for (BitSet32 idBits(mCurrentRawPointerData.touchingIdBits); !idBits.isEmpty(); ) {
-                uint32_t id = idBits.clearFirstMarkedBit();
-                const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointerForId(id);
+            for (uint32_t i = 0; i < mCurrentRawPointerData.pointerCount; ++i) {
+                const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointers[i];
                 if (pointer.toolType == AMOTION_EVENT_TOOL_TYPE_STYLUS
                         || pointer.toolType == AMOTION_EVENT_TOOL_TYPE_ERASER) {
-                    mCurrentStylusIdBits.markBit(id);
+                    mCurrentStylusIds.insert(pointer.id);
                 } else if (pointer.toolType == AMOTION_EVENT_TOOL_TYPE_FINGER
                         || pointer.toolType == AMOTION_EVENT_TOOL_TYPE_UNKNOWN) {
-                    mCurrentFingerIdBits.markBit(id);
+                    mCurrentFingerIds.insert(pointer.id);
                 } else if (pointer.toolType == AMOTION_EVENT_TOOL_TYPE_MOUSE) {
-                    mCurrentMouseIdBits.markBit(id);
+                    mCurrentMouseIds.insert(pointer.id);
                 }
             }
-            for (BitSet32 idBits(mCurrentRawPointerData.hoveringIdBits); !idBits.isEmpty(); ) {
-                uint32_t id = idBits.clearFirstMarkedBit();
+            mCurrentRawPointerData.hoveringIds.forEach([&](int32_t id) {
                 const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointerForId(id);
                 if (pointer.toolType == AMOTION_EVENT_TOOL_TYPE_STYLUS
                         || pointer.toolType == AMOTION_EVENT_TOOL_TYPE_ERASER) {
-                    mCurrentStylusIdBits.markBit(id);
+                    mCurrentStylusIds.insert(id);
                 }
-            }
+            });
 
             // Stylus takes precedence over all tools, then mouse, then finger.
             PointerUsage pointerUsage = mPointerUsage;
-            if (!mCurrentStylusIdBits.isEmpty()) {
-                mCurrentMouseIdBits.clear();
-                mCurrentFingerIdBits.clear();
+            if (!mCurrentStylusIds.isEmpty()) {
+                mCurrentMouseIds.clear();
+                mCurrentFingerIds.clear();
                 pointerUsage = POINTER_USAGE_STYLUS;
-            } else if (!mCurrentMouseIdBits.isEmpty()) {
-                mCurrentFingerIdBits.clear();
+            } else if (!mCurrentMouseIds.isEmpty()) {
+                mCurrentFingerIds.clear();
                 pointerUsage = POINTER_USAGE_MOUSE;
-            } else if (!mCurrentFingerIdBits.isEmpty() || isPointerDown(mCurrentButtonState)) {
+            } else if (!mCurrentFingerIds.isEmpty() || isPointerDown(mCurrentButtonState)) {
                 pointerUsage = POINTER_USAGE_GESTURES;
             }
 
@@ -3660,8 +3660,7 @@ void TouchInputMapper::sync(nsecs_t when) {
 
                 mPointerController->setButtonState(mCurrentButtonState);
                 mPointerController->setSpots(mCurrentCookedPointerData.pointerCoords,
-                        mCurrentCookedPointerData.idToIndex,
-                        mCurrentCookedPointerData.touchingIdBits);
+                        mCurrentCookedPointerData.pointerCount);
             }
 
             dispatchHoverExit(when, policyFlags);
@@ -3678,9 +3677,9 @@ void TouchInputMapper::sync(nsecs_t when) {
     mLastRawPointerData.copyFrom(mCurrentRawPointerData);
     mLastCookedPointerData.copyFrom(mCurrentCookedPointerData);
     mLastButtonState = mCurrentButtonState;
-    mLastFingerIdBits = mCurrentFingerIdBits;
-    mLastStylusIdBits = mCurrentStylusIdBits;
-    mLastMouseIdBits = mCurrentMouseIdBits;
+    mLastFingerIds = mCurrentFingerIds;
+    mLastStylusIds = mCurrentStylusIds;
+    mLastMouseIds = mCurrentMouseIds;
 
     // Clear some transient state.
     mCurrentRawVScroll = 0;
@@ -3698,7 +3697,7 @@ void TouchInputMapper::timeoutExpired(nsecs_t when) {
 bool TouchInputMapper::consumeRawTouches(nsecs_t when, uint32_t policyFlags) {
     // Check for release of a virtual key.
     if (mCurrentVirtualKey.down) {
-        if (mCurrentRawPointerData.touchingIdBits.isEmpty()) {
+        if (mCurrentRawPointerData.touchingIds.isEmpty()) {
             // Pointer went up while virtual key was down.
             mCurrentVirtualKey.down = false;
             if (!mCurrentVirtualKey.ignored) {
@@ -3713,8 +3712,8 @@ bool TouchInputMapper::consumeRawTouches(nsecs_t when, uint32_t policyFlags) {
             return true;
         }
 
-        if (mCurrentRawPointerData.touchingIdBits.count() == 1) {
-            uint32_t id = mCurrentRawPointerData.touchingIdBits.firstMarkedBit();
+        if (mCurrentRawPointerData.touchingIds.count() == 1) {
+            int32_t id = mCurrentRawPointerData.touchingIds.first();
             const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointerForId(id);
             const VirtualKey* virtualKey = findVirtualKeyHit(pointer.x, pointer.y);
             if (virtualKey && virtualKey->keyCode == mCurrentVirtualKey.keyCode) {
@@ -3740,15 +3739,15 @@ bool TouchInputMapper::consumeRawTouches(nsecs_t when, uint32_t policyFlags) {
         }
     }
 
-    if (mLastRawPointerData.touchingIdBits.isEmpty()
-            && !mCurrentRawPointerData.touchingIdBits.isEmpty()) {
+    if (mLastRawPointerData.touchingIds.isEmpty()
+            && !mCurrentRawPointerData.touchingIds.isEmpty()) {
         // Pointer just went down.  Check for virtual key press or off-screen touches.
-        uint32_t id = mCurrentRawPointerData.touchingIdBits.firstMarkedBit();
+        int32_t id = mCurrentRawPointerData.touchingIds.first();
         const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointerForId(id);
         if (!isPointInsideSurface(pointer.x, pointer.y)) {
             // If exactly one pointer went down, check for virtual key hit.
             // Otherwise we will drop the entire stroke.
-            if (mCurrentRawPointerData.touchingIdBits.count() == 1) {
+            if (mCurrentRawPointerData.touchingIds.count() == 1) {
                 const VirtualKey* virtualKey = findVirtualKeyHit(pointer.x, pointer.y);
                 if (virtualKey) {
                     mCurrentVirtualKey.down = true;
@@ -3788,7 +3787,7 @@ bool TouchInputMapper::consumeRawTouches(nsecs_t when, uint32_t policyFlags) {
     //    area and accidentally triggers a virtual key.  This often happens when virtual keys
     //    are layed out below the screen near to where the on screen keyboard's space bar
     //    is displayed.
-    if (mConfig.virtualKeyQuietTime > 0 && !mCurrentRawPointerData.touchingIdBits.isEmpty()) {
+    if (mConfig.virtualKeyQuietTime > 0 && !mCurrentRawPointerData.touchingIds.isEmpty()) {
         mContext->disableVirtualKeysUntil(when + mConfig.virtualKeyQuietTime);
     }
     return false;
@@ -3808,13 +3807,13 @@ void TouchInputMapper::dispatchVirtualKey(nsecs_t when, uint32_t policyFlags,
 }
 
 void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
-    BitSet32 currentIdBits = mCurrentCookedPointerData.touchingIdBits;
-    BitSet32 lastIdBits = mLastCookedPointerData.touchingIdBits;
+    IntSet &currentIds = mCurrentCookedPointerData.touchingIds;
+    IntSet &lastIds = mLastCookedPointerData.touchingIds;
     int32_t metaState = getContext()->getGlobalMetaState();
     int32_t buttonState = mCurrentButtonState;
 
-    if (currentIdBits == lastIdBits) {
-        if (!currentIdBits.isEmpty()) {
+    if (currentIds == lastIds) {
+        if (!currentIds.isEmpty()) {
             // No pointer id changes so this is a move event.
             // The listener takes care of batching moves so we don't have to deal with that here.
             dispatchMotion(when, policyFlags, mSource,
@@ -3822,66 +3821,63 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
                     AMOTION_EVENT_EDGE_FLAG_NONE,
                     mCurrentCookedPointerData.pointerProperties,
                     mCurrentCookedPointerData.pointerCoords,
-                    mCurrentCookedPointerData.idToIndex,
-                    currentIdBits, -1,
+                    mCurrentCookedPointerData.pointerCount,
+                    currentIds, -1,
                     mOrientedXPrecision, mOrientedYPrecision, mDownTime);
         }
     } else {
         // There may be pointers going up and pointers going down and pointers moving
         // all at the same time.
-        BitSet32 upIdBits(lastIdBits.value & ~currentIdBits.value);
-        BitSet32 downIdBits(currentIdBits.value & ~lastIdBits.value);
-        BitSet32 moveIdBits(lastIdBits.value & currentIdBits.value);
-        BitSet32 dispatchedIdBits(lastIdBits.value);
+        IntSet upIds = lastIds - currentIds;
+        IntSet downIds = currentIds - lastIds;
+        IntSet moveIds = lastIds & currentIds;
+        IntSet dispatchedIds = lastIds;
 
         // Update last coordinates of pointers that have moved so that we observe the new
         // pointer positions at the same time as other pointers that have just gone up.
         bool moveNeeded = updateMovedPointers(
                 mCurrentCookedPointerData.pointerProperties,
                 mCurrentCookedPointerData.pointerCoords,
-                mCurrentCookedPointerData.idToIndex,
+                mCurrentCookedPointerData.pointerCount,
                 mLastCookedPointerData.pointerProperties,
                 mLastCookedPointerData.pointerCoords,
-                mLastCookedPointerData.idToIndex,
-                moveIdBits);
+                mLastCookedPointerData.pointerCount,
+                moveIds);
         if (buttonState != mLastButtonState) {
             moveNeeded = true;
         }
 
         // Dispatch pointer up events.
-        while (!upIdBits.isEmpty()) {
-            uint32_t upId = upIdBits.clearFirstMarkedBit();
-
+        upIds.forEach([&](int32_t upId) {
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_POINTER_UP, 0, metaState, buttonState, 0,
                     mLastCookedPointerData.pointerProperties,
                     mLastCookedPointerData.pointerCoords,
-                    mLastCookedPointerData.idToIndex,
-                    dispatchedIdBits, upId,
+                    mLastCookedPointerData.pointerCount,
+                    dispatchedIds, upId,
                     mOrientedXPrecision, mOrientedYPrecision, mDownTime);
-            dispatchedIdBits.clearBit(upId);
-        }
+            dispatchedIds.remove(upId);
+        });
 
         // Dispatch move events if any of the remaining pointers moved from their old locations.
         // Although applications receive new locations as part of individual pointer up
         // events, they do not generally handle them except when presented in a move event.
         if (moveNeeded) {
-            ALOG_ASSERT(moveIdBits.value == dispatchedIdBits.value);
+            ALOG_ASSERT(moveIds == dispatchedIds);
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, 0,
                     mCurrentCookedPointerData.pointerProperties,
                     mCurrentCookedPointerData.pointerCoords,
-                    mCurrentCookedPointerData.idToIndex,
-                    dispatchedIdBits, -1,
+                    mCurrentCookedPointerData.pointerCount,
+                    dispatchedIds, -1,
                     mOrientedXPrecision, mOrientedYPrecision, mDownTime);
         }
 
         // Dispatch pointer down events using the new pointer locations.
-        while (!downIdBits.isEmpty()) {
-            uint32_t downId = downIdBits.clearFirstMarkedBit();
-            dispatchedIdBits.markBit(downId);
+        downIds.forEach([&](int32_t downId) {
+            dispatchedIds.insert(downId);
 
-            if (dispatchedIdBits.count() == 1) {
+            if (dispatchedIds.count() == 1) {
                 // First pointer is going down.  Set down time.
                 mDownTime = when;
             }
@@ -3890,40 +3886,40 @@ void TouchInputMapper::dispatchTouches(nsecs_t when, uint32_t policyFlags) {
                     AMOTION_EVENT_ACTION_POINTER_DOWN, 0, metaState, buttonState, 0,
                     mCurrentCookedPointerData.pointerProperties,
                     mCurrentCookedPointerData.pointerCoords,
-                    mCurrentCookedPointerData.idToIndex,
-                    dispatchedIdBits, downId,
+                    mCurrentCookedPointerData.pointerCount,
+                    dispatchedIds, downId,
                     mOrientedXPrecision, mOrientedYPrecision, mDownTime);
-        }
+        });
     }
 }
 
 void TouchInputMapper::dispatchHoverExit(nsecs_t when, uint32_t policyFlags) {
     if (mSentHoverEnter &&
-            (mCurrentCookedPointerData.hoveringIdBits.isEmpty()
-                    || !mCurrentCookedPointerData.touchingIdBits.isEmpty())) {
+            (mCurrentCookedPointerData.hoveringIds.isEmpty()
+                    || !mCurrentCookedPointerData.touchingIds.isEmpty())) {
         int32_t metaState = getContext()->getGlobalMetaState();
         dispatchMotion(when, policyFlags, mSource,
                 AMOTION_EVENT_ACTION_HOVER_EXIT, 0, metaState, mLastButtonState, 0,
                 mLastCookedPointerData.pointerProperties,
                 mLastCookedPointerData.pointerCoords,
-                mLastCookedPointerData.idToIndex,
-                mLastCookedPointerData.hoveringIdBits, -1,
+                mLastCookedPointerData.pointerCount,
+                mLastCookedPointerData.hoveringIds, -1,
                 mOrientedXPrecision, mOrientedYPrecision, mDownTime);
         mSentHoverEnter = false;
     }
 }
 
 void TouchInputMapper::dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFlags) {
-    if (mCurrentCookedPointerData.touchingIdBits.isEmpty()
-            && !mCurrentCookedPointerData.hoveringIdBits.isEmpty()) {
+    if (mCurrentCookedPointerData.touchingIds.isEmpty()
+            && !mCurrentCookedPointerData.hoveringIds.isEmpty()) {
         int32_t metaState = getContext()->getGlobalMetaState();
         if (!mSentHoverEnter) {
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_HOVER_ENTER, 0, metaState, mCurrentButtonState, 0,
                     mCurrentCookedPointerData.pointerProperties,
                     mCurrentCookedPointerData.pointerCoords,
-                    mCurrentCookedPointerData.idToIndex,
-                    mCurrentCookedPointerData.hoveringIdBits, -1,
+                    mCurrentCookedPointerData.pointerCount,
+                    mCurrentCookedPointerData.hoveringIds, -1,
                     mOrientedXPrecision, mOrientedYPrecision, mDownTime);
             mSentHoverEnter = true;
         }
@@ -3932,8 +3928,8 @@ void TouchInputMapper::dispatchHoverEnterAndMove(nsecs_t when, uint32_t policyFl
                 AMOTION_EVENT_ACTION_HOVER_MOVE, 0, metaState, mCurrentButtonState, 0,
                 mCurrentCookedPointerData.pointerProperties,
                 mCurrentCookedPointerData.pointerCoords,
-                mCurrentCookedPointerData.idToIndex,
-                mCurrentCookedPointerData.hoveringIdBits, -1,
+                mCurrentCookedPointerData.pointerCount,
+                mCurrentCookedPointerData.hoveringIds, -1,
                 mOrientedXPrecision, mOrientedYPrecision, mDownTime);
     }
 }
@@ -3943,8 +3939,8 @@ void TouchInputMapper::cookPointerData() {
 
     mCurrentCookedPointerData.clear();
     mCurrentCookedPointerData.pointerCount = currentPointerCount;
-    mCurrentCookedPointerData.hoveringIdBits = mCurrentRawPointerData.hoveringIdBits;
-    mCurrentCookedPointerData.touchingIdBits = mCurrentRawPointerData.touchingIdBits;
+    mCurrentCookedPointerData.hoveringIds = mCurrentRawPointerData.hoveringIds;
+    mCurrentCookedPointerData.touchingIds = mCurrentRawPointerData.touchingIds;
 
     // Walk through the the active pointers and map device coordinates onto
     // surface coordinates and adjust for display orientation.
@@ -3987,7 +3983,7 @@ void TouchInputMapper::cookPointerData() {
             }
 
             if (mCalibration.haveSizeIsSummed && mCalibration.sizeIsSummed) {
-                uint32_t touchingCount = mCurrentRawPointerData.touchingIdBits.count();
+                uint32_t touchingCount = mCurrentRawPointerData.touchingIds.count();
                 if (touchingCount > 1) {
                     touchMajor /= touchingCount;
                     touchMinor /= touchingCount;
@@ -4136,9 +4132,6 @@ void TouchInputMapper::cookPointerData() {
         properties.clear();
         properties.id = id;
         properties.toolType = in.toolType;
-
-        // Write id index.
-        mCurrentCookedPointerData.idToIndex[id] = i;
     }
 }
 
@@ -4202,8 +4195,7 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
             mPointerController->clearSpots();
         }
         mPointerController->setSpots(mPointerGesture.currentGestureCoords,
-                mPointerGesture.currentGestureIdToIndex,
-                mPointerGesture.currentGestureIdBits);
+                mPointerGesture.currentGestureIds.count());
     } else {
         mPointerController->setPresentation(PointerControllerInterface::PRESENTATION_POINTER);
     }
@@ -4254,54 +4246,52 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
             || mPointerGesture.currentGestureMode == PointerGesture::FREEFORM;
     bool moveNeeded = false;
     if (down && !cancelPreviousGesture && !finishPreviousGesture
-            && !mPointerGesture.lastGestureIdBits.isEmpty()
-            && !mPointerGesture.currentGestureIdBits.isEmpty()) {
-        BitSet32 movedGestureIdBits(mPointerGesture.currentGestureIdBits.value
-                & mPointerGesture.lastGestureIdBits.value);
+            && !(mPointerGesture.lastGestureIds.isEmpty())
+            && !(mPointerGesture.currentGestureIds.isEmpty())) {
+        IntSet movedGestureIds = mPointerGesture.currentGestureIds & mPointerGesture.lastGestureIds;
         moveNeeded = updateMovedPointers(mPointerGesture.currentGestureProperties,
-                mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
+                mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIds.count(),
                 mPointerGesture.lastGestureProperties,
-                mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
-                movedGestureIdBits);
+                mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIds.count(),
+                movedGestureIds);
         if (buttonState != mLastButtonState) {
             moveNeeded = true;
         }
     }
 
     // Send motion events for all pointers that went up or were canceled.
-    BitSet32 dispatchedGestureIdBits(mPointerGesture.lastGestureIdBits);
-    if (!dispatchedGestureIdBits.isEmpty()) {
+    IntSet dispatchedGestureIds = mPointerGesture.lastGestureIds;
+    if (!dispatchedGestureIds.isEmpty()) {
         if (cancelPreviousGesture) {
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_CANCEL, 0, metaState, buttonState,
                     AMOTION_EVENT_EDGE_FLAG_NONE,
                     mPointerGesture.lastGestureProperties,
-                    mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
-                    dispatchedGestureIdBits, -1,
+                    mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIds.count(),
+                    dispatchedGestureIds, -1,
                     0, 0, mPointerGesture.downTime);
 
-            dispatchedGestureIdBits.clear();
+            dispatchedGestureIds.clear();
         } else {
-            BitSet32 upGestureIdBits;
+            IntSet upGestureIds;
             if (finishPreviousGesture) {
-                upGestureIdBits = dispatchedGestureIdBits;
+                upGestureIds = dispatchedGestureIds;
             } else {
-                upGestureIdBits.value = dispatchedGestureIdBits.value
-                        & ~mPointerGesture.currentGestureIdBits.value;
+                upGestureIds = dispatchedGestureIds - mPointerGesture.currentGestureIds;
             }
-            while (!upGestureIdBits.isEmpty()) {
-                uint32_t id = upGestureIdBits.clearFirstMarkedBit();
+
+            upGestureIds.forEach([&](int32_t upId) {
 
                 dispatchMotion(when, policyFlags, mSource,
                         AMOTION_EVENT_ACTION_POINTER_UP, 0,
                         metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                         mPointerGesture.lastGestureProperties,
-                        mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
-                        dispatchedGestureIdBits, id,
+                        mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIds.count(),
+                        dispatchedGestureIds, upId,
                         0, 0, mPointerGesture.downTime);
 
-                dispatchedGestureIdBits.clearBit(id);
-            }
+                dispatchedGestureIds.remove(upId);
+            });
         }
     }
 
@@ -4310,30 +4300,29 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
         dispatchMotion(when, policyFlags, mSource,
                 AMOTION_EVENT_ACTION_MOVE, 0, metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.currentGestureProperties,
-                mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
-                dispatchedGestureIdBits, -1,
+                mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIds.count(),
+                dispatchedGestureIds, -1,
                 0, 0, mPointerGesture.downTime);
     }
 
     // Send motion events for all pointers that went down.
     if (down) {
-        BitSet32 downGestureIdBits(mPointerGesture.currentGestureIdBits.value
-                & ~dispatchedGestureIdBits.value);
-        while (!downGestureIdBits.isEmpty()) {
-            uint32_t id = downGestureIdBits.clearFirstMarkedBit();
-            dispatchedGestureIdBits.markBit(id);
+        IntSet downGestureIds = mPointerGesture.currentGestureIds - dispatchedGestureIds;
 
-            if (dispatchedGestureIdBits.count() == 1) {
+        downGestureIds.forEach([&](int32_t downId) {
+            dispatchedGestureIds.insert(downId);
+
+            if (dispatchedGestureIds.size() == 1) {
                 mPointerGesture.downTime = when;
             }
 
             dispatchMotion(when, policyFlags, mSource,
                     AMOTION_EVENT_ACTION_POINTER_DOWN, 0, metaState, buttonState, 0,
                     mPointerGesture.currentGestureProperties,
-                    mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
-                    dispatchedGestureIdBits, id,
+                    mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIds.count(),
+                    dispatchedGestureIds, downId,
                     0, 0, mPointerGesture.downTime);
-        }
+        });
     }
 
     // Send motion events for hover.
@@ -4342,11 +4331,11 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
                 AMOTION_EVENT_ACTION_HOVER_MOVE, 0,
                 metaState, buttonState, AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.currentGestureProperties,
-                mPointerGesture.currentGestureCoords, mPointerGesture.currentGestureIdToIndex,
-                mPointerGesture.currentGestureIdBits, -1,
+                mPointerGesture.currentGestureCoords,
+                mPointerGesture.currentGestureIds.count(), -1,
                 0, 0, mPointerGesture.downTime);
-    } else if (dispatchedGestureIdBits.isEmpty()
-            && !mPointerGesture.lastGestureIdBits.isEmpty()) {
+    } else if (dispatchedGestureIds.isEmpty()
+            && !mPointerGesture.lastGestureIds.isEmpty()) {
         // Synthesize a hover move event after all pointers go up to indicate that
         // the pointer is hovering again even if the user is not currently touching
         // the touch pad.  This ensures that a view will receive a fresh hover enter
@@ -4374,32 +4363,29 @@ void TouchInputMapper::dispatchPointerGestures(nsecs_t when, uint32_t policyFlag
     // Update state.
     mPointerGesture.lastGestureMode = mPointerGesture.currentGestureMode;
     if (!down) {
-        mPointerGesture.lastGestureIdBits.clear();
+        mPointerGesture.lastGestureIds.clear();
     } else {
-        mPointerGesture.lastGestureIdBits = mPointerGesture.currentGestureIdBits;
-        for (BitSet32 idBits(mPointerGesture.currentGestureIdBits); !idBits.isEmpty(); ) {
-            uint32_t id = idBits.clearFirstMarkedBit();
-            uint32_t index = mPointerGesture.currentGestureIdToIndex[id];
+        mPointerGesture.lastGestureIds = mPointerGesture.currentGestureIds;
+        mPointerGesture.lastGestureIdToIndex = mPointerGesture.currentGestureIdToIndex;
+        for (uint32_t index = 0; index < mPointerGesture.currentGestureIds.count(); ++index) {
             mPointerGesture.lastGestureProperties[index].copyFrom(
                     mPointerGesture.currentGestureProperties[index]);
             mPointerGesture.lastGestureCoords[index].copyFrom(
                     mPointerGesture.currentGestureCoords[index]);
-            mPointerGesture.lastGestureIdToIndex[id] = index;
         }
     }
 }
 
 void TouchInputMapper::abortPointerGestures(nsecs_t when, uint32_t policyFlags) {
     // Cancel previously dispatches pointers.
-    if (!mPointerGesture.lastGestureIdBits.isEmpty()) {
+    if (!mPointerGesture.lastGestureIds.isEmpty()) {
         int32_t metaState = getContext()->getGlobalMetaState();
         int32_t buttonState = mCurrentButtonState;
         dispatchMotion(when, policyFlags, mSource,
                 AMOTION_EVENT_ACTION_CANCEL, 0, metaState, buttonState,
                 AMOTION_EVENT_EDGE_FLAG_NONE,
                 mPointerGesture.lastGestureProperties,
-                mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIdToIndex,
-                mPointerGesture.lastGestureIdBits, -1,
+                mPointerGesture.lastGestureCoords, mPointerGesture.lastGestureIds.count(), -1,
                 0, 0, mPointerGesture.downTime);
     }
 
@@ -4439,7 +4425,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 
                 mPointerGesture.activeGestureId = -1;
                 mPointerGesture.currentGestureMode = PointerGesture::NEUTRAL;
-                mPointerGesture.currentGestureIdBits.clear();
+                mPointerGesture.currentGestureIds.clear();
 
                 mPointerVelocityControl.reset();
                 return true;
@@ -4450,21 +4436,20 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         return false;
     }
 
-    const uint32_t currentFingerCount = mCurrentFingerIdBits.count();
-    const uint32_t lastFingerCount = mLastFingerIdBits.count();
+    const uint32_t currentFingerCount = mCurrentFingerIds.size();
+    const uint32_t lastFingerCount = mLastFingerIds.size();
 
     // Update the velocity tracker.
     {
         VelocityTracker::Position positions[MAX_POINTERS];
         uint32_t count = 0;
-        for (BitSet32 idBits(mCurrentFingerIdBits); !idBits.isEmpty(); count++) {
-            uint32_t id = idBits.clearFirstMarkedBit();
+        mCurrentFingerIds.forEach([&](int32_t id) {
             const RawPointerData::Pointer& pointer = mCurrentRawPointerData.pointerForId(id);
             positions[count].x = pointer.x * mPointerXMovementScale;
             positions[count].y = pointer.y * mPointerYMovementScale;
-        }
-        mPointerGesture.velocityTracker.addMovement(when,
-                mCurrentFingerIdBits, positions);
+            count++;
+        });
+        mPointerGesture.velocityTracker.addMovement(when, mCurrentFingerIds, positions);
     }
 
     // Pick a new active touch id if needed.
@@ -4476,17 +4461,17 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
     int32_t lastActiveTouchId = mPointerGesture.activeTouchId;
     int32_t activeTouchId = lastActiveTouchId;
     if (activeTouchId < 0) {
-        if (!mCurrentFingerIdBits.isEmpty()) {
+        if (!mCurrentFingerIds.isEmpty()) {
             activeTouchChanged = true;
             activeTouchId = mPointerGesture.activeTouchId =
-                    mCurrentFingerIdBits.firstMarkedBit();
+                    mCurrentFingerIds.first();
             mPointerGesture.firstTouchTime = when;
         }
-    } else if (!mCurrentFingerIdBits.hasBit(activeTouchId)) {
+    } else if (!mCurrentFingerIds.contains(activeTouchId)) {
         activeTouchChanged = true;
-        if (!mCurrentFingerIdBits.isEmpty()) {
+        if (!mCurrentFingerIds.isEmpty()) {
             activeTouchId = mPointerGesture.activeTouchId =
-                    mCurrentFingerIdBits.firstMarkedBit();
+                    mCurrentFingerIds.first();
         } else {
             activeTouchId = mPointerGesture.activeTouchId = -1;
         }
@@ -4534,7 +4519,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 
         mPointerGesture.activeGestureId = -1;
         mPointerGesture.currentGestureMode = PointerGesture::QUIET;
-        mPointerGesture.currentGestureIdBits.clear();
+        mPointerGesture.currentGestureIds.clear();
 
         mPointerVelocityControl.reset();
     } else if (isPointerDown(mCurrentButtonState)) {
@@ -4566,8 +4551,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         if (activeTouchId >= 0 && currentFingerCount > 1) {
             int32_t bestId = -1;
             float bestSpeed = mConfig.pointerGestureDragMinSwitchSpeed;
-            for (BitSet32 idBits(mCurrentFingerIdBits); !idBits.isEmpty(); ) {
-                uint32_t id = idBits.clearFirstMarkedBit();
+            mCurrentFingerIds.forEach([&](int32_t id) {
                 float vx, vy;
                 if (mPointerGesture.velocityTracker.getVelocity(id, &vx, &vy)) {
                     float speed = hypotf(vx, vy);
@@ -4576,7 +4560,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                         bestSpeed = speed;
                     }
                 }
-            }
+            });
             if (bestId >= 0 && bestId != activeTouchId) {
                 mPointerGesture.activeTouchId = activeTouchId = bestId;
                 activeTouchChanged = true;
@@ -4587,7 +4571,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             }
         }
 
-        if (activeTouchId >= 0 && mLastFingerIdBits.hasBit(activeTouchId)) {
+        if (activeTouchId >= 0 && mLastFingerIds.contains(activeTouchId)) {
             const RawPointerData::Pointer& currentPointer =
                     mCurrentRawPointerData.pointerForId(activeTouchId);
             const RawPointerData::Pointer& lastPointer =
@@ -4610,9 +4594,8 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         mPointerController->getPosition(&x, &y);
 
         mPointerGesture.currentGestureMode = PointerGesture::BUTTON_CLICK_OR_DRAG;
-        mPointerGesture.currentGestureIdBits.clear();
-        mPointerGesture.currentGestureIdBits.markBit(mPointerGesture.activeGestureId);
-        mPointerGesture.currentGestureIdToIndex[mPointerGesture.activeGestureId] = 0;
+        mPointerGesture.currentGestureIds.clear();
+        mPointerGesture.currentGestureIds.insert(mPointerGesture.activeGestureId);
         mPointerGesture.currentGestureProperties[0].clear();
         mPointerGesture.currentGestureProperties[0].id = mPointerGesture.activeGestureId;
         mPointerGesture.currentGestureProperties[0].toolType = AMOTION_EVENT_TOOL_TYPE_FINGER;
@@ -4647,11 +4630,9 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 
                     mPointerGesture.activeGestureId = 0;
                     mPointerGesture.currentGestureMode = PointerGesture::TAP;
-                    mPointerGesture.currentGestureIdBits.clear();
-                    mPointerGesture.currentGestureIdBits.markBit(
+                    mPointerGesture.currentGestureIds.clear();
+                    mPointerGesture.currentGestureIds.insert(
                             mPointerGesture.activeGestureId);
-                    mPointerGesture.currentGestureIdToIndex[
-                            mPointerGesture.activeGestureId] = 0;
                     mPointerGesture.currentGestureProperties[0].clear();
                     mPointerGesture.currentGestureProperties[0].id =
                             mPointerGesture.activeGestureId;
@@ -4689,7 +4670,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 #endif
             mPointerGesture.activeGestureId = -1;
             mPointerGesture.currentGestureMode = PointerGesture::NEUTRAL;
-            mPointerGesture.currentGestureIdBits.clear();
+            mPointerGesture.currentGestureIds.clear();
         }
     } else if (currentFingerCount == 1) {
         // Case 4. Exactly one finger down, button is not pressed. (HOVER or TAP_DRAG)
@@ -4723,7 +4704,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             mPointerGesture.currentGestureMode = PointerGesture::TAP_DRAG;
         }
 
-        if (mLastFingerIdBits.hasBit(activeTouchId)) {
+        if (mLastFingerIds.contains(activeTouchId)) {
             const RawPointerData::Pointer& currentPointer =
                     mCurrentRawPointerData.pointerForId(activeTouchId);
             const RawPointerData::Pointer& lastPointer =
@@ -4763,9 +4744,8 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         float x, y;
         mPointerController->getPosition(&x, &y);
 
-        mPointerGesture.currentGestureIdBits.clear();
-        mPointerGesture.currentGestureIdBits.markBit(mPointerGesture.activeGestureId);
-        mPointerGesture.currentGestureIdToIndex[mPointerGesture.activeGestureId] = 0;
+        mPointerGesture.currentGestureIds.clear();
+        mPointerGesture.currentGestureIds.insert(mPointerGesture.activeGestureId);
         mPointerGesture.currentGestureProperties[0].clear();
         mPointerGesture.currentGestureProperties[0].id = mPointerGesture.activeGestureId;
         mPointerGesture.currentGestureProperties[0].toolType =
@@ -4822,7 +4802,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         if (*outFinishPreviousGesture || *outCancelPreviousGesture) {
             mPointerGesture.currentGestureMode = PointerGesture::PRESS;
             mPointerGesture.activeGestureId = 0;
-            mPointerGesture.referenceIdBits.clear();
+            mPointerGesture.referenceIds.clear();
             mPointerVelocityControl.reset();
 
             // Use the centroid and pointer location as the reference points for the gesture.
@@ -4840,21 +4820,18 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         }
 
         // Clear the reference deltas for fingers not yet included in the reference calculation.
-        for (BitSet32 idBits(mCurrentFingerIdBits.value
-                & ~mPointerGesture.referenceIdBits.value); !idBits.isEmpty(); ) {
-            uint32_t id = idBits.clearFirstMarkedBit();
+        (mCurrentFingerIds - mPointerGesture.referenceIds).forEach([&](int32_t id) {
             mPointerGesture.referenceDeltas[id].dx = 0;
             mPointerGesture.referenceDeltas[id].dy = 0;
-        }
-        mPointerGesture.referenceIdBits = mCurrentFingerIdBits;
+        });
+        mPointerGesture.referenceIds = mCurrentFingerIds;
 
         // Add delta for all fingers and calculate a common movement delta.
         float commonDeltaX = 0, commonDeltaY = 0;
-        BitSet32 commonIdBits(mLastFingerIdBits.value
-                & mCurrentFingerIdBits.value);
-        for (BitSet32 idBits(commonIdBits); !idBits.isEmpty(); ) {
-            bool first = (idBits == commonIdBits);
-            uint32_t id = idBits.clearFirstMarkedBit();
+        IntSet commonIds = mLastFingerIds & mCurrentFingerIds;
+
+        bool first = true;
+        commonIds.forEach([&](int32_t id) {
             const RawPointerData::Pointer& cpd = mCurrentRawPointerData.pointerForId(id);
             const RawPointerData::Pointer& lpd = mLastRawPointerData.pointerForId(id);
             PointerGesture::Delta& delta = mPointerGesture.referenceDeltas[id];
@@ -4864,25 +4841,25 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             if (first) {
                 commonDeltaX = delta.dx;
                 commonDeltaY = delta.dy;
+                first = false;
             } else {
                 commonDeltaX = calculateCommonVector(commonDeltaX, delta.dx);
                 commonDeltaY = calculateCommonVector(commonDeltaY, delta.dy);
             }
-        }
+        });
 
         // Consider transitions from PRESS to SWIPE or MULTITOUCH.
         if (mPointerGesture.currentGestureMode == PointerGesture::PRESS) {
-            float dist[MAX_POINTER_ID + 1];
+            std::unordered_map<int32_t, float> dist;
             int32_t distOverThreshold = 0;
-            for (BitSet32 idBits(mPointerGesture.referenceIdBits); !idBits.isEmpty(); ) {
-                uint32_t id = idBits.clearFirstMarkedBit();
+            mPointerGesture.referenceIds.forEach([&](int32_t id) {
                 PointerGesture::Delta& delta = mPointerGesture.referenceDeltas[id];
                 dist[id] = hypotf(delta.dx * mPointerXZoomScale,
                         delta.dy * mPointerYZoomScale);
                 if (dist[id] > mConfig.pointerGestureMultitouchMinDistance) {
                     distOverThreshold += 1;
                 }
-            }
+            });
 
             // Only transition when at least two pointers have moved further than
             // the minimum distance threshold.
@@ -4897,9 +4874,14 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                     mPointerGesture.currentGestureMode = PointerGesture::FREEFORM;
                 } else {
                     // There are exactly two pointers.
-                    BitSet32 idBits(mCurrentFingerIdBits);
-                    uint32_t id1 = idBits.clearFirstMarkedBit();
-                    uint32_t id2 = idBits.firstMarkedBit();
+                    int32_t id1;
+                    int32_t id2;
+                    {
+                        auto currentFingerIdsIt = mCurrentFingerIds.cbegin();
+                        id1 = *currentFingerIdsIt;
+                        ++currentFingerIdsIt;
+                        id2 = *currentFingerIdsIt;
+                    }
                     const RawPointerData::Pointer& p1 = mCurrentRawPointerData.pointerForId(id1);
                     const RawPointerData::Pointer& p2 = mCurrentRawPointerData.pointerForId(id2);
                     float mutualDistance = distance(p1.x, p1.y, p2.x, p2.y);
@@ -4976,12 +4958,11 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
         // except in PRESS mode while waiting for a transition to occur.
         if (mPointerGesture.currentGestureMode != PointerGesture::PRESS
                 && (commonDeltaX || commonDeltaY)) {
-            for (BitSet32 idBits(mPointerGesture.referenceIdBits); !idBits.isEmpty(); ) {
-                uint32_t id = idBits.clearFirstMarkedBit();
+            mPointerGesture.referenceIds.forEach([&](int32_t id) {
                 PointerGesture::Delta& delta = mPointerGesture.referenceDeltas[id];
                 delta.dx = 0;
                 delta.dy = 0;
-            }
+            });
 
             mPointerGesture.referenceTouchX += commonDeltaX;
             mPointerGesture.referenceTouchY += commonDeltaY;
@@ -5007,9 +4988,8 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 #endif
             ALOG_ASSERT(mPointerGesture.activeGestureId >= 0);
 
-            mPointerGesture.currentGestureIdBits.clear();
-            mPointerGesture.currentGestureIdBits.markBit(mPointerGesture.activeGestureId);
-            mPointerGesture.currentGestureIdToIndex[mPointerGesture.activeGestureId] = 0;
+            mPointerGesture.currentGestureIds.clear();
+            mPointerGesture.currentGestureIds.insert(mPointerGesture.activeGestureId);
             mPointerGesture.currentGestureProperties[0].clear();
             mPointerGesture.currentGestureProperties[0].id = mPointerGesture.activeGestureId;
             mPointerGesture.currentGestureProperties[0].toolType =
@@ -5029,16 +5009,16 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
 #endif
             ALOG_ASSERT(mPointerGesture.activeGestureId >= 0);
 
-            mPointerGesture.currentGestureIdBits.clear();
+            mPointerGesture.currentGestureIds.clear();
 
-            BitSet32 mappedTouchIdBits;
-            BitSet32 usedGestureIdBits;
+            IntSet mappedTouchIds;
+            IntSet usedGestureIds;
             if (mPointerGesture.lastGestureMode != PointerGesture::FREEFORM) {
                 // Initially, assign the active gesture id to the active touch point
                 // if there is one.  No other touch id bits are mapped yet.
                 if (!*outCancelPreviousGesture) {
-                    mappedTouchIdBits.markBit(activeTouchId);
-                    usedGestureIdBits.markBit(mPointerGesture.activeGestureId);
+                    mappedTouchIds.insert(activeTouchId);
+                    usedGestureIds.insert(mPointerGesture.activeGestureId);
                     mPointerGesture.freeformTouchToGestureIdMap[activeTouchId] =
                             mPointerGesture.activeGestureId;
                 } else {
@@ -5047,38 +5027,41 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
             } else {
                 // Otherwise, assume we mapped all touches from the previous frame.
                 // Reuse all mappings that are still applicable.
-                mappedTouchIdBits.value = mLastFingerIdBits.value
-                        & mCurrentFingerIdBits.value;
-                usedGestureIdBits = mPointerGesture.lastGestureIdBits;
+                mappedTouchIds = mLastFingerIds & mCurrentFingerIds;
+                usedGestureIds = mPointerGesture.lastGestureIds;
 
                 // Check whether we need to choose a new active gesture id because the
                 // current went went up.
-                for (BitSet32 upTouchIdBits(mLastFingerIdBits.value
-                        & ~mCurrentFingerIdBits.value);
-                        !upTouchIdBits.isEmpty(); ) {
-                    uint32_t upTouchId = upTouchIdBits.clearFirstMarkedBit();
-                    uint32_t upGestureId = mPointerGesture.freeformTouchToGestureIdMap[upTouchId];
-                    if (upGestureId == uint32_t(mPointerGesture.activeGestureId)) {
-                        mPointerGesture.activeGestureId = -1;
-                        break;
+                auto it = mLastFingerIds.cbegin();
+                while (it != mLastFingerIds.cend()) {
+                    int32_t id = *it;
+                    if (!mCurrentFingerIds.contains(id)) {
+                        int32_t upGestureId = mPointerGesture.freeformTouchToGestureIdMap[id];
+                        if (upGestureId == mPointerGesture.activeGestureId) {
+                            mPointerGesture.activeGestureId = -1;
+                            break;
+                        }
                     }
+                    it++;
                 }
             }
 
 #if DEBUG_GESTURES
-            ALOGD("Gestures: FREEFORM follow up "
-                    "mappedTouchIdBits=0x%08x, usedGestureIdBits=0x%08x, "
-                    "activeGestureId=%d",
-                    mappedTouchIdBits.value, usedGestureIdBits.value,
-                    mPointerGesture.activeGestureId);
+            {
+                std::string mappedTouchIdsString = mappedTouchIds.toString();
+                std::string usedGestureIdsString = usedGestureIds.toString();
+                ALOGD("Gestures: FREEFORM follow up "
+                        "mappedTouchIds=%s, usedGestureIds=%s, "
+                        "activeGestureId=%d",
+                        mappedTouchIdsString.c_str(), usedGestureIdsString.c_str(),
+                        mPointerGesture.activeGestureId);
+            }
 #endif
-
-            BitSet32 idBits(mCurrentFingerIdBits);
-            for (uint32_t i = 0; i < currentFingerCount; i++) {
-                uint32_t touchId = idBits.clearFirstMarkedBit();
-                uint32_t gestureId;
-                if (!mappedTouchIdBits.hasBit(touchId)) {
-                    gestureId = usedGestureIdBits.markFirstUnmarkedBit();
+            uint32_t i = 0;
+            mCurrentFingerIds.forEach([&](int32_t touchId) {
+                int32_t gestureId;
+                if (mappedTouchIds.contains(touchId)) {
+                    gestureId = usedGestureIds.first();
                     mPointerGesture.freeformTouchToGestureIdMap[touchId] = gestureId;
 #if DEBUG_GESTURES
                     ALOGD("Gestures: FREEFORM "
@@ -5093,8 +5076,7 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                             touchId, gestureId);
 #endif
                 }
-                mPointerGesture.currentGestureIdBits.markBit(gestureId);
-                mPointerGesture.currentGestureIdToIndex[gestureId] = i;
+                mPointerGesture.currentGestureIds.insert(gestureId);
 
                 const RawPointerData::Pointer& pointer =
                         mCurrentRawPointerData.pointerForId(touchId);
@@ -5115,11 +5097,12 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
                         AMOTION_EVENT_AXIS_Y, mPointerGesture.referenceGestureY + deltaY);
                 mPointerGesture.currentGestureCoords[i].setAxisValue(
                         AMOTION_EVENT_AXIS_PRESSURE, 1.0f);
-            }
+
+                ++i;
+            });
 
             if (mPointerGesture.activeGestureId < 0) {
-                mPointerGesture.activeGestureId =
-                        mPointerGesture.currentGestureIdBits.firstMarkedBit();
+                mPointerGesture.activeGestureId = mPointerGesture.currentGestureIds.first();
 #if DEBUG_GESTURES
                 ALOGD("Gestures: FREEFORM new "
                         "activeGestureId=%d", mPointerGesture.activeGestureId);
@@ -5131,35 +5114,35 @@ bool TouchInputMapper::preparePointerGestures(nsecs_t when,
     mPointerController->setButtonState(mCurrentButtonState);
 
 #if DEBUG_GESTURES
-    ALOGD("Gestures: finishPreviousGesture=%s, cancelPreviousGesture=%s, "
-            "currentGestureMode=%d, currentGestureIdBits=0x%08x, "
-            "lastGestureMode=%d, lastGestureIdBits=0x%08x",
-            toString(*outFinishPreviousGesture), toString(*outCancelPreviousGesture),
-            mPointerGesture.currentGestureMode, mPointerGesture.currentGestureIdBits.value,
-            mPointerGesture.lastGestureMode, mPointerGesture.lastGestureIdBits.value);
-    for (BitSet32 idBits = mPointerGesture.currentGestureIdBits; !idBits.isEmpty(); ) {
-        uint32_t id = idBits.clearFirstMarkedBit();
-        uint32_t index = mPointerGesture.currentGestureIdToIndex[id];
-        const PointerProperties& properties = mPointerGesture.currentGestureProperties[index];
-        const PointerCoords& coords = mPointerGesture.currentGestureCoords[index];
-        ALOGD("  currentGesture[%d]: index=%d, toolType=%d, "
-                "x=%0.3f, y=%0.3f, pressure=%0.3f",
-                id, index, properties.toolType,
-                coords.getAxisValue(AMOTION_EVENT_AXIS_X),
-                coords.getAxisValue(AMOTION_EVENT_AXIS_Y),
-                coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE));
-    }
-    for (BitSet32 idBits = mPointerGesture.lastGestureIdBits; !idBits.isEmpty(); ) {
-        uint32_t id = idBits.clearFirstMarkedBit();
-        uint32_t index = mPointerGesture.lastGestureIdToIndex[id];
-        const PointerProperties& properties = mPointerGesture.lastGestureProperties[index];
-        const PointerCoords& coords = mPointerGesture.lastGestureCoords[index];
-        ALOGD("  lastGesture[%d]: index=%d, toolType=%d, "
-                "x=%0.3f, y=%0.3f, pressure=%0.3f",
-                id, index, properties.toolType,
-                coords.getAxisValue(AMOTION_EVENT_AXIS_X),
-                coords.getAxisValue(AMOTION_EVENT_AXIS_Y),
-                coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE));
+    {
+        std::string lastGestureIdsString = mPointerGesture.lastGestureIds.toString();
+
+        ALOGD("Gestures: finishPreviousGesture=%s, cancelPreviousGesture=%s, "
+                "currentGestureMode=%d, currentGestureIds.count()=%u, "
+                "lastGestureMode=%d, lastGestureIds=%s",
+                toString(*outFinishPreviousGesture), toString(*outCancelPreviousGesture),
+                mPointerGesture.currentGestureMode, mPointerGesture.currentGestureIds.count(),
+                mPointerGesture.lastGestureMode, lastGestureIdsString.c_str());
+        for (uint32_t index = 0; index < mPointerGesture.currentGestureIds.count(); ++index) {
+            const PointerProperties& properties = mPointerGesture.currentGestureProperties[index];
+            const PointerCoords& coords = mPointerGesture.currentGestureCoords[index];
+            ALOGD("  currentGesture[%d]: index=%d, toolType=%d, "
+                    "x=%0.3f, y=%0.3f, pressure=%0.3f",
+                    properties.id, index, properties.toolType,
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_X),
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_Y),
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE));
+        }
+        for (uint32_t index = 0; index < mPointerGesture.lastGestureIds.count(); ++index) {
+            const PointerProperties& properties = mPointerGesture.lastGestureProperties[index];
+            const PointerCoords& coords = mPointerGesture.lastGestureCoords[index];
+            ALOGD("  lastGesture[%d]: index=%d, toolType=%d, "
+                    "x=%0.3f, y=%0.3f, pressure=%0.3f",
+                    properties.id, index, properties.toolType,
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_X),
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_Y),
+                    coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE));
+        }
     }
 #endif
     return true;
@@ -5170,14 +5153,14 @@ void TouchInputMapper::dispatchPointerStylus(nsecs_t when, uint32_t policyFlags)
     mPointerSimple.currentProperties.clear();
 
     bool down, hovering;
-    if (!mCurrentStylusIdBits.isEmpty()) {
-        uint32_t id = mCurrentStylusIdBits.firstMarkedBit();
-        uint32_t index = mCurrentCookedPointerData.idToIndex[id];
+    if (!mCurrentStylusIds.isEmpty()) {
+        int32_t id = mCurrentStylusIds.first();
+        uint32_t index = mCurrentCookedPointerData.idToIndex(id);
         float x = mCurrentCookedPointerData.pointerCoords[index].getX();
         float y = mCurrentCookedPointerData.pointerCoords[index].getY();
         mPointerController->setPosition(x, y);
 
-        hovering = mCurrentCookedPointerData.hoveringIdBits.hasBit(id);
+        hovering = mCurrentCookedPointerData.hoveringIds.contains(id);
         down = !hovering;
 
         mPointerController->getPosition(&x, &y);
@@ -5204,11 +5187,11 @@ void TouchInputMapper::dispatchPointerMouse(nsecs_t when, uint32_t policyFlags) 
     mPointerSimple.currentProperties.clear();
 
     bool down, hovering;
-    if (!mCurrentMouseIdBits.isEmpty()) {
-        uint32_t id = mCurrentMouseIdBits.firstMarkedBit();
-        uint32_t currentIndex = mCurrentRawPointerData.idToIndex[id];
-        if (mLastMouseIdBits.hasBit(id)) {
-            uint32_t lastIndex = mCurrentRawPointerData.idToIndex[id];
+    if (!mCurrentMouseIds.isEmpty()) {
+        uint32_t id = mCurrentMouseIds.first();
+        uint32_t currentIndex = mCurrentRawPointerData.idToIndex(id);
+        if (mLastMouseIds.contains(id)) {
+            uint32_t lastIndex = mCurrentRawPointerData.idToIndex(id);
             float deltaX = (mCurrentRawPointerData.pointers[currentIndex].x
                     - mLastRawPointerData.pointers[lastIndex].x)
                     * mPointerXMovementScale;
@@ -5376,19 +5359,17 @@ void TouchInputMapper::abortPointerSimple(nsecs_t when, uint32_t policyFlags) {
 
 void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32_t source,
         int32_t action, int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
-        const PointerProperties* properties, const PointerCoords* coords,
-        const uint32_t* idToIndex, BitSet32 idBits,
+        const PointerProperties* properties, const PointerCoords* coords, uint32_t inPointerCount,
         int32_t changedId, float xPrecision, float yPrecision, nsecs_t downTime) {
     PointerCoords pointerCoords[MAX_POINTERS];
     PointerProperties pointerProperties[MAX_POINTERS];
     uint32_t pointerCount = 0;
-    while (!idBits.isEmpty()) {
-        uint32_t id = idBits.clearFirstMarkedBit();
-        uint32_t index = idToIndex[id];
-        pointerProperties[pointerCount].copyFrom(properties[index]);
-        pointerCoords[pointerCount].copyFrom(coords[index]);
 
-        if (changedId >= 0 && id == uint32_t(changedId)) {
+    while (pointerCount < inPointerCount) {
+        pointerProperties[pointerCount].copyFrom(properties[pointerCount]);
+        pointerCoords[pointerCount].copyFrom(coords[pointerCount]);
+
+        if (changedId >= 0 && properties[pointerCount].id == uint32_t(changedId)) {
             action |= pointerCount << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
         }
 
@@ -5417,31 +5398,94 @@ void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32
     getListener()->notifyMotion(&args);
 }
 
-bool TouchInputMapper::updateMovedPointers(const PointerProperties* inProperties,
-        const PointerCoords* inCoords, const uint32_t* inIdToIndex,
-        PointerProperties* outProperties, PointerCoords* outCoords, const uint32_t* outIdToIndex,
-        BitSet32 idBits) const {
-    bool changed = false;
-    while (!idBits.isEmpty()) {
-        uint32_t id = idBits.clearFirstMarkedBit();
-        uint32_t inIndex = inIdToIndex[id];
-        uint32_t outIndex = outIdToIndex[id];
+void TouchInputMapper::dispatchMotion(nsecs_t when, uint32_t policyFlags, uint32_t source,
+        int32_t action, int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
+        const PointerProperties* properties, const PointerCoords* coords,
+        uint32_t inPointerCount, const IntSet &idsToDispatch,
+        int32_t changedId, float xPrecision, float yPrecision, nsecs_t downTime) {
+    PointerCoords pointerCoords[MAX_POINTERS];
+    PointerProperties pointerProperties[MAX_POINTERS];
+    uint32_t pointerCount = 0;
 
-        const PointerProperties& curInProperties = inProperties[inIndex];
-        const PointerCoords& curInCoords = inCoords[inIndex];
-        PointerProperties& curOutProperties = outProperties[outIndex];
-        PointerCoords& curOutCoords = outCoords[outIndex];
+    for (uint32_t i = 0; i < inPointerCount && pointerCount < idsToDispatch.size(); ++i) {
+        if (!idsToDispatch.contains(properties[i].id))
+            continue;
 
-        if (curInProperties != curOutProperties) {
-            curOutProperties.copyFrom(curInProperties);
-            changed = true;
+        pointerProperties[pointerCount].copyFrom(properties[i]);
+        pointerCoords[pointerCount].copyFrom(coords[i]);
+
+        if (changedId >= 0 && properties[i].id == uint32_t(changedId)) {
+            action |= i << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
         }
 
-        if (curInCoords != curOutCoords) {
-            curOutCoords.copyFrom(curInCoords);
-            changed = true;
+        pointerCount += 1;
+    }
+
+    ALOG_ASSERT(pointerCount != 0);
+
+    if (changedId >= 0 && pointerCount == 1) {
+        // Remove the poiter index part
+        int actionPart = action & AMOTION_EVENT_ACTION_MASK;
+
+        // Replace initial down and final up action.
+        // We can compare the action without masking off the changed pointer index
+        // because we know the index is 0.
+        if (actionPart == AMOTION_EVENT_ACTION_POINTER_DOWN) {
+            actionPart = AMOTION_EVENT_ACTION_DOWN;
+        } else if (actionPart & AMOTION_EVENT_ACTION_POINTER_UP) {
+            actionPart = AMOTION_EVENT_ACTION_UP;
+        } else {
+            // Can't happen.
+            ALOG_ASSERT(false);
+        }
+
+        // And put it back into the action integer
+        action = (action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) | actionPart;
+    }
+
+    NotifyMotionArgs args(when, getDeviceId(), source, policyFlags,
+            action, flags, metaState, buttonState, edgeFlags,
+            pointerCount, pointerProperties, pointerCoords, xPrecision, yPrecision, downTime);
+    getListener()->notifyMotion(&args);
+}
+
+bool TouchInputMapper::updateMovedPointers(const PointerProperties* inProperties,
+        const PointerCoords* inCoords, uint32_t inPointerCount,
+        PointerProperties* outProperties, PointerCoords* outCoords, uint32_t outPointerCount,
+        const IntSet &commonTouchingIds) const {
+    bool changed = false;
+
+    if (commonTouchingIds.isEmpty()) {
+        return changed;
+    }
+
+    for (uint32_t inIndex = 0; inIndex < inPointerCount; ++inIndex) {
+        int32_t inId = inProperties[inIndex].id;
+        if (!commonTouchingIds.contains(inId)) {
+            continue;
+        }
+        for (uint32_t outIndex = 0; outIndex < outPointerCount; ++outIndex) {
+            int32_t outId = outProperties[outIndex].id;
+            if (inId == outId) {
+                // The pointer is present in both sets. Let's see if it has moved.
+                const PointerProperties& curInProperties = inProperties[inIndex];
+                const PointerCoords& curInCoords = inCoords[inIndex];
+                PointerProperties& curOutProperties = outProperties[outIndex];
+                PointerCoords& curOutCoords = outCoords[outIndex];
+
+                if (curInProperties != curOutProperties) {
+                    curOutProperties.copyFrom(curInProperties);
+                    changed = true;
+                }
+
+                if (curInCoords != curOutCoords) {
+                    curOutCoords.copyFrom(curInCoords);
+                    changed = true;
+                }
+            }
         }
     }
+
     return changed;
 }
 
@@ -5483,7 +5527,7 @@ void TouchInputMapper::assignPointerIds() {
     uint32_t currentPointerCount = mCurrentRawPointerData.pointerCount;
     uint32_t lastPointerCount = mLastRawPointerData.pointerCount;
 
-    mCurrentRawPointerData.clearIdBits();
+    mCurrentRawPointerData.clearIds();
 
     if (currentPointerCount == 0) {
         // No pointers to assign.
@@ -5493,10 +5537,9 @@ void TouchInputMapper::assignPointerIds() {
     if (lastPointerCount == 0) {
         // All pointers are new.
         for (uint32_t i = 0; i < currentPointerCount; i++) {
-            uint32_t id = i;
+            int32_t id = fetchNewPointerId();
             mCurrentRawPointerData.pointers[i].id = id;
-            mCurrentRawPointerData.idToIndex[id] = i;
-            mCurrentRawPointerData.markIdBit(id, mCurrentRawPointerData.isHovering(i));
+            mCurrentRawPointerData.insertId(id, mCurrentRawPointerData.isHovering(i));
         }
         return;
     }
@@ -5505,10 +5548,9 @@ void TouchInputMapper::assignPointerIds() {
             && mCurrentRawPointerData.pointers[0].toolType
                     == mLastRawPointerData.pointers[0].toolType) {
         // Only one pointer and no change in count so it must have the same id as before.
-        uint32_t id = mLastRawPointerData.pointers[0].id;
+        int32_t id = mLastRawPointerData.pointers[0].id;
         mCurrentRawPointerData.pointers[0].id = id;
-        mCurrentRawPointerData.idToIndex[id] = 0;
-        mCurrentRawPointerData.markIdBit(id, mCurrentRawPointerData.isHovering(0));
+        mCurrentRawPointerData.insertId(id, mCurrentRawPointerData.isHovering(0));
         return;
     }
 
@@ -5568,9 +5610,9 @@ void TouchInputMapper::assignPointerIds() {
     }
 
 #if DEBUG_POINTER_ASSIGNMENT
-    ALOGD("assignPointerIds - initial distance min-heap: size=%d", heapSize);
+    ALOGD("assignPointerIds - initial distance min-heap: size=%u", heapSize);
     for (size_t i = 0; i < heapSize; i++) {
-        ALOGD("  heap[%d]: cur=%d, last=%d, distance=%lld",
+        ALOGD("  heap[%d]: cur=%u, last=%u, distance=%llu",
                 i, heap[i].currentPointerIndex, heap[i].lastPointerIndex,
                 heap[i].distance);
     }
@@ -5579,10 +5621,8 @@ void TouchInputMapper::assignPointerIds() {
     // Pull matches out by increasing order of distance.
     // To avoid reassigning pointers that have already been matched, the loop keeps track
     // of which last and current pointers have been matched using the matchedXXXBits variables.
-    // It also tracks the used pointer id bits.
     BitSet32 matchedLastBits(0);
     BitSet32 matchedCurrentBits(0);
-    BitSet32 usedIdBits(0);
     bool first = true;
     for (uint32_t i = min(currentPointerCount, lastPointerCount); heapSize > 0 && i > 0; i--) {
         while (heapSize > 0) {
@@ -5634,12 +5674,9 @@ void TouchInputMapper::assignPointerIds() {
             matchedCurrentBits.markBit(currentPointerIndex);
             matchedLastBits.markBit(lastPointerIndex);
 
-            uint32_t id = mLastRawPointerData.pointers[lastPointerIndex].id;
+            int32_t id = mLastRawPointerData.pointers[lastPointerIndex].id;
             mCurrentRawPointerData.pointers[currentPointerIndex].id = id;
-            mCurrentRawPointerData.idToIndex[id] = currentPointerIndex;
-            mCurrentRawPointerData.markIdBit(id,
-                    mCurrentRawPointerData.isHovering(currentPointerIndex));
-            usedIdBits.markBit(id);
+            mCurrentRawPointerData.insertId(id, mCurrentRawPointerData.isHovering(currentPointerIndex));
 
 #if DEBUG_POINTER_ASSIGNMENT
             ALOGD("assignPointerIds - matched: cur=%d, last=%d, id=%d, distance=%lld",
@@ -5652,11 +5689,10 @@ void TouchInputMapper::assignPointerIds() {
     // Assign fresh ids to pointers that were not matched in the process.
     for (uint32_t i = currentPointerCount - matchedCurrentBits.count(); i != 0; i--) {
         uint32_t currentPointerIndex = matchedCurrentBits.markFirstUnmarkedBit();
-        uint32_t id = usedIdBits.markFirstUnmarkedBit();
+        int32_t id = fetchNewPointerId();
 
         mCurrentRawPointerData.pointers[currentPointerIndex].id = id;
-        mCurrentRawPointerData.idToIndex[id] = currentPointerIndex;
-        mCurrentRawPointerData.markIdBit(id,
+        mCurrentRawPointerData.insertId(id,
                 mCurrentRawPointerData.isHovering(currentPointerIndex));
 
 #if DEBUG_POINTER_ASSIGNMENT
@@ -5664,6 +5700,14 @@ void TouchInputMapper::assignPointerIds() {
                 currentPointerIndex, id);
 #endif
     }
+}
+
+int32_t TouchInputMapper::fetchNewPointerId() {
+    int32_t id = mNextNewPointerId++;
+    if (mNextNewPointerId > MAX_POINTER_ID) {
+        mNextNewPointerId = 0;
+    }
+    return id;
 }
 
 int32_t TouchInputMapper::getKeyCodeState(uint32_t sourceMask, int32_t keyCode) {
@@ -5739,16 +5783,21 @@ void SingleTouchInputMapper::process(const RawEvent* rawEvent) {
 void SingleTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
     if (mTouchButtonAccumulator.isToolActive()) {
         mCurrentRawPointerData.pointerCount = 1;
-        mCurrentRawPointerData.idToIndex[0] = 0;
 
         bool isHovering = mTouchButtonAccumulator.getToolType() != AMOTION_EVENT_TOOL_TYPE_MOUSE
                 && (mTouchButtonAccumulator.isHovering()
                         || (mRawPointerAxes.pressure.valid
                                 && mSingleTouchMotionAccumulator.getAbsolutePressure() <= 0));
-        mCurrentRawPointerData.markIdBit(0, isHovering);
 
         RawPointerData::Pointer& outPointer = mCurrentRawPointerData.pointers[0];
-        outPointer.id = 0;
+
+        if (mLastRawPointerData.pointerCount == 1) {
+            outPointer.id = mLastRawPointerData.pointers[0].id;
+            mCurrentRawPointerData.insertId(outPointer.id, isHovering);
+        } else {
+            outPointer.id = -1;
+            *outHavePointerIds = false;
+        }
         outPointer.x = mSingleTouchMotionAccumulator.getAbsoluteX();
         outPointer.y = mSingleTouchMotionAccumulator.getAbsoluteY();
         outPointer.pressure = mSingleTouchMotionAccumulator.getAbsolutePressure();
@@ -5765,6 +5814,7 @@ void SingleTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
             outPointer.toolType = AMOTION_EVENT_TOOL_TYPE_FINGER;
         }
         outPointer.isHovering = isHovering;
+
     }
 }
 
@@ -5797,7 +5847,7 @@ MultiTouchInputMapper::~MultiTouchInputMapper() {
 void MultiTouchInputMapper::reset(nsecs_t when) {
     mMultiTouchMotionAccumulator.reset(getDevice());
 
-    mPointerIdBits.clear();
+    mPointerIds.clear();
 
     TouchInputMapper::reset(when);
 }
@@ -5811,7 +5861,7 @@ void MultiTouchInputMapper::process(const RawEvent* rawEvent) {
 void MultiTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
     size_t inCount = mMultiTouchMotionAccumulator.getSlotCount();
     size_t outCount = 0;
-    BitSet32 newPointerIdBits;
+    IntSet newPointerIds;
 
     for (size_t inIndex = 0; inIndex < inCount; inIndex++) {
         const MultiTouchMotionAccumulator::Slot* inSlot =
@@ -5852,7 +5902,8 @@ void MultiTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
 
         bool isHovering = mTouchButtonAccumulator.getToolType() != AMOTION_EVENT_TOOL_TYPE_MOUSE
                 && (mTouchButtonAccumulator.isHovering()
-                        || (mRawPointerAxes.pressure.valid && inSlot->getPressure() <= 0));
+                        || (mRawPointerAxes.pressure.valid
+                            && inSlot->havePressure() && inSlot->getPressure() <= 0));
         outPointer.isHovering = isHovering;
 
         // Assign pointer id using tracking id if available.
@@ -5860,27 +5911,26 @@ void MultiTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
             int32_t trackingId = inSlot->getTrackingId();
             int32_t id = -1;
             if (trackingId >= 0) {
-                for (BitSet32 idBits(mPointerIdBits); !idBits.isEmpty(); ) {
-                    uint32_t n = idBits.clearFirstMarkedBit();
+                mPointerIds.forEach([&](int32_t n) {
                     if (mPointerTrackingIdMap[n] == trackingId) {
                         id = n;
                     }
-                }
+                });
 
-                if (id < 0 && !mPointerIdBits.isFull()) {
-                    id = mPointerIdBits.markFirstUnmarkedBit();
+                if (id < 0) {
+                    id = fetchNewPointerId();
+                    mPointerIds.insert(id);
                     mPointerTrackingIdMap[id] = trackingId;
                 }
             }
             if (id < 0) {
                 *outHavePointerIds = false;
-                mCurrentRawPointerData.clearIdBits();
-                newPointerIdBits.clear();
+                mCurrentRawPointerData.clearIds();
+                newPointerIds.clear();
             } else {
                 outPointer.id = id;
-                mCurrentRawPointerData.idToIndex[id] = outCount;
-                mCurrentRawPointerData.markIdBit(id, isHovering);
-                newPointerIdBits.markBit(id);
+                mCurrentRawPointerData.insertId(id, isHovering);
+                newPointerIds.insert(id);
             }
         }
 
@@ -5888,7 +5938,7 @@ void MultiTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
     }
 
     mCurrentRawPointerData.pointerCount = outCount;
-    mPointerIdBits = newPointerIdBits;
+    mPointerIds = newPointerIds;
 
     mMultiTouchMotionAccumulator.finishSync();
 }
@@ -5913,8 +5963,8 @@ void MultiTouchInputMapper::configureRawPointerAxes() {
             && mRawPointerAxes.slot.minValue == 0 && mRawPointerAxes.slot.maxValue > 0) {
         size_t slotCount = mRawPointerAxes.slot.maxValue + 1;
         if (slotCount > MAX_SLOTS) {
-            ALOGW("MultiTouch Device %s reported %d slots but the framework "
-                    "only supports a maximum of %d slots at this time.",
+            ALOGW("MultiTouch Device %s reported %lu slots but the framework "
+                    "only supports a maximum of %lu slots at this time.",
                     c_str(getDeviceName()), slotCount, MAX_SLOTS);
             slotCount = MAX_SLOTS;
         }
@@ -5996,8 +6046,7 @@ void JoystickInputMapper::dump(String8& dump) {
     }
 }
 
-void JoystickInputMapper::configure(nsecs_t when,
-        const InputReaderConfiguration* config, uint32_t changes) {
+void JoystickInputMapper::configure(nsecs_t when, const InputReaderConfiguration* config, uint32_t changes) {
     InputMapper::configure(when, config, changes);
 
     if (!changes) { // first time only
@@ -6056,7 +6105,7 @@ void JoystickInputMapper::configure(nsecs_t when,
         // If there are too many axes, start dropping them.
         // Prefer to keep explicitly mapped axes.
         if (mAxes.size() > PointerCoords::MAX_AXES) {
-            ALOGI("Joystick '%s' has %d axes but the framework only supports a maximum of %d.",
+            ALOGI("Joystick '%s' has %lu axes but the framework only supports a maximum of %d.",
                 c_str(getDeviceName()), mAxes.size(), PointerCoords::MAX_AXES);
             pruneAxes(true);
             pruneAxes(false);

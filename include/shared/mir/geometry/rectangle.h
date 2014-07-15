@@ -23,7 +23,7 @@
 #include "point.h"
 #include "size.h"
 
-#include <ostream>
+#include <iosfwd>
 
 namespace mir
 {
@@ -34,6 +34,27 @@ struct Rectangle
 {
     Point top_left;
     Size size;
+
+    /**
+     * The bottom right boundary point of the rectangle.
+     *
+     * Note that the returned point is *not* included in the rectangle
+     * area, that is, the rectangle is represented as [top_left,bottom_right).
+     */
+    Point bottom_right() const;
+    Point top_right() const;
+    Point bottom_left() const;
+    bool contains(Point const& p) const;
+
+    /**
+     * Test if the rectangle contains another.
+     *
+     * Note that an empty rectangle can still contain other empty rectangles,
+     * which are treated as points or lines of thickness zero.
+     */
+    bool contains(Rectangle const& r) const;
+
+    bool overlaps(Rectangle const& r) const;
 };
 
 inline bool operator == (Rectangle const& lhs, Rectangle const& rhs)
@@ -46,12 +67,7 @@ inline bool operator != (Rectangle const& lhs, Rectangle const& rhs)
     return lhs.top_left != rhs.top_left || lhs.size != rhs.size;
 }
 
-inline std::ostream& operator<<(std::ostream& out, Rectangle const& value)
-{
-    out << '(' << value.top_left << ", " << value.size << ')';
-    return out;
-}
-
+std::ostream& operator<<(std::ostream& out, Rectangle const& value);
 }
 }
 

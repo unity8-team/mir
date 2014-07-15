@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdint.h>
+#include <getopt.h>
 
 typedef struct
 {
@@ -41,6 +42,13 @@ static void shutdown(int signum)
         running = 0;
         printf("Signal %d received. Good night.\n", signum);
     }
+}
+
+static void premultiply_alpha(Color *c)
+{
+    c->r = (unsigned)c->r * c->a / 255U;
+    c->g = (unsigned)c->g * c->a / 255U;
+    c->b = (unsigned)c->b * c->a / 255U;
 }
 
 static void put_pixels(void *where, int count, MirPixelFormat format,
@@ -117,33 +125,57 @@ static void draw_window(Window *win)
     mir_surface_swap_buffers_sync(win->surface);
 }
 
+static char const *socket_file = NULL;
+
 int main(int argc, char *argv[])
 {
     MirConnection *conn;
     MirSurfaceParameters parm;
-    MirDisplayInfo dinfo;
     Window win[3];
-    int f;
+    unsigned int f;
 
-    (void)argc;
+    int arg;
+    opterr = 0;
+    while ((arg = getopt (argc, argv, "hm:")) != -1)
+    {
+        switch (arg)
+        {
+        case 'm':
+            socket_file = optarg;
+            break;
 
-    conn = mir_connect_sync(NULL, argv[0]);
+        case '?':
+        case 'h':
+        default:
+            puts(argv[0]);
+            puts("Usage:");
+            puts("    -m <Mir server socket>");
+            puts("    -h: this help text");
+            return -1;
+        }
+    }
+
+    conn = mir_connect_sync(socket_file, argv[0]);
     if (!mir_connection_is_valid(conn))
     {
         fprintf(stderr, "Could not connect to a display server.\n");
         return 1;
     }
 
-    mir_connection_get_display_info(conn, &dinfo);
+    unsigned int const pf_size = 32;
+    MirPixelFormat formats[pf_size];
+    unsigned int valid_formats;
+    mir_connection_get_available_surface_formats(conn, formats, pf_size, &valid_formats);
 
     parm.buffer_usage = mir_buffer_usage_software;
+    parm.output_id = mir_display_output_id_invalid;
     parm.pixel_format = mir_pixel_format_invalid;
-    for (f = 0; f < dinfo.supported_pixel_format_items; f++)
+    for (f = 0; f < valid_formats; f++)
     {
-        if (dinfo.supported_pixel_format[f] == mir_pixel_format_abgr_8888 ||
-            dinfo.supported_pixel_format[f] == mir_pixel_format_argb_8888)
+        if (formats[f] == mir_pixel_format_abgr_8888 ||
+            formats[f] == mir_pixel_format_argb_8888)
         {
-            parm.pixel_format = dinfo.supported_pixel_format[f];
+            parm.pixel_format = formats[f];
             break;
         }
     }
@@ -151,7 +183,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "Could not find a fast 32-bit pixel format with "
                         "alpha support. Blending won't work!.\n");
-        parm.pixel_format = dinfo.supported_pixel_format[0];
+        parm.pixel_format = formats[0];
     }
 
     parm.name = "red";
@@ -162,6 +194,7 @@ int main(int argc, char *argv[])
     win[0].fill.g = 0x00;
     win[0].fill.b = 0x00;
     win[0].fill.a = 0x50;
+    premultiply_alpha(&win[0].fill);
 
     parm.name = "green";
     parm.width = 300;
@@ -171,6 +204,7 @@ int main(int argc, char *argv[])
     win[1].fill.g = 0xff;
     win[1].fill.b = 0x00;
     win[1].fill.a = 0x50;
+    premultiply_alpha(&win[1].fill);
 
     parm.name = "blue";
     parm.width = 150;
@@ -180,6 +214,7 @@ int main(int argc, char *argv[])
     win[2].fill.g = 0x00;
     win[2].fill.b = 0xff;
     win[2].fill.a = 0x50;
+    premultiply_alpha(&win[2].fill);
 
     signal(SIGINT, shutdown);
     signal(SIGTERM, shutdown);
@@ -191,6 +226,9 @@ int main(int argc, char *argv[])
             draw_window(win + w);
     }
 
+    mir_surface_release_sync(win[0].surface);
+    mir_surface_release_sync(win[1].surface);
+    mir_surface_release_sync(win[2].surface);
     mir_connection_release(conn);
 
     return 0;

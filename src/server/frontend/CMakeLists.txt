@@ -2,30 +2,28 @@ set(
   FRONTEND_SOURCES
 
   client_buffer_tracker.cpp
+  connection_context.cpp
+  no_prompt_shell.cpp
   session_mediator.cpp
-  null_session_mediator_report.cpp
-  null_message_processor_report.cpp
+  shell_wrapper.cpp
   protobuf_message_processor.cpp
+  protobuf_responder.cpp
   protobuf_buffer_packer.cpp
-  null_message_processor.cpp
-  event_pipe.cpp
-
+  published_socket_connector.cpp
+  protobuf_connection_creator.cpp
+  socket_connection.cpp
   resource_cache.cpp
+  socket_messenger.cpp
+  event_sender.cpp
+  surface.cpp
+  unauthorized_display_changer.cpp
+  unauthorized_screencast.cpp
+  session_credentials.cpp
+  default_configuration.cpp
+  default_ipc_factory.cpp
+
   ${PROTO_HDRS}
 )
-
-list(APPEND FRONTEND_SOURCES
-  protobuf_socket_communicator.cpp
-  make_protobuf_socket_communicator.cpp
-  socket_session.cpp
-)
-
-if (MIR_PLATFORM STREQUAL "android")
-  list(APPEND FRONTEND_SOURCES session_mediator_android.cpp)
-elseif (MIR_PLATFORM STREQUAL "gbm")
-  include_directories(${DRM_INCLUDE_DIRS})
-  list(APPEND FRONTEND_SOURCES session_mediator_gbm.cpp)
-endif()
 
 add_library(
   mirfrontend STATIC

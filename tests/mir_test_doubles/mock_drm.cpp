@@ -25,15 +25,15 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-namespace mgg=mir::test::doubles;
+namespace mtd=mir::test::doubles;
 namespace geom = mir::geometry;
 
 namespace
 {
-mgg::MockDRM* global_mock = nullptr;
+mtd::MockDRM* global_mock = nullptr;
 }
 
-mgg::FakeDRMResources::FakeDRMResources()
+mtd::FakeDRMResources::FakeDRMResources()
     : pipe_fds{-1, -1}
 {
     /* Use the read end of a pipe as the fake DRM fd */
@@ -50,8 +50,8 @@ mgg::FakeDRMResources::FakeDRMResources()
     uint32_t const connector1_id{31};
     uint32_t const all_crtcs_mask{0x3};
 
-    modes.push_back(create_mode(1920, 1080, 138500, 2080, 1111));
-    modes.push_back(create_mode(832, 624, 57284, 1152, 667));
+    modes.push_back(create_mode(1920, 1080, 138500, 2080, 1111, PreferredMode));
+    modes.push_back(create_mode(832, 624, 57284, 1152, 667, NormalMode));
     connector_encoder_ids.push_back(encoder0_id);
     connector_encoder_ids.push_back(encoder1_id);
 
@@ -61,16 +61,18 @@ mgg::FakeDRMResources::FakeDRMResources()
     add_encoder(encoder0_id, invalid_id, all_crtcs_mask);
     add_encoder(encoder1_id, crtc1_id, all_crtcs_mask);
 
-    add_connector(connector0_id, DRM_MODE_DISCONNECTED, invalid_id,
+    add_connector(connector0_id, DRM_MODE_CONNECTOR_VGA,
+                  DRM_MODE_DISCONNECTED, invalid_id,
                   modes_empty, connector_encoder_ids, geom::Size());
-    add_connector(connector1_id, DRM_MODE_CONNECTED, encoder1_id,
+    add_connector(connector1_id, DRM_MODE_CONNECTOR_DVID,
+                  DRM_MODE_CONNECTED, encoder1_id,
                   modes, connector_encoder_ids,
                   geom::Size{121, 144});
 
     prepare();
 }
 
-mgg::FakeDRMResources::~FakeDRMResources()
+mtd::FakeDRMResources::~FakeDRMResources()
 {
     if (pipe_fds[0] >= 0)
         close(pipe_fds[0]);
@@ -79,22 +81,22 @@ mgg::FakeDRMResources::~FakeDRMResources()
         close(pipe_fds[1]);
 }
 
-int mgg::FakeDRMResources::fd() const
+int mtd::FakeDRMResources::fd() const
 {
     return pipe_fds[0];
 }
 
-int mgg::FakeDRMResources::write_fd() const
+int mtd::FakeDRMResources::write_fd() const
 {
     return pipe_fds[1];
 }
 
-drmModeRes* mgg::FakeDRMResources::resources_ptr()
+drmModeRes* mtd::FakeDRMResources::resources_ptr()
 {
     return &resources;
 }
 
-void mgg::FakeDRMResources::prepare()
+void mtd::FakeDRMResources::prepare()
 {
     resources.count_crtcs = crtcs.size();
     for (auto const& crtc: crtcs)
@@ -112,7 +114,7 @@ void mgg::FakeDRMResources::prepare()
     resources.connectors = connector_ids.data();
 }
 
-void mgg::FakeDRMResources::reset()
+void mtd::FakeDRMResources::reset()
 {
     resources = drmModeRes();
 
@@ -125,7 +127,7 @@ void mgg::FakeDRMResources::reset()
     connector_ids.clear();
 }
 
-void mgg::FakeDRMResources::add_crtc(uint32_t id, drmModeModeInfo mode)
+void mtd::FakeDRMResources::add_crtc(uint32_t id, drmModeModeInfo mode)
 {
     drmModeCrtc crtc = drmModeCrtc();
 
@@ -135,7 +137,7 @@ void mgg::FakeDRMResources::add_crtc(uint32_t id, drmModeModeInfo mode)
     crtcs.push_back(crtc);
 }
 
-void mgg::FakeDRMResources::add_encoder(uint32_t encoder_id, uint32_t crtc_id,
+void mtd::FakeDRMResources::add_encoder(uint32_t encoder_id, uint32_t crtc_id,
                                         uint32_t possible_crtcs_mask)
 {
     drmModeEncoder encoder = drmModeEncoder();
@@ -147,7 +149,8 @@ void mgg::FakeDRMResources::add_encoder(uint32_t encoder_id, uint32_t crtc_id,
     encoders.push_back(encoder);
 }
 
-void mgg::FakeDRMResources::add_connector(uint32_t connector_id,
+void mtd::FakeDRMResources::add_connector(uint32_t connector_id,
+                                          uint32_t type,
                                           drmModeConnection connection,
                                           uint32_t encoder_id,
                                           std::vector<drmModeModeInfo>& modes,
@@ -157,6 +160,7 @@ void mgg::FakeDRMResources::add_connector(uint32_t connector_id,
     drmModeConnector connector = drmModeConnector();
 
     connector.connector_id = connector_id;
+    connector.connector_type = type;
     connector.connection = connection;
     connector.encoder_id = encoder_id;
     connector.modes = modes.data();
@@ -169,7 +173,7 @@ void mgg::FakeDRMResources::add_connector(uint32_t connector_id,
     connectors.push_back(connector);
 }
 
-drmModeCrtc* mgg::FakeDRMResources::find_crtc(uint32_t id)
+drmModeCrtc* mtd::FakeDRMResources::find_crtc(uint32_t id)
 {
     for (auto& crtc : crtcs)
     {
@@ -179,7 +183,7 @@ drmModeCrtc* mgg::FakeDRMResources::find_crtc(uint32_t id)
     return nullptr;
 }
 
-drmModeEncoder* mgg::FakeDRMResources::find_encoder(uint32_t id)
+drmModeEncoder* mtd::FakeDRMResources::find_encoder(uint32_t id)
 {
     for (auto& encoder : encoders)
     {
@@ -189,7 +193,7 @@ drmModeEncoder* mgg::FakeDRMResources::find_encoder(uint32_t id)
     return nullptr;
 }
 
-drmModeConnector* mgg::FakeDRMResources::find_connector(uint32_t id)
+drmModeConnector* mtd::FakeDRMResources::find_connector(uint32_t id)
 {
     for (auto& connector : connectors)
     {
@@ -200,9 +204,10 @@ drmModeConnector* mgg::FakeDRMResources::find_connector(uint32_t id)
 }
 
 
-drmModeModeInfo mgg::FakeDRMResources::create_mode(uint16_t hdisplay, uint16_t vdisplay,
+drmModeModeInfo mtd::FakeDRMResources::create_mode(uint16_t hdisplay, uint16_t vdisplay,
                                                    uint32_t clock, uint16_t htotal,
-                                                   uint16_t vtotal)
+                                                   uint16_t vtotal,
+                                                   ModePreference preferred)
 {
     drmModeModeInfo mode = drmModeModeInfo();
 
@@ -211,16 +216,21 @@ drmModeModeInfo mgg::FakeDRMResources::create_mode(uint16_t hdisplay, uint16_t v
     mode.clock = clock;
     mode.htotal = htotal;
     mode.vtotal = vtotal;
+    if (preferred)
+        mode.type |= DRM_MODE_TYPE_PREFERRED;
 
     return mode;
 }
 
-mgg::MockDRM::MockDRM()
+mtd::MockDRM::MockDRM()
 {
     using namespace testing;
     assert(global_mock == NULL && "Only one mock object per process is allowed");
 
     global_mock = this;
+
+    ON_CALL(*this, open(_,_,_))
+    .WillByDefault(Return(fake_drm.fd()));
 
     ON_CALL(*this, drmOpen(_,_))
     .WillByDefault(Return(fake_drm.fd()));
@@ -244,7 +254,7 @@ mgg::MockDRM::MockDRM()
     .WillByDefault(WithoutArgs(Invoke([]{ return static_cast<char*>(malloc(10)); })));
 }
 
-mgg::MockDRM::~MockDRM() noexcept
+mtd::MockDRM::~MockDRM() noexcept
 {
     global_mock = nullptr;
 }
@@ -389,16 +399,16 @@ char* drmGetBusid(int fd)
     return global_mock->drmGetBusid(fd);
 }
 
-// We need to wrap open as we sometimes open() the DRM device 
+// We need to wrap open as we sometimes open() the DRM device
 // We need to explicitly mark this as C because we don't match the
 // libc header; we only care about the three-parameter version
-extern "C" 
+extern "C"
 {
 int open(char const* path, int flags, mode_t mode)
 {
     char const* drm_prefix = "/dev/dri/";
     if (!strncmp(path, drm_prefix, strlen(drm_prefix)))
-        return global_mock->drmOpen("i915", NULL);
+        return global_mock->open(path, flags, mode);
 
     int (*real_open)(char const *path, int flags, mode_t mode);
     *(void **)(&real_open) = dlsym(RTLD_NEXT, "open");
@@ -410,7 +420,7 @@ int open64(char const* path, int flags, mode_t mode)
 {
     char const* drm_prefix = "/dev/dri/";
     if (!strncmp(path, drm_prefix, strlen(drm_prefix)))
-        return global_mock->drmOpen("i915", NULL);
+        return global_mock->open(path, flags, mode);
 
     int (*real_open64)(char const *path, int flags, mode_t mode);
     *(void **)(&real_open64) = dlsym(RTLD_NEXT, "open64");
@@ -422,7 +432,7 @@ int __open(char const* path, int flags, mode_t mode)
 {
     char const* drm_prefix = "/dev/dri/";
     if (!strncmp(path, drm_prefix, strlen(drm_prefix)))
-        return global_mock->drmOpen("i915", NULL);
+        return global_mock->open(path, flags, mode);
 
     int (*real_open)(char const *path, int flags, mode_t mode);
     *(void **)(&real_open) = dlsym(RTLD_NEXT, "__open");
@@ -434,7 +444,7 @@ int __open64(char const* path, int flags, mode_t mode)
 {
     char const* drm_prefix = "/dev/dri/";
     if (!strncmp(path, drm_prefix, strlen(drm_prefix)))
-        return global_mock->drmOpen("i915", NULL);
+        return global_mock->open(path, flags, mode);
 
     int (*real_open64)(char const *path, int flags, mode_t mode);
     *(void **)(&real_open64) = dlsym(RTLD_NEXT, "__open64");

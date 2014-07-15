@@ -16,22 +16,23 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_buffer_allocator.h"
+#include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 #include "multithread_harness.h"
 
-#include "src/server/compositor/switching_bundle.h"
-#include "mir/compositor/buffer_swapper_multi.h"
-#include "mir/compositor/buffer_swapper_spin.h"
-#include "mir/compositor/buffer_stream_surfaces.h"
-#include "mir/compositor/swapper_factory.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
+#include "src/server/compositor/buffer_queue.h"
+#include "src/server/compositor/buffer_stream_surfaces.h"
+#include "mir/graphics/graphic_buffer_allocator.h"
 
 #include <gmock/gmock.h>
 #include <future>
 #include <thread>
 #include <chrono>
+#include <mutex>
+#include <atomic>
 
 namespace mc = mir::compositor;
+namespace mg = mir::graphics;
 namespace mt = mir::testing;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
@@ -39,58 +40,70 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct MockBufferAllocator : public mc::GraphicBufferAllocator
-{
-    MockBufferAllocator()
-    {
-        using namespace testing;
-        ON_CALL(*this, alloc_buffer(_))
-            .WillByDefault(Return(std::make_shared<mtd::StubBuffer>()));
-    }
-    ~MockBufferAllocator() noexcept{}
-
-    MOCK_METHOD1(alloc_buffer, std::shared_ptr<mc::Buffer>(mc::BufferProperties const&));
-    MOCK_METHOD0(supported_pixel_formats, std::vector<geom::PixelFormat>());
-};
-
 struct SwapperSwappingStress : public ::testing::Test
 {
     void SetUp()
     {
-        auto allocator = std::make_shared<MockBufferAllocator>();
-        auto factory = std::make_shared<mc::SwapperFactory>(allocator, 3);
-        auto properties = mc::BufferProperties{geom::Size{380, 210},
-                                          geom::PixelFormat::abgr_8888, mc::BufferUsage::hardware};
-        switching_bundle = std::make_shared<mc::SwitchingBundle>(factory, properties);
+        auto allocator = std::make_shared<mtd::StubBufferAllocator>();
+        auto properties = mg::BufferProperties{geom::Size{380, 210},
+                                          mir_pixel_format_abgr_8888,
+                                          mg::BufferUsage::hardware};
+        mtd::StubFrameDroppingPolicyFactory policy_factory;
+        switching_bundle = std::make_shared<mc::BufferQueue>(3, allocator, properties, policy_factory);
     }
 
-    std::shared_ptr<mc::SwitchingBundle> switching_bundle;
-    std::atomic<bool> client_thread_done;
+    std::shared_ptr<mc::BufferQueue> switching_bundle;
+    std::mutex acquire_mutex;  // must live longer than our callback/lambda
+
+    mg::Buffer* client_acquire_blocking(
+        std::shared_ptr<mc::BufferQueue> const& switching_bundle)
+    {
+        std::condition_variable cv;
+        bool acquired = false;
+    
+        mg::Buffer* result;
+        switching_bundle->client_acquire(
+            [&](mg::Buffer* new_buffer)
+             {
+                std::unique_lock<decltype(acquire_mutex)> lock(acquire_mutex);
+    
+                result = new_buffer;
+                acquired = true;
+                cv.notify_one();
+             });
+    
+        std::unique_lock<decltype(acquire_mutex)> lock(acquire_mutex);
+    
+        cv.wait(lock, [&]{ return acquired; });
+    
+        return result;
+    }
 };
-}
+
+} // namespace
 
 TEST_F(SwapperSwappingStress, swapper)
 {
-    client_thread_done = false;
+    std::atomic_bool done(false);
 
     auto f = std::async(std::launch::async,
-                [this]
+                [&]
                 {
                     for(auto i=0u; i < 400; i++)
                     {
-                        auto b = switching_bundle->client_acquire();
+                        auto b = client_acquire_blocking(switching_bundle);
                         std::this_thread::yield();
                         switching_bundle->client_release(b);
                     }
-                    client_thread_done = true;
+                    done = true;
                 });
 
     auto g = std::async(std::launch::async,
-                [this]
+                [&]
                 {
-                    while(!client_thread_done)
+                    while (!done)
                     {
-                        auto b = switching_bundle->compositor_acquire();
+                        auto b = switching_bundle->compositor_acquire(0);
                         std::this_thread::yield();
                         switching_bundle->compositor_release(b);
                     }
@@ -105,7 +118,7 @@ TEST_F(SwapperSwappingStress, swapper)
                         std::this_thread::yield();
                         switching_bundle->allow_framedropping(false);
                         std::this_thread::yield();
-                    } 
+                    }
                 });
 
     f.wait();
@@ -115,26 +128,26 @@ TEST_F(SwapperSwappingStress, swapper)
 
 TEST_F(SwapperSwappingStress, different_swapper_types)
 {
-    client_thread_done = false;
+    std::atomic_bool done(false);
 
     auto f = std::async(std::launch::async,
-                [this]
+                [&]
                 {
                     for(auto i=0u; i < 400; i++)
                     {
-                        auto b = switching_bundle->client_acquire();
+                        auto b = client_acquire_blocking(switching_bundle);
                         std::this_thread::yield();
                         switching_bundle->client_release(b);
                     }
-                    client_thread_done = true;
+                    done = true;
                 });
 
     auto g = std::async(std::launch::async,
-                [this]
+                [&]
                 {
-                    while(!client_thread_done)
+                    while (!done)
                     {
-                        auto b = switching_bundle->compositor_acquire();
+                        auto b = switching_bundle->compositor_acquire(0);
                         std::this_thread::yield();
                         switching_bundle->compositor_release(b);
                     }
@@ -149,7 +162,7 @@ TEST_F(SwapperSwappingStress, different_swapper_types)
                         std::this_thread::yield();
                         switching_bundle->allow_framedropping(false);
                         std::this_thread::yield();
-                    } 
+                    }
                 });
 
     f.wait();

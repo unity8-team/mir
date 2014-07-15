@@ -19,9 +19,11 @@
 #ifndef MIR_GEOMETRY_RECTANGLES_H_
 #define MIR_GEOMETRY_RECTANGLES_H_
 
+#include "point.h"
 #include "rectangle.h"
 
 #include <vector>
+#include <initializer_list>
 
 namespace mir
 {
@@ -32,11 +34,13 @@ class Rectangles
 {
 public:
     Rectangles();
+    Rectangles(std::initializer_list<Rectangle> const& rects);
     /* We want to keep implicit copy and move methods */
 
     void add(Rectangle const& rect);
     void clear();
     Rectangle bounding_rectangle() const;
+    void confine(Point& point) const;
 
     typedef std::vector<Rectangle>::const_iterator const_iterator;
     typedef std::vector<Rectangle>::size_type size_type;
@@ -48,8 +52,6 @@ public:
     bool operator!=(Rectangles const& rect) const;
 
 private:
-    void update_bounding_rectangle();
-
     std::vector<Rectangle> rectangles;
     Rectangle bounding_rectangle_;
 };

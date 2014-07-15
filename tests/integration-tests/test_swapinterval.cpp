@@ -19,13 +19,12 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
-#include "mir/graphics/renderer.h"
-#include "mir/graphics/renderable.h"
+#include "mir/compositor/renderer.h"
 #include "mir/compositor/compositor.h"
-#include "mir/compositor/compositing_strategy.h"
-#include "mir/compositor/renderables.h"
-#include "mir/surfaces/buffer_stream.h"
-#include "mir/surfaces/buffer_stream_factory.h"
+#include "mir/compositor/display_buffer_compositor.h"
+#include "mir/compositor/scene.h"
+#include "mir/compositor/buffer_stream.h"
+#include "mir/scene/buffer_stream_factory.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_doubles/stub_buffer.h"
@@ -42,14 +41,14 @@ namespace geom = mir::geometry;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 namespace mtf = mir_test_framework;
-namespace ms = mir::surfaces;
+namespace ms = mir::scene;
 namespace mtd = mir::test::doubles;
 
 namespace
 {
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-class CountingBufferStream : public ms::BufferStream
+class CountingBufferStream : public mc::BufferStream
 {
 public:
     CountingBufferStream(int render_operations_fd)
@@ -57,18 +56,37 @@ public:
     {
     }
 
-    std::shared_ptr<mc::Buffer> secure_client_buffer() { return std::make_shared<mtd::StubBuffer>(); }
-    std::shared_ptr<mc::Buffer> lock_back_buffer() { return std::make_shared<mtd::StubBuffer>(); }
-    geom::PixelFormat get_stream_pixel_format() { return geom::PixelFormat::abgr_8888; }
-    geom::Size stream_size() { return geom::Size{}; }
-    void force_requests_to_complete() {}
-    void allow_framedropping(bool)
+    void acquire_client_buffer(
+        std::function<void(mg::Buffer* buffer)> complete) override
+    {
+        complete(&stub_buffer);
+    }
+
+    void release_client_buffer(mg::Buffer*) override
+    {
+    }
+
+    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*) override
+        { return std::make_shared<mtd::StubBuffer>(); }
+
+    std::shared_ptr<mg::Buffer> lock_snapshot_buffer() override
+        { return std::make_shared<mtd::StubBuffer>(); }
+
+    MirPixelFormat get_stream_pixel_format() override
+        { return mir_pixel_format_abgr_8888; }
+
+    geom::Size stream_size() override { return geom::Size{}; }
+    void resize(geom::Size const&) override {}
+    void force_requests_to_complete() override {}
+    void allow_framedropping(bool) override
     {
         while (write(render_operations_fd, "a", 1) != 1) continue;
     }
+    int buffers_ready_for_compositor() const override { return 1; }
 
 private:
-    int render_operations_fd; 
+    int render_operations_fd;
+    mtd::StubBuffer stub_buffer;
 };
 
 class StubStreamFactory : public ms::BufferStreamFactory
@@ -79,12 +97,12 @@ public:
     {
     }
 
-    std::shared_ptr<ms::BufferStream> create_buffer_stream(mc::BufferProperties const&)
+    std::shared_ptr<mc::BufferStream> create_buffer_stream(mg::BufferProperties const&)
     {
         return std::make_shared<CountingBufferStream>(render_operations_fd);
     }
 private:
-    int render_operations_fd; 
+    int render_operations_fd;
 };
 
 }
@@ -130,7 +148,7 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
             return stub_stream_factory;
         }
 
-        int num_of_swapinterval_commands()
+        int num_of_swapinterval_devices()
         {
             char c;
             int ops{0};
@@ -167,7 +185,8 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
                 __PRETTY_FUNCTION__,
                 640, 480,
                 mir_pixel_format_abgr_8888,
-                mir_buffer_usage_hardware
+                mir_buffer_usage_hardware,
+                mir_display_output_id_invalid
             };
 
             MirConnection* connection = mir_connect_sync(mir_test_socket, "testapp");
@@ -184,7 +203,7 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
 
             //swapinterval 2 not supported
             EXPECT_EQ(NULL, mir_surface_set_swapinterval(surface, 2));
-            EXPECT_EQ(1, mir_surface_get_swapinterval(surface)); 
+            EXPECT_EQ(1, mir_surface_get_swapinterval(surface));
 
             set_flag(swapinterval_set);
             wait_for(do_client_finish);
@@ -219,7 +238,7 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
     {
         client_config.wait_for(swapinterval_set);
 
-        EXPECT_EQ(2, server_config.num_of_swapinterval_commands());
+        EXPECT_EQ(2, server_config.num_of_swapinterval_devices());
 
         client_config.set_flag(do_client_finish);
     });

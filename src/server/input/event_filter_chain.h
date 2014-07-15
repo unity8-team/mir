@@ -19,36 +19,29 @@
 #ifndef MIR_INPUT_EVENT_FILTER_CHAIN_H_
 #define MIR_INPUT_EVENT_FILTER_CHAIN_H_
 
-#include <memory>
+#include "mir/input/composite_event_filter.h"
+
 #include <vector>
-
-#include "mir/input/event_filter.h"
-
-namespace android
-{
-class InputEvent;
-}
-
-namespace droidinput = android;
 
 namespace mir
 {
 namespace input
 {
 
-class EventFilterChain : public EventFilter
+class EventFilterChain : public CompositeEventFilter
 {
 public:
-    explicit EventFilterChain(std::initializer_list<std::shared_ptr<EventFilter> const> values);
+    explicit EventFilterChain(std::initializer_list<std::shared_ptr<EventFilter> const> const& values);
 
-    virtual bool handle(const MirEvent &event);
+    bool handle(MirEvent const& event);
+    void append(std::shared_ptr<EventFilter> const& filter);
+    void prepend(std::shared_ptr<EventFilter> const& filter);
 
 private:
-    typedef std::vector<std::weak_ptr<EventFilter>> EventFilterVector;
-    EventFilterVector filters;
+    std::vector<std::weak_ptr<EventFilter>> filters;
 };
 
 }
 }
 
-#endif // MIR_INPUT_EVENT_FILTER_H_
+#endif // MIR_INPUT_EVENT_FILTER_CHAIN_H_

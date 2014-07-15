@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,16 +20,20 @@
 #include "example_egl_helper.h"
 
 #include "mir/main_loop.h"
-#include "mir/shell/session_manager.h"
-#include "mir/shell/surface.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "mir/shell/focus_controller.h"
+#include "mir/frontend/surface.h"
+#include "mir/scene/surface_creation_parameters.h"
+#include "mir/scene/session.h"
 #include "mir/frontend/session.h"
+#include "mir/frontend/shell.h"
 #include "mir/geometry/size.h"
-#include "mir/compositor/buffer_properties.h"
+#include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/platform.h"
 #include "mir/input/input_receiver_thread.h"
 #include "mir/input/input_platform.h"
 #include "mir/graphics/internal_client.h"
+#include "mir/graphics/internal_surface.h"
+#include "mir/frontend/event_sink.h"
 
 #include "graphics.h"
 
@@ -37,37 +41,50 @@
 
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+#include <unistd.h>
+
 #include <functional>
 
 #include <assert.h>
 #include <signal.h>
 
-
 namespace mf = mir::frontend;
-namespace mc = mir::compositor;
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace me = mir::examples;
 namespace mircv = mir::input::receiver;
 namespace geom = mir::geometry;
 
-
-me::InprocessEGLClient::InprocessEGLClient(std::shared_ptr<mir::MainLoop> const& main_loop,
-                                           std::shared_ptr<mg::Platform> const& graphics_platform,
-                                           std::shared_ptr<msh::SessionManager> const& session_manager)
+me::InprocessEGLClient::InprocessEGLClient(
+    std::shared_ptr<mg::Platform> const& graphics_platform,
+    std::shared_ptr<frontend::Shell> const& shell,
+    std::shared_ptr<shell::FocusController> const& focus_controller)
   : graphics_platform(graphics_platform),
-
-    session_manager(session_manager),
+    shell(shell),
+    focus_controller(focus_controller),
     client_thread(std::mem_fn(&InprocessEGLClient::thread_loop), this),
     terminate(false)
 {
-    main_loop->register_signal_handler({SIGTERM, SIGINT},
-        [this](int)
-        {
-            terminate = true;
-        }
-    );
-    client_thread.detach();
+}
+
+me::InprocessEGLClient::~InprocessEGLClient()
+{
+    terminate = true;
+    auto session = focus_controller->focussed_application().lock();
+    if (session)
+        session->force_requests_to_complete();
+    client_thread.join();
+}
+
+namespace
+{
+struct NullEventSink : mf::EventSink
+{
+    void handle_event(MirEvent const& /*e*/) {}
+    void handle_lifecycle_event(MirLifecycleState /*state*/) {}
+    void handle_display_config_change(mg::DisplayConfiguration const& /*config*/) {}
+};
 }
 
 void me::InprocessEGLClient::thread_loop()
@@ -75,23 +92,23 @@ void me::InprocessEGLClient::thread_loop()
     geom::Size const surface_size{512, 512};
 
     ///\internal [setup_tag]
-    auto params = msh::a_surface().of_name("Inprocess EGL Demo")
+    auto params = ms::a_surface().of_name("Inprocess EGL Demo")
         .of_size(surface_size)
-        .of_buffer_usage(mc::BufferUsage::hardware)
-        .of_pixel_format(geom::PixelFormat::argb_8888);
-    auto session = session_manager->open_session("Inprocess client",
-                                                 std::shared_ptr<mir::events::EventSink>());
+        .of_buffer_usage(mg::BufferUsage::hardware)
+        .of_pixel_format(mir_pixel_format_argb_8888);
+    auto session = shell->open_session(getpid(), "Inprocess client", std::make_shared<NullEventSink>());
     // TODO: Why do we get an ID? ~racarr
-    auto surface = session->get_surface(session_manager->create_surface_for(session, params));
-    
+    auto surface = session->get_surface(shell->create_surface_for(session, params));
+
     auto input_platform = mircv::InputPlatform::create();
     input_thread = input_platform->create_input_thread(
-        surface->client_input_fd(), 
+        surface->client_input_fd(),
             std::bind(std::mem_fn(&me::InprocessEGLClient::handle_event), this, std::placeholders::_1));
     input_thread->start();
 
     auto internal_client = graphics_platform->create_internal_client();
-    me::EGLHelper helper(internal_client->egl_native_display(), internal_client->egl_native_window(surface));
+    auto internal_surface = as_internal_surface(surface);
+    me::EGLHelper helper(internal_client->egl_native_display(), internal_client->egl_native_window(internal_surface));
 
     auto rc = eglMakeCurrent(helper.the_display(), helper.the_surface(), helper.the_surface(), helper.the_context());
     assert(rc == EGL_TRUE);

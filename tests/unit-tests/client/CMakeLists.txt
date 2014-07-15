@@ -6,14 +6,18 @@ list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_client_mir_surface.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_mir_connection.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_wait_handle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_client_display_conf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_mir_screencast.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_mir_prompt_session.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_event_distributor.cpp
 )
 
-if(MIR_PLATFORM STREQUAL "android")
+if(MIR_TEST_PLATFORM STREQUAL "android")
   add_subdirectory("android")
 endif()
 
-if(MIR_PLATFORM STREQUAL "gbm")
-  add_subdirectory("gbm")
+if(MIR_TEST_PLATFORM STREQUAL "mesa")
+  add_subdirectory("mesa")
 endif()
 
 if (NOT MIR_DISABLE_INPUT)

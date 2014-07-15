@@ -16,10 +16,10 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "src/server/graphics/android/android_graphic_buffer_allocator.h"
+#include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
 #include "mir_test_doubles/mock_android_hw.h"
 #include "mir/graphics/buffer_initializer.h"
-#include "mir/compositor/buffer_properties.h"
+#include "mir/graphics/buffer_properties.h"
 
 #include "mir_test_doubles/mock_buffer_initializer.h"
 #include "mir_test_doubles/mock_egl.h"
@@ -31,7 +31,6 @@
 namespace mg = mir::graphics;
 namespace mga = mir::graphics::android;
 namespace geom = mir::geometry;
-namespace mc = mir::compositor;
 namespace mtd = mir::test::doubles;
 
 struct AndroidGraphicBufferAllocatorTest : public ::testing::Test
@@ -43,7 +42,7 @@ struct AndroidGraphicBufferAllocatorTest : public ::testing::Test
 
     std::shared_ptr<mg::BufferInitializer> const null_buffer_initializer;
     testing::NiceMock<mtd::HardwareAccessMock> hw_access_mock;
-    mtd::MockEGL mock_egl;
+    testing::NiceMock<mtd::MockEGL> mock_egl;
 };
 
 TEST_F(AndroidGraphicBufferAllocatorTest, allocator_accesses_gralloc_module)
@@ -63,15 +62,15 @@ TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_contain_common
 
     auto abgr_8888_count = std::count(supported_pixel_formats.begin(),
                                       supported_pixel_formats.end(),
-                                      geom::PixelFormat::abgr_8888);
+                                      mir_pixel_format_abgr_8888);
 
     auto xbgr_8888_count = std::count(supported_pixel_formats.begin(),
                                       supported_pixel_formats.end(),
-                                      geom::PixelFormat::xbgr_8888);
+                                      mir_pixel_format_xbgr_8888);
 
     auto bgr_888_count = std::count(supported_pixel_formats.begin(),
                                     supported_pixel_formats.end(),
-                                    geom::PixelFormat::bgr_888);
+                                    mir_pixel_format_bgr_888);
 
     EXPECT_EQ(1, abgr_8888_count);
     EXPECT_EQ(1, xbgr_8888_count);
@@ -84,7 +83,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_have_sane_defa
     auto supported_pixel_formats = allocator.supported_pixel_formats();
 
     ASSERT_FALSE(supported_pixel_formats.empty());
-    EXPECT_EQ(geom::PixelFormat::abgr_8888, supported_pixel_formats[0]);
+    EXPECT_EQ(mir_pixel_format_abgr_8888, supported_pixel_formats[0]);
 }
 
 TEST_F(AndroidGraphicBufferAllocatorTest, alloc_buffer_calls_initializer)
@@ -93,9 +92,9 @@ TEST_F(AndroidGraphicBufferAllocatorTest, alloc_buffer_calls_initializer)
 
     auto buffer_initializer = std::make_shared<mtd::MockBufferInitializer>();
 
-    mc::BufferProperties properties{geom::Size{2, 2},
-                                    geom::PixelFormat::abgr_8888,
-                                    mc::BufferUsage::hardware};
+    mg::BufferProperties properties{geom::Size{2, 2},
+                                    mir_pixel_format_abgr_8888,
+                                    mg::BufferUsage::hardware};
     mga::AndroidGraphicBufferAllocator allocator{buffer_initializer};
     EXPECT_CALL(*buffer_initializer, operator_call(_))
         .Times(1);
@@ -111,7 +110,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, alloc_buffer_platform_calls_initialize
 
     mga::AndroidGraphicBufferAllocator allocator{buffer_initializer};
     auto size = geom::Size{2, 2};
-    auto pf = geom::PixelFormat::abgr_8888;
+    auto pf = mir_pixel_format_abgr_8888;
 
     EXPECT_CALL(*buffer_initializer, operator_call(_))
         .Times(1);
@@ -122,7 +121,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, alloc_buffer_platform_calls_initialize
 TEST_F(AndroidGraphicBufferAllocatorTest, buffer_usage_converter)
 {
     EXPECT_EQ(mga::BufferUsage::use_hardware,
-        mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mc::BufferUsage::hardware));
+        mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mg::BufferUsage::hardware));
     EXPECT_EQ(mga::BufferUsage::use_software,
-        mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mc::BufferUsage::software));
+        mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mg::BufferUsage::software));
 }

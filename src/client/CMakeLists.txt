@@ -20,46 +20,40 @@ include_directories(
 add_subdirectory(rpc/)
 add_subdirectory(lttng/)
 
+if(MIR_BUILD_PLATFORM_ANDROID)
+add_subdirectory(android/)
+endif()
+
+if(MIR_BUILD_PLATFORM_MESA)
+add_subdirectory(mesa/)
+endif()
+
 set(
   CLIENT_SOURCES
 
   aging_buffer.cpp
   client_buffer_depository.cpp
-  mir_client_library.cpp
+  display_configuration.cpp
+  error_connections.cpp
   mir_connection.cpp
+  mir_connection_api.cpp
   mir_wait_handle.cpp
+  mir_wait_api.cpp
   mir_surface.cpp
+  mir_surface_api.cpp
   logging/rpc_report.cpp
+  logging/input_receiver_report.cpp
   default_connection_configuration.cpp
+  surface_map.cpp
+  lifecycle_control.cpp
+  private.cpp
+  mir_screencast.cpp
+  mir_screencast_api.cpp
+  mir_cursor_api.cpp
+  mir_prompt_session.cpp
+  mir_prompt_session_api.cpp
+  mir_event_distributor.cpp
 )
-
-if( MIR_PLATFORM STREQUAL "android")
-include_directories(${LIBHARDWARE_INCLUDE_DIRS})
-set(
-  CLIENT_SOURCES
-
-  android/android_client_buffer.cpp
-  android/android_client_buffer_factory.cpp
-  android/android_registrar.cpp
-  android/android_client_platform.cpp
-  android/client_surface_interpreter.cpp
-  android/android_native_display_container.cpp
-  ${CLIENT_SOURCES}
-)
-endif()
-
-if( MIR_PLATFORM STREQUAL "gbm")
-set(
-  CLIENT_SOURCES
-
-  gbm/gbm_client_platform.cpp
-  gbm/gbm_client_buffer_factory.cpp
-  gbm/gbm_client_buffer.cpp
-  gbm/mesa_native_display_container.cpp
-  gbm/gbm_native_surface.cpp
-  ${CLIENT_SOURCES}
-)
-endif()
 
 add_library(
   mirclient SHARED
@@ -73,48 +67,33 @@ add_library(
   ${CLIENT_SOURCES}
 )
 
+set(MIRCLIENT_ABI 8)
+
 set_target_properties(
   mirclient
 
   PROPERTIES
-  VERSION ${MIR_VERSION_MAJOR}.${MIR_VERSION_MINOR}.${MIR_VERSION_PATCH}
-  SOVERSION 1
+  SOVERSION ${MIRCLIENT_ABI}
 )
-
-#
-# The version of libEGL.so.N installed on the build machine will often link
-# to an older version of libmirclient.so.N than we're trying to build. But if
-# we allow EGL clients to link to both then they will depend on TWO different
-# sonames of mirclient and get linkage errors. This hack ensures that all EGL
-# mir clients in our source tree will only ever link to one version of
-# mirclient; that is the new one here.
-# It might sound nasty, but it's much nicer than having to maintain mirclient
-# and mirserver in different source packages.
-#
-add_custom_target(mirclient_compat_links
-  COMMAND ln -fs libmirclient.so.1 libmirclient.so.0
-  WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-)
-# Ensure mirclient_compat_links exist before any dependents of mirclient
-add_dependencies(mirclient mirclient_compat_links)
 
 set(
   MIR_CLIENT_LIBRARIES
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${LIBHARDWARE_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${XKBCOMMON_LIBRARIES}
 
   mirprotobuf
   mirsharedinput-private
   mirsharedlogging-private
+  mirsharedenv
+  mirsharedgeometry
+  mirsharedsharedlibrary
   mirclientrpc
   mirclientlttngstatic
 
-  ${DRM_LIBRARIES}
   ${MIR_COMMON_PLATFORM_LIBRARIES}
- 
+
   3rd_party
 )
 
@@ -136,7 +115,7 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(
-  DIRECTORY ${CMAKE_SOURCE_DIR}/include/client/mir_toolkit
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/client/mir_toolkit ${CMAKE_SOURCE_DIR}/include/client/mir
   DESTINATION "include/mirclient"
 )
 

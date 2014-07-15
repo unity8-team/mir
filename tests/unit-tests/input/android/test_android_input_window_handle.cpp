@@ -23,8 +23,9 @@
 #include "mir/input/input_channel.h"
 
 #include "mir_test/fake_shared.h"
-#include "mir_test_doubles/mock_surface.h"
-#include "mir_test_doubles/stub_surface_builder.h"
+#include "mir_test_doubles/mock_input_surface.h"
+
+#include "mir/raii.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -32,7 +33,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-namespace mc = mir::compositor;
 namespace mi = mir::input;
 namespace mia = mi::android;
 namespace mf = mir::frontend;
@@ -64,15 +64,24 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
     geom::Point const default_surface_top_left = geom::Point{geom::X{10}, geom::Y{10}};
     std::string const testing_surface_name = "Test";
 
-    // We need a real open fd, as InputWindowHandle's constructor will fcntl() it, and
-    // InputWindowHandle's destructor will close() it.
-    char *filename = strdup("/tmp/mir_unit_test_XXXXXX");
-    int const testing_server_fd = mkstemp(filename);
-    // We don't actually need the file to exist after this test.
-    unlink(filename);
+    int testing_server_fd;
+    auto fd_wrapper = mir::raii::paired_calls([&testing_server_fd]()
+        {
+            // We need a real open fd, as InputWindowHandle's constructor will fcntl() it, and
+            // InputWindowHandle's destructor will close() it.
+            char *filename = strdup("/tmp/mir_unit_test_XXXXXX");
+            testing_server_fd = mkstemp(filename);
+            // We don't actually need the file to exist after this test.
+            unlink(filename);
+            free(filename);
+        },
+        [&testing_server_fd]()
+        {
+            if (testing_server_fd > 0) close(testing_server_fd);
+        });
 
     MockInputChannel mock_channel;
-    mtd::MockInputInfo mock_info;
+    mtd::MockInputSurface mock_surface;
 
     EXPECT_CALL(mock_channel, server_fd())
         .Times(1)
@@ -80,15 +89,16 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
 
     // For now since we are just doing keyboard input we only need surface size,
     // for touch/pointer events we will need a position
-    EXPECT_CALL(mock_info, size_and_position())
+    EXPECT_CALL(mock_surface, input_bounds())
         .Times(1)
-        .WillOnce(Return(geom::Rectangle{default_surface_top_left, default_surface_size}));
-    EXPECT_CALL(mock_info, name())
+        .WillOnce(Return(geom::Rectangle{default_surface_top_left,
+                                         default_surface_size}));
+    EXPECT_CALL(mock_surface, name())
         .Times(1)
-        .WillOnce(ReturnRef(testing_surface_name));
+        .WillOnce(Return(testing_surface_name));
 
     mia::InputWindowHandle handle(new StubInputApplicationHandle(),
-                                  mt::fake_shared(mock_channel), mt::fake_shared(mock_info));
+                                  mt::fake_shared(mock_channel), &mock_surface);
 
     auto info = handle.getInfo();
 
@@ -105,6 +115,4 @@ TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surfac
     EXPECT_EQ(info->frameTop, info->touchableRegionTop);
     EXPECT_EQ(info->frameRight, info->touchableRegionRight);
     EXPECT_EQ(info->frameBottom, info->touchableRegionBottom);
-
-    free(filename);
 }

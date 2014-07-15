@@ -34,14 +34,17 @@ namespace android
 class AndroidInputPlatform : public InputPlatform
 {
 public:
-    AndroidInputPlatform();
-    virtual ~AndroidInputPlatform();  
+    AndroidInputPlatform(std::shared_ptr<InputReceiverReport> const& report);
+    virtual ~AndroidInputPlatform();
 
     std::shared_ptr<InputReceiverThread> create_input_thread(int fd, std::function<void(MirEvent *)> const& callback);
 
 protected:
     AndroidInputPlatform(const AndroidInputPlatform&) = delete;
     AndroidInputPlatform& operator=(const AndroidInputPlatform&) = delete;
+
+private:
+    std::shared_ptr<InputReceiverReport> const report;
 };
 
 }

@@ -22,7 +22,7 @@
 #include "dimensions.h"
 #include "point.h"
 
-#include <ostream>
+#include <iosfwd>
 
 namespace mir
 {
@@ -31,6 +31,18 @@ namespace geometry
 
 struct Displacement
 {
+    Displacement() {}
+    Displacement(Displacement const&) = default;
+    Displacement& operator=(Displacement const&) = default;
+
+    template<typename DeltaXType, typename DeltaYType>
+    Displacement(DeltaXType&& dx, DeltaYType&& dy) : dx{dx}, dy{dy} {}
+
+    float length_squared() const
+    {
+        return dx.as_float() * dx.as_float() + dy.as_float() * dy.as_float();
+    }
+
     DeltaX dx;
     DeltaY dy;
 };
@@ -45,11 +57,7 @@ inline bool operator!=(Displacement const& lhs, Displacement const& rhs)
     return lhs.dx != rhs.dx || lhs.dy != rhs.dy;
 }
 
-inline std::ostream& operator<<(std::ostream& out, Displacement const& value)
-{
-    out << '(' << value.dx << ", " << value.dy << ')';
-    return out;
-}
+std::ostream& operator<<(std::ostream& out, Displacement const& value);
 
 inline Displacement operator+(Displacement const& lhs, Displacement const& rhs)
 {
@@ -74,6 +82,11 @@ inline Point operator-(Point const& lhs, Displacement const& rhs)
 inline Displacement operator-(Point const& lhs, Point const& rhs)
 {
     return Displacement{lhs.x - rhs.x, lhs.y - rhs.y};
+}
+
+inline bool operator<(Displacement const& lhs, Displacement const& rhs)
+{
+    return lhs.length_squared() < rhs.length_squared();
 }
 
 }

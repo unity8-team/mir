@@ -23,7 +23,7 @@
 #include <memory>
 
 #include "mir_toolkit/mir_client_library.h"
-#include "mir/geometry/pixel_format.h"
+#include "mir_toolkit/common.h"
 #include "mir/geometry/size.h"
 
 #include "../client_buffer_factory.h"
@@ -33,20 +33,20 @@ namespace mir
 namespace client
 {
 class ClientBuffer;
-
 namespace android
 {
-class AndroidRegistrar;
-
+class BufferRegistrar;
 class AndroidClientBufferFactory : public ClientBufferFactory
 {
 public:
-    explicit AndroidClientBufferFactory(std::shared_ptr<AndroidRegistrar> const&);
-
-    virtual std::shared_ptr<ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const& package,
-                                                        geometry::Size size, geometry::PixelFormat pf);
+    explicit AndroidClientBufferFactory(
+        std::shared_ptr<BufferRegistrar> const& registrar);
+    std::shared_ptr<ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const& package,
+        geometry::Size size,
+        MirPixelFormat pf) override;
 private:
-    std::shared_ptr<AndroidRegistrar> registrar;
+    std::shared_ptr<BufferRegistrar> const registrar;
 };
 
 }

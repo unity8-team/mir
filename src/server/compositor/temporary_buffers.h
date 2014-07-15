@@ -19,52 +19,55 @@
 #ifndef MIR_COMPOSITOR_TEMPORARY_BUFFERS_H_
 #define MIR_COMPOSITOR_TEMPORARY_BUFFERS_H_
 
-#include "mir/compositor/buffer.h"
-#include "mir/compositor/buffer_id.h"
+#include "mir/graphics/buffer.h"
+#include "mir/graphics/buffer_id.h"
+
+namespace mg = mir::graphics;
 
 namespace mir
 {
 namespace compositor
 {
 
-class BufferID;
 class BufferBundle;
 class BackBufferStrategy;
 
-class TemporaryBuffer : public Buffer
+class TemporaryBuffer : public mg::Buffer
 {
 public:
     geometry::Size size() const;
     geometry::Stride stride() const;
-    geometry::PixelFormat pixel_format() const;
-    BufferID id() const;
-    void bind_to_texture();
-    std::shared_ptr<MirNativeBuffer> native_buffer_handle() const;
+    MirPixelFormat pixel_format() const;
+    mg::BufferID id() const;
+    void gl_bind_to_texture() override;
+    std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const;
+    bool can_bypass() const override;
 
 protected:
-    explicit TemporaryBuffer(std::shared_ptr<Buffer> const& real_buffer);
-    std::shared_ptr<Buffer> const buffer;
-};
-
-class TemporaryClientBuffer : public TemporaryBuffer
-{
-public:
-    explicit TemporaryClientBuffer(std::shared_ptr<BufferBundle> const& buffer_swapper);
-    ~TemporaryClientBuffer();
-
-private:
-    std::weak_ptr<BufferBundle> const allocating_swapper;
+    explicit TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buffer);
+    std::shared_ptr<mg::Buffer> const buffer;
 };
 
 class TemporaryCompositorBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporaryCompositorBuffer(
-        std::shared_ptr<BackBufferStrategy> const& back_buffer_strategy);
+        std::shared_ptr<BufferBundle> const& bun, void const* user_id);
     ~TemporaryCompositorBuffer();
 
 private:
-    std::weak_ptr<BackBufferStrategy> const back_buffer_strategy;
+    std::shared_ptr<BufferBundle> const bundle;
+};
+
+class TemporarySnapshotBuffer : public TemporaryBuffer
+{
+public:
+    explicit TemporarySnapshotBuffer(
+        std::shared_ptr<BufferBundle> const& bun);
+    ~TemporarySnapshotBuffer();
+
+private:
+    std::shared_ptr<BufferBundle> const bundle;
 };
 
 }

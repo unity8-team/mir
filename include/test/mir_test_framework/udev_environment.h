@@ -20,7 +20,10 @@
 #ifndef MIR_TESTING_UDEV_ENVIRONMENT
 #define MIR_TESTING_UDEV_ENVIRONMENT
 
+#include <string>
+#include <initializer_list>
 #include <umockdev.h>
+#include <libudev.h>
 
 namespace mir
 {
@@ -32,9 +35,28 @@ public:
     UdevEnvironment();
     ~UdevEnvironment() noexcept;
 
-    void add_standard_drm_devices();
+    std::string add_device(char const* subsystem,
+                           char const* name,
+                           char const* parent,
+                           std::initializer_list<char const*> attributes,
+                           std::initializer_list<char const*> properties);
+    void remove_device(std::string const& device_path);
+    void emit_device_changed(std::string const& device_path);
 
-    UMockdevTestbed *testbed;  
+    /**
+     * Add a device from the set of standard device traces
+     *
+     * Looks for a <tt>name</tt>.umockdev file, and adds a UMockDev device
+     * from that description.
+     *
+     * If <tt>name</tt>.ioctl exists, it loads that ioctl script for the device
+     *
+     * @param name The unadorned filename of the device traces to add.
+     */
+    void add_standard_device(std::string const& name);
+
+    UMockdevTestbed *testbed;
+    std::string const recordings_path;
 };
 
 }

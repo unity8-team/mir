@@ -18,11 +18,13 @@ are prefixed with `MIR_SERVER_` and contain underscores ('_') instead of dashes
 
 Report                  | Handlers
 ----------------------- | --------
-display-report          | log
+connector-report        | log,lttng
+display-report          | log,lttng
 input-report            | log,lttng
 legacy-input-report     | log
 msg-processor-report    | log,lttng
-session-mediator-report | log
+session-mediator-report | log,lttng
+scene-report            | log,lttng
 
 For example, to enable the LTTng input report, one could either use the
 `--input-report=lttng` command-line option to the server, or set the
@@ -38,6 +40,7 @@ underscores. The available reports and handlers for the client are:
 Report              | Handlers
 ------------------- | --------
 rpc-report          | log,lttng
+input-receiver      | log,lttng
 
 For example, to enable the logging RPC report, one should set the
 `MIR_CLIENT_RPC_REPORT=log` environment variable.
@@ -52,7 +55,7 @@ option or environment variable for that component's report:
     $ lttng create mirsession -o /tmp/mirsession
     $ lttng enable-event -u -a
     $ lttng start
-    $ mir_demo_server --msg-processor-report=lttng
+    $ mir_demo_server_basic --msg-processor-report=lttng
     $ lttng stop
     $ babeltrace /tmp/mirsession/<trace-subdir>
 
@@ -62,7 +65,7 @@ provider is dlopen()-ed at runtime, like in the case of Mir. If you have a
 version of LTTng affected by this bug, you need to pre-load the server
 tracepoint provider library:
 
-    $ LD_PRELOAD=libmirserverlttng.so mir_demo_server --msg-processor-report=lttng
+    $ LD_PRELOAD=libmirserverlttng.so mir_demo_server_basic --msg-processor-report=lttng
 
 The bug also affects client-side LTTng tracing, in which case you need to
 pre-load the client tracepoint provider library:

@@ -39,7 +39,10 @@ typedef enum
 {
     mir_event_type_key,
     mir_event_type_motion,
-    mir_event_type_surface
+    mir_event_type_surface,
+    mir_event_type_resize,
+    mir_event_type_prompt_session_state_change,
+    mir_event_type_orientation
 } MirEventType;
 
 typedef enum {
@@ -109,6 +112,14 @@ typedef enum {
     mir_motion_button_forward   = 1 << 4
 } MirMotionButton;
 
+typedef enum {
+   mir_motion_tool_type_unknown = 0,
+   mir_motion_tool_type_finger  = 1,
+   mir_motion_tool_type_stylus  = 2,
+   mir_motion_tool_type_mouse   = 3,
+   mir_motion_tool_type_eraser  = 4
+} MirMotionToolType;
+
 typedef struct
 {
     MirEventType type;
@@ -129,11 +140,29 @@ typedef struct
 
 typedef struct
 {
+    int id;
+    float x, raw_x;
+    float y, raw_y;
+    float touch_major;
+    float touch_minor;
+    float size;
+    float pressure;
+    float orientation;
+    float vscroll;
+    float hscroll;
+    MirMotionToolType tool_type;
+    int unused1;
+    int unused2;
+    int unused3;
+} MirMotionPointer;
+
+typedef struct
+{
     MirEventType type;
 
     int32_t device_id;
     int32_t source_id;
-    /* 
+    /*
      * TODO(racarr): We would like to store this as a MirMotionAction but the android input stack
      * encodes some non enumerable values in it. It's convenient to keep things
      * this way for now until we can drop SF/Hybris support in QtUbuntu.
@@ -152,17 +181,14 @@ typedef struct
     nsecs_t event_time;
 
     size_t pointer_count;
-    struct
-    {
-        int id;
-        float x, raw_x;
-        float y, raw_y;
-        float touch_major;
-        float touch_minor;
-        float size;
-        float pressure;
-        float orientation;
-    } pointer_coordinates[MIR_INPUT_EVENT_MAX_POINTER_COUNT];
+    MirMotionPointer pointer_coordinates[MIR_INPUT_EVENT_MAX_POINTER_COUNT];
+    /* "_coordinates" is a misnomer here because there's plenty more info than
+       just coordinates, but renaming it accurately would be an API break */
+
+    int unused0;
+    int unused1;
+    int unused2;
+    int unused3;
 } MirMotionEvent;
 
 typedef struct
@@ -174,12 +200,39 @@ typedef struct
     int value;
 } MirSurfaceEvent;
 
+typedef struct
+{
+    MirEventType type;
+
+    int surface_id;
+    int width;
+    int height;
+} MirResizeEvent;
+
+typedef struct
+{
+    MirEventType type;
+
+    MirPromptSessionState new_state;
+} MirPromptSessionEvent;
+
+typedef struct MirOrientationEvent
+{
+    MirEventType type;
+
+    int surface_id;
+    MirOrientation direction;
+} MirOrientationEvent;
+
 typedef union
 {
     MirEventType    type;
     MirKeyEvent     key;
     MirMotionEvent  motion;
     MirSurfaceEvent surface;
+    MirResizeEvent  resize;
+    MirPromptSessionEvent  prompt_session;
+    MirOrientationEvent orientation;
 } MirEvent;
 
 #ifdef __cplusplus

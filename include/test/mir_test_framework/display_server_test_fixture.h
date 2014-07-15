@@ -46,11 +46,9 @@ public:
 
 private:
     static TestingProcessManager process_manager;
+    static TestingServerConfiguration default_parameters;
 
     virtual void TearDown();
-    static std::shared_ptr<mir::frontend::Communicator> make_communicator();
-    static std::shared_ptr<mir::graphics::Renderer> the_renderer();
-    static std::shared_ptr<mir::compositor::BufferAllocationStrategy> the_buffer_allocation_strategy();
 };
 
 // The test fixture sets up and tears down a display server for use
@@ -66,7 +64,10 @@ public:
     void launch_client_process(TestingClientConfiguration& config);
 
     bool shutdown_server_process();
+    Result  wait_for_shutdown_server_process();
+    bool kill_server_process();
     void kill_client_processes();
+    void terminate_client_processes();
 
     void run_in_test_process(std::function<void()> const& run_code);
 
@@ -76,6 +77,7 @@ protected:
 
 private:
     TestingProcessManager process_manager;
+    std::shared_ptr<mir::options::Option> test_options;
 };
 
 }

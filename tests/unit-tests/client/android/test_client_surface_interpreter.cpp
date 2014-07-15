@@ -16,9 +16,13 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "mir_toolkit/mir_native_buffer.h"
+#include "mir/graphics/android/native_buffer.h"
 #include "src/client/mir_client_surface.h"
 #include "src/client/client_buffer.h"
 #include "src/client/android/client_surface_interpreter.h"
+#include "mir_test_doubles/mock_android_native_buffer.h"
+#include "mir_test/fake_shared.h"
 #include <system/window.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -27,20 +31,16 @@ namespace mcl=mir::client;
 namespace mcla=mir::client::android;
 namespace mga=mir::graphics::android;
 namespace geom=mir::geometry;
+namespace mt=mir::test;
+namespace mtd=mir::test::doubles;
 
-namespace
-{
-struct MockSyncFence : public mga::SyncObject
-{
-    ~MockSyncFence() noexcept {}
-    MOCK_METHOD0(wait, void());
-};
 struct MockClientBuffer : public mcl::ClientBuffer
 {
     MockClientBuffer()
     {
         using namespace testing;
-        buffer = std::make_shared<ANativeWindowBuffer>();
+        buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
+
         ON_CALL(*this, native_buffer_handle())
             .WillByDefault(Return(buffer));
     }
@@ -49,15 +49,15 @@ struct MockClientBuffer : public mcl::ClientBuffer
     MOCK_METHOD0(secure_for_cpu_write, std::shared_ptr<mcl::MemoryRegion>());
     MOCK_CONST_METHOD0(size, geom::Size());
     MOCK_CONST_METHOD0(stride, geom::Stride());
-    MOCK_CONST_METHOD0(pixel_format, geom::PixelFormat());
+    MOCK_CONST_METHOD0(pixel_format, MirPixelFormat());
 
     MOCK_CONST_METHOD0(age, uint32_t());
     MOCK_METHOD0(mark_as_submitted, void());
     MOCK_METHOD0(increment_age, void());
+    MOCK_METHOD1(update_from, void(MirBufferPackage const&));
+    MOCK_CONST_METHOD0(native_buffer_handle, std::shared_ptr<mir::graphics::NativeBuffer>());
 
-    MOCK_CONST_METHOD0(native_buffer_handle, std::shared_ptr<MirNativeBuffer>());
-
-    std::shared_ptr<ANativeWindowBuffer> buffer;
+    std::shared_ptr<mir::graphics::NativeBuffer> buffer;
     native_handle_t handle;
 };
 
@@ -76,13 +76,12 @@ struct MockMirSurface : public mcl::ClientSurface
 
     MOCK_CONST_METHOD0(get_parameters, MirSurfaceParameters());
     MOCK_METHOD0(get_current_buffer, std::shared_ptr<mcl::ClientBuffer>());
-    MOCK_METHOD2(next_buffer, MirWaitHandle*(mir_surface_callback callback, void * context));
-    MOCK_METHOD2(configure, MirWaitHandle*(MirSurfaceAttrib, int));
+    MOCK_METHOD0(request_and_wait_for_next_buffer, void());
+    MOCK_METHOD2(request_and_wait_for_configure, void(MirSurfaceAttrib, int));
     MirSurfaceParameters params;
 };
-}
 
-class AndroidInterpreterTest : public ::testing::Test
+class AndroidInterpreter : public ::testing::Test
 {
 protected:
     virtual void SetUp()
@@ -93,15 +92,13 @@ protected:
         surf_params.pixel_format = mir_pixel_format_abgr_8888;
 
         mock_client_buffer = std::make_shared<NiceMock<MockClientBuffer>>();
-        mock_sync = std::make_shared<NiceMock<MockSyncFence>>();
     }
 
     MirSurfaceParameters surf_params;
     std::shared_ptr<MockClientBuffer> mock_client_buffer;
-    std::shared_ptr<MockSyncFence> mock_sync;
 };
 
-TEST_F(AndroidInterpreterTest, native_window_dequeue_calls_surface_get_current)
+TEST_F(AndroidInterpreter, gets_buffer_via_the_surface_on_request)
 {
     using namespace testing;
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
@@ -114,12 +111,10 @@ TEST_F(AndroidInterpreterTest, native_window_dequeue_calls_surface_get_current)
     interpreter.driver_requests_buffer();
 }
 
-TEST_F(AndroidInterpreterTest, native_window_dequeue_gets_native_handle_from_returned_buffer)
+TEST_F(AndroidInterpreter, gets_native_handle_from_returned_buffer)
 {
     using namespace testing;
-    native_handle_t handle;
-    auto buffer = std::make_shared<ANativeWindowBuffer>();
-    buffer->handle = &handle;
+    auto buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
 
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -135,7 +130,7 @@ TEST_F(AndroidInterpreterTest, native_window_dequeue_gets_native_handle_from_ret
     EXPECT_EQ(buffer.get(), returned_buffer);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_queue_advances_buffer)
+TEST_F(AndroidInterpreter, advances_surface_on_buffer_return)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -143,28 +138,14 @@ TEST_F(AndroidInterpreterTest, native_window_queue_advances_buffer)
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
 
-    EXPECT_CALL(mock_surface, next_buffer(_,_))
+    EXPECT_CALL(mock_surface, request_and_wait_for_next_buffer())
         .Times(1);
 
-    interpreter.driver_returns_buffer(&buffer, mock_sync);
-}
-
-TEST_F(AndroidInterpreterTest, native_window_queue_waits_on_fence)
-{
-    using namespace testing;
-    ANativeWindowBuffer buffer;
-
-    testing::NiceMock<MockMirSurface> mock_surface{surf_params};
-    mcla::ClientSurfaceInterpreter interpreter(mock_surface);
-
-    EXPECT_CALL(*mock_sync, wait())
-        .Times(1);
-
-    interpreter.driver_returns_buffer(&buffer, mock_sync);
+    interpreter.driver_returns_buffer(&buffer, -1);
 }
 
 /* format is an int that is set by the driver. these are not the HAL_PIXEL_FORMATS in android */
-TEST_F(AndroidInterpreterTest, native_window_perform_remembers_format)
+TEST_F(AndroidInterpreter, remembers_format)
 {
     int format = 945;
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
@@ -176,7 +157,7 @@ TEST_F(AndroidInterpreterTest, native_window_perform_remembers_format)
     EXPECT_EQ(format, tmp_format);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_hint_query_hook)
+TEST_F(AndroidInterpreter, returns_no_transform_for_transform_hint_query)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -188,7 +169,7 @@ TEST_F(AndroidInterpreterTest, native_window_hint_query_hook)
     EXPECT_EQ(transform_hint_zero, transform);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_default_width_query_hook)
+TEST_F(AndroidInterpreter, returns_width_as_default_width)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -198,7 +179,7 @@ TEST_F(AndroidInterpreterTest, native_window_default_width_query_hook)
     EXPECT_EQ(surf_params.width, default_width);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_default_height_query_hook)
+TEST_F(AndroidInterpreter, returns_height_as_default_height)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -208,7 +189,16 @@ TEST_F(AndroidInterpreterTest, native_window_default_height_query_hook)
     EXPECT_EQ(surf_params.height, default_height);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_width_query_hook)
+TEST_F(AndroidInterpreter, returns_surface_as_concrete_type)
+{
+    testing::NiceMock<MockMirSurface> mock_surface{surf_params};
+    mcla::ClientSurfaceInterpreter interpreter(mock_surface);
+
+    auto concrete_type = interpreter.driver_requests_info(NATIVE_WINDOW_CONCRETE_TYPE);
+    EXPECT_EQ(NATIVE_WINDOW_SURFACE, concrete_type);
+}
+
+TEST_F(AndroidInterpreter, returns_width)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -218,7 +208,7 @@ TEST_F(AndroidInterpreterTest, native_window_width_query_hook)
     EXPECT_EQ(surf_params.width, width);
 }
 
-TEST_F(AndroidInterpreterTest, native_window_height_query_hook)
+TEST_F(AndroidInterpreter, returns_height)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -226,4 +216,32 @@ TEST_F(AndroidInterpreterTest, native_window_height_query_hook)
     auto height = interpreter.driver_requests_info(NATIVE_WINDOW_HEIGHT);
 
     EXPECT_EQ(surf_params.height, height);
+}
+
+/* this is query key is a bit confusing from the system/window.h description.
+   what it means is the minimum number of buffers that the server reserves for its own use in steady
+   state. The drivers consider 'steady state' to begin after the first call to queueBuffer.
+   So, for instance, if a driver requires 3 buffers to run at steady state, and the server needs
+   to keep 2 buffers on hand at all time, the driver might dequeue 5 buffers, then cancel those 5 buffers.
+   After the first call to queueBuffer however, the client may never own more than the number it has
+   reserved (in this case, 3 buffers) */
+TEST_F(AndroidInterpreter, returns_2_for_min_undequeued_query)
+{
+    testing::NiceMock<MockMirSurface> mock_surface{surf_params};
+    mcla::ClientSurfaceInterpreter interpreter(mock_surface);
+
+    auto num_buffers = interpreter.driver_requests_info(NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS);
+    EXPECT_EQ(2, num_buffers);
+}
+
+TEST_F(AndroidInterpreter, requests_swapinterval_change)
+{
+    testing::NiceMock<MockMirSurface> mock_surface{surf_params};
+    testing::InSequence seq;
+    EXPECT_CALL(mock_surface, request_and_wait_for_configure(mir_surface_attrib_swapinterval, 1));
+    EXPECT_CALL(mock_surface, request_and_wait_for_configure(mir_surface_attrib_swapinterval, 0));
+
+    mcla::ClientSurfaceInterpreter interpreter(mock_surface);
+    interpreter.sync_to_display(true); 
+    interpreter.sync_to_display(false); 
 }

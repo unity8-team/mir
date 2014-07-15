@@ -1,8 +1,13 @@
+include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
+
+add_definitions( -DANDROID )
+
 add_library(
   mirsharedandroid STATIC
 
   mir_native_window.cpp
-  mir_native_buffer.cpp
+  refcounted_buffer.cpp
+  android_native_buffer.cpp
   syncfence.cpp
 )
 

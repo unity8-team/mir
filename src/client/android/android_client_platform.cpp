@@ -18,11 +18,10 @@
 
 #include "mir/graphics/android/mir_native_window.h"
 #include "android_client_platform.h"
-#include "android_registrar_gralloc.h"
+#include "gralloc_registrar.h"
 #include "android_client_buffer_factory.h"
 #include "client_surface_interpreter.h"
 #include "../mir_connection.h"
-#include "../native_client_platform_factory.h"
 
 #include <EGL/egl.h>
 
@@ -44,12 +43,6 @@ struct EmptyDeleter
 
 }
 
-std::shared_ptr<mcl::ClientPlatform>
-mcl::NativeClientPlatformFactory::create_client_platform(mcl::ClientContext* /*context*/)
-{
-    return std::make_shared<mcla::AndroidClientPlatform>();
-}
-
 std::shared_ptr<mcl::ClientBufferFactory> mcla::AndroidClientPlatform::create_buffer_factory()
 {
     const hw_module_t *hw_module;
@@ -63,7 +56,7 @@ std::shared_ptr<mcl::ClientBufferFactory> mcla::AndroidClientPlatform::create_bu
     /* we use an empty deleter because hw_get_module does not give us the ownership of the ptr */
     EmptyDeleter empty_del;
     auto gralloc_dev = std::shared_ptr<gralloc_module_t>(gr_dev, empty_del);
-    auto registrar = std::make_shared<mcla::AndroidRegistrarGralloc>(gralloc_dev);
+    auto registrar = std::make_shared<mcla::GrallocRegistrar>(gralloc_dev);
     return std::make_shared<mcla::AndroidClientBufferFactory>(registrar);
 }
 
@@ -105,5 +98,10 @@ mcla::AndroidClientPlatform::create_egl_native_display()
 
 MirPlatformType mcla::AndroidClientPlatform::platform_type() const
 {
-    return mir_platform_type_android; 
-} 
+    return mir_platform_type_android;
+}
+
+MirNativeBuffer* mcla::AndroidClientPlatform::convert_native_buffer(graphics::NativeBuffer* buf) const
+{
+    return buf->anwb();
+}

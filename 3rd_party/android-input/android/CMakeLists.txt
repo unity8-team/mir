@@ -7,6 +7,7 @@ include_directories(
   system/extras/ext4_utils
 
   ${PROJECT_SOURCE_DIR}/include/server
+  ${PROJECT_SOURCE_DIR}/include/platform
 )
 
 add_definitions(
@@ -33,6 +34,7 @@ add_library(
   frameworks/base/services/input/InputReader.cpp
   frameworks/base/services/input/InputTransport.cpp
   frameworks/base/services/input/InputWindow.cpp
+  frameworks/base/services/input/IntSet.cpp
   frameworks/base/services/input/PointerController.cpp
   # Keyboard/keymap handling
   frameworks/base/services/input/GenericKeyMap.cpp
@@ -63,8 +65,8 @@ endif()
 target_link_libraries(
   android-input
 
+  mirplatform
   ${Boost_LIBRARIES}
-  -lpthread
 )
 
 set_target_properties(

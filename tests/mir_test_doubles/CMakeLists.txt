@@ -11,6 +11,9 @@ set(
   fake_event_hub.cpp
   fake_event_hub_input_configuration.cpp
   test_protobuf_socket_server.cpp
+  mock_timer.cpp
+  mock_frame_dropping_policy_factory.cpp
+  platform_factory.cpp
 )
 
 set(
@@ -20,13 +23,13 @@ set(
   ${CMAKE_CURRENT_SOURCE_DIR}/mock_gl.cpp
 )
 
-if (MIR_PLATFORM STREQUAL "gbm")
+if (MIR_TEST_PLATFORM STREQUAL "mesa")
 include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
 list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/mock_drm.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mock_gbm.cpp
 )
-elseif (MIR_PLATFORM STREQUAL "android")
+elseif (MIR_TEST_PLATFORM STREQUAL "android")
 list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/mock_android_hw.cpp
 )

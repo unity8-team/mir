@@ -17,7 +17,7 @@
  */
 
 #include "rpc_report.h"
-#include "mir/lttng/mir_tracepoint.h"
+#include "mir/report/lttng/mir_tracepoint.h"
 
 #include "mir_protobuf_wire.pb.h"
 
@@ -98,4 +98,8 @@ void mcl::lttng::RpcReport::file_descriptors_received(
 {
     mir_tracepoint(mir_client_rpc, file_descriptors_received,
                    fds.data(), fds.size());
+}
+
+void mcl::lttng::RpcReport::connection_failure(std::exception const& /*ex*/)
+{
 }

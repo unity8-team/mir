@@ -152,7 +152,7 @@ static bool validateMotionEvent(int32_t action, size_t pointerCount,
                 pointerCount, MAX_POINTERS);
         return false;
     }
-    BitSet32 pointerIdBits;
+    IntSet pointerIds;
     for (size_t i = 0; i < pointerCount; i++) {
         int32_t id = pointerProperties[i].id;
         if (id < 0 || id > MAX_POINTER_ID) {
@@ -160,36 +160,32 @@ static bool validateMotionEvent(int32_t action, size_t pointerCount,
                     id, MAX_POINTER_ID);
             return false;
         }
-        if (pointerIdBits.hasBit(id)) {
+        if (pointerIds.contains(id)) {
             ALOGE("Motion event has duplicate pointer id %d", id);
             return false;
         }
-        pointerIdBits.markBit(id);
+        pointerIds.insert(id);
     }
     return true;
 }
 
 // --- InputDispatcher ---
 
-InputDispatcher::InputDispatcher(const sp<InputDispatcherPolicyInterface>& policy, 
-    std::shared_ptr<mi::InputReport> const& input_report) :
+InputDispatcher::InputDispatcher(std::shared_ptr<InputDispatcherPolicyInterface> const& policy,
+    std::shared_ptr<mi::InputReport> const& input_report,
+    std::shared_ptr<InputEnumerator> const& enumerator) :
         input_report(input_report),
         mPolicy(policy),
         mPendingEvent(NULL), mAppSwitchSawKeyDown(false), mAppSwitchDueTime(LONG_LONG_MAX),
         mNextUnblockedEvent(NULL),
         mDispatchEnabled(false), mDispatchFrozen(false), mInputFilterEnabled(false),
+        mEnumerator(enumerator),
         mInputTargetWaitCause(INPUT_TARGET_WAIT_CAUSE_NONE) {
     mLooper = new Looper(false);
 
     mKeyRepeatState.lastKeyEntry = NULL;
 
     policy->getDispatcherConfiguration(&mConfig);
-}
-
-void InputDispatcher::setInputEnumerator(sp<InputEnumerator> const& enumerator)
-{
-    AutoMutex _l(mLock);
-    mEnumerator = enumerator;
 }
 
 InputDispatcher::~InputDispatcher() {
@@ -432,6 +428,7 @@ bool InputDispatcher::enqueueInboundEventLocked(EventEntry* entry) {
 sp<InputWindowHandle> InputDispatcher::findTouchedWindowAtLocked(int32_t x, int32_t y) {
     sp<InputWindowHandle> foundHandle = NULL;
     mEnumerator->for_each([&](sp<InputWindowHandle> windowHandle) {
+        windowHandle->updateInfo();
         const InputWindowInfo* windowInfo = windowHandle->getInfo();
         int32_t flags = windowInfo->layoutParamsFlags;
 
@@ -1043,7 +1040,7 @@ int32_t InputDispatcher::findFocusedWindowTargetsLocked(nsecs_t currentTime,
     // Success!  Output targets.
     injectionResult = INPUT_EVENT_INJECTION_SUCCEEDED;
     addWindowTargetLocked(mFocusedWindowHandle,
-            InputTarget::FLAG_FOREGROUND | InputTarget::FLAG_DISPATCH_AS_IS, BitSet32(0),
+            InputTarget::FLAG_FOREGROUND | InputTarget::FLAG_DISPATCH_AS_IS, IntSet(),
             inputTargets);
 
     // Done.
@@ -1151,6 +1148,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
 
         // Traverse windows from front to back to find touched window and outside targets.
         mEnumerator->for_each([&](sp<InputWindowHandle> const& windowHandle){
+            windowHandle->updateInfo();
             const InputWindowInfo* windowInfo = windowHandle->getInfo();
             int32_t flags = windowInfo->layoutParamsFlags;
 
@@ -1181,7 +1179,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                     }
 
                     mTempTouchState.addOrUpdateWindow(
-                            windowHandle, outsideTargetFlags, BitSet32(0));
+                            windowHandle, outsideTargetFlags, IntSet());
                 }
             }
         });
@@ -1250,10 +1248,10 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
         }
 
         // Update the temporary touch state.
-        BitSet32 pointerIds;
+        IntSet pointerIds;
         if (isSplit) {
-            uint32_t pointerId = entry->pointerProperties[pointerIndex].id;
-            pointerIds.markBit(pointerId);
+            int32_t pointerId = entry->pointerProperties[pointerIndex].id;
+            pointerIds.insert(pointerId);
         }
         mTempTouchState.addOrUpdateWindow(newTouchedWindowHandle, targetFlags, pointerIds);
     } else {
@@ -1288,7 +1286,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
 #endif
                 // Make a slippery exit from the old window.
                 mTempTouchState.addOrUpdateWindow(oldTouchedWindowHandle,
-                        InputTarget::FLAG_DISPATCH_AS_SLIPPERY_EXIT, BitSet32(0));
+                        InputTarget::FLAG_DISPATCH_AS_SLIPPERY_EXIT, IntSet());
 
                 // Make a slippery entrance into the new window.
                 if (newTouchedWindowHandle->getInfo()->supportsSplitTouch()) {
@@ -1304,9 +1302,9 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                     targetFlags |= InputTarget::FLAG_WINDOW_IS_OBSCURED;
                 }
 
-                BitSet32 pointerIds;
+                IntSet pointerIds;
                 if (isSplit) {
-                    pointerIds.markBit(entry->pointerProperties[0].id);
+                    pointerIds.insert(entry->pointerProperties[0].id);
                 }
                 mTempTouchState.addOrUpdateWindow(newTouchedWindowHandle, targetFlags, pointerIds);
             }
@@ -1321,7 +1319,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                 c_str(mLastHoverWindowHandle->getName()));
 #endif
             mTempTouchState.addOrUpdateWindow(mLastHoverWindowHandle,
-                    InputTarget::FLAG_DISPATCH_AS_HOVER_EXIT, BitSet32(0));
+                    InputTarget::FLAG_DISPATCH_AS_HOVER_EXIT, IntSet());
         }
 
         // Let the new window know that the hover sequence is starting.
@@ -1331,7 +1329,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                 c_str(newHoverWindowHandle->getName()));
 #endif
             mTempTouchState.addOrUpdateWindow(newHoverWindowHandle,
-                    InputTarget::FLAG_DISPATCH_AS_HOVER_ENTER, BitSet32(0));
+                    InputTarget::FLAG_DISPATCH_AS_HOVER_ENTER, IntSet());
         }
     }
 
@@ -1375,7 +1373,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                 sp<InputWindowHandle> inputWindowHandle = touchedWindow.windowHandle;
                 if (inputWindowHandle->getInfo()->ownerUid != foregroundWindowUid) {
                     mTempTouchState.addOrUpdateWindow(inputWindowHandle,
-                            InputTarget::FLAG_ZERO_COORDS, BitSet32(0));
+                            InputTarget::FLAG_ZERO_COORDS, IntSet());
                 }
             }
         }
@@ -1421,7 +1419,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(nsecs_t currentTime,
                     mTempTouchState.addOrUpdateWindow(windowHandle,
                             InputTarget::FLAG_WINDOW_IS_OBSCURED
                                     | InputTarget::FLAG_DISPATCH_AS_IS,
-                            BitSet32(0));
+                            IntSet());
                 }
             });
         }
@@ -1491,12 +1489,12 @@ Failed:
                 // One pointer went up.
                 if (isSplit) {
                     int32_t pointerIndex = getMotionEventActionPointerIndex(action);
-                    uint32_t pointerId = entry->pointerProperties[pointerIndex].id;
+                    int32_t pointerId = entry->pointerProperties[pointerIndex].id;
 
                     for (size_t i = 0; i < mTempTouchState.windows.size(); ) {
                         TouchedWindow& touchedWindow = mTempTouchState.windows.editItemAt(i);
                         if (touchedWindow.targetFlags & InputTarget::FLAG_SPLIT) {
-                            touchedWindow.pointerIds.clearBit(pointerId);
+                            touchedWindow.pointerIds.remove(pointerId);
                             if (touchedWindow.pointerIds.isEmpty()) {
                                 mTempTouchState.windows.removeAt(i);
                                 continue;
@@ -1538,7 +1536,7 @@ Unresponsive:
 }
 
 void InputDispatcher::addWindowTargetLocked(const sp<InputWindowHandle>& windowHandle,
-        int32_t targetFlags, BitSet32 pointerIds, Vector<InputTarget>& inputTargets) {
+        int32_t targetFlags, const IntSet &pointerIds, Vector<InputTarget>& inputTargets) {
     inputTargets.push();
 
     const InputWindowInfo* windowInfo = windowHandle->getInfo();
@@ -1551,8 +1549,25 @@ void InputDispatcher::addWindowTargetLocked(const sp<InputWindowHandle>& windowH
     target.pointerIds = pointerIds;
 }
 
+namespace
+{
+static inline bool targets_contains_channel(Vector<InputTarget> const& input_targets, sp<InputChannel> const& channel)
+{
+    for (size_t i = 0; i < input_targets.size(); i++)
+    {
+        auto target = input_targets[i];
+        if (target.inputChannel == channel)
+            return true;
+    }
+    return false;
+}
+}
+
 void InputDispatcher::addMonitoringTargetsLocked(Vector<InputTarget>& inputTargets) {
     for (size_t i = 0; i < mMonitoringChannels.size(); i++) {
+        if (targets_contains_channel(inputTargets, mMonitoringChannels[i]))
+            continue;
+        
         inputTargets.push();
 
         InputTarget& target = inputTargets.editTop();
@@ -1676,12 +1691,13 @@ String8 InputDispatcher::getApplicationWindowLabelLocked(
 void InputDispatcher::prepareDispatchCycleLocked(nsecs_t currentTime,
         const sp<Connection>& connection, EventEntry* eventEntry, const InputTarget* inputTarget) {
 #if DEBUG_DISPATCH_CYCLE
+    std::string pointerIdsString = inputTarget->pointerIds.toString();
     ALOGD("channel '%s' ~ prepareDispatchCycle - flags=0x%08x, "
             "xOffset=%f, yOffset=%f, scaleFactor=%f, "
-            "pointerIds=0x%x",
+            "pointerIds=%s",
             connection->getInputChannelName(), inputTarget->flags,
             inputTarget->xOffset, inputTarget->yOffset,
-            inputTarget->scaleFactor, inputTarget->pointerIds.value);
+            inputTarget->scaleFactor, pointerIdsString.c_str());
 #endif
 
     // Skip this event if the connection status is not normal.
@@ -2146,8 +2162,8 @@ void InputDispatcher::synthesizeCancelationEventsForConnectionLocked(
 }
 
 InputDispatcher::MotionEntry*
-InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, BitSet32 pointerIds) {
-    ALOG_ASSERT(pointerIds.value != 0);
+InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, const IntSet &pointerIds) {
+    ALOG_ASSERT(!pointerIds.isEmpty());
 
     uint32_t splitPointerIndexMap[MAX_POINTERS];
     PointerProperties splitPointerProperties[MAX_POINTERS];
@@ -2161,7 +2177,7 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, BitSet
         const PointerProperties& pointerProperties =
                 originalMotionEntry->pointerProperties[originalPointerIndex];
         uint32_t pointerId = uint32_t(pointerProperties.id);
-        if (pointerIds.hasBit(pointerId)) {
+        if (pointerIds.contains(pointerId)) {
             splitPointerIndexMap[splitPointerCount] = originalPointerIndex;
             splitPointerProperties[splitPointerCount].copyFrom(pointerProperties);
             splitPointerCoords[splitPointerCount].copyFrom(
@@ -2190,8 +2206,8 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, BitSet
         int32_t originalPointerIndex = getMotionEventActionPointerIndex(action);
         const PointerProperties& pointerProperties =
                 originalMotionEntry->pointerProperties[originalPointerIndex];
-        uint32_t pointerId = uint32_t(pointerProperties.id);
-        if (pointerIds.hasBit(pointerId)) {
+        int32_t pointerId = pointerProperties.id;
+        if (pointerIds.contains(pointerId)) {
             if (pointerIds.count() == 1) {
                 // The first/last pointer went down/up.
                 action = maskedAction == AMOTION_EVENT_ACTION_POINTER_DOWN
@@ -2199,7 +2215,7 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, BitSet
             } else {
                 // A secondary pointer went down/up.
                 uint32_t splitPointerIndex = 0;
-                while (pointerId != uint32_t(splitPointerProperties[splitPointerIndex].id)) {
+                while (pointerId != splitPointerProperties[splitPointerIndex].id) {
                     splitPointerIndex += 1;
                 }
                 action = maskedAction | (splitPointerIndex
@@ -2724,6 +2740,12 @@ void InputDispatcher::setKeyboardFocusLocked(const sp<InputWindowHandle>& newFoc
                   c_str(newFocusedWindowHandle->getName()));
 #endif
         }
+
+        if (mInputTargetWaitCause != INPUT_TARGET_WAIT_CAUSE_NONE) {
+            releasePendingEventLocked();
+            drainInboundQueueLocked();
+        }
+
         mFocusedWindowHandle = newFocusedWindowHandle;
     }
 }
@@ -2884,7 +2906,7 @@ bool InputDispatcher::transferTouchFocus(const sp<InputChannel>& fromChannel,
             const TouchedWindow& touchedWindow = mTouchState.windows[i];
             if (touchedWindow.windowHandle == fromWindowHandle) {
                 int32_t oldTargetFlags = touchedWindow.targetFlags;
-                BitSet32 pointerIds = touchedWindow.pointerIds;
+                IntSet pointerIds = touchedWindow.pointerIds;
 
                 mTouchState.windows.removeAt(i);
 
@@ -2983,10 +3005,14 @@ void InputDispatcher::dumpDispatchStateLocked(String8& dump) {
         dump.append(INDENT "TouchedWindows:\n");
         for (size_t i = 0; i < mTouchState.windows.size(); i++) {
             const TouchedWindow& touchedWindow = mTouchState.windows[i];
-            appendFormat(dump, INDENT2 "%d: name='%s', pointerIds=0x%0x, targetFlags=0x%x\n",
-                    i, c_str(touchedWindow.windowHandle->getName()),
-                    touchedWindow.pointerIds.value,
-                    touchedWindow.targetFlags);
+            appendFormat(dump, INDENT2 "%d: name='%s'",
+                    i, c_str(touchedWindow.windowHandle->getName()));
+
+            dump.append(", pointerIds=(");
+            touchedWindow.pointerIds.forEach([&](int32_t id) {appendFormat(dump, ", %d", id);});
+            dump.append(")");
+
+            appendFormat(dump, ", targetFlags=0x%x\n", touchedWindow.targetFlags);
         }
     } else {
         dump.append(INDENT "TouchedWindows: <none>\n");
@@ -4174,7 +4200,7 @@ void InputDispatcher::TouchState::copyFrom(const TouchState& other) {
 }
 
 void InputDispatcher::TouchState::addOrUpdateWindow(const sp<InputWindowHandle>& windowHandle,
-        int32_t targetFlags, BitSet32 pointerIds) {
+        int32_t targetFlags, const IntSet &pointerIds) {
     if (targetFlags & InputTarget::FLAG_SPLIT) {
         split = true;
     }
@@ -4186,7 +4212,9 @@ void InputDispatcher::TouchState::addOrUpdateWindow(const sp<InputWindowHandle>&
             if (targetFlags & InputTarget::FLAG_DISPATCH_AS_SLIPPERY_EXIT) {
                 touchedWindow.targetFlags &= ~InputTarget::FLAG_DISPATCH_AS_IS;
             }
-            touchedWindow.pointerIds.value |= pointerIds.value;
+            pointerIds.forEach([&](int32_t id) {
+                touchedWindow.pointerIds.insert(id);
+            });
             return;
         }
     }
@@ -4252,7 +4280,7 @@ bool InputDispatcher::TouchState::isSlippery() const {
 
 // --- InputDispatcherThread ---
 
-InputDispatcherThread::InputDispatcherThread(const sp<InputDispatcherInterface>& dispatcher) :
+InputDispatcherThread::InputDispatcherThread(std::shared_ptr<InputDispatcherInterface> const& dispatcher) :
         Thread(/*canCallJava*/ true), mDispatcher(dispatcher) {
 }
 

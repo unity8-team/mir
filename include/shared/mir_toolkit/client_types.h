@@ -22,6 +22,7 @@
 #define MIR_TOOLKIT_CLIENT_TYPES_H_
 
 #include <mir_toolkit/event.h>
+#include <mir_toolkit/common.h>
 
 #include <stddef.h>
 
@@ -33,11 +34,19 @@
 extern "C" {
 #endif
 
+typedef enum MirBool
+{
+    mir_false = 0,
+    mir_true = 1
+} MirBool;
+
 /* Display server connection API */
 typedef void* MirEGLNativeWindowType;
 typedef void* MirEGLNativeDisplayType;
 typedef struct MirConnection MirConnection;
 typedef struct MirSurface MirSurface;
+typedef struct MirScreencast MirScreencast;
+typedef struct MirPromptSession MirPromptSession;
 
 /**
  * Returned by asynchronous functions. Must not be free'd by
@@ -76,23 +85,37 @@ typedef void (*mir_event_delegate_callback)(
     MirSurface* surface, MirEvent const* event, void* context);
 
 /**
- * The order of components in a format enum matches the
- * order of the components as they would be written in an
- *  integer representing a pixel value of that format.
- *
- * For example, abgr_8888 corresponds to 0xAABBGGRR, which will
- * end up as R,G,B,A in memory in a little endian system, and
- * as A,B,G,R in memory in a big endian system.
+ * Callback called when a lifecycle event/callback is requested
+ * from the running server.
+ *   \param [in] connection     The connection associated with the lifecycle event
+ *   \param [in] cb             The callback requested
+ *   \param [in,out] context    The context provided by the client
  */
-typedef enum MirPixelFormat
-{
-    mir_pixel_format_invalid,
-    mir_pixel_format_abgr_8888,
-    mir_pixel_format_xbgr_8888,
-    mir_pixel_format_argb_8888,
-    mir_pixel_format_xrgb_8888,
-    mir_pixel_format_bgr_888
-} MirPixelFormat;
+
+typedef void (*mir_lifecycle_event_callback)(
+    MirConnection* connection, MirLifecycleState state, void* context);
+
+/**
+ * Callback called when a display config change has occurred
+ *   \param [in] connection     The connection associated with the display change
+ *   \param [in,out] context    The context provided by client
+ */
+
+typedef void (*mir_display_config_callback)(
+    MirConnection* connection, void* context);
+
+/**
+ * Callback called when a request for client file descriptors completes
+ *   \param [in] prompt_session  The prompt session
+ *   \param [in] count          The number of FDs allocated
+ *   \param [in] fds            Array of FDs
+ *   \param [in,out] context    The context provided by client
+ *
+ *   \note Copy the FDs as the array will be invalidated after callback completes
+ */
+
+typedef void (*mir_client_fd_callback)(
+    MirPromptSession *prompt_session, size_t count, int const* fds, void* context);
 
 /**
  * MirBufferUsage specifies how a surface can and will be used. A "hardware"
@@ -116,6 +139,15 @@ typedef struct MirSurfaceParameters
     int height;
     MirPixelFormat pixel_format;
     MirBufferUsage buffer_usage;
+    /**
+     * The id of the output to place the surface in.
+     *
+     * Use one of the output ids from MirDisplayConfiguration/MirDisplayOutput
+     * to place a surface on that output. Only fullscreen placements are
+     * currently supported. If you don't have special placement requirements,
+     * use the value mir_display_output_id_invalid.
+     */
+    uint32_t output_id;
 } MirSurfaceParameters;
 
 enum { mir_platform_package_max = 32 };
@@ -126,7 +158,7 @@ enum { mir_platform_package_max = 32 };
 typedef enum MirPlatformType
 {
     mir_platform_type_gbm,
-    mir_platform_type_android    
+    mir_platform_type_android
 } MirPlatformType;
 
 typedef struct MirPlatformPackage
@@ -153,19 +185,91 @@ typedef struct MirGraphicsRegion
 
 } MirGraphicsRegion;
 
-enum { mir_supported_pixel_format_max = 32 };
-
 /**
- * MirDisplayInfo provides details of the graphics environment.
+ * DEPRECATED. use MirDisplayConfiguration
  */
+enum { mir_supported_pixel_format_max = 32 };
 typedef struct MirDisplayInfo
 {
     uint32_t width;
     uint32_t height;
-    
+
     int supported_pixel_format_items;
     MirPixelFormat supported_pixel_format[mir_supported_pixel_format_max];
 } MirDisplayInfo;
+
+/**
+ * MirDisplayConfiguration provides details of the graphics environment.
+ */
+
+typedef struct MirDisplayCard
+{
+    uint32_t card_id;
+    uint32_t max_simultaneous_outputs;
+} MirDisplayCard;
+
+typedef enum MirDisplayOutputType
+{
+    mir_display_output_type_unknown,
+    mir_display_output_type_vga,
+    mir_display_output_type_dvii,
+    mir_display_output_type_dvid,
+    mir_display_output_type_dvia,
+    mir_display_output_type_composite,
+    mir_display_output_type_svideo,
+    mir_display_output_type_lvds,
+    mir_display_output_type_component,
+    mir_display_output_type_ninepindin,
+    mir_display_output_type_displayport,
+    mir_display_output_type_hdmia,
+    mir_display_output_type_hdmib,
+    mir_display_output_type_tv,
+    mir_display_output_type_edp
+} MirDisplayOutputType;
+
+typedef struct MirDisplayMode
+{
+    uint32_t vertical_resolution;
+    uint32_t horizontal_resolution;
+    double refresh_rate;
+} MirDisplayMode;
+
+enum { mir_display_output_id_invalid = 0 };
+
+typedef struct MirDisplayOutput
+{
+    uint32_t num_modes;
+    MirDisplayMode* modes;
+    uint32_t preferred_mode;
+    uint32_t current_mode;
+
+    uint32_t num_output_formats;
+    MirPixelFormat* output_formats;
+    MirPixelFormat current_format;
+
+    uint32_t card_id;
+    uint32_t output_id;
+    MirDisplayOutputType type;
+
+    int32_t position_x;
+    int32_t position_y;
+    uint32_t connected;
+    uint32_t used;
+
+    uint32_t physical_width_mm;
+    uint32_t physical_height_mm;
+
+    MirPowerMode power_mode;
+    MirOrientation orientation;
+} MirDisplayOutput;
+
+typedef struct MirDisplayConfiguration
+{
+    uint32_t num_outputs;
+    MirDisplayOutput* outputs;
+    uint32_t num_cards;
+    MirDisplayCard *cards;
+} MirDisplayConfiguration;
 
 /**
  * MirEventDelegate may be used to specify (at surface creation time)
@@ -176,6 +280,70 @@ typedef struct MirEventDelegate
     mir_event_delegate_callback callback;
     void *context;
 } MirEventDelegate;
+
+typedef struct MirRectangle
+{
+    int left;
+    int top;
+    unsigned int width;
+    unsigned int height;
+} MirRectangle;
+
+/**
+ * MirScreencastParameters is the structure of required information that
+ * you must provide to Mir in order to create a MirScreencast.
+ * The width and height parameters can be used to down-scale the screencast
+ * For no scaling set them to the region width and height.
+ */
+typedef struct MirScreencastParameters
+{
+    /**
+     * The rectangular region of the screen to capture -
+     * The region is specified in virtual screen space hence multiple screens can be captured simultaneously
+     */
+    MirRectangle region;
+    /** The width of the screencast which can be different than the screen region capture width */
+    unsigned int width;
+    /** The height of the screencast which can be different than the screen region capture height */
+    unsigned int height;
+    /**
+     * The pixel format of the screencast.
+     * It must be a supported format obtained from mir_connection_get_available_surface_formats.
+     */
+    MirPixelFormat pixel_format;
+} MirScreencastParameters;
+
+/**
+ * Callback to be passed when calling MirScreencast functions.
+ *   \param [in] screencast          the screencast being updated
+ *   \param [in,out] client_context  context provided by the client
+ */
+typedef void (*mir_screencast_callback)(MirScreencast *screencast, void *client_context);
+
+/**
+ * Callback member of MirPromptSession for handling of prompt sessions.
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_callback)(MirPromptSession* prompt_provider, void* context);
+
+/**
+ * Callback member of MirPromptSession for adding prompt providers
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in] added            True if the session was added, false otherwise
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_add_prompt_provider_callback)(
+    MirPromptSession* prompt_provider, MirBool added, void* context);
+
+/**
+ * Callback member of MirPromptSession for handling of prompt sessions events.
+ *   \param [in] prompt_provider  The prompt session associated with the callback
+ *   \param [in] state            The state of the prompt session
+ *   \param [in,out] context      The context provided by the client
+ */
+typedef void (*mir_prompt_session_state_change_callback)(
+    MirPromptSession* prompt_provider, MirPromptSessionState state, void* context);
 
 #ifdef __cplusplus
 }

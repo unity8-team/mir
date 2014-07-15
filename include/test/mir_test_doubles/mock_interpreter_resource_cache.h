@@ -18,7 +18,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_INTERPRETER_RESOURCE_CACHE_H_
 #define MIR_TEST_DOUBLES_MOCK_INTERPRETER_RESOURCE_CACHE_H_
 
-#include "src/server/graphics/android/interpreter_resource_cache.h"
+#include "src/platform/graphics/android/interpreter_resource_cache.h"
 
 namespace mir
 {
@@ -28,8 +28,10 @@ namespace doubles
 {
 struct MockInterpreterResourceCache : public graphics::android::InterpreterResourceCache
 {
-    MOCK_METHOD2(store_buffer, void(std::shared_ptr<compositor::Buffer>const&, ANativeWindowBuffer*));
-    MOCK_METHOD1(retrieve_buffer, std::shared_ptr<compositor::Buffer>(ANativeWindowBuffer*));
+    MOCK_METHOD2(store_buffer, void(std::shared_ptr<graphics::Buffer>const&,
+        std::shared_ptr<graphics::NativeBuffer> const&));
+    MOCK_METHOD1(retrieve_buffer, std::shared_ptr<graphics::Buffer>(ANativeWindowBuffer*));
+    MOCK_METHOD2(update_native_fence, void(ANativeWindowBuffer*, int));
 };
 }
 }

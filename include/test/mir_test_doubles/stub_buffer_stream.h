@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_NULL_BUFFER_STREAM_H_
 #define MIR_TEST_DOUBLES_NULL_BUFFER_STREAM_H_
 
-#include <mir/surfaces/buffer_stream.h>
+#include <mir/compositor/buffer_stream.h>
 #include <mir_test_doubles/stub_buffer.h>
 
 namespace mir
@@ -29,44 +29,60 @@ namespace test
 namespace doubles
 {
 
-class StubBufferStream : public surfaces::BufferStream
+class StubBufferStream : public compositor::BufferStream
 {
 public:
     StubBufferStream()
     {
-        stub_client_buffer = std::make_shared<StubBuffer>();
         stub_compositor_buffer = std::make_shared<StubBuffer>();
     }
-    std::shared_ptr<compositor::Buffer> secure_client_buffer()
+
+    void acquire_client_buffer(
+        std::function<void(graphics::Buffer* buffer)> complete) override
     {
-        return stub_client_buffer;
+        complete(&stub_client_buffer);
     }
 
-    std::shared_ptr<compositor::Buffer> lock_back_buffer()
+    void release_client_buffer(graphics::Buffer*) override
+    {
+    }
+
+    std::shared_ptr<graphics::Buffer> lock_compositor_buffer(void const*) override
     {
         return stub_compositor_buffer;
     }
 
-    geometry::PixelFormat get_stream_pixel_format()
+    std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() override
     {
-        return geometry::PixelFormat();
+        return stub_compositor_buffer;
     }
 
-    geometry::Size stream_size()
+    MirPixelFormat get_stream_pixel_format() override
+    {
+        return MirPixelFormat();
+    }
+
+    geometry::Size stream_size() override
     {
         return geometry::Size();
     }
 
-    void force_requests_to_complete()
+    void resize(geometry::Size const&) override
     {
     }
 
-    void allow_framedropping(bool)
+    void force_requests_to_complete() override
     {
     }
 
-    std::shared_ptr<compositor::Buffer> stub_client_buffer;
-    std::shared_ptr<compositor::Buffer> stub_compositor_buffer;
+    void allow_framedropping(bool) override
+    {
+    }
+
+    int buffers_ready_for_compositor() const override { return 1; }
+
+    StubBuffer stub_client_buffer;
+    std::shared_ptr<graphics::Buffer> stub_compositor_buffer;
 };
 
 }

@@ -16,18 +16,26 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/graphics/null_display_report.h"
-#include "src/server/graphics/android/android_platform.h"
-#include "mir/compositor/buffer_ipc_packer.h"
+#include "src/server/report/null_report_factory.h"
+#include "mir/graphics/native_platform.h"
+#include "mir/graphics/buffer_ipc_packer.h"
 #include "mir/options/program_option.h"
+#include "src/platform/graphics/android/android_platform.h"
 #include "mir_test_doubles/mock_buffer.h"
+#include "mir_test_doubles/mock_android_hw.h"
 #include "mir_test_doubles/mock_buffer_packer.h"
+#include "mir_test_doubles/mock_display_report.h"
+#include "mir_test_doubles/stub_display_builder.h"
+#include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_android_native_buffer.h"
 #include <system/window.h>
 #include <gtest/gtest.h>
 
 namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
+namespace mt=mir::test;
 namespace mtd=mir::test::doubles;
+namespace mr=mir::report;
 namespace geom=mir::geometry;
 namespace mo=mir::options;
 
@@ -36,7 +44,10 @@ class PlatformBufferIPCPackaging : public ::testing::Test
 protected:
     virtual void SetUp()
     {
-        stub_display_report = std::make_shared<mg::NullDisplayReport>();
+        using namespace testing;
+
+        stub_display_builder = std::make_shared<mtd::StubDisplayBuilder>();
+        stub_display_report = mr::null_display_report();
         stride = geom::Stride(300*4);
 
         num_ints = 43;
@@ -51,21 +62,21 @@ protected:
         {
             native_buffer_handle->data[i] = i;
         }
- 
-        anwb = std::make_shared<ANativeWindowBuffer>();
-        anwb->stride = (int) stride.as_uint32_t();
-        anwb->handle  = native_buffer_handle.get();
 
+        native_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
+        mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
 
-        mock_buffer = std::make_shared<mtd::MockBuffer>();
+        ON_CALL(*native_buffer, handle())
+            .WillByDefault(Return(native_buffer_handle.get()));
         ON_CALL(*mock_buffer, native_buffer_handle())
-            .WillByDefault(testing::Return(anwb));
+            .WillByDefault(Return(native_buffer));
         ON_CALL(*mock_buffer, stride())
-            .WillByDefault(testing::Return(stride));
+            .WillByDefault(Return(stride));
     }
 
+    std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
+    std::shared_ptr<mtd::StubDisplayBuilder> stub_display_builder;
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
-    std::shared_ptr<ANativeWindowBuffer> anwb;
     std::shared_ptr<native_handle_t> native_buffer_handle;
     std::shared_ptr<mg::DisplayReport> stub_display_report;
     geom::Stride stride;
@@ -73,33 +84,86 @@ protected:
 };
 
 /* ipc packaging tests */
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly)
+TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc)
 {
-    auto mock_buffer = std::make_shared<mtd::MockBuffer>();
-    geom::Stride dummy_stride(4390);
+    using namespace ::testing;
 
-    EXPECT_CALL(*mock_buffer, native_buffer_handle())
-        .WillOnce(testing::Return(anwb));
-    EXPECT_CALL(*mock_buffer, stride())
-        .WillOnce(testing::Return(dummy_stride));
+    mga::AndroidPlatform platform(stub_display_builder, stub_display_report);
 
-    auto platform = mg::create_platform(std::make_shared<mo::ProgramOption>(), stub_display_report);
-
-    auto mock_packer = std::make_shared<mtd::MockPacker>();
+    mtd::MockPacker mock_packer;
     int offset = 0;
     for(auto i=0u; i<num_fds; i++)
     {
-        EXPECT_CALL(*mock_packer, pack_fd(native_buffer_handle->data[offset++]))
-            .Times(1);
-    } 
-    for(auto i=0u; i<num_ints; i++)
-    {
-        EXPECT_CALL(*mock_packer, pack_data(native_buffer_handle->data[offset++]))
+        EXPECT_CALL(mock_packer, pack_fd(native_buffer_handle->data[offset++]))
             .Times(1);
     }
-    EXPECT_CALL(*mock_packer, pack_stride(dummy_stride))
+    for(auto i=0u; i<num_ints; i++)
+    {
+        EXPECT_CALL(mock_packer, pack_data(native_buffer_handle->data[offset++]))
+            .Times(1);
+    }
+
+    EXPECT_CALL(*mock_buffer, stride())
+        .WillOnce(Return(stride));
+    EXPECT_CALL(mock_packer, pack_stride(stride))
         .Times(1);
 
-    platform->fill_ipc_package(mock_packer, mock_buffer);
+    EXPECT_CALL(*mock_buffer, size())
+        .WillOnce(Return(mir::geometry::Size{123, 456}));
+    EXPECT_CALL(mock_packer, pack_size(_))
+        .Times(1);
 
+    EXPECT_CALL(*native_buffer, ensure_available_for(mga::BufferAccess::write))
+        .Times(1);
+
+    platform.fill_buffer_package(
+        &mock_packer, mock_buffer.get(), mg::BufferIpcMsgType::full_msg);
+}
+
+TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ipc)
+{
+    using namespace ::testing;
+
+    mga::AndroidPlatform platform(stub_display_builder, stub_display_report);
+
+    mtd::MockPacker mock_packer;
+    EXPECT_CALL(mock_packer, pack_fd(_))
+        .Times(0);
+    EXPECT_CALL(mock_packer, pack_data(_))
+        .Times(0);
+    EXPECT_CALL(mock_packer, pack_stride(_))
+        .Times(0);
+    EXPECT_CALL(mock_packer, pack_size(_))
+        .Times(0);
+
+    /* TODO: instead of waiting, pass the fd along */
+    EXPECT_CALL(*native_buffer, ensure_available_for(mga::BufferAccess::write))
+        .Times(1);
+
+    platform.fill_buffer_package(
+        &mock_packer, mock_buffer.get(), mg::BufferIpcMsgType::update_msg);
+}
+
+TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)
+{
+    mga::AndroidPlatform platform(
+        std::make_shared<mtd::StubDisplayBuilder>(),
+        mr::null_display_report());
+
+    EXPECT_EQ(EGL_DEFAULT_DISPLAY, platform.egl_native_display());
+}
+
+TEST(NestedPlatformCreation, doesnt_access_display_hardware)
+{
+    using namespace testing;
+
+    mtd::HardwareAccessMock hwaccess;
+    mtd::MockDisplayReport stub_report;
+
+    EXPECT_CALL(hwaccess, hw_get_module(StrEq(HWC_HARDWARE_MODULE_ID), _))
+        .Times(0);
+    EXPECT_CALL(hwaccess, hw_get_module(StrEq(GRALLOC_HARDWARE_MODULE_ID), _))
+        .Times(AtMost(1));
+
+    auto platform = mg::create_native_platform(mt::fake_shared(stub_report));
 }

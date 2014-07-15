@@ -31,16 +31,18 @@ namespace input
 namespace receiver
 {
 class InputReceiverThread;
+class InputReceiverReport;
 
 // Interface for MirSurface to construct input dispatcher threads.
 class InputPlatform
 {
 public:
-    virtual ~InputPlatform() {};  
+    virtual ~InputPlatform() {};
 
     virtual std::shared_ptr<InputReceiverThread> create_input_thread(int fd, std::function<void(MirEvent *)> const& callback) = 0;
-    
+
     static std::shared_ptr<InputPlatform> create();
+    static std::shared_ptr<InputPlatform> create(std::shared_ptr<InputReceiverReport> const& report);
 
 protected:
     InputPlatform() = default;

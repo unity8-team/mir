@@ -40,10 +40,6 @@ namespace android
 class FakeEventHub;
 }
 }
-namespace graphics
-{
-class ViewableArea;
-}
 namespace test
 {
 namespace doubles
@@ -56,40 +52,31 @@ class FakeEventHubInputConfiguration;
 namespace mir_test_framework
 {
 
-enum ClientLifecycleState { starting, appeared, vanished };
-
 class InputTestingServerConfiguration : public TestingServerConfiguration
 {
 public:
     InputTestingServerConfiguration();
+    explicit InputTestingServerConfiguration(std::vector<geometry::Rectangle> const& display_rects);
 
     void exec();
     void on_exit();
-    
+
     std::shared_ptr<mir::input::InputConfiguration> the_input_configuration() override;
-    std::shared_ptr<mir::surfaces::InputRegistrar> the_input_registrar() override;
-    std::shared_ptr<mir::graphics::ViewableArea> the_viewable_area() override;
+    std::shared_ptr<mir::input::InputDispatcher> the_input_dispatcher() override;
+    std::shared_ptr<mir::shell::InputTargeter> the_input_targeter() override;
+    std::shared_ptr<mir::input::InputSender> the_input_sender() override;
 
-protected:
-    virtual mir::geometry::Rectangle the_screen_geometry();
-
-    virtual void inject_input() = 0;
     mir::input::android::FakeEventHub* fake_event_hub;
 
+protected:
+    virtual void inject_input() = 0;
+
     void wait_until_client_appears(std::string const& surface_name);
-    void wait_until_client_vanishes(std::string const& surface_name);
 
 private:
-    std::mutex lifecycle_lock;
-
-    std::condition_variable lifecycle_condition;
-    std::map<std::string, ClientLifecycleState> client_lifecycles;
-    
     std::thread input_injection_thread;
-    
+
     std::shared_ptr<mir::test::doubles::FakeEventHubInputConfiguration> input_configuration;
-    std::shared_ptr<mir::surfaces::InputRegistrar> input_registrar;
-    std::shared_ptr<mir::graphics::ViewableArea> view_area;
 };
 
 }

@@ -19,15 +19,16 @@
 #include "android_input_reader_policy.h"
 #include "android_pointer_controller.h"
 
-#include "mir/graphics/viewable_area.h"
+#include "mir/input/input_region.h"
+#include "mir/geometry/rectangle.h"
 
+namespace mi = mir::input;
 namespace mia = mir::input::android;
-namespace mg = mir::graphics;
 
-mia::InputReaderPolicy::InputReaderPolicy(std::shared_ptr<mg::ViewableArea> const& viewable_area,
-                                          std::shared_ptr<CursorListener> const& cursor_listener)
-    : viewable_area(viewable_area),
-      pointer_controller(new mia::PointerController(viewable_area, cursor_listener))
+mia::InputReaderPolicy::InputReaderPolicy(std::shared_ptr<mi::InputRegion> const& input_region,
+    std::shared_ptr<CursorListener> const& cursor_listener)
+    : input_region(input_region),
+      pointer_controller(new mia::PointerController(input_region, cursor_listener))
 {
 }
 
@@ -37,7 +38,7 @@ void mia::InputReaderPolicy::getReaderConfiguration(droidinput::InputReaderConfi
     static bool const is_external = false;
     static int32_t const default_display_orientation = droidinput::DISPLAY_ORIENTATION_0;
 
-    auto bounds = viewable_area->view_area();
+    auto bounds = input_region->bounding_rectangle();
     auto width = bounds.size.width.as_float();
     auto height = bounds.size.height.as_float();
 
@@ -47,11 +48,23 @@ void mia::InputReaderPolicy::getReaderConfiguration(droidinput::InputReaderConfi
         width,
         height,
         default_display_orientation);
-    
+
     out_config->pointerVelocityControlParameters.acceleration = 1.0;
 }
 
 droidinput::sp<droidinput::PointerControllerInterface> mia::InputReaderPolicy::obtainPointerController(int32_t /*device_id*/)
 {
     return pointer_controller;
+}
+
+void mia::InputReaderPolicy::getAssociatedDisplayInfo(droidinput::InputDeviceIdentifier const& /* identifier */,
+    int& out_associated_display_id, bool& out_associated_display_is_external)
+{
+    // This is used primarily for mapping of direct input devices to screen space. Currently we only support one large display
+    // bounding all displays (i.e. input_region->bounding_rectangle())
+    // the external/internal distinction is mostly a leftover from android configuration nuances.
+    // Eventually we will need to use a combination of configuration and heuristic to implement this 
+    // correctly
+    out_associated_display_id = 0;
+    out_associated_display_is_external = false;
 }

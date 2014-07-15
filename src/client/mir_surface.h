@@ -20,11 +20,10 @@
 
 #include "mir_protobuf.pb.h"
 
-#include "mir/geometry/pixel_format.h"
 #include "mir/geometry/dimensions.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/common.h"
-#include "mir_toolkit/mir_native_buffer.h"
+#include "mir/graphics/native_buffer.h"
 #include "client_buffer_depository.h"
 #include "mir_wait_handle.h"
 #include "mir_client_surface.h"
@@ -33,6 +32,7 @@
 #include <memory>
 #include <functional>
 #include <mutex>
+#include <unordered_set>
 
 namespace mir
 {
@@ -75,43 +75,52 @@ public:
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;
-    bool is_valid() const;
     MirWaitHandle* next_buffer(mir_surface_callback callback, void * context);
     MirWaitHandle* get_create_wait_handle();
 
-    std::shared_ptr<MirNativeBuffer> get_current_buffer_package();
+    MirNativeBuffer* get_current_buffer_package();
     MirPlatformType platform_type();
     std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
+    uint32_t get_current_buffer_id() const;
     void get_cpu_region(MirGraphicsRegion& region);
-    void release_cpu_region();
     EGLNativeWindowType generate_native_window();
 
     MirWaitHandle* configure(MirSurfaceAttrib a, int value);
     int attrib(MirSurfaceAttrib a) const;
+    MirOrientation get_orientation() const;
+    
+    MirWaitHandle* configure_cursor(MirCursorConfiguration const* cursor);
 
     void set_event_handler(MirEventDelegate const* delegate);
     void handle_event(MirEvent const& e);
 
+    /* mir::client::ClientSurface */
+    void request_and_wait_for_next_buffer();
+    void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+
+    static bool is_valid(MirSurface* query);
 private:
-    mutable std::recursive_mutex mutex; // Protects all members of *this
+    mutable std::mutex mutex; // Protects all members of *this
 
     void on_configured();
+    void on_cursor_configured();
     void process_incoming_buffer();
     void populate(MirBufferPackage& buffer_package);
     void created(mir_surface_callback callback, void * context);
     void new_buffer(mir_surface_callback callback, void * context);
-    mir::geometry::PixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf);
+    MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf);
+    void release_cpu_region();
 
-    /* todo: race condition. protobuf does not guarantee that callbacks will be synchronized. potential
-             race in surface, last_buffer_id */
     mir::protobuf::DisplayServer::Stub & server;
     mir::protobuf::Surface surface;
     std::string error_message;
+    mir::protobuf::Void void_response;
 
-    MirConnection *connection;
+    MirConnection* const connection;
     MirWaitHandle create_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
     MirWaitHandle configure_wait_handle;
+    MirWaitHandle configure_cursor_wait_handle;
 
     std::shared_ptr<mir::client::MemoryRegion> secured_region;
     std::shared_ptr<mir::client::ClientBufferDepository> buffer_depository;
@@ -122,7 +131,8 @@ private:
     mir::protobuf::SurfaceSetting configure_result;
 
     // Cache of latest SurfaceSettings returned from the server
-    int attrib_cache[mir_surface_attrib_arraysize_];
+    int attrib_cache[mir_surface_attribs];
+    MirOrientation orientation = mir_orientation_normal;
 
     std::function<void(MirEvent const*)> handle_event_callback;
     std::shared_ptr<mir::input::receiver::InputReceiverThread> input_thread;

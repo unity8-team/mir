@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -16,23 +16,32 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "mir/compositor/default_compositing_strategy.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
-#include "mir/frontend/communicator.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "mir/compositor/display_buffer_compositor_factory.h"
+#include "mir/server_status_listener.h"
+#include "mir/compositor/display_buffer_compositor.h"
+#include "mir/options/default_configuration.h"
+#include "mir/graphics/graphic_buffer_allocator.h"
+#include "mir/frontend/connector.h"
+#include "mir/scene/surface_creation_parameters.h"
 #include "mir/geometry/size.h"
+#include "mir/geometry/rectangles.h"
 #include "mir/graphics/buffer_initializer.h"
-#include "mir/graphics/cursor.h"
 #include "mir/graphics/display.h"
-#include "mir/shell/surface_builder.h"
-#include "mir/surfaces/surface.h"
-#include "mir/default_server_configuration.h"
+#include "mir/graphics/display_buffer.h"
+#include "mir/graphics/gl_context.h"
+#include "mir/scene/surface.h"
+#include "mir/scene/surface_coordinator.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
+#include "mir/raii.h"
 
 #include "mir_image.h"
 #include "buffer_render_target.h"
 #include "image_renderer.h"
+#include "server_configuration.h"
+
+#define GLM_FORCE_RADIANS
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <thread>
 #include <atomic>
@@ -42,16 +51,17 @@
 #include <sstream>
 #include <vector>
 
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
-namespace ms = mir::surfaces;
+namespace ms = mir::scene;
 namespace mf = mir::frontend;
+namespace mo = mir::options;
 namespace msh = mir::shell;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 namespace mt = mir::tools;
+namespace me = mir::examples;
+
 
 ///\page render_surfaces-example render_surfaces.cpp: A simple program using the mir library.
 ///\tableofcontents
@@ -64,8 +74,8 @@ namespace mt = mir::tools;
 /// \snippet render_surfaces.cpp RenderSurfacesServerConfiguration_stubs_tag
 /// it also provides a bespoke buffer initializer
 /// \snippet render_surfaces.cpp RenderResourcesBufferInitializer_tag
-/// and a bespoke compositing strategy
-/// \snippet render_surfaces.cpp RenderSurfacesCompositingStrategy_tag
+/// and a bespoke display buffer compositor
+/// \snippet render_surfaces.cpp RenderSurfacesDisplayBufferCompositor_tag
 ///\section Utilities Utility classes
 /// For smooth animation we need to track time and move surfaces accordingly
 ///\subsection StopWatch StopWatch
@@ -77,61 +87,11 @@ namespace mt = mir::tools;
 
 namespace
 {
-bool input_is_on = false;
-std::weak_ptr<mg::Cursor> cursor;
-static const uint32_t bg_color = 0x00000000;
-static const uint32_t fg_color = 0xffdd4814;
+std::atomic<bool> created{false};
 
-void update_cursor(uint32_t bg_color, uint32_t fg_color)
-{
-    if (auto cursor = ::cursor.lock())
-    {
-        static const int width = 64;
-        static const int height = 64;
-        std::vector<uint32_t> image(height * width, bg_color);
-        for (int i = 0; i != width-1; ++i)
-        {
-            if (i < 16)
-            {
-                image[0 * height + i] = fg_color;
-                image[1 * height + i] = fg_color;
-                image[i * height + 0] = fg_color;
-                image[i * height + 1] = fg_color;
-            }
-            image[i * height + i] = fg_color;
-            image[(i+1) * height + i] = fg_color;
-            image[i * height + i + 1] = fg_color;
-        }
-        cursor->set_image(image.data(), geom::Size{width, height});
-    }
-}
-
-void animate_cursor()
-{
-    if (!input_is_on)
-    {
-        if (auto cursor = ::cursor.lock())
-        {
-            static int cursor_pos = 0;
-            if (++cursor_pos == 300)
-            {
-                cursor_pos = 0;
-
-                static const uint32_t fg_colors[3] = { fg_color, 0xffffffff, 0x3f000000 };
-                static int fg_color = 0;
-
-                if (++fg_color == 3) fg_color = 0;
-
-                update_cursor(bg_color, fg_colors[fg_color]);
-            }
-
-            cursor->move_to(geom::Point{cursor_pos, cursor_pos});
-        }
-    }
-}
+static const float min_alpha = 0.3f;
 
 char const* const surfaces_to_render = "surfaces-to-render";
-char const* const display_cursor     = "display-cursor";
 
 ///\internal [StopWatch_tag]
 // tracks elapsed time - for animation.
@@ -181,16 +141,16 @@ class Moveable
 {
 public:
     Moveable() {}
-    Moveable(ms::Surface& s, const geom::Size& display_size,
+    Moveable(std::shared_ptr<ms::Surface> const& s, const geom::Size& display_size,
              float dx, float dy, const glm::vec3& rotation_axis, float alpha_offset)
-        : surface(&s), display_size(display_size),
-          x{static_cast<float>(s.top_left().x.as_uint32_t())},
-          y{static_cast<float>(s.top_left().y.as_uint32_t())},
-          w{static_cast<float>(s.size().width.as_uint32_t())},
-          h{static_cast<float>(s.size().height.as_uint32_t())},
+        : surface(s), display_size(display_size),
+          x{static_cast<float>(s->top_left().x.as_uint32_t())},
+          y{static_cast<float>(s->top_left().y.as_uint32_t())},
+          w{static_cast<float>(s->size().width.as_uint32_t())},
+          h{static_cast<float>(s->size().height.as_uint32_t())},
           dx{dx},
           dy{dy},
-          rotation_axis{rotation_axis},
+          rotation_axis(rotation_axis),
           alpha_offset{alpha_offset}
     {
     }
@@ -224,12 +184,20 @@ public:
             y = new_y;
         }
 
-        surface->set_rotation(total_elapsed_sec * 120.0f, rotation_axis);
-        surface->set_alpha(0.5 + 0.5 * sin(alpha_offset + 2 * M_PI * total_elapsed_sec / 3.0));
+        glm::mat4 trans = glm::rotate(glm::mat4(1.0f),
+                                      glm::radians(total_elapsed_sec * 120.0f),
+                                      rotation_axis);
+        surface->set_transformation(trans);
+
+        float const alpha_amplitude = (1.0f - min_alpha) / 2.0f;
+        surface->set_alpha(min_alpha + alpha_amplitude +
+                           alpha_amplitude *
+                           sin(alpha_offset + 2 * M_PI * total_elapsed_sec /
+                               3.0));
     }
 
 private:
-    ms::Surface* surface;
+    std::shared_ptr<ms::Surface> surface;
     geom::Size display_size;
     float x;
     float y;
@@ -245,33 +213,38 @@ private:
 
 ///\internal [RenderSurfacesServerConfiguration_tag]
 // Extend the default configuration to manage moveables.
-class RenderSurfacesServerConfiguration : public mir::DefaultServerConfiguration
+class RenderSurfacesServerConfiguration : public me::ServerConfiguration
 {
 public:
-    RenderSurfacesServerConfiguration(int argc, char const** argv)
-        : mir::DefaultServerConfiguration(argc, argv)
-    {
-        namespace po = boost::program_options;
+    RenderSurfacesServerConfiguration(int argc, char const** argv) :
+        ServerConfiguration([argc, argv]
+        {
+            auto result = std::make_shared<mo::DefaultConfiguration>(argc, argv);
 
-        add_options()
-            (surfaces_to_render, po::value<int>(),  "Number of surfaces to render"
-                                                    " [int:default=5]")
-            (display_cursor, po::value<bool>(), "Display test cursor. (If input is "
-                                                "disabled it gets animated.) "
-                                                "[bool:default=false]");
+            namespace po = boost::program_options;
+
+            result->add_options()
+                (surfaces_to_render, po::value<int>()->default_value(5),
+                    "Number of surfaces to render");
+
+            return result;
+        }())
+    {
     }
 
     ///\internal [RenderSurfacesServerConfiguration_stubs_tag]
     // Stub out server connectivity.
-    std::shared_ptr<mf::Communicator> the_communicator() override
+    std::shared_ptr<mf::Connector> the_connector() override
     {
-        struct NullCommunicator : public mf::Communicator
+        struct NullConnector : public mf::Connector
         {
             void start() {}
             void stop() {}
+            int client_socket_fd() const override { return 0; }
+            int client_socket_fd(std::function<void(std::shared_ptr<mf::Session> const&)> const&) const override { return 0; }
         };
 
-        return std::make_shared<NullCommunicator>();
+        return std::make_shared<NullConnector>();
     }
     ///\internal [RenderSurfacesServerConfiguration_stubs_tag]
 
@@ -282,48 +255,78 @@ public:
         class RenderResourcesBufferInitializer : public mg::BufferInitializer
         {
         public:
-            RenderResourcesBufferInitializer()
-                : img_renderer{mir_image.pixel_data,
-                               geom::Size{mir_image.width, mir_image.height},
-                               mir_image.bytes_per_pixel}
+            RenderResourcesBufferInitializer(std::unique_ptr<mg::GLContext> gl_context)
+                : gl_context{std::move(gl_context)}
             {
             }
 
-            void operator()(mc::Buffer& buffer)
+            void operator()(mg::Buffer& buffer)
             {
+                auto using_gl_context = mir::raii::paired_calls(
+                    [this] { gl_context->make_current(); },
+                    [this] { gl_context->release_current(); });
+
+                mt::ImageRenderer img_renderer{mir_image.pixel_data,
+                               geom::Size{mir_image.width, mir_image.height},
+                               mir_image.bytes_per_pixel};
                 mt::BufferRenderTarget brt{buffer};
                 brt.make_current();
                 img_renderer.render();
             }
 
         private:
-            mt::ImageRenderer img_renderer;
+            std::unique_ptr<mg::GLContext> const gl_context;
+
         };
 
-        return std::make_shared<RenderResourcesBufferInitializer>();
+        return std::make_shared<RenderResourcesBufferInitializer>(the_display()->create_gl_context());
     }
     ///\internal [RenderResourcesBufferInitializer_tag]
 
-    ///\internal [RenderSurfacesCompositingStrategy_tag]
-    // Decorate the DefaultCompositingStrategy in order to move surfaces.
-    std::shared_ptr<mc::CompositingStrategy> the_compositing_strategy() override
+    // Unless the compositor starts before we create the surfaces it won't respond to
+    // the change notification that causes.
+    std::shared_ptr<mir::ServerStatusListener> the_server_status_listener()
     {
-        class RenderSurfacesCompositingStrategy : public mc::CompositingStrategy
+        struct ServerStatusListener : mir::ServerStatusListener
+        {
+            ServerStatusListener(std::function<void()> create_surfaces, std::shared_ptr<mir::ServerStatusListener> wrapped) :
+                create_surfaces(create_surfaces), wrapped(wrapped) {}
+
+            virtual void paused() override { wrapped->paused(); }
+            virtual void resumed() override { wrapped->resumed(); }
+            virtual void started() override { wrapped->started(); create_surfaces(); create_surfaces = []{}; }
+
+            std::function<void()> create_surfaces;
+            std::shared_ptr<mir::ServerStatusListener> const wrapped;
+        };
+
+        return server_status_listener(
+            [this]()
+            {
+                auto wrapped = ServerConfiguration::the_server_status_listener();
+                return std::make_shared<ServerStatusListener>([this] { create_surfaces(); }, wrapped);
+            });
+    }
+
+    ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
+    // Decorate the DefaultDisplayBufferCompositor in order to move surfaces.
+    std::shared_ptr<mc::DisplayBufferCompositorFactory> the_display_buffer_compositor_factory() override
+    {
+        class RenderSurfacesDisplayBufferCompositor : public mc::DisplayBufferCompositor
         {
         public:
-            RenderSurfacesCompositingStrategy(std::shared_ptr<mc::Renderables> const& renderables,
-                                              std::shared_ptr<mg::Renderer> const& renderer,
-                                              std::shared_ptr<mc::OverlayRenderer> const& overlay_renderer,
-                                              std::vector<Moveable>& moveables)
-                : default_compositing_strategy{renderables, renderer, overlay_renderer},
-                  frames{0},
-                  moveables(moveables)
+            RenderSurfacesDisplayBufferCompositor(
+                std::unique_ptr<DisplayBufferCompositor> db_compositor,
+                std::vector<Moveable>& moveables)
+                : db_compositor{std::move(db_compositor)},
+                  moveables(moveables),
+                  frames{0}
             {
             }
 
-            void render(mg::DisplayBuffer& display_buffer)
+            void composite()
             {
-                animate_cursor();
+                while (!created) std::this_thread::yield();
                 stop_watch.stop();
                 if (stop_watch.elapsed_seconds_since_last_restart() >= 1)
                 {
@@ -333,7 +336,7 @@ public:
                 }
 
                 glClearColor(0.0, 1.0, 0.0, 1.0);
-                default_compositing_strategy.render(display_buffer);
+                db_compositor->composite();
 
                 for (auto& m : moveables)
                     m.step();
@@ -342,28 +345,57 @@ public:
             }
 
         private:
-            mc::DefaultCompositingStrategy default_compositing_strategy;
+            std::unique_ptr<DisplayBufferCompositor> const db_compositor;
             StopWatch stop_watch;
+            std::vector<Moveable>& moveables;
             uint32_t frames;
+        };
+
+        class RenderSurfacesDisplayBufferCompositorFactory : public mc::DisplayBufferCompositorFactory
+        {
+        public:
+            RenderSurfacesDisplayBufferCompositorFactory(
+                std::shared_ptr<mc::DisplayBufferCompositorFactory> const& factory,
+                std::vector<Moveable>& moveables)
+                : factory{factory},
+                  moveables(moveables)
+            {
+            }
+
+            std::unique_ptr<mc::DisplayBufferCompositor> create_compositor_for(mg::DisplayBuffer& display_buffer)
+            {
+                auto compositor = factory->create_compositor_for(display_buffer);
+                auto raw = new RenderSurfacesDisplayBufferCompositor(
+                    std::move(compositor), moveables);
+                return std::unique_ptr<RenderSurfacesDisplayBufferCompositor>(raw);
+            }
+
+        private:
+            std::shared_ptr<mc::DisplayBufferCompositorFactory> const factory;
             std::vector<Moveable>& moveables;
         };
 
-        return std::make_shared<RenderSurfacesCompositingStrategy>(the_renderables(),
-                                                                   the_renderer(),
-                                                                   the_overlay_renderer(),
-                                                                   moveables);
+        return std::make_shared<RenderSurfacesDisplayBufferCompositorFactory>(
+            me::ServerConfiguration::the_display_buffer_compositor_factory(),
+            moveables);
     }
-    ///\internal [RenderSurfacesCompositingStrategy_tag]
+    ///\internal [RenderSurfacesDisplayBufferCompositor_tag]
 
     // New function to initialize moveables with surfaces
     void create_surfaces()
     {
-        moveables.resize(the_options()->get(surfaces_to_render, 5));
+        moveables.resize(the_options()->get<int>(surfaces_to_render));
         std::cout << "Rendering " << moveables.size() << " surfaces" << std::endl;
 
         auto const display = the_display();
-        auto const surface_builder = the_surface_builder();
-        geom::Size const display_size{display->view_area().size};
+        auto const surface_coordinator = the_surface_coordinator();
+        /* TODO: Get proper configuration */
+        geom::Rectangles view_area;
+        display->for_each_display_buffer([&view_area](mg::DisplayBuffer const& db)
+        {
+            view_area.add(db.view_area());
+        });
+        geom::Size const display_size{view_area.bounding_rectangle().size};
         uint32_t const surface_side{300};
         geom::Size const surface_size{surface_side, surface_side};
 
@@ -375,17 +407,23 @@ public:
         int i = 0;
         for (auto& m : moveables)
         {
-            std::shared_ptr<ms::Surface> s = surface_builder->create_surface(
-                    msh::a_surface().of_size(surface_size)
+            auto const s = surface_coordinator->add_surface(
+                    ms::a_surface().of_size(surface_size)
                                    .of_pixel_format(surface_pf)
-                                   .of_buffer_usage(mc::BufferUsage::hardware)
-                    ).lock();
+                                   .of_buffer_usage(mg::BufferUsage::hardware),
+                    nullptr);
 
             /*
-             * Let the system know that the surface is suitable for rendering
-             * (i.e., that it contains buffers with valid contents).
+             * We call swap_buffers() twice so that the surface is
+             * considers the first buffer to be posted.
+             * (TODO There must be a better way!)
              */
-            s->flag_for_render();
+            {
+                mg::Buffer* buffer{nullptr};
+                auto const complete = [&](mg::Buffer* new_buf){ buffer = new_buf; };
+                s->swap_buffers(buffer, complete);
+                s->swap_buffers(buffer, complete);
+            }
 
             /*
              * Place each surface at a different starting location and give it a
@@ -395,30 +433,15 @@ public:
             uint32_t const y = h * (0.5 + 0.25 * sin(i * angular_step)) - surface_side / 2.0;
 
             s->move_to({x, y});
-            m = Moveable(*s, display_size,
+            m = Moveable(s, display_size,
                     cos(0.1f + i * M_PI / 6.0f) * w / 3.0f,
                     sin(0.1f + i * M_PI / 6.0f) * h / 3.0f,
                     glm::vec3{(i % 3 == 0) * 1.0f, (i % 3 == 1) * 1.0f, (i % 3 == 2) * 1.0f},
                     2.0f * M_PI * cos(i));
             ++i;
         }
-    }
 
-    bool input_is_on()
-    {
-        return the_options()->get("enable-input", ::input_is_on);
-    }
-
-    std::weak_ptr<mg::Cursor> the_cursor()
-    {
-        if (the_options()->get(display_cursor, false))
-        {
-            return the_display()->the_cursor();
-        }
-        else
-        {
-            return {};
-        }
+        created = true;
     }
 
 private:
@@ -435,11 +458,6 @@ try
 
     mir::run_mir(conf, [&](mir::DisplayServer&)
     {
-        conf.create_surfaces();
-
-        cursor = conf.the_cursor();
-
-        input_is_on = conf.input_is_on();
     });
     ///\internal [main_tag]
 

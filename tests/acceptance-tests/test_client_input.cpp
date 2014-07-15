@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -14,47 +14,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Robert Carr <robert.carr@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "mir/graphics/display.h"
-#include "mir/graphics/viewable_area.h"
-#include "mir/shell/surface_creation_parameters.h"
-#include "mir/shell/placement_strategy.h"
-#include "mir/shell/surface_factory.h"
-#include "mir/shell/surface.h"
-#include "mir/surfaces/surface_controller.h"
-#include "mir/surfaces/surface_stack_model.h"
+#include "mir/scene/surface_creation_parameters.h"
+#include "mir/scene/placement_strategy.h"
+#include "mir/scene/surface.h"
+#include "src/server/scene/session_container.h"
+#include "mir/scene/session.h"
+#include "mir/shell/surface_coordinator_wrapper.h"
 
-#include "src/server/input/android/android_input_manager.h"
-#include "src/server/input/android/android_input_targeter.h"
-
-#include "mir_toolkit/mir_client_library.h"
-
-#include "mir_test/fake_shared.h"
 #include "mir_test/fake_event_hub.h"
-#include "mir_test/event_factory.h"
 #include "mir_test/wait_condition.h"
-#include "mir_test_framework/display_server_test_fixture.h"
+#include "mir_test/client_event_matchers.h"
+#include "mir_test/barrier.h"
+#include "mir_test_framework/deferred_in_process_server.h"
 #include "mir_test_framework/input_testing_server_configuration.h"
+#include "mir_test_framework/input_testing_client_configuration.h"
+#include "mir_test_framework/declarative_placement_strategy.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-keysyms.h>
-
-#include <thread>
-#include <functional>
-#include <map>
 
 namespace mi = mir::input;
-namespace mia = mi::android;
 namespace mis = mi::synthesis;
-namespace mf = mir::frontend;
 namespace msh = mir::shell;
-namespace me = mir::events;
-namespace ms = mir::surfaces;
-namespace mg = mir::graphics;
+namespace ms = mir::scene;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
@@ -62,713 +48,533 @@ namespace mtf = mir_test_framework;
 
 namespace
 {
-    char const* const mir_test_socket = mtf::test_socket_file().c_str();
-}
-
-namespace
+struct ServerConfiguration : mtf::InputTestingServerConfiguration
 {
+    mt::Barrier& input_cb_setup_fence;
 
-struct ClientConfig : mtf::TestingClientConfiguration
-{
-    ClientConfig() :
-        connection(0),
-        surface(0)
+    static geom::Rectangle const display_bounds;
+
+    std::function<void(mtf::InputTestingServerConfiguration& server)> produce_events;
+    mtf::SurfaceGeometries client_geometries;
+    mtf::SurfaceDepths client_depths;
+
+    ServerConfiguration(mt::Barrier& input_cb_setup_fence) : 
+        InputTestingServerConfiguration({display_bounds}),
+        input_cb_setup_fence(input_cb_setup_fence)
     {
     }
 
-    static void connection_callback(MirConnection* connection, void* context)
+    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
     {
-        ClientConfig* config = reinterpret_cast<ClientConfig *>(context);
-        config->connection = connection;
+        return std::make_shared<mtf::DeclarativePlacementStrategy>(
+            InputTestingServerConfiguration::the_placement_strategy(),
+            client_geometries, client_depths);
     }
 
-    static void create_surface_callback(MirSurface* surface, void* context)
+    void inject_input()
     {
-        ClientConfig* config = reinterpret_cast<ClientConfig *>(context);
-        config->surface_created(surface);
+        input_cb_setup_fence.ready();
+        produce_events(*this);
     }
 
-    static void release_surface_callback(MirSurface* surface, void* context)
-    {
-        ClientConfig* config = reinterpret_cast<ClientConfig *>(context);
-        config->surface_released(surface);
-    }
+    std::function<std::shared_ptr<ms::SurfaceCoordinator>(std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)> scwrapper
+        = [](std::shared_ptr<ms::SurfaceCoordinator> const& wrapped) { return wrapped; };
 
-    virtual void connected(MirConnection* new_connection)
+    std::shared_ptr<ms::SurfaceCoordinator>
+    wrap_surface_coordinator(std::shared_ptr<ms::SurfaceCoordinator> const& wrapped) override
     {
-        connection = new_connection;
+        return scwrapper(wrapped);
     }
-
-    virtual void surface_created(MirSurface* new_surface)
-    {
-        surface = new_surface;
-    }
-
-    virtual void surface_released(MirSurface* /* released_surface */)
-    {
-        surface = NULL;
-    }
-
-    MirConnection* connection;
-    MirSurface* surface;
 };
 
-struct MockInputHandler
+geom::Rectangle const ServerConfiguration::display_bounds = {{0, 0}, {1600, 1600}};
+
+struct ClientConfig : mtf::InputTestingClientConfiguration
 {
-    MOCK_METHOD1(handle_input, void(MirEvent const*));
+    std::function<void(MockInputHandler&, mt::WaitCondition&)> expect_cb;
+
+    ClientConfig(std::string const& client_name, mt::Barrier& client_ready_fence)
+        : InputTestingClientConfiguration(client_name, client_ready_fence)
+    {
+    }
+
+    void tear_down() { if (thread.joinable()) thread.join(); }
+
+    void expect_input(MockInputHandler &handler, mt::WaitCondition& events_received) override
+    {
+        expect_cb(handler, events_received);
+    }
+
+    void exec() { thread = std::thread([this]{ mtf::InputTestingClientConfiguration::exec(); }); }
+
+private:
+    std::thread thread;
 };
 
-struct InputClient : ClientConfig
+struct TestClientInput : mtf::DeferredInProcessServer
 {
-    InputClient(std::string const& surface_name)
-      : surface_name(surface_name)
+    std::string const arbitrary_client_name{"input-test-client"};
+    std::string const test_client_name_1 = "1";
+    std::string const test_client_name_2 = "2";
+
+    mt::Barrier fence{2};
+    mt::WaitCondition second_client_done;
+    ServerConfiguration server_configuration{fence};
+
+    mir::DefaultServerConfiguration& server_config() override { return server_configuration; }
+
+    ClientConfig client_config{arbitrary_client_name, fence};
+    ClientConfig client_config_1{test_client_name_1, fence};
+    ClientConfig client_config_2{test_client_name_2, fence};
+
+    void start_server()
     {
+        DeferredInProcessServer::start_server();
+        server_configuration.exec();
     }
 
-    virtual void surface_created(MirSurface* new_surface) override
+    void start_client(mtf::InputTestingClientConfiguration& config)
     {
-        ClientConfig::surface_created(new_surface);
-
-        MirEventDelegate const event_delegate =
-        {
-            handle_input,
-            this
-        };
-
-        // Set this in the callback, not main thread to avoid missing test events
-        mir_surface_set_event_handler(surface, &event_delegate);
+        config.connect_string = new_connection();
+        config.exec();
     }
 
-    static void handle_input(MirSurface* /* surface */, MirEvent const* ev, void* context)
+    void TearDown()
     {
-        auto client = static_cast<InputClient *>(context);
-
-        client->handler->handle_input(ev);
+        client_config.tear_down();
+        client_config_1.tear_down();
+        client_config_2.tear_down();
+        server_configuration.on_exit();
+        DeferredInProcessServer::TearDown();
     }
-
-    virtual void expect_input(mt::WaitCondition&) = 0;
-
-    virtual MirSurfaceParameters parameters()
-    {
-        MirSurfaceParameters const request_params =
-         {
-             surface_name.c_str(),
-             surface_width, surface_height,
-             mir_pixel_format_abgr_8888,
-             mir_buffer_usage_hardware
-         };
-        return request_params;
-    }
-
-    void exec()
-    {
-        handler = std::make_shared<MockInputHandler>();
-
-        expect_input(events_received);
-
-        mir_wait_for(mir_connect(
-            mir_test_socket,
-            __PRETTY_FUNCTION__,
-            connection_callback,
-            this));
-         ASSERT_TRUE(connection != NULL);
-
-         auto request_params = parameters();
-         mir_wait_for(mir_connection_create_surface(connection, &request_params, create_surface_callback, this));
-
-         events_received.wait_for_at_most_seconds(60);
-
-         mir_surface_release_sync(surface);
-
-         mir_connection_release(connection);
-
-         // ClientConfiguration d'tor is not called on client side so we need this
-         // in order to not leak the Mock object.
-         handler.reset();
-    }
-
-    std::shared_ptr<MockInputHandler> handler;
-    mt::WaitCondition events_received;
-
-    std::string const surface_name;
-
-    static int const surface_width = 100;
-    static int const surface_height = 100;
 };
-
-MATCHER(KeyDownEvent, "")
-{
-    if (arg->type != mir_event_type_key)
-        return false;
-    if (arg->key.action != mir_key_action_down) // Key down
-        return false;
-
-    return true;
-}
-MATCHER_P(KeyOfSymbol, keysym, "")
-{
-    if (static_cast<xkb_keysym_t>(arg->key.key_code) == (uint)keysym)
-        return true;
-    return false;
 }
 
-MATCHER(HoverEnterEvent, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_hover_enter)
-        return false;
+using namespace ::testing;
+using MockHandler = mtf::InputTestingClientConfiguration::MockInputHandler;
 
-    return true;
-}
-MATCHER(HoverExitEvent, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_hover_exit)
-        return false;
-
-    return true;
-}
-
-MATCHER_P2(ButtonDownEvent, x, y, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_down)
-        return false;
-    if (arg->motion.button_state == 0)
-        return false;
-    if (arg->motion.pointer_coordinates[0].x != x)
-        return false;
-    if (arg->motion.pointer_coordinates[0].y != y)
-        return false;
-    return true;
-}
-
-MATCHER_P2(ButtonUpEvent, x, y, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_up)
-        return false;
-    if (arg->motion.pointer_coordinates[0].x != x)
-        return false;
-    if (arg->motion.pointer_coordinates[0].y != y)
-        return false;
-    return true;
-}
-
-MATCHER_P2(MotionEventWithPosition, x, y, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_move &&
-        arg->motion.action != mir_motion_action_hover_move)
-        return false;
-    if (arg->motion.pointer_coordinates[0].x != x)
-        return false;
-    if (arg->motion.pointer_coordinates[0].y != y)
-        return false;
-    return true;
-}
-
-MATCHER(MovementEvent, "")
-{
-    if (arg->type != mir_event_type_motion)
-        return false;
-    if (arg->motion.action != mir_motion_action_move &&
-        arg->motion.action != mir_motion_action_hover_move)
-        return false;
-    return true;
-}
-
-}
-
-
-using TestClientInput = BespokeDisplayServerTestFixture;
 
 TEST_F(TestClientInput, clients_receive_key_input)
 {
-    using namespace ::testing;
-    
-    int const num_events_produced = 3;
-    static std::string const test_client_name = "1";
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
+         {
+             int const num_events_produced = 3;
 
-    struct ServerConfiguration : mtf::InputTestingServerConfiguration
-    {
-        void inject_input()
+             for (int i = 0; i < num_events_produced; i++)
+                 server.fake_event_hub->synthesize_event(mis::a_key_down_event()
+                                                         .of_scancode(KEY_ENTER));
+         };
+
+    start_server();
+
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-            wait_until_client_appears(test_client_name);
-            for (int i = 0; i < num_events_produced; i++)
-                fake_event_hub->synthesize_event(mis::a_key_down_event()
-                                                 .of_scancode(KEY_ENTER));
-        }
-    } server_config;
-    launch_server_process(server_config);
-    
-    struct KeyReceivingClient : InputClient
-    {
-        KeyReceivingClient() : InputClient(test_client_name) {}
-        void expect_input(mt::WaitCondition& events_received) override
-        {
-            using namespace ::testing;
             InSequence seq;
 
-            EXPECT_CALL(*handler, handle_input(KeyDownEvent())).Times(2);
-            EXPECT_CALL(*handler, handle_input(KeyDownEvent())).Times(1)
+            EXPECT_CALL(handler, handle_input(mt::KeyDownEvent())).Times(2);
+            EXPECT_CALL(handler, handle_input(mt::KeyDownEvent())).Times(1)
                 .WillOnce(mt::WakeUp(&events_received));
-        }
-    } client_config;
-    launch_client_process(client_config);
+
+        };
+    start_client(client_config);
 }
 
 TEST_F(TestClientInput, clients_receive_us_english_mapped_keys)
 {
-    using namespace ::testing;
-    static std::string const test_client_name = "1";
-    
-    struct ServerConfiguration : mtf::InputTestingServerConfiguration
-    {
-        void inject_input()
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
         {
-            wait_until_client_appears(test_client_name);
+            server.fake_event_hub->synthesize_event(mis::a_key_down_event()
+                .of_scancode(KEY_LEFTSHIFT));
+            server.fake_event_hub->synthesize_event(mis::a_key_down_event()
+                .of_scancode(KEY_4));
+        };
+    start_server();
 
-            fake_event_hub->synthesize_event(mis::a_key_down_event()
-                                             .of_scancode(KEY_LEFTSHIFT));
-            fake_event_hub->synthesize_event(mis::a_key_down_event()
-                                             .of_scancode(KEY_4));
-
-        }
-    } server_config;
-    launch_server_process(server_config);
-    
-    struct KeyReceivingClient : InputClient
-    {
-        KeyReceivingClient() : InputClient(test_client_name) {}
-
-        void expect_input(mt::WaitCondition& events_received) override
+    client_config.expect_cb =  [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-            using namespace ::testing;
-
             InSequence seq;
-            EXPECT_CALL(*handler, handle_input(AllOf(KeyDownEvent(), KeyOfSymbol(XKB_KEY_Shift_L)))).Times(1);
-            EXPECT_CALL(*handler, handle_input(AllOf(KeyDownEvent(), KeyOfSymbol(XKB_KEY_dollar)))).Times(1)
+
+            EXPECT_CALL(handler, handle_input(AllOf(mt::KeyDownEvent(), mt::KeyOfSymbol(XKB_KEY_Shift_L)))).Times(1);
+            EXPECT_CALL(handler, handle_input(AllOf(mt::KeyDownEvent(), mt::KeyOfSymbol(XKB_KEY_dollar)))).Times(1)
                 .WillOnce(mt::WakeUp(&events_received));
-        }
-    } client_config;
-    launch_client_process(client_config);
+        };
+    start_client(client_config);
 }
 
 TEST_F(TestClientInput, clients_receive_motion_inside_window)
 {
-    using namespace ::testing;
-    static std::string const test_client_name = "1";
-    
-    struct ServerConfiguration : public mtf::InputTestingServerConfiguration
-    {
-        void inject_input()
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
         {
-            wait_until_client_appears(test_client_name);
-            
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(InputClient::surface_width,
-                                                                                 InputClient::surface_height));
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(2,2));
-        }
-    } server_config;
-    launch_server_process(server_config);
-    
-    struct MotionReceivingClient : InputClient
-    {
-        MotionReceivingClient() : InputClient(test_client_name) {}
+             server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(mtf::InputTestingClientConfiguration::surface_width - 1,
+                 mtf::InputTestingClientConfiguration::surface_height - 1));
+             server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(2,2));
+        };
+    start_server();
 
-        void expect_input(mt::WaitCondition& events_received) override
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-            using namespace ::testing;
-            
             InSequence seq;
 
             // We should see the cursor enter
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(1);
-            EXPECT_CALL(*handler, handle_input(
-                MotionEventWithPosition(InputClient::surface_width,
-                                        InputClient::surface_height))).Times(1)
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(1);
+            EXPECT_CALL(handler, handle_input(
+                mt::MotionEventWithPosition(mtf::InputTestingClientConfiguration::surface_width - 1,
+                                        mtf::InputTestingClientConfiguration::surface_height - 1))).Times(1)
                 .WillOnce(mt::WakeUp(&events_received));
             // But we should not receive an event for the second movement outside of our surface!
-        }
-    } client_config;
-    launch_client_process(client_config);
+        };
+    start_client(client_config);
 }
 
 TEST_F(TestClientInput, clients_receive_button_events_inside_window)
 {
-    using namespace ::testing;
-    
-    static std::string const test_client_name = "1";
-    
-    struct ServerConfiguration : public mtf::InputTestingServerConfiguration
-    {
-        void inject_input()
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
         {
-            wait_until_client_appears(test_client_name);
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-        }
-    } server_config;
-    launch_server_process(server_config);
-    
-    struct ButtonReceivingClient : InputClient
-    {
-        ButtonReceivingClient() : InputClient(test_client_name) {}
+             server.fake_event_hub->synthesize_event(mis::a_button_down_event()
+                 .of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+        };
+    start_server();
 
-        void expect_input(mt::WaitCondition& events_received) override
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-            using namespace ::testing;
-            
             InSequence seq;
 
             // The cursor starts at (0, 0).
-            EXPECT_CALL(*handler, handle_input(ButtonDownEvent(0, 0))).Times(1)
+            EXPECT_CALL(handler, handle_input(mt::ButtonDownEvent(0, 0))).Times(1)
                 .WillOnce(mt::WakeUp(&events_received));
-        }
-    } client_config;
-    launch_client_process(client_config);
-}
-
-namespace
-{
-typedef std::map<std::string, geom::Rectangle> GeometryList;
-
-struct StaticPlacementStrategy : public msh::PlacementStrategy
-{
-    StaticPlacementStrategy(GeometryList const& positions)
-        : surface_geometry_by_name(positions)
-    {
-    }
-
-    msh::SurfaceCreationParameters place(msh::SurfaceCreationParameters const& request_parameters)
-    {
-        auto placed = request_parameters;
-        auto geometry = surface_geometry_by_name[request_parameters.name];
-
-        placed.top_left = geometry.top_left;
-        placed.size = geometry.size;
-        
-        return placed;
-    }
-    GeometryList surface_geometry_by_name;
-};
-
+        };
+    start_client(client_config);
 }
 
 TEST_F(TestClientInput, multiple_clients_receive_motion_inside_windows)
 {
-    using namespace ::testing;
-    
     static int const screen_width = 1000;
     static int const screen_height = 800;
     static int const client_height = screen_height/2;
     static int const client_width = screen_width/2;
-    static std::string const test_client_1 = "1";
-    static std::string const test_client_2 = "2";
-    
-    struct ServerConfiguration : mtf::InputTestingServerConfiguration
-    {
-        std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
-        {
-            static GeometryList positions;
-            positions[test_client_1] = geom::Rectangle{geom::Point{0, 0},
-                geom::Size{client_width, client_height}};
-            positions[test_client_2] = geom::Rectangle{geom::Point{screen_width/2, screen_height/2},
-                geom::Size{client_width, client_height}};
 
-            return std::make_shared<StaticPlacementStrategy>(positions);
-        }
-        
-        geom::Rectangle the_screen_geometry() override
+    fence.reset(3);
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
         {
-            return geom::Rectangle{geom::Point{0, 0}, geom::Size{screen_width, screen_height}};
-        }
-
-        void inject_input() override
-        {
-            wait_until_client_appears(test_client_1);
-            wait_until_client_appears(test_client_2);
             // In the bounds of the first surface
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(screen_width/2-1, screen_height/2-1));
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(screen_width/2-1, screen_height/2-1));
             // In the bounds of the second surface
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(screen_width/2, screen_height/2));
-        }
-    } server_config;
-    
-    launch_server_process(server_config);
-    
-    struct InputClientOne : InputClient
-    {
-        InputClientOne()
-           : InputClient(test_client_1)
-        {
-        }
-        
-        void expect_input(mt::WaitCondition& events_received) override
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(screen_width/2, screen_height/2));
+        };
+    server_configuration.client_geometries[test_client_name_1] = {{0, 0}, {client_width, client_height}};
+    server_configuration.client_geometries[test_client_name_2] = {{screen_width/2, screen_height/2}, {client_width, client_height}};
+    start_server();
+
+    client_config_1.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
             InSequence seq;
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(1);
-            EXPECT_CALL(*handler, handle_input(MotionEventWithPosition(client_width - 1, client_height - 1))).Times(1);
-            EXPECT_CALL(*handler, handle_input(HoverExitEvent())).Times(1)
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(1);
+            EXPECT_CALL(handler, handle_input(mt::MotionEventWithPosition(client_width - 1, client_height - 1))).Times(1);
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(1)
                 .WillOnce(mt::WakeUp(&events_received));
-        }
-    } client_1;
-
-    struct InputClientTwo : InputClient
-    {
-        InputClientTwo()
-            : InputClient(test_client_2)
+        };
+    client_config_2.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-        }
-        
-        void expect_input(mt::WaitCondition& events_received) override
-        {
-            InSequence seq;
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(1);
-            EXPECT_CALL(*handler, handle_input(MotionEventWithPosition(client_width - 1, client_height - 1))).Times(1)
-                .WillOnce(mt::WakeUp(&events_received));
-        }
-    } client_2;
+             InSequence seq;
+             EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(1);
+             EXPECT_CALL(handler, handle_input(mt::MotionEventWithPosition(client_width - 1, client_height - 1))).Times(1)
+                 .WillOnce(mt::WakeUp(&events_received));
+        };
 
-    launch_client_process(client_1);
-    launch_client_process(client_2);
+    start_client(client_config_1);
+    start_client(client_config_2);
 }
 
 namespace
 {
-struct RegionApplyingSurfaceFactory : public msh::SurfaceFactory
+struct RegionApplyingSurfaceCoordinator : msh::SurfaceCoordinatorWrapper
 {
-    RegionApplyingSurfaceFactory(std::shared_ptr<msh::SurfaceFactory> real_factory,
+    RegionApplyingSurfaceCoordinator(std::shared_ptr<ms::SurfaceCoordinator> wrapped_coordinator,
         std::initializer_list<geom::Rectangle> const& input_rectangles)
-        : underlying_factory(real_factory),
+        : msh::SurfaceCoordinatorWrapper(wrapped_coordinator),
           input_rectangles(input_rectangles)
     {
     }
-    
-    std::shared_ptr<msh::Surface> create_surface(msh::SurfaceCreationParameters const& params,
-                                                 mf::SurfaceId id,
-                                                 std::shared_ptr<me::EventSink> const& sink)
+
+    std::shared_ptr<ms::Surface> add_surface(
+        ms::SurfaceCreationParameters const& params,
+        ms::Session* session) override
     {
-        auto surface = underlying_factory->create_surface(params, id, sink);
+        auto surface = wrapped->add_surface(params, session);
 
         surface->set_input_region(input_rectangles);
 
         return surface;
     }
-    
-    std::shared_ptr<msh::SurfaceFactory> const underlying_factory;
+
     std::vector<geom::Rectangle> const input_rectangles;
 };
 }
+
 TEST_F(TestClientInput, clients_do_not_receive_motion_outside_input_region)
 {
-    using namespace ::testing;
-    static std::string const test_client_name = "1";
-    
     static int const screen_width = 100;
     static int const screen_height = 100;
-    
-    static geom::Rectangle const screen_geometry{geom::Point{0, 0},
-        geom::Size{screen_width, screen_height}};
 
-    static std::initializer_list<geom::Rectangle> client_input_regions = {
+    static std::initializer_list<geom::Rectangle> client_input_regions{
         {geom::Point{0, 0}, {screen_width-80, screen_height}},
         {geom::Point{screen_width-20, 0}, {screen_width-80, screen_height}}
     };
 
-    struct ServerConfiguration : mtf::InputTestingServerConfiguration
-    {
-        std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
+    server_configuration.scwrapper = [&](std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)
+        -> std::shared_ptr<ms::SurfaceCoordinator>
         {
-            static GeometryList positions;
-            positions[test_client_name] = screen_geometry;
-            
-            return std::make_shared<StaticPlacementStrategy>(positions);
-        }
-        std::shared_ptr<msh::SurfaceFactory> the_shell_surface_factory() override
+            return std::make_shared<RegionApplyingSurfaceCoordinator>(wrapped, client_input_regions);
+        };
+
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
         {
-            return std::make_shared<RegionApplyingSurfaceFactory>(InputTestingServerConfiguration::the_shell_surface_factory(),
-                client_input_regions);
-        }
-        geom::Rectangle the_screen_geometry() override
-        {
-            return screen_geometry;
-        }
-        
-        void inject_input() override
-        {
-            wait_until_client_appears(test_client_name);
-            
             // First we will move the cursor in to the input region on the left side of the window. We should see a click here
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1, 1));
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-            fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1, 1));
+            server.fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+            server.fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
             // Now in to the dead zone in the center of the window. We should not see a click here.
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(49, 49));
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-            fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(49, 49));
+            server.fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+            server.fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
             // Now in to the right edge of the window, in the right input region. Again we should see a click
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(49, 49));
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-            fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
-        }
-    } server_config;
-    
-    launch_server_process(server_config);
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(49, 49));
+            server.fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+            server.fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
+        };
+    start_server();
 
-    struct ClientConfig : InputClient
-    {
-        ClientConfig()
-            : InputClient(test_client_name)
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
         {
-        }
-
-        void expect_input(mt::WaitCondition& events_received) override
-        {
-
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(HoverExitEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(MovementEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::MovementEvent())).Times(AnyNumber());
 
             {
                 // We should see two of the three button pairs.
                 InSequence seq;
-                EXPECT_CALL(*handler, handle_input(ButtonDownEvent(1, 1))).Times(1);
-                EXPECT_CALL(*handler, handle_input(ButtonUpEvent(1, 1))).Times(1);
-                EXPECT_CALL(*handler, handle_input(ButtonDownEvent(99, 99))).Times(1);
-                EXPECT_CALL(*handler, handle_input(ButtonUpEvent(99, 99))).Times(1)
+                EXPECT_CALL(handler, handle_input(mt::ButtonDownEvent(1, 1))).Times(1);
+                EXPECT_CALL(handler, handle_input(mt::ButtonUpEvent(1, 1))).Times(1);
+                EXPECT_CALL(handler, handle_input(mt::ButtonDownEvent(99, 99))).Times(1);
+                EXPECT_CALL(handler, handle_input(mt::ButtonUpEvent(99, 99))).Times(1)
                     .WillOnce(mt::WakeUp(&events_received));
             }
-        }
-    } client_config;
-    launch_client_process(client_config);
+        };
+    start_client(client_config);
+}
+
+TEST_F(TestClientInput, scene_obscure_motion_events_by_stacking)
+{
+    static int const screen_width = 100;
+    static int const screen_height = 100;
+
+    static geom::Rectangle const screen_geometry{geom::Point{0, 0},
+        geom::Size{screen_width, screen_height}};
+
+
+    auto smaller_geometry = screen_geometry;
+    smaller_geometry.size.width = geom::Width{screen_width/2};
+
+    fence.reset(3);
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
+        {
+            // First we will move the cursor in to the region where client 2 obscures client 1
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1, 1));
+            server.fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+            server.fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
+            // Now we move to the unobscured region of client 1
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(50, 0));
+            server.fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
+            server.fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
+        };
+    server_configuration.client_geometries[test_client_name_1] = screen_geometry;
+    server_configuration.client_geometries[test_client_name_2] = smaller_geometry;
+    server_configuration.client_depths[test_client_name_1] = ms::DepthId{0};
+    server_configuration.client_depths[test_client_name_2] = ms::DepthId{1};
+
+    start_server();
+
+    client_config_1.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::MovementEvent())).Times(AnyNumber());
+            {
+                // We should only see one button event sequence.
+                InSequence seq;
+                EXPECT_CALL(handler, handle_input(mt::ButtonDownEvent(51, 1))).Times(1);
+                EXPECT_CALL(handler, handle_input(mt::ButtonUpEvent(51, 1))).Times(1)
+                    .WillOnce(mt::WakeUp(&events_received));
+            }
+        };
+
+    client_config_2.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::MovementEvent())).Times(AnyNumber());
+            {
+                // Likewise we should only see one button sequence.
+              InSequence seq;
+              EXPECT_CALL(handler, handle_input(mt::ButtonDownEvent(1, 1))).Times(1);
+              EXPECT_CALL(handler, handle_input(mt::ButtonUpEvent(1, 1))).Times(1)
+                  .WillOnce(mt::WakeUp(&events_received));
+            }
+        };
+
+    start_client(client_config_1);
+    start_client(client_config_2);
 }
 
 namespace
 {
-typedef std::map<std::string, ms::DepthId> DepthList;
 
-struct StackingSurfaceController : public ms::SurfaceController
+ACTION_P(SignalFence, fence)
 {
-    StackingSurfaceController(std::shared_ptr<ms::SurfaceStackModel> const& surface_stack_model, DepthList const& depths)
-        : SurfaceController(surface_stack_model),
-          surface_depths_by_name(depths)
-    {
-    }
-    
-    std::weak_ptr<ms::Surface> create_surface(msh::SurfaceCreationParameters const& params) override
-    {
-        return surface_stack->create_surface(params, surface_depths_by_name[params.name]);
-    }
-    
-    DepthList surface_depths_by_name;
-};
+    fence->wake_up_everyone();
 }
 
-TEST_F(TestClientInput, surfaces_obscure_motion_events_by_stacking)
+}
+
+TEST_F(TestClientInput, hidden_clients_do_not_receive_pointer_events)
+{
+    fence.reset(3);
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
+        {
+            // We send one event and then hide the surface on top before sending the next.
+            // So we expect each of the two surfaces to receive one even
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1,1));
+            // We use a fence to ensure we do not hide the client
+            // before event dispatch occurs
+            second_client_done.wait_for_at_most_seconds(60);
+
+            server.the_session_container()->for_each([&](std::shared_ptr<ms::Session> const& session) -> void
+            {
+                if (session->name() == test_client_name_2)
+                    session->hide();
+            });
+
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1,1));
+        };
+    server_configuration.client_depths[test_client_name_1] = ms::DepthId{0};
+    server_configuration.client_depths[test_client_name_2] = ms::DepthId{1};
+    start_server();
+
+    client_config_1.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::MotionEventWithPosition(2, 2))).Times(1)
+                .WillOnce(mt::WakeUp(&events_received));
+        };
+
+    client_config_2.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+            EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::HoverExitEvent())).Times(AnyNumber());
+            EXPECT_CALL(handler, handle_input(mt::MotionEventWithPosition(1, 1))).Times(1)
+                .WillOnce(DoAll(SignalFence(&second_client_done), mt::WakeUp(&events_received)));
+        };
+
+    start_client(client_config_1);
+    start_client(client_config_2);
+}
+
+TEST_F(TestClientInput, clients_receive_motion_within_co_ordinate_system_of_window)
+{
+    static int const screen_width = 1000;
+    static int const screen_height = 800;
+    static int const client_height = screen_height/2;
+    static int const client_width = screen_width/2;
+
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
+        {
+            server.the_session_container()->for_each([&](std::shared_ptr<ms::Session> const& session) -> void
+            {
+                session->default_surface()->move_to(geom::Point{screen_width/2-40, screen_height/2-80});
+            });
+            server.fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(screen_width/2+40, screen_height/2+90));
+        };
+    server_configuration.client_geometries[arbitrary_client_name] ={{screen_width/2, screen_height/2}, {client_width, client_height}};
+    start_server();
+
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+             InSequence seq;
+             EXPECT_CALL(handler, handle_input(mt::HoverEnterEvent())).Times(1);
+             EXPECT_CALL(handler, handle_input(mt::MotionEventWithPosition(80, 170))).Times(AnyNumber())
+                 .WillOnce(mt::WakeUp(&events_received));
+        };
+
+    start_client(client_config);
+}
+
+// TODO: Consider tests for more input devices with custom mapping (i.e. joysticks...)
+TEST_F(TestClientInput, usb_direct_input_devices_work)
 {
     using namespace ::testing;
-    
-    static std::string const test_client_name_1 = "1";
-    static std::string const test_client_name_2 = "2";
 
-    static int const screen_width = 100;
-    static int const screen_height = 100;
-    
-    static geom::Rectangle const screen_geometry{geom::Point{0, 0},
-        geom::Size{screen_width, screen_height}};
+    auto minimum_touch = mi::android::FakeEventHub::TouchScreenMinAxisValue;
+    auto maximum_touch = mi::android::FakeEventHub::TouchScreenMaxAxisValue;
+    auto display_width = ServerConfiguration::display_bounds.size.width.as_uint32_t();
+    auto display_height = ServerConfiguration::display_bounds.size.height.as_uint32_t();
 
-    struct ServerConiguration : mtf::InputTestingServerConfiguration
+    // We place a click 10% in to the touchscreens space in both axis, and a second at 0,0. Thus we expect to see a click at
+    // .1*screen_width/height and a second at zero zero.
+    static int const abs_touch_x_1 = minimum_touch+(maximum_touch-minimum_touch)*.10;
+    static int const abs_touch_y_1 = minimum_touch+(maximum_touch-minimum_touch)*.10;
+    static int const abs_touch_x_2 = 0;
+    static int const abs_touch_y_2 = 0;
+
+    static float const expected_scale_x = float(display_width) / (maximum_touch - minimum_touch + 1);
+    static float const expected_scale_y = float(display_height) / (maximum_touch - minimum_touch + 1);
+
+    static float const expected_motion_x_1 = expected_scale_x * abs_touch_x_1;
+    static float const expected_motion_y_1 = expected_scale_y * abs_touch_y_1;
+    static float const expected_motion_x_2 = expected_scale_x * abs_touch_x_2;
+    static float const expected_motion_y_2 = expected_scale_y * abs_touch_y_2;
+
+    server_configuration.produce_events = [&](mtf::InputTestingServerConfiguration& server)
+        {
+            server.fake_event_hub->synthesize_event(mis::a_touch_event().at_position(abs_touch_x_1, abs_touch_y_1));
+            server.fake_event_hub->synthesize_event(mis::a_touch_event().at_position(abs_touch_x_2, abs_touch_y_2));
+        };
+    server_configuration.client_geometries[arbitrary_client_name] = ServerConfiguration::display_bounds;
+    start_server();
+
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
+        {
+            InSequence seq;
+            EXPECT_CALL(handler, handle_input(
+                mt::TouchEvent(expected_motion_x_1, expected_motion_y_1))).Times(1);
+            EXPECT_CALL(handler, handle_input(
+                mt::MotionEventWithPosition(expected_motion_x_2, expected_motion_y_2))).Times(1)
+                .WillOnce(mt::WakeUp(&events_received));
+        };
+    start_client(client_config);
+}
+
+TEST_F(TestClientInput, send_mir_input_events_through_surface)
+{
+    MirEvent key_event;
+    std::memset(&key_event, 0, sizeof key_event);
+    key_event.type = mir_event_type_key;
+    key_event.key.action= mir_key_action_down;
+
+    server_configuration.produce_events = [key_event](mtf::InputTestingServerConfiguration& server)
+         {
+             server.the_session_container()->for_each([key_event](std::shared_ptr<ms::Session> const& session) -> void
+                {
+                    session->default_surface()->consume(key_event);
+                });
+         };
+
+    start_server();
+
+    client_config.expect_cb = [&](MockHandler& handler, mt::WaitCondition& events_received)
     {
-        std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy() override
-        {
-            static GeometryList positions;
-            positions[test_client_name_1] = screen_geometry;
-            
-            auto smaller_geometry = screen_geometry;
-            smaller_geometry.size.width = geom::Width{screen_width/2};
-            positions[test_client_name_2] = smaller_geometry;
-            
-            return std::make_shared<StaticPlacementStrategy>(positions);
-       }
-        
-        std::shared_ptr<msh::SurfaceBuilder> the_surface_builder() override
-        {
-            static DepthList depths;
-            depths[test_client_name_1] = ms::DepthId{0};
-            depths[test_client_name_2] = ms::DepthId{1};
-            
-            return std::make_shared<StackingSurfaceController>(the_surface_stack_model(), depths);
-        }
-        
-        void inject_input() override
-        {
-            wait_until_client_appears(test_client_name_1);
-            wait_until_client_appears(test_client_name_2);
-            
-            // First we will move the cursor in to the region where client 2 obscures client 1
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(1, 1));
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-            fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
-            // Now we move to the unobscured region of client 1
-            fake_event_hub->synthesize_event(mis::a_motion_event().with_movement(50, 0));
-            fake_event_hub->synthesize_event(mis::a_button_down_event().of_button(BTN_LEFT).with_action(mis::EventAction::Down));
-            fake_event_hub->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
-        }
-    } server_config;
-    
-    launch_server_process(server_config);
-
-    struct ClientConfigOne : InputClient
-    {
-        ClientConfigOne()
-            : InputClient(test_client_name_1)
-        {
-        }
-
-        void expect_input(mt::WaitCondition& events_received) override
-        {
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(HoverExitEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(MovementEvent())).Times(AnyNumber());
-
-            {
-                // We should only see one button event sequence.
-                InSequence seq;
-                EXPECT_CALL(*handler, handle_input(ButtonDownEvent(51, 1))).Times(1);
-                EXPECT_CALL(*handler, handle_input(ButtonUpEvent(51, 1))).Times(1)
-                    .WillOnce(mt::WakeUp(&events_received));
-            }
-        }
-    } client_config_1;
-    launch_client_process(client_config_1);
-
-    struct ClientConfigTwo : InputClient
-    {
-        ClientConfigTwo()
-            : InputClient(test_client_name_2)
-        {
-        }
-
-        void expect_input(mt::WaitCondition& events_received) override
-        {
-            EXPECT_CALL(*handler, handle_input(HoverEnterEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(HoverExitEvent())).Times(AnyNumber());
-            EXPECT_CALL(*handler, handle_input(MovementEvent())).Times(AnyNumber());
-
-            {
-                // Likewise we should only see one button sequence.
-              InSequence seq;
-              EXPECT_CALL(*handler, handle_input(ButtonDownEvent(1, 1))).Times(1);
-              EXPECT_CALL(*handler, handle_input(ButtonUpEvent(1, 1))).Times(1)
-                  .WillOnce(mt::WakeUp(&events_received));
-            }
-        }
-    } client_config_2;
-    launch_client_process(client_config_2);
+        EXPECT_CALL(handler, handle_input(mt::KeyDownEvent())).Times(1)
+                 .WillOnce(mt::WakeUp(&events_received));
+    };
+    start_client(client_config);
 }

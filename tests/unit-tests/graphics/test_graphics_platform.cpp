@@ -18,28 +18,24 @@
  */
 
 #include "mir/graphics/platform.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
-#include "mir/compositor/buffer_properties.h"
+#include "mir/graphics/graphic_buffer_allocator.h"
+#include "mir/graphics/buffer_properties.h"
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
+#include "mir_test_doubles/platform_factory.h"
 #ifndef ANDROID
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
-#include "mir_test_doubles/null_virtual_terminal.h"
-#include "src/server/graphics/gbm/gbm_platform.h"
 #include "mir_test_framework/udev_environment.h"
 #else
 #include "mir_test_doubles/mock_android_hw.h"
 #endif
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/logging/dumb_console_logger.h"
-#include "mir/options/program_option.h"
 
-#include "mir/graphics/null_display_report.h"
 
 #include <gtest/gtest.h>
 
-namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace ml = mir::logging;
 namespace geom = mir::geometry;
@@ -67,28 +63,13 @@ public:
         ON_CALL(mock_gbm, gbm_bo_get_format(_))
         .WillByDefault(Return(GBM_FORMAT_ARGB8888));
 
-        typedef mtd::MockEGL::generic_function_pointer_t func_ptr_t;
-
-        ON_CALL(mock_egl, eglGetProcAddress(StrEq("eglCreateImageKHR")))
-            .WillByDefault(Return(reinterpret_cast<func_ptr_t>(eglCreateImageKHR)));
-        ON_CALL(mock_egl, eglGetProcAddress(StrEq("eglDestroyImageKHR")))
-            .WillByDefault(Return(reinterpret_cast<func_ptr_t>(eglDestroyImageKHR)));
-        ON_CALL(mock_egl, eglGetProcAddress(StrEq("glEGLImageTargetTexture2DOES")))
-            .WillByDefault(Return(reinterpret_cast<func_ptr_t>(glEGLImageTargetTexture2DOES)));
-
-        fake_devices.add_standard_drm_devices();
+        fake_devices.add_standard_device("standard-drm-devices");
 #endif
     }
 
     std::shared_ptr<mg::Platform> create_platform()
     {
-#ifdef ANDROID
-        return mg::create_platform(std::make_shared<mo::ProgramOption>(), std::make_shared<mg::NullDisplayReport>());
-#else
-        return std::make_shared<mg::gbm::GBMPlatform>(
-            std::make_shared<mg::NullDisplayReport>(),
-            std::make_shared<mir::test::doubles::NullVirtualTerminal>());
-#endif
+        return mtd::create_platform_with_null_dependencies();
     }
 
     std::shared_ptr<ml::Logger> logger;
@@ -127,9 +108,9 @@ TEST_F(GraphicsPlatform, buffer_creation)
     ASSERT_NE(0u, supported_pixel_formats.size());
 
     geom::Size size{320, 240};
-    geom::PixelFormat const pf{supported_pixel_formats[0]};
-    mc::BufferUsage usage{mc::BufferUsage::hardware};
-    mc::BufferProperties buffer_properties{size, pf, usage};
+    MirPixelFormat const pf{supported_pixel_formats[0]};
+    mg::BufferUsage usage{mg::BufferUsage::hardware};
+    mg::BufferProperties buffer_properties{size, pf, usage};
 
     auto buffer = allocator->alloc_buffer(buffer_properties);
 

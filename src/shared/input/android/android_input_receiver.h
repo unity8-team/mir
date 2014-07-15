@@ -43,6 +43,7 @@ namespace input
 namespace receiver
 {
 class XKBMapper;
+class InputReceiverReport;
 
 namespace android
 {
@@ -51,17 +52,19 @@ namespace android
 class InputReceiver
 {
 public:
-    InputReceiver(droidinput::sp<droidinput::InputChannel> const& input_channel);
-    InputReceiver(int fd);
+    InputReceiver(droidinput::sp<droidinput::InputChannel> const& input_channel,
+                  std::shared_ptr<InputReceiverReport> const& report);
+    InputReceiver(int fd,
+                  std::shared_ptr<InputReceiverReport> const& report);
 
     virtual ~InputReceiver();
     int fd() const;
-    
+
     /// Synchronously receive an event with millisecond timeout. A negative timeout value
     /// is used to request indefinite polling.
     virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);
     virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev); }
-    
+
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
 
@@ -71,6 +74,8 @@ protected:
 
 private:
     droidinput::sp<droidinput::InputChannel> input_channel;
+    std::shared_ptr<InputReceiverReport> const report;
+
     std::shared_ptr<droidinput::InputConsumer> input_consumer;
     droidinput::PreallocatedInputEventFactory event_factory;
     droidinput::sp<droidinput::Looper> looper;
@@ -78,7 +83,7 @@ private:
     bool fd_added;
 
     std::shared_ptr<XKBMapper> xkb_mapper;
-    
+
     bool try_next_event(MirEvent &ev);
 };
 

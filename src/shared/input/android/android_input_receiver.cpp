@@ -19,6 +19,7 @@
 #include "android_input_receiver.h"
 
 #include "mir/input/xkb_mapper.h"
+#include "mir/input/input_receiver_report.h"
 #include "mir/input/android/android_input_lexicon.h"
 
 #include <androidfw/InputTransport.h>
@@ -29,8 +30,10 @@ namespace mircva = mircv::android;
 
 namespace mia = mir::input::android;
 
-mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> const& input_channel)
+mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> const& input_channel,
+                                     std::shared_ptr<mircv::InputReceiverReport> const& report)
   : input_channel(input_channel),
+    report(report),
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     looper(new droidinput::Looper(true)),
     fd_added(false),
@@ -38,8 +41,10 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
 {
 }
 
-mircva::InputReceiver::InputReceiver(int fd)
-  : input_channel(new droidinput::InputChannel(droidinput::String8(""), fd)), 
+mircva::InputReceiver::InputReceiver(int fd,
+                                     std::shared_ptr<mircv::InputReceiverReport> const& report)
+  : input_channel(new droidinput::InputChannel(droidinput::String8(""), fd)),
+    report(report),
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     looper(new droidinput::Looper(true)),
     fd_added(false),
@@ -65,7 +70,7 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
     // of XKBMapper per device id (or modify XKBMapper semantics)
     if (ev.type != mir_event_type_key)
         return;
-    
+
     xkb_mapper->update_state_and_map_event(ev.key);
 }
 
@@ -85,6 +90,8 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
         input_consumer->sendFinishedSignal(event_sequence_id, true);
 
+        report->received_event(ev);
+
         return true;
     }
    return false;
@@ -100,7 +107,7 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         looper->addFd(fd(), fd(), ALOOPER_EVENT_INPUT, nullptr, nullptr);
         fd_added = true;
     }
-    
+
     if(try_next_event(ev))
         return true;
 

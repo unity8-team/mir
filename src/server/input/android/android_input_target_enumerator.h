@@ -35,7 +35,7 @@ namespace droidinput = android;
 
 namespace mir
 {
-namespace surfaces
+namespace scene
 {
 class InputRegitrar;
 }
@@ -52,12 +52,12 @@ public:
     explicit InputTargetEnumerator(std::shared_ptr<input::InputTargets> const& targets,
                                    std::shared_ptr<WindowHandleRepository> const& repository);
     virtual ~InputTargetEnumerator() noexcept(true);
-    
+
     void for_each(std::function<void(droidinput::sp<droidinput::InputWindowHandle> const&)> const& callback);
-    
+
 private:
-    std::weak_ptr<input::InputTargets> const targets;
-    std::weak_ptr<input::android::WindowHandleRepository> const repository;
+    std::shared_ptr<input::InputTargets> const targets;
+    std::shared_ptr<input::android::WindowHandleRepository> const repository;
 };
 
 }

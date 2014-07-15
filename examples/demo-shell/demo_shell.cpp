@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -18,56 +18,98 @@
 
 /// \example demo_shell.cpp A simple mir shell
 
+#include "demo_renderer.h"
 #include "window_manager.h"
 #include "fullscreen_placement_strategy.h"
+#include "../server_configuration.h"
 
+#include "mir/options/default_configuration.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
-#include "mir/default_server_configuration.h"
-#include "mir/shell/session_manager.h"
-#include "mir/shell/registration_order_focus_sequence.h"
-#include "mir/shell/single_visibility_focus_mechanism.h"
-#include "mir/shell/session_container.h"
-#include "mir/shell/organising_surface_factory.h"
 #include "mir/graphics/display.h"
+#include "mir/input/composite_event_filter.h"
+#include "mir/compositor/renderer_factory.h"
 
 #include <iostream>
 
 namespace me = mir::examples;
-namespace msh = mir::shell;
+namespace ms = mir::scene;
 namespace mg = mir::graphics;
 namespace mf = mir::frontend;
 namespace mi = mir::input;
+namespace mo = mir::options;
 
 namespace mir
 {
 namespace examples
 {
 
-struct DemoServerConfiguration : mir::DefaultServerConfiguration
+class DemoRendererFactory : public compositor::RendererFactory
 {
+public:
+    DemoRendererFactory(std::shared_ptr<graphics::GLProgramFactory> const& gl_program_factory) :
+        gl_program_factory(gl_program_factory)
+    {
+    }
+
+    std::unique_ptr<compositor::Renderer> create_renderer_for(
+        geometry::Rectangle const& rect,
+        mir::compositor::DestinationAlpha dest_alpha) override
+    {
+        return std::unique_ptr<compositor::Renderer>(new DemoRenderer(*gl_program_factory, rect, dest_alpha));
+    }
+private:
+    std::shared_ptr<graphics::GLProgramFactory> const gl_program_factory;
+};
+
+class DemoServerConfiguration : public mir::examples::ServerConfiguration
+{
+public:
     DemoServerConfiguration(int argc, char const* argv[],
-                            std::initializer_list<std::shared_ptr<mi::EventFilter> const> const& filter_list)
-      : DefaultServerConfiguration(argc, argv),
+                            std::initializer_list<std::shared_ptr<mi::EventFilter>> const& filter_list)
+      : ServerConfiguration([argc, argv]
+        {
+            auto result = std::make_shared<mo::DefaultConfiguration>(argc, argv);
+
+            namespace po = boost::program_options;
+
+            result->add_options()
+                ("fullscreen-surfaces", "Make all surfaces fullscreen");
+
+            return result;
+        }()),
         filter_list(filter_list)
     {
     }
 
-    std::shared_ptr<msh::PlacementStrategy> the_shell_placement_strategy()
+    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
     {
         return shell_placement_strategy(
-            [this]
+            [this]() -> std::shared_ptr<ms::PlacementStrategy>
             {
-                return std::make_shared<me::FullscreenPlacementStrategy>(the_display());
+                if (the_options()->is_set("fullscreen-surfaces"))
+                    return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
+                else
+                    return DefaultServerConfiguration::the_placement_strategy();
             });
     }
 
-    std::initializer_list<std::shared_ptr<mi::EventFilter> const> the_event_filters() override
+    std::shared_ptr<mi::CompositeEventFilter> the_composite_event_filter() override
     {
-        return filter_list;
+        auto composite_filter = ServerConfiguration::the_composite_event_filter();
+        for (auto const& filter : filter_list)
+            composite_filter->append(filter);
+
+        return composite_filter;
     }
 
-    std::initializer_list<std::shared_ptr<mi::EventFilter> const> const filter_list;
+    std::shared_ptr<compositor::RendererFactory> the_renderer_factory() override
+    {
+        return std::make_shared<DemoRendererFactory>(the_gl_program_factory());
+    }
+
+private:
+    std::vector<std::shared_ptr<mi::EventFilter>> const filter_list;
 };
 
 }
@@ -84,7 +126,8 @@ try
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
             wm->set_focus_controller(config.the_focus_controller());
-            wm->set_session_manager(config.the_session_manager());
+            wm->set_display(config.the_display());
+            wm->set_compositor(config.the_compositor());
         });
     return 0;
 }

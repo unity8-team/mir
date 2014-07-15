@@ -13,10 +13,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Kevin DuBois <kevin.dubois@canonical.com> 
+ * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/logging/display_report.h"
+#include "src/server/report/logging/display_report.h"
 #include "mir/logging/logger.h"
 #include "mir_test_doubles/mock_egl.h"
 
@@ -25,6 +25,7 @@
 #include <string>
 
 namespace ml  = mir::logging;
+namespace mrl = mir::report::logging;
 namespace mtd = mir::test::doubles;
 
 namespace
@@ -93,7 +94,8 @@ std::string egl_string_mapping [] =
     STRMACRO(EGL_NON_CONFORMANT_CONFIG),
     STRMACRO(EGL_TRANSPARENT_RGB),
     STRMACRO(EGL_RGB_BUFFER),
-    STRMACRO(EGL_LUMINANCE_BUFFER)
+    STRMACRO(EGL_LUMINANCE_BUFFER),
+    STRMACRO(EGL_FRAMEBUFFER_TARGET_ANDROID)
 };
 #undef STRMACRO
 
@@ -121,6 +123,6 @@ TEST_F(DisplayReport, eglconfig)
             component));
     }
 
-    ml::DisplayReport report(logger);
+    mrl::DisplayReport report(logger);
     report.report_egl_configuration(disp, config);
 }

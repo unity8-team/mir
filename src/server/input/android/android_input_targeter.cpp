@@ -31,28 +31,31 @@
 
 namespace mi = mir::input;
 namespace mia = mi::android;
-namespace ms = mir::surfaces;
+namespace ms = mir::scene;
 
-mia::InputTargeter::InputTargeter(droidinput::sp<droidinput::InputDispatcherInterface> const& input_dispatcher,
+mia::InputTargeter::InputTargeter(std::shared_ptr<droidinput::InputDispatcherInterface> const& input_dispatcher,
                                   std::shared_ptr<mia::WindowHandleRepository> const& repository) :
     input_dispatcher(input_dispatcher),
     repository(repository)
 {
 }
 
+mia::InputTargeter::~InputTargeter() noexcept(true) {}
+
+
 void mia::InputTargeter::focus_cleared()
 {
     droidinput::sp<droidinput::InputWindowHandle> null_window = nullptr;
-    
+
     input_dispatcher->setKeyboardFocus(null_window);
 }
 
 void mia::InputTargeter::focus_changed(std::shared_ptr<mi::InputChannel const> const& focus_channel)
 {
     auto window_handle = repository->handle_for_channel(focus_channel);
-    
+
     if (window_handle == NULL)
         BOOST_THROW_EXCEPTION(std::logic_error("Attempt to set keyboard focus to an unregistered input channel"));
-    
+
     input_dispatcher->setKeyboardFocus(window_handle);
 }

@@ -16,172 +16,317 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "mir/compositor/buffer_stream_surfaces.h"
-#include "mir/compositor/swapper_factory.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
-#include "mir/surfaces/graphic_region.h"
-#include "src/server/compositor/switching_bundle.h"
+#include "src/server/compositor/buffer_stream_surfaces.h"
+#include "mir/graphics/graphic_buffer_allocator.h"
+#include "mir/time/timer.h"
+#include "src/server/compositor/buffer_queue.h"
+#include "src/server/compositor/timeout_frame_dropping_policy_factory.h"
 
 #include "mir_test_doubles/stub_buffer.h"
-#include "multithread_harness.h"
+#include "mir_test_doubles/stub_buffer_allocator.h"
+#include "mir_test_doubles/mock_timer.h"
+#include "mir_test/signal.h"
 
 #include <gmock/gmock.h>
 
+#include <condition_variable>
 #include <thread>
 #include <chrono>
+#include <atomic>
 
 namespace mc = mir::compositor;
-namespace ms = mir::surfaces;
-namespace mt = mir::testing;
+namespace mg = mir::graphics;
 namespace mtd = mir::test::doubles;
+namespace mt =mir::test;
 namespace geom = mir::geometry;
+
+using namespace ::testing;
 
 namespace
 {
 
-struct StubBufferAllocator : public mc::GraphicBufferAllocator
+struct BufferStreamSurfaces : mc::BufferStreamSurfaces
 {
-    StubBufferAllocator() : id{1} {}
+    using mc::BufferStreamSurfaces::BufferStreamSurfaces;
 
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
+    // Convenient function to allow tests to be written in linear style
+    void swap_client_buffers_blocking(mg::Buffer*& buffer)
     {
-        mc::BufferProperties properties{geom::Size{id, id},
-                                        geom::PixelFormat::abgr_8888,
-                                        mc::BufferUsage::hardware};
-        ++id;
-        return std::make_shared<mtd::StubBuffer>(properties);
+        swap_client_buffers_cancellable(buffer, std::make_shared<mt::Signal>());
     }
 
-    std::vector<geom::PixelFormat> supported_pixel_formats()
+    void swap_client_buffers_cancellable(mg::Buffer*& buffer, std::shared_ptr<mt::Signal> const& signal)
     {
-        return {};
-    }
+        if (buffer)
+            release_client_buffer(buffer);
 
-    unsigned int id;
+        acquire_client_buffer(
+            [signal, &buffer](mg::Buffer* new_buffer)
+             {
+                buffer = new_buffer;
+                signal->raise();
+             });
+
+        signal->wait();
+    }
 };
-
 
 struct BufferStreamTest : public ::testing::Test
 {
     BufferStreamTest()
-        : buffer_stream{create_bundle()}
+        : clock{std::make_shared<mt::FakeClock>()},
+          timer{std::make_shared<mtd::FakeTimer>(clock)},
+          frame_drop_timeout{1000},
+          nbuffers{3},
+          buffer_stream{create_bundle()}
     {
+    }
+
+    int buffers_free_for_client() const
+    {
+        return buffer_queue->buffers_free_for_client();
     }
 
     std::shared_ptr<mc::BufferBundle> create_bundle()
     {
-        auto allocator = std::make_shared<StubBufferAllocator>();
-        auto factory = std::make_shared<mc::SwapperFactory>(allocator);
-        mc::BufferProperties properties{geom::Size{380, 210},
-                                        geom::PixelFormat::abgr_8888,
-                                        mc::BufferUsage::hardware};
+        auto allocator = std::make_shared<mtd::StubBufferAllocator>();
+        mg::BufferProperties properties{geom::Size{380, 210},
+                                        mir_pixel_format_abgr_8888,
+                                        mg::BufferUsage::hardware};
+        mc::TimeoutFrameDroppingPolicyFactory policy_factory{timer,
+                                                             frame_drop_timeout};
 
-        return std::make_shared<mc::SwitchingBundle>(factory, properties);
+        buffer_queue = std::make_shared<mc::BufferQueue>(nbuffers,
+                                                         allocator,
+                                                         properties,
+                                                         policy_factory);
+
+        return buffer_queue;
     }
 
-    void terminate_child_thread(mt::Synchronizer& controller)
-    {
-        controller.ensure_child_is_waiting();
-        controller.kill_thread();
-        controller.activate_waiting_child();
-    }
-
-    mc::BufferStreamSurfaces buffer_stream;
-    std::atomic<bool> client_thread_done;
+    std::shared_ptr<mt::FakeClock> clock;
+    std::shared_ptr<mtd::FakeTimer> timer;
+    std::chrono::milliseconds const frame_drop_timeout;
+    const int nbuffers;
+    std::shared_ptr<mc::BufferQueue> buffer_queue;
+    BufferStreamSurfaces buffer_stream;
 };
 
 }
 
-/*
- * In the following tests, since GraphicRegion doesn't expose an ID, and we
- * can't compare TemporaryBuffers for equality of the underlying buffers, we
- * resort to using the buffer size as an ID. StubBufferAllocator gives each
- * buffer a different size.
- */
-
-TEST_F(BufferStreamTest, gives_same_back_buffer_until_one_is_released)
+TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
 {
-    buffer_stream.secure_client_buffer().reset();
-    buffer_stream.secure_client_buffer().reset();
+    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
 
-    auto comp1 = buffer_stream.lock_back_buffer();
-    auto comp2 = buffer_stream.lock_back_buffer();
+    mg::Buffer* client1{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client1);
+    auto client1_id = client1->id();
+    buffer_stream.swap_client_buffers_blocking(client1);
 
-    EXPECT_EQ(comp1->size(), comp2->size());
+    auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
+    auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    EXPECT_EQ(comp1->id(), comp2->id());
+    EXPECT_EQ(comp1->id(), client1_id);
 
     comp1.reset();
 
-    auto comp3 = buffer_stream.lock_back_buffer();
+    buffer_stream.swap_client_buffers_blocking(client1);
+    auto comp3 = buffer_stream.lock_compositor_buffer(nullptr);
 
-    EXPECT_NE(comp2->size(), comp3->size());
+    EXPECT_NE(client1_id, comp3->id());
+
+    comp2.reset();
+    auto comp3_id = comp3->id();
+    comp3.reset();
+
+    auto comp4 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(comp3_id, comp4->id());
 }
 
-TEST_F(BufferStreamTest, multiply_acquired_back_buffer_is_returned_to_client)
+TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
 {
-    buffer_stream.secure_client_buffer().reset();
-    buffer_stream.secure_client_buffer().reset();
+    mg::Buffer* client_buffer{nullptr};
+    int const prefill = buffers_free_for_client();
+    for (int i = 0; i < prefill; ++i)
+        buffer_stream.swap_client_buffers_blocking(client_buffer);
 
-    auto comp1 = buffer_stream.lock_back_buffer();
-    auto comp2 = buffer_stream.lock_back_buffer();
+    auto first_monitor = buffer_stream.lock_compositor_buffer(0);
+    auto first_compositor_id = first_monitor->id();
+    first_monitor.reset();
 
-    EXPECT_EQ(comp1->size(), comp2->size());
+    for (int m = 1; m <= 10; m++)
+    {
+        const void *th = reinterpret_cast<const void*>(m);
+        auto monitor = buffer_stream.lock_compositor_buffer(th);
+        ASSERT_EQ(first_compositor_id, monitor->id());
+    }
+}
 
-    auto comp_size = comp1->size();
+TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
+{
+    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
+
+    mg::Buffer* client_buffer{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client_buffer);
+
+    ASSERT_THAT(nbuffers, Gt(1));
+    buffer_stream.swap_client_buffers_blocking(client_buffer);
+    auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    buffer_stream.swap_client_buffers_blocking(client_buffer);
+    auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
+
+    EXPECT_NE(comp1->id(), comp2->id());
 
     comp1.reset();
     comp2.reset();
+}
 
-    auto client1 = buffer_stream.secure_client_buffer();
+TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
+{
+    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
 
-    EXPECT_EQ(comp_size, client1->size());
+    auto old_size = buffer_stream.stream_size();
+
+    mg::Buffer* client{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client);
+    EXPECT_EQ(old_size, client->size());
+
+    geom::Size const new_size
+    {
+        old_size.width.as_int() * 2,
+        old_size.height.as_int() * 3
+    };
+    buffer_stream.resize(new_size);
+    EXPECT_EQ(new_size, buffer_stream.stream_size());
+
+    buffer_stream.swap_client_buffers_blocking(client);
+    EXPECT_EQ(new_size, client->size());
+
+    buffer_stream.resize(old_size);
+    EXPECT_EQ(old_size, buffer_stream.stream_size());
+
+    /* Release a buffer so client can acquire another */
+    auto comp = buffer_stream.lock_compositor_buffer(nullptr);
+    comp.reset();
+
+    buffer_stream.swap_client_buffers_blocking(client);
+    EXPECT_EQ(old_size, client->size());
+}
+
+TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
+{
+    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
+
+    auto old_size = buffer_stream.stream_size();
+
+    mg::Buffer* client{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client);
+
+    geom::Size const new_size
+    {
+        old_size.width.as_int() * 2,
+        old_size.height.as_int() * 3
+    };
+    buffer_stream.resize(new_size);
+    EXPECT_EQ(new_size, buffer_stream.stream_size());
+
+    buffer_stream.swap_client_buffers_blocking(client);
+
+    auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(old_size, comp1->size());
+    comp1.reset();
+
+    buffer_stream.swap_client_buffers_blocking(client);
+
+    auto comp2 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(new_size, comp2->size());
+    comp2.reset();
+
+    buffer_stream.swap_client_buffers_blocking(client);
+
+    auto comp3 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(new_size, comp3->size());
+    comp3.reset();
+
+    buffer_stream.resize(old_size);
+    EXPECT_EQ(old_size, buffer_stream.stream_size());
+
+    // No client frames "drawn" since resize(old_size), so compositor gets new_size
+    buffer_stream.swap_client_buffers_blocking(client);
+    auto comp4 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(new_size, comp4->size());
+    comp4.reset();
+
+    // Generate a new frame, which should be back to old_size now
+    buffer_stream.swap_client_buffers_blocking(client);
+    auto comp5 = buffer_stream.lock_compositor_buffer(nullptr);
+    EXPECT_EQ(old_size, comp5->size());
+    comp5.reset();
 }
 
 TEST_F(BufferStreamTest, can_get_partly_released_back_buffer)
 {
-    buffer_stream.secure_client_buffer().reset();
-    auto client1 = buffer_stream.secure_client_buffer();
+    ASSERT_THAT(buffers_free_for_client(), Ge(2)); // else we will hang
 
-    auto comp1 = buffer_stream.lock_back_buffer();
-    auto comp2 = buffer_stream.lock_back_buffer();
+    mg::Buffer* client{nullptr};
+    buffer_stream.swap_client_buffers_blocking(client);
+    buffer_stream.swap_client_buffers_blocking(client);
 
-    EXPECT_EQ(comp1->size(), comp2->size());
+    int a, b, c;
+    auto comp1 = buffer_stream.lock_compositor_buffer(&a);
+    auto comp2 = buffer_stream.lock_compositor_buffer(&b);
+
+    EXPECT_EQ(comp1->id(), comp2->id());
 
     comp1.reset();
 
-    auto comp3 = buffer_stream.lock_back_buffer();
+    auto comp3 = buffer_stream.lock_compositor_buffer(&c);
 
-    EXPECT_EQ(comp2->size(), comp3->size());
+    EXPECT_EQ(comp2->id(), comp3->id());
 }
 
 namespace
 {
 
-void client_request_loop(std::shared_ptr<mc::Buffer>& out_buffer,
-                         mt::SynchronizerSpawned& synchronizer,
-                         ms::BufferStream& stream)
+void client_loop(int nframes, BufferStreamSurfaces& stream)
 {
-    for(;;)
+    mg::Buffer* out_buffer{nullptr};
+    for (int f = 0; f < nframes; f++)
     {
-        out_buffer = stream.secure_client_buffer();
+        stream.swap_client_buffers_blocking(out_buffer);
         ASSERT_NE(nullptr, out_buffer);
-
-        if (synchronizer.child_enter_wait()) return;
-
         std::this_thread::yield();
     }
 }
 
-void back_buffer_loop(std::shared_ptr<ms::GraphicRegion>& out_region,
-                      mt::SynchronizerSpawned& synchronizer,
-                      ms::BufferStream& stream)
+void compositor_loop(mc::BufferStream &stream,
+                     std::atomic<bool> &done)
 {
-    for(;;)
+    while (!done.load())
     {
-        out_region = stream.lock_back_buffer();
+        auto comp1 = stream.lock_compositor_buffer(nullptr);
+        ASSERT_NE(nullptr, comp1);
+
+        // Also stress test getting a second compositor buffer before yielding
+        auto comp2 = stream.lock_compositor_buffer(nullptr);
+        ASSERT_NE(nullptr, comp2);
+
+        std::this_thread::yield();
+
+        comp1.reset();
+        comp2.reset();
+    }
+}
+
+void snapshot_loop(mc::BufferStream &stream,
+                   std::atomic<bool> &done)
+{
+    while (!done.load())
+    {
+        auto out_region = stream.lock_snapshot_buffer();
         ASSERT_NE(nullptr, out_region);
-
-        if (synchronizer.child_enter_wait()) return;
-
         std::this_thread::yield();
     }
 }
@@ -190,72 +335,58 @@ void back_buffer_loop(std::shared_ptr<ms::GraphicRegion>& out_region,
 
 TEST_F(BufferStreamTest, stress_test_distinct_buffers)
 {
-    unsigned int const num_compositors{3};
-    unsigned int const num_iterations{500};
-    std::chrono::microseconds const sleep_duration{50};
+    // More would be good, but armhf takes too long
+    const int num_snapshotters{2};
+    const int num_frames{200};
 
-    struct CompositorInfo
+    std::atomic<bool> done;
+    done = false;
+
+    std::thread client(client_loop,
+                       num_frames,
+                       std::ref(buffer_stream));
+
+    std::thread compositor(compositor_loop,
+                           std::ref(buffer_stream),
+                           std::ref(done));
+
+    std::vector<std::shared_ptr<std::thread>> snapshotters;
+    for (unsigned int i = 0; i < num_snapshotters; i++)
     {
-        CompositorInfo(ms::BufferStream& stream)
-            : thread{back_buffer_loop, std::ref(back_buffer),
-                     std::ref(sync), std::ref(stream)}
-        {
-        }
-
-        mt::Synchronizer sync;
-        std::shared_ptr<ms::GraphicRegion> back_buffer;
-        std::thread thread;
-    };
-
-    std::vector<std::unique_ptr<CompositorInfo>> compositors;
-
-    mt::Synchronizer client_sync;
-    std::shared_ptr<mc::Buffer> client_buffer;
-    auto client_thread = std::thread(client_request_loop,  std::ref(client_buffer),
-                                     std::ref(client_sync), std::ref(buffer_stream));
-
-    for (unsigned int i = 0; i < num_compositors; i++)
-    {
-        auto raw = new CompositorInfo{buffer_stream};
-        compositors.push_back(std::unique_ptr<CompositorInfo>(raw));
+        snapshotters.push_back(
+            std::make_shared<std::thread>(snapshot_loop,
+                                          std::ref(buffer_stream),
+                                          std::ref(done)));
     }
 
-    for(unsigned int i = 0; i < num_iterations; i++)
-    {
-        /* Pause the threads */
-        for (auto& info : compositors)
-        {
-            info->sync.ensure_child_is_waiting();
-        }
-        client_sync.ensure_child_is_waiting();
+    client.join();
 
-        /*
-         * Check that no compositor has the client's buffer, and release
-         * all the buffers.
-         */
-        for (auto& info : compositors)
-        {
-            EXPECT_NE(info->back_buffer->size(), client_buffer->size());
-            info->back_buffer.reset();
-        }
-        client_buffer.reset();
+    done = true;
 
-        /* Restart threads */
-        for (auto& info : compositors)
-        {
-            info->sync.activate_waiting_child();
-        }
-        client_sync.activate_waiting_child();
+    buffer_stream.force_requests_to_complete();
 
-        std::this_thread::sleep_for(sleep_duration);
-    }
+    compositor.join();
 
-    terminate_child_thread(client_sync);
-    client_thread.join();
+    for (auto &s : snapshotters)
+        s->join();
+}
 
-    for (auto& info : compositors)
-    {
-        terminate_child_thread(info->sync);
-        info->thread.join();
-    }
+TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
+{
+    using namespace testing;
+
+    mg::Buffer* placeholder{nullptr};
+
+    // Grab all the buffers...
+    // TODO: the magic “nbuffers - 1” number should be removed
+    for (int i = 0; i < nbuffers - 1; ++i)
+        buffer_stream.swap_client_buffers_blocking(placeholder);
+
+    auto swap_completed = std::make_shared<mt::Signal>();
+    buffer_stream.acquire_client_buffer([swap_completed](mg::Buffer*) {swap_completed->raise();});
+
+    EXPECT_FALSE(swap_completed->raised());
+    clock->advance_time(frame_drop_timeout + std::chrono::milliseconds{1});
+
+    EXPECT_TRUE(swap_completed->wait_for(std::chrono::milliseconds{100}));
 }

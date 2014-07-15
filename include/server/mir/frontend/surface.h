@@ -20,8 +20,6 @@
 #ifndef MIR_FRONTEND_SURFACE_H_
 #define MIR_FRONTEND_SURFACE_H_
 
-#include "mir/geometry/pixel_format.h"
-#include "mir/geometry/point.h"
 #include "mir/geometry/size.h"
 #include "mir_toolkit/common.h"
 
@@ -29,36 +27,41 @@
 
 namespace mir
 {
-namespace compositor
+namespace graphics
 {
 class Buffer;
-}
-namespace input
-{
-class InputChannel;
+class InternalSurface;
+class CursorImage;
 }
 
 namespace frontend
 {
+class ClientBufferTracker;
 
 class Surface
 {
 public:
+    virtual ~Surface() = default;
 
-    virtual ~Surface() {}
+    /// Size of the client area of the surface (excluding any decorations)
+    virtual geometry::Size client_size() const = 0;
+    virtual MirPixelFormat pixel_format() const = 0;
 
-    virtual void destroy() = 0;
-    virtual void force_requests_to_complete() = 0;
-
-    virtual geometry::Size size() const = 0;
-    virtual geometry::PixelFormat pixel_format() const = 0;
-
-    virtual std::shared_ptr<compositor::Buffer> advance_client_buffer() = 0;
+    virtual void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete) = 0;
 
     virtual bool supports_input() const = 0;
     virtual int client_input_fd() const = 0;
 
     virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
+
+    virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) = 0;
+
+    /**
+     *  swap_buffers_blocking() is a convenience wrapper around swap_buffers()
+     *  it forces the current thread to block until complete() is called.
+     *  Use with care!
+     */
+    void swap_buffers_blocking(graphics::Buffer*& buffer);
 
 protected:
     Surface() = default;
@@ -66,6 +69,8 @@ protected:
     Surface& operator=(Surface const&) = delete;
 };
 
+auto as_internal_surface(std::shared_ptr<Surface> const& surface)
+    -> std::shared_ptr<graphics::InternalSurface>;
 }
 }
 

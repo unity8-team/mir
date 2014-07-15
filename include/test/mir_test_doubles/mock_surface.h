@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,13 +19,10 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_SURFACE_H_
 #define MIR_TEST_DOUBLES_MOCK_SURFACE_H_
 
-#include "mir/shell/surface.h"
-
-#include "mir/shell/surface_creation_parameters.h"
+#include "src/server/scene/basic_surface.h"
+#include "src/server/report/null_report_factory.h"
 
 #include <gmock/gmock.h>
-
-#include <memory>
 
 namespace mir
 {
@@ -34,10 +31,19 @@ namespace test
 namespace doubles
 {
 
-struct MockSurface : public shell::Surface
+struct MockSurface : public scene::BasicSurface
 {
-    MockSurface(std::shared_ptr<shell::SurfaceBuilder> const& builder) :
-        shell::Surface(builder, shell::a_surface())
+    MockSurface() :
+        scene::BasicSurface(
+            {},
+            {{},{}},
+            true,
+            {},
+            {},
+            {},
+            {},
+            {},
+            mir::report::null_scene_report())
     {
     }
 
@@ -45,21 +51,21 @@ struct MockSurface : public shell::Surface
 
     MOCK_METHOD0(hide, void());
     MOCK_METHOD0(show, void());
-    MOCK_METHOD0(visible, bool());
+    MOCK_CONST_METHOD0(visible, bool());
 
-    MOCK_METHOD0(destroy, void());
     MOCK_METHOD0(force_requests_to_complete, void());
-    MOCK_METHOD0(advance_client_buffer, std::shared_ptr<compositor::Buffer>());
+    MOCK_METHOD0(advance_client_buffer, std::shared_ptr<graphics::Buffer>());
 
-    MOCK_CONST_METHOD0(name, std::string());
     MOCK_CONST_METHOD0(size, geometry::Size());
-    MOCK_CONST_METHOD0(pixel_format, geometry::PixelFormat());
+    MOCK_CONST_METHOD0(pixel_format, MirPixelFormat());
 
     MOCK_CONST_METHOD0(supports_input, bool());
     MOCK_CONST_METHOD0(client_input_fd, int());
 
     MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));
     MOCK_METHOD1(take_input_focus, void(std::shared_ptr<shell::InputTargeter> const&));
+    MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::SurfaceObserver> const&));
+    MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::SurfaceObserver> const&));
 };
 
 }

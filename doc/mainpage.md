@@ -35,6 +35,7 @@ Using Mir
  - \ref using_mir_on_pc
  - \ref using_mir_on_android
  - \ref debug_for_xmir
+ - \ref demo_shell_controls
 
 Getting involved
 ----------------
@@ -43,6 +44,13 @@ The best place to ask questions and discuss about the Mir project is the
 #ubuntu-mir IRC channel on freenode.
 
 The Mir project is hosted on Launchpad: https://launchpad.net/mir
+
+Currently, the Mir code activity is performed on a development branch:
+lp:~mir-team/mir/development-branch
+
+Approximately fortnightly, this development branch is promoted to the branch
+used for the ubuntu archive and touch images. Please submit any merge proposals 
+against the development branch.
 
 Please file bug reports at: https://bugs.launchpad.net/mir
 
@@ -59,7 +67,7 @@ Writing client applications
 ---------------------------
 
  - \ref mir_toolkit "Mir API Documentation"
- - \subpage demo_client.c "demo_client.c: A simple Mir client"
+ - \subpage basic.c "basic.c: A basic Mir client (which does nothing)"
 
 Writing server applications
 ---------------------------

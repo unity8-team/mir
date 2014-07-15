@@ -1,16 +1,46 @@
+include(CMakeDependentOption)
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_BINARY_DIR})
+
+protobuf_generate_cpp(
+  GENERATED_PROTOBUF_SRCS GENERATED_PROTOBUF_HDRS
+  test_protobuf.proto
 )
 
 set(
   SOURCES
 
+  server_configuration_wrapping.cpp
+  clients.cpp
   test_client_library.cpp
-  test_surfaceloop.cpp
+  test_client_library_old.cpp
+  test_client_surface_events.cpp
+  test_custom_input_dispatcher.cpp
+  test_client_surfaces.cpp
   test_test_framework.cpp
   test_focus_selection.cpp
   test_server_shutdown.cpp
+  test_client_focus_notification.cpp
   test_client_authorization.cpp
+  test_shell_control_of_surface_configuration.cpp
+  test_nested_mir.cpp
+  test_display_configuration.cpp
+  test_surfaces_with_output_id.cpp
+  test_server_disconnect.cpp
+  test_client_library_drm.cpp
+  test_prompt_session_client_api.cpp
+  test_protobuf.cpp
+  test_client_screencast.cpp
+  test_client_surface_swap_buffers.cpp
+  test_client_cursor_api.cpp
+  test_large_messages.cpp
+  test_client_surface_visibility.cpp
+  test_client_with_custom_display_config_deadlock.cpp
+  ${GENERATED_PROTOBUF_SRCS}
+  ${GENERATED_PROTOBUF_HDRS}
 )
 
 list(APPEND SOURCES
@@ -21,21 +51,24 @@ list(APPEND SOURCES
 )
 
 add_executable(
-  acceptance-tests
+  mir_acceptance_tests
 
   ${SOURCES}
 )
-uses_android_input(acceptance-tests)
+uses_android_input(mir_acceptance_tests)
 
 
 target_link_libraries(
-  acceptance-tests
+  mir_acceptance_tests
 
   mirserver
   mirclient-static
+  mirplatform
 
+  mir-test
   mir-test-framework
   mir-test-doubles
+  mir-test-doubles-platform
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
@@ -46,4 +79,18 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
-mir_discover_tests(acceptance-tests)
+CMAKE_DEPENDENT_OPTION(
+  MIR_RUN_ACCEPTANCE_TESTS
+  "Run acceptance tests as part of default testing"
+  ON
+  "MIR_BUILD_ACCEPTANCE_TESTS"
+  OFF)
+
+if (MIR_RUN_ACCEPTANCE_TESTS)
+  mir_discover_tests(mir_acceptance_tests)
+endif (MIR_RUN_ACCEPTANCE_TESTS)
+
+install(
+    TARGETS mir_acceptance_tests
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)

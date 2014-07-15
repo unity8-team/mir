@@ -2,106 +2,60 @@
 
 set -e
 
-if [ -z $1 ]; then
+if [ -z ${1} ]; then
     echo "please supply directory to create partial chroot in. (eg, ./setup-partial-armhf-chroot.sh mychroot-dir)"
     exit
 fi
 
-echo "creating phablet-compatible armhf partial chroot for mir compiles in directory ${1}"
+echo "creating phablet-compatible armhf partial chroot for mir compilation in directory ${1}"
 
 if [ ! -d ${1} ]; then
     mkdir -p ${1} 
 fi
 
-download_and_extract_packages()
-{
-    declare -a PACKAGES=$1[@]
-    local ARCHITECTURE=$2
-
-    for i in ${!PACKAGES}; do
-
-        PACKAGE_VERSION=`apt-cache show --no-all-versions ${i}:${ARCHITECTURE} | grep Version | awk -F: '{print $NF}' | sed "s/ //g"`
-        PACKAGE_FILENAME="${i}_${PACKAGE_VERSION}_${ARCHITECTURE}.deb"
-
-        if [ ! -f ${PACKAGE_FILENAME} ]; then
-            echo "Downloading mir dependency: ${i}"
-            apt-get download "${i}:${ARCHITECTURE}"
-        else
-            echo "already downloaded: ${PACKAGE_FILENAME}"
-        fi
-
-        #quick sanity check
-        if [ ! -f ${PACKAGE_FILENAME} ]; then
-            echo "error: did not download expected file (${PACKAGE_FILENAME}. script is malformed!"; exit 1        
-        fi
-
-        echo "Extracting: ${PACKAGE_FILENAME}"
-        dpkg -x ${PACKAGE_FILENAME} . 
-    done
-}
+DEBCONTROL=$(pwd)/../debian/control
 
 pushd ${1} > /dev/null
 
-    declare -a PACKAGES_ARMHF=(
-        google-mock
-        libboost1.53-dev
-        libboost-chrono1.53-dev
-        libboost-chrono1.53-dev
-        libboost-date-time1.53-dev
-        libboost-filesystem1.53-dev
-        libboost-program-options1.53-dev
-        libprotobuf-dev
-        libboost-chrono1.53.0
-        libboost-date-time1.53.0
-        libboost-filesystem1.53.0
-        libboost-system1.53.0
-        libboost-system1.53-dev
-        libboost-thread1.53-dev
-        libboost-thread1.53.0
-        libboost-regex1.53-dev
-        libboost-regex1.53.0
-        libboost-program-options1.53.0
-        libhybris
-        libhybris-dev
-        libandroid-properties1
-        libgflags2
-        libgflags-dev
-        libgoogle-glog-dev
-        libgoogle-glog0
-        libicu48
-        libprotobuf7
-        libprotobuf-dev
-        libegl1-mesa-dev
-        libgles2-mesa-dev
-        libxkbcommon0
-        libxkbcommon-dev
-        libumockdev-dev
-        liblttng-ust0
-        liburcu1
-        libuuid1
-        liblttng-ust-dev
-        liburcu-dev
-        uuid-dev
-        systemtap-sdt-dev
-        zlib1g)
+# Empty dpkg status file, so that ALL dependencies are listed with dpkg-checkbuilddeps
+echo "" > status
 
-    declare -a PACKAGES_ALL=(libglm-dev)
+# Manual error code checking is needed for dpkg-checkbuilddeps
+set +e
 
-    #cleanup
-    for i in * ; do
-        if [[ -d ${i} ]]; then 
-            echo "removing directory: ./${i}"
-            rm -rf ./${i}
-        fi
-    done
+# Parse dependencies from debian/control
+# dpkg-checkbuilddeps returns 1 when dependencies are not met and the list is sent to stderr
+builddeps=$(dpkg-checkbuilddeps -a armhf --admindir=. ${DEBCONTROL} 2>&1 )
+if [ $? -ne 1 ] ; then
+    echo "${builddeps}"
+    exit 2
+fi
 
-    download_and_extract_packages PACKAGES_ARMHF armhf
-    download_and_extract_packages PACKAGES_ALL all
+# now turn exit on error option
+set -e
 
-    #todo: we get egl/gles headers from the mesa packages, but should be pointing at the hybris libraries
-    #just rewrite the symlinks for now
-    rm ./usr/lib/arm-linux-gnueabihf/libEGL.so 
-    rm ./usr/lib/arm-linux-gnueabihf/libGLESv2.so 
-    ln -s libhybris-egl/libEGL.so.1 ./usr/lib/arm-linux-gnueabihf/libEGL.so 
-    ln -s libhybris-egl/libGLESv2.so.2 ./usr/lib/arm-linux-gnueabihf/libGLESv2.so
+# Sanitize dependencies list for submission to debootstrap
+# build-essential is not needed as we are cross-compiling
+builddeps=$(echo ${builddeps} | sed -e 's/dpkg-checkbuilddeps://g' -e 's/Unmet build dependencies://g' -e 's/build-essential:native//g')
+builddeps=$(echo ${builddeps} | sed 's/([^)]*)//g')
+builddeps=$(echo ${builddeps} | sed 's/ /,/g')
+
+fakeroot debootstrap --include=${builddeps} --arch=armhf --download-only --variant=buildd utopic .
+
+# Remove libc libraries that confuse the cross-compiler
+rm var/cache/apt/archives/libc-dev*.deb
+rm var/cache/apt/archives/libc6*.deb
+
+for deb in var/cache/apt/archives/* ; do
+    if [ ! -d ${deb} ] ; then
+        echo "unpacking: ${deb}"
+        dpkg -x ${deb} .
+    fi
+done
+
+# Fix up symlinks which asssumed the usual root path
+for broken_symlink in $(find . -name \*.so -type l -xtype l) ; do
+    ln -sf $(pwd)$(readlink ${broken_symlink}) ${broken_symlink}
+done
+
 popd > /dev/null 

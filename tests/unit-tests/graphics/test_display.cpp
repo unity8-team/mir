@@ -17,26 +17,29 @@
  */
 
 #include "mir/graphics/display.h"
+#include "mir/graphics/display_configuration.h"
 #include "mir/graphics/gl_context.h"
+#include "mir/graphics/platform.h"
+#include "mir/options/program_option.h"
 
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
+#include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_gl_program_factory.h"
+#include "mir_test_doubles/platform_factory.h"
+#include "src/server/graphics/default_display_configuration_policy.h"
 #ifndef ANDROID
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
-#include "mir_test_doubles/null_virtual_terminal.h"
-#include "src/server/graphics/gbm/gbm_platform.h"
 #include "mir_test_framework/udev_environment.h"
-#include "mir/graphics/default_display_configuration_policy.h"
 #else
-#include "src/server/graphics/android/android_framebuffer_window_query.h"
-#include "src/server/graphics/android/android_display.h"
+#include "src/platform/graphics/android/android_platform.h"
 #include "mir_test_doubles/mock_android_hw.h"
+#include "mir_test_doubles/mock_display_device.h"
 #endif
 
-#include "mir/graphics/null_display_report.h"
-
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace mg = mir::graphics;
 namespace mtd = mir::test::doubles;
@@ -65,35 +68,17 @@ public:
             .WillByDefault(Return(reinterpret_cast<const GLubyte*>(gl_exts)));
 
 #ifndef ANDROID
-        fake_devices.add_standard_drm_devices();
+        fake_devices.add_standard_device("standard-drm-devices");
 #endif
     }
 
     std::shared_ptr<mg::Display> create_display()
     {
-#ifdef ANDROID
-        struct StubAndroidFramebufferWindowQuery : public mg::android::AndroidFramebufferWindowQuery
-        {
-            EGLNativeWindowType android_native_window_type() const
-            {
-                return reinterpret_cast<EGLNativeWindowType>(0x123);
-            }
-            EGLConfig android_display_egl_config(EGLDisplay) const
-            {
-                return reinterpret_cast<EGLConfig>(0x789);
-            }
-        };
-
-        return std::make_shared<mg::android::AndroidDisplay>(
-            std::make_shared<StubAndroidFramebufferWindowQuery>(),
-            std::make_shared<mg::NullDisplayReport>());
-#else
-        auto platform = std::make_shared<mg::gbm::GBMPlatform>(
-            std::make_shared<mg::NullDisplayReport>(),
-            std::make_shared<mir::test::doubles::NullVirtualTerminal>());
-        auto conf_policy = std::make_shared<mg::DefaultDisplayConfigurationPolicy>();
-        return platform->create_display(conf_policy);
-#endif
+        auto const platform = mtd::create_platform_with_null_dependencies();
+        return platform->create_display(
+            std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+            std::make_shared<mtd::StubGLProgramFactory>(),
+            std::make_shared<mtd::StubGLConfig>());
     }
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
@@ -106,6 +91,38 @@ public:
     mtf::UdevEnvironment fake_devices;
 #endif
 };
+
+namespace
+{
+
+class MockDisplayConfiguration : public mg::DisplayConfiguration
+{
+public:
+    MOCK_CONST_METHOD1(for_each_card,
+        void(std::function<void(mg::DisplayConfigurationCard const&)>));
+    MOCK_CONST_METHOD1(for_each_output,
+        void(std::function<void(mg::DisplayConfigurationOutput const&)>));
+    MOCK_METHOD1(for_each_output,
+        void(std::function<void(mg::UserDisplayConfigurationOutput&)>));
+    MOCK_CONST_METHOD0(valid, bool());
+};
+
+}
+
+TEST_F(DisplayTest, configure_disallows_invalid_configuration)
+{
+    using namespace testing;
+    auto display = create_display();
+    MockDisplayConfiguration config;
+
+    EXPECT_CALL(config, valid())
+        .WillOnce(Return(false));
+
+    EXPECT_THROW({display->configure(config);}, std::logic_error);
+
+    // Determining what counts as a valid configuration is a much trickier
+    // platform-dependent exercise, so won't be tested here.
+}
 
 TEST_F(DisplayTest, gl_context_make_current_uses_shared_context)
 {
@@ -172,4 +189,27 @@ TEST_F(DisplayTest, gl_context_releases_context)
     /* Possible display shutdown sequence, depending on the platform */
     EXPECT_CALL(mock_egl, eglMakeCurrent(_,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT))
         .Times(AtLeast(0));
+}
+
+TEST_F(DisplayTest, does_not_expose_display_buffer_for_output_with_power_mode_off)
+{
+    using namespace testing;
+    auto display = create_display();
+    int db_count{0};
+
+    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    EXPECT_THAT(db_count, Eq(1));
+
+    auto conf = display->configuration();
+    conf->for_each_output(
+        [] (mg::UserDisplayConfigurationOutput& output)
+        {
+            output.power_mode = mir_power_mode_off;
+        });
+
+    display->configure(*conf);
+
+    db_count = 0;
+    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    EXPECT_THAT(db_count, Eq(0));
 }

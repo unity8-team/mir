@@ -16,15 +16,17 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/android_graphic_buffer_allocator.h"
+#include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
+#include "src/server/compositor/buffer_queue.h"
 #include "mir/graphics/buffer_initializer.h"
-#include "mir/graphics/null_display_report.h"
-#include "mir/compositor/swapper_factory.h"
-#include "mir/compositor/buffer_swapper.h"
-#include "mir/compositor/buffer_properties.h"
+#include "src/server/report/null_report_factory.h"
+#include "mir/graphics/android/native_buffer.h"
+#include "mir/graphics/buffer_properties.h"
 
-#include "mir_test/draw/android_graphics.h"
-#include "mir_test/draw/patterns.h"
+#include "testdraw/graphics_region_factory.h"
+#include "testdraw/patterns.h"
+
+#include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 
 #include <gtest/gtest.h>
 
@@ -43,18 +45,44 @@ protected:
     virtual void SetUp()
     {
         size = geom::Size{334, 122};
-        pf  = geom::PixelFormat::abgr_8888;
-        buffer_properties = mc::BufferProperties{size, pf, mc::BufferUsage::software};
+        pf  = mir_pixel_format_abgr_8888;
+        buffer_properties = mg::BufferProperties{size, pf, mg::BufferUsage::software};
         null_buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
+        graphics_region_factory = mtd::create_graphics_region_factory();
     }
 
     std::shared_ptr<mg::BufferInitializer> null_buffer_initializer;
     geom::Size size;
-    geom::PixelFormat pf;
-    mc::BufferProperties buffer_properties;
-    mtd::TestGrallocMapper sw_renderer;
+    MirPixelFormat pf;
+    mg::BufferProperties buffer_properties;
+    std::shared_ptr<mtd::GraphicsRegionFactory> graphics_region_factory;
+    mir::test::doubles::StubFrameDroppingPolicyFactory policy_factory;
 };
 
+auto client_acquire_blocking(mc::BufferQueue& switching_bundle)
+-> mg::Buffer*
+{
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool done = false;
+
+    mg::Buffer* result;
+    switching_bundle.client_acquire(
+        [&](mg::Buffer* new_buffer)
+         {
+            std::unique_lock<decltype(mutex)> lock(mutex);
+
+            result = new_buffer;
+            done = true;
+            cv.notify_one();
+         });
+
+    std::unique_lock<decltype(mutex)> lock(mutex);
+
+    cv.wait(lock, [&]{ return done; });
+
+    return result;
+}
 }
 
 TEST_F(AndroidBufferIntegration, allocator_can_create_sw_buffer)
@@ -63,20 +91,21 @@ TEST_F(AndroidBufferIntegration, allocator_can_create_sw_buffer)
 
     auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
 
-    mc::BufferProperties sw_properties{size, pf, mc::BufferUsage::software};
+    mg::BufferProperties sw_properties{size, pf, mg::BufferUsage::software};
     auto test_buffer = allocator->alloc_buffer(sw_properties);
 
-    auto region = sw_renderer.graphic_region_from_handle(test_buffer->native_buffer_handle());
+    auto region = graphics_region_factory->graphic_region_from_handle(
+        *test_buffer->native_buffer_handle());
     mtd::DrawPatternSolid red_pattern(0xFF0000FF);
-    red_pattern.draw(region);
-    EXPECT_TRUE(red_pattern.check(region));
+    red_pattern.draw(*region);
+    EXPECT_TRUE(red_pattern.check(*region));
 }
 
 TEST_F(AndroidBufferIntegration, allocator_can_create_hw_buffer)
 {
     using namespace testing;
 
-    mc::BufferProperties hw_properties{size, pf, mc::BufferUsage::hardware};
+    mg::BufferProperties hw_properties{size, pf, mg::BufferUsage::hardware};
     auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
 
     //TODO: kdub it is a bit trickier to test that a gpu can render... just check creation for now
@@ -89,10 +118,10 @@ TEST_F(AndroidBufferIntegration, swapper_creation_is_sane)
     using namespace testing;
 
     auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
-    auto strategy = std::make_shared<mc::SwapperFactory>(allocator);
-    mc::BufferProperties actual;
-    auto swapper = strategy->create_swapper_new_buffers(actual, buffer_properties, mc::SwapperType::synchronous);
-    auto returned_buffer = swapper->client_acquire();
+
+    mc::BufferQueue swapper(2, allocator, buffer_properties, policy_factory);
+
+    auto returned_buffer = client_acquire_blocking(swapper);
 
     EXPECT_NE(nullptr, returned_buffer);
 }

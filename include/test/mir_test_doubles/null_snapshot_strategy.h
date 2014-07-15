@@ -19,7 +19,7 @@
 #ifndef MIR_TEST_DOUBLES_NULL_SNAPSHOT_STRATEGY_H_
 #define MIR_TEST_DOUBLES_NULL_SNAPSHOT_STRATEGY_H_
 
-#include "mir/shell/snapshot_strategy.h"
+#include "src/server/scene/snapshot_strategy.h"
 
 namespace mir
 {
@@ -28,10 +28,11 @@ namespace test
 namespace doubles
 {
 
-struct NullSnapshotStrategy : public shell::SnapshotStrategy
+struct NullSnapshotStrategy : public scene::SnapshotStrategy
 {
-    void take_snapshot_of(std::shared_ptr<shell::SurfaceBufferAccess> const&,
-                          shell::SnapshotCallback const&)
+    void take_snapshot_of(
+        std::shared_ptr<scene::SurfaceBufferAccess> const&,
+        scene::SnapshotCallback const&)
     {
     }
 };

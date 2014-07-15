@@ -16,42 +16,40 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/compositor/back_buffer_strategy.h"
-
 #include "buffer_bundle.h"
 #include "temporary_buffers.h"
 
 namespace mc=mir::compositor;
+namespace mg=mir::graphics;
 namespace geom=mir::geometry;
 
-mc::TemporaryBuffer::TemporaryBuffer(std::shared_ptr<Buffer> const& real_buffer)
+mc::TemporaryBuffer::TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buffer)
     : buffer(real_buffer)
 {
 }
 
-mc::TemporaryClientBuffer::TemporaryClientBuffer(std::shared_ptr<BufferBundle> const& buffer_swapper)
-    : TemporaryBuffer(buffer_swapper->client_acquire()),
-      allocating_swapper(buffer_swapper)
-{
-}
-
-mc::TemporaryClientBuffer::~TemporaryClientBuffer()
-{
-    if (auto swapper = allocating_swapper.lock())
-        swapper->client_release(buffer);
-}
-
 mc::TemporaryCompositorBuffer::TemporaryCompositorBuffer(
-    std::shared_ptr<BackBufferStrategy> const& back_buffer_strategy)
-    : TemporaryBuffer(back_buffer_strategy->acquire()),
-      back_buffer_strategy(back_buffer_strategy)
+    std::shared_ptr<BufferBundle> const& bun, void const* user_id)
+    : TemporaryBuffer(bun->compositor_acquire(user_id)),
+      bundle(bun)
 {
 }
 
 mc::TemporaryCompositorBuffer::~TemporaryCompositorBuffer()
 {
-    if (auto strategy = back_buffer_strategy.lock())
-        strategy->release(buffer);
+    bundle->compositor_release(buffer);
+}
+
+mc::TemporarySnapshotBuffer::TemporarySnapshotBuffer(
+    std::shared_ptr<BufferBundle> const& bun)
+    : TemporaryBuffer(bun->snapshot_acquire()),
+      bundle(bun)
+{
+}
+
+mc::TemporarySnapshotBuffer::~TemporarySnapshotBuffer()
+{
+    bundle->snapshot_release(buffer);
 }
 
 geom::Size mc::TemporaryBuffer::size() const
@@ -64,22 +62,27 @@ geom::Stride mc::TemporaryBuffer::stride() const
     return buffer->stride();
 }
 
-geom::PixelFormat mc::TemporaryBuffer::pixel_format() const
+MirPixelFormat mc::TemporaryBuffer::pixel_format() const
 {
     return buffer->pixel_format();
 }
 
-mc::BufferID mc::TemporaryBuffer::id() const
+mg::BufferID mc::TemporaryBuffer::id() const
 {
     return buffer->id();
 }
 
-void mc::TemporaryBuffer::bind_to_texture()
+void mc::TemporaryBuffer::gl_bind_to_texture()
 {
-    buffer->bind_to_texture();
+    buffer->gl_bind_to_texture();
 }
 
-std::shared_ptr<MirNativeBuffer> mc::TemporaryBuffer::native_buffer_handle() const
+std::shared_ptr<mg::NativeBuffer> mc::TemporaryBuffer::native_buffer_handle() const
 {
     return buffer->native_buffer_handle();
+}
+
+bool mc::TemporaryBuffer::can_bypass() const
+{
+    return buffer->can_bypass();
 }

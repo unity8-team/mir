@@ -16,85 +16,82 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir_test_doubles/mock_viewable_area.h"
+#include "mir_test_doubles/mock_display_layout.h"
+#include "mir_test_doubles/stub_scene_session.h"
 
-#include "mir/shell/consuming_placement_strategy.h"
-#include "mir/shell/surface_creation_parameters.h"
+#include "src/server/shell/consuming_placement_strategy.h"
+#include "mir/scene/surface_creation_parameters.h"
+
+#include "mir/geometry/rectangle.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 
 namespace
 {
-static const geom::Rectangle default_view_area = geom::Rectangle{geom::Point(),
-                                                                 geom::Size{1600, 1600}};
 
 struct ConsumingPlacementStrategySetup : public testing::Test
 {
     void SetUp()
     {
         using namespace ::testing;
-        viewable_area = std::make_shared<mtd::MockViewableArea>();
-        ON_CALL(*viewable_area, view_area()).WillByDefault(Return(default_view_area));
+        display_layout = std::make_shared<mtd::MockDisplayLayout>();
     }
 
-    std::shared_ptr<mtd::MockViewableArea> viewable_area;
+    std::shared_ptr<mtd::MockDisplayLayout> display_layout;
+    mtd::StubSceneSession session;
 };
 }
 
 
-TEST_F(ConsumingPlacementStrategySetup, parameters_with_no_geometry_receieve_geometry_from_viewable_area)
+TEST_F(ConsumingPlacementStrategySetup, parameters_with_no_geometry_are_made_fullscreen)
 {
     using namespace ::testing;
 
-    EXPECT_CALL(*viewable_area, view_area()).Times(1);
+    ms::SurfaceCreationParameters input_params;
+    geom::Rectangle rect{input_params.top_left, input_params.size};
 
-    msh::ConsumingPlacementStrategy placement_strategy(viewable_area);
-    msh::SurfaceCreationParameters input_params;
+    EXPECT_CALL(*display_layout, size_to_output(rect)).Times(1);
 
-    auto placed_params = placement_strategy.place(input_params);
-    EXPECT_EQ(default_view_area.size.width.as_uint32_t(), placed_params.size.width.as_uint32_t());
-    EXPECT_EQ(default_view_area.size.height.as_uint32_t(), placed_params.size.height.as_uint32_t());
+    msh::ConsumingPlacementStrategy placement_strategy(display_layout);
+
+    placement_strategy.place(session, input_params);
 }
 
-TEST_F(ConsumingPlacementStrategySetup, parameters_with_geometry_are_forwarded)
+TEST_F(ConsumingPlacementStrategySetup, parameters_with_geometry_are_clipped)
 {
     using namespace ::testing;
 
-    const geom::Size requested_size = geom::Size{100, 100};
+    ms::SurfaceCreationParameters input_params;
+    input_params.size = geom::Size{100, 200};
+    geom::Rectangle rect{input_params.top_left, input_params.size};
 
-    EXPECT_CALL(*viewable_area, view_area()).Times(1);
+    EXPECT_CALL(*display_layout, clip_to_output(rect)).Times(1);
 
-    msh::ConsumingPlacementStrategy placement_strategy(viewable_area);
-    msh::SurfaceCreationParameters input_params;
+    msh::ConsumingPlacementStrategy placement_strategy(display_layout);
 
-    input_params.size = requested_size;
-
-    auto placed_params = placement_strategy.place(input_params);
-    EXPECT_EQ(requested_size, placed_params.size);
+    placement_strategy.place(session, input_params);
 }
 
-TEST_F(ConsumingPlacementStrategySetup, parameters_with_unreasonable_geometry_are_clipped)
+TEST_F(ConsumingPlacementStrategySetup, parameters_with_output_id_are_placed_in_output)
 {
     using namespace ::testing;
 
-    const geom::Width unreasonable_width = geom::Width{default_view_area.size.width.as_uint32_t() + 1};
-    const geom::Height unreasonable_height = geom::Height{default_view_area.size.width.as_uint32_t() + 1};
-    const geom::Size unreasonable_size = geom::Size{unreasonable_width, unreasonable_height};
+    ms::SurfaceCreationParameters input_params;
+    input_params.size = geom::Size{100, 200};
+    input_params.output_id = mir::graphics::DisplayConfigurationOutputId{1};
+    geom::Rectangle rect{input_params.top_left, input_params.size};
 
-    EXPECT_CALL(*viewable_area, view_area()).Times(1);
-    msh::ConsumingPlacementStrategy placement_strategy(viewable_area);
-    msh::SurfaceCreationParameters input_params;
+    EXPECT_CALL(*display_layout,
+                place_in_output(input_params.output_id, rect))
+        .Times(1);
 
-    input_params.size = unreasonable_size;
+    msh::ConsumingPlacementStrategy placement_strategy(display_layout);
 
-    auto placed_params = placement_strategy.place(input_params);
-
-    auto const& clipped_size = default_view_area.size;
-    EXPECT_EQ(placed_params.size, clipped_size);
-
+    placement_strategy.place(session, input_params);
 }

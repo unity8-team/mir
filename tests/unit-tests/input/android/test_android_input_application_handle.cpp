@@ -20,7 +20,7 @@
 
 #include "mir/input/input_channel.h"
 
-#include "mir_test_doubles/mock_input_info.h"
+#include "mir_test_doubles/mock_input_surface.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -36,13 +36,13 @@ TEST(AndroidInputApplicationHandle, takes_name_from_surface_and_specifies_max_ti
 {
     using namespace ::testing;
     std::string testing_surface_name = "Cats";
-    auto surface_info = std::make_shared<mtd::MockInputInfo>();
+    mtd::MockInputSurface surface_info;
 
-    EXPECT_CALL(*surface_info, name())
+    EXPECT_CALL(surface_info, name())
         .Times(2)
-        .WillRepeatedly(ReturnRef(testing_surface_name));
+        .WillRepeatedly(Return(testing_surface_name));
 
-    mia::InputApplicationHandle application_handle(surface_info);
+    mia::InputApplicationHandle application_handle(&surface_info);
     EXPECT_TRUE(application_handle.updateInfo());
     auto info = application_handle.getInfo();
     EXPECT_EQ(INT_MAX, info->dispatchingTimeout);

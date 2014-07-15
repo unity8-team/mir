@@ -14,14 +14,12 @@
 #
 # Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
 
-set(
-  MIR_SHARED_LOGGING_SOURCES
-
+set(MIR_SHARED_LOGGING_SOURCES
   dumb_console_logger.cpp
-)
+  input_timestamp.cpp
+)  
 
-add_library(
-  mirsharedlogging STATIC
+add_library(mirsharedlogging STATIC
   ${MIR_SHARED_LOGGING_SOURCES}
 )
 

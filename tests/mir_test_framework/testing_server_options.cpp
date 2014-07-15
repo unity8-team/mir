@@ -18,162 +18,73 @@
 
 #include "mir_test_framework/testing_server_configuration.h"
 
-#include "mir/graphics/platform_ipc_package.h"
-#include "mir/graphics/renderer.h"
-#include "mir/graphics/renderable.h"
-#include "mir/compositor/buffer_basic.h"
-#include "mir/compositor/buffer_properties.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
-#include "mir/input/input_channel.h"
-#include "mir/input/input_manager.h"
-#include "mir/input/null_input_configuration.h"
+#include "mir/server_status_listener.h"
 
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_surface_builder.h"
-#include "mir_test_doubles/null_platform.h"
-#include "mir_test_doubles/null_display.h"
+#include <boost/exception/errinfo_errno.hpp>
+#include <boost/throw_exception.hpp>
 
-#include <gtest/gtest.h>
-#include <thread>
+#include <random>
+#include <fstream>
 
-namespace geom = mir::geometry;
-namespace mc = mir::compositor;
-namespace mg = mir::graphics;
-namespace mi = mir::input;
-namespace ms = mir::surfaces;
-namespace mf = mir::frontend;
 namespace mtf = mir_test_framework;
-namespace mtd = mir::test::doubles;
-namespace msh = mir::shell;
+namespace geom = mir::geometry;
 
 namespace
 {
-char const* dummy[] = {0};
-int argc = 0;
-char const** argv = dummy;
 
-class StubGraphicBufferAllocator : public mc::GraphicBufferAllocator
+bool socket_exists(std::string const& socket_name)
 {
- public:
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const& properties)
-    {
-        return std::unique_ptr<mc::Buffer>(new mtd::StubBuffer(properties));
-    }
+    std::string socket_path{socket_name};
+    socket_path.insert(std::begin(socket_path), ' ');
 
-    std::vector<geom::PixelFormat> supported_pixel_formats()
+    std::ifstream socket_names_file("/proc/net/unix");
+    std::string line;
+    while (std::getline(socket_names_file, line))
     {
-        return std::vector<geom::PixelFormat>();
+       if (line.find(socket_path) != std::string::npos)
+           return true;
     }
-};
+    return false;
+}
 
-class StubDisplay : public mtd::NullDisplay
+std::string create_random_socket_name()
 {
-public:
-    geom::Rectangle view_area() const override
+    std::random_device random_device;
+    std::mt19937 generator(random_device());
+    int max_concurrent_test_instances = 99999;
+    std::uniform_int_distribution<> dist(1, max_concurrent_test_instances);
+    std::string const suffix{"-mir_socket_test"};
+
+    /* check for name collisions against other test instances
+     * running concurrently
+     */
+    for (int i = 0; i < max_concurrent_test_instances; i++)
     {
-        return geom::Rectangle{geom::Point(), geom::Size{1600, 1600}};
+        std::string name{std::to_string(dist(generator))};
+        name.append(suffix);
+        if (!socket_exists(name))
+            return name;
     }
-};
-
-class StubGraphicPlatform : public mtd::NullPlatform
-{
-    std::shared_ptr<mc::GraphicBufferAllocator> create_buffer_allocator(
-        const std::shared_ptr<mg::BufferInitializer>& /*buffer_initializer*/) override
-    {
-        return std::make_shared<StubGraphicBufferAllocator>();
-    }
-
-    std::shared_ptr<mg::Display> create_display(
-        std::shared_ptr<mg::DisplayConfigurationPolicy> const&) override
-    {
-        return std::make_shared<StubDisplay>();
-    }
-};
-
-class StubRenderer : public mg::Renderer
-{
-public:
-    virtual void render(std::function<void(std::shared_ptr<void> const&)>, mg::Renderable& r)
-    {
-        // Need to acquire the texture to cycle buffers
-        r.graphic_region();
-    }
-
-    void clear() {}
-};
-
-struct StubInputChannel : public mi::InputChannel
-{
-    int client_fd() const
-    {
-        return 0;
-    }
-
-    int server_fd() const
-    {
-        return 0;
-    }
-};
-
-class StubInputManager : public mi::InputManager
-{
-  public:
-    void start() {}
-    void stop() {}
-
-    std::shared_ptr<mi::InputChannel> make_input_channel()
-    {
-        return std::make_shared<StubInputChannel>();
-    }
-};
-
+    throw std::runtime_error("Too many test socket instances exist!");
+}
 }
 
 mtf::TestingServerConfiguration::TestingServerConfiguration() :
-    DefaultServerConfiguration(::argc, ::argv)
+    using_server_started_sync(false)
 {
-    namespace po = boost::program_options;
-
-    add_options()
-        ("tests-use-real-graphics", po::value<bool>(), "Use real graphics in tests. [bool:default=false]")
-        ("tests-use-real-input", po::value<bool>(), "Use real input in tests. [bool:default=false]");
 }
 
-std::shared_ptr<mi::InputConfiguration> mtf::TestingServerConfiguration::the_input_configuration()
+mtf::TestingServerConfiguration::TestingServerConfiguration(std::vector<geom::Rectangle> const& display_rects) :
+    StubbedServerConfiguration(display_rects),
+    using_server_started_sync(false)
 {
-    auto options = the_options();
-
-    if (options->get("tests-use-real-input", false))
-        return DefaultServerConfiguration::the_input_configuration();
-    else
-        return std::make_shared<mi::NullInputConfiguration>();
-}
-
-std::shared_ptr<mg::Platform> mtf::TestingServerConfiguration::the_graphics_platform()
-{
-    if (!graphics_platform)
-    {
-        graphics_platform = std::make_shared<StubGraphicPlatform>();
-    }
-
-    return graphics_platform;
-}
-
-std::shared_ptr<mg::Renderer> mtf::TestingServerConfiguration::the_renderer()
-{
-    auto options = the_options();
-
-    if (options->get("tests-use-real-graphics", false))
-        return DefaultServerConfiguration::the_renderer();
-    else
-        return renderer(
-            [&]()
-            {
-                return std::make_shared<StubRenderer>();
-            });
 }
 
 void mtf::TestingServerConfiguration::exec()
+{
+}
+
+void mtf::TestingServerConfiguration::on_start()
 {
 }
 
@@ -186,23 +97,57 @@ std::string mtf::TestingServerConfiguration::the_socket_file() const
     return test_socket_file();
 }
 
+std::shared_ptr<mir::ServerStatusListener>
+mtf::TestingServerConfiguration::the_server_status_listener()
+{
+    struct TestingServerStatusListener : public mir::ServerStatusListener
+    {
+        TestingServerStatusListener(CrossProcessSync const& sync,
+                                    std::function<void(void)> const& on_start)
+            : server_started_sync{sync},
+              on_start{on_start}
+        {
+        }
+
+        void paused() {}
+        void resumed() {}
+        void started()
+        {
+            server_started_sync.try_signal_ready_for();
+            on_start();
+        }
+
+        CrossProcessSync server_started_sync;
+        std::function<void(void)> const on_start;
+    };
+
+    return server_status_listener(
+        [this]
+        {
+            using_server_started_sync = true;
+            return std::make_shared<TestingServerStatusListener>(
+                server_started_sync,
+                [this] { on_start(); });
+        });
+}
+
+void mtf::TestingServerConfiguration::wait_for_server_start()
+{
+    auto listener = the_server_status_listener();
+
+    if (!using_server_started_sync)
+    {
+        BOOST_THROW_EXCEPTION(
+            std::runtime_error(
+                "Not using cross process sync mechanism for server startup detection."
+                "Did you override the_server_status_listener() in the test?"));
+    }
+
+    server_started_sync.wait_for_signal_ready_for();
+}
 
 std::string const& mtf::test_socket_file()
 {
-    static const std::string socket_file{"./mir_socket_test"};
+    static const std::string socket_file{create_random_socket_name()};
     return socket_file;
-}
-
-
-int main(int argc, char** argv)
-{
-    ::argc = std::remove_if(
-        argv,
-        argv+argc,
-        [](char const* arg) { return !strncmp(arg, "--gtest_", 8); }) - argv;
-    ::argv = const_cast<char const**>(argv);
-
-  ::testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
 }

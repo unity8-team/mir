@@ -17,24 +17,34 @@
  */
 
 #include "buffer_render_target.h"
-#include "mir/compositor/buffer.h"
+#include "mir/graphics/buffer.h"
 
 #include <GLES2/gl2ext.h>
 #include <stdexcept>
 
 namespace geom = mir::geometry;
-namespace mc = mir::compositor;
+namespace mg = mir::graphics;
 namespace mt = mir::tools;
 
-mt::BufferRenderTarget::BufferRenderTarget(mc::Buffer& buffer)
-    : buffer(buffer)
+mt::BufferRenderTarget::BufferRenderTarget(mg::Buffer& buffer)
+    : buffer(buffer), old_fbo(), old_viewport()
 {
+    /*
+     * With the new lazy buffer allocation method, we may be executing inside
+     * the compositor's GL context. So be careful to save and restore what
+     * we change...
+     */
+    glGetIntegerv(GL_VIEWPORT, old_viewport);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &old_fbo);
     resources.setup(buffer);
 }
 
 mt::BufferRenderTarget::~BufferRenderTarget()
 {
     glFinish();
+    glBindFramebuffer(GL_FRAMEBUFFER, old_fbo);
+    glViewport(old_viewport[0], old_viewport[1],
+               old_viewport[2], old_viewport[3]);
 }
 
 void mt::BufferRenderTarget::make_current()
@@ -55,7 +65,7 @@ mt::BufferRenderTarget::Resources::~Resources()
         glDeleteFramebuffers(1, &fbo);
 }
 
-void mt::BufferRenderTarget::Resources::setup(mc::Buffer& buffer)
+void mt::BufferRenderTarget::Resources::setup(mg::Buffer& buffer)
 {
     geom::Size buf_size = buffer.size();
 
@@ -67,7 +77,7 @@ void mt::BufferRenderTarget::Resources::setup(mc::Buffer& buffer)
         /* Set up color buffer... */
         glGenTextures(1, &color_tex);
         glBindTexture(GL_TEXTURE_2D, color_tex);
-        buffer.bind_to_texture();
+        buffer.gl_bind_to_texture();
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_2D, color_tex, 0);
 

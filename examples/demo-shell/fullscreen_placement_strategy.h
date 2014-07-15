@@ -19,33 +19,33 @@
 #ifndef MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
 #define MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
 
-#include "mir/shell/placement_strategy.h"
+#include "mir/scene/placement_strategy.h"
 
 #include <memory>
 
 namespace mir
 {
-namespace graphics
+namespace shell
 {
-class ViewableArea;
+class DisplayLayout;
 }
 namespace examples
 {
 
-class FullscreenPlacementStrategy : public shell::PlacementStrategy
+class FullscreenPlacementStrategy : public scene::PlacementStrategy
 {
 public:
-    FullscreenPlacementStrategy(std::shared_ptr<graphics::ViewableArea> const& display_area);
+    FullscreenPlacementStrategy(std::shared_ptr<shell::DisplayLayout> const& display_layout);
     ~FullscreenPlacementStrategy() = default;
     
-    shell::SurfaceCreationParameters place(shell::SurfaceCreationParameters const& request_parameters);
+    scene::SurfaceCreationParameters place(scene::Session const&, scene::SurfaceCreationParameters const& request_parameters);
 
 protected:
     FullscreenPlacementStrategy(FullscreenPlacementStrategy const&) = delete;
     FullscreenPlacementStrategy& operator=(FullscreenPlacementStrategy const&) = delete;
 
 private:
-    std::shared_ptr<graphics::ViewableArea> const display_area;
+    std::shared_ptr<shell::DisplayLayout> const display_layout;
 };
 
 }

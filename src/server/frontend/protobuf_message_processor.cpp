@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012, 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,156 +16,116 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir_toolkit/event.h"
+#include "display_server.h"
 #include "protobuf_message_processor.h"
 #include "mir/frontend/message_processor_report.h"
-#include "mir/frontend/resource_cache.h"
-#include "mir/frontend/client_constants.h"
+#include "mir/frontend/protobuf_message_sender.h"
+#include "mir/frontend/template_protobuf_message_processor.h"
 
-#include <boost/exception/diagnostic_information.hpp>
-
-#include <sstream>
+#include "mir_protobuf_wire.pb.h"
 
 namespace mfd = mir::frontend::detail;
 
-mfd::ProtobufMessageProcessor::ProtobufMessageProcessor(
-    MessageSender* sender,
-    std::shared_ptr<protobuf::DisplayServer> const& display_server,
-    std::shared_ptr<ResourceCache> const& resource_cache,
-    std::shared_ptr<MessageProcessorReport> const& report) :
-    sender(sender),
-    display_server(display_server),
-    resource_cache(resource_cache),
-    report(report)
+namespace
 {
-    send_response_buffer.reserve(serialization_buffer_size);
-}
-
-template<class ResultMessage>
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, ResultMessage* response)
-{
-    send_response(id, static_cast<google::protobuf::Message*>(response));
-}
-
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Buffer* response)
-{
-    const auto& fd = extract_fds_from(response);
-    send_response(id, static_cast<google::protobuf::Message*>(response));
-    sender->send_fds(fd);
-    resource_cache->free_resource(response);
-}
-
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Connection* response)
-{
-    const auto& fd = response->has_platform() ?
-        extract_fds_from(response->mutable_platform()) :
-        std::vector<int32_t>();
-
-    send_response(id, static_cast<google::protobuf::Message*>(response));
-    sender->send_fds(fd);
-    resource_cache->free_resource(response);
-}
-
-void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Surface* response)
-{
-    auto const& surface_fd = extract_fds_from(response);
-    const auto& buffer_fd = response->has_buffer() ?
-        extract_fds_from(response->mutable_buffer()) :
-        std::vector<int32_t>();
-
-    send_response(id, static_cast<google::protobuf::Message*>(response));
-    sender->send_fds(surface_fd);
-    sender->send_fds(buffer_fd);
-    resource_cache->free_resource(response);
-}
-
 template<class Response>
-std::vector<int32_t> mfd::ProtobufMessageProcessor::extract_fds_from(Response* response)
+std::vector<int32_t> extract_fds_from(Response* response)
 {
     std::vector<int32_t> fd(response->fd().data(), response->fd().data() + response->fd().size());
     response->clear_fd();
     response->set_fds_on_side_channel(fd.size());
     return fd;
 }
+}
 
-template<class ParameterMessage, class ResultMessage>
-void mfd::ProtobufMessageProcessor::invoke(
-    void (protobuf::DisplayServer::*function)(
-        ::google::protobuf::RpcController* controller,
-        const ParameterMessage* request,
-        ResultMessage* response,
-        ::google::protobuf::Closure* done),
-    mir::protobuf::wire::Invocation const& invocation)
+mfd::ProtobufMessageProcessor::ProtobufMessageProcessor(
+    std::shared_ptr<ProtobufMessageSender> const& sender,
+    std::shared_ptr<DisplayServer> const& display_server,
+    std::shared_ptr<MessageProcessorReport> const& report) :
+    sender(sender),
+    display_server(display_server),
+    report(report)
 {
-    ParameterMessage parameter_message;
+}
+
+namespace mir
+{
+namespace frontend
+{
+namespace detail
+{
+template<> struct result_ptr_t<::mir::protobuf::Buffer>     { typedef ::mir::protobuf::Buffer* type; };
+template<> struct result_ptr_t<::mir::protobuf::Connection> { typedef ::mir::protobuf::Connection* type; };
+template<> struct result_ptr_t<::mir::protobuf::Surface>    { typedef ::mir::protobuf::Surface* type; };
+template<> struct result_ptr_t<::mir::protobuf::Screencast> { typedef ::mir::protobuf::Screencast* type; };
+template<> struct result_ptr_t<mir::protobuf::SocketFD>     { typedef ::mir::protobuf::SocketFD* type; };
+
+template<>
+void invoke(
+    ProtobufMessageProcessor* self,
+    DisplayServer* server,
+    void (mir::protobuf::DisplayServer::*function)(
+        ::google::protobuf::RpcController* controller,
+        const protobuf::SurfaceId* request,
+        protobuf::Buffer* response,
+        ::google::protobuf::Closure* done),
+        Invocation const& invocation)
+{
+    protobuf::SurfaceId parameter_message;
     parameter_message.ParseFromString(invocation.parameters());
-    ResultMessage result_message;
+    auto const result_message = std::make_shared<protobuf::Buffer>();
+
+    auto const callback =
+        google::protobuf::NewCallback<
+            ProtobufMessageProcessor,
+            ::google::protobuf::uint32,
+             std::shared_ptr<protobuf::Buffer>>(
+                self,
+                &ProtobufMessageProcessor::send_response,
+                invocation.id(),
+                result_message);
 
     try
     {
-        std::unique_ptr<google::protobuf::Closure> callback(
-            google::protobuf::NewPermanentCallback(this,
-                &ProtobufMessageProcessor::send_response,
-                invocation.id(),
-                &result_message));
-
-        (display_server.get()->*function)(
+        (server->*function)(
             0,
             &parameter_message,
-            &result_message,
-            callback.get());
+            result_message.get(),
+            callback);
     }
     catch (std::exception const& x)
     {
-        result_message.set_error(boost::diagnostic_information(x));
-        send_response(invocation.id(), &result_message);
+        delete callback;
+        result_message->set_error(boost::diagnostic_information(x));
+        self->send_response(invocation.id(), result_message);
     }
 }
-
-void mfd::ProtobufMessageProcessor::send_response(
-    ::google::protobuf::uint32 id,
-    google::protobuf::Message* response)
-{
-    response->SerializeToString(&send_response_buffer);
-
-    send_response_result.set_id(id);
-    send_response_result.set_response(send_response_buffer);
-
-    send_response_result.SerializeToString(&send_response_buffer);
-
-    sender->send(send_response_buffer);
+}
+}
 }
 
-void mfd::ProtobufMessageProcessor::send_event(MirEvent const& e)
+
+const std::string& mfd::Invocation::method_name() const
 {
-    // In future we might send multiple events, or insert them into messages
-    // containing other responses, but for now we send them individually.
-    mir::protobuf::EventSequence seq;
-    mir::protobuf::Event *ev = seq.add_event();
-    ev->set_raw(&e, sizeof(MirEvent));
-
-    std::string buffer;
-    buffer.reserve(serialization_buffer_size);
-    seq.SerializeToString(&buffer);
-
-    mir::protobuf::wire::Result result;
-    result.add_events(buffer);
-
-    result.SerializeToString(&buffer);
-
-    sender->send(buffer);
+    return invocation.method_name();
 }
 
-void mfd::ProtobufMessageProcessor::handle_event(MirEvent const& e)
+const std::string& mfd::Invocation::parameters() const
 {
-    // Limit the types of events we wish to send over protobuf, for now.
-    if (e.type == mir_event_type_surface)
-    {
-        send_event(e);
-    }
+    return invocation.parameters();
 }
 
-bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation const& invocation)
+google::protobuf::uint32 mfd::Invocation::id() const
+{
+    return invocation.id();
+}
+
+void mfd::ProtobufMessageProcessor::client_pid(int pid)
+{
+    display_server->client_pid(pid);
+}
+
+bool mfd::ProtobufMessageProcessor::dispatch(Invocation const& invocation)
 {
     report->received_invocation(display_server.get(), invocation.id(), invocation.method_name());
 
@@ -177,35 +137,67 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
         // It is probably possible to generate a Trie at compile time.
         if ("connect" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::connect, invocation);
+            invoke(this, display_server.get(), &DisplayServer::connect, invocation);
         }
         else if ("create_surface" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::create_surface, invocation);
+            invoke(this, display_server.get(), &DisplayServer::create_surface, invocation);
         }
         else if ("next_buffer" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::next_buffer, invocation);
+            invoke(this, display_server.get(), &DisplayServer::next_buffer, invocation);
         }
         else if ("release_surface" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::release_surface, invocation);
-        }
-        else if ("test_file_descriptors" == invocation.method_name())
-        {
-            invoke(&protobuf::DisplayServer::test_file_descriptors, invocation);
+            invoke(this, display_server.get(), &DisplayServer::release_surface, invocation);
         }
         else if ("drm_auth_magic" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::drm_auth_magic, invocation);
+            invoke(this, display_server.get(), &DisplayServer::drm_auth_magic, invocation);
+        }
+        else if ("configure_display" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &DisplayServer::configure_display, invocation);
         }
         else if ("configure_surface" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::configure_surface, invocation);
+            invoke(this, display_server.get(), &DisplayServer::configure_surface, invocation);
+        }
+        else if ("create_screencast" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &DisplayServer::create_screencast, invocation);
+        }
+        else if ("screencast_buffer" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &DisplayServer::screencast_buffer, invocation);
+        }
+        else if ("release_screencast" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &DisplayServer::release_screencast, invocation);
+        }
+        else if ("configure_cursor" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &protobuf::DisplayServer::configure_cursor, invocation);
+        }
+        else if ("new_fds_for_prompt_providers" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &protobuf::DisplayServer::new_fds_for_prompt_providers, invocation);
+        }
+        else if ("start_prompt_session" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &protobuf::DisplayServer::start_prompt_session, invocation);
+        }
+        else if ("add_prompt_provider" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &protobuf::DisplayServer::add_prompt_provider, invocation);
+        }
+        else if ("stop_prompt_session" == invocation.method_name())
+        {
+            invoke(this, display_server.get(), &protobuf::DisplayServer::stop_prompt_session, invocation);
         }
         else if ("disconnect" == invocation.method_name())
         {
-            invoke(&protobuf::DisplayServer::disconnect, invocation);
+            invoke(this, display_server.get(), &DisplayServer::disconnect, invocation);
             result = false;
         }
         else
@@ -225,19 +217,53 @@ bool mfd::ProtobufMessageProcessor::dispatch(mir::protobuf::wire::Invocation con
     return result;
 }
 
-
-bool mfd::ProtobufMessageProcessor::process_message(std::istream& msg)
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, ::google::protobuf::Message* response)
 {
-    try
-    {
-        mir::protobuf::wire::Invocation invocation;
-        invocation.ParseFromIstream(&msg);
+    sender->send_response(id, response, {});
+}
 
-        return dispatch(invocation);
-    }
-    catch (std::exception const& error)
-    {
-        report->exception_handled(display_server.get(), error);
-        return false;
-    }
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Buffer* response)
+{
+    const auto& fd = extract_fds_from(response);
+    sender->send_response(id, response, {fd});
+}
+
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, std::shared_ptr<protobuf::Buffer> response)
+{
+    send_response(id, response.get());
+}
+
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Connection* response)
+{
+    const auto& fd = response->has_platform() ?
+        extract_fds_from(response->mutable_platform()) :
+        std::vector<int32_t>();
+
+    sender->send_response(id, response, {fd});
+}
+
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::Surface* response)
+{
+    auto const& surface_fd = extract_fds_from(response);
+    const auto& buffer_fd = response->has_buffer() ?
+        extract_fds_from(response->mutable_buffer()) :
+        std::vector<int32_t>();
+
+    sender->send_response(id, response, {surface_fd, buffer_fd});
+}
+
+void mfd::ProtobufMessageProcessor::send_response(
+    ::google::protobuf::uint32 id, mir::protobuf::Screencast* response)
+{
+    auto const& buffer_fd = response->has_buffer() ?
+        extract_fds_from(response->mutable_buffer()) :
+        std::vector<int32_t>();
+
+    sender->send_response(id, response, {buffer_fd});
+}
+
+void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::SocketFD* response)
+{
+    const auto& fd = extract_fds_from(response);
+    sender->send_response(id, response, {fd});
 }

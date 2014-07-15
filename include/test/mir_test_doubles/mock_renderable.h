@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -15,12 +15,12 @@
  *
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
+
 #ifndef MIR_TEST_DOUBLES_MOCK_RENDERABLE_H_
 #define MIR_TEST_DOUBLES_MOCK_RENDERABLE_H_
 
-#include "mir/graphics/renderable.h"
-#include "mir_test_doubles/mock_graphic_region.h"
 #include "mir_test_doubles/stub_buffer.h"
+#include <mir/graphics/renderable.h>
 #include <gmock/gmock.h>
 
 namespace mir
@@ -29,30 +29,36 @@ namespace test
 {
 namespace doubles
 {
-
-class MockRenderable :  public graphics::Renderable
+struct MockRenderable : public graphics::Renderable
 {
-public:
     MockRenderable()
-     : region(std::make_shared<MockGraphicRegion>()),
-       buffer(std::make_shared<StubBuffer>())
     {
-        using namespace testing;
-        ON_CALL(*this, graphic_region())
-            .WillByDefault(Return(buffer));
+        ON_CALL(*this, screen_position())
+            .WillByDefault(testing::Return(geometry::Rectangle{{},{}}));
+        ON_CALL(*this, buffer())
+            .WillByDefault(testing::Return(std::make_shared<StubBuffer>()));
+        ON_CALL(*this, buffers_ready_for_compositor())
+            .WillByDefault(testing::Return(1));
+        ON_CALL(*this, alpha())
+            .WillByDefault(testing::Return(1.0f));
+        ON_CALL(*this, transformation())
+            .WillByDefault(testing::Return(glm::mat4{}));
+        ON_CALL(*this, visible())
+            .WillByDefault(testing::Return(true));
     }
-    MOCK_CONST_METHOD0(top_left, geometry::Point());
-    MOCK_CONST_METHOD0(size, geometry::Size());
-    MOCK_CONST_METHOD0(graphic_region, std::shared_ptr<surfaces::GraphicRegion>());
-    MOCK_CONST_METHOD0(transformation, const glm::mat4&());
+
+    MOCK_CONST_METHOD0(id, ID());
+    MOCK_CONST_METHOD0(buffer, std::shared_ptr<graphics::Buffer>());
+    MOCK_CONST_METHOD0(alpha_enabled, bool());
+    MOCK_CONST_METHOD0(screen_position, geometry::Rectangle());
     MOCK_CONST_METHOD0(alpha, float());
-    MOCK_CONST_METHOD0(should_be_rendered, bool());
-
-    std::shared_ptr<surfaces::GraphicRegion> const region;
-    std::shared_ptr<compositor::Buffer> const buffer;
+    MOCK_CONST_METHOD0(transformation, glm::mat4());
+    MOCK_CONST_METHOD0(visible, bool());
+    MOCK_CONST_METHOD0(shaped, bool());
+    MOCK_CONST_METHOD0(buffers_ready_for_compositor, int());
 };
+}
+}
+}
 
-}
-}
-}
 #endif /* MIR_TEST_DOUBLES_MOCK_RENDERABLE_H_ */

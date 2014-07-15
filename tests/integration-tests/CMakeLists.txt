@@ -1,13 +1,20 @@
+include(CMakeDependentOption)
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 set(
   INTEGRATION_TESTS_SRCS
+  test_surface_stack_with_compositor.cpp
   test_surfaceloop.cpp
   test_error_reporting.cpp
   test_display_info.cpp
   test_display_server_main_loop_events.cpp
   test_surface_first_frame_sync.cpp
   test_swapinterval.cpp
+  test_server_client_types.cpp
+  test_session_manager.cpp
+  test_session.cpp
+  session_management.cpp
 )
 
 add_subdirectory(client/)
@@ -17,11 +24,11 @@ add_subdirectory(shell/)
 add_subdirectory(process/)
 add_subdirectory(input/)
 
-if (MIR_PLATFORM STREQUAL "android")
+if (MIR_TEST_PLATFORM STREQUAL "android")
   add_subdirectory(graphics/android)
 endif()
 
-if(MIR_PLATFORM STREQUAL "gbm")
+if(MIR_TEST_PLATFORM STREQUAL "mesa")
   include_directories(
     ${DRM_INCLUDE_DIRS}
     ${GBM_INCLUDE_DIRS}
@@ -29,17 +36,18 @@ if(MIR_PLATFORM STREQUAL "gbm")
     ${GLESv2_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}
   )
-  add_subdirectory(graphics/gbm)
+  add_subdirectory(graphics/mesa)
   list(APPEND INTEGRATION_TESTS_SRCS test_drm_auth_magic.cpp)
 endif()
 
+link_directories(${LIBRARY_OUTPUT_PATH})
 add_executable(
-  integration-tests
+  mir_integration_tests
   ${INTEGRATION_TESTS_SRCS})
-uses_android_input(integration-tests)
+uses_android_input(mir_integration_tests)
 
 target_link_libraries(
-  integration-tests
+  mir_integration_tests
 
   mir-test
   mir-test-framework
@@ -61,6 +69,18 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
-if (NOT MIR_DISABLE_INTEGRATION_TESTS)
-  mir_discover_tests(integration-tests)
-endif()
+CMAKE_DEPENDENT_OPTION(
+  MIR_RUN_INTEGRATION_TESTS
+  "Run integration tests as part of default testing"
+  ON
+  "MIR_BUILD_INTEGRATION_TESTS"
+  OFF)
+
+if (MIR_RUN_INTEGRATION_TESTS)
+  mir_discover_tests(mir_integration_tests)
+endif (MIR_RUN_INTEGRATION_TESTS)
+
+install(
+    TARGETS mir_integration_tests
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)

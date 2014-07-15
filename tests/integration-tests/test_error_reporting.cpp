@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -19,11 +19,11 @@
 
 #include "mir_toolkit/mir_client_library.h"
 
-#include "mir/frontend/protobuf_ipc_factory.h"
-#include "mir/frontend/resource_cache.h"
-#include "mir/frontend/communicator.h"
+#include "src/server/frontend/protobuf_ipc_factory.h"
+#include "src/server/frontend/resource_cache.h"
+#include "mir/frontend/connector.h"
 
-#include "mir_protobuf.pb.h"
+#include "src/server/frontend/display_server.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_doubles/stub_ipc_factory.h"
@@ -46,8 +46,10 @@ namespace
 {
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-struct ErrorServer : mir::protobuf::DisplayServer
+struct ErrorServer : mf::detail::DisplayServer
 {
+    void client_pid(int /*pid*/) override {}
+
     static std::string const test_exception_text;
 
     void create_surface(
@@ -82,15 +84,6 @@ struct ErrorServer : mir::protobuf::DisplayServer
         google::protobuf::RpcController*,
         const mir::protobuf::Void*,
         mir::protobuf::Void*,
-        google::protobuf::Closure*)
-    {
-        throw std::runtime_error(test_exception_text);
-    }
-
-    void test_file_descriptors(
-        google::protobuf::RpcController*,
-        const mir::protobuf::Void*,
-        mir::protobuf::Buffer*,
         google::protobuf::Closure*)
     {
         throw std::runtime_error(test_exception_text);
@@ -205,10 +198,8 @@ TEST_F(ErrorReporting, c_api_returns_error)
 
     struct ServerConfig : TestingServerConfiguration
     {
-        std::shared_ptr<mf::ProtobufIpcFactory> the_ipc_factory(
-            std::shared_ptr<mir::frontend::Shell> const&,
-            std::shared_ptr<mg::ViewableArea> const&,
-            std::shared_ptr<mc::GraphicBufferAllocator> const&) override
+        std::shared_ptr<mf::ProtobufIpcFactory> new_ipc_factory(
+            std::shared_ptr<mf::SessionAuthorizer> const&) override
         {
             static auto error_server = std::make_shared<ErrorServer>();
             return std::make_shared<mtd::StubIpcFactory>(*error_server);
@@ -234,7 +225,8 @@ TEST_F(ErrorReporting, c_api_returns_error)
                 __PRETTY_FUNCTION__,
                 640, 480,
                 mir_pixel_format_abgr_8888,
-                mir_buffer_usage_hardware
+                mir_buffer_usage_hardware,
+                mir_display_output_id_invalid
             };
 
             mir_connection_create_surface(connection, &request_params, create_surface_callback, ssync);

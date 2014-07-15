@@ -1,12 +1,25 @@
+include(CMakeDependentOption)
+
 add_definitions(-DTEST_RECORDINGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/input_recordings/")
+
 include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${UMOCKDEV_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
+# TODO: Aim to remove
+include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
+add_definitions("-DMIR_TESTING_XCURSOR_THEME=\"${CMAKE_CURRENT_SOURCE_DIR}/input/testing-cursor-theme\"")
 
 set(
   UNIT_TEST_SOURCES
 
   test_gmock_fixes.cpp
+  test_recursive_read_write_mutex.cpp
   test_asio_main_loop.cpp
   shared_library_test.cpp
+  test_raii.cpp
+  test_udev_wrapper.cpp
+  test_variable_length_array.cpp
+  test_thread_name.cpp
+  test_default_emergency_cleanup.cpp
+  test_basic_observers.cpp
 )
 
 add_subdirectory(options/)
@@ -19,18 +32,21 @@ add_subdirectory(geometry/)
 add_subdirectory(graphics/)
 add_subdirectory(input/)
 add_subdirectory(android_input/)
-add_subdirectory(surfaces/)
+add_subdirectory(scene/)
 add_subdirectory(draw/)
 
-add_executable(unit-tests ${UNIT_TEST_SOURCES})
-uses_android_input(unit-tests)
+link_directories(${LIBRARY_OUTPUT_PATH})
+
+add_executable(mir_unit_tests ${UNIT_TEST_SOURCES})
+uses_android_input(mir_unit_tests)
 
 target_link_libraries(
-  unit-tests
+  mir_unit_tests
 
   mirclient-static
   mirserver
   mirplatformgraphics
+  mirclientplatform-static
   mirdraw
   mirtestdraw
   mirlogging
@@ -47,17 +63,25 @@ target_link_libraries(
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${Boost_LIBRARIES}
+  ${UMOCKDEV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
-if (MIR_PLATFORM STREQUAL "gbm")
-  target_link_libraries(
-    unit-tests
+# Umockdev uses glib, which uses the deprecated "register" allocation specifier
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
 
-    ${UMOCKDEV_LIBRARIES}
-  )
-  # Umockdev uses glib, which uses the deprecated "register" allocation specifier
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
-endif()  
+CMAKE_DEPENDENT_OPTION(
+  MIR_RUN_UNIT_TESTS
+  "Run unit tests as part of default testing"
+  ON
+  "MIR_BUILD_UNIT_TESTS"
+  OFF)
 
-mir_discover_tests(unit-tests LD_PRELOAD=libumockdev-preload.so.0)
+if (MIR_RUN_UNIT_TESTS)
+  mir_discover_tests(mir_unit_tests LD_PRELOAD=libumockdev-preload.so.0 G_SLICE=always-malloc G_DEBUG=gc-friendly)
+endif (MIR_RUN_UNIT_TESTS)
+
+install(
+    TARGETS mir_unit_tests
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)

@@ -16,39 +16,28 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/server/graphics/android/server_render_window.h"
-#include "src/server/graphics/android/fb_swapper.h"
+#include "src/platform/graphics/android/server_render_window.h"
 
-#include "mir_test_doubles/mock_display_support_provider.h"
 #include "mir_test_doubles/mock_buffer.h"
+#include "mir_test_doubles/mock_fence.h"
 #include "mir_test_doubles/mock_interpreter_resource_cache.h"
+#include "mir_test_doubles/mock_framebuffer_bundle.h"
+#include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_android_native_buffer.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <stdexcept>
 
+namespace mt=mir::test;
 namespace mtd=mir::test::doubles;
 namespace geom=mir::geometry;
+namespace mg=mir::graphics;
 namespace mga=mir::graphics::android;
-namespace mc=mir::compositor;
 
 namespace
 {
-
-struct StubFence : public mga::SyncObject
-{
-    virtual ~StubFence() noexcept {}
-    MOCK_METHOD0(wait, void());
-};
-
-struct MockFBSwapper : public mga::FBSwapper
-{
-    ~MockFBSwapper() noexcept {}
-    MOCK_METHOD0(compositor_acquire, std::shared_ptr<mc::Buffer>());
-    MOCK_METHOD1(compositor_release, void(std::shared_ptr<mc::Buffer> const& released_buffer));
-};
-
-struct ServerRenderWindowTest : public ::testing::Test
+struct ServerRenderWindow : public ::testing::Test
 {
     virtual void SetUp()
     {
@@ -56,173 +45,149 @@ struct ServerRenderWindowTest : public ::testing::Test
         mock_buffer1 = std::make_shared<NiceMock<mtd::MockBuffer>>();
         mock_buffer2 = std::make_shared<NiceMock<mtd::MockBuffer>>();
         mock_buffer3 = std::make_shared<NiceMock<mtd::MockBuffer>>();
-        mock_swapper = std::make_shared<NiceMock<MockFBSwapper>>();
-        mock_display_poster = std::make_shared<NiceMock<mtd::MockDisplaySupportProvider>>();
-        mock_cache = std::make_shared<mtd::MockInterpreterResourceCache>();
-        ON_CALL(*mock_display_poster, display_format())
-            .WillByDefault(Return(geom::PixelFormat::abgr_8888));
-        stub_sync = std::make_shared<StubFence>();
+        mock_fb_bundle = std::make_shared<NiceMock<mtd::MockFBBundle>>();
+        mock_cache = std::make_shared<NiceMock<mtd::MockInterpreterResourceCache>>();
+        ON_CALL(*mock_fb_bundle, fb_format())
+            .WillByDefault(Return(mir_pixel_format_abgr_8888));
     }
 
     std::shared_ptr<mtd::MockBuffer> mock_buffer1;
     std::shared_ptr<mtd::MockBuffer> mock_buffer2;
     std::shared_ptr<mtd::MockBuffer> mock_buffer3;
     std::shared_ptr<mtd::MockInterpreterResourceCache> mock_cache;
-    std::shared_ptr<MockFBSwapper> mock_swapper;
-    std::shared_ptr<mtd::MockDisplaySupportProvider> mock_display_poster;
-    std::shared_ptr<StubFence> stub_sync;
+    std::shared_ptr<mtd::MockFBBundle> mock_fb_bundle;
 };
 }
 
-TEST_F(ServerRenderWindowTest, driver_wants_a_buffer)
+TEST_F(ServerRenderWindow, returns_buffer_on_request)
 {
     using namespace testing;
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
 
-    auto stub_anw = std::make_shared<ANativeWindowBuffer>();
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
-    EXPECT_CALL(*mock_swapper, compositor_acquire())
+    auto stub_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
+
+    EXPECT_CALL(*mock_fb_bundle, buffer_for_render())
         .Times(1)
         .WillOnce(Return(mock_buffer1));
     EXPECT_CALL(*mock_buffer1, native_buffer_handle())
         .Times(1)
-        .WillOnce(Return(stub_anw));
+        .WillOnce(Return(stub_buffer));
 
-    std::shared_ptr<mc::Buffer> tmp = mock_buffer1;
-    EXPECT_CALL(*mock_cache, store_buffer(tmp, stub_anw.get()))
+    std::shared_ptr<mg::Buffer> tmp = mock_buffer1;
+    std::shared_ptr<mg::NativeBuffer> tmp2 = stub_buffer;
+    EXPECT_CALL(*mock_cache, store_buffer(tmp, tmp2))
         .Times(1);
 
     auto rc_buffer = render_window.driver_requests_buffer();
-    EXPECT_EQ(stub_anw.get(), rc_buffer);
+    EXPECT_EQ(stub_buffer.get(), rc_buffer);
 }
 
-TEST_F(ServerRenderWindowTest, driver_is_done_with_a_buffer_properly)
+TEST_F(ServerRenderWindow, updates_fences_and_returns_buffer_on_queue)
 {
     using namespace testing;
-    auto stub_anw = std::make_shared<ANativeWindowBuffer>();
-    EXPECT_CALL(*mock_cache, retrieve_buffer(stub_anw.get()))
-        .Times(1)
-        .WillOnce(Return(mock_buffer1));
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+    int fake_fence = 488;
+    auto stub_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
 
-    EXPECT_CALL(*mock_swapper, compositor_acquire())
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
+
+    EXPECT_CALL(*mock_fb_bundle, buffer_for_render())
         .Times(1)
         .WillOnce(Return(mock_buffer1));
     EXPECT_CALL(*mock_buffer1, native_buffer_handle())
         .Times(1)
-        .WillOnce(Return(stub_anw));
+        .WillOnce(Return(stub_buffer));
 
     render_window.driver_requests_buffer();
-    testing::Mock::VerifyAndClearExpectations(mock_swapper.get());
+    testing::Mock::VerifyAndClearExpectations(mock_fb_bundle.get());
 
-    std::shared_ptr<mc::Buffer> buf1 = mock_buffer1;
-    EXPECT_CALL(*mock_swapper, compositor_release(buf1))
+    std::shared_ptr<mg::Buffer> buf1 = mock_buffer1;
+    EXPECT_CALL(*mock_cache, update_native_fence(stub_buffer->anwb(), fake_fence))
         .Times(1);
-    EXPECT_CALL(*stub_sync, wait())
-        .Times(0);
+    EXPECT_CALL(*mock_cache, retrieve_buffer(stub_buffer->anwb()))
+        .Times(1)
+        .WillOnce(Return(mock_buffer1));
 
-    render_window.driver_returns_buffer(stub_anw.get(), stub_sync);
-    testing::Mock::VerifyAndClearExpectations(mock_swapper.get());
+    render_window.driver_returns_buffer(stub_buffer->anwb(), fake_fence);
+    testing::Mock::VerifyAndClearExpectations(mock_fb_bundle.get());
 }
 
-TEST_F(ServerRenderWindowTest, driver_returns_buffer_posts_to_fb)
+TEST_F(ServerRenderWindow, returns_format)
 {
     using namespace testing;
-    auto stub_anw = std::make_shared<ANativeWindowBuffer>();
-    EXPECT_CALL(*mock_cache, retrieve_buffer(_))
+
+    EXPECT_CALL(*mock_fb_bundle, fb_format())
         .Times(1)
-        .WillOnce(Return(mock_buffer1));
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+        .WillOnce(Return(mir_pixel_format_abgr_8888));
 
-    mc::BufferID id{442}, returned_id;
-    EXPECT_CALL(*mock_swapper, compositor_acquire())
-        .Times(1)
-        .WillOnce(Return(mock_buffer1));
-    EXPECT_CALL(*mock_swapper, compositor_release(_))
-        .Times(1);
-    std::shared_ptr<mc::Buffer> buf1 = mock_buffer1;
-    EXPECT_CALL(*mock_buffer1, native_buffer_handle())
-        .Times(1)
-        .WillOnce(Return(stub_anw));
-    EXPECT_CALL(*mock_display_poster, set_next_frontbuffer(buf1))
-        .Times(1);
-
-    auto handle1 = render_window.driver_requests_buffer();
-    render_window.driver_returns_buffer(handle1, stub_sync);
-}
-
-TEST_F(ServerRenderWindowTest, driver_inquires_about_format)
-{
-    using namespace testing; 
-
-    EXPECT_CALL(*mock_display_poster, display_format())
-        .Times(1)
-        .WillOnce(Return(geom::PixelFormat::abgr_8888));
-
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBA_8888, render_window.driver_requests_info(NATIVE_WINDOW_FORMAT));
 }
 
-TEST_F(ServerRenderWindowTest, driver_inquires_about_format_after_format_set)
+TEST_F(ServerRenderWindow, returns_different_format_if_format_changes)
 {
     using namespace testing;
 
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
-    EXPECT_CALL(*mock_display_poster, display_format())
-        .Times(0);
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
     render_window.dispatch_driver_request_format(HAL_PIXEL_FORMAT_RGBX_8888);
     auto rc_format = render_window.driver_requests_info(NATIVE_WINDOW_FORMAT);
-    EXPECT_EQ(HAL_PIXEL_FORMAT_RGBX_8888, rc_format); 
+    EXPECT_EQ(HAL_PIXEL_FORMAT_RGBX_8888, rc_format);
 }
 
-TEST_F(ServerRenderWindowTest, driver_inquires_about_size_without_having_been_set)
+TEST_F(ServerRenderWindow, returns_sensible_size_values_without_size_having_been_set)
 {
     using namespace testing;
     geom::Size test_size{4, 5};
-    EXPECT_CALL(*mock_display_poster, display_size())
+    EXPECT_CALL(*mock_fb_bundle, fb_size())
         .Times(4)
         .WillRepeatedly(Return(test_size));
 
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
     unsigned int rc_width = render_window.driver_requests_info(NATIVE_WINDOW_DEFAULT_WIDTH);
     unsigned int rc_height = render_window.driver_requests_info(NATIVE_WINDOW_DEFAULT_HEIGHT);
-    EXPECT_EQ(test_size.width.as_uint32_t(), rc_width); 
+    EXPECT_EQ(test_size.width.as_uint32_t(), rc_width);
     EXPECT_EQ(test_size.height.as_uint32_t(), rc_height);
 
     rc_width = render_window.driver_requests_info(NATIVE_WINDOW_WIDTH);
     rc_height = render_window.driver_requests_info(NATIVE_WINDOW_HEIGHT);
-    EXPECT_EQ(test_size.width.as_uint32_t(), rc_width); 
-    EXPECT_EQ(test_size.height.as_uint32_t(), rc_height); 
+    EXPECT_EQ(test_size.width.as_uint32_t(), rc_width);
+    EXPECT_EQ(test_size.height.as_uint32_t(), rc_height);
 }
 
-TEST_F(ServerRenderWindowTest, driver_inquires_about_transform)
+TEST_F(ServerRenderWindow, returns_no_transform_when_asked_for_hint)
 {
     using namespace testing;
 
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
     EXPECT_EQ(0, render_window.driver_requests_info(NATIVE_WINDOW_TRANSFORM_HINT));
 }
 
-TEST_F(ServerRenderWindowTest, driver_unknown_inquiry)
+TEST_F(ServerRenderWindow, reports_framebuffer_concrete_type)
+{
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
+
+    EXPECT_EQ(NATIVE_WINDOW_FRAMEBUFFER, render_window.driver_requests_info(NATIVE_WINDOW_CONCRETE_TYPE));
+}
+
+TEST_F(ServerRenderWindow, throws_on_driver_unknown_inquiry)
 {
     using namespace testing;
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
 
     EXPECT_THROW({
         render_window.driver_requests_info(NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND);
     }, std::runtime_error);
 }
 
-TEST_F(ServerRenderWindowTest, driver_swapinterval_request)
+TEST_F(ServerRenderWindow, services_driver_swapinterval_request)
 {
-    mga::ServerRenderWindow render_window(mock_swapper, mock_display_poster, mock_cache);
-
-    EXPECT_CALL(*mock_display_poster, sync_to_display(false))
+    EXPECT_CALL(*mock_fb_bundle, wait_for_consumed_buffer(false))
         .Times(1);
 
+    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
     render_window.sync_to_display(false);
 }

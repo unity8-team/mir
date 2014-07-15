@@ -19,13 +19,13 @@
 
 #include <androidfw/Input.h>
 #include <androidfw/InputTransport.h>
+#include <androidfw/IntSet.h>
 #include <std/KeyedVector.h>
 #include <std/Vector.h>
 #include <std/Timers.h>
 #include <std/RefBase.h>
 #include <std/String8.h>
 #include <std/Looper.h>
-#include <std/BitSet.h>
 #include <std/atomic.h>
 #include <std/Condition.h>
 #include <std/Thread.h>
@@ -169,7 +169,7 @@ struct InputTarget {
 
     // The subset of pointer ids to include in motion events dispatched to this input target
     // if FLAG_SPLIT is set.
-    BitSet32 pointerIds;
+    IntSet pointerIds;
 };
 
 
@@ -284,13 +284,6 @@ protected:
     virtual ~InputDispatcherInterface() { }
 
 public:
-    /* 
-     * Sets the enumerator of input targets. This must be called prior to enabling input dispatch.
-     *
-     * This method may be called by any thread.
-     */
-    virtual void setInputEnumerator(sp<InputEnumerator> const& enumerator) = 0;
-
     /* Dumps the state of the input dispatcher.
      *
      * This method may be called on any thread (usually by the input manager). */
@@ -387,13 +380,9 @@ public:
  *     A 'LockedInterruptible' method may called a 'Locked' method, but NOT vice-versa.
  */
 class InputDispatcher : public InputDispatcherInterface {
-protected:
-    virtual ~InputDispatcher();
-
 public:
-    explicit InputDispatcher(const sp<InputDispatcherPolicyInterface>& policy, std::shared_ptr<mir::input::InputReport> const& input_report);
-
-    virtual void setInputEnumerator(sp<InputEnumerator> const& enumerator);
+    virtual ~InputDispatcher();
+    explicit InputDispatcher(std::shared_ptr<InputDispatcherPolicyInterface> const& policy, std::shared_ptr<mir::input::InputReport> const& input_report, std::shared_ptr<InputEnumerator> const& enumerator);
 
     virtual void dump(String8& dump);
     virtual void monitor();
@@ -862,7 +851,7 @@ private:
         DROP_REASON_STALE = 5
     };
 
-    sp<InputDispatcherPolicyInterface> mPolicy;
+    std::shared_ptr<InputDispatcherPolicyInterface> mPolicy;
     InputDispatcherConfiguration mConfig;
 
     Mutex mLock;
@@ -941,7 +930,7 @@ private:
     bool mDispatchFrozen;
     bool mInputFilterEnabled;
 
-    sp<InputEnumerator> mEnumerator;
+    std::shared_ptr<InputEnumerator> mEnumerator;
 
     sp<InputWindowHandle> getWindowHandleLocked(const sp<InputChannel>& inputChannel) const;
     bool hasWindowHandleLocked(const sp<InputWindowHandle>& windowHandle) const;
@@ -953,7 +942,7 @@ private:
     struct TouchedWindow {
         sp<InputWindowHandle> windowHandle;
         int32_t targetFlags;
-        BitSet32 pointerIds;        // zero unless target flag FLAG_SPLIT is set
+        IntSet pointerIds;        // empty unless target flag FLAG_SPLIT is set
     };
     struct TouchState {
         bool down;
@@ -967,7 +956,7 @@ private:
         void reset();
         void copyFrom(const TouchState& other);
         void addOrUpdateWindow(const sp<InputWindowHandle>& windowHandle,
-                int32_t targetFlags, BitSet32 pointerIds);
+                int32_t targetFlags, const IntSet &pointerIds);
         void removeWindow(const sp<InputWindowHandle>& windowHandle);
         void filterNonAsIsTouchWindows();
         sp<InputWindowHandle> getFirstForegroundWindowHandle() const;
@@ -1033,7 +1022,7 @@ private:
             bool* outConflictingPointerActions);
 
     void addWindowTargetLocked(const sp<InputWindowHandle>& windowHandle,
-            int32_t targetFlags, BitSet32 pointerIds, Vector<InputTarget>& inputTargets);
+            int32_t targetFlags, const IntSet &pointerIds, Vector<InputTarget>& inputTargets);
     void addMonitoringTargetsLocked(Vector<InputTarget>& inputTargets);
 
     bool checkInjectionPermission(const sp<InputWindowHandle>& windowHandle,
@@ -1072,7 +1061,7 @@ private:
             const CancelationOptions& options);
 
     // Splitting motion events across windows.
-    MotionEntry* splitMotionEvent(const MotionEntry* originalMotionEntry, BitSet32 pointerIds);
+    MotionEntry* splitMotionEvent(const MotionEntry* originalMotionEntry, const IntSet &pointerIds);
 
     // Reset and drop everything the dispatcher is doing.
     void resetAndDropEverythingLocked(const char* reason);
@@ -1122,13 +1111,13 @@ private:
 /* Enqueues and dispatches input events, endlessly. */
 class InputDispatcherThread : public Thread {
 public:
-    explicit InputDispatcherThread(const sp<InputDispatcherInterface>& dispatcher);
+    explicit InputDispatcherThread(std::shared_ptr<InputDispatcherInterface> const& dispatcher);
     ~InputDispatcherThread();
 
 private:
     virtual bool threadLoop();
 
-    sp<InputDispatcherInterface> mDispatcher;
+    std::shared_ptr<InputDispatcherInterface> mDispatcher;
 };
 
 } // namespace android

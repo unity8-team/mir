@@ -21,6 +21,7 @@
 
 #include "mir_protobuf_wire.pb.h"
 #include "mir/frontend/client_constants.h"
+#include "mir/variable_length_array.h"
 
 #include <sstream>
 
@@ -33,42 +34,55 @@ mclrd::PendingCallCache::PendingCallCache(
 {
 }
 
-mclrd::SendBuffer& mclrd::PendingCallCache::save_completion_details(
-    mir::protobuf::wire::Invocation& invoke,
+void mclrd::PendingCallCache::save_completion_details(
+    mir::protobuf::wire::Invocation const& invoke,
     google::protobuf::Message* response,
     std::shared_ptr<google::protobuf::Closure> const& complete)
 {
     std::unique_lock<std::mutex> lock(mutex);
 
-    auto& current = pending_calls[invoke.id()] = PendingCall(response, complete);
-    return current.send_buffer;
+    pending_calls[invoke.id()] = PendingCall(response, complete);
 }
 
 void mclrd::PendingCallCache::complete_response(mir::protobuf::wire::Result& result)
 {
-    std::unique_lock<std::mutex> lock(mutex);
-    auto call = pending_calls.find(result.id());
-    if (call == pending_calls.end())
+    PendingCall completion;
+
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        auto call = pending_calls.find(result.id());
+        if (call != pending_calls.end())
+        {
+            completion = call->second;
+            pending_calls.erase(call);
+        }
+    }
+
+    if (!completion.complete)
     {
         rpc_report->orphaned_result(result);
     }
     else
     {
-        auto& completion = call->second;
-
         rpc_report->complete_response(result);
-
         completion.response->ParseFromString(result.response());
-
-        // Let the completion closure live a bit longer than our lock...
-        std::shared_ptr<google::protobuf::Closure> complete =
-            completion.complete;
-        pending_calls.erase(call);
-
-        lock.unlock();  // Avoid deadlocks in callbacks
-        complete->Run();
+        completion.complete->Run();
     }
 }
+
+void mclrd::PendingCallCache::force_completion()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    for (auto& call : pending_calls)
+    {
+        auto& completion = call.second;
+        completion.complete->Run();
+    }
+
+    pending_calls.erase(pending_calls.begin(), pending_calls.end());
+}
+
+
 
 bool mclrd::PendingCallCache::empty() const
 {
@@ -89,22 +103,20 @@ mclr::MirBasicRpcChannel::~MirBasicRpcChannel()
 
 
 mir::protobuf::wire::Invocation mclr::MirBasicRpcChannel::invocation_for(
-    const google::protobuf::MethodDescriptor* method,
-    const google::protobuf::Message* request)
+    google::protobuf::MethodDescriptor const* method,
+    google::protobuf::Message const* request)
 {
-    char buffer[mir::frontend::serialization_buffer_size];
+    mir::VariableLengthArray<mir::frontend::serialization_buffer_size>
+        buffer{static_cast<size_t>(request->ByteSize())};
 
-    auto const size = request->ByteSize();
-    // In practice size will be 10s of bytes - but have a test to detect problems
-    assert(size < static_cast<decltype(size)>(sizeof buffer));
-
-    request->SerializeToArray(buffer, sizeof buffer);
+    request->SerializeWithCachedSizesToArray(buffer.data());
 
     mir::protobuf::wire::Invocation invoke;
 
     invoke.set_id(next_id());
     invoke.set_method_name(method->name());
-    invoke.set_parameters(buffer, size);
+    invoke.set_parameters(buffer.data(), buffer.size());
+    invoke.set_protocol_version(1);
 
     return invoke;
 }

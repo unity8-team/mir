@@ -18,6 +18,9 @@
 #ifndef MIR_CLIENT_CLIENT_PLATFORM_FACTORY_H_
 #define MIR_CLIENT_CLIENT_PLATFORM_FACTORY_H_
 
+#include <mir_toolkit/common.h>
+#include <memory>
+
 namespace mir
 {
 namespace client
@@ -29,15 +32,18 @@ class ClientContext;
 class ClientPlatformFactory
 {
 public:
-    virtual ~ClientPlatformFactory() {}
+    virtual ~ClientPlatformFactory() = default;
 
     virtual std::shared_ptr<ClientPlatform> create_client_platform(ClientContext* context) = 0;
 
 protected:
     ClientPlatformFactory() = default;
-    ClientPlatformFactory(const ClientPlatformFactory& p) = delete;
-    ClientPlatformFactory& operator=(const ClientPlatformFactory& p) = delete;
+    ClientPlatformFactory(ClientPlatformFactory const& p) = delete;
+    ClientPlatformFactory& operator=(ClientPlatformFactory const& p) = delete;
 };
+
+extern "C" typedef std::shared_ptr<ClientPlatformFactory>(*CreateClientPlatformFactory)();
+extern "C" MIR_API std::shared_ptr<ClientPlatformFactory> create_client_platform_factory();
 
 }
 }

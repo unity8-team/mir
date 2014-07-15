@@ -1,12 +1,13 @@
-include_directories(${PROJECT_SOURCE_DIR}/include/server)
+include_directories(
+  ${PROJECT_SOURCE_DIR}/include/platform
+  ${PROJECT_SOURCE_DIR}/include/server)
 
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)
 add_subdirectory(input/)
+add_subdirectory(report/)
 add_subdirectory(logging/)
-add_subdirectory(lttng/)
-add_subdirectory(surfaces/)
-add_subdirectory(options/)
+add_subdirectory(scene/)
 add_subdirectory(frontend/)
 add_subdirectory(shell/)
 add_subdirectory(time/)
@@ -15,6 +16,7 @@ set(PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(EXEC_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirserver")
+set(PLATFORM_INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirplatform")
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/mirserver.pc.in
@@ -28,7 +30,7 @@ set(
   display_server.cpp
   default_server_configuration.cpp
   asio_main_loop.cpp
-  shared_library.cpp
+  default_emergency_cleanup.cpp
 )
 
 set(MIRSERVER_LINKAGE SHARED)
@@ -43,19 +45,31 @@ list(APPEND MIRSERVER_ARCHIVES
   mirfrontend
   mirgraphics
   mirinput
-  mirsharedgeometry
   mirsharedinput
+  mirsharedgeometry
   mirsharedlogging
-  mirsurfaces
+  mirsharedenv
+  mirsharedsharedlibrary
+  mirsharedthread
+  mirshell
+  mirscene
   mirtime
   mirlttng
+  mirreport
+  mirlogger
+  mirnestedgraphics
+  miroffscreengraphics
 )
 
 list(APPEND MIRSERVER_LINKS
   mirprotobuf
+  mirplatform
+  mirclient
   3rd_party
+  xcursorloader
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
+  ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
 )
 
 if(${MIRSERVER_LINKAGE} STREQUAL SHARED)
@@ -71,6 +85,9 @@ if(${MIRSERVER_LINKAGE} STREQUAL SHARED)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
   install(DIRECTORY
+    ${CMAKE_SOURCE_DIR}/include/platform/mir DESTINATION "include/mirplatform"
+  )
+  install(DIRECTORY
     ${CMAKE_SOURCE_DIR}/include/server/mir DESTINATION "include/mirserver"
   )
 else()
@@ -81,9 +98,13 @@ else()
   )
 endif()
 
-set_target_properties(mirserver PROPERTIES
-  VERSION ${MIR_VERSION_MAJOR}.${MIR_VERSION_MINOR}.${MIR_VERSION_PATCH}
-  SOVERSION ${MIR_VERSION_MAJOR}
+set(MIRSERVER_ABI 22) # Be sure to increment MIR_VERSION_MINOR at the same time
+
+set_target_properties(
+  mirserver
+
+  PROPERTIES
+  SOVERSION ${MIRSERVER_ABI}
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mirserver.pc

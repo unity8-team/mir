@@ -36,12 +36,55 @@ namespace test
 namespace doubles
 {
 
+MATCHER_P(AttrMatches, val, std::string("matches"))
+{
+    auto i = 0;
+    while ((val[i] != EGL_NONE) && (arg[i] != EGL_NONE))
+    {
+        if (val[i] != arg[i])
+            return false;
+        i++;
+    }
+
+    if ((val[i] == EGL_NONE) && (arg[i] == EGL_NONE))
+    {
+        return true;
+    }
+    return false;
+}
+
+MATCHER_P2(EGLConfigContainsAttrib, attrib, value, "")
+{
+    bool attrib_position = true;
+    bool attrib_found = false;
+
+    while (!attrib_position || *arg != EGL_NONE)
+    {
+        if (attrib_position && *arg == attrib)
+        {
+            attrib_found = true;
+        }
+        else if (!attrib_position)
+        {
+            if (attrib_found && *arg == value)
+            {
+                return true;
+            }
+
+            attrib_found = false;
+        }
+        attrib_position = !attrib_position;
+        ++arg;
+    }
+
+    return false;
+}
+
 class MockEGL
 {
 public:
     MockEGL();
     ~MockEGL();
-    void silence_uninteresting();
 
     typedef void (*generic_function_pointer_t)(void);
 

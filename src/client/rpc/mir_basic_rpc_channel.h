@@ -29,10 +29,6 @@
 
 namespace mir
 {
-namespace events
-{
-class EventSink;
-}
 namespace protobuf
 {
 namespace wire
@@ -58,13 +54,15 @@ class PendingCallCache
 public:
     PendingCallCache(std::shared_ptr<RpcReport> const& rpc_report);
 
-    SendBuffer& save_completion_details(
-        mir::protobuf::wire::Invocation& invoke,
+    void save_completion_details(
+        mir::protobuf::wire::Invocation const& invoke,
         google::protobuf::Message* response,
         std::shared_ptr<google::protobuf::Closure> const& complete);
 
 
     void complete_response(mir::protobuf::wire::Result& result);
+
+    void force_completion();
 
     bool empty() const;
 
@@ -80,7 +78,6 @@ private:
         PendingCall()
         : response(0), complete() {}
 
-        SendBuffer send_buffer;
         google::protobuf::Message* response;
         std::shared_ptr<google::protobuf::Closure> complete;
     };
@@ -97,11 +94,10 @@ public:
     MirBasicRpcChannel();
     ~MirBasicRpcChannel();
 
-    virtual void set_event_handler(events::EventSink *sink) = 0;
-
 protected:
-    mir::protobuf::wire::Invocation invocation_for(const google::protobuf::MethodDescriptor* method,
-        const google::protobuf::Message* request);
+    mir::protobuf::wire::Invocation invocation_for(
+        google::protobuf::MethodDescriptor const* method,
+        google::protobuf::Message const* request);
     int next_id();
 
 private:

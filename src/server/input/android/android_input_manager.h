@@ -22,15 +22,11 @@
 
 #include "mir/input/input_manager.h"
 
-#include <utils/StrongPointer.h>
-#include <InputDispatcher.h>
-
-#include <initializer_list>
+#include <memory>
 
 namespace android
 {
 class EventHubInterface;
-class InputDispatcherInterface;
 }
 
 namespace droidinput = android;
@@ -40,41 +36,28 @@ namespace mir
 
 namespace input
 {
-class CursorListener;
-
+class InputDispatcher;
 namespace android
 {
 class InputThread;
 
-/// Encapsulates an instance of the Android input stack, that is to say an EventHub tied
-/// to an InputReader tied to an InputDispatcher. Provides interfaces for controlling input
-/// policy and dispatch (through public API and policy objects in InputConfiguration).
-class InputManager : public mir::input::InputManager
+/// Encapsulates the instances of the Android input stack that might require startup and
+//  shutdown calls, that is to say an EventHub tied to an InputReader tied to an
+//  InputDispatcher.
+class InputManager : public input::InputManager
 {
 public:
-    explicit InputManager(droidinput::sp<droidinput::EventHubInterface> const& event_hub,
-                          droidinput::sp<droidinput::InputDispatcherInterface> const& dispatcher,
-                          std::shared_ptr<InputThread> const& reader_thread,
-                          std::shared_ptr<InputThread> const& dispatcher_thread);
+    explicit InputManager(std::shared_ptr<droidinput::EventHubInterface> const& event_hub,
+                          std::shared_ptr<InputThread> const& reader_thread);
     virtual ~InputManager();
 
     void start();
     void stop();
 
-    std::shared_ptr<InputChannel> make_input_channel();
-
-protected:
-    InputManager(const InputManager&) = delete;
-    InputManager& operator=(const InputManager&) = delete;
-
 private:
-    droidinput::sp<droidinput::EventHubInterface> event_hub;
-    droidinput::sp<droidinput::InputDispatcherInterface> dispatcher;
-
-    std::shared_ptr<InputThread> reader_thread;
-    std::shared_ptr<InputThread> dispatcher_thread;
+    std::shared_ptr<droidinput::EventHubInterface> const event_hub;
+    std::shared_ptr<InputThread> const reader_thread;
 };
-
 }
 }
 }

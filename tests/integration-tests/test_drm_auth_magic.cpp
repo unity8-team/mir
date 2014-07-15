@@ -19,13 +19,12 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/drm_authenticator.h"
 #include "mir/graphics/platform_ipc_package.h"
-#include "mir/compositor/buffer_basic.h"
-#include "mir/compositor/graphic_buffer_allocator.h"
+#include "mir/graphics/buffer_basic.h"
 
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
-#include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_framework/display_server_test_fixture.h"
 
@@ -45,27 +44,13 @@ namespace
 
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-class StubGraphicBufferAllocator : public mc::GraphicBufferAllocator
-{
- public:
-    std::shared_ptr<mc::Buffer> alloc_buffer(mc::BufferProperties const&)
-    {
-        return std::shared_ptr<mc::Buffer>(new mtd::StubBuffer());
-    }
-
-    std::vector<geom::PixelFormat> supported_pixel_formats()
-    {
-        return std::vector<geom::PixelFormat>();
-    }
-};
-
 class MockAuthenticatingPlatform : public mtd::NullPlatform, public mg::DRMAuthenticator
 {
 public:
-    std::shared_ptr<mc::GraphicBufferAllocator> create_buffer_allocator(
+    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
         std::shared_ptr<mg::BufferInitializer> const& /*buffer_initializer*/) override
     {
-        return std::make_shared<StubGraphicBufferAllocator>();
+        return std::make_shared<mtd::StubBufferAllocator>();
     }
 
     MOCK_METHOD1(drm_auth_magic, void(unsigned int));
@@ -119,6 +104,8 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
 
             int const no_error{0};
             int status{67};
+
+            ASSERT_TRUE(mir_connection_is_valid(connection));
 
             mir_wait_for(mir_connection_drm_auth_magic(connection, magic,
                                                        drm_auth_magic_callback,
