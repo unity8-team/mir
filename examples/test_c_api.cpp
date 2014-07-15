@@ -83,7 +83,7 @@ struct View
     const GLfloat * color_data;
 };
 
-void on_new_event(void* ctx, const Event* ev)
+void on_new_event(void* ctx, const WindowEvent* ev)
 {
 }
 

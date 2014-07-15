@@ -61,12 +61,15 @@ public:
 
     void get_size(uint32_t *width, uint32_t *height);
 
-    void process_event(const Event &ev);
+    void process_event(const WindowEvent &ev);
     int is_focused() const { return focused; }
 
     // user as in "platform-api user"
     UAUiWindowEventCb get_user_callback() { return user_event_callback;}
     void *get_user_callback_context() { return user_event_callback_context; }
+
+    // Deprecated! Use get_user_callback() instead
+    UAUiWindowInputEventCb get_user_input_callback() { return user_input_callback;}
 
 protected:
     Window(Window const&) = delete;
@@ -85,6 +88,9 @@ private:
 
     UAUiWindowEventCb user_event_callback;
     void *user_event_callback_context;
+
+    // Deprecated! Replaced by user_event_callback
+    UAUiWindowInputEventCb user_input_callback;
 
     UApplicationUiWindowState state_before_hiding;
 

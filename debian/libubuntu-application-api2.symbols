@@ -117,13 +117,15 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_ui_window_get_native_type@Base 0.18.1daily13.06.21
  ua_ui_window_get_size@Base 2.0.0+14.10.20140612
  ua_ui_window_hide@Base 0.18.1daily13.06.21
+ ua_ui_window_is_focused@Base 0replaceme
  ua_ui_window_move@Base 0.18.1daily13.06.21
  ua_ui_window_new_for_application_with_properties@Base 0.18.1daily13.06.21
  ua_ui_window_properties_destroy@Base 0.18.1daily13.06.21
  ua_ui_window_properties_get_title@Base 0.18.1daily13.06.21
  ua_ui_window_properties_new_for_normal_window@Base 0.18.1daily13.06.21
- ua_ui_window_properties_set_dimensions@Base 0.18.4+13.10.20140519
- ua_ui_window_properties_set_event_cb_and_ctx@Base 0.18.4+13.10.20140519
+ ua_ui_window_properties_set_dimensions@Base 2.0.0+14.10.20140612
+ ua_ui_window_properties_set_input_cb_and_ctx@Base 0.18.1daily13.06.21
+ ua_ui_window_properties_set_event_cb_and_ctx@Base 0replaceme
  ua_ui_window_properties_set_role@Base 0.18.1daily13.06.21
  ua_ui_window_properties_set_titlen@Base 0.18.1daily13.06.21
  ua_ui_window_request_fullscreen@Base 0.18.1daily13.06.21

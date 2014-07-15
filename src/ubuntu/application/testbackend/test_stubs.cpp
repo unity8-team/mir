@@ -206,6 +206,10 @@ void ua_ui_window_properties_set_role(UAUiWindowProperties*, UAUiWindowRole)
 {
 }
 
+void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties*, UAUiWindowInputEventCb, void*)
+{
+}
+
 void ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties*, UAUiWindowEventCb, void*)
 {
 }
@@ -241,6 +245,11 @@ UStatus ua_ui_window_resize(UAUiWindow*, uint32_t, uint32_t)
 UStatus ua_ui_window_hide(UAUiWindow*)
 {
     return U_STATUS_ERROR;
+}
+
+int ua_ui_window_is_focused(UAUiWindow *window)
+{
+    return 0;
 }
 
 UStatus ua_ui_window_show(UAUiWindow*)

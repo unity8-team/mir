@@ -218,14 +218,19 @@ ua_ui_window_properties_get_role(
 }
 
 void
-ua_ui_window_properties_set_event_cb_and_ctx(
+ua_ui_window_properties_set_input_cb_and_ctx(
     UAUiWindowProperties *properties,
-    UAUiWindowEventCb cb,
+    UAUiWindowInputEventCb cb,
     void *ctx)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
     auto p = static_cast<Holder<ubuntu::application::ui::WindowProperties::Ptr>*>(properties);
     p->value->set_input_event_cb_and_ctx(cb, ctx);
+}
+
+void
+ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties*, UAUiWindowEventCb, void *)
+{
 }
 
 void

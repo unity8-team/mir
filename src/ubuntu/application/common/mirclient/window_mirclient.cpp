@@ -41,7 +41,8 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
     // TODO<mir>: Perhaps this indicates that mirclient library should not pass a surface argument here.
     (void) surface;
 
-    Event ubuntu_ev;
+    WindowEvent ubuntu_ev;
+
     bool translated_event = uaum::event_to_ubuntu_event(mir_ev, ubuntu_ev);
 
     // Mir sends some events which platform API does not represent as platform-api events.
@@ -50,8 +51,22 @@ ua_ui_window_mir_handle_event(MirSurface* surface, MirEvent const* mir_ev, void*
 
     auto window = static_cast<uamc::Window*>(ctx);
     window->process_event(ubuntu_ev);
+
     UAUiWindowEventCb user_callback = window->get_user_callback();
-    user_callback(window->get_user_callback_context(), &ubuntu_ev);
+    if (user_callback != nullptr) {
+        user_callback(window->get_user_callback_context(), &ubuntu_ev);
+    } else {
+        // Fallback to the old, deprecated, API for handling events
+        Event ubuntu_deprecated_ev;
+
+        bool ok = uaum::event_to_ubuntu_deprecated_event(mir_ev, ubuntu_deprecated_ev);
+
+        if (ok) {
+            UAUiWindowInputEventCb user_input_callback = window->get_user_input_callback();
+            user_input_callback(window->get_user_callback_context(), &ubuntu_deprecated_ev);
+        }
+    }
+
 }
 
 }
@@ -85,6 +100,7 @@ uamc::Window::Window(uamc::Instance& instance,
 {
     user_event_callback = properties->event_cb();
     user_event_callback_context = properties->event_cb_context();
+    user_input_callback = properties->input_cb();
 
     window_properties = WindowPropertiesPtr(properties,
         [](uamc::WindowProperties *p)
@@ -171,9 +187,9 @@ void uamc::Window::request_fullscreen()
     set_state(U_FULLSCREEN_STATE);
 }
 
-void uamc::Window::process_event(const Event &ev)
+void uamc::Window::process_event(const WindowEvent &ev)
 {
-    if (ev.type == SURFACE_EVENT_TYPE && ev.details.surface.attribute == SURFACE_ATTRIBUTE_FOCUS) {
-        focused = ev.details.surface.value;
+    if (ev.type == SURFACE_WEVENT_TYPE && ev.surface.attribute == SURFACE_ATTRIBUTE_FOCUS) {
+        focused = ev.surface.value;
     }
 }

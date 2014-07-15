@@ -46,13 +46,22 @@ public:
     static WindowProperties* from_u_window_properties(UAUiWindowProperties* u_properties);
     
     void set_title(char const* title, size_t length);
+
+    // Deprecated! Use set_event_cb_and_ctx()
+    void set_input_cb_and_ctx(UAUiWindowInputEventCb cb, void* ctx);
+
     // sets event callback and callback context
     void set_event_cb_and_ctx(UAUiWindowEventCb cb, void* ctx);
+
     void set_dimensions(uint32_t width, uint32_t height);
     void set_role(UAUiWindowRole role);    
     
     MirSurfaceParameters const& surface_parameters() const;
     MirSurfaceType surface_type() const;
+
+    // Deprecated! Use event_cb()
+    UAUiWindowInputEventCb input_cb() const;
+
     UAUiWindowEventCb event_cb() const;
     void* event_cb_context() const;
     
@@ -66,6 +75,7 @@ private:
 
     std::string title;
 
+    UAUiWindowInputEventCb _input_cb; // Deprecated! Replaced by _event_cb
     UAUiWindowEventCb _event_cb;
     void *_event_cb_ctx;
 };
