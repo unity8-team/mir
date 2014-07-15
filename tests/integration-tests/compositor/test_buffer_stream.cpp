@@ -381,8 +381,7 @@ TEST_F(BufferStreamTest, stress_test_distinct_buffers)
         s->join();
 }
 
-// FIXME
-TEST_F(BufferStreamTest, DISABLED_blocked_client_is_released_on_timeout)
+TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
 {
     using namespace testing;
 
