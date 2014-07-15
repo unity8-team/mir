@@ -442,11 +442,6 @@ void mc::BufferQueue::release(
         free_buffers.push_back(buffer);
 }
 
-/**
- * Measure the actual number of buffers we presently need concurrently
- * to avoid starving any compositors of fresh frames or starving clients of
- * any buffers at all.
- */
 int mc::BufferQueue::min_buffers() const
 {
     int required_buffers = frame_dropping_enabled ? 3 : 2;
