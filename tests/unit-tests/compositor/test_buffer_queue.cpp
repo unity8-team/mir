@@ -789,9 +789,8 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
         /*
          * Dynamic queue scaling sensibly limits the framedropping client to
          * two non-overlapping buffers, before overwriting old ones. Allowing
-         * any more would just waste space (buffers) and time (lag). So
-         * this means a frame-dropping client won't ever see more than 3
-         * unique buffers
+         * any more would just waste space (buffers). So this means a
+         * frame-dropping client won't ever see more than 3 unique buffers
          */
         int const max_ownable_buffers = std::min(nbuffers, 3);
         EXPECT_THAT(ids_acquired.size(), Eq(max_ownable_buffers));
