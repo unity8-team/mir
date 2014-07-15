@@ -777,7 +777,6 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
         q.allow_framedropping(true);
 
         int const nframes = 100;
-
         std::unordered_set<uint32_t> ids_acquired;
         for (int i = 0; i < nframes; ++i)
         {
@@ -794,7 +793,7 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
          * this means a frame-dropping client won't ever see more than 3
          * unique buffers
          */
-        int max_ownable_buffers = std::min(nbuffers, 3);
+        int const max_ownable_buffers = std::min(nbuffers, 3);
         EXPECT_THAT(ids_acquired.size(), Eq(max_ownable_buffers));
     }
 }
