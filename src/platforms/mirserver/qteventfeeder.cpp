@@ -148,6 +148,11 @@ QtEventFeeder::QtEventFeeder()
     QWindowSystemInterface::registerTouchDevice(mTouchDevice);
 }
 
+QtEventFeeder::~QtEventFeeder()
+{
+    delete mTouchDevice;
+}
+
 void QtEventFeeder::dispatch(MirEvent const& event)
 {
     switch (event.type) {

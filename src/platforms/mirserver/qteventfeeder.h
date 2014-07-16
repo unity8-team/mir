@@ -31,6 +31,7 @@ class QtEventFeeder : public mir::input::InputDispatcher
 {
 public:
     QtEventFeeder();
+    ~QtEventFeeder();
 
     static const int MirEventActionMask;
     static const int MirEventActionPointerIndexMask;
