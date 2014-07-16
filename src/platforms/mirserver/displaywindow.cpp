@@ -26,9 +26,6 @@
 
 #include <QDebug>
 
-const QEvent::Type DisplayWindow::exposeEventType = static_cast<QEvent::Type>(QEvent::registerEventType());
-bool DisplayWindow::m_isExposed = false;
-
 static WId newWId()
 {
     static WId id = 0;
@@ -41,6 +38,7 @@ static WId newWId()
 
 DisplayWindow::DisplayWindow(QWindow *window, mir::graphics::DisplayBuffer *displayBuffer)
     : QObject(nullptr), QPlatformWindow(window)
+    , m_isExposed(true)
     , m_winId(newWId())
     , m_displayBuffer(displayBuffer)
 {
@@ -81,15 +79,23 @@ bool DisplayWindow::isExposed() const
 
 bool DisplayWindow::event(QEvent *event)
 {
-    if (event->type() == exposeEventType) {
-        qDebug() << "DisplayWindow::event got DisplayWindow::exposeEventType";
+    // Intercept Hide event and convert to Expose event, as Hide causes Qt to release GL
+    // resources, which we don't want. Must intercept Show to un-do hide.
+    if (event->type() == QEvent::Hide) {
+        qDebug() << "DisplayWindow::event got QEvent::Hide";
+        m_isExposed = false;
+        QWindowSystemInterface::handleExposeEvent(window(), QRect());
+        QWindowSystemInterface::flushWindowSystemEvents();
+        return true;
+    } else if (event->type() == QEvent::Show) {
+        qDebug() << "DisplayWindow::event got QEvent::Show";
+        m_isExposed = true;
         QRect rect(QPoint(), geometry().size());
         QWindowSystemInterface::handleExposeEvent(window(), rect);
         QWindowSystemInterface::flushWindowSystemEvents();
         return true;
-    } else {
-        return QObject::event(event);
     }
+    return QObject::event(event);
 }
 
 void DisplayWindow::swapBuffers()

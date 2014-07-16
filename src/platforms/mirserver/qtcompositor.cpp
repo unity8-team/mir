@@ -42,12 +42,9 @@ void QtCompositor::stop()
     setAllWindowsExposed(false);
 }
 
-void QtCompositor::setAllWindowsExposed(bool exposed)
+void QtCompositor::setAllWindowsExposed(const bool exposed)
 {
     qDebug() << "QtCompositor::setAllWindowsExposed" << exposed;
-    // likely need a lock
-    DisplayWindow::m_isExposed = exposed;
-
     QList<QWindow *> windowList = QGuiApplication::allWindows();
 
     // manipulate Qt object's indirectly via posted events as we're not in Qt's GUI thread
@@ -56,7 +53,8 @@ void QtCompositor::setAllWindowsExposed(bool exposed)
         QWindow *window = *iterator;
         DisplayWindow *displayWindow = static_cast<DisplayWindow*>(window->handle());
         if (displayWindow) {
-            QCoreApplication::postEvent(displayWindow, new QEvent(DisplayWindow::exposeEventType));
+            QCoreApplication::postEvent(displayWindow,
+                                        new QEvent( (exposed) ? QEvent::Show : QEvent::Hide));
         }
         iterator++;
     }
