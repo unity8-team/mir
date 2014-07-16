@@ -427,11 +427,16 @@ void mc::BufferQueue::release(
 {
     int used_buffers = buffers.size() - free_buffers.size();
 
-    if (used_buffers > min_buffers() &&
-        buffers.back().get() == buffer &&
-        max_buffers > 1)
+    if (used_buffers > min_buffers() && max_buffers > 1)
     {
-        buffers.pop_back();
+        for (auto i = buffers.begin(); i != buffers.end(); ++i)
+        {
+            if (i->get() == buffer)
+            {
+                buffers.erase(i);
+                break;
+            }
+        }
     }
     else if (!pending_client_notifications.empty())
     {
