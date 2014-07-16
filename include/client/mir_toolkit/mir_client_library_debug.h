@@ -20,8 +20,18 @@
 
 #include <mir_toolkit/mir_client_library.h>
 
-/* This header defines debug interfaces that aren't expected to be generally useful
- * and do not have the same API-stability guarantees that the main API has */
+#ifdef __cplusplus
+/**
+ * \addtogroup mir_toolkit
+ * @{
+ */
+/** 
+ * This header defines debug interfaces that aren't expected to be generally useful
+ * and do not have the same API-stability guarantees that the main API has
+ */
+
+extern "C" {
+#endif
 
 /**
  * Return the ID of a surface (only useful for debug output).
@@ -39,5 +49,10 @@ MIR_API int mir_debug_surface_id(MirSurface *surface);
  *                                and would be returned by mir_surface_get_current_buffer.
  */
 MIR_API uint32_t mir_debug_surface_current_buffer_id(MirSurface *surface);
+
+#ifdef __cplusplus
+}
+#endif
+/**@}*/
 
 #endif /* MIR_CLIENT_LIBRARY_DEBUG_H */
