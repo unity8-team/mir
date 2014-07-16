@@ -887,7 +887,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         unsigned long client_frames = 0;
         unsigned long const compose_frames = 100;
         auto const frame_time = std::chrono::milliseconds(16);
-        auto const render_time = std::chrono::milliseconds(14);
+        auto const render_time = std::chrono::milliseconds(10);
 
         q.allow_framedropping(false);
 
@@ -932,9 +932,9 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
 
         monitor1.stop();
 
-        // Roughly compose_frames == client_frames within 20%
-        ASSERT_THAT(client_frames, Gt(compose_frames * 0.8f));
-        ASSERT_THAT(client_frames, Lt(compose_frames * 1.2f));
+        // Roughly compose_frames == client_frames within 30%
+        ASSERT_THAT(client_frames, Gt(compose_frames * 0.7f));
+        ASSERT_THAT(client_frames, Lt(compose_frames * 1.3f));
     }
 }
 
