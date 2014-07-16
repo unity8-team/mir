@@ -22,13 +22,3 @@ set(MIR_SHARED_LOGGING_SOURCES
 add_library(mirsharedlogging STATIC
   ${MIR_SHARED_LOGGING_SOURCES}
 )
-
-add_library(
-  mirsharedlogging-private STATIC
-  ${MIR_SHARED_LOGGING_SOURCES}
-)
-
-set_target_properties(
-  mirsharedlogging-private
-  PROPERTIES COMPILE_FLAGS "-fvisibility=hidden"
-)

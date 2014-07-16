@@ -74,6 +74,7 @@ set_target_properties(
 
   PROPERTIES
   SOVERSION ${MIRCLIENT_ABI}
+  LINK_FLAGS "-Wl,--exclude-libs=ALL"
 )
 
 set(
@@ -84,8 +85,8 @@ set(
   ${XKBCOMMON_LIBRARIES}
 
   mirprotobuf
-  mirsharedinput-private
-  mirsharedlogging-private
+  mirsharedinput
+  mirsharedlogging
   mirsharedenv
   mirsharedgeometry
   mirsharedsharedlibrary

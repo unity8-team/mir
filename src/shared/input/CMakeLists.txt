@@ -35,20 +35,3 @@ target_link_libraries(
   android-input
   ${XKBCOMMON_LIBRARIES}
 )
-
-add_library(
-  mirsharedinput-private STATIC
-  ${ANDROID_SHARED_INPUT_SOURCES}
-)
-
-set_target_properties(
-  mirsharedinput-private
-  PROPERTIES COMPILE_FLAGS "-fvisibility=hidden"
-)
-
-target_link_libraries(
-  mirsharedinput-private
-  
-  android-input
-  ${XKBCOMMON_LIBRARIES}
-)
