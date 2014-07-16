@@ -1,0 +1,3 @@
+version=3
+opts=dversionmangle=s/\-gles// \
+http://ppa.launchpad.net/ci-train-ppa-service/landing-021/ubuntu/pool/main/q/qtmir/qtmir_([^-]*)\.orig.tar.gz

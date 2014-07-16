@@ -1,0 +1,58 @@
+Source: qtmir-gles
+Section: libs
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: debhelper (>= 9),
+               google-mock (>= 1.6.0+svn437),
+               libboost-system-dev,
+               libfontconfig1-dev,
+               libglib2.0-dev,
+               libmirclient-dev (>= 0.4.0),
+               libmirserver-dev (>= 0.4.0),
+               libprocess-cpp-dev,
+               libqt5gui5-gles,
+               libqt5sensors5-dev,
+               libqt5quicktest5,
+               libubuntu-app-launch2-dev,
+               libubuntu-application-api-dev (>= 2.1.0),
+               libudev-dev,
+               libunity-api-dev (>= 7.80.6),
+               liburl-dispatcher1-dev,
+               libxkbcommon-dev,
+               libxrender-dev,
+               mircommon-dev,
+               pkg-config,
+               protobuf-compiler,
+               qt5-default,
+               qtbase5-gles-dev,
+               qtbase5-private-gles-dev,
+               qtdeclarative5-dev,
+               qtdeclarative5-private-dev,
+Standards-Version: 3.9.5
+Homepage: https://launchpad.net/qtmir
+# if you don't have have commit access to this branch but would like to upload
+# directly to Ubuntu, don't worry: your changes will be merged back into the
+# upstream branch
+Vcs-Bzr: lp:qtmir/gles
+Vcs-Browser: http://bazaar.launchpad.net/~mir-team/qtmir/gles/files
+X-Auto-Uploader: no-rewrite-version
+
+Package: qtmir-android
+Architecture: i386 amd64
+Multi-Arch: same
+Conflicts: qtmir-desktop,
+           qtubuntu-desktop,
+           libqtmir,
+Replaces: qtmir-desktop,
+          qtubuntu-desktop,
+          libqtmir,
+Provides: qtmir
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Qt platform abstraction (QPA) plugin for a Mir server (mobile) - OpenGLES
+ QtMir is a set of Qt5 components to enable one to write a Mir server with Qt.
+ It contains a QPA (Qt Platform Abstraction) plugin which creates and manages
+ a Mir server. It also exposes some internal Mir functionality.
+ .
+ This variant of the package is for Android-based phones and tablets (built
+ against the OpenGLES variant of qtbase).

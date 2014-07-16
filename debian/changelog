@@ -1,0 +1,5 @@
+qtmir-gles (0.4.0+14.10.20140710-0ubuntu1) utopic; urgency=medium
+
+  * Impoty qtmir0.4.0 and modify to build mirserver QPA plugin with GLES support
+
+ -- Gerry Boland <gerry.boland@canonical.com>  Thu, 10 Jul 2014 15:09:08 +0100
