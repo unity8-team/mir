@@ -49,7 +49,6 @@ libmirclient.so.8 libmirclient8 #MINVER#
  mir_default_cursor_name@Base 0.5.0
  mir_disabled_cursor_name@Base 0.5.0
  mir_display_config_destroy@Base 0.5.0
- mir_prompt_session_add_prompt_provider_sync@Base 0.5.0
  mir_prompt_session_error_message@Base 0.5.0
  mir_prompt_session_is_valid@Base 0.5.0
  mir_prompt_session_new_fds_for_prompt_providers@Base 0.5.0
