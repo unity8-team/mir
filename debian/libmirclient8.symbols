@@ -1,0 +1,86 @@
+libmirclient.so.8 libmirclient8 #MINVER#
+# Various detritus that GCC thinks it's important to include even if
+# you're only exposing a C ABI.
+#
+# Stupid GCC
+ (optional|c++|regex)"std::.*@Base$" 0.5.0
+ (optional|c++|regex)"__gnu_cxx::.*@Base$" 0.5.0
+ (optional|regex)"chrono..(duration|time_point)_cast.*@Base$" 0.5.0
+ (optional|regex)"allocator_traits.*@Base$" 0.5.0
+ (optional|regex)"__gnu_cxx11.*@Base$" 0.5.0
+# Likewise, boost is adamant that we ensure that the C code linking
+# to us is able to catch the exceptions that we never propagate.
+ (optional|c++|regex)"boost::.*@Base$" 0.5.0
+# The libmirclientplatform plugin requires mir::client::AgingBuffer
+# We could probably get around needing to export these by dlopen()
+# trickery, which would be nice.
+ (c++)"mir::client::AgingBuffer::increment_age()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::mark_as_submitted()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::AgingBuffer()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::AgingBuffer()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::~AgingBuffer()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::~AgingBuffer()@Base" 0.5.0-0ubuntu1
+ (c++)"mir::client::AgingBuffer::age() const@Base" 0.5.0-0ubuntu1
+ (c++)"typeinfo for mir::client::AgingBuffer@Base" 0.5.0-0ubuntu1
+ (c++)"typeinfo name for mir::client::AgingBuffer@Base" 0.5.0-0ubuntu1
+ (c++)"vtable for mir::client::AgingBuffer@Base" 0.5.0-0ubuntu1
+# And now our *actual* ABI
+ mir_connect@Base 0.5.0
+ mir_connect_sync@Base 0.5.0
+ mir_connection_apply_display_config@Base 0.5.0
+ mir_connection_create_display_config@Base 0.5.0
+ mir_connection_create_prompt_session_sync@Base 0.5.0
+ mir_connection_create_screencast_sync@Base 0.5.0
+ mir_connection_create_surface@Base 0.5.0
+ mir_connection_create_surface_sync@Base 0.5.0
+ mir_connection_drm_auth_magic@Base 0.5.0
+ mir_connection_drm_set_gbm_device@Base 0.5.0
+ mir_connection_get_available_surface_formats@Base 0.5.0
+ mir_connection_get_display_info@Base 0.5.0
+ mir_connection_get_egl_native_display@Base 0.5.0
+ mir_connection_get_error_message@Base 0.5.0
+ mir_connection_get_platform@Base 0.5.0
+ mir_connection_is_valid@Base 0.5.0
+ mir_connection_release@Base 0.5.0
+ mir_connection_set_display_config_change_callback@Base 0.5.0
+ mir_connection_set_lifecycle_event_callback@Base 0.5.0
+ mir_cursor_configuration_destroy@Base 0.5.0
+ mir_cursor_configuration_from_name@Base 0.5.0
+ mir_default_cursor_name@Base 0.5.0
+ mir_disabled_cursor_name@Base 0.5.0
+ mir_display_config_destroy@Base 0.5.0
+ mir_prompt_session_add_prompt_provider_sync@Base 0.5.0
+ mir_prompt_session_error_message@Base 0.5.0
+ mir_prompt_session_is_valid@Base 0.5.0
+ mir_prompt_session_new_fds_for_prompt_providers@Base 0.5.0
+ mir_prompt_session_release_sync@Base 0.5.0
+ mir_screencast_egl_native_window@Base 0.5.0
+ mir_screencast_release_sync@Base 0.5.0
+ mir_surface_configure_cursor@Base 0.5.0
+ mir_surface_get_current_buffer@Base 0.5.0
+ mir_surface_get_dpi@Base 0.5.0
+ mir_surface_get_egl_native_window@Base 0.5.0
+ mir_surface_get_error_message@Base 0.5.0
+ mir_surface_get_graphics_region@Base 0.5.0
+ mir_surface_get_id@Base 0.5.0
+ mir_surface_get_orientation@Base 0.5.0
+ mir_surface_get_parameters@Base 0.5.0
+ mir_surface_get_platform_type@Base 0.5.0
+ mir_surface_get_state@Base 0.5.0
+ mir_surface_get_swapinterval@Base 0.5.0
+ mir_surface_get_type@Base 0.5.0
+ mir_surface_is_valid@Base 0.5.0
+ mir_surface_release@Base 0.5.0
+ mir_surface_release_sync@Base 0.5.0
+ mir_surface_set_event_handler@Base 0.5.0
+ mir_surface_set_state@Base 0.5.0
+ mir_surface_set_swapinterval@Base 0.5.0
+ mir_surface_set_type@Base 0.5.0
+ mir_surface_swap_buffers@Base 0.5.0
+ mir_surface_swap_buffers_sync@Base 0.5.0
+ mir_wait_for@Base 0.5.0
+ mir_wait_for_one@Base 0.5.0
+# Anything that uses the debug interfaces is asking for trouble,
+# as we reserve the right to break these at will.
+ mir_debug_surface_current_buffer_id@Base 0.5.0
+ mir_debug_surface_id@Base 0.5.0
