@@ -70,6 +70,7 @@ private:
         std::unique_lock<std::mutex> lock);
     void drop_frame(std::unique_lock<std::mutex> lock);
     int min_buffers() const;
+    void drop_buffer(graphics::Buffer* buffer);
 
     mutable std::mutex guard;
 

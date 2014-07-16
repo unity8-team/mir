@@ -1508,16 +1508,8 @@ TEST_F(BufferQueueTest, queue_size_scales_on_demand)
          q.allow_framedropping(true);
          EXPECT_EQ(std::min(max_buffers, 3), unique_buffers(q));
 
-         // Revert back to no frame dropping; expect double, eventually
+         // Revert back to no frame dropping; expect double buffering
          q.allow_framedropping(false);
-
-         // Exercise the queue and shake out the extraneous buffer...
-         // XXX It takes quite a bit of activity before the right circumstances
-         //     are found to safely drop a buffer. This might want revisiting
-         //     in future, but the delay is not significant enough to worry
-         //     about.
-         (void)unique_buffers(q);
-
          EXPECT_EQ(std::min(max_buffers, 2), unique_buffers(q));
     }
 }

@@ -326,6 +326,14 @@ void mc::BufferQueue::allow_framedropping(bool flag)
 {
     std::lock_guard<decltype(guard)> lock(guard);
     frame_dropping_enabled = flag;
+
+    while (static_cast<int>(buffers.size()) > min_buffers() &&
+           !free_buffers.empty())
+    {
+        auto surplus = free_buffers.back();
+        free_buffers.pop_back();
+        drop_buffer(surplus);
+    }
 }
 
 bool mc::BufferQueue::framedropping_allowed() const
@@ -429,14 +437,7 @@ void mc::BufferQueue::release(
 
     if (used_buffers > min_buffers() && max_buffers > 1)
     {
-        for (auto i = buffers.begin(); i != buffers.end(); ++i)
-        {
-            if (i->get() == buffer)
-            {
-                buffers.erase(i);
-                break;
-            }
-        }
+        drop_buffer(buffer);
     }
     else if (!pending_client_notifications.empty())
     {
@@ -451,6 +452,18 @@ int mc::BufferQueue::min_buffers() const
 {
     int required_buffers = frame_dropping_enabled ? 3 : 2;
     return std::min(max_buffers, required_buffers);
+}
+
+void mc::BufferQueue::drop_buffer(graphics::Buffer* buffer)
+{
+    for (auto i = buffers.begin(); i != buffers.end(); ++i)
+    {
+        if (i->get() == buffer)
+        {
+            buffers.erase(i);
+            break;
+        }
+    }
 }
 
 void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
