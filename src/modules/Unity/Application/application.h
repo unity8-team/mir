@@ -125,7 +125,6 @@ private:
     void setFocused(bool focus);
     void setFullscreen(bool fullscreen);
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
-    void setSessionName(const QString& name);
     void setSurface(MirSurfaceItem *surface);
 
     void updateFullscreenProperty();
@@ -148,7 +147,6 @@ private:
     bool m_canBeResumed;
     bool m_fullscreen;
     std::shared_ptr<mir::scene::Session> m_session;
-    QString m_sessionName;
     QStringList m_arguments;
     QTimer* m_suspendTimer;
     SupportedOrientations m_supportedOrientations;

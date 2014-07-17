@@ -173,16 +173,6 @@ void Application::setSession(const std::shared_ptr<mir::scene::Session>& session
     m_session = session;
 }
 
-void Application::setSessionName(const QString& name)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setSessionName - appId=" << appId() << "name=" << name;
-    if (m_session) {
-        qCritical() << "Application::setSessionName should not be called once session exists";
-        return;
-    }
-    m_sessionName = name;
-}
-
 void Application::setStage(Application::Stage stage)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setStage - appId=" << appId() << "stage=" << stage;

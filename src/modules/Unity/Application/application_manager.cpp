@@ -728,7 +728,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         qCDebug(QTMIR_APPLICATIONS) << "Process with pid" << pid << "appeared, attaching to existing entry"
                                     << "in application list with appId:" << application->appId();
         delete desktopData;
-        application->setSessionName(application->appId());
         application->setPid(pid);
         authorized = true;
         return;
