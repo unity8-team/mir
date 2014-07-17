@@ -24,7 +24,6 @@
 #include "mirsurfacemanager.h"
 #include "mirsurfaceitem.h"
 #include "ubuntukeyboardinfo.h"
-#include "windowscreenshotprovider.h"
 
 // qtmir
 #include "logging.h"
@@ -78,7 +77,6 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         qtmir::ApplicationManager* appManager
                 = static_cast<qtmir::ApplicationManager*>(applicationManagerSingleton(engine, nullptr));
         engine->addImageProvider(QLatin1String("application"), new qtmir::ApplicationScreenshotProvider(appManager));
-        engine->addImageProvider(QLatin1String("window"), new qtmir::WindowScreenshotProvider);
     }
 };
 
