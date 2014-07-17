@@ -700,7 +700,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         return;
     }
 
-    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading" << desktopFileName;
+    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading:" << desktopFileName;
 
     // Guess appId from the desktop file hint
     QString appId = toShortAppIdIfPossible(desktopFileName.get().remove(QRegExp(".desktop$")).split('/').last());
@@ -708,9 +708,11 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
     // FIXME: right now we support --desktop_file_hint=appId for historical reasons. So let's try that in
     // case we didn't get an existing .desktop file path
     DesktopFileReader* desktopData;
-    if (QFileInfo(desktopFileName.get()).exists()) {
+    if (QFileInfo::exists(desktopFileName.get())) {
         desktopData = m_desktopFileReaderFactory->createInstance(appId, QFileInfo(desktopFileName.get()));
     } else {
+        qCDebug(QTMIR_APPLICATIONS) << "Unable to find file:" << desktopFileName.get()
+                                    << "so will search standard paths for one named" << appId << ".desktop";
         desktopData = m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId));
     }
 
