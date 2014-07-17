@@ -150,7 +150,7 @@ private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
 
     QList<Application*> m_applications;
-    Application* m_focusedApplication; // remove as Mir has API for this
+    Application* m_focusedApplication;
     Application* m_mainStageApplication;
     Application* m_sideStageApplication;
     QStringList m_lifecycleExceptions;
