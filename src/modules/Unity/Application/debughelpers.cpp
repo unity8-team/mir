@@ -26,8 +26,10 @@ QString touchPointStateToString(Qt::TouchPointState state)
         return QString("moved");
     case Qt::TouchPointStationary:
         return QString("stationary");
-    default: // Qt::TouchPointReleased:
+    case Qt::TouchPointReleased:
         return QString("released");
+    default:
+        return QString("UNKNOWN!");
     }
 }
 
@@ -45,8 +47,10 @@ QString touchEventToString(const QTouchEvent *ev)
     case QEvent::TouchEnd:
         message.append("TouchEnd ");
         break;
-    default: //QEvent::TouchCancel
+    case QEvent::TouchCancel:
         message.append("TouchCancel ");
+    default:
+        message.append("TouchUNKNOWN ");
     }
 
     for (int i=0; i < ev->touchPoints().size(); ++i) {
