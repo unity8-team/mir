@@ -275,11 +275,6 @@ void Application::setState(Application::State state)
 
         QModelIndex appIndex = m_appMgr->findIndex(this);
         Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleState);
-
-        // FIXME: Make this a signal-slot connection
-        if (m_surface) {
-            m_surface->onApplicationStateChanged();
-        }
     }
 }
 
