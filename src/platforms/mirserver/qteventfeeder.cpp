@@ -140,17 +140,12 @@ QtEventFeeder::QtEventFeeder()
     // TODO: Create them from info gathered from Mir and store things like device id and source
     //       in a QTouchDevice-derived class created by us. So that we can properly assemble back
     //       MirEvents our of QTouchEvents to give to mir::scene::Surface::consume.
-    mTouchDevice = new QTouchDevice();
+    mTouchDevice = new QTouchDevice();  // Qt takes ownership of mTouchDevice with registerTouchDevice
     mTouchDevice->setType(QTouchDevice::TouchScreen);
     mTouchDevice->setCapabilities(
             QTouchDevice::Position | QTouchDevice::Area | QTouchDevice::Pressure |
             QTouchDevice::NormalizedPosition);
     QWindowSystemInterface::registerTouchDevice(mTouchDevice);
-}
-
-QtEventFeeder::~QtEventFeeder()
-{
-    delete mTouchDevice;
 }
 
 void QtEventFeeder::dispatch(MirEvent const& event)
