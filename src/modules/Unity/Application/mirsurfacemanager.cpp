@@ -153,7 +153,6 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
             QMutexLocker lock(&m_mutex);
             m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(item));
         }
-//        m_mirSurfaceToItemHash.erase(it);
 
         int i = m_surfaceItems.indexOf(item);
         if (i != -1) {
