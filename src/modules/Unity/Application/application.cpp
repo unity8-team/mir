@@ -170,7 +170,6 @@ void Application::setSession(const std::shared_ptr<mir::scene::Session>& session
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << session.get();
 
-    // TODO(greyback) what if called with new surface?
     m_session = session;
 }
 
