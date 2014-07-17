@@ -129,10 +129,6 @@ private:
 
     void updateFullscreenProperty();
 
-    // FIXME: This is a hack. Remove once we have a real implementation for knowning
-    // the supported orientations of an app
-    void deduceSupportedOrientationsFromAppId();
-
     ApplicationManager* m_appMgr;
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;

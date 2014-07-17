@@ -57,7 +57,12 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     // FIXME(greyback) need to save long appId internally until ubuntu-app-launch can hide it from us
     m_longAppId = desktopFileReader->file().remove(QRegExp(".desktop$")).split('/').last();
 
-    deduceSupportedOrientationsFromAppId();
+    // FIXME: This is a hack. Remove once we have a real implementation for knowing the supported
+    // orientations of an app
+    m_supportedOrientations = PortraitOrientation
+        | LandscapeOrientation
+        | InvertedPortraitOrientation
+        | InvertedLandscapeOrientation;
 }
 
 Application::~Application()
@@ -320,18 +325,6 @@ QString Application::longAppId() const
 Application::SupportedOrientations Application::supportedOrientations() const
 {
     return m_supportedOrientations;
-}
-
-void Application::deduceSupportedOrientationsFromAppId()
-{
-    if (appId() == "dialer-app") {
-        m_supportedOrientations = PortraitOrientation;
-    } else {
-        m_supportedOrientations = PortraitOrientation
-            | LandscapeOrientation
-            | InvertedPortraitOrientation
-            | InvertedLandscapeOrientation;
-    }
 }
 
 MirSurfaceItem* Application::surface() const
