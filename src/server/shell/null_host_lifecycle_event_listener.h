@@ -19,6 +19,7 @@
 #ifndef MIR_NULL_HOST_LIFECYCLE_EVENT_LISTENER_H_
 #define MIR_NULL_HOST_LIFECYCLE_EVENT_LISTENER_H_
 
+#include "mir/visibility.h"
 #include "mir/shell/host_lifecycle_event_listener.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace mir
 namespace shell
 {
 
-class NullHostLifecycleEventListener : public HostLifecycleEventListener
+class MIR_INTERNAL NullHostLifecycleEventListener : public HostLifecycleEventListener
 {
 public:
     virtual void lifecycle_event_occurred(MirLifecycleState /*state*/) override {}
