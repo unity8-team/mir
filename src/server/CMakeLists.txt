@@ -107,7 +107,7 @@ target_link_libraries(mirserver-static
   ${MIRSERVER_LINKS}
 )
 
-set(MIRSERVER_ABI 22) # Be sure to increment MIR_VERSION_MINOR at the same time
+set(MIRSERVER_ABI 23) # Be sure to increment MIR_VERSION_MINOR at the same time
 
 set_target_properties(
   mirserver
