@@ -19,13 +19,15 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_THREAD_H_
 #define MIR_INPUT_ANDROID_INPUT_THREAD_H_
 
+#include "mir/visibility.h"
+
 namespace mir
 {
 namespace input
 {
 namespace android
 {
-class InputThread
+class MIR_INTERNAL InputThread
 {
 public:
     virtual ~InputThread() {}

@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_NESTED_NESTED_PLATFORM_H_
 #define MIR_GRAPHICS_NESTED_NESTED_PLATFORM_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/platform.h"
 #include "mir/graphics/native_platform.h"
 #include "host_connection.h"
@@ -31,7 +32,7 @@ namespace graphics
 namespace nested
 {
 
-class NestedPlatform : public Platform
+class MIR_INTERNAL NestedPlatform : public Platform
 {
 public:
     NestedPlatform(

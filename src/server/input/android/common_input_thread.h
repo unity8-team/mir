@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_COMMON_INPUT_THREAD_H_
 #define MIR_INPUT_ANDROID_COMMON_INPUT_THREAD_H_
 
+#include "mir/visibility.h"
 #include "android_input_thread.h"
 
 #include <utils/StrongPointer.h>
@@ -34,7 +35,7 @@ namespace input
 {
 namespace android
 {
-class CommonInputThread : public InputThread
+class MIR_INTERNAL CommonInputThread : public InputThread
 {
 public:
     CommonInputThread(std::string const& name, droidinput::sp<droidinput::Thread> const& thread);

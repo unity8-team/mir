@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_WINDOW_HANDLE_REPOSITORY_H_
 #define MIR_INPUT_ANDROID_WINDOW_HANDLE_REPOSITORY_H_
 
+#include "mir/visibility.h"
 #include <utils/StrongPointer.h>
 
 #include <memory>
@@ -40,7 +41,7 @@ namespace android
 
 /// Interface internal to mir::input::android used for tracking the assosciation between droidinput::InputWindowHandle
 /// and mir::input::InputChannel
-class WindowHandleRepository
+class MIR_INTERNAL WindowHandleRepository
 {
 public:
     virtual ~WindowHandleRepository() = default;

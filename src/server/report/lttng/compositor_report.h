@@ -19,6 +19,7 @@
 #ifndef MIR_REPORT_LTTNG_COMPOSITOR_REPORT_H_
 #define MIR_REPORT_LTTNG_COMPOSITOR_REPORT_H_
 
+#include "mir/visibility.h"
 #include "server_tracepoint_provider.h"
 
 #include "mir/compositor/compositor_report.h"
@@ -30,7 +31,7 @@ namespace report
 namespace lttng
 {
 
-class CompositorReport : public compositor::CompositorReport
+class MIR_INTERNAL CompositorReport : public compositor::CompositorReport
 {
 public:
     CompositorReport() = default;

@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_REGISTRAR_H_
 #define MIR_INPUT_ANDROID_REGISTRAR_H_
 
+#include "mir/visibility.h"
 #include "android_window_handle_repository.h"
 
 #include "mir/scene/null_observer.h"
@@ -54,7 +55,7 @@ namespace android
 class InputConfiguration;
 class InputTargeter;
 
-class InputRegistrar : public WindowHandleRepository
+class MIR_INTERNAL InputRegistrar : public WindowHandleRepository
 {
 public:
     explicit InputRegistrar(std::shared_ptr<mir::compositor::Scene> const& scene);

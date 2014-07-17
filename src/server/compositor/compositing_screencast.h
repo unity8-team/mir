@@ -19,6 +19,7 @@
 #ifndef MIR_COMPOSITOR_COMPOSITING_SCREENCAST_H_
 #define MIR_COMPOSITOR_COMPOSITING_SCREENCAST_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/screencast.h"
 
 #include <unordered_map>
@@ -39,7 +40,7 @@ namespace detail { struct ScreencastSessionContext; }
 
 class DisplayBufferCompositorFactory;
 
-class CompositingScreencast : public frontend::Screencast
+class MIR_INTERNAL CompositingScreencast : public frontend::Screencast
 {
 public:
     CompositingScreencast(

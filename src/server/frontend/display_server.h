@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_DETAIL_DISPLAY_SERVER_H_
 #define MIR_FRONTEND_DETAIL_DISPLAY_SERVER_H_
 
+#include "mir/visibility.h"
 #include "mir_protobuf.pb.h"
 
 namespace mir
@@ -27,7 +28,7 @@ namespace frontend
 {
 namespace detail
 {
-class DisplayServer : public mir::protobuf::DisplayServer
+class MIR_INTERNAL DisplayServer : public mir::protobuf::DisplayServer
 {
 public:
     using mir::protobuf::DisplayServer::DisplayServer;

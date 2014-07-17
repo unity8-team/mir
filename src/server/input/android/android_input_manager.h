@@ -20,6 +20,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_MANAGER_H_
 #define MIR_INPUT_ANDROID_INPUT_MANAGER_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_manager.h"
 
 #include <memory>
@@ -44,7 +45,7 @@ class InputThread;
 /// Encapsulates the instances of the Android input stack that might require startup and
 //  shutdown calls, that is to say an EventHub tied to an InputReader tied to an
 //  InputDispatcher.
-class InputManager : public input::InputManager
+class MIR_INTERNAL InputManager : public input::InputManager
 {
 public:
     explicit InputManager(std::shared_ptr<droidinput::EventHubInterface> const& event_hub,

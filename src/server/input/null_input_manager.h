@@ -19,13 +19,14 @@
 #ifndef MIR_INPUT_NULL_INPUT_MANAGER_H_
 #define MIR_INPUT_NULL_INPUT_MANAGER_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_manager.h"
 
 namespace mir
 {
 namespace input
 {
-class NullInputManager : public input::InputManager
+class MIR_INTERNAL NullInputManager : public input::InputManager
 {
     void start() override
     {

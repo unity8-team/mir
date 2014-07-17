@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_GLOBAL_EVENT_SENDER_H_
 #define MIR_SCENE_GLOBAL_EVENT_SENDER_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/event_sink.h"
 #include <memory>
 
@@ -28,7 +29,7 @@ namespace scene
 {
 class SessionContainer;
 
-class GlobalEventSender : public frontend::EventSink
+class MIR_INTERNAL GlobalEventSender : public frontend::EventSink
 {
 public:
     GlobalEventSender(std::shared_ptr<SessionContainer> const&);

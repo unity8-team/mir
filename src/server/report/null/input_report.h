@@ -20,6 +20,7 @@
 #ifndef MIR_REPORT_NULL_INPUT_REPORT_H_
 #define MIR_REPORT_NULL_INPUT_REPORT_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_report.h"
 
 namespace mir
@@ -29,7 +30,7 @@ namespace report
 namespace null
 {
 
-class InputReport : public input::InputReport
+class MIR_INTERNAL InputReport : public input::InputReport
 {
 public:
     InputReport() = default;

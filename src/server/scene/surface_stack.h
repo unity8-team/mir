@@ -19,6 +19,8 @@
 #ifndef MIR_SCENE_SURFACE_STACK_H_
 #define MIR_SCENE_SURFACE_STACK_H_
 
+#include "mir/visibility.h"
+
 #include "surface_stack_model.h"
 
 #include "mir/compositor/scene.h"
@@ -45,7 +47,7 @@ class BasicSurface;
 class SceneReport;
 class RenderingTracker;
 
-class Observers : public Observer, BasicObservers<Observer>
+class MIR_INTERNAL Observers : public Observer, BasicObservers<Observer>
 {
 public:
    // ms::Observer
@@ -59,7 +61,7 @@ public:
    using BasicObservers<Observer>::remove;
 };
 
-class SurfaceStack : public compositor::Scene, public input::InputTargets, public SurfaceStackModel
+class MIR_INTERNAL SurfaceStack : public compositor::Scene, public input::InputTargets, public SurfaceStackModel
 {
 public:
     explicit SurfaceStack(

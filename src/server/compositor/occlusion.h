@@ -19,6 +19,7 @@
 #ifndef MIR_COMPOSITOR_OCCLUSION_H_
 #define MIR_COMPOSITOR_OCCLUSION_H_
 
+#include "mir/visibility.h"
 #include "mir/compositor/scene.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace mir
 namespace compositor
 {
 
-SceneElementSequence filter_occlusions_from(SceneElementSequence& list, geometry::Rectangle const& area);
+MIR_INTERNAL SceneElementSequence filter_occlusions_from(SceneElementSequence& list, geometry::Rectangle const& area);
 
 } // namespace compositor
 } // namespace mir

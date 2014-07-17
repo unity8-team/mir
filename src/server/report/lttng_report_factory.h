@@ -19,13 +19,14 @@
 #ifndef MIR_REPORT_LTTNG_REPORT_FACTORY_H_
 #define MIR_REPORT_LTTNG_REPORT_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "report_factory.h"
 
 namespace mir
 {
 namespace report
 {
-class LttngReportFactory : public report::ReportFactory
+class MIR_INTERNAL LttngReportFactory : public report::ReportFactory
 {
 public:
     std::shared_ptr<compositor::CompositorReport> create_compositor_report() override;

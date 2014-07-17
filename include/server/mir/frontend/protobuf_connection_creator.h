@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_CONNECTION_CREATOR_H_
 #define MIR_FRONTEND_PROTOBUF_CONNECTION_CREATOR_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/connection_creator.h"
 #include "mir/frontend/connections.h"
 

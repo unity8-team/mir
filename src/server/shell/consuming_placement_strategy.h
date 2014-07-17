@@ -19,6 +19,7 @@
 #ifndef MIR_SHELL_CONSUMING_PLACEMENT_STRATEGY_H_
 #define MIR_SHELL_CONSUMING_PLACEMENT_STRATEGY_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/placement_strategy.h"
 
 #include <memory>
@@ -29,7 +30,7 @@ namespace shell
 {
 class DisplayLayout;
 
-class ConsumingPlacementStrategy : public scene::PlacementStrategy
+class MIR_INTERNAL ConsumingPlacementStrategy : public scene::PlacementStrategy
 {
 public:
     explicit ConsumingPlacementStrategy(

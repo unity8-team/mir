@@ -20,6 +20,7 @@
 #ifndef MIR_FRONTEND_DETAIL_SOCKET_CONNECTION_H_
 #define MIR_FRONTEND_DETAIL_SOCKET_CONNECTION_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/connections.h"
 
 #include <boost/asio.hpp>

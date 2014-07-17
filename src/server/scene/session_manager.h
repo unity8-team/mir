@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_APPLICATION_MANAGER_H_
 #define MIR_SCENE_APPLICATION_MANAGER_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/session_coordinator.h"
 
 #include <mutex>
@@ -43,7 +44,7 @@ class SurfaceCoordinator;
 class PromptSessionManager;
 
 
-class SessionManager : public SessionCoordinator
+class MIR_INTERNAL SessionManager : public SessionCoordinator
 {
 public:
     explicit SessionManager(std::shared_ptr<SurfaceCoordinator> const& surface_coordinator,

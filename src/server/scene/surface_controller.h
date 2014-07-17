@@ -20,6 +20,7 @@
 #ifndef MIR_SCENE_SURFACE_CONTROLLER_H_
 #define MIR_SCENE_SURFACE_CONTROLLER_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/surface_coordinator.h"
 
 namespace mir
@@ -31,7 +32,7 @@ class SurfaceStackModel;
 class SurfaceFactory;
 
 /// Will grow up to provide synchronization of model updates
-class SurfaceController : public SurfaceCoordinator
+class MIR_INTERNAL SurfaceController : public SurfaceCoordinator
 {
 public:
     SurfaceController(

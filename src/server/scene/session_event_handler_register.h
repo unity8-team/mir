@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_SESSION_EVENT_HANDLER_REGISTER_H_
 #define MIR_SCENE_SESSION_EVENT_HANDLER_REGISTER_H_
 
+#include "mir/visibility.h"
 #include <functional>
 #include <memory>
 
@@ -28,7 +29,7 @@ namespace scene
 {
 class Session;
 
-class SessionEventHandlerRegister
+class MIR_INTERNAL SessionEventHandlerRegister
 {
 public:
     virtual ~SessionEventHandlerRegister() = default;

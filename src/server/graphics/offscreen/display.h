@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_OFFSCREEN_DISPLAY_H_
 #define MIR_GRAPHICS_OFFSCREEN_DISPLAY_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/display.h"
 #include "display_configuration.h"
 #include "mir/graphics/surfaceless_egl_context.h"
@@ -42,7 +43,7 @@ namespace offscreen
 namespace detail
 {
 
-class EGLDisplayHandle
+class MIR_INTERNAL EGLDisplayHandle
 {
 public:
     explicit EGLDisplayHandle(EGLNativeDisplayType native_type);
@@ -61,7 +62,7 @@ private:
 
 }
 
-class Display : public graphics::Display
+class MIR_INTERNAL Display : public graphics::Display
 {
 public:
     Display(std::shared_ptr<BasicPlatform> const& basic_platform,

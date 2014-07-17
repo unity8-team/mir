@@ -18,6 +18,7 @@
 #ifndef MIR_BUFFER_QUEUE_H_
 #define MIR_BUFFER_QUEUE_H_
 
+#include "mir/visibility.h"
 #include "mir/compositor/frame_dropping_policy_factory.h"
 #include "mir/compositor/frame_dropping_policy.h"
 #include "buffer_bundle.h"
@@ -37,7 +38,7 @@ class GraphicBufferAllocator;
 namespace compositor
 {
 
-class BufferQueue : public BufferBundle
+class MIR_INTERNAL BufferQueue : public BufferBundle
 {
 public:
     typedef std::function<void(graphics::Buffer* buffer)> Callback;

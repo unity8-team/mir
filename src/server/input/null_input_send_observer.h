@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_NULL_INPUT_SEND_OBSERVER_H_
 #define MIR_INPUT_NULL_INPUT_SEND_OBSERVER_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_send_observer.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace mir
 namespace input
 {
 
-class NullInputSendObserver : public InputSendObserver
+class MIR_INTERNAL NullInputSendObserver : public InputSendObserver
 {
 public:
     void send_failed(MirEvent const& /*event*/, input::Surface* /*surface*/, FailureReason /*reason*/) override

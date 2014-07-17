@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_MEDIATING_DISPLAY_CHANGER_H_
 #define MIR_SCENE_MEDIATING_DISPLAY_CHANGER_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/display_changer.h"
 #include "mir/display_changer.h"
 
@@ -41,8 +42,8 @@ class SessionEventHandlerRegister;
 class SessionContainer;
 class Session;
 
-class MediatingDisplayChanger : public frontend::DisplayChanger,
-                                public mir::DisplayChanger
+class MIR_INTERNAL MediatingDisplayChanger : public frontend::DisplayChanger,
+                                             public mir::DisplayChanger
 {
 public:
     MediatingDisplayChanger(

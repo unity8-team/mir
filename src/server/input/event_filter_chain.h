@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_EVENT_FILTER_CHAIN_H_
 #define MIR_INPUT_EVENT_FILTER_CHAIN_H_
 
+#include "mir/visibility.h"
 #include "mir/input/composite_event_filter.h"
 
 #include <vector>
@@ -28,7 +29,7 @@ namespace mir
 namespace input
 {
 
-class EventFilterChain : public CompositeEventFilter
+class MIR_INTERNAL EventFilterChain : public CompositeEventFilter
 {
 public:
     explicit EventFilterChain(std::initializer_list<std::shared_ptr<EventFilter> const> const& values);

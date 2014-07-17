@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_POINTER_CONTROLLER_H__
 #define MIR_INPUT_ANDROID_POINTER_CONTROLLER_H__
 
+#include "mir/visibility.h"
 #include "dummy_android_pointer_controller.h"
 
 #include "mir/input/cursor_listener.h"
@@ -33,7 +34,7 @@ namespace input
 class InputRegion;
 namespace android
 {
-class PointerController : public DummyPointerController
+class MIR_INTERNAL PointerController : public DummyPointerController
 {
   public:
     explicit PointerController(std::shared_ptr<InputRegion> const& input_region);

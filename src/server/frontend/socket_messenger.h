@@ -18,6 +18,7 @@
 
 #ifndef MIR_FRONTEND_SOCKET_MESSENGER_H_
 #define MIR_FRONTEND_SOCKET_MESSENGER_H_
+#include "mir/visibility.h"
 #include "message_sender.h"
 #include "message_receiver.h"
 #include "mir/frontend/session_credentials.h"
@@ -29,8 +30,8 @@ namespace frontend
 {
 namespace detail
 {
-class SocketMessenger : public MessageSender,
-                        public MessageReceiver
+class MIR_INTERNAL SocketMessenger : public MessageSender,
+                                     public MessageReceiver
 {
 public:
     SocketMessenger(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket);

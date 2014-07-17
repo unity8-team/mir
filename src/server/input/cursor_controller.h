@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_CURSOR_CONTROLLER_H_
 #define MIR_INPUT_CURSOR_CONTROLLER_H_
 
+#include "mir/visibility.h"
 #include "mir/input/cursor_listener.h"
 #include "mir/geometry/point.h"
 
@@ -41,7 +42,7 @@ namespace input
 {
 class InputTargets;
 
-class CursorController : public CursorListener
+class MIR_INTERNAL CursorController : public CursorListener
 {
 public:
     CursorController(std::shared_ptr<InputTargets> const& input_targets,

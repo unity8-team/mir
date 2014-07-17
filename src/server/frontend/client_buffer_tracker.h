@@ -19,6 +19,7 @@
  #ifndef MIR_FRONTEND_CLIENT_BUFFER_TRACKER_H_
  #define MIR_FRONTEND_CLIENT_BUFFER_TRACKER_H_
 
+#include "mir/visibility.h"
 #include <stdint.h>
 #include <list>
 
@@ -37,7 +38,7 @@ namespace frontend
 
 /// \sa mir::client::ClientBufferDepository for the client-side of this tracking
 /// \note Changes to the tracking algorithm of mir::client::ClientBufferDepository will need to be mirrored here
-class ClientBufferTracker
+class MIR_INTERNAL ClientBufferTracker
 {
 public:
     ClientBufferTracker(unsigned int client_cache_size);

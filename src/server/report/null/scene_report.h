@@ -21,6 +21,7 @@
 #ifndef MIR_REPORT_NULL_SCENE_REPORT_H_
 #define MIR_REPORT_NULL_SCENE_REPORT_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/scene_report.h"
 
 namespace mir
@@ -30,7 +31,7 @@ namespace report
 namespace null
 {
 
-class SceneReport : public scene::SceneReport
+class MIR_INTERNAL SceneReport : public scene::SceneReport
 {
 public:
     virtual void surface_created(BasicSurfaceId /*id*/, std::string const& /*name*/) override;

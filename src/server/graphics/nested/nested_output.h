@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_NESTED_DETAIL_NESTED_OUTPUT_H_
 #define MIR_GRAPHICS_NESTED_DETAIL_NESTED_OUTPUT_H_
 
+#include "mir/visibility.h"
 #include "nested_display.h"
 
 namespace mir
@@ -32,7 +33,7 @@ class HostSurface;
 namespace detail
 {
 
-class NestedOutput : public DisplayBuffer
+class MIR_INTERNAL NestedOutput : public DisplayBuffer
 {
 public:
     NestedOutput(

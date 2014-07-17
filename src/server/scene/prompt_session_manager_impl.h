@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_PROMPT_SESSION_MANAGERIMPL_H_
 #define MIR_SCENE_PROMPT_SESSION_MANAGERIMPL_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/prompt_session_manager.h"
 #include "mir_toolkit/common.h"
 
@@ -36,7 +37,7 @@ class PromptSessionContainer;
 class PromptSessionCreationParameters;
 class PromptSessionListener;
 
-class PromptSessionManagerImpl : public scene::PromptSessionManager
+class MIR_INTERNAL PromptSessionManagerImpl : public scene::PromptSessionManager
 {
 public:
     explicit PromptSessionManagerImpl(

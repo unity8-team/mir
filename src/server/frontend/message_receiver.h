@@ -18,6 +18,7 @@
 #ifndef MIR_FRONTEND_MESSAGE_RECEIVER_H_
 #define MIR_FRONTEND_MESSAGE_RECEIVER_H_
 
+#include "mir/visibility.h"
 #include <functional>
 #include <boost/asio.hpp>
 

@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_DEFAULT_IPC_FACTORY_H_
 #define MIR_FRONTEND_DEFAULT_IPC_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "protobuf_ipc_factory.h"
 
 namespace mir
@@ -41,7 +42,7 @@ class DisplayChanger;
 class Screencast;
 class SessionAuthorizer;
 
-class DefaultIpcFactory : public ProtobufIpcFactory
+class MIR_INTERNAL DefaultIpcFactory : public ProtobufIpcFactory
 {
 public:
     explicit DefaultIpcFactory(

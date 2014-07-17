@@ -19,6 +19,7 @@
 #ifndef MIR_REPORT_LTTNG_MESSAGE_PROCESSOR_REPORT_H_
 #define MIR_REPORT_LTTNG_MESSAGE_PROCESSOR_REPORT_H_
 
+#include "mir/visibility.h"
 #include "server_tracepoint_provider.h"
 
 #include "mir/frontend/message_processor_report.h"
@@ -30,7 +31,7 @@ namespace report
 namespace lttng
 {
 
-class MessageProcessorReport : public mir::frontend::MessageProcessorReport
+class MIR_INTERNAL MessageProcessorReport : public mir::frontend::MessageProcessorReport
 {
 public:
     void received_invocation(void const* mediator, int id, std::string const& method);

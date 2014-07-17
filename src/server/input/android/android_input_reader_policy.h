@@ -18,6 +18,7 @@
 #ifndef MIR_ANDROID_INPUT_READER_POLICY_H_
 #define MIR_ANDROID_INPUT_READER_POLICY_H_
 
+#include "mir/visibility.h"
 #include "rudimentary_input_reader_policy.h"
 
 #include <memory>
@@ -31,7 +32,7 @@ class InputRegion;
 namespace android
 {
 
-class InputReaderPolicy : public RudimentaryInputReaderPolicy
+class MIR_INTERNAL InputReaderPolicy : public RudimentaryInputReaderPolicy
 {
 public:
     explicit InputReaderPolicy(std::shared_ptr<InputRegion> const& input_region,

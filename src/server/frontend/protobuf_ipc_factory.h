@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_IPC_FACTORY_H_
 #define MIR_FRONTEND_PROTOBUF_IPC_FACTORY_H_
 
+#include "mir/visibility.h"
 #include <sys/types.h>
 
 #include <memory>

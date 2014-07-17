@@ -19,13 +19,14 @@
 #ifndef MIR_REPORT_NULL_REPORT_FACTORY_H_
 #define MIR_REPORT_NULL_REPORT_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "report_factory.h"
 
 namespace mir
 {
 namespace report
 {
-class NullReportFactory : public mir::report::ReportFactory
+class MIR_INTERNAL NullReportFactory : public mir::report::ReportFactory
 {
 public:
     std::shared_ptr<compositor::CompositorReport> create_compositor_report() override;
@@ -37,13 +38,13 @@ public:
     std::shared_ptr<input::InputReport> create_input_report() override;
 };
 
-std::shared_ptr<compositor::CompositorReport> null_compositor_report();
-std::shared_ptr<graphics::DisplayReport> null_display_report();
-std::shared_ptr<scene::SceneReport> null_scene_report();
-std::shared_ptr<frontend::ConnectorReport> null_connector_report();
-std::shared_ptr<frontend::SessionMediatorReport> null_session_mediator_report();
-std::shared_ptr<frontend::MessageProcessorReport> null_message_processor_report();
-std::shared_ptr<input::InputReport> null_input_report();
+MIR_INTERNAL std::shared_ptr<compositor::CompositorReport> null_compositor_report();
+MIR_INTERNAL std::shared_ptr<graphics::DisplayReport> null_display_report();
+MIR_INTERNAL std::shared_ptr<scene::SceneReport> null_scene_report();
+MIR_INTERNAL std::shared_ptr<frontend::ConnectorReport> null_connector_report();
+MIR_INTERNAL std::shared_ptr<frontend::SessionMediatorReport> null_session_mediator_report();
+MIR_INTERNAL std::shared_ptr<frontend::MessageProcessorReport> null_message_processor_report();
+MIR_INTERNAL std::shared_ptr<input::InputReport> null_input_report();
 
 }
 }

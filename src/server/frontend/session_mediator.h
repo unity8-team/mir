@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_SESSION_MEDIATOR_H_
 #define MIR_FRONTEND_SESSION_MEDIATOR_H_
 
+#include "mir/visibility.h"
 #include "display_server.h"
 #include "mir/frontend/connection_context.h"
 #include "mir/frontend/surface_id.h"
@@ -61,7 +62,7 @@ class Screencast;
 class PromptSession;
 
 // SessionMediator relays requests from the client process into the server.
-class SessionMediator : public detail::DisplayServer
+class MIR_INTERNAL SessionMediator : public detail::DisplayServer
 {
 public:
 

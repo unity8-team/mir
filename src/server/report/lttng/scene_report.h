@@ -20,6 +20,7 @@
 #ifndef MIR_REPORT_LTTNG_SCENE_REPORT_H_
 #define MIR_REPORT_LTTNG_SCENE_REPORT_H_
 
+#include "mir/visibility.h"
 #include "server_tracepoint_provider.h"
 
 #include "mir/scene/scene_report.h"
@@ -31,7 +32,7 @@ namespace report
 namespace lttng
 {
 
-class SceneReport : public scene::SceneReport
+class MIR_INTERNAL SceneReport : public scene::SceneReport
 {
 public:
     void surface_created(BasicSurfaceId id, std::string const& name) override;

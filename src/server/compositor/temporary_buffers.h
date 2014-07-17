@@ -19,6 +19,7 @@
 #ifndef MIR_COMPOSITOR_TEMPORARY_BUFFERS_H_
 #define MIR_COMPOSITOR_TEMPORARY_BUFFERS_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/buffer_id.h"
 
@@ -32,7 +33,7 @@ namespace compositor
 class BufferBundle;
 class BackBufferStrategy;
 
-class TemporaryBuffer : public mg::Buffer
+class MIR_INTERNAL TemporaryBuffer : public mg::Buffer
 {
 public:
     geometry::Size size() const;
@@ -48,7 +49,7 @@ protected:
     std::shared_ptr<mg::Buffer> const buffer;
 };
 
-class TemporaryCompositorBuffer : public TemporaryBuffer
+class MIR_INTERNAL TemporaryCompositorBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporaryCompositorBuffer(
@@ -59,7 +60,7 @@ private:
     std::shared_ptr<BufferBundle> const bundle;
 };
 
-class TemporarySnapshotBuffer : public TemporaryBuffer
+class MIR_INTERNAL TemporarySnapshotBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporarySnapshotBuffer(

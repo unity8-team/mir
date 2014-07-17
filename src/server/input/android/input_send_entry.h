@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_SEND_ENTRY_H_
 #define MIR_INPUT_ANDROID_INPUT_SEND_ENTRY_H_
 
+#include "mir/visibility.h"
 #include "mir_toolkit/event.h"
 #include <memory>
 
@@ -33,7 +34,7 @@ namespace android
 /*!
  * Stores information about an input event to be sent to a client
  */
-struct InputSendEntry
+struct MIR_INTERNAL InputSendEntry
 {
     uint32_t sequence_id;
     MirEvent event;

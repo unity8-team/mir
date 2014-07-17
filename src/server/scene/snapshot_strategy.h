@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_SNAPSHOT_STRATEGY_H_
 #define MIR_SCENE_SNAPSHOT_STRATEGY_H_
 
+#include "mir/visibility.h"
 #include "mir/scene/snapshot.h"
 
 #include <memory>
@@ -29,7 +30,7 @@ namespace scene
 {
 class SurfaceBufferAccess;
 
-class SnapshotStrategy
+class MIR_INTERNAL SnapshotStrategy
 {
 public:
     virtual ~SnapshotStrategy() = default;

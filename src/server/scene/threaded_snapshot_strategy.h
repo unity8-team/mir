@@ -32,7 +32,7 @@ namespace scene
 class PixelBuffer;
 class SnapshottingFunctor;
 
-class ThreadedSnapshotStrategy : public SnapshotStrategy
+class MIR_INTERNAL ThreadedSnapshotStrategy : public SnapshotStrategy
 {
 public:
     ThreadedSnapshotStrategy(std::shared_ptr<PixelBuffer> const& pixels);

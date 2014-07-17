@@ -19,6 +19,7 @@
 #ifndef MIR_COMPOSITOR_MULTI_THREADED_COMPOSITOR_H_
 #define MIR_COMPOSITOR_MULTI_THREADED_COMPOSITOR_H_
 
+#include "mir/visibility.h"
 #include "mir/compositor/compositor.h"
 
 #include <mutex>
@@ -53,7 +54,7 @@ enum class CompositorState
     stopping
 };
 
-class MultiThreadedCompositor : public Compositor
+class MIR_INTERNAL MultiThreadedCompositor : public Compositor
 {
 public:
     MultiThreadedCompositor(std::shared_ptr<graphics::Display> const& display,

@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_GL_PIXEL_BUFFER_H_
 #define MIR_SCENE_GL_PIXEL_BUFFER_H_
 
+#include "mir/visibility.h"
 #include "pixel_buffer.h"
 
 #include <memory>
@@ -37,7 +38,7 @@ class GLContext;
 namespace scene
 {
 /** Extracts the pixels from a graphics::Buffer using GL facilities. */
-class GLPixelBuffer : public PixelBuffer
+class MIR_INTERNAL GLPixelBuffer : public PixelBuffer
 {
 public:
     GLPixelBuffer(std::unique_ptr<graphics::GLContext> gl_context);

@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_RESPONDER_H_
 #define MIR_FRONTEND_PROTOBUF_RESPONDER_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/protobuf_message_sender.h"
 #include "mir_protobuf_wire.pb.h"
 
@@ -34,7 +35,7 @@ namespace detail
 {
 class MessageSender;
 
-class ProtobufResponder : public ProtobufMessageSender
+class MIR_INTERNAL ProtobufResponder : public ProtobufMessageSender
 {
 public:
     ProtobufResponder(

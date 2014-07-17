@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_NESTED_NESTED_DISPLAY_H_
 #define MIR_GRAPHICS_NESTED_NESTED_DISPLAY_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display_configuration.h"
@@ -50,7 +51,7 @@ namespace nested
 namespace detail
 {
 
-class EGLSurfaceHandle
+class MIR_INTERNAL EGLSurfaceHandle
 {
 public:
     explicit EGLSurfaceHandle(EGLDisplay display, EGLNativeWindowType native_window, EGLConfig cfg);
@@ -63,7 +64,7 @@ private:
     EGLSurface const egl_surface;
 };
 
-class EGLDisplayHandle
+class MIR_INTERNAL EGLDisplayHandle
 {
 public:
     EGLDisplayHandle(EGLNativeDisplayType native_display,
@@ -91,7 +92,7 @@ extern EGLint const nested_egl_context_attribs[];
 
 class HostConnection;
 
-class NestedDisplay : public Display
+class MIR_INTERNAL NestedDisplay : public Display
 {
 public:
     NestedDisplay(

@@ -23,13 +23,14 @@
 #include <memory>
 #include <mutex>
 
+#include "mir/visibility.h"
 #include "session_container.h"
 
 namespace mir
 {
 namespace scene
 {
-class DefaultSessionContainer : public SessionContainer
+class MIR_INTERNAL DefaultSessionContainer : public SessionContainer
 {
 public:
     void insert_session(std::shared_ptr<Session> const& session) override;

@@ -18,6 +18,8 @@
 #ifndef MIR_INPUT_ANDROID_RUDIMENTARY_INPUT_READER_POLICY_H_
 #define MIR_INPUT_ANDROID_RUDIMENTARY_INPUT_READER_POLICY_H_
 
+#include "mir/visibility.h"
+
 // from android
 #include <InputReader.h>
 
@@ -29,7 +31,7 @@ namespace input
 {
 namespace android
 {
-class RudimentaryInputReaderPolicy : public droidinput::InputReaderPolicyInterface
+class MIR_INTERNAL RudimentaryInputReaderPolicy : public droidinput::InputReaderPolicyInterface
 {
   public:
     // From InputReaderPolicyInterface

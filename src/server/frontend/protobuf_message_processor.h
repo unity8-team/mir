@@ -20,6 +20,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_MESSAGE_PROCESSOR_H_
 #define MIR_FRONTEND_PROTOBUF_MESSAGE_PROCESSOR_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/message_processor.h"
 
 #include "mir_protobuf.pb.h"
@@ -37,7 +38,7 @@ namespace detail
 class DisplayServer;
 class ProtobufMessageSender;
 
-class ProtobufMessageProcessor : public MessageProcessor
+class MIR_INTERNAL ProtobufMessageProcessor : public MessageProcessor
 {
 public:
     ProtobufMessageProcessor(

@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_GL_RENDERER_FACTORY_H_
 #define MIR_GRAPHICS_GL_RENDERER_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/gl_program_factory.h"
 #include "mir/graphics/gl_program.h"
 #include "mir/graphics/gl_texture_cache.h"
@@ -28,7 +29,7 @@ namespace mir
 {
 namespace graphics
 {
-class ProgramFactory : public GLProgramFactory
+class MIR_INTERNAL ProgramFactory : public GLProgramFactory
 {
 public:
     std::unique_ptr<GLProgram> create_gl_program(std::string const&, std::string const&) const override;

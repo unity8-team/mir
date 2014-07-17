@@ -19,13 +19,14 @@
 #ifndef MIR_FRONTEND_NO_PROMPT_SHELL_H_
 #define MIR_FRONTEND_NO_PROMPT_SHELL_H_
 
+#include "mir/visibility.h"
 #include "shell_wrapper.h"
 
 namespace mir
 {
 namespace frontend
 {
-class NoPromptShell : public ShellWrapper
+class MIR_INTERNAL NoPromptShell : public ShellWrapper
 {
 public:
 

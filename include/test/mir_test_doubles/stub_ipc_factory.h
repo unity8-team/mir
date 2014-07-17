@@ -20,6 +20,7 @@
 #ifndef MIR_TEST_DOUBLES_STUB_IPC_FACTORY_H_
 #define MIR_TEST_DOUBLES_STUB_IPC_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "mir_test/fake_shared.h"
 #include "src/server/frontend/protobuf_ipc_factory.h"
 #include "src/server/frontend/resource_cache.h"
@@ -35,7 +36,7 @@ namespace test
 namespace doubles
 {
 
-class StubIpcFactory : public frontend::ProtobufIpcFactory
+class MIR_INTERNAL StubIpcFactory : public frontend::ProtobufIpcFactory
 {
 public:
     StubIpcFactory(frontend::detail::DisplayServer& server) :

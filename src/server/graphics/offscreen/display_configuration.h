@@ -17,6 +17,7 @@
 #ifndef MIR_GRAPHICS_OFFSCREEN_DISPLAY_CONFIGURATION_H_
 #define MIR_GRAPHICS_OFFSCREEN_DISPLAY_CONFIGURATION_H_
 
+#include "mir/visibility.h"
 #include "mir/graphics/display_configuration.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace graphics
 namespace offscreen
 {
 
-class DisplayConfiguration : public graphics::DisplayConfiguration
+class MIR_INTERNAL DisplayConfiguration : public graphics::DisplayConfiguration
 {
 public:
     DisplayConfiguration(geometry::Size const& display_size);

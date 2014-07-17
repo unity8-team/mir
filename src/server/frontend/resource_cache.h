@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_RESOURCE_CACHE_H_
 #define MIR_FRONTEND_RESOURCE_CACHE_H_
 
+#include "mir/visibility.h"
 #include "mir_protobuf.pb.h"
 
 #include <map>
@@ -31,7 +32,7 @@ namespace frontend
 {
 
 // Used to save resources that must be retained until a call completes.
-class ResourceCache
+class MIR_INTERNAL ResourceCache
 {
 public:
     void save_resource(google::protobuf::Message* key, std::shared_ptr<void> const& value);

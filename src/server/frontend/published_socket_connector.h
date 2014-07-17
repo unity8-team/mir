@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_ASIO_COMMUNICATOR_H_
 #define MIR_FRONTEND_PROTOBUF_ASIO_COMMUNICATOR_H_
 
+#include "mir/visibility.h"
 #include "mir/frontend/connector.h"
 
 #include <boost/asio.hpp>
@@ -46,7 +47,7 @@ class ConnectionCreator;
 class ConnectorReport;
 
 /// provides a client-side socket fd for each connection
-class BasicConnector : public Connector
+class MIR_INTERNAL BasicConnector : public Connector
 {
 public:
     explicit BasicConnector(
@@ -74,7 +75,7 @@ private:
 };
 
 /// Accept connections over a published socket
-class PublishedSocketConnector : public BasicConnector
+class MIR_INTERNAL PublishedSocketConnector : public BasicConnector
 {
 public:
     explicit PublishedSocketConnector(

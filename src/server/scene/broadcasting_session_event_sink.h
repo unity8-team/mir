@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_BROADCASTING_SESSION_EVENT_SINK_H_
 #define MIR_SCENE_BROADCASTING_SESSION_EVENT_SINK_H_
 
+#include "mir/visibility.h"
 #include "session_event_sink.h"
 #include "session_event_handler_register.h"
 
@@ -29,8 +30,8 @@ namespace mir
 {
 namespace scene
 {
-class BroadcastingSessionEventSink : public SessionEventSink,
-                                     public SessionEventHandlerRegister
+class MIR_INTERNAL BroadcastingSessionEventSink : public SessionEventSink,
+                                                  public SessionEventHandlerRegister
 {
 public:
     void handle_focus_change(std::shared_ptr<Session> const& session);

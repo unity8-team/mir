@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_INPUT_CHANNEL_FACTORY_H_
 #define MIR_INPUT_ANDROID_INPUT_CHANNEL_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_channel_factory.h"
 
 namespace mir
@@ -27,7 +28,7 @@ namespace input
 {
 namespace android
 {
-class InputChannelFactory : public mir::input::InputChannelFactory
+class MIR_INTERNAL InputChannelFactory : public mir::input::InputChannelFactory
 {
 public:
     std::shared_ptr<mir::input::InputChannel> make_input_channel() override;

@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_ANDROID_TARGET_H_
 #define MIR_INPUT_ANDROID_TARGET_H_
 
+#include "mir/visibility.h"
 #include "mir/shell/input_targeter.h"
 
 #include <mutex>
@@ -40,7 +41,7 @@ namespace android
 class InputConfiguration;
 class WindowHandleRepository;
 
-class InputTargeter : public shell::InputTargeter
+class MIR_INTERNAL InputTargeter : public shell::InputTargeter
 {
 public:
     explicit InputTargeter(std::shared_ptr<droidinput::InputDispatcherInterface> const& input_dispatcher,

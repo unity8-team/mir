@@ -19,6 +19,7 @@
 #ifndef MIR_REPORT_LTTNG_INPUT_REPORT_H_
 #define MIR_REPORT_LTTNG_INPUT_REPORT_H_
 
+#include "mir/visibility.h"
 #include "server_tracepoint_provider.h"
 
 #include "mir/input/input_report.h"
@@ -30,7 +31,7 @@ namespace report
 namespace lttng
 {
 
-class InputReport : public input::InputReport
+class MIR_INTERNAL InputReport : public input::InputReport
 {
 public:
     InputReport() = default;

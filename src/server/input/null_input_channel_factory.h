@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_NULL_INPUT_CHANNEL_FACTORY_H_
 #define MIR_INPUT_NULL_INPUT_CHANNEL_FACTORY_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_channel_factory.h"
 
 namespace mir
@@ -27,7 +28,7 @@ namespace input
 {
 class InputChannel;
 
-class NullInputChannelFactory : public mir::input::InputChannelFactory
+class MIR_INTERNAL NullInputChannelFactory : public mir::input::InputChannelFactory
 {
     std::shared_ptr<mir::input::InputChannel> make_input_channel() override;
 };

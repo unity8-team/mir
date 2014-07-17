@@ -19,6 +19,7 @@
 #ifndef MIR_INPUT_NULL_INPUT_DISPATCHER_H_
 #define MIR_INPUT_NULL_INPUT_DISPATCHER_H_
 
+#include "mir/visibility.h"
 #include "mir/input/input_dispatcher.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace mir
 namespace input
 {
 
-class NullInputDispatcher : public mir::input::InputDispatcher
+class MIR_INTERNAL NullInputDispatcher : public mir::input::InputDispatcher
 {
 public:
     void configuration_changed(nsecs_t when) override;
