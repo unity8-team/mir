@@ -148,6 +148,9 @@ private:
     SupportedOrientations m_supportedOrientations;
     MirSurfaceItem *m_surface;
 
+    class Guard {};
+    QSharedPointer<Guard> m_screenShotGuard;
+
     friend class ApplicationManager;
     friend class MirSurfaceManager;
     friend class MirSurfaceItem;

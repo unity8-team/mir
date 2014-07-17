@@ -29,6 +29,7 @@
 
 namespace qtmir
 {
+QMutex screenshotMutex;
 
 Application::Application(const QSharedPointer<TaskController>& taskController,
                          DesktopFileReader *desktopFileReader,
@@ -48,6 +49,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_arguments(arguments)
     , m_suspendTimer(new QTimer(this))
     , m_surface(nullptr)
+    , m_screenShotGuard(new Guard)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
 
@@ -68,6 +70,11 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 Application::~Application()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
+    {
+        // In case we get a threaded screenshot callback once the application is deleted.
+        QMutexLocker lk(&screenshotMutex);
+        m_screenShotGuard.clear();
+    }
     delete m_desktopData;
     delete m_surface;
 }
@@ -206,9 +213,16 @@ void Application::updateScreenshot()
     if (!m_session)
         return;
 
+    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
+
     m_session->take_snapshot(
-        [&](mir::scene::Snapshot const& snapshot)
+        [&, wk](mir::scene::Snapshot const& snapshot)
         {
+            // In case we get a threaded screenshot callback once the application is deleted.
+            QMutexLocker lk(&screenshotMutex);
+            if (wk.isNull())
+                return;
+
             qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
                                         << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
 
