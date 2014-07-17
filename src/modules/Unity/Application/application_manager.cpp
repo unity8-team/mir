@@ -868,7 +868,6 @@ void ApplicationManager::add(Application* application)
     Q_EMIT countChanged();
     Q_EMIT applicationAdded(application->appId());
     if (m_applications.size() == 1) {
-        Q_EMIT topmostApplicationChanged(application);
         Q_EMIT emptyChanged();
     }
 }
@@ -891,7 +890,6 @@ void ApplicationManager::remove(Application *application)
         Q_EMIT applicationRemoved(application->appId());
         Q_EMIT countChanged();
         if (i == 0) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
             Q_EMIT emptyChanged();
         }
     }
@@ -907,13 +905,9 @@ void ApplicationManager::move(int from, int to) {
            by one, as explained in the documentation:
            http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
 
-        Application *oldTopmost = topmostApplication();
         beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
         m_applications.move(from, to);
         endMoveRows();
-        if (topmostApplication() != oldTopmost) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
-        }
     }
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::move after " << toString();
 }
@@ -939,15 +933,6 @@ QString ApplicationManager::toString() const
         result.append(m_applications.at(i)->appId());
     }
     return result;
-}
-
-Application* ApplicationManager::topmostApplication() const
-{
-    if (m_applications.isEmpty()) {
-        return nullptr;
-    } else {
-        return m_applications[0];
-    }
 }
 
 } // namespace qtmir
