@@ -62,6 +62,7 @@ public:
         ApplicationManager* create();
     };
 
+    // FIXME: these roles should be added to unity-api and removed from here
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
