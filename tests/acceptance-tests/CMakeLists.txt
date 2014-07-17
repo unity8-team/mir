@@ -61,7 +61,7 @@ uses_android_input(mir_acceptance_tests)
 target_link_libraries(
   mir_acceptance_tests
 
-  mirserver
+  mirserver-static
   mirclient
   mirplatform
 

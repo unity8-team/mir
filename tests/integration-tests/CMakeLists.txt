@@ -53,7 +53,7 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
 
-  mirserver
+  mirserver-static
   mirplatformgraphics
   mirclient
   mirdraw

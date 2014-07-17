@@ -44,7 +44,7 @@ target_link_libraries(
   mir_unit_tests
 
   mirclient
-  mirserver
+  mirserver-static
   mirplatformgraphics
   mirclientplatform
   mirdraw

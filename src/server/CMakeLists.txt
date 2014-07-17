@@ -39,6 +39,10 @@ add_library(mirserver ${MIRSERVER_LINKAGE}
   ${SRCS}
 )
 
+add_library(mirserver-static STATIC
+  ${SRCS}
+)
+
 list(APPEND MIRSERVER_ARCHIVES
   miroptions
   mircompositor
@@ -54,8 +58,8 @@ list(APPEND MIRSERVER_ARCHIVES
   mirshell
   mirscene
   mirtime
-  mirlttng
   mirreport
+  mirlttng
   mirlogger
   mirnestedgraphics
   miroffscreengraphics
@@ -97,6 +101,11 @@ else()
       ${MIRSERVER_LINKS}
   )
 endif()
+
+target_link_libraries(mirserver-static
+  ${MIRSERVER_ARCHIVES}
+  ${MIRSERVER_LINKS}
+)
 
 set(MIRSERVER_ABI 22) # Be sure to increment MIR_VERSION_MINOR at the same time
 
