@@ -44,7 +44,7 @@ public:
     bool suspend(const QString &appId);
     bool resume(const QString &appId);
 
-    bool appIdHasProcessId(const QString &appId, const quint64 pid);
+    bool appIdHasProcessId(const QString &appId, const quint64 pid) const;
     QFileInfo findDesktopFileForAppId(const QString &appId) const;
 
 Q_SIGNALS:
@@ -62,8 +62,8 @@ private Q_SLOTS:
     void onApplicationError(const QString &id, ApplicationController::Error error);
 
 private:
-    QSharedPointer<ApplicationController> m_appController;
-    QSharedPointer<ProcessController> m_processController;
+    const QSharedPointer<ApplicationController> m_appController;
+    const QSharedPointer<ProcessController> m_processController;
 };
 
 } // namespace qtmir
