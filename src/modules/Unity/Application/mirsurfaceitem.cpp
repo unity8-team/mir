@@ -305,7 +305,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::widthChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
     connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
 
-    m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
+    // FIXME - setting surface unfocused immediately breaks camera & video apps, but is
+    // technically the correct thing to do (surface should be unfocused until shell focuses it)
+    //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
     connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
