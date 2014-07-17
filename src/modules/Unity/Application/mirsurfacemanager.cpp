@@ -51,8 +51,6 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
 
-    m_roleNames.insert(RoleSurface, "surface");
-
     NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
 
     if (!nativeInterface) {
@@ -78,6 +76,13 @@ MirSurfaceManager::~MirSurfaceManager()
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::~MirSurfaceManager - this=" << this;
 
     m_mirSurfaceToItemHash.clear();
+}
+
+QHash<int, QByteArray> MirSurfaceManager::roleNames() const
+{
+    QHash<int, QByteArray> roleNames;
+    roleNames.insert(RoleSurface, "surface");
+    return roleNames;
 }
 
 void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,

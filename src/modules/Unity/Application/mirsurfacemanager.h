@@ -57,7 +57,7 @@ public:
     // from QAbstractItemModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
     QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override { return m_roleNames; }
+    QHash<int, QByteArray> roleNames() const override;
 
     int count() const { return rowCount(); }
 
@@ -81,7 +81,6 @@ private:
     QList<MirSurfaceItem*> m_surfaceItems;
     ShellServerConfiguration* m_mirServer;
     static MirSurfaceManager *the_surface_manager;
-    QHash<int, QByteArray> m_roleNames;
     QMutex m_mutex;
 };
 
