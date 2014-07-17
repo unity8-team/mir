@@ -511,7 +511,7 @@ bool ApplicationManager::stopApplication(const QString &inputAppId)
     }
 
     if (application == m_focusedApplication) {
-        // TODO(greyback) What to do?? Focus next app, or unfocus everything??
+        // unfocus, and let shell decide what next to focus
         m_focusedApplication = nullptr;
         Q_EMIT focusedApplicationIdChanged();
     }
