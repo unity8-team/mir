@@ -525,7 +525,7 @@ bool ApplicationManager::stopApplication(const QString &inputAppId)
     }
 
     if (application == m_focusedApplication) {
-        // TODO(greyback) What to do?? Focus next app, or unfocus everything??
+        // unfocus, and let shell decide what next to focus
         m_focusedApplication = nullptr;
         Q_EMIT focusedApplicationIdChanged();
     }
@@ -722,7 +722,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         return;
     }
 
-    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading" << desktopFileName;
+    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading:" << desktopFileName;
 
     // Guess appId from the desktop file hint
     QString appId = toShortAppIdIfPossible(desktopFileName.get().remove(QRegExp(".desktop$")).split('/').last());
@@ -730,9 +730,11 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
     // FIXME: right now we support --desktop_file_hint=appId for historical reasons. So let's try that in
     // case we didn't get an existing .desktop file path
     DesktopFileReader* desktopData;
-    if (QFileInfo(desktopFileName.get()).exists()) {
+    if (QFileInfo::exists(desktopFileName.get())) {
         desktopData = m_desktopFileReaderFactory->createInstance(appId, QFileInfo(desktopFileName.get()));
     } else {
+        qCDebug(QTMIR_APPLICATIONS) << "Unable to find file:" << desktopFileName.get()
+                                    << "so will search standard paths for one named" << appId << ".desktop";
         desktopData = m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId));
     }
 
@@ -750,7 +752,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         qCDebug(QTMIR_APPLICATIONS) << "Process with pid" << pid << "appeared, attaching to existing entry"
                                     << "in application list with appId:" << application->appId();
         delete desktopData;
-        application->setSessionName(application->appId());
         application->setPid(pid);
         authorized = true;
         return;
@@ -925,7 +926,6 @@ void ApplicationManager::add(Application* application)
     Q_EMIT countChanged();
     Q_EMIT applicationAdded(application->appId());
     if (m_applications.size() == 1) {
-        Q_EMIT topmostApplicationChanged(application);
         Q_EMIT emptyChanged();
     }
 }
@@ -948,7 +948,6 @@ void ApplicationManager::remove(Application *application)
         Q_EMIT applicationRemoved(application->appId());
         Q_EMIT countChanged();
         if (i == 0) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
             Q_EMIT emptyChanged();
         }
     }
@@ -964,13 +963,9 @@ void ApplicationManager::move(int from, int to) {
            by one, as explained in the documentation:
            http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
 
-        Application *oldTopmost = topmostApplication();
         beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
         m_applications.move(from, to);
         endMoveRows();
-        if (topmostApplication() != oldTopmost) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
-        }
     }
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::move after " << toString();
 }
@@ -996,15 +991,6 @@ QString ApplicationManager::toString() const
         result.append(m_applications.at(i)->appId());
     }
     return result;
-}
-
-Application* ApplicationManager::topmostApplication() const
-{
-    if (m_applications.isEmpty()) {
-        return nullptr;
-    } else {
-        return m_applications[0];
-    }
 }
 
 } // namespace qtmir

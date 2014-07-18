@@ -32,6 +32,7 @@ namespace ms = mir::scene;
 
 namespace qtmir
 {
+QMutex screenshotMutex;
 
 Application::Application(const QSharedPointer<TaskController>& taskController,
                          DesktopFileReader *desktopFileReader,
@@ -53,6 +54,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_suspendTimer(new QTimer(this))
     , m_surface(nullptr)
     , m_promptSessionManager(promptSessionManager)
+    , m_screenShotGuard(new Guard)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
 
@@ -62,12 +64,22 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     // FIXME(greyback) need to save long appId internally until ubuntu-app-launch can hide it from us
     m_longAppId = desktopFileReader->file().remove(QRegExp(".desktop$")).split('/').last();
 
-    deduceSupportedOrientationsFromAppId();
+    // FIXME: This is a hack. Remove once we have a real implementation for knowing the supported
+    // orientations of an app
+    m_supportedOrientations = PortraitOrientation
+        | LandscapeOrientation
+        | InvertedPortraitOrientation
+        | InvertedLandscapeOrientation;
 }
 
 Application::~Application()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
+    {
+        // In case we get a threaded screenshot callback once the application is deleted.
+        QMutexLocker lk(&screenshotMutex);
+        m_screenShotGuard.clear();
+    }
     delete m_desktopData;
     delete m_surface;
 }
@@ -175,18 +187,7 @@ void Application::setSession(const std::shared_ptr<mir::scene::Session>& session
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << session.get();
 
-    // TODO(greyback) what if called with new surface?
     m_session = session;
-}
-
-void Application::setSessionName(const QString& name)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setSessionName - appId=" << appId() << "name=" << name;
-    if (m_session) {
-        qCritical() << "Application::setSessionName should not be called once session exists";
-        return;
-    }
-    m_sessionName = name;
 }
 
 void Application::setStage(Application::Stage stage)
@@ -217,9 +218,16 @@ void Application::updateScreenshot()
     if (!m_session)
         return;
 
+    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
+
     m_session->take_snapshot(
-        [&](mir::scene::Snapshot const& snapshot)
+        [&, wk](mir::scene::Snapshot const& snapshot)
         {
+            // In case we get a threaded screenshot callback once the application is deleted.
+            QMutexLocker lk(&screenshotMutex);
+            if (wk.isNull())
+                return;
+
             qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
                                         << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
 
@@ -272,11 +280,6 @@ void Application::setState(Application::State state)
 
         QModelIndex appIndex = m_appMgr->findIndex(this);
         Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleState);
-
-        // FIXME: Make this a signal-slot connection
-        if (m_surface) {
-            m_surface->onApplicationStateChanged();
-        }
     }
 }
 
@@ -336,18 +339,6 @@ QString Application::longAppId() const
 Application::SupportedOrientations Application::supportedOrientations() const
 {
     return m_supportedOrientations;
-}
-
-void Application::deduceSupportedOrientationsFromAppId()
-{
-    if (appId() == "dialer-app") {
-        m_supportedOrientations = PortraitOrientation;
-    } else {
-        m_supportedOrientations = PortraitOrientation
-            | LandscapeOrientation
-            | InvertedPortraitOrientation
-            | InvertedLandscapeOrientation;
-    }
 }
 
 MirSurfaceItem* Application::surface() const

@@ -26,6 +26,8 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <thread>
+#include <condition_variable>
 #include <QSignalSpy>
 
 #include "mock_application_controller.h"
@@ -73,6 +75,37 @@ public:
         }
     {
     }
+
+    Application* startApplication(quint64 procId, QString const& appId)
+    {
+        using namespace testing;
+
+        ON_CALL(appController,appIdHasProcessId(procId, appId)).WillByDefault(Return(true));
+
+        // Set up Mocks & signal watcher
+        auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
+        ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
+        ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
+
+        ON_CALL(desktopFileReaderFactory, createInstance(appId, _)).WillByDefault(Return(mockDesktopFileReader));
+
+        EXPECT_CALL(appController, startApplicationWithAppIdAndArgs(appId, _))
+                .Times(1)
+                .WillOnce(Return(true));
+
+        auto application = applicationManager.startApplication(appId, ApplicationManager::NoFlag);
+        applicationManager.onProcessStarting(appId);
+
+        bool authed = false;
+        applicationManager.authorizeSession(procId, authed);
+        EXPECT_EQ(authed, true);
+
+        auto appSession = std::make_shared<MockSession>(appId.toStdString(), procId);
+
+        applicationManager.onSessionStarting(appSession);
+        return application;
+    }
+
     testing::NiceMock<testing::MockOomController> oomController;
     testing::NiceMock<testing::MockProcessController> processController;
     testing::NiceMock<testing::MockApplicationController> appController;
@@ -1776,4 +1809,95 @@ TEST_F(ApplicationManagerTests,unexpectedStopOfBackgroundWebapp)
 
     EXPECT_EQ(countSpy.count(), 0);
     EXPECT_EQ(removedSpy.count(), 0);
+}
+
+/*
+ * Test that screenshotting callback works cross thread.
+ */
+TEST_F(ApplicationManagerTests, threadedScreenshot)
+{
+    using namespace testing;
+    quint64 procId1 = 5551;
+
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool done = false;
+
+    auto application = startApplication(procId1, "webapp");
+    auto session = std::dynamic_pointer_cast<MockSession>(application->session());
+    ON_CALL(*session, take_snapshot(_)).WillByDefault(Invoke(
+        [&](mir::scene::SnapshotCallback const& callback)
+        {
+            std::thread ([&, callback]() {
+                std::unique_lock<std::mutex> lk(mutex);
+
+                mir::scene::Snapshot snapshot{mir::geometry::Size{0,0},
+                                              mir::geometry::Stride{0},
+                                              nullptr};
+
+                callback(snapshot);
+
+                done = true;
+                lk.unlock();
+                cv.notify_one();
+            }).detach();
+        }));
+
+    application->updateScreenshot();
+
+    {
+        std::unique_lock<decltype(mutex)> lk(mutex);
+        cv.wait(lk, [&] { return done; } );
+        EXPECT_TRUE(done);
+    }
+
+    applicationManager.stopApplication(application->appId());
+}
+
+/*
+ * Test that screenshotting callback works when application has been deleted
+ */
+TEST_F(ApplicationManagerTests, threadedScreenshotAfterAppDelete)
+{
+    using namespace testing;
+    quint64 procId1 = 5551;
+
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool ready = false;
+    bool done = false;
+
+    auto application = startApplication(procId1, "webapp");
+    auto session = std::dynamic_pointer_cast<MockSession>(application->session());
+    ON_CALL(*session, take_snapshot(_)).WillByDefault(Invoke(
+        [&](mir::scene::SnapshotCallback const& callback)
+        {
+            std::thread ([&, callback]() {
+                std::unique_lock<std::mutex> lk(mutex);
+                cv.wait(lk, [&]{ return ready; } );
+
+                mir::scene::Snapshot snapshot{mir::geometry::Size{0,0},
+                                              mir::geometry::Stride{0},
+                                              nullptr};
+
+                callback(snapshot);
+
+                done = true;
+                lk.unlock();
+                cv.notify_one();
+            }).detach();
+        }));
+    application->updateScreenshot();
+
+    {
+        std::lock_guard<decltype(mutex)> lk(mutex);
+        applicationManager.stopApplication(application->appId());
+        ready = true;
+    }
+    cv.notify_one();
+
+    {
+        std::unique_lock<decltype(mutex)> lk(mutex);
+        cv.wait(lk, [&] { return done; } );
+    }
 }

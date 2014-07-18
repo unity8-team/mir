@@ -305,8 +305,12 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::widthChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
     connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
 
-    m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
+    // FIXME - setting surface unfocused immediately breaks camera & video apps, but is
+    // technically the correct thing to do (surface should be unfocused until shell focuses it)
+    //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
+
+    connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
 }
 
 MirSurfaceItem::~MirSurfaceItem()
@@ -561,14 +565,12 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
     bool mirSizeIsDifferent = qmlWidth != mirWidth || qmlHeight != mirHeight;
 
-    #if !defined(QT_NO_DEBUG)
     const char *didResize = clientIsRunning() && mirSizeIsDifferent ? "surface resized" : "surface NOT resized";
-    qDebug() << "MirSurfaceItem::updateMirSurfaceSize"
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceSize"
             << "appId =" << appId()
             << ", old (" << mirWidth << "," << mirHeight << ")"
             << ", new (" << qmlWidth << "," << qmlHeight << ")"
             << didResize;
-    #endif
 
     if (clientIsRunning() && mirSizeIsDifferent) {
         mir::geometry::Size newMirSize(qmlWidth, qmlHeight);
@@ -596,7 +598,7 @@ void MirSurfaceItem::dropPendingBuffers()
 
     while (renderable->buffers_ready_for_compositor() > 0) {
         m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
-        qDebug() << "MirSurfaceItem::dropPendingBuffers()"
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::dropPendingBuffers()"
             << "appId =" << appId()
             << "buffer dropped."
             << renderable->buffers_ready_for_compositor()
@@ -606,14 +608,14 @@ void MirSurfaceItem::dropPendingBuffers()
 
 void MirSurfaceItem::stopFrameDropper()
 {
-    qDebug() << "MirSurfaceItem::stopFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper appId = " << appId();
     QMutexLocker locker(&m_mutex);
     m_frameDropperTimer.stop();
 }
 
 void MirSurfaceItem::startFrameDropper()
 {
-    qDebug() << "MirSurfaceItem::startFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper appId = " << appId();
     QMutexLocker locker(&m_mutex);
     if (!m_frameDropperTimer.isActive()) {
         m_frameDropperTimer.start();
@@ -657,7 +659,7 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
     int mirHeight = m_surface->size().width.as_int();
 
     if ((int)width() != mirWidth || (int)height() != mirHeight) {
-        qDebug("MirSurfaceItem::syncSurfaceSizeWithItemSize()");
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::syncSurfaceSizeWithItemSize()";
         mir::geometry::Size newMirSize((int)width(), (int)height());
         m_surface->resize(newMirSize);
         setImplicitSize(width(), height());

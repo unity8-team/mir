@@ -24,7 +24,7 @@
 #include <mir/graphics/buffer.h>
 #include <mir/geometry/size.h>
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 3, 0)
+// QQuickProfiler uses the pretty syntax for emit, signal & slot
 #define emit Q_EMIT
 #define signals Q_SIGNALS
 #define slots Q_SLOTS
@@ -35,7 +35,6 @@
 #include <QElapsedTimer>
 static QElapsedTimer qsg_renderer_timer;
 static bool qsg_render_timing = !qgetenv("QSG_RENDER_TIMING").isEmpty();
-#endif
 
 namespace mg = mir::geometry;
 
@@ -93,17 +92,14 @@ bool MirBufferSGTexture::hasAlphaChannel() const
 
 void MirBufferSGTexture::bind()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 3, 0)
     bool profileFrames = qsg_render_timing || QQuickProfiler::enabled;
     if (profileFrames)
         qsg_renderer_timer.start();
-#endif
 
     glBindTexture(GL_TEXTURE_2D, m_textureId);
     updateBindOptions(true/* force */);
     m_mirBuffer->gl_bind_to_texture();
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 3, 0)
     qint64 bindTime = 0;
     if (profileFrames)
         bindTime = qsg_renderer_timer.nsecsElapsed();
@@ -122,4 +118,3 @@ void MirBufferSGTexture::bind()
             0,  // upload (not relevant)
             0)); // mipmap (not used ever...)
 }
-#endif

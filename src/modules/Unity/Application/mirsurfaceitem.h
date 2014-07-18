@@ -118,14 +118,15 @@ public:
 
     void setApplication(Application *app);
 
-    void onApplicationStateChanged();
-
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
     void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
+
+protected Q_SLOTS:
+    void onApplicationStateChanged();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

@@ -47,11 +47,8 @@ public:
     void makeCurrent();
     void doneCurrent();
 
-    // Qt's exposure state should be updated
-    static const QEvent::Type exposeEventType;
-
-    static bool m_isExposed;
 private:
+    bool m_isExposed;
     WId m_winId;
     mir::graphics::DisplayBuffer *m_displayBuffer;
 };
