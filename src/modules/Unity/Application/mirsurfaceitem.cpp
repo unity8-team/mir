@@ -296,6 +296,18 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
 
     connect(&m_frameDropperTimer, &QTimer::timeout,
             this, &MirSurfaceItem::dropPendingBuffers);
+    // Rationale behind the frame dropper and its interval value:
+    //
+    // We want to give ample room for Qt scene graph to have a chance to fetch and render
+    // the next pending buffer before we take the drastic action of dropping it (so don't set
+    // it anywhere close to our target render interval).
+    //
+    // We also want to guarantee a minimal frames-per-second (fps) frequency for client applications
+    // as they get stuck on swap_buffers() if there's no free buffer to swap to yet (ie, they
+    // are all pending consumption by the compositor, us). But on the other hand, we don't want
+    // that minimal fps to be too high as that would mean this timer would be triggered way too often
+    // for nothing causing unnecessary overhead as actually dropping frames from an app should
+    // in practice rarely happen.
     m_frameDropperTimer.setInterval(200);
     m_frameDropperTimer.setSingleShot(false);
 
@@ -597,6 +609,9 @@ void MirSurfaceItem::dropPendingBuffers()
         m_surface->compositor_snapshot((void*)123/*user_id*/);
 
     while (renderable->buffers_ready_for_compositor() > 0) {
+        // The line below looks like an innocent, effect-less, getter. But as this
+        // method returns a unique_pointer, not holding its reference causes the
+        // buffer to be destroyed/released straight away.
         m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
         qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::dropPendingBuffers()"
             << "appId =" << appId()
