@@ -137,8 +137,10 @@ private:
     void setFullscreen(bool fullscreen);
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
     void setSurface(MirSurfaceItem *surface);
+
     void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
+    void stopPromptSessions();
 
     void updateFullscreenProperty();
 

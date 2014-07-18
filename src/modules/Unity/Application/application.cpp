@@ -249,6 +249,7 @@ void Application::setState(Application::State state)
         {
         case Application::Suspended:
             if (m_state == Application::Running) {
+                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
@@ -266,6 +267,7 @@ void Application::setState(Application::State state)
             }
             break;
         case Application::Stopped:
+            stopPromptSessions();
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
             if (m_surface) {
@@ -429,6 +431,16 @@ void Application::removePromptSession(const std::shared_ptr<ms::PromptSession>& 
         if (iter.next() == promptSession) {
             iter.remove();
         }
+    }
+}
+
+void Application::stopPromptSessions()
+{
+    QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);
+
+    QListIterator<std::shared_ptr<ms::PromptSession>> it(copy);
+    for ( it.toBack(); it.hasPrevious(); ) {
+        m_promptSessionManager->stop_prompt_session(it.previous());
     }
 }
 

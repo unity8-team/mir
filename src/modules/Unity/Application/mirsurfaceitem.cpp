@@ -311,7 +311,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
-    connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    if (m_application) {
+        connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    }
 }
 
 MirSurfaceItem::~MirSurfaceItem()
