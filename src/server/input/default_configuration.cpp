@@ -118,7 +118,7 @@ mir::DefaultServerConfiguration::the_android_input_dispatcher()
         });
 }
 
-std::shared_ptr<mia::InputRegistrar>
+MIR_API std::shared_ptr<mia::InputRegistrar>
 mir::DefaultServerConfiguration::the_input_registrar()
 {
     return input_registrar(

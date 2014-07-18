@@ -100,7 +100,7 @@ mir::DefaultServerConfiguration::wrap_surface_coordinator(
     return wrapped;
 }
 
-std::shared_ptr<ms::BroadcastingSessionEventSink>
+MIR_API std::shared_ptr<ms::BroadcastingSessionEventSink>
 mir::DefaultServerConfiguration::the_broadcasting_session_event_sink()
 {
     return broadcasting_session_event_sink(
@@ -116,7 +116,7 @@ mir::DefaultServerConfiguration::the_session_event_sink()
     return the_broadcasting_session_event_sink();
 }
 
-std::shared_ptr<ms::SessionEventHandlerRegister>
+MIR_API std::shared_ptr<ms::SessionEventHandlerRegister>
 mir::DefaultServerConfiguration::the_session_event_handler_register()
 {
     return the_broadcasting_session_event_sink();
@@ -129,7 +129,7 @@ mir::DefaultServerConfiguration::the_session_container()
         []{ return std::make_shared<ms::DefaultSessionContainer>(); });
 }
 
-std::shared_ptr<ms::MediatingDisplayChanger>
+MIR_API std::shared_ptr<ms::MediatingDisplayChanger>
 mir::DefaultServerConfiguration::the_mediating_display_changer()
 {
     return mediating_display_changer(
