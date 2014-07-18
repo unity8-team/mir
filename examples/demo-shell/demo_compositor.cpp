@@ -35,6 +35,33 @@ mc::DestinationAlpha destination_alpha(mg::DisplayBuffer const& db)
 {
     return db.uses_alpha() ? mc::DestinationAlpha::generate_from_source : mc::DestinationAlpha::opaque;
 }
+
+bool decorations_need_painting(
+    mg::RenderableList const& list,
+    geom::Rectangle const& area,
+    int shadow_radius, int titlebar_height)
+{
+    for(auto const& renderable : list)
+    {
+        auto const& pos = renderable->screen_position(); 
+        geom::Rectangle titlebar_rect{
+            {pos.top_left.x.as_int(), pos.top_left.y.as_int() - titlebar_height},
+            {pos.size.width, geom::Height{titlebar_height}}};
+        geom::Rectangle right_shadow_rect{
+            pos.top_right(),
+            {geom::Width{shadow_radius}, geom::Height{pos.size.height.as_int() + shadow_radius}}};
+        geom::Rectangle bottom_shadow_rect{
+            pos.bottom_left(),
+            {pos.size.width, geom::Height{shadow_radius}}};
+
+        if (titlebar_rect.intersection_with(area) != geom::Rectangle{} ||
+            right_shadow_rect.intersection_with(area) != geom::Rectangle{} ||
+            bottom_shadow_rect.intersection_with(area) != geom::Rectangle{})
+        return true;
+    }
+    return false;
+}
+
 }
 
 me::DemoCompositor::DemoCompositor(
@@ -79,7 +106,9 @@ void me::DemoCompositor::composite()
     report->began_frame(this);
 
     auto renderable_list = generate_renderables();
-    if (display_buffer.post_renderables_if_optimizable(renderable_list))
+    if (!decorations_need_painting(
+            renderable_list, display_buffer.view_area(), shadow_radius, titlebar_height) && 
+        (display_buffer.post_renderables_if_optimizable(renderable_list)))
     {
         renderer.suspend();
         report->finished_frame(true, this);
