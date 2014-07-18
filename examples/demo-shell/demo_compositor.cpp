@@ -41,12 +41,14 @@ me::DemoCompositor::DemoCompositor(
     mg::DisplayBuffer& display_buffer,
     std::shared_ptr<mc::Scene> const& scene,
     mg::GLProgramFactory const& factory,
-    std::shared_ptr<mc::CompositorReport> const& report) :
+    std::shared_ptr<mc::CompositorReport> const& report,
+    int shadow_radius,
+    int titlebar_height)
     display_buffer(display_buffer),
     scene(scene),
     report(report),
-    shadow_radius(80),
-    titlebar_height(30),
+    shadow_radius(shadow_radius),
+    titlebar_height(titlebar_height),
     renderer(
         factory,
         display_buffer.view_area(),

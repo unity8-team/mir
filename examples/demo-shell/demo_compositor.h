@@ -45,7 +45,9 @@ public:
         graphics::DisplayBuffer& display_buffer,
         std::shared_ptr<compositor::Scene> const& scene,
         graphics::GLProgramFactory const& factory,
-        std::shared_ptr<compositor::CompositorReport> const& report);
+        std::shared_ptr<compositor::CompositorReport> const& report,
+        int shadow_radius,
+        int titlebar_height);
 
     void composite() override;
 

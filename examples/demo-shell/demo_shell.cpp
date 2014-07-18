@@ -66,7 +66,7 @@ public:
         mg::DisplayBuffer& display_buffer) override
     {
         return std::unique_ptr<mc::DisplayBufferCompositor>(
-            new me::DemoCompositor{display_buffer, scene, *gl_program_factory, report});
+            new me::DemoCompositor{display_buffer, scene, *gl_program_factory, report, 80, 30});
     }
 
 private:
