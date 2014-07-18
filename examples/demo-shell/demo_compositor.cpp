@@ -43,7 +43,7 @@ me::DemoCompositor::DemoCompositor(
     mg::GLProgramFactory const& factory,
     std::shared_ptr<mc::CompositorReport> const& report,
     int shadow_radius,
-    int titlebar_height)
+    int titlebar_height) :
     display_buffer(display_buffer),
     scene(scene),
     report(report),

@@ -51,6 +51,7 @@ target_link_libraries(
   mirdraw
   mirtestdraw
   mirlogging
+  mirdemoshell
 
   mir-test
   mir-test-doubles
