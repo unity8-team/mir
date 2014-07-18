@@ -19,6 +19,8 @@
 #ifndef MIR_GRAPHICS_MESA_BUFFER_TEXTURE_BINDER_H_
 #define MIR_GRAPHICS_MESA_BUFFER_TEXTURE_BINDER_H_
 
+#include "mir/graphics/buffer.h"
+
 namespace mir
 {
 namespace graphics
@@ -31,7 +33,7 @@ class BufferTextureBinder
 public:
     virtual ~BufferTextureBinder() {}
 
-    virtual void gl_bind_to_texture() = 0;
+    virtual Buffer::BindResult gl_bind_to_texture() = 0;
 
 protected:
     BufferTextureBinder() = default;

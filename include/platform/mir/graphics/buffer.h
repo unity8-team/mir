@@ -34,6 +34,14 @@ class BufferID;
 class Buffer
 {
 public:
+    enum BindResult
+    {
+        failed, ///< No texture bound. Buffer contents unchanged.
+        copied, ///< Buffer contents copied to texture. You can free the buffer
+        shared_preserved, ///< Texture shares memory with the buffer unmodified
+        shared_unknown ///< Texture may share memory with buffer, maybe changed
+    };
+
     virtual ~Buffer() {}
 
     virtual std::shared_ptr<NativeBuffer> native_buffer_handle() const = 0;
@@ -41,7 +49,7 @@ public:
     virtual geometry::Size size() const = 0;
     virtual geometry::Stride stride() const = 0;
     virtual MirPixelFormat pixel_format() const = 0;
-    virtual void gl_bind_to_texture() = 0;
+    virtual BindResult gl_bind_to_texture() = 0;
     /* TODO: remove this function, as it is specific to the mesa platform */
     virtual bool can_bypass() const = 0;
 

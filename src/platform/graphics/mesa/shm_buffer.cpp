@@ -57,12 +57,14 @@ MirPixelFormat mgm::ShmBuffer::pixel_format() const
     return pixel_format_;
 }
 
-void mgm::ShmBuffer::gl_bind_to_texture()
+mir::graphics::Buffer::BindResult mgm::ShmBuffer::gl_bind_to_texture()
 {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT,
                  size_.width.as_int(), size_.height.as_int(),
                  0, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
                  pixels);
+
+    return mir::graphics::Buffer::copied;
 }
 
 std::shared_ptr<MirNativeBuffer> mgm::ShmBuffer::native_buffer_handle() const

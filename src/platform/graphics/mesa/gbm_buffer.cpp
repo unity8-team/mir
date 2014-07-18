@@ -118,9 +118,9 @@ MirPixelFormat mgm::GBMBuffer::pixel_format() const
     return gbm_format_to_mir_format(gbm_bo_get_format(gbm_handle.get()));
 }
 
-void mgm::GBMBuffer::gl_bind_to_texture()
+mir::graphics::Buffer::BindResult mgm::GBMBuffer::gl_bind_to_texture()
 {
-    texture_binder->gl_bind_to_texture();
+    return texture_binder->gl_bind_to_texture();
 }
 
 std::shared_ptr<MirNativeBuffer> mgm::GBMBuffer::native_buffer_handle() const

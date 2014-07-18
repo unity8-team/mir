@@ -61,11 +61,13 @@ public:
     }
 
 
-    void gl_bind_to_texture() override
+    mg::Buffer::BindResult gl_bind_to_texture() override
     {
         ensure_egl_image();
 
         egl_extensions->glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, egl_image);
+
+        return mg::Buffer::shared_preserved; // EGL_IMAGE_PRESERVED_KHR
     }
 
 private:

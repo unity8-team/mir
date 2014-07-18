@@ -30,17 +30,31 @@ std::shared_ptr<mg::GLTexture> mc::RecentlyUsedCache::load(mg::Renderable const&
     auto const& buffer = renderable.buffer();
     auto buffer_id = buffer->id();
     auto& texture = textures[renderable.id()];
-    texture.texture->bind();
+    auto result = texture.texture;
+    result->bind();
 
     if (texture.last_bound_buffer != buffer_id)
     {
-        buffer->gl_bind_to_texture();
-        texture.resource = buffer;
+        auto bound = buffer->gl_bind_to_texture();
+        if (bound == mg::Buffer::copied || bound == mg::Buffer::failed)
+        {
+            texture.resource.reset();
+        }
+        else if (bound == mg::Buffer::failed)
+        {
+            texture.resource.reset();
+            result.reset();
+        }
+        else
+        {
+            texture.resource = buffer;
+        }
         texture.last_bound_buffer = buffer_id;
     }
-    texture.used = true;
+    if (result)
+        texture.used = true;
 
-    return texture.texture;
+    return result;
 }
 
 void mc::RecentlyUsedCache::invalidate()
