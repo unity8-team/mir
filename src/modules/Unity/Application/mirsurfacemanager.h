@@ -92,7 +92,10 @@ protected:
         QObject *parent = 0
     );
 
-    void rehostPromptSessionSurfaces(const mir::scene::Session *);
+    void refreshPromptSessionSurfaces(const mir::scene::Session *session);
+    void refreshPromptSessionSurfaces(const Application* application);
+
+    void removePromptSessionSurface(MirSurfaceItem* surface);
 
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;

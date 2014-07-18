@@ -147,7 +147,7 @@ private:
     void resumeApplication(Application *application);
     QString toString() const;
 
-    void foreachApplicationWithSession(const mir::scene::Session *session, std::function<void(Application* application)> f);
+    Application* findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession);
 
     QSharedPointer<MirServerConfiguration> m_mirConfig;
 

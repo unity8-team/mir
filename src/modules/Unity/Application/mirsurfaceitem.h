@@ -72,6 +72,8 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
+    Q_PROPERTY(QList<QObject*> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -118,10 +120,16 @@ public:
 
     void setApplication(Application *app);
 
+    void setParentSurface(MirSurfaceItem* surface);
+    MirSurfaceItem* parentSurface() const;
+    void foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const;
+
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
+    void parentSurfaceChanged(MirSurfaceItem* surface);
+    void childSurfacesChanged();
     void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
 
@@ -141,6 +149,10 @@ protected:
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *);
 
+    void addChildSurface(MirSurfaceItem* surface);
+    void removeChildSurface(MirSurfaceItem* surface);
+    QList<QObject*> childSurfaces() const;
+
 private Q_SLOTS:
     void surfaceDamaged();
     void dropPendingBuffers();
@@ -152,6 +164,8 @@ private Q_SLOTS:
     void updateMirSurfaceFocus(bool focused);
 
 private:
+    Q_DISABLE_COPY(MirSurfaceItem)
+
     bool updateTexture();
     void ensureProvider();
 
@@ -174,6 +188,9 @@ private:
     std::shared_ptr<mir::scene::Surface> m_surface;
     QPointer<Application> m_application;
     bool m_firstFrameDrawn;
+
+    MirSurfaceItem* m_parentSurface;
+    QList<MirSurfaceItem*> m_children;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 

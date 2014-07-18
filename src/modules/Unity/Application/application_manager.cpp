@@ -894,6 +894,20 @@ Application* ApplicationManager::findApplicationWithPid(const qint64 pid, bool i
     return nullptr;
 }
 
+Application* ApplicationManager::findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession)
+{
+    for (Application *app : m_applications) {
+        bool found = false;
+        app->foreachPromptSession([&](const std::shared_ptr<mir::scene::PromptSession>& ps) {
+            if (promptSession == ps.get())
+                found = true;
+        });
+        if (found)
+            return app;
+    }
+    return nullptr;
+}
+
 Application* ApplicationManager::applicationForStage(Application::Stage stage)
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::focusedApplicationForStage" << stage;
@@ -902,15 +916,6 @@ Application* ApplicationManager::applicationForStage(Application::Stage stage)
         return m_mainStageApplication;
     else
         return m_sideStageApplication;
-}
-
-void ApplicationManager::foreachApplicationWithSession(const mir::scene::Session *session, std::function<void(Application* application)> f)
-{
-    for (Application *app : m_applications) {
-        if (app->containsProcess(session->process_id())) {
-            f(app);
-        }
-    }
 }
 
 void ApplicationManager::add(Application* application)

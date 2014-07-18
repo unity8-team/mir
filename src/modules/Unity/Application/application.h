@@ -105,6 +105,7 @@ public:
     bool fullscreen() const;
     std::shared_ptr<mir::scene::Session> session() const;
     std::shared_ptr<mir::scene::PromptSession> activePromptSession() const;
+    void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const;
 
     Stages supportedStages() const;
     SupportedOrientations supportedOrientations() const;

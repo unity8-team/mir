@@ -439,6 +439,13 @@ std::shared_ptr<ms::PromptSession> Application::activePromptSession() const
     return nullptr;
 }
 
+void Application::foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const
+{
+    for (std::shared_ptr<mir::scene::PromptSession> promptSession : m_promptSessions) {
+        f(promptSession);
+    }
+}
+
 bool Application::containsProcess(pid_t pid) const
 {
     if (m_pid == pid)
