@@ -38,6 +38,8 @@ public:
         using namespace testing;
         ON_CALL(*this, view_area())
             .WillByDefault(Return(geometry::Rectangle{{0,0},{0,0}}));
+        ON_CALL(*this, orientation())
+            .WillByDefault(Return(mir_orientation_normal));
     }
     MOCK_CONST_METHOD0(view_area, geometry::Rectangle());
     MOCK_METHOD0(make_current, void());

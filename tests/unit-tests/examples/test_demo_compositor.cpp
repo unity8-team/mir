@@ -23,6 +23,7 @@
 #include "mir_test_doubles/mock_scene.h"
 #include "mir_test_doubles/stub_scene_element.h"
 #include "mir_test_doubles/stub_renderable.h"
+#include "mir_test_doubles/mock_gl.h"
 #include "mir_test/fake_shared.h"
 #include <gtest/gtest.h>
 
@@ -64,9 +65,10 @@ struct DemoCompositor : public testing::Test
     std::shared_ptr<mc::SceneElement> const onscreen_shadows;
     std::shared_ptr<mc::SceneElement> const onscreen_shadows_and_titlebar;
 
-    mtd::MockDisplayBuffer mock_display_buffer;
+    testing::NiceMock<mtd::MockDisplayBuffer> mock_display_buffer;
     mtd::MockScene mock_scene;
     mtd::StubGLProgramFactory stub_program_factory;
+    testing::NiceMock<mtd::MockGL> mock_gl;
 };
 
 TEST_F(DemoCompositor, does_not_use_optimized_path_if_titlebar_needs_to_be_drawn)
@@ -76,6 +78,8 @@ TEST_F(DemoCompositor, does_not_use_optimized_path_if_titlebar_needs_to_be_drawn
         .WillOnce(Return(mc::SceneElementSequence{onscreen_titlebar}))
         .WillOnce(Return(mc::SceneElementSequence{onscreen_shadows}))
         .WillOnce(Return(mc::SceneElementSequence{onscreen_shadows_and_titlebar}));
+    EXPECT_CALL(mock_display_buffer, post_renderables_if_optimizable(_))
+        .Times(0);
     EXPECT_CALL(mock_display_buffer, post_update())
         .Times(3);
 
