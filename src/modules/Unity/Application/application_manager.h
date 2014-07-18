@@ -100,7 +100,7 @@ public:
 
     // QAbstractListModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
+    QVariant data(const QModelIndex & index, int role) const override;
 
     Q_INVOKABLE qtmir::Application *startApplication(const QString &appId, ExecFlags flags,
                                               const QStringList &arguments = QStringList());
