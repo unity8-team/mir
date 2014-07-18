@@ -37,6 +37,7 @@ public:
     bool connection_is_allowed(mir::frontend::SessionCredentials const& creds) override;
     bool configure_display_is_allowed(mir::frontend::SessionCredentials const& creds) override;
     bool screencast_is_allowed(mir::frontend::SessionCredentials const& creds) override;
+    bool prompt_session_is_allowed(mir::frontend::SessionCredentials const& creds) override;
 
 Q_SIGNALS:
     // needs to be blocked queued signal which returns value for authorized
