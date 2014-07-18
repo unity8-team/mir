@@ -20,6 +20,7 @@
 #ifndef MIR_COMPOSITOR_BUFFER_STREAM_SCENE_H_
 #define MIR_COMPOSITOR_BUFFER_STREAM_SCENE_H_
 
+#include "mir/visibility.h"
 #include "mir/compositor/buffer_stream.h"
 
 #include <mutex>
@@ -33,7 +34,7 @@ class BufferIDUniqueGenerator;
 class BufferBundle;
 class BackBufferStrategy;
 
-class BufferStreamSurfaces : public BufferStream
+class MIR_INTERNAL BufferStreamSurfaces : public BufferStream
 {
 public:
     BufferStreamSurfaces(std::shared_ptr<BufferBundle> const& swapper);

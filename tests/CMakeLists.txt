@@ -6,6 +6,8 @@ endif()
 include_directories(${MIR_3RD_PARTY_INCLUDE_DIRECTORIES})
 include_directories(${MIR_ANDROID_INCLUDE_DIRECTORIES})
 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
+
 if ("${CMAKE_CXX_COMPILER}" MATCHES "clang")
   # Avoid clang complaints about poor quality gmock/gtest headers
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=null-dereference")
