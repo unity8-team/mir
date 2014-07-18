@@ -19,6 +19,7 @@
 #ifndef MIR_EXAMPLES_DEMO_COMPOSITOR_H_
 #define MIR_EXAMPLES_DEMO_COMPOSITOR_H_
 
+#include "mir/geometry/dimensions.h"
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/compositor/scene.h"
 #include "mir/graphics/renderable.h"
@@ -47,7 +48,7 @@ public:
         graphics::GLProgramFactory const& factory,
         std::shared_ptr<compositor::CompositorReport> const& report,
         int shadow_radius,
-        int titlebar_height);
+        geometry::Height titlebar_height);
 
     void composite() override;
 
@@ -57,7 +58,7 @@ private:
     std::shared_ptr<compositor::Scene> const scene;
     std::shared_ptr<compositor::CompositorReport> const report;
     int const shadow_radius;
-    int const titlebar_height;
+    geometry::Height const titlebar_height;
     DemoRenderer renderer;
 };
 

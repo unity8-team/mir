@@ -39,14 +39,14 @@ mc::DestinationAlpha destination_alpha(mg::DisplayBuffer const& db)
 bool decorations_need_painting(
     mg::RenderableList const& list,
     geom::Rectangle const& area,
-    int shadow_radius, int titlebar_height)
+    int shadow_radius, geom::Height const& titlebar_height)
 {
     for(auto const& renderable : list)
     {
         auto const& pos = renderable->screen_position(); 
         geom::Rectangle titlebar_rect{
-            {pos.top_left.x.as_int(), pos.top_left.y.as_int() - titlebar_height},
-            {pos.size.width, geom::Height{titlebar_height}}};
+            {pos.top_left.x.as_int(), pos.top_left.y.as_int() - titlebar_height.as_int()},
+            {pos.size.width, titlebar_height}};
         geom::Rectangle right_shadow_rect{
             pos.top_right(),
             {geom::Width{shadow_radius}, geom::Height{pos.size.height.as_int() + shadow_radius}}};
@@ -70,7 +70,7 @@ me::DemoCompositor::DemoCompositor(
     mg::GLProgramFactory const& factory,
     std::shared_ptr<mc::CompositorReport> const& report,
     int shadow_radius,
-    int titlebar_height) :
+    geom::Height titlebar_height) :
     display_buffer(display_buffer),
     scene(scene),
     report(report),
@@ -81,7 +81,7 @@ me::DemoCompositor::DemoCompositor(
         display_buffer.view_area(),
         destination_alpha(display_buffer),
         static_cast<float>(shadow_radius),
-        static_cast<float>(titlebar_height)) 
+        titlebar_height.as_float()) 
 {
 }
 
@@ -89,7 +89,8 @@ mg::RenderableList me::DemoCompositor::generate_renderables()
 {
     mg::RenderableList renderable_list;
     auto elements = scene->scene_elements_for(this);
-    auto occluded = me::filter_occlusions_from(elements, display_buffer.view_area(), shadow_radius, titlebar_height);
+    auto occluded = me::filter_occlusions_from(
+        elements, display_buffer.view_area(), shadow_radius, titlebar_height.as_int());
     for(auto const& it : elements)
     {
         renderable_list.push_back(it->renderable());

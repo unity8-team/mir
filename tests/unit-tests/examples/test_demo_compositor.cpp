@@ -57,7 +57,7 @@ struct DemoCompositor : public testing::Test
     }
 
     geom::Rectangle const display_area;
-    unsigned int const titlebar_height;
+    geom::Height const titlebar_height;
     unsigned int const shadow_radius;
     std::shared_ptr<mc::CompositorReport> const stub_report;
     std::shared_ptr<mc::SceneElement> const fullscreen;
