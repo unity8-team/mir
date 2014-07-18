@@ -1,17 +1,27 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: unity-mir
+Upstream-Name: qtmir
 
 Files: *
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2014 Canonical Ltd.
 License: LGPL-3
 
 Files: debian/*
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2014 Canonical Ltd.
 License: GPL-3
 
 Files: tests/*
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2014 Canonical Ltd.
 License: GPL-3
+
+Files: src/modules/Unity/Application/mirbuffersgtexture.cpp
+Copyright: 2013-2014 Canonical Ltd. Bits and pieces taken from the
+ QtWayland portion of the Qt project which is Copyright (C) 2012 Digia
+ Plc and/or its subsidiary(-ies).
+
+Files: src/modules/Unity/Application/mirsurfaceitem.cpp
+Copyright: 2013-2014 Canonical Ltd. Bits and pieces taken from the
+ QtWayland portion of the Qt project which is Copyright (C) 2012 Digia
+ Plc and/or its subsidiary(-ies).
 
 License: LGPL-3
  This package is free software; you can redistribute it and/or
