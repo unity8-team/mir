@@ -37,6 +37,7 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     looper(new droidinput::Looper(true)),
     fd_added(false),
+    last_seq(0),
     xkb_mapper(std::make_shared<mircv::XKBMapper>())
 {
 }
@@ -48,6 +49,7 @@ mircva::InputReceiver::InputReceiver(int fd,
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     looper(new droidinput::Looper(true)),
     fd_added(false),
+    last_seq(0),
     xkb_mapper(std::make_shared<mircv::XKBMapper>())
 {
 }
@@ -79,16 +81,22 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 {
     droidinput::InputEvent *android_event;
-    uint32_t event_sequence_id;
+    uint32_t next_seq;
 
-   if(input_consumer->consume(&event_factory, true,
-        -1, &event_sequence_id, &android_event) != droidinput::WOULD_BLOCK)
+    if (last_seq)
+    {
+        input_consumer->sendFinishedSignal(last_seq, true);
+        last_seq = 0;
+    }
+
+    if (input_consumer->consume(&event_factory, true,
+        -1, &next_seq, &android_event) != droidinput::WOULD_BLOCK)
     {
         mia::Lexicon::translate(android_event, ev);
 
         map_key_event(xkb_mapper, ev);
 
-        input_consumer->sendFinishedSignal(event_sequence_id, true);
+        last_seq = next_seq;
 
         report->received_event(ev);
 
