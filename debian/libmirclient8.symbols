@@ -1,5 +1,7 @@
 libmirclient.so.8 libmirclient8 #MINVER#
  MIR_CLIENT_0.6@MIR_CLIENT_0.6 0.5.0
+# Our CI builds get built with gcov, which adds this superfluity.
+ (optional)"__gcov_var@Base" 0.5.0
 # The libmirclientplatform plugin requires mir::client::AgingBuffer
 # We could probably get around needing to export these by dlopen()
 # trickery, which would be nice.
@@ -7,8 +9,9 @@ libmirclient.so.8 libmirclient8 #MINVER#
  (c++)"mir::client::AgingBuffer::mark_as_submitted()@MIR_CLIENT_0.6" 0.5.0
  (c++)"mir::client::AgingBuffer::AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
  (c++)"mir::client::AgingBuffer::AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
- (c++)"mir::client::AgingBuffer::~AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
- (c++)"mir::client::AgingBuffer::~AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
+# For some reason gcc sometimes doesn't feel like emitting a symbol for
+# the destructor? How does that possibly work?
+ (optional|c++)"mir::client::AgingBuffer::~AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
  (c++)"mir::client::AgingBuffer::age() const@MIR_CLIENT_0.6" 0.5.0
  (c++)"typeinfo for mir::client::AgingBuffer@MIR_CLIENT_0.6" 0.5.0
  (c++)"typeinfo name for mir::client::AgingBuffer@MIR_CLIENT_0.6" 0.5.0
