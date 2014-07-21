@@ -49,6 +49,7 @@ libmirclient.so.8 libmirclient8 #MINVER#
  mir_surface_get_dpi@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_egl_native_window@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_error_message@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_focus@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_graphics_region@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_id@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_orientation@MIR_CLIENT_0.6 0.5.0
@@ -57,6 +58,7 @@ libmirclient.so.8 libmirclient8 #MINVER#
  mir_surface_get_state@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_swapinterval@MIR_CLIENT_0.6 0.5.0
  mir_surface_get_type@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_visibility@MIR_CLIENT_0.6 0.5.0
  mir_surface_is_valid@MIR_CLIENT_0.6 0.5.0
  mir_surface_release@MIR_CLIENT_0.6 0.5.0
  mir_surface_release_sync@MIR_CLIENT_0.6 0.5.0
