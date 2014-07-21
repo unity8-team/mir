@@ -1,0 +1,14 @@
+MIR_CLIENT_0.6 {
+  global:
+    mir_*;
+    extern "C++" {
+      mir::client::AgingBuffer*;
+      typeinfo?for?mir::client::AgingBuffer*;
+      typeinfo?name?for?mir::client::AgingBuffer*;
+      VTT?for?mir::client::AgingBuffer*;
+      virtual?thunk?to?mir::client::AgingBuffer*;
+      vtable?for?mir::client::AgingBuffer*;
+    };
+  local:
+    *;
+};

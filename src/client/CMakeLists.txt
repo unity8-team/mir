@@ -68,13 +68,14 @@ add_library(
 )
 
 set(MIRCLIENT_ABI 8)
+set(symbol_map ${CMAKE_SOURCE_DIR}/src/client/symbols.map)
 
 set_target_properties(
   mirclient
 
   PROPERTIES
   SOVERSION ${MIRCLIENT_ABI}
-  LINK_FLAGS "-Wl,--exclude-libs=ALL"
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
 
 set(
