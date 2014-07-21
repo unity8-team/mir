@@ -37,8 +37,38 @@
 #include "mock_proc_info.h"
 #include "mock_session.h"
 #include "mock_focus_controller.h"
+#include "mock_prompt_session_manager.h"
+#include "mock_prompt_session.h"
 
 using namespace qtmir;
+
+namespace ms = mir::scene;
+
+class TestMirConfiguration: public MirServerConfiguration
+{
+public:
+    TestMirConfiguration()
+    : MirServerConfiguration(0, nullptr)
+    , mock_prompt_session_manager(std::make_shared<testing::MockPromptSessionManager>())
+    {
+    }
+
+    std::shared_ptr<ms::PromptSessionManager> the_prompt_session_manager() override
+    {
+        return prompt_session_manager([this]()
+           ->std::shared_ptr<ms::PromptSessionManager>
+           {
+               return the_mock_prompt_session_manager();
+           });
+    }
+
+    std::shared_ptr<testing::MockPromptSessionManager> the_mock_prompt_session_manager()
+    {
+        return mock_prompt_session_manager;
+    }
+
+    std::shared_ptr<testing::MockPromptSessionManager> mock_prompt_session_manager;
+};
 
 class ApplicationManagerTests : public ::testing::Test
 {
@@ -50,7 +80,7 @@ public:
                 [](ProcessController::OomController*){})
         }
         , mirConfig{
-              QSharedPointer<MirServerConfiguration> (new MirServerConfiguration(0, nullptr))
+            QSharedPointer<TestMirConfiguration> (new TestMirConfiguration)
         }
         , taskController{
               QSharedPointer<TaskController> (
@@ -111,7 +141,7 @@ public:
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<MirServerConfiguration> mirConfig;
+    QSharedPointer<TestMirConfiguration> mirConfig;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
 };
@@ -1900,4 +1930,23 @@ TEST_F(ApplicationManagerTests, threadedScreenshotAfterAppDelete)
         std::unique_lock<decltype(mutex)> lk(mutex);
         cv.wait(lk, [&] { return done; } );
     }
+}
+
+TEST_F(ApplicationManagerTests, applicationTracksPromptSession)
+{
+    using namespace testing;
+    quint64 procId1 = 5551;
+
+    auto application = startApplication(procId1, "webapp");
+    auto promptSession = std::make_shared<MockPromptSession>();
+
+    ON_CALL(*mirConfig->the_mock_prompt_session_manager(), application_for(_)).WillByDefault(Return(application->session()));
+
+    applicationManager.onPromptSessionStarting(promptSession);
+
+    EXPECT_EQ(application->activePromptSession(), promptSession);
+
+    applicationManager.onPromptSessionStopping(promptSession);
+
+    EXPECT_EQ(application->activePromptSession(), nullptr);
 }
