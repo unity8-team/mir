@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <chrono>
+#include <deque>
 
 namespace droidinput = android;
 
@@ -62,8 +63,8 @@ public:
 
     /// Synchronously receive an event with millisecond timeout. A negative timeout value
     /// is used to request indefinite polling.
-    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);
-    virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev); }
+    virtual int next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);
+    virtual int next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev); }
 
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
@@ -84,7 +85,9 @@ private:
 
     std::shared_ptr<XKBMapper> xkb_mapper;
 
-    bool try_next_event(MirEvent &ev);
+    std::deque<MirEvent> buffer;
+
+    int try_next_event(MirEvent &ev);
 };
 
 }

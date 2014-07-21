@@ -74,32 +74,77 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
     xkb_mapper->update_state_and_map_event(ev.key);
 }
 
+bool compatible(MirEvent const& a, MirEvent const& b)
+{
+    if (a.type == mir_event_type_motion && b.type == mir_event_type_motion &&
+        a.motion.device_id == b.motion.device_id &&
+        a.motion.source_id == b.motion.source_id &&
+        a.motion.action == b.motion.action &&
+        a.motion.flags == b.motion.flags &&
+        a.motion.modifiers == b.motion.modifiers &&
+        a.motion.edge_flags == b.motion.edge_flags &&
+        a.motion.button_state == b.motion.button_state &&
+        //a.motion.x_offset == b.motion.x_offset &&
+        //a.motion.y_offset == b.motion.y_offset &&
+        //a.motion.x_precision == b.motion.x_precision &&
+        a.motion.down_time == b.motion.down_time &&
+        a.motion.pointer_count == b.motion.pointer_count)
+    {
+        return true;
+    }
+    return false;
 }
 
-bool mircva::InputReceiver::try_next_event(MirEvent &ev)
+}
+
+int mircva::InputReceiver::try_next_event(MirEvent &out)
 {
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-   if(input_consumer->consume(&event_factory, true,
-        -1, &event_sequence_id, &android_event) != droidinput::WOULD_BLOCK)
+    // Input events use CLOCK_REALTIME, and so we must...
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    nsecs_t now = ts.tv_sec * 1000000000LL + ts.tv_nsec;
+
+    while (input_consumer->consume(&event_factory, true,
+           -1, &event_sequence_id, &android_event) != droidinput::WOULD_BLOCK
+           && buffer.size() < 1000)
     {
-        mia::Lexicon::translate(android_event, ev);
 
-        map_key_event(xkb_mapper, ev);
+        buffer.resize(buffer.size() + 1);
+        auto& in = buffer.back();
 
+        mia::Lexicon::translate(android_event, in);
+        map_key_event(xkb_mapper, in);
         input_consumer->sendFinishedSignal(event_sequence_id, true);
-
-        report->received_event(ev);
-
-        return true;
+        report->received_event(in);
     }
-   return false;
+
+    fprintf(stderr, "Buffer %d\n", (int)buffer.size());
+
+    (void)now;
+    static nsecs_t last_purge = 0;
+    if (!buffer.empty() &&
+        (!last_purge || (now - last_purge) > 16000000LL))
+    {
+        last_purge = now;
+        while (buffer.size() > 1 && compatible(buffer[0], buffer[1]))
+        {
+            fprintf(stderr, "DROP\n");
+            buffer.pop_front();
+        }
+        out = buffer.front();
+        buffer.pop_front();
+        return 1;
+    }
+
+    return 0;
 }
 
 // TODO: We use a droidinput::Looper here for polling functionality but it might be nice to integrate
 // with the existing client io_service ~racarr ~tvoss
-bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev)
+int mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev)
 {
     if (!fd_added)
     {
@@ -108,14 +153,18 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         fd_added = true;
     }
 
-    if(try_next_event(ev))
-        return true;
+    int ret = try_next_event(ev);
+    if (ret)
+        return ret;
 
-    auto result = looper->pollOnce(timeout.count());
-    if (result == ALOOPER_POLL_WAKE)
-        return false;
-    if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
-       return false;
+    if (buffer.empty())
+    {
+        auto result = looper->pollOnce(timeout.count());
+        if (result == ALOOPER_POLL_WAKE)
+            return 0;
+        if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
+            return -1;
+    }
 
     return try_next_event(ev);
 }
