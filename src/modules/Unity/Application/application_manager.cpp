@@ -703,13 +703,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
 
     if (info->startsWith("maliit-server") || info->contains("qt5/libexec/QtWebProcess")) {
         authorized = true;
-        return;
-    }
-
-    if (info->contains("trust-session-demo-trusted-helper") ||
-        info->contains("unity8")) {
-        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager ACCEPTED trust app " << pid;
-        authorized = true;
         m_hiddenPIDs << pid;
         return;
     }

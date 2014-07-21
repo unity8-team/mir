@@ -282,9 +282,13 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const mir::scene::Session* 
 
 void MirSurfaceManager::refreshPromptSessionSurfaces(const Application* application)
 {
+    // Re-contruct the child surface heirachy from prompt session providers.
+    // Each provider becomes the parent surface of the next surface,
+    // with the application surface at the top of the heirachy.
+
     if (!application)
         return;
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - appId=" << application->name();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - appId=" << application->name();
 
     std::shared_ptr<ms::PromptSessionManager> manager = m_mirConfig->the_prompt_session_manager();
 
@@ -303,11 +307,11 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const Application* applicat
                 QMutexLocker lock(&m_mutex);
 
                 auto it = m_mirSessionToItemHash.find(session.get());
-                MirSurfaceItem *surfaceItem = NULL;
+                MirSurfaceItem *surfaceItem = nullptr;
                 while (it != m_mirSessionToItemHash.end() && it.key() == session.get()) {
                     surfaceItem = it.value();
 
-                    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - " << surfaceItem->name() << "->setParent(" << parentItem->name() << ")";
+                    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - " << surfaceItem->name() << "->setParent(" << parentItem->name() << ")";
                     surfaceItem->setParentSurface(parentItem);
                     surfaceChildren.removeOne(surfaceItem);
 
@@ -319,8 +323,8 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const Application* applicat
                 }
             });
 
-        for(MirSurfaceItem* item : surfaceChildren) {
-            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - clearParent: " << item->name() << " oldParent: " << item->parentSurface()->name() << ")";
+        for (MirSurfaceItem* item : surfaceChildren) {
+            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - clearParent: " << item->name() << " oldParent: " << item->parentSurface()->name() << ")";
             item->setParentSurface(nullptr);
         }
     };
