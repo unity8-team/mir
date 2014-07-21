@@ -24,6 +24,8 @@
 #include "position_update_p.h"
 #include "velocity_update_p.h"
 
+namespace location = com::ubuntu::location;
+
 void
 ua_location_service_session_ref(
     UALocationServiceSession *session)
@@ -47,12 +49,18 @@ ua_location_service_session_set_position_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->install_position_updates_handler(
-        [handler, context](const com::ubuntu::location::Update<com::ubuntu::location::Position>& new_position)
-        {
-            UbuntuApplicationLocationPositionUpdate pu{new_position};
-            handler(std::addressof(pu), context);
-        });
+    try
+    {
+        std::lock_guard<std::mutex> lg(s->position_updates.guard);
+        s->position_updates.handler = handler;
+        s->position_updates.context = context;
+    } catch(const std::exception& e)
+    {
+        fprintf(stderr, "Error setting up position updates handler: %s \n", e.what());
+    } catch(...)
+    {
+        fprintf(stderr, "Error setting up position updates handler.\n");
+    }
 }
 
 void
@@ -62,12 +70,18 @@ ua_location_service_session_set_heading_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->install_heading_updates_handler(
-        [handler, context](const com::ubuntu::location::Update<com::ubuntu::location::Heading>& new_heading) 
-        {
-            UbuntuApplicationLocationHeadingUpdate hu{new_heading};
-            handler(std::addressof(hu), context);
-        });
+    try
+    {
+        std::lock_guard<std::mutex> lg(s->heading_updates.guard);
+        s->heading_updates.handler = handler;
+        s->heading_updates.context = context;
+    } catch(const std::exception& e)
+    {
+        fprintf(stderr, "Error setting up heading updates handler: %s \n", e.what());
+    } catch(...)
+    {
+        fprintf(stderr, "Error setting up heading updates handler. \n");
+    }
 }
 
 void
@@ -77,12 +91,18 @@ ua_location_service_session_set_velocity_updates_handler(
     void *context)
 {
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    s->session->install_velocity_updates_handler(
-        [handler, context](const com::ubuntu::location::Update<com::ubuntu::location::Velocity>& new_velocity) 
-        {
-            UbuntuApplicationLocationVelocityUpdate vu{new_velocity};
-            handler(std::addressof(vu), context);
-        });
+    try
+    {
+        std::lock_guard<std::mutex> lg(s->velocity_updates.guard);
+        s->velocity_updates.handler = handler;
+        s->velocity_updates.context = context;
+    } catch(const std::exception& e)
+    {
+        fprintf(stderr, "Error setting up velocity updates handler: %s \n", e.what());
+    } catch(...)
+    {
+        fprintf(stderr, "Error setting up velocity updates handler.");
+    }
 }
 
 UStatus
@@ -95,7 +115,8 @@ ua_location_service_session_start_position_updates(
 
     try
     {
-        s->session->start_position_updates();
+        s->session->updates().position_status.set(
+                    location::service::session::Interface::Updates::Status::enabled);
     } catch(...)
     {
         return U_STATUS_ERROR;
@@ -114,7 +135,8 @@ ua_location_service_session_stop_position_updates(
 
     try
     {
-        s->session->stop_position_updates();
+        s->session->updates().position_status.set(
+                    location::service::session::Interface::Updates::Status::disabled);
     } catch(...)
     {
     }    
@@ -130,7 +152,8 @@ ua_location_service_session_start_heading_updates(
 
     try
     {
-        s->session->start_heading_updates();
+        s->session->updates().heading_status.set(
+                    location::service::session::Interface::Updates::Status::enabled);
     } catch(...)
     {
         return U_STATUS_ERROR;
@@ -149,7 +172,8 @@ ua_location_service_session_stop_heading_updates(
 
     try
     {
-        s->session->stop_heading_updates();
+        s->session->updates().heading_status.set(
+                    location::service::session::Interface::Updates::Status::disabled);
     } catch(...)
     {
     }
@@ -165,7 +189,8 @@ ua_location_service_session_start_velocity_updates(
 
     try
     {
-        s->session->start_velocity_updates();
+        s->session->updates().velocity_status.set(
+                    location::service::session::Interface::Updates::Status::enabled);
     } catch(...)
     {
         return U_STATUS_ERROR;
@@ -184,7 +209,8 @@ ua_location_service_session_stop_velocity_updates(
 
     try
     {
-        s->session->stop_velocity_updates();
+        s->session->updates().velocity_status.set(
+                    location::service::session::Interface::Updates::Status::disabled);
     } catch(...)
     {
     }

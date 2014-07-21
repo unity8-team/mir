@@ -25,6 +25,7 @@
 
 struct UbuntuApplicationLocationServiceController : public detail::RefCounted
 {
+
 };
 
 #endif // CONTROLLER_PRIVATE_H_
