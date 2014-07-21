@@ -2,7 +2,7 @@ include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 add_definitions(-DANDROID)
 
 add_library(
-  mirclientplatformandroid SHARED
+  mirclientplatformandroid MODULE
 
   buffer.cpp
   android_client_buffer_factory.cpp
@@ -21,7 +21,6 @@ set_target_properties(
 
 target_link_libraries(
   mirclientplatformandroid
-  mirclient
 
   ${LIBHARDWARE_LIBRARIES}
 )

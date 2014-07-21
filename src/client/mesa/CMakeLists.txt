@@ -4,7 +4,7 @@ include_directories(
 )
 
 add_library(
-  mirclientplatformmesa SHARED
+  mirclientplatformmesa MODULE
 
   client_platform_factory.cpp
   client_platform.cpp
@@ -22,7 +22,6 @@ set_target_properties(
 
 target_link_libraries(
   mirclientplatformmesa
-  mirclient
 
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
