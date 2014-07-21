@@ -50,6 +50,7 @@ MirSurfaceManager::MirSurfaceManager(QObject *parent)
     : QAbstractListModel(parent)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
+    setObjectName("qtmir::SurfaceManager");
 
     NativeInterface *nativeInterface = dynamic_cast<NativeInterface*>(QGuiApplication::platformNativeInterface());
 
