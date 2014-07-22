@@ -96,7 +96,7 @@ mc::BufferQueue::BufferQueue(
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
-    : min_buffers{2},  // TODO: Perhaps let this be configurable in future
+    : min_buffers{std::min(2, max_buffers)}, ///< TODO: Configurable in future
       max_buffers{max_buffers},
       frame_dropping_enabled{false},
       the_properties{props},
