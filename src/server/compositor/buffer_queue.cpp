@@ -96,7 +96,8 @@ mc::BufferQueue::BufferQueue(
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
-    : max_buffers{max_buffers},
+    : min_buffers{2},  // TODO: Perhaps let this be configurable in future
+      max_buffers{max_buffers},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -111,7 +112,7 @@ mc::BufferQueue::BufferQueue(
      * If there is increased pressure by the client to acquire
      * more buffers, more will be allocated at that time (up to max_buffers)
      */
-    for(int i = 0; i < ideal_buffers(); ++i)
+    for (int i = 0; i < min_buffers; ++i)
     {
         buffers.push_back(gralloc->alloc_buffer(the_properties));
     }
@@ -463,8 +464,12 @@ void mc::BufferQueue::release(
 
 int mc::BufferQueue::ideal_buffers() const
 {
-    int required_buffers = frame_dropping_enabled ? 3 : 2;
-    return std::min(max_buffers, required_buffers);
+    int result = frame_dropping_enabled ? 3 : 2;
+    if (result < min_buffers)
+        result = min_buffers;
+    if (result > max_buffers)
+        result = max_buffers;
+    return result;
 }
 
 void mc::BufferQueue::drop_buffer(graphics::Buffer* buffer)
