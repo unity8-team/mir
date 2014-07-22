@@ -19,6 +19,8 @@
 #ifndef MIR_GRAPHICS_ANDROID_FENCE_H_
 #define MIR_GRAPHICS_ANDROID_FENCE_H_
 
+#include "mir/fd.h"
+
 namespace mir
 {
 namespace graphics
@@ -26,16 +28,14 @@ namespace graphics
 namespace android
 {
 
-typedef int NativeFence;
-
 class Fence
 {
 public:
     virtual ~Fence() = default;
 
     virtual void wait() = 0;
-    virtual void merge_with(NativeFence& merge_fd) = 0;
-    virtual NativeFence copy_native_handle() const = 0;
+    virtual void merge_with(Fd merge_fd) = 0;
+    virtual Fd copy_native_handle() const = 0;
 
 protected:
     Fence() = default;

@@ -34,7 +34,6 @@ public:
     virtual ~SyncFileOps() = default;
     virtual int ioctl(int, int, void*) = 0;
     virtual int dup(int) = 0;
-    virtual int close(int) = 0;
 };
 
 class RealSyncFileOps : public SyncFileOps
@@ -42,24 +41,23 @@ class RealSyncFileOps : public SyncFileOps
 public:
     int ioctl(int fd, int req, void* dat);
     int dup(int fd);
-    int close(int fd);
 };
 
 class SyncFence : public Fence
 {
 public:
-    SyncFence(std::shared_ptr<SyncFileOps> const&, int fd);
+    SyncFence(std::shared_ptr<SyncFileOps> const&, Fd fd);
     ~SyncFence() noexcept;
 
     void wait();
-    void merge_with(NativeFence& merge_fd);
-    NativeFence copy_native_handle() const;
+    void merge_with(Fd merge_fd);
+    Fd copy_native_handle() const;
 
 private:
     SyncFence(SyncFence const&) = delete;
     SyncFence& operator=(SyncFence const&) = delete;
 
-    int fence_fd;
+    Fd fence_fd;
     std::shared_ptr<SyncFileOps> const ops;
 
     int const infinite_timeout = -1;
