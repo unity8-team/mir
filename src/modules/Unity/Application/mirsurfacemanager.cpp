@@ -148,6 +148,7 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
     if (it != m_mirSurfaceToItemHash.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
+        item->setEnabled(false); //disable input events
         Q_EMIT item->surfaceDestroyed();
 
         {
