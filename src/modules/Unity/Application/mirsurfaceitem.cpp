@@ -475,7 +475,6 @@ void MirSurfaceItem::wheelEvent(QWheelEvent *event)
 
 void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyPressEvent" << qtEvent;
     MirEvent mirEvent;
     if (fillInMirEvent(mirEvent, qtEvent)) {
         m_surface->consume(mirEvent);
@@ -484,7 +483,6 @@ void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 
 void MirSurfaceItem::keyReleaseEvent(QKeyEvent *qtEvent)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyReleaseEvent" << qtEvent;
     MirEvent mirEvent;
     if (fillInMirEvent(mirEvent, qtEvent)) {
         m_surface->consume(mirEvent);
