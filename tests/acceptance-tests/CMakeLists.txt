@@ -88,7 +88,7 @@ CMAKE_DEPENDENT_OPTION(
   OFF)
 
 if (MIR_RUN_ACCEPTANCE_TESTS)
-  mir_discover_tests(mir_acceptance_tests)
+  mir_discover_tests(mir_acceptance_tests MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/libmirclientplatform.so)
 endif (MIR_RUN_ACCEPTANCE_TESTS)
 
 install(

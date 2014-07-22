@@ -41,7 +41,7 @@ namespace
 std::string const off_opt_val{"off"};
 std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
-std::string const default_platform_lib{"libmirclientplatform.so"};
+std::string const default_platform_lib{MIR_CLIENT_PLATFORM_PATH "libmirclientplatform.so"};
 
 mir::SharedLibrary const* load_library(std::string const& libname)
 {

@@ -50,7 +50,7 @@ target_link_libraries(
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
 
-install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/clientplatform/mesa)
+install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")
   add_custom_command(TARGET mirclientplatformmesa
