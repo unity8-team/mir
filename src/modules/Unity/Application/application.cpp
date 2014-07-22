@@ -427,12 +427,7 @@ void Application::removePromptSession(const std::shared_ptr<ms::PromptSession>& 
     qCDebug(QTMIR_APPLICATIONS) << "Application::removePromptSession appId=" << appId()
         << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
 
-    QMutableListIterator<std::shared_ptr<ms::PromptSession>> iter(m_promptSessions);
-    while(iter.hasNext()) {
-        if (iter.next() == promptSession) {
-            iter.remove();
-        }
-    }
+    m_promptSessions.removeOne(promptSession);
 }
 
 void Application::stopPromptSessions()
