@@ -303,19 +303,18 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
                 extra_buffers = 1;
         }
 
-        /****
-         * On second thoughts, don't ever shrink the buffer queue based on
-         * performance alone. A client that needed that third buffer to keep up
-         * will only ping-pong back down and start missing frames again. So it's
-         * a much better idea to keep the queue long so the frame skipping
-         * doesn't re-occur...
         if (!client_behind && missed_frames > 0)
         {
-            --missed_frames;
-            if (missed_frames == 0)
-                extra_buffers = 0;
+            /*
+             * Allow missed_frames to recover back down to zero, so long as
+             * the ceiling is never hit (meaning you're keeping up most of the
+             * time). If the ceiling is hit, keep it there with the extra
+             * buffer allocated so we don't shrink again and cause yet more
+             * missed frames.
+             */
+            if (missed_frames < queue_resize_delay_frames)
+                --missed_frames;
         }
-        ****/
     }
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))
