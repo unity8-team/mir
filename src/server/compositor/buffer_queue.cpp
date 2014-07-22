@@ -280,27 +280,33 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 
     /*
      * Calculate if we need extra buffers in the queue to account for a slow
-     * client that can't keep up with composition. Any changes to the queue
-     * length are smoothed by queue_resize_delay_frames to ensure the queue
-     * length doesn't change too frequently.
+     * client that can't keep up with composition.
      */
-    bool client_behind = !buffers_owned_by_client.empty();
     if (frame_dropping_enabled)
     {
         missed_frames = 0;
         extra_buffers = 0;
     }
-    else if (!client_behind && missed_frames > 0)
+    else
     {
-        --missed_frames;
-        if (missed_frames == 0)
-            extra_buffers = 0;
-    }
-    else if (client_behind && missed_frames < queue_resize_delay_frames)
-    {
-        ++missed_frames;
-        if (missed_frames >= queue_resize_delay_frames)
-            extra_buffers = 1;
+        /*
+         * A client that's keeping up will be in-phase with composition. That
+         * means it will stay, or quickly equalize at a point where there are
+         * no client buffers still held when composition finishes.
+         */
+        bool client_behind = !buffers_owned_by_client.empty();
+        if (!client_behind && missed_frames > 0)
+        {
+            --missed_frames;
+            if (missed_frames == 0)
+                extra_buffers = 0;
+        }
+        else if (client_behind && missed_frames < queue_resize_delay_frames)
+        {
+            ++missed_frames;
+            if (missed_frames >= queue_resize_delay_frames)
+                extra_buffers = 1;
+        }
     }
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))
