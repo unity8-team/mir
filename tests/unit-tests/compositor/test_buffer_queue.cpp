@@ -1522,3 +1522,66 @@ TEST_F(BufferQueueTest, queue_size_scales_instantly_on_framedropping)
          EXPECT_EQ(std::min(max_buffers, 2), unique_buffers(q));
     }
 }
+
+TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
+{
+    for (int max_buffers = 3; max_buffers < max_nbuffers_to_test; ++max_buffers)
+    {
+         mc::BufferQueue q(max_buffers, allocator, basic_properties,
+                           policy_factory);
+
+         q.allow_framedropping(false);
+
+         int const delay = 10;
+         q.set_resize_delay(delay);
+
+         // First, verify we only have 2 real buffers
+         int const expected_nbuffers = 2;
+         for (int f = 0; f < expected_nbuffers-1; ++f)
+         {
+             auto client1 = client_acquire_async(q);
+             client1->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client1->has_acquired_buffer());
+             client1->release_buffer();
+         }
+         auto client2 = client_acquire_async(q);
+         client2->wait_for(std::chrono::milliseconds(100));
+         ASSERT_FALSE(client2->has_acquired_buffer());
+         q.compositor_release(q.compositor_acquire(this));
+         ASSERT_TRUE(client2->has_acquired_buffer());
+
+         // Now hold client2 buffer for a little too long...
+         for (int f = 0; f < delay*2; ++f)
+             q.compositor_release(q.compositor_acquire(this));
+         // this should have resulted in the queue expanding.
+
+         client2->release_buffer();
+         q.compositor_release(q.compositor_acquire(this));
+
+         // Verify the queue expanded:
+         int const expanded_nbuffers = expected_nbuffers + 1;
+         for (int f = 0; f < expanded_nbuffers-1; ++f)
+         {
+             auto client3 = client_acquire_async(q);
+             client3->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client3->has_acquired_buffer()) << "frame " << f;
+             client3->release_buffer();
+         }
+
+         // And more quick composition without any clients active
+         for (int f = 0; f < delay*2; ++f)
+             q.compositor_release(q.compositor_acquire(this));
+
+         // ... should have shrunk the queue size back down :
+         for (int f = 0; f < expected_nbuffers; ++f)
+         {
+             auto client4 = client_acquire_async(q);
+             client4->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client4->has_acquired_buffer());
+             client4->release_buffer();
+         }
+         auto client5 = client_acquire_async(q);
+         client5->wait_for(std::chrono::milliseconds(100));
+         ASSERT_FALSE(client5->has_acquired_buffer());
+    }
+}
