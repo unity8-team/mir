@@ -181,6 +181,7 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
     if (it != m_mirSurfaceToItemHash.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
+        item->setEnabled(false);
         Q_EMIT item->surfaceDestroyed();
 
         {
@@ -197,7 +198,6 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
             Q_EMIT countChanged();
         }
 
-        delete item;
         return;
     }
 
@@ -324,8 +324,8 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const Application* applicat
             });
 
         for (MirSurfaceItem* item : surfaceChildren) {
-            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - clearParent: " << item->name() << " oldParent: " << item->parentSurface()->name() << ")";
-            item->setParentSurface(nullptr);
+            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - remove: " << item->name() << " from " << item->parentSurface()->name();
+            Q_EMIT item->removed();
         }
     };
 

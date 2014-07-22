@@ -80,6 +80,7 @@ Application::~Application()
         QMutexLocker lk(&screenshotMutex);
         m_screenShotGuard.clear();
     }
+    stopPromptSessions();
     delete m_desktopData;
     delete m_surface;
 }

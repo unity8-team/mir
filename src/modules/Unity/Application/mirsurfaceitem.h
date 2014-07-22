@@ -133,6 +133,8 @@ Q_SIGNALS:
     void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
 
+    void removed();
+
 protected Q_SLOTS:
     void onApplicationStateChanged();
 

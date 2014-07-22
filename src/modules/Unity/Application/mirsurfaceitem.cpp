@@ -333,9 +333,11 @@ MirSurfaceItem::~MirSurfaceItem()
     QList<MirSurfaceItem*> children(m_children);
     for (MirSurfaceItem* child : children) {
         child->setParentSurface(nullptr);
+        delete child;
     }
-    if (m_parentSurface)
+    if (m_parentSurface) {
         m_parentSurface->removeChildSurface(this);
+    }
 
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
     QMutexLocker locker(&m_mutex);
@@ -348,6 +350,15 @@ MirSurfaceItem::~MirSurfaceItem()
 void MirSurfaceItem::release()
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::release - this=" << this;
+
+    QList<MirSurfaceItem*> children(m_children);
+    for (MirSurfaceItem* child : children) {
+        child->release();
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
     if (m_application) {
         m_application->setSurface(nullptr);
     }
