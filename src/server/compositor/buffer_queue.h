@@ -62,7 +62,7 @@ public:
     int buffers_free_for_client() const override;
     bool framedropping_allowed() const;
     bool is_a_current_buffer_user(void const* user_id) const;
-    void set_resize_delay(int nframes);
+    void set_resize_delay(int nframes);  ///< negative means never resize
 
 private:
     void give_buffer_to_client(graphics::Buffer* buffer,

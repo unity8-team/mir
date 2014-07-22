@@ -1407,7 +1407,7 @@ TEST_F(BufferQueueTest, synchronous_clients_only_get_two_real_buffers)
         // isn't keeping up and the buffer queue would normally auto-expand.
         // Increase the auto-expansion threshold to ensure that doesn't happen
         // during this test...
-        q.set_resize_delay(1000);
+        q.set_resize_delay(-1);
 
         mt::AutoUnblockThread compositor(unblock,
            compositor_thread, std::ref(q), std::ref(done));
@@ -1500,12 +1500,14 @@ namespace
     }
 } // namespace
 
-TEST_F(BufferQueueTest, queue_size_scales_on_demand)
+TEST_F(BufferQueueTest, queue_size_scales_instantly_on_framedropping)
 {
     for (int max_buffers = 1; max_buffers < max_nbuffers_to_test; ++max_buffers)
     {
          mc::BufferQueue q(max_buffers, allocator, basic_properties,
                            policy_factory);
+
+         q.set_resize_delay(-1);
 
          // Default: No frame dropping; expect double buffering
          q.allow_framedropping(false);
