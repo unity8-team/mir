@@ -78,7 +78,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends},
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         qtmir,
+         qtmir | qtmir-desktop,
 Provides: unity-application-impl,
           unity-application-impl-2,
 Replaces: unity-application-impl,
