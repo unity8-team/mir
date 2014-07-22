@@ -98,6 +98,9 @@ mc::BufferQueue::BufferQueue(
     mc::FrameDroppingPolicyFactory const& policy_provider)
     : min_buffers{std::min(2, max_buffers)}, ///< TODO: Configurable in future
       max_buffers{max_buffers},
+      missed_frames{0}, 
+      queue_resize_delay_frames{100},
+      extra_buffers{0},
       frame_dropping_enabled{false},
       the_properties{props},
       gralloc{gralloc}
@@ -274,6 +277,30 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& buffer)
 {
     std::unique_lock<decltype(guard)> lock(guard);
+
+    /*
+     * Calculate if we need extra buffers in the queue to account for a slow
+     * client that can't keep up with composition. Any changes to the queue
+     * length are smoothed by queue_resize_delay_frames to ensure the queue
+     * length doesn't change too frequently.
+     */
+    bool client_behind = !buffers_owned_by_client.empty();
+    if (frame_dropping_enabled)
+    {
+        missed_frames = 0;
+    }
+    else if (!client_behind && missed_frames > 0)
+    {
+        --missed_frames;
+        if (missed_frames == 0)
+            extra_buffers = 0;
+    }
+    else if (client_behind && missed_frames < queue_resize_delay_frames)
+    {
+        ++missed_frames;
+        if (missed_frames >= queue_resize_delay_frames)
+            extra_buffers = 1;
+    }
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))
     {
@@ -465,10 +492,16 @@ void mc::BufferQueue::release(
 int mc::BufferQueue::ideal_buffers() const
 {
     int result = frame_dropping_enabled ? 3 : 2;
+
+    // Add extra buffers if we can see the client's not keeping up with
+    // composition.
+    result += extra_buffers;
+
     if (result < min_buffers)
         result = min_buffers;
     if (result > max_buffers)
         result = max_buffers;
+
     return result;
 }
 

@@ -87,6 +87,7 @@ private:
     std::deque<Callback> pending_client_notifications;
 
     int const min_buffers, max_buffers;
+    int missed_frames, queue_resize_delay_frames, extra_buffers;
     bool frame_dropping_enabled;
     graphics::BufferProperties the_properties;
 
