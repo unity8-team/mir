@@ -288,6 +288,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     if (frame_dropping_enabled)
     {
         missed_frames = 0;
+        extra_buffers = 0;
     }
     else if (!client_behind && missed_frames > 0)
     {
