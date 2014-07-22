@@ -427,7 +427,7 @@ void Application::removePromptSession(const std::shared_ptr<ms::PromptSession>& 
     qCDebug(QTMIR_APPLICATIONS) << "Application::removePromptSession appId=" << appId()
         << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
 
-    m_promptSessions.removeOne(promptSession);
+    m_promptSessions.removeAll(promptSession);
 }
 
 void Application::stopPromptSessions()
