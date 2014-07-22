@@ -32,10 +32,10 @@ struct gbm_device;
 typedef void (*mir_drm_auth_magic_callback)(int status, void *context);
 
 /* Authenticates a DRM magic cookie */
-MirWaitHandle *mir_connection_drm_auth_magic(MirConnection *connection,
-                                             unsigned int magic,
-                                             mir_drm_auth_magic_callback callback,
-                                             void *context);
+MIR_API MirWaitHandle *mir_connection_drm_auth_magic(MirConnection *connection,
+						     unsigned int magic,
+						     mir_drm_auth_magic_callback callback,
+						     void *context);
 
 /**
  * Set the gbm_device to be used by the EGL implementation.
@@ -46,8 +46,8 @@ MirWaitHandle *mir_connection_drm_auth_magic(MirConnection *connection,
  * \return                 A non-zero value if the operation was successful,
  *                         0 otherwise
  */
-int mir_connection_drm_set_gbm_device(MirConnection* connection,
-                                      struct gbm_device* dev);
+MIR_API int mir_connection_drm_set_gbm_device(MirConnection* connection,
+					      struct gbm_device* dev);
 
 #ifdef __cplusplus
 }

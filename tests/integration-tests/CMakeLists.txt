@@ -55,7 +55,7 @@ target_link_libraries(
 
   mirserver
   mirplatformgraphics
-  mirclient
+  mirclient-static
   mirdraw
   mirtestdraw
 

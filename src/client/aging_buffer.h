@@ -19,6 +19,7 @@
 #ifndef MIR_CLIENT_AGING_BUFFER_H_
 #define MIR_CLIENT_AGING_BUFFER_H_
 
+#include "mir_toolkit/common.h"
 #include "client_buffer.h"
 
 namespace mir
@@ -26,7 +27,7 @@ namespace mir
 namespace client
 {
 
-class AgingBuffer : public ClientBuffer
+class MIR_API AgingBuffer : public ClientBuffer
 {
 public:
     AgingBuffer();

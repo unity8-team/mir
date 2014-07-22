@@ -37,7 +37,7 @@ extern "C" {
  *   \param [in] parameters  The screencast parameters
  *   \return                 The resulting screencast
  */
-MirScreencast *mir_connection_create_screencast_sync(
+MIR_API MirScreencast *mir_connection_create_screencast_sync(
     MirConnection *connection,
     MirScreencastParameters *parameters);
 
@@ -45,7 +45,7 @@ MirScreencast *mir_connection_create_screencast_sync(
  * Release the specified screencast.
  *   \param [in] screencast  The screencast to be released
  */
-void mir_screencast_release_sync(
+MIR_API void mir_screencast_release_sync(
     MirScreencast *screencast);
 
 /**
@@ -53,7 +53,7 @@ void mir_screencast_release_sync(
  *   \param [in] screencast  The screencast
  *   \return                 An EGLNativeWindowType that the client can use
  */
-MirEGLNativeWindowType mir_screencast_egl_native_window(
+MIR_API MirEGLNativeWindowType mir_screencast_egl_native_window(
     MirScreencast *screencast);
 
 #ifdef __cplusplus

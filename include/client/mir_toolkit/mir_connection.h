@@ -45,7 +45,7 @@ extern "C" {
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_connect(
+MIR_API MirWaitHandle *mir_connect(
     char const *server,
     char const *app_name,
     mir_connected_callback callback,
@@ -58,7 +58,7 @@ MirWaitHandle *mir_connect(
  *   \param [in] app_name  A name referring to the application
  *   \return               The resulting MirConnection
  */
-MirConnection *mir_connect_sync(char const *server, char const *app_name);
+MIR_API MirConnection *mir_connect_sync(char const *server, char const *app_name);
 
 /**
  * Test for a valid connection
@@ -66,7 +66,7 @@ MirConnection *mir_connect_sync(char const *server, char const *app_name);
  * \return                 True if the supplied connection is valid, or
  *                         false otherwise.
  */
-MirBool mir_connection_is_valid(MirConnection *connection);
+MIR_API MirBool mir_connection_is_valid(MirConnection *connection);
 
 /**
  * Retrieve a text description of the last error. The returned string is owned
@@ -76,13 +76,13 @@ MirBool mir_connection_is_valid(MirConnection *connection);
  *                           invalid connection, or the empty string "" if the
  *                           connection is valid.
  */
-char const *mir_connection_get_error_message(MirConnection *connection);
+MIR_API char const *mir_connection_get_error_message(MirConnection *connection);
 
 /**
  * Release a connection to the Mir server
  *   \param [in] connection  The connection
  */
-void mir_connection_release(MirConnection *connection);
+MIR_API void mir_connection_release(MirConnection *connection);
 
 /**
  * Query platform-specific data and/or file descriptors that are required to
@@ -90,7 +90,7 @@ void mir_connection_release(MirConnection *connection);
  *   \param [in]  connection        The connection
  *   \param [out] platform_package  Structure to be populated
  */
-void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package);
+MIR_API void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *platform_package);
 
 /**
  * Register a callback to be called when a Lifecycle state change occurs.
@@ -98,14 +98,14 @@ void mir_connection_get_platform(MirConnection *connection, MirPlatformPackage *
  *   \param [in] callback       The function to be called when the state change occurs
  *   \param [in,out] context    User data passed to the callback function
  */
-void mir_connection_set_lifecycle_event_callback(MirConnection* connection,
+MIR_API void mir_connection_set_lifecycle_event_callback(MirConnection* connection,
     mir_lifecycle_event_callback callback, void* context);
 
 /**
  * \deprecated Use mir_connection_create_display_config
  */
 __attribute__((__deprecated__("Use mir_connection_create_display_config()")))
-void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info);
+MIR_API void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *display_info);
 
 /**
  * Query the display
@@ -114,7 +114,7 @@ void mir_connection_get_display_info(MirConnection *connection, MirDisplayInfo *
  *   \param [in]  connection        The connection
  *   \return                        structure that describes the display configuration
  */
-MirDisplayConfiguration* mir_connection_create_display_config(MirConnection *connection);
+MIR_API MirDisplayConfiguration* mir_connection_create_display_config(MirConnection *connection);
 
 /**
  * Register a callback to be called when the hardware display configuration changes
@@ -126,7 +126,7 @@ MirDisplayConfiguration* mir_connection_create_display_config(MirConnection *con
  *   \param [in] callback     The function to be called when a display change occurs
  *   \param [in,out] context  User data passed to the callback function
  */
-void mir_connection_set_display_config_change_callback(
+MIR_API void mir_connection_set_display_config_change_callback(
     MirConnection* connection,
     mir_display_config_callback callback, void* context);
 
@@ -134,7 +134,7 @@ void mir_connection_set_display_config_change_callback(
  * Destroy the DisplayConfiguration resource acquired from mir_connection_create_display_config
  *   \param [in] display_configuration  The display_configuration information resource to be destroyed
  */
-void mir_display_config_destroy(MirDisplayConfiguration* display_configuration);
+MIR_API void mir_display_config_destroy(MirDisplayConfiguration* display_configuration);
 
 /**
  * Apply the display configuration
@@ -149,14 +149,14 @@ void mir_display_config_destroy(MirDisplayConfiguration* display_configuration);
  *   \param [in] display_configuration  The display_configuration to apply
  *   \return                            A handle that can be passed to mir_wait_for
  */
-MirWaitHandle* mir_connection_apply_display_config(MirConnection *connection, MirDisplayConfiguration* display_configuration);
+MIR_API MirWaitHandle* mir_connection_apply_display_config(MirConnection *connection, MirDisplayConfiguration* display_configuration);
 
 /**
  * Get a display type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] connection  The connection
  *   \return                 An EGLNativeDisplayType that the client can use
  */
-MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection);
+MIR_API MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *connection);
 
 /**
  * Get the list of possible formats that a surface can be created with.
@@ -165,7 +165,7 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *con
  *   \param [in]  formats_size      size of formats list
  *   \param [out] num_valid_formats number of valid formats returned in formats
  */
-void mir_connection_get_available_surface_formats(
+MIR_API void mir_connection_get_available_surface_formats(
     MirConnection* connection, MirPixelFormat* formats,
     unsigned const int format_size, unsigned int *num_valid_formats);
 

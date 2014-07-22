@@ -1,0 +1,93 @@
+libmirclient.so.8 libmirclient8 #MINVER#
+ MIR_CLIENT_0.6@MIR_CLIENT_0.6 0.5.0
+# Our CI builds get built with gcov, which adds this superfluity.
+ (optional)"__gcov_var@Base" 0.5.0
+# The libmirclientplatform plugin requires mir::client::AgingBuffer
+# We could probably get around needing to export these by dlopen()
+# trickery, which would be nice.
+ (c++)"mir::client::AgingBuffer::increment_age()@MIR_CLIENT_0.6" 0.5.0
+ (c++)"mir::client::AgingBuffer::mark_as_submitted()@MIR_CLIENT_0.6" 0.5.0
+ (c++)"mir::client::AgingBuffer::AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
+ (c++)"mir::client::AgingBuffer::AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
+# For some reason gcc sometimes doesn't feel like emitting a symbol for
+# the destructor? How does that possibly work?
+ (optional|c++)"mir::client::AgingBuffer::~AgingBuffer()@MIR_CLIENT_0.6" 0.5.0
+ (c++)"mir::client::AgingBuffer::age() const@MIR_CLIENT_0.6" 0.5.0
+ (c++)"typeinfo for mir::client::AgingBuffer@MIR_CLIENT_0.6" 0.5.0
+ (c++)"typeinfo name for mir::client::AgingBuffer@MIR_CLIENT_0.6" 0.5.0
+ (c++)"vtable for mir::client::AgingBuffer@MIR_CLIENT_0.6" 0.5.0
+# And now our *actual* ABI
+ mir_connect@MIR_CLIENT_0.6 0.5.0
+ mir_connect_sync@MIR_CLIENT_0.6 0.5.0
+ mir_connection_apply_display_config@MIR_CLIENT_0.6 0.5.0
+ mir_connection_create_display_config@MIR_CLIENT_0.6 0.5.0
+ mir_connection_create_prompt_session_sync@MIR_CLIENT_0.6 0.5.0
+ mir_connection_create_screencast_sync@MIR_CLIENT_0.6 0.5.0
+ mir_connection_create_surface@MIR_CLIENT_0.6 0.5.0
+ mir_connection_create_surface_sync@MIR_CLIENT_0.6 0.5.0
+ mir_connection_drm_auth_magic@MIR_CLIENT_0.6 0.5.0
+ mir_connection_drm_set_gbm_device@MIR_CLIENT_0.6 0.5.0
+ mir_connection_get_available_surface_formats@MIR_CLIENT_0.6 0.5.0
+ mir_connection_get_display_info@MIR_CLIENT_0.6 0.5.0
+ mir_connection_get_egl_native_display@MIR_CLIENT_0.6 0.5.0
+ mir_connection_get_error_message@MIR_CLIENT_0.6 0.5.0
+ mir_connection_get_platform@MIR_CLIENT_0.6 0.5.0
+ mir_connection_is_valid@MIR_CLIENT_0.6 0.5.0
+ mir_connection_release@MIR_CLIENT_0.6 0.5.0
+ mir_connection_set_display_config_change_callback@MIR_CLIENT_0.6 0.5.0
+ mir_connection_set_lifecycle_event_callback@MIR_CLIENT_0.6 0.5.0
+ mir_cursor_configuration_destroy@MIR_CLIENT_0.6 0.5.0
+ mir_cursor_configuration_from_name@MIR_CLIENT_0.6 0.5.0
+ mir_display_config_destroy@MIR_CLIENT_0.6 0.5.0
+ mir_prompt_session_error_message@MIR_CLIENT_0.6 0.5.0
+ mir_prompt_session_is_valid@MIR_CLIENT_0.6 0.5.0
+ mir_prompt_session_new_fds_for_prompt_providers@MIR_CLIENT_0.6 0.5.0
+ mir_prompt_session_release_sync@MIR_CLIENT_0.6 0.5.0
+ mir_screencast_egl_native_window@MIR_CLIENT_0.6 0.5.0
+ mir_screencast_release_sync@MIR_CLIENT_0.6 0.5.0
+ mir_surface_configure_cursor@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_current_buffer@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_dpi@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_egl_native_window@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_error_message@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_focus@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_graphics_region@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_id@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_orientation@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_parameters@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_platform_type@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_state@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_swapinterval@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_type@MIR_CLIENT_0.6 0.5.0
+ mir_surface_get_visibility@MIR_CLIENT_0.6 0.5.0
+ mir_surface_is_valid@MIR_CLIENT_0.6 0.5.0
+ mir_surface_release@MIR_CLIENT_0.6 0.5.0
+ mir_surface_release_sync@MIR_CLIENT_0.6 0.5.0
+ mir_surface_set_event_handler@MIR_CLIENT_0.6 0.5.0
+ mir_surface_set_state@MIR_CLIENT_0.6 0.5.0
+ mir_surface_set_swapinterval@MIR_CLIENT_0.6 0.5.0
+ mir_surface_set_type@MIR_CLIENT_0.6 0.5.0
+ mir_surface_swap_buffers@MIR_CLIENT_0.6 0.5.0
+ mir_surface_swap_buffers_sync@MIR_CLIENT_0.6 0.5.0
+ mir_wait_for@MIR_CLIENT_0.6 0.5.0
+ mir_wait_for_one@MIR_CLIENT_0.6 0.5.0
+# Let's put all the cursors together
+ mir_default_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_disabled_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_arrow_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_busy_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_caret_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_pointing_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_open_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_closed_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_horizontal_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_vertical_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_diagonal_resize_bottom_to_top_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_diagonal_resize_top_to_bottom_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_omnidirectional_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_vsplit_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_hsplit_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+# Anything that uses the debug interfaces is asking for trouble,
+# as we reserve the right to break these at will.
+ mir_debug_surface_current_buffer_id@MIR_CLIENT_0.6 0.5.0
+ mir_debug_surface_id@MIR_CLIENT_0.6 0.5.0

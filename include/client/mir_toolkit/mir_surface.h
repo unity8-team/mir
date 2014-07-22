@@ -46,7 +46,7 @@ extern "C" {
  *   \return                         A handle that can be passed to
  *                                   mir_wait_for
  */
-MirWaitHandle *mir_connection_create_surface(
+MIR_API MirWaitHandle *mir_connection_create_surface(
     MirConnection *connection,
     MirSurfaceParameters const *surface_parameters,
     mir_surface_callback callback,
@@ -59,7 +59,7 @@ MirWaitHandle *mir_connection_create_surface(
  *   \param [in] params      Parameters describing the desired surface
  *   \return                 The resulting surface
  */
-MirSurface *mir_connection_create_surface_sync(
+MIR_API MirSurface *mir_connection_create_surface_sync(
     MirConnection *connection,
     MirSurfaceParameters const *params);
 
@@ -73,15 +73,15 @@ MirSurface *mir_connection_create_surface_sync(
  *   \param [in] surface        The surface
  *   \param [in] event_handler  The event handler to call
  */
-void mir_surface_set_event_handler(MirSurface *surface,
-                                   MirEventDelegate const *event_handler);
+MIR_API void mir_surface_set_event_handler(MirSurface *surface,
+					   MirEventDelegate const *event_handler);
 
 /**
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] surface  The surface
  *   \return              An EGLNativeWindowType that the client can use
  */
-MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
+MIR_API MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
 
 /**
  * Test for a valid surface
@@ -89,7 +89,7 @@ MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
  *   \return              True if the supplied surface is valid, or
  *                        false otherwise.
  */
-MirBool mir_surface_is_valid(MirSurface *surface);
+MIR_API MirBool mir_surface_is_valid(MirSurface *surface);
 
 /**
  * Retrieve a text description of the error. The returned string is owned by
@@ -100,7 +100,7 @@ MirBool mir_surface_is_valid(MirSurface *surface);
  *                        invalid surface, or the empty string "" if the
  *                        connection is valid.
  */
-char const *mir_surface_get_error_message(MirSurface *surface);
+MIR_API char const *mir_surface_get_error_message(MirSurface *surface);
 
 /**
  * Get a surface's parameters.
@@ -108,7 +108,7 @@ char const *mir_surface_get_error_message(MirSurface *surface);
  *   \param [in] surface      The surface
  *   \param [out] parameters  Structure to be populated
  */
-void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
+MIR_API void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
 
 /**
  * Get the underlying platform type so the buffer obtained in "raw" representation
@@ -117,7 +117,7 @@ void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *param
  *   \param [in] surface      The surface
  *   \return                  One of mir_platform_type_android or mir_platform_type_gbm
  */
-MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
+MIR_API MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
 
 /**
  * Get a surface's buffer in "raw" representation.
@@ -125,7 +125,7 @@ MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
  *   \param [in] surface          The surface
  *   \param [out] buffer_package  Structure to be populated
  */
-void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
+MIR_API void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
 
 /**
  * Get a surface's graphics_region, i.e., map the graphics buffer to main
@@ -134,7 +134,7 @@ void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffe
  *   \param [in] surface           The surface
  *   \param [out] graphics_region  Structure to be populated
  */
-void mir_surface_get_graphics_region(
+MIR_API void mir_surface_get_graphics_region(
     MirSurface *surface,
     MirGraphicsRegion *graphics_region);
 
@@ -151,7 +151,7 @@ void mir_surface_get_graphics_region(
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_surface_swap_buffers(
+MIR_API MirWaitHandle *mir_surface_swap_buffers(
     MirSurface *surface,
     mir_surface_callback callback,
     void *context);
@@ -161,7 +161,7 @@ MirWaitHandle *mir_surface_swap_buffers(
  * for the operation to complete.
  *   \param [in] surface  The surface whose buffer to advance
  */
-void mir_surface_swap_buffers_sync(MirSurface *surface);
+MIR_API void mir_surface_swap_buffers_sync(MirSurface *surface);
 
 /**
  * Release the supplied surface and any associated buffer. The returned wait
@@ -175,7 +175,7 @@ void mir_surface_swap_buffers_sync(MirSurface *surface);
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_surface_release(
+MIR_API MirWaitHandle *mir_surface_release(
     MirSurface *surface,
     mir_surface_callback callback,
     void *context);
@@ -185,13 +185,13 @@ MirWaitHandle *mir_surface_release(
  * for the operation to complete.
  *   \param [in] surface  The surface to be released
  */
-void mir_surface_release_sync(MirSurface *surface);
+MIR_API void mir_surface_release_sync(MirSurface *surface);
 
 /**
  * \deprecated Use mir_debug_surface_id()
  */
 __attribute__((__deprecated__("Use mir_debug_surface_id()")))
-int mir_surface_get_id(MirSurface *surface);
+MIR_API int mir_surface_get_id(MirSurface *surface);
 
 /**
  * Set the type (purpose) of a surface. This is not guaranteed to always work
@@ -201,14 +201,14 @@ int mir_surface_get_id(MirSurface *surface);
  *   \param [in] type     The new type of the surface
  *   \return              A wait handle that can be passed to mir_wait_for
  */
-MirWaitHandle* mir_surface_set_type(MirSurface *surface, MirSurfaceType type);
+MIR_API MirWaitHandle* mir_surface_set_type(MirSurface *surface, MirSurfaceType type);
 
 /**
  * Get the type (purpose) of a surface.
  *   \param [in] surface  The surface to query
  *   \return              The type of the surface
  */
-MirSurfaceType mir_surface_get_type(MirSurface *surface);
+MIR_API MirSurfaceType mir_surface_get_type(MirSurface *surface);
 
 /**
  * Change the state of a surface.
@@ -216,7 +216,7 @@ MirSurfaceType mir_surface_get_type(MirSurface *surface);
  *   \param [in] state    The new state of the surface
  *   \return              A wait handle that can be passed to mir_wait_for
  */
-MirWaitHandle* mir_surface_set_state(MirSurface *surface,
+MIR_API MirWaitHandle* mir_surface_set_state(MirSurface *surface,
                                      MirSurfaceState state);
 
 /**
@@ -224,7 +224,7 @@ MirWaitHandle* mir_surface_set_state(MirSurface *surface,
  *   \param [in] surface  The surface to query
  *   \return              The state of the surface
  */
-MirSurfaceState mir_surface_get_state(MirSurface *surface);
+MIR_API MirSurfaceState mir_surface_get_state(MirSurface *surface);
 
 /**
  * Set the swapinterval for mir_surface_swap_buffers. EGL users should use
@@ -236,7 +236,7 @@ MirSurfaceState mir_surface_get_state(MirSurface *surface);
  *   \return              A wait handle that can be passed to mir_wait_for,
  *                        or NULL if the interval could not be supported
  */
-MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
+MIR_API MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
 
 /**
  * Query the swapinterval that the surface is operating with.
@@ -245,28 +245,28 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
  *   \return              The swapinterval value that the client is operating with.
  *                        Returns -1 if surface is invalid.
  */
-int mir_surface_get_swapinterval(MirSurface* surface);
+MIR_API int mir_surface_get_swapinterval(MirSurface* surface);
 
 /**
  * Query the DPI value of the surface (dots per inch). This will vary depending
  * on the physical display configuration and where the surface is within it.
  *   \return  The DPI of the surface, or zero if unknown.
  */
-int mir_surface_get_dpi(MirSurface* surface);
+MIR_API int mir_surface_get_dpi(MirSurface* surface);
     
 /**
  * Query the focus state for a surface.
  *   \param [in] surface The surface to operate on
  *   \return             The focus state of said surface
  */
-MirSurfaceFocusState mir_surface_get_focus(MirSurface *surface);
+MIR_API MirSurfaceFocusState mir_surface_get_focus(MirSurface *surface);
 
 /**
  * Query the visibility state for a surface.
  *   \param [in] surface The surface to operate on
  *   \return             The visibility state of said surface
  */
-MirSurfaceVisibility mir_surface_get_visibility(MirSurface *surface);
+MIR_API MirSurfaceVisibility mir_surface_get_visibility(MirSurface *surface);
 
 /**
  * Choose the cursor state for a surface: whether a cursor is shown, 
@@ -278,14 +278,14 @@ MirSurfaceVisibility mir_surface_get_visibility(MirSurface *surface);
  *                           or NULL if parameters is invalid.
  *
  */
-MirWaitHandle* mir_surface_configure_cursor(MirSurface *surface, MirCursorConfiguration const* parameters);
+MIR_API MirWaitHandle* mir_surface_configure_cursor(MirSurface *surface, MirCursorConfiguration const* parameters);
 
 /**
  * Get the orientation of a surface.
  *   \param [in] surface  The surface to query
  *   \return              The orientation of the surface
  */
-MirOrientation mir_surface_get_orientation(MirSurface *surface);
+MIR_API MirOrientation mir_surface_get_orientation(MirSurface *surface);
 
 #ifdef __cplusplus
 }

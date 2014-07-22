@@ -43,10 +43,10 @@ uses_android_input(mir_unit_tests)
 target_link_libraries(
   mir_unit_tests
 
-  mirclient
+  mirclient-static
   mirserver
   mirplatformgraphics
-  mirclientplatform
+  mirclientplatform-static
   mirdraw
   mirtestdraw
   mirlogging
