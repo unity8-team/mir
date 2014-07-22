@@ -22,15 +22,17 @@
 #define MIR_COMMON_H_
 
 /**
+ * Used to mark an exported symbol
+ */
+#define MIR_API __attribute__((visibility("default")))
+
+#include <mir_toolkit/cursors.h>
+
+/**
  * \addtogroup mir_toolkit
  * @{
  */
 /* This is C code. Not C++. */
-
-/**
- * Used to mark an exported symbol
- */
-#define MIR_API __attribute__((visibility("default")))
 
 /**
  * Attributes of a surface that the client and server/shell may wish to
@@ -141,17 +143,6 @@ typedef enum MirOrientation
     mir_orientation_inverted = 180,
     mir_orientation_right = 270
 } MirOrientation;
-
-/**
- * A special cursor name for use with mir_cursor_configuration_from_name
- * representing the system default cursor.
- */
-extern MIR_API char const *const mir_default_cursor_name;
-/**
- * A special cursor name for use with mir_cursor_configuration_from_name
- * representing a disabled cursor image.
- */
-extern MIR_API char const *const mir_disabled_cursor_name;
 
 /**@}*/
 

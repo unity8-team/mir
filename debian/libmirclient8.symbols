@@ -38,8 +38,6 @@ libmirclient.so.8 libmirclient8 #MINVER#
  mir_connection_set_lifecycle_event_callback@MIR_CLIENT_0.6 0.5.0
  mir_cursor_configuration_destroy@MIR_CLIENT_0.6 0.5.0
  mir_cursor_configuration_from_name@MIR_CLIENT_0.6 0.5.0
- mir_default_cursor_name@MIR_CLIENT_0.6 0.5.0
- mir_disabled_cursor_name@MIR_CLIENT_0.6 0.5.0
  mir_display_config_destroy@MIR_CLIENT_0.6 0.5.0
  mir_prompt_session_error_message@MIR_CLIENT_0.6 0.5.0
  mir_prompt_session_is_valid@MIR_CLIENT_0.6 0.5.0
@@ -73,6 +71,22 @@ libmirclient.so.8 libmirclient8 #MINVER#
  mir_surface_swap_buffers_sync@MIR_CLIENT_0.6 0.5.0
  mir_wait_for@MIR_CLIENT_0.6 0.5.0
  mir_wait_for_one@MIR_CLIENT_0.6 0.5.0
+# Let's put all the cursors together
+ mir_default_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_disabled_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_arrow_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_busy_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_caret_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_pointing_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_open_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_closed_hand_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_horizontal_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_vertical_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_diagonal_resize_bottom_to_top_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_diagonal_resize_top_to_bottom_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_omnidirectional_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_vsplit_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
+ mir_hsplit_resize_cursor_name@MIR_CLIENT_0.6 0.5.0
 # Anything that uses the debug interfaces is asking for trouble,
 # as we reserve the right to break these at will.
  mir_debug_surface_current_buffer_id@MIR_CLIENT_0.6 0.5.0
