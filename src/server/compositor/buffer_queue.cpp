@@ -99,7 +99,7 @@ mc::BufferQueue::BufferQueue(
     : min_buffers{std::min(2, max_buffers)}, ///< TODO: Configurable in future
       max_buffers{max_buffers},
       missed_frames{0}, 
-      queue_resize_delay_frames{100},
+      queue_resize_delay_frames{300},
       extra_buffers{0},
       frame_dropping_enabled{false},
       the_properties{props},
@@ -295,18 +295,27 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
          * no client buffers still held when composition finishes.
          */
         bool client_behind = !buffers_owned_by_client.empty();
+
+        if (client_behind && missed_frames < queue_resize_delay_frames)
+        {
+            ++missed_frames;
+            if (missed_frames >= queue_resize_delay_frames)
+                extra_buffers = 1;
+        }
+
+        /****
+         * On second thoughts, don't ever shrink the buffer queue based on
+         * performance alone. A client that needed that third buffer to keep up
+         * will only ping-pong back down and start missing frames again. So it's
+         * a much better idea to keep the queue long so the frame skipping
+         * doesn't re-occur...
         if (!client_behind && missed_frames > 0)
         {
             --missed_frames;
             if (missed_frames == 0)
                 extra_buffers = 0;
         }
-        else if (client_behind && missed_frames < queue_resize_delay_frames)
-        {
-            ++missed_frames;
-            if (missed_frames >= queue_resize_delay_frames)
-                extra_buffers = 1;
-        }
+        ****/
     }
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))

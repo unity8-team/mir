@@ -1567,21 +1567,5 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
              ASSERT_TRUE(client3->has_acquired_buffer()) << "frame " << f;
              client3->release_buffer();
          }
-
-         // And more quick composition without any clients active
-         for (int f = 0; f < delay*2; ++f)
-             q.compositor_release(q.compositor_acquire(this));
-
-         // ... should have shrunk the queue size back down :
-         for (int f = 0; f < expected_nbuffers; ++f)
-         {
-             auto client4 = client_acquire_async(q);
-             client4->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(client4->has_acquired_buffer());
-             client4->release_buffer();
-         }
-         auto client5 = client_acquire_async(q);
-         client5->wait_for(std::chrono::milliseconds(100));
-         ASSERT_FALSE(client5->has_acquired_buffer());
     }
 }
