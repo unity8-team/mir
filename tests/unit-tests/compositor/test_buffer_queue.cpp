@@ -1402,6 +1402,13 @@ TEST_F(BufferQueueTest, synchronous_clients_only_get_two_real_buffers)
 
         std::atomic<bool> done(false);
         auto unblock = [&done] { done = true; };
+
+        // With an unthrottled compositor_thread it will look like the client
+        // isn't keeping up and the buffer queue would normally auto-expand.
+        // Increase the auto-expansion threshold to ensure that doesn't happen
+        // during this test...
+        q.set_resize_delay(1000);
+
         mt::AutoUnblockThread compositor(unblock,
            compositor_thread, std::ref(q), std::ref(done));
 
