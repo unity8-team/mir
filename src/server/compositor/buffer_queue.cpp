@@ -512,6 +512,11 @@ int mc::BufferQueue::ideal_buffers() const
     return result;
 }
 
+void mc::BufferQueue::set_resize_delay(int nframes)
+{
+    queue_resize_delay_frames = nframes;
+}
+
 void mc::BufferQueue::drop_buffer(graphics::Buffer* buffer)
 {
     for (auto i = buffers.begin(); i != buffers.end(); ++i)

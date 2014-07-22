@@ -889,6 +889,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         auto const frame_time = std::chrono::milliseconds(16);
 
         q.allow_framedropping(false);
+        q.set_resize_delay(1);
 
         std::atomic<bool> done(false);
         std::mutex sync;
