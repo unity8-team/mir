@@ -209,6 +209,7 @@ ApplicationManager::ApplicationManager(
     , m_suspended(false)
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::ApplicationManager (this=%p)" << this;
+    setObjectName("qtmir::ApplicationManager");
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");

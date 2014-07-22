@@ -99,6 +99,7 @@ MirSurfaceManager::MirSurfaceManager(
     , m_mirConfig(mirConfig)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
+    setObjectName("qtmir::SurfaceManager");
 }
 
 MirSurfaceManager::~MirSurfaceManager()
@@ -181,7 +182,7 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
     if (it != m_mirSurfaceToItemHash.end()) {
         Q_EMIT surfaceDestroyed(*it);
         MirSurfaceItem* item = it.value();
-        item->setEnabled(false);
+        item->setEnabled(false); //disable input events
         Q_EMIT item->surfaceDestroyed();
 
         {
@@ -266,6 +267,7 @@ MirSurfaceItem* MirSurfaceManager::getSurface(int index)
 
 void getSurfaceDecendents(MirSurfaceItem* item, QList<MirSurfaceItem*>& surfaceChildren)
 {
+    // recursive function. fetch all decendent surface items as a list.
     item->foreachChildSurface([&surfaceChildren](MirSurfaceItem* child) {
         surfaceChildren.append(child);
         getSurfaceDecendents(child, surfaceChildren);

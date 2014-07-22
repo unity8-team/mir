@@ -16,9 +16,6 @@
  * Authors:
  *     Daniel d'Andrada <daniel.dandrada@canonical.com>
  *     Gerry Boland <gerry.boland@canonical.com>
- *
- * Bits and pieces taken from the QtWayland portion of the Qt project which is
- * Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
  */
 
 // local
@@ -499,7 +496,6 @@ void MirSurfaceItem::wheelEvent(QWheelEvent *event)
 
 void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyPressEvent" << qtEvent;
     MirEvent mirEvent;
     if (fillInMirEvent(mirEvent, qtEvent)) {
         m_surface->consume(mirEvent);
@@ -508,7 +504,6 @@ void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 
 void MirSurfaceItem::keyReleaseEvent(QKeyEvent *qtEvent)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::keyReleaseEvent" << qtEvent;
     MirEvent mirEvent;
     if (fillInMirEvent(mirEvent, qtEvent)) {
         m_surface->consume(mirEvent);
