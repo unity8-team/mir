@@ -111,7 +111,7 @@ mc::BufferQueue::BufferQueue(
      * If there is increased pressure by the client to acquire
      * more buffers, more will be allocated at that time (up to max_buffers)
      */
-    for(int i = 0; i < min_buffers(); ++i)
+    for(int i = 0; i < ideal_buffers(); ++i)
     {
         buffers.push_back(gralloc->alloc_buffer(the_properties));
     }
@@ -183,7 +183,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     }
 
     int const allocated_buffers = buffers.size();
-    if (allocated_buffers < min_buffers())
+    if (allocated_buffers < ideal_buffers())
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
@@ -340,7 +340,7 @@ void mc::BufferQueue::allow_framedropping(bool flag)
     std::lock_guard<decltype(guard)> lock(guard);
     frame_dropping_enabled = flag;
 
-    while (static_cast<int>(buffers.size()) > min_buffers() &&
+    while (static_cast<int>(buffers.size()) > ideal_buffers() &&
            !free_buffers.empty())
     {
         auto surplus = free_buffers.back();
@@ -448,7 +448,7 @@ void mc::BufferQueue::release(
 {
     int used_buffers = buffers.size() - free_buffers.size();
 
-    if (used_buffers > min_buffers() && max_buffers > 1)
+    if (used_buffers > ideal_buffers() && max_buffers > 1)
     {
         drop_buffer(buffer);
     }
@@ -461,7 +461,7 @@ void mc::BufferQueue::release(
         free_buffers.push_back(buffer);
 }
 
-int mc::BufferQueue::min_buffers() const
+int mc::BufferQueue::ideal_buffers() const
 {
     int required_buffers = frame_dropping_enabled ? 3 : 2;
     return std::min(max_buffers, required_buffers);
