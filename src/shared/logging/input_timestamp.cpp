@@ -33,6 +33,13 @@ std::string mir::logging::input_timestamp(nsecs_t when, nsecs_t next_frame_eta)
     char str[64];
     if (next_frame_eta > now)
     {
+        /*
+         * "visible lag" is the estimated time difference between the specified
+         * input event time "when" and some consequence of that getting
+         * rendered. Note this is local rendering so for clients the lag does
+         * not include the extra time that RPC, composition and page flipping
+         * will take.
+         */
         long lag_usec = (next_frame_eta - when) / 1000L;
         snprintf(str, sizeof str,
                  "%lld (%ld.%03ld ms ago, %ld.%03ld ms visible lag)",
