@@ -129,3 +129,50 @@ TEST_F(SharedLibraryProber, LogsFailureForNonexistentPath)
                  std::runtime_error);
 
 }
+
+TEST_F(SharedLibraryProber, LogsNoLibrariesForPathWithoutLibraries)
+{
+    using namespace testing;
+    NiceMock<MockSharedLibraryProberReport> report;
+
+    EXPECT_CALL(report, loading_library(_)).Times(0);
+
+    mir::libraries_for_path("/usr", report);
+}
+
+namespace
+{
+MATCHER_P(FilenameMatches, path, "")
+{
+    *result_listener << "where the path is " << arg;
+    return boost::filesystem::path(path).filename() == arg.filename();
+}
+}
+
+TEST_F(SharedLibraryProber, LogsEachLibraryProbed)
+{
+    using namespace testing;
+    NiceMock<MockSharedLibraryProberReport> report;
+
+    EXPECT_CALL(report, loading_library(FilenameMatches("libamd64.so")));
+    EXPECT_CALL(report, loading_library(FilenameMatches("libarmhf.so")));
+
+    mir::libraries_for_path(library_path, report);
+}
+
+TEST_F(SharedLibraryProber, LogsFailureForLoadFailure)
+{
+    using namespace testing;
+    NiceMock<MockSharedLibraryProberReport> report;
+
+    bool armhf_failed{false}, amd64_failed{false};
+
+    ON_CALL(report, loading_failed(FilenameMatches("libamd64.so"), _))
+            .WillByDefault(InvokeWithoutArgs([&amd64_failed]() { amd64_failed = true; }));
+    ON_CALL(report, loading_failed(FilenameMatches("libarmhf.so"), _))
+            .WillByDefault(InvokeWithoutArgs([&armhf_failed]() { armhf_failed = true; }));
+
+    mir::libraries_for_path(library_path, report);
+
+    EXPECT_TRUE(amd64_failed || armhf_failed);
+}

@@ -50,10 +50,12 @@ mir::libraries_for_path(std::string const& path, mir::SharedLibraryProberReport&
         {
             try
             {
+                report.loading_library(iterator->path());
                 libraries.emplace_back(std::make_shared<mir::SharedLibrary>(iterator->path().string()));
             }
-            catch (std::runtime_error)
+            catch (std::runtime_error const& err)
             {
+                report.loading_failed(iterator->path(), err);
             }
         }
     }
