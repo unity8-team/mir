@@ -20,6 +20,7 @@ set(
   test_thread_name.cpp
   test_default_emergency_cleanup.cpp
   test_basic_observers.cpp
+  test_shared_library_prober.cpp
 )
 
 add_subdirectory(options/)

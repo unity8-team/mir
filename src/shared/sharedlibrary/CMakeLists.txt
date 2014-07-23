@@ -16,6 +16,7 @@
 
 add_library(mirsharedsharedlibrary STATIC
   shared_library.cpp
+  shared_library_prober.cpp
 )
 
 target_link_libraries(
