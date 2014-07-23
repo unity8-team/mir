@@ -25,6 +25,7 @@
 #include <QSet>
 #include <QQuickItem>
 #include <QTimer>
+#include <QQmlListProperty>
 
 // mir
 #include <mir/scene/surface.h>
@@ -73,7 +74,7 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
-    Q_PROPERTY(QList<QObject*> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
+    Q_PROPERTY(QQmlListProperty<qtmir::MirSurfaceItem> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -153,7 +154,10 @@ protected:
 
     void addChildSurface(MirSurfaceItem* surface);
     void removeChildSurface(MirSurfaceItem* surface);
-    QList<QObject*> childSurfaces() const;
+
+    QQmlListProperty<MirSurfaceItem> childSurfaces();
+    static int childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop);
+    static MirSurfaceItem* childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index);
 
 private Q_SLOTS:
     void surfaceDamaged();
@@ -166,8 +170,6 @@ private Q_SLOTS:
     void updateMirSurfaceFocus(bool focused);
 
 private:
-    Q_DISABLE_COPY(MirSurfaceItem)
-
     bool updateTexture();
     void ensureProvider();
 

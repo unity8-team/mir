@@ -751,13 +751,27 @@ void MirSurfaceItem::foreachChildSurface(std::function<void(MirSurfaceItem*)> f)
     }
 }
 
-QList<QObject*> MirSurfaceItem::childSurfaces() const
+QQmlListProperty<MirSurfaceItem> MirSurfaceItem::childSurfaces()
 {
-    // FIXME: QML does not support QObject subclasses in QList properties.
-    // return as QObject*
-    QList<QObject*> children;
-    foreachChildSurface([&](MirSurfaceItem* child) { children.append(child); });
-    return children;
+    return QQmlListProperty<MirSurfaceItem>(this,
+                                            0,
+                                            MirSurfaceItem::childSurfaceCount,
+                                            MirSurfaceItem::childSurfaceAt);
+}
+
+int MirSurfaceItem::childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+    return p->m_children.count();
+}
+
+MirSurfaceItem* MirSurfaceItem::childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+
+    if (index < 0 || index >= p->m_children.count())
+        return nullptr;
+    return p->m_children[index];
 }
 
 } // namespace qtmir
