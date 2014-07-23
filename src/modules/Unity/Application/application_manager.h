@@ -52,6 +52,8 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
     Q_OBJECT
     Q_ENUMS(MoreRoles)
     Q_FLAGS(ExecFlags)
+
+    // TODO: Move to unity::shell::application::ApplicationManagerInterface
     Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
