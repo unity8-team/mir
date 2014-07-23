@@ -753,6 +753,8 @@ void MirSurfaceItem::foreachChildSurface(std::function<void(MirSurfaceItem*)> f)
 
 QList<QObject*> MirSurfaceItem::childSurfaces() const
 {
+    // FIXME: QML does not support QObject subclasses in QList properties.
+    // return as QObject*
     QList<QObject*> children;
     foreachChildSurface([&](MirSurfaceItem* child) { children.append(child); });
     return children;
