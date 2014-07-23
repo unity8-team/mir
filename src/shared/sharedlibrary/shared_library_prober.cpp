@@ -39,5 +39,19 @@ std::list<std::shared_ptr<mir::SharedLibrary>> mir::libraries_for_path(std::stri
             throw std::runtime_error{"Boost error from unknown category"};
         }
     }
-    return std::list<std::shared_ptr<mir::SharedLibrary>>{std::make_shared<mir::SharedLibrary>("/usr/lib/libacl.so")};
+    std::list<std::shared_ptr<mir::SharedLibrary>> libraries;
+    for (; iterator != boost::filesystem::directory_iterator() ; ++iterator)
+    {
+        if (iterator->path().extension().string() == ".so")
+        {
+            try
+            {
+                libraries.emplace_back(std::make_shared<mir::SharedLibrary>(iterator->path().string()));
+            }
+            catch (std::runtime_error)
+            {
+            }
+        }
+    }
+    return libraries;
 }
