@@ -74,6 +74,7 @@ MirPixelFormat determine_hwc11_fb_format()
 std::pair<geom::Size, double> determine_hwc11_size_and_rate(
     std::shared_ptr<hwc_composer_device_1> const& hwc_device)
 {
+    (void) hwc_device;
     return {{480,854}, 60.0f};
 }
 }
