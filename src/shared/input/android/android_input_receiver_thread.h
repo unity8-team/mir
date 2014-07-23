@@ -49,6 +49,8 @@ public:
     void start();
     void stop();
     void join();
+    void on_frame_begin() override;
+    void on_frame_end() override;
 
 protected:
     InputReceiverThread(const InputReceiverThread&) = delete;

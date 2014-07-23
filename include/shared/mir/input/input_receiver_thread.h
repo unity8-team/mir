@@ -35,6 +35,17 @@ public:
     virtual void stop() = 0;
     virtual void join() = 0;
 
+    /*
+     * Why tell the input system about frames beginning and ending?
+     * Firstly to allow the input system to batch, optimize and reprocess
+     * events based on frame timing. Secondly to allow the input receiver
+     * report to produce accurate lag measurements based on time difference
+     * between an event coming from the kernel and when that affects what
+     * the client renders on its surface.
+     */
+    virtual void on_frame_begin() {}
+    virtual void on_frame_end() {}
+
 protected:
     InputReceiverThread() = default;
     InputReceiverThread(const InputReceiverThread&) = delete;

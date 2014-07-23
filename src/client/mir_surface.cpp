@@ -159,6 +159,8 @@ MirWaitHandle* MirSurface::next_buffer(mir_surface_callback callback, void * con
     release_cpu_region();
     auto const id = &surface.id();
     auto const mutable_buffer = surface.mutable_buffer();
+    if (input_thread)
+        input_thread->on_frame_end();
     lock.unlock();
 
     next_buffer_wait_handle.expect_result();
@@ -243,6 +245,8 @@ void MirSurface::new_buffer(mir_surface_callback callback, void * context)
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
         process_incoming_buffer();
+        if (input_thread)
+            input_thread->on_frame_begin();
     }
 
     callback(this, context);
