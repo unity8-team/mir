@@ -81,6 +81,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
+    // TODO: Enable Project Butter optimizations using frame timing here:
    if(input_consumer->consume(&event_factory, true,
         -1, &event_sequence_id, &android_event) != droidinput::WOULD_BLOCK)
     {
@@ -123,4 +124,17 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
 void mircva::InputReceiver::wake()
 {
     looper->wake();
+}
+
+void mircva::InputReceiver::on_frame_begin()
+{
+    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+    last_frame_interval = now - last_frame_begin;
+    last_frame_begin = now;
+}
+
+void mircva::InputReceiver::on_frame_end()
+{
+    last_frame_end = systemTime(SYSTEM_TIME_MONOTONIC);
+    estimated_next_frame_end = last_frame_end + last_frame_interval;
 }

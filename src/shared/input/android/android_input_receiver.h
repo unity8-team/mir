@@ -68,6 +68,9 @@ public:
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
 
+    void on_frame_begin();
+    void on_frame_end();
+
 protected:
     InputReceiver(const InputReceiver&) = delete;
     InputReceiver& operator=(const InputReceiver&) = delete;
@@ -85,6 +88,9 @@ private:
     std::shared_ptr<XKBMapper> xkb_mapper;
 
     bool try_next_event(MirEvent &ev);
+
+    nsecs_t last_frame_begin = 0, last_frame_end = 0, last_frame_interval = 0;
+    nsecs_t estimated_next_frame_end = 0;
 };
 
 }

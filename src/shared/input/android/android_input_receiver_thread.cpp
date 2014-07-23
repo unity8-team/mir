@@ -58,10 +58,12 @@ void mircva::InputReceiverThread::join()
 
 void mircva::InputReceiverThread::on_frame_begin()
 {
+    receiver->on_frame_begin();
 }
 
 void mircva::InputReceiverThread::on_frame_end()
 {
+    receiver->on_frame_end();
 }
 
 void mircva::InputReceiverThread::thread_loop()
