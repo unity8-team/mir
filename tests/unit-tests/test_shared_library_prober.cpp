@@ -25,6 +25,7 @@
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace
 {
@@ -42,6 +43,15 @@ std::string binary_path()
     return dirname(buf);
 }
 
+class MockSharedLibraryProberReport : public mir::SharedLibraryProberReport
+{
+public:
+    MOCK_METHOD1(probing_path, void(boost::filesystem::path const&));
+    MOCK_METHOD2(probing_failed, void(boost::filesystem::path const&, std::exception const&));
+    MOCK_METHOD1(loading_library, void(boost::filesystem::path const&));
+    MOCK_METHOD2(loading_failed, void(boost::filesystem::path const&, std::exception const&));
+};
+
 class SharedLibraryProber : public testing::Test
 {
 public:
@@ -51,18 +61,20 @@ public:
     }
 
     std::string const library_path;
+    testing::NiceMock<MockSharedLibraryProberReport> null_report;
 };
+
 }
 
 TEST_F(SharedLibraryProber, ReturnsNonEmptyListForPathContainingLibraries)
 {
-    auto libraries = mir::libraries_for_path(library_path);
+    auto libraries = mir::libraries_for_path(library_path, null_report);
     EXPECT_GE(libraries.size(), 1);
 }
 
 TEST_F(SharedLibraryProber, RaisesExceptionForNonexistentPath)
 {
-    EXPECT_THROW(mir::libraries_for_path("/a/path/that/certainly/doesnt/exist"),
+    EXPECT_THROW(mir::libraries_for_path("/a/path/that/certainly/doesnt/exist", null_report),
                  std::system_error);
 }
 
@@ -70,7 +82,7 @@ TEST_F(SharedLibraryProber, NonExistentPathRaisesENOENTError)
 {
     try
     {
-        mir::libraries_for_path("/a/path/that/certainly/doesnt/exist");
+        mir::libraries_for_path("/a/path/that/certainly/doesnt/exist", null_report);
     }
     catch (std::system_error &err)
     {
@@ -81,6 +93,39 @@ TEST_F(SharedLibraryProber, NonExistentPathRaisesENOENTError)
 TEST_F(SharedLibraryProber, PathWithNoSharedLibrariesReturnsEmptyList)
 {
     // /usr is guaranteed to exist, and shouldn't contain any libraries
-    auto libraries = mir::libraries_for_path("/usr");
+    auto libraries = mir::libraries_for_path("/usr", null_report);
     EXPECT_EQ(0, libraries.size());
+}
+
+TEST_F(SharedLibraryProber, LogsStartOfProbe)
+{
+    using namespace testing;
+    testing::NiceMock<MockSharedLibraryProberReport> report;
+
+    EXPECT_CALL(report, probing_path(testing::Eq(library_path)));
+
+    mir::libraries_for_path(library_path, report);
+}
+
+TEST_F(SharedLibraryProber, LogsForNonexistentPath)
+{
+    using namespace testing;
+    NiceMock<MockSharedLibraryProberReport> report;
+
+    EXPECT_CALL(report, probing_path(testing::Eq("/yo/dawg/I/heard/you/liked/slashes")));
+
+    EXPECT_THROW(mir::libraries_for_path("/yo/dawg/I/heard/you/liked/slashes", report),
+                 std::runtime_error);
+}
+
+TEST_F(SharedLibraryProber, LogsFailureForNonexistentPath)
+{
+    using namespace testing;
+    NiceMock<MockSharedLibraryProberReport> report;
+
+    EXPECT_CALL(report, probing_failed(Eq("/yo/dawg/I/heard/you/liked/slashes"), _));
+
+    EXPECT_THROW(mir::libraries_for_path("/yo/dawg/I/heard/you/liked/slashes", report),
+                 std::runtime_error);
+
 }

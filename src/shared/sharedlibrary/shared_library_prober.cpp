@@ -22,8 +22,10 @@
 #include <system_error>
 #include <boost/filesystem.hpp>
 
-std::list<std::shared_ptr<mir::SharedLibrary>> mir::libraries_for_path(std::string const& path)
+std::list<std::shared_ptr<mir::SharedLibrary>>
+mir::libraries_for_path(std::string const& path, mir::SharedLibraryProberReport& report)
 {
+    report.probing_path(path);
     // We use the error_code overload because we want to throw a std::system_error
     boost::system::error_code ec;
     boost::filesystem::directory_iterator iterator{path, ec};
@@ -32,7 +34,9 @@ std::list<std::shared_ptr<mir::SharedLibrary>> mir::libraries_for_path(std::stri
         // *Of course* there's no good way to go from a boost::error_code to a std::error_code
         if (ec.category() == boost::system::system_category())
         {
-            throw std::system_error{ec.value(), std::system_category()};
+            std::system_error error{ec.value(), std::system_category()};
+            report.probing_failed(path, error);
+            throw error;
         }
         else
         {
