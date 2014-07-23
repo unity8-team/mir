@@ -3,6 +3,15 @@
 
 export DPKG_GENSYMBOLS_CHECK_LEVEL=4
 
+include /usr/share/dpkg/default.mk
+
+# Explicitly selecting a G{CC,++}-version here to avoid accidental
+# ABI breaks introduced by toolchain updates.
+export CC=$(DEB_HOST_GNU_TYPE)-gcc-4.9
+export CXX=$(DEB_HOST_GNU_TYPE)-g++-4.9
+
+FLAGS = "QMAKE_CXX=$(CXX)" "QMAKE_LINK=$(CXX)" "QMAKE_LINK_SHLIB=$(CXX)"
+
 ANDROID_DIR = build-android
 DESKTOP_DIR = build-desktop
 TMP1_DIR = $(CURDIR)/debian/tmp1
@@ -26,9 +35,9 @@ endif
 
 override_dh_auto_configure:
 ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
-	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR)
+	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(FLAGS) $(CURDIR)
 endif
-	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- "QMAKE_CXXFLAGS=-DQTMIR_USE_OPENGL" $(CURDIR)
+	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- $(FLAGS) "QMAKE_CXXFLAGS=-DQTMIR_USE_OPENGL" $(CURDIR)
 
 override_dh_auto_build:
 ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
