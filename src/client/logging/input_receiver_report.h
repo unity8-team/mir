@@ -41,7 +41,7 @@ class InputReceiverReport : public input::receiver::InputReceiverReport
 public:
     InputReceiverReport(std::shared_ptr<mir::logging::Logger> const& logger);
 
-    void received_event(MirEvent const& event) override;
+    void received_event(MirEvent const& event, nsecs_t next_frame) override;
 
 private:
     std::shared_ptr<mir::logging::Logger> const logger;

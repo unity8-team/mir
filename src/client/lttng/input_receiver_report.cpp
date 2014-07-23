@@ -26,7 +26,7 @@
 #define TRACEPOINT_PROBE_DYNAMIC_LINKAGE
 #include "input_receiver_report_tp.h"
 
-void mir::client::lttng::InputReceiverReport::received_event(MirEvent const& event)
+void mir::client::lttng::InputReceiverReport::received_event(MirEvent const& event, nsecs_t)
 {
     switch (event.type)
     {

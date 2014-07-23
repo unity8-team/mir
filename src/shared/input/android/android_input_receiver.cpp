@@ -91,7 +91,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
         input_consumer->sendFinishedSignal(event_sequence_id, true);
 
-        report->received_event(ev);
+        report->received_event(ev, estimated_next_frame_end);
 
         return true;
     }

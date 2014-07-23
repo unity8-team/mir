@@ -27,7 +27,7 @@ namespace mir
 namespace logging
 {
 
-std::string input_timestamp(nsecs_t when);
+std::string input_timestamp(nsecs_t when, nsecs_t next_frame_eta=0);
 
 }
 }

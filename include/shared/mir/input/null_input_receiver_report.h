@@ -36,7 +36,7 @@ public:
     NullInputReceiverReport() = default;
     virtual ~NullInputReceiverReport() = default;
 
-    void received_event(MirEvent const& /* event */) {}
+    void received_event(MirEvent const& /* event */, nsecs_t) override {}
 };
 
 }

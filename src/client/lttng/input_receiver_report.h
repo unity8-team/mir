@@ -32,7 +32,7 @@ namespace lttng
 class InputReceiverReport : public input::receiver::InputReceiverReport
 {
 public:
-    void received_event(MirEvent const& event) override;
+    void received_event(MirEvent const& event, nsecs_t next_frame_time) override;
 private:
     void report(MirKeyEvent const& event) const;
     void report(MirMotionEvent const& event) const;

@@ -33,7 +33,8 @@ class InputReceiverReport
 public:
     virtual ~InputReceiverReport() = default;
 
-    virtual void received_event(MirEvent const& event) = 0;
+    virtual void received_event(MirEvent const& event,
+                                nsecs_t estimated_next_frame_end=0) = 0;
 
 protected:
     InputReceiverReport() = default;

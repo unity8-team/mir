@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <string>
 
-std::string mir::logging::input_timestamp(nsecs_t when)
+std::string mir::logging::input_timestamp(nsecs_t when, nsecs_t next_frame_eta)
 {
     // Input events use CLOCK_REALTIME, and so we must...
     struct timespec ts;
@@ -30,11 +30,19 @@ std::string mir::logging::input_timestamp(nsecs_t when)
     nsecs_t now = ts.tv_sec * 1000000000LL + ts.tv_nsec;
     nsecs_t age = now - when;
 
+    nsecs_t lag = 0;
+    if (next_frame_eta > now)
+        lag = next_frame_eta - when;
+    // else no frame happened in time. We're not rendering and so lag is zero.
+
     char str[64];
-    snprintf(str, sizeof str, "%lld (%ld.%06ld ms ago)",
+    snprintf(str, sizeof str, "%lld (%ld.%06ld ms ago, %ld.%06ld ms visible lag)",
              static_cast<long long>(when),
              static_cast<long>(age / 1000000LL),
-             static_cast<long>(age % 1000000LL));
+             static_cast<long>(age % 1000000LL),
+             static_cast<long>(lag / 1000000LL),
+             static_cast<long>(lag % 1000000LL)
+             );
 
     return std::string(str);
 }
