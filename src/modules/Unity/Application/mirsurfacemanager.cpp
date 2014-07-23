@@ -101,11 +101,6 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
         m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
     }
 
-    beginInsertRows(QModelIndex(), 0, 0);
-    m_surfaceItems.prepend(qmlSurface);
-    endInsertRows();
-    Q_EMIT countChanged();
-
     if (application)
         application->setSurface(qmlSurface);
 
@@ -156,13 +151,6 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
             m_mirSurfaceToItemHash.remove(m_mirSurfaceToItemHash.key(item));
         }
 
-        int i = m_surfaceItems.indexOf(item);
-        if (i != -1) {
-            beginRemoveRows(QModelIndex(), i, i);
-            m_surfaceItems.removeAt(i);
-            endRemoveRows();
-            Q_EMIT countChanged();
-        }
         return;
     }
 
