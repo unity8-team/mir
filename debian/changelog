@@ -3,7 +3,7 @@ mir (0.5.1-0ubuntu1) UNRELEASED; urgency=medium
   * New stable point release 0.5.1 (https://launchpad.net/mir/+milestone/0.5.1)
     - ABIs unchanged. Clients and servers of Mir 0.5 do not need rebuilding.
   * Bugs fixed:
-    . TODO. Coming soon.
+    - TODO. Coming soon.
 
  -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Wed, 23 Jul 2014 11:03:34 +0800
 
