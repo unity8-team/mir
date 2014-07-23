@@ -10,6 +10,8 @@ HEADERS += ../common/mock_application_controller.h \
     ../common/mock_oom_controller.h \
     ../common/mock_process_controller.h \
     ../common/mock_proc_info.h \
+    ../common/mock_prompt_session.h
+    ../common/mock_prompt_session_manager.h
     ../common/mock_session.h
 
 INCLUDEPATH += ../../../src/modules \
