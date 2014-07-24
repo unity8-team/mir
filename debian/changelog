@@ -1,3 +1,9 @@
+qtmir (0.4.0) UNRELEASED; urgency=medium
+
+  * Update for Mir 0.4.0 compatibility
+
+ -- Gerry Boland <gerry.boland@canonical.com>  Thu, 03 Jul 2014 00:49:23 +0100
+
 qtmir (0.0.1-ppa5) utopic; urgency=medium
 
   * packaging works now

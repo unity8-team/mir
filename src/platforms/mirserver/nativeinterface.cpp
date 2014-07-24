@@ -33,6 +33,8 @@ void *NativeInterface::nativeResourceForIntegration(const QByteArray &resource)
         result = m_mirConfig->surfaceConfigurator();
     else if (resource == "SessionListener")
         result = m_mirConfig->sessionListener();
+    else if (resource == "PromptSessionListener")
+        result = m_mirConfig->promptSessionListener();
 
     return result;
 }

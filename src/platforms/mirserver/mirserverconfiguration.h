@@ -30,6 +30,7 @@ class QtEventFeeder;
 class SessionListener;
 class SessionAuthorizer;
 class SurfaceConfigurator;
+class PromptSessionListener;
 
 class MirServerConfiguration : public QObject, public mir::DefaultServerConfiguration
 {
@@ -38,6 +39,7 @@ class MirServerConfiguration : public QObject, public mir::DefaultServerConfigur
     Q_PROPERTY(SessionAuthorizer* sessionAuthorizer READ sessionAuthorizer CONSTANT)
     Q_PROPERTY(SessionListener* sessionListener READ sessionListener CONSTANT)
     Q_PROPERTY(SurfaceConfigurator* surfaceConfigurator READ surfaceConfigurator CONSTANT)
+    Q_PROPERTY(PromptSessionListener* promptSessionListener READ promptSessionListener CONSTANT)
 
 public:
     MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
@@ -47,6 +49,7 @@ public:
     std::shared_ptr<mir::compositor::Compositor> the_compositor() override;
     std::shared_ptr<mir::scene::PlacementStrategy> the_placement_strategy() override;
     std::shared_ptr<mir::scene::SessionListener> the_session_listener() override;
+    std::shared_ptr<mir::scene::PromptSessionListener> the_prompt_session_listener() override;
     std::shared_ptr<mir::scene::SurfaceConfigurator> the_surface_configurator() override;
     std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
     std::shared_ptr<mir::input::InputDispatcher> the_input_dispatcher() override;
@@ -59,6 +62,7 @@ public:
     // getters
     SessionAuthorizer *sessionAuthorizer();
     SessionListener *sessionListener();
+    PromptSessionListener *promptSessionListener();
     SurfaceConfigurator *surfaceConfigurator();
 
 private:

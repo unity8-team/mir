@@ -35,6 +35,7 @@ namespace mir {
     namespace scene {
         class Session;
         class Surface;
+        class PromptSession;
     }
 }
 
@@ -52,7 +53,8 @@ class ApplicationManager : public unity::shell::application::ApplicationManagerI
     Q_OBJECT
     Q_ENUMS(MoreRoles)
     Q_FLAGS(ExecFlags)
-    Q_PROPERTY(qtmir::Application* topmostApplication READ topmostApplication NOTIFY topmostApplicationChanged)
+
+    // TODO: Move to unity::shell::application::ApplicationManagerInterface
     Q_PROPERTY(bool empty READ isEmpty NOTIFY emptyChanged)
 
 public:
@@ -62,6 +64,7 @@ public:
         ApplicationManager* create();
     };
 
+    // FIXME: these roles should be added to unity-api and removed from here
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
@@ -99,9 +102,7 @@ public:
 
     // QAbstractListModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
-
-    qtmir::Application* topmostApplication() const;
+    QVariant data(const QModelIndex & index, int role) const override;
 
     Q_INVOKABLE qtmir::Application *startApplication(const QString &appId, ExecFlags flags,
                                               const QStringList &arguments = QStringList());
@@ -110,7 +111,7 @@ public:
     bool isEmpty() const { return rowCount() == 0; }
 
     const QList<Application*> &list() const { return m_applications; }
-    qtmir::Application* findApplicationWithPid(const qint64 pid);
+    qtmir::Application* findApplicationWithPid(const qint64 pid, bool includeChildSessions);
 
 public Q_SLOTS:
     void authorizeSession(const quint64 pid, bool &authorized);
@@ -120,6 +121,9 @@ public Q_SLOTS:
 
     void onSessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 
+    void onPromptSessionStarting(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
+    void onPromptSessionStopping(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
+
     void onProcessStarting(const QString& appId);
     void onProcessStopped(const QString& appId);
     void onProcessFailed(const QString& appId, const bool duringStartup);
@@ -128,7 +132,6 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void focusRequested(const QString &appId);
-    void topmostApplicationChanged(Application *application);
     void emptyChanged();
 
 private Q_SLOTS:
@@ -138,18 +141,20 @@ private:
     void setFocused(Application *application);
     void add(Application *application);
     void remove(Application* application);
-    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
-    Application* findApplicationWithSession(const mir::scene::Session *session);
+    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session, bool includeChildSessions);
+    Application* findApplicationWithSession(const mir::scene::Session *session, bool includeChildSessions);
     Application* applicationForStage(Application::Stage stage);
     QModelIndex findIndex(Application* application);
     bool suspendApplication(Application *application);
     void resumeApplication(Application *application);
     QString toString() const;
 
+    Application* findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession);
+
     QSharedPointer<MirServerConfiguration> m_mirConfig;
 
     QList<Application*> m_applications;
-    Application* m_focusedApplication; // remove as Mir has API for this
+    Application* m_focusedApplication;
     Application* m_mainStageApplication;
     Application* m_sideStageApplication;
     QStringList m_lifecycleExceptions;
@@ -158,7 +163,7 @@ private:
     QSharedPointer<DesktopFileReader::Factory> m_desktopFileReaderFactory;
     QSharedPointer<ProcInfo> m_procInfo;
     static ApplicationManager* the_application_manager;
-    bool m_fenceNext;
+    QList<pid_t> m_hiddenPIDs;
     QString m_nextFocusedAppId;
     bool m_suspended;
 

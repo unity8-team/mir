@@ -24,7 +24,6 @@
 #include "mirsurfacemanager.h"
 #include "mirsurfaceitem.h"
 #include "ubuntukeyboardinfo.h"
-#include "windowscreenshotprovider.h"
 
 // qtmir
 #include "logging.h"
@@ -55,6 +54,7 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         Q_ASSERT(QLatin1String(uri) == QLatin1String("Unity.Application"));
 
         qRegisterMetaType<qtmir::ApplicationManager*>("ApplicationManager*"); //need for queueing signals
+        qRegisterMetaType<qtmir::MirSurfaceItem*>("MirSurfaceItem*");
 
         qmlRegisterUncreatableType<unity::shell::application::ApplicationManagerInterface>(
                     uri, 0, 1, "ApplicationManagerInterface", "Abstract interface. Cannot be created in QML");
@@ -78,7 +78,6 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         qtmir::ApplicationManager* appManager
                 = static_cast<qtmir::ApplicationManager*>(applicationManagerSingleton(engine, nullptr));
         engine->addImageProvider(QLatin1String("application"), new qtmir::ApplicationScreenshotProvider(appManager));
-        engine->addImageProvider(QLatin1String("window"), new qtmir::WindowScreenshotProvider);
     }
 };
 

@@ -1,16 +1,16 @@
 /*
  * Copyright © 2013-2014 Canonical Ltd.
  *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 3,
- * as published by the Free Software Foundation.
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License version 3, as published by
+ * the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranties of MERCHANTABILITY,
+ * SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Daniel d'Andrada <daniel.dandrada@canonical.com>
@@ -140,7 +140,7 @@ QtEventFeeder::QtEventFeeder()
     // TODO: Create them from info gathered from Mir and store things like device id and source
     //       in a QTouchDevice-derived class created by us. So that we can properly assemble back
     //       MirEvents our of QTouchEvents to give to mir::scene::Surface::consume.
-    mTouchDevice = new QTouchDevice();
+    mTouchDevice = new QTouchDevice();  // Qt takes ownership of mTouchDevice with registerTouchDevice
     mTouchDevice->setType(QTouchDevice::TouchScreen);
     mTouchDevice->setCapabilities(
             QTouchDevice::Position | QTouchDevice::Area | QTouchDevice::Pressure |
@@ -210,7 +210,10 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
 
     QPlatformInputContext* context = QGuiApplicationPrivate::platformIntegration()->inputContext();
     if (context) {
-        QKeyEvent qKeyEvent(keyType, keyCode, modifiers, text);
+        // TODO: consider event.repeat_count
+        QKeyEvent qKeyEvent(keyType, keyCode, modifiers,
+                            event.scan_code, event.key_code, event.modifiers,
+                            text);
         qKeyEvent.setTimestamp(timestamp);
         if (context->filterEvent(&qKeyEvent)) {
             // key event filtered out by input context
@@ -218,7 +221,7 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
         }
     }
 
-    QWindowSystemInterface::handleKeyEvent(window, timestamp, keyType, keyCode, modifiers, text);
+    QWindowSystemInterface::handleExtendedKeyEvent(window, timestamp, keyType, keyCode, modifiers, event.scan_code, event.key_code, event.modifiers, text);
 }
 
 void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)

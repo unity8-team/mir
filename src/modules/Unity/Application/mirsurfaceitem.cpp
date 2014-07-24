@@ -16,9 +16,6 @@
  * Authors:
  *     Daniel d'Andrada <daniel.dandrada@canonical.com>
  *     Gerry Boland <gerry.boland@canonical.com>
- *
- * Bits and pieces taken from the QtWayland portion of the Qt project which is
- * Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
  */
 
 // local
@@ -70,10 +67,49 @@ nsecs_t systemTime()
     return nsecs_t(t.tv_sec)*1000000000LL + t.tv_nsec;
 }
 
-MirEvent createMirEvent(QTouchEvent *qtEvent)
+bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
 {
-    MirEvent mirEvent;
+    mirEvent.type = mir_event_type_key;
 
+    // don't care
+    mirEvent.key.device_id = 0;
+    mirEvent.key.source_id = 0;
+
+    switch (qtEvent->type()) {
+        case QEvent::KeyPress:
+            mirEvent.key.action = mir_key_action_down;
+            break;
+        case QEvent::KeyRelease:
+            mirEvent.key.action = mir_key_action_up;
+            break;
+        default:
+            return false;
+    }
+
+    // don't care
+    mirEvent.key.flags = (MirKeyFlag)0;
+
+    mirEvent.key.modifiers = qtEvent->nativeModifiers();
+    mirEvent.key.key_code = qtEvent->nativeVirtualKey();
+    mirEvent.key.scan_code = qtEvent->nativeScanCode();
+
+    // TODO: Investigate how to pass it from mir to qt in the first place.
+    //       Then implement the reverse here.
+    mirEvent.key.repeat_count = 0;
+
+    // Don't care
+    mirEvent.key.down_time = 0;
+
+    mirEvent.key.event_time = qtEvent->timestamp() * 1000000;
+
+    // Don't care
+    mirEvent.key.is_system_key = 0;
+
+    return true;
+}
+
+bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
+{
     mirEvent.type = mir_event_type_motion;
 
     // Hardcoding it for now
@@ -131,6 +167,24 @@ MirEvent createMirEvent(QTouchEvent *qtEvent)
         auto touchPoint = touchPoints.at(i);
         auto &pointer = mirEvent.motion.pointer_coordinates[i];
 
+        // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
+        // When multiple touch points are transmitted with a MirEvent
+        // and one of them (only one is allowed) indicates a pressed
+        // state change the index is encoded in the second byte of the
+        // action value.
+        const int mir_motion_event_pointer_index_shift = 8;
+        if (mirEvent.motion.action == mir_motion_action_pointer_up &&
+            touchPoint.state() == Qt::TouchPointReleased)
+        {
+            mirEvent.motion.action |= i << mir_motion_event_pointer_index_shift;
+        }
+        if (mirEvent.motion.action == mir_motion_action_pointer_down &&
+            touchPoint.state() == Qt::TouchPointPressed)
+        {
+            mirEvent.motion.action |= i << mir_motion_event_pointer_index_shift;
+        }
+
+
         pointer.id = touchPoint.id();
         pointer.x = touchPoint.pos().x();
         pointer.y = touchPoint.pos().y();
@@ -155,7 +209,7 @@ MirEvent createMirEvent(QTouchEvent *qtEvent)
         pointer.tool_type = mir_motion_tool_type_unknown;
     }
 
-    return mirEvent;
+    return true;
 }
 
 } // namespace {
@@ -206,6 +260,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_surface(surface)
     , m_application(application)
     , m_firstFrameDrawn(false)
+    , m_parentSurface(nullptr)
     , m_textureProvider(nullptr)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
@@ -239,6 +294,18 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
 
     connect(&m_frameDropperTimer, &QTimer::timeout,
             this, &MirSurfaceItem::dropPendingBuffers);
+    // Rationale behind the frame dropper and its interval value:
+    //
+    // We want to give ample room for Qt scene graph to have a chance to fetch and render
+    // the next pending buffer before we take the drastic action of dropping it (so don't set
+    // it anywhere close to our target render interval).
+    //
+    // We also want to guarantee a minimal frames-per-second (fps) frequency for client applications
+    // as they get stuck on swap_buffers() if there's no free buffer to swap to yet (ie, they
+    // are all pending consumption by the compositor, us). But on the other hand, we don't want
+    // that minimal fps to be too high as that would mean this timer would be triggered way too often
+    // for nothing causing unnecessary overhead as actually dropping frames from an app should
+    // in practice rarely happen.
     m_frameDropperTimer.setInterval(200);
     m_frameDropperTimer.setSingleShot(false);
 
@@ -248,12 +315,27 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::widthChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
     connect(this, &QQuickItem::heightChanged, this, &MirSurfaceItem::scheduleMirSurfaceSizeUpdate);
 
-    m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
-    connect(this, &QQuickItem::focusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
+    // FIXME - setting surface unfocused immediately breaks camera & video apps, but is
+    // technically the correct thing to do (surface should be unfocused until shell focuses it)
+    //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
+    connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
+
+    if (m_application) {
+        connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    }
 }
 
 MirSurfaceItem::~MirSurfaceItem()
 {
+    QList<MirSurfaceItem*> children(m_children);
+    for (MirSurfaceItem* child : children) {
+        child->setParentSurface(nullptr);
+        delete child;
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
     QMutexLocker locker(&m_mutex);
     m_surface->remove_observer(m_surfaceObserver);
@@ -265,6 +347,15 @@ MirSurfaceItem::~MirSurfaceItem()
 void MirSurfaceItem::release()
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::release - this=" << this;
+
+    QList<MirSurfaceItem*> children(m_children);
+    for (MirSurfaceItem* child : children) {
+        child->release();
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
     if (m_application) {
         m_application->setSurface(nullptr);
     }
@@ -384,7 +475,7 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
 
 void MirSurfaceItem::mousePressEvent(QMouseEvent *event)
 {
-    // we don't care about them for now
+    // TODO: Implement for desktop support
     event->ignore();
 }
 
@@ -403,23 +494,31 @@ void MirSurfaceItem::wheelEvent(QWheelEvent *event)
     Q_UNUSED(event);
 }
 
-void MirSurfaceItem::keyPressEvent(QKeyEvent *event)
+void MirSurfaceItem::keyPressEvent(QKeyEvent *qtEvent)
 {
-    Q_UNUSED(event);
+    MirEvent mirEvent;
+    if (fillInMirEvent(mirEvent, qtEvent)) {
+        m_surface->consume(mirEvent);
+    }
 }
 
-void MirSurfaceItem::keyReleaseEvent(QKeyEvent *event)
+void MirSurfaceItem::keyReleaseEvent(QKeyEvent *qtEvent)
 {
-    Q_UNUSED(event);
+    MirEvent mirEvent;
+    if (fillInMirEvent(mirEvent, qtEvent)) {
+        m_surface->consume(mirEvent);
+    }
 }
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
+    MirEvent mirEvent;
     if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
         // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
         if (hasTouchInsideUbuntuKeyboard(event)) {
-            MirEvent mirEvent = createMirEvent(event);
-            m_surface->consume(mirEvent);
+            if (fillInMirEvent(mirEvent, event)) {
+                m_surface->consume(mirEvent);
+            }
         } else {
             event->ignore();
         }
@@ -427,8 +526,9 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
     } else {
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        MirEvent mirEvent = createMirEvent(event);
-        m_surface->consume(mirEvent);
+        if (fillInMirEvent(mirEvent, event)) {
+            m_surface->consume(mirEvent);
+        }
     }
 }
 
@@ -493,14 +593,12 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
     bool mirSizeIsDifferent = qmlWidth != mirWidth || qmlHeight != mirHeight;
 
-    #if !defined(QT_NO_DEBUG)
     const char *didResize = clientIsRunning() && mirSizeIsDifferent ? "surface resized" : "surface NOT resized";
-    qDebug() << "MirSurfaceItem::updateMirSurfaceSize"
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceSize"
             << "appId =" << appId()
             << ", old (" << mirWidth << "," << mirHeight << ")"
             << ", new (" << qmlWidth << "," << qmlHeight << ")"
             << didResize;
-    #endif
 
     if (clientIsRunning() && mirSizeIsDifferent) {
         mir::geometry::Size newMirSize(qmlWidth, qmlHeight);
@@ -511,6 +609,7 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
 void MirSurfaceItem::updateMirSurfaceFocus(bool focused)
 {
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceFocus" << focused;
     if (focused) {
         m_surface->configure(mir_surface_attrib_focus, mir_surface_focused);
     } else {
@@ -526,8 +625,11 @@ void MirSurfaceItem::dropPendingBuffers()
         m_surface->compositor_snapshot((void*)123/*user_id*/);
 
     while (renderable->buffers_ready_for_compositor() > 0) {
+        // The line below looks like an innocent, effect-less, getter. But as this
+        // method returns a unique_pointer, not holding its reference causes the
+        // buffer to be destroyed/released straight away.
         m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
-        qDebug() << "MirSurfaceItem::dropPendingBuffers()"
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::dropPendingBuffers()"
             << "appId =" << appId()
             << "buffer dropped."
             << renderable->buffers_ready_for_compositor()
@@ -537,14 +639,14 @@ void MirSurfaceItem::dropPendingBuffers()
 
 void MirSurfaceItem::stopFrameDropper()
 {
-    qDebug() << "MirSurfaceItem::stopFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper appId = " << appId();
     QMutexLocker locker(&m_mutex);
     m_frameDropperTimer.stop();
 }
 
 void MirSurfaceItem::startFrameDropper()
 {
-    qDebug() << "MirSurfaceItem::startFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper appId = " << appId();
     QMutexLocker locker(&m_mutex);
     if (!m_frameDropperTimer.isActive()) {
         m_frameDropperTimer.start();
@@ -588,7 +690,7 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
     int mirHeight = m_surface->size().width.as_int();
 
     if ((int)width() != mirWidth || (int)height() != mirHeight) {
-        qDebug("MirSurfaceItem::syncSurfaceSizeWithItemSize()");
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::syncSurfaceSizeWithItemSize()";
         mir::geometry::Size newMirSize((int)width(), (int)height());
         m_surface->resize(newMirSize);
         setImplicitSize(width(), height());
@@ -601,6 +703,75 @@ bool MirSurfaceItem::clientIsRunning() const
             (m_application->state() == Application::Running
              || m_application->state() == Application::Starting))
         || !m_application;
+}
+
+void MirSurfaceItem::setParentSurface(MirSurfaceItem* surface)
+{
+    if (m_parentSurface == surface || surface == this)
+        return;
+
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
+    m_parentSurface = surface;
+
+    if (m_parentSurface) {
+        m_parentSurface->addChildSurface(this);
+    }
+    Q_EMIT parentSurfaceChanged(surface);
+}
+
+MirSurfaceItem* MirSurfaceItem::parentSurface() const
+{
+    return m_parentSurface;
+}
+
+void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
+{
+    qDebug() << "MirSurfaceItem::addChildSurface " << surface->name() << " to " << name();
+
+    m_children.append(surface);
+    Q_EMIT childSurfacesChanged();
+}
+
+void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
+{
+    if (m_children.contains(surface)) {
+        m_children.removeOne(surface);
+
+        Q_EMIT childSurfacesChanged();
+    }
+}
+
+void MirSurfaceItem::foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const
+{
+    for(MirSurfaceItem* child : m_children) {
+        f(child);
+    }
+}
+
+QQmlListProperty<MirSurfaceItem> MirSurfaceItem::childSurfaces()
+{
+    return QQmlListProperty<MirSurfaceItem>(this,
+                                            0,
+                                            MirSurfaceItem::childSurfaceCount,
+                                            MirSurfaceItem::childSurfaceAt);
+}
+
+int MirSurfaceItem::childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+    return p->m_children.count();
+}
+
+MirSurfaceItem* MirSurfaceItem::childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+
+    if (index < 0 || index >= p->m_children.count())
+        return nullptr;
+    return p->m_children[index];
 }
 
 } // namespace qtmir

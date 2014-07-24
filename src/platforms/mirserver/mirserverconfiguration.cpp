@@ -16,11 +16,13 @@
 
 #include "mirserverconfiguration.h"
 
+// local
 #include "connectioncreator.h"
 #include "focussetter.h"
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
 #include "mirserverstatuslistener.h"
+#include "promptsessionlistener.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "sessionauthorizer.h"
@@ -29,7 +31,11 @@
 #include "logging.h"
 #include "unityprotobufservice.h"
 
+// Qt
 #include <QDebug>
+
+// egl
+#include <EGL/egl.h>
 
 namespace msh = mir::shell;
 namespace ms = mir::scene;
@@ -61,6 +67,16 @@ MirServerConfiguration::the_session_listener()
         [this]
         {
             return std::make_shared<SessionListener>();
+        });
+}
+
+std::shared_ptr<ms::PromptSessionListener>
+MirServerConfiguration::the_prompt_session_listener()
+{
+    return prompt_session_listener(
+        [this]
+        {
+            return std::make_shared<PromptSessionListener>();
         });
 }
 
@@ -110,6 +126,10 @@ MirServerConfiguration::the_gl_config()
     return gl_config(
     [this]()
     {
+#ifdef QTMIR_USE_OPENGL
+        // Should desktop-GL be desired, need to bind that API before a context is created
+        eglBindAPI(EGL_OPENGL_API);
+#endif
         return std::make_shared<MirGLConfig>();
     });
 }
@@ -175,6 +195,14 @@ SessionListener *MirServerConfiguration::sessionListener()
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionListener*>(sharedPtr.get());
+}
+
+PromptSessionListener *MirServerConfiguration::promptSessionListener()
+{
+    auto sharedPtr = the_prompt_session_listener();
+    if (sharedPtr.unique()) return 0;
+
+    return static_cast<PromptSessionListener*>(sharedPtr.get());
 }
 
 SurfaceConfigurator *MirServerConfiguration::surfaceConfigurator()

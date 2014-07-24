@@ -8,6 +8,8 @@ CONFIG += plugin
 CONFIG += no_keywords  # "signals" clashes with Mir
 CONFIG += qpa/genericunixfontdatabase
 
+DEFINES += MESA_EGL_NO_X11_HEADERS
+
 # CONFIG += c++11 # only enables C++0x
 QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
@@ -26,6 +28,7 @@ SOURCES += \
     sessionauthorizer.cpp \
     sessionlistener.cpp \
     surfaceconfigurator.cpp \
+    promptsessionlistener.cpp \
     messageprocessor.cpp \
     mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
@@ -50,6 +53,7 @@ HEADERS += \
     qmirserver.h \
     sessionauthorizer.h \
     sessionlistener.h \
+    promptsessionlistener.h \
     surfaceconfigurator.h \
     logging.h \
     messageprocessor.h \

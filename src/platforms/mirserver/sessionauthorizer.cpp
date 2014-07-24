@@ -57,3 +57,12 @@ bool SessionAuthorizer::screencast_is_allowed(SessionCredentials const& creds)
     Q_UNUSED(creds)
     return true;
 }
+
+bool SessionAuthorizer::prompt_session_is_allowed(SessionCredentials const& creds)
+{
+    qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::prompt_session_is_allowed - this=" << this << "pid=" << creds.pid();
+
+    //FIXME Actually mediate this access for clients
+    Q_UNUSED(creds)
+    return true;
+}

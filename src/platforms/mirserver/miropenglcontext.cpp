@@ -20,6 +20,7 @@
 
 #include "displaywindow.h"
 #include "mirserverconfiguration.h"
+#include "mirglconfig.h"
 
 #include <QDebug>
 
@@ -72,8 +73,20 @@ MirOpenGLContext::MirOpenGLContext(const QSharedPointer<mir::DefaultServerConfig
         qFatal("Unable to select EGL Config with the supposed current config ID");
     }
 
-    m_format = q_glFormatFromConfig(eglDisplay, eglConfig, format);
+    QSurfaceFormat formatCopy = format;
+#ifdef QTMIR_USE_OPENGL
+    formatCopy.setRenderableType(QSurfaceFormat::OpenGL);
+#else
+    formatCopy.setRenderableType(QSurfaceFormat::OpenGLES);
+#endif
 
+    m_format = q_glFormatFromConfig(eglDisplay, eglConfig, formatCopy);
+
+    // FIXME: the temporary gl context created by Mir does not have the attributes we specified
+    // in the GLConfig, so need to set explicitly for now
+    m_format.setDepthBufferSize(config->the_gl_config()->depth_buffer_bits());
+    m_format.setStencilBufferSize(config->the_gl_config()->stencil_buffer_bits());
+    m_format.setSamples(-1);
 
 #ifndef QT_NO_DEBUG
     const char* string = (const char*) glGetString(GL_VENDOR);
@@ -102,6 +115,10 @@ QSurfaceFormat MirOpenGLContext::format() const
 
 void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 {
+#ifdef QTMIR_USE_OPENGL
+    eglBindAPI(EGL_OPENGL_API);
+#endif
+
     // ultimately calls Mir's DisplayBuffer::post_update()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     displayBuffer->swapBuffers(); //blocks for vsync
@@ -109,6 +126,10 @@ void MirOpenGLContext::swapBuffers(QPlatformSurface *surface)
 
 bool MirOpenGLContext::makeCurrent(QPlatformSurface *surface)
 {
+#ifdef QTMIR_USE_OPENGL
+    eglBindAPI(EGL_OPENGL_API);
+#endif
+
     // ultimately calls Mir's DisplayBuffer::make_current()
     DisplayWindow *displayBuffer = static_cast<DisplayWindow*>(surface);
     if (displayBuffer) {
@@ -134,5 +155,9 @@ void MirOpenGLContext::doneCurrent()
 
 QFunctionPointer MirOpenGLContext::getProcAddress(const QByteArray &procName)
 {
+#ifdef QTMIR_USE_OPENGL
+    eglBindAPI(EGL_OPENGL_API);
+#endif
+
     return eglGetProcAddress(procName.constData());
 }

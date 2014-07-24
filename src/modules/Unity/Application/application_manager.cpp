@@ -28,6 +28,7 @@
 #include "mirserverconfiguration.h"
 #include "nativeinterface.h"
 #include "sessionlistener.h"
+#include "promptsessionlistener.h"
 #include "sessionauthorizer.h"
 #include "taskcontroller.h"
 #include "logging.h"
@@ -35,6 +36,7 @@
 // mir
 #include <mir/scene/surface.h>
 #include <mir/scene/session.h>
+#include <mir/scene/prompt_session_manager.h>
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
 #include <mircommon/mir/geometry/rectangles.h>
@@ -42,6 +44,9 @@
 // Qt
 #include <QGuiApplication>
 #include <QDebug>
+
+// std
+#include <csignal>
 
 namespace ms = mir::scene;
 
@@ -103,6 +108,14 @@ void connectToSessionListener(ApplicationManager *manager, SessionListener *list
                      manager, &ApplicationManager::onSessionCreatedSurface);
 }
 
+void connectToPromptSessionListener(ApplicationManager * manager, PromptSessionListener * listener)
+{
+    QObject::connect(listener, &PromptSessionListener::promptSessionStarting,
+                     manager, &ApplicationManager::onPromptSessionStarting);
+    QObject::connect(listener, &PromptSessionListener::promptSessionStopping,
+                     manager, &ApplicationManager::onPromptSessionStopping);
+}
+
 void connectToSessionAuthorizer(ApplicationManager *manager, SessionAuthorizer *authorizer)
 {
     QObject::connect(authorizer, &SessionAuthorizer::requestAuthorizationForSession,
@@ -139,6 +152,7 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
 
     SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
     SessionAuthorizer *sessionAuthorizer = static_cast<SessionAuthorizer*>(nativeInterface->nativeResourceForIntegration("SessionAuthorizer"));
+    PromptSessionListener *promptSessionListener = static_cast<PromptSessionListener*>(nativeInterface->nativeResourceForIntegration("PromptSessionListener"));
 
     QSharedPointer<upstart::ApplicationController> appController(new upstart::ApplicationController());
     QSharedPointer<TaskController> taskController(new TaskController(nullptr, appController));
@@ -158,6 +172,7 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
                                          );
 
     connectToSessionListener(appManager, sessionListener);
+    connectToPromptSessionListener(appManager, promptSessionListener);
     connectToSessionAuthorizer(appManager, sessionAuthorizer);
     connectToTaskController(appManager, taskController.data());
 
@@ -191,10 +206,10 @@ ApplicationManager::ApplicationManager(
     , m_taskController(taskController)
     , m_desktopFileReaderFactory(desktopFileReaderFactory)
     , m_procInfo(procInfo)
-    , m_fenceNext(false)
     , m_suspended(false)
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::ApplicationManager (this=%p)" << this;
+    setObjectName("qtmir::ApplicationManager");
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
@@ -245,7 +260,6 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
 
 Application* ApplicationManager::get(int index) const
 {
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::get - index=" << index  << "count=" << m_applications.count();
     if (index < 0 || index >= m_applications.count()) {
         return nullptr;
     }
@@ -316,9 +330,13 @@ void ApplicationManager::setSuspended(bool suspended)
     if (m_suspended) {
         suspendApplication(m_mainStageApplication);
         suspendApplication(m_sideStageApplication);
+        if (m_focusedApplication)
+            m_dbusWindowStack->FocusedWindowChanged(0, QString(), 0);
     } else {
         resumeApplication(m_mainStageApplication);
         resumeApplication(m_sideStageApplication);
+        if (m_focusedApplication)
+            m_dbusWindowStack->FocusedWindowChanged(0, m_focusedApplication->appId(), m_focusedApplication->stage());
     }
 }
 
@@ -346,7 +364,7 @@ void ApplicationManager::resumeApplication(Application *application)
         return;
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::resumeApplication - appId=" << application->appId();
 
-    if (application->state() != Application::Running)
+    if (application->state() == Application::Suspended || application->state() == Application::Stopped)
         application->setState(Application::Running);
 }
 
@@ -361,23 +379,31 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
         return false;
     }
 
-    if (application->stage() == Application::MainStage && m_sideStageApplication)
-        suspendApplication(m_sideStageApplication);
+    resumeApplication(application);
+    if (application == m_focusedApplication)
+        return true;
 
-    if (application->state() == Application::Stopped) {
-        // Respawning this app, move to end of application list so onSessionStarting works ok
-        // FIXME: this happens pretty late, shell could request respawn earlier
-        application->setState(Application::Running);
-        int from = m_applications.indexOf(application);
-        move(from, m_applications.length()-1);
-    } else {
-        if (application->session()) {
-            int from = m_applications.indexOf(application);
-            move(from, 0);
-        }
+    // set state of previously focused app to suspended
+    if (m_focusedApplication) {
+        m_focusedApplication->setFocused(false);
+        Application *lastApplication = applicationForStage(application->stage());
+        suspendApplication(lastApplication);
     }
 
-    setFocused(application);
+    if (application->stage() == Application::MainStage) {
+        m_mainStageApplication = application;
+        resumeApplication(m_sideStageApplication); // in case unfocusCurrentApplication() was last called
+    } else {
+        m_sideStageApplication = application;
+        resumeApplication(m_mainStageApplication); // in case unfocusCurrentApplication() was last called
+    }
+
+    m_focusedApplication = application;
+    m_focusedApplication->setFocused(true);
+
+    move(m_applications.indexOf(application), 0);
+    Q_EMIT focusedApplicationIdChanged();
+    m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 
     // FIXME(dandrader): lying here. The operation is async. So we will only know whether
     // the focusing was successful once the server replies. Maybe the API in unity-api should
@@ -439,6 +465,7 @@ Application *ApplicationManager::startApplication(const QString &inputAppId, Exe
                 m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
                 Application::Starting,
                 arguments,
+                m_mirConfig->the_prompt_session_manager(),
                 this);
 
     if (!application->isValid()) {
@@ -465,7 +492,9 @@ void ApplicationManager::onProcessStarting(const QString &appId)
                     m_taskController,
                     m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
                     Application::Starting,
-                    QStringList(), this);
+                    QStringList(),
+                    m_mirConfig->the_prompt_session_manager(),
+                    this);
 
         if (!application->isValid()) {
             qWarning() << "Unable to instantiate application with appId" << appId;
@@ -501,7 +530,7 @@ bool ApplicationManager::stopApplication(const QString &inputAppId)
     }
 
     if (application == m_focusedApplication) {
-        // TODO(greyback) What to do?? Focus next app, or unfocus everything??
+        // unfocus, and let shell decide what next to focus
         m_focusedApplication = nullptr;
         Q_EMIT focusedApplicationIdChanged();
     }
@@ -679,6 +708,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
 
     if (info->startsWith("maliit-server") || info->contains("qt5/libexec/QtWebProcess")) {
         authorized = true;
+        m_hiddenPIDs << pid;
         return;
     }
 
@@ -690,7 +720,7 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         return;
     }
 
-    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading" << desktopFileName;
+    qCDebug(QTMIR_APPLICATIONS) << "Process supplied desktop_file_hint, loading:" << desktopFileName;
 
     // Guess appId from the desktop file hint
     QString appId = toShortAppIdIfPossible(desktopFileName.get().remove(QRegExp(".desktop$")).split('/').last());
@@ -698,9 +728,11 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
     // FIXME: right now we support --desktop_file_hint=appId for historical reasons. So let's try that in
     // case we didn't get an existing .desktop file path
     DesktopFileReader* desktopData;
-    if (QFileInfo(desktopFileName.get()).exists()) {
+    if (QFileInfo::exists(desktopFileName.get())) {
         desktopData = m_desktopFileReaderFactory->createInstance(appId, QFileInfo(desktopFileName.get()));
     } else {
+        qCDebug(QTMIR_APPLICATIONS) << "Unable to find file:" << desktopFileName.get()
+                                    << "so will search standard paths for one named" << appId << ".desktop";
         desktopData = m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId));
     }
 
@@ -718,7 +750,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         qCDebug(QTMIR_APPLICATIONS) << "Process with pid" << pid << "appeared, attaching to existing entry"
                                     << "in application list with appId:" << application->appId();
         delete desktopData;
-        application->setSessionName(application->appId());
         application->setPid(pid);
         authorized = true;
         return;
@@ -736,7 +767,13 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
                                 << "application list with appId:" << desktopData->appId();
 
     QStringList arguments(info->asStringList());
-    application = new Application(m_taskController, desktopData, Application::Starting, arguments, this);
+    application = new Application(
+        m_taskController,
+        desktopData,
+        Application::Starting,
+        arguments,
+        m_mirConfig->the_prompt_session_manager(),
+        this);
     application->setPid(pid);
     application->setStage(stage);
     application->setCanBeResumed(false);
@@ -748,16 +785,14 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
 
-    if (m_fenceNext) { // needed to ignore sessions created by non-user processes (e.g. maliit)
-        m_fenceNext = false;
-        return;
-    }
-
-    Application* application = findApplicationWithPid(session->process_id());
+    Application* application = findApplicationWithPid(session->process_id(), false);
     if (application && application->state() != Application::Running) {
         application->setSession(session);
     } else {
-        qCritical() << "ApplicationManager::onSessionStarting - unauthorized application!!";
+        if (m_hiddenPIDs.contains(session->process_id())) {
+            return;
+        }
+        qCWarning(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - unmanaged application starting";
     }
 }
 
@@ -766,7 +801,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping - sessionName=" << session->name().c_str();
 
     // in case application closed not by hand of shell, check again here:
-    Application* application = findApplicationWithSession(session);
+    Application* application = findApplicationWithSession(session, false);
     if (application) {
         /* Can remove the application from the running apps list immediately in these curcumstances:
          *  1. application is not managed by upstart (this message from Mir is only notice the app has stopped, must do
@@ -793,6 +828,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
             application->setState(Application::Stopped);
         }
     }
+    m_hiddenPIDs.removeOne(session->process_id());
 }
 
 void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
@@ -801,56 +837,45 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionCreatedSurface - sessionName=" << session->name().c_str();
     Q_UNUSED(surface);
 
-    Application* application = findApplicationWithSession(session);
+    Application* application = findApplicationWithSession(session, false);
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
         application->setState(Application::Running);
     }
 }
 
-void ApplicationManager::setFocused(Application *application)
+void ApplicationManager::onPromptSessionStarting(const std::shared_ptr<ms::PromptSession>& promptSession)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::setFocused - appId=" << application->appId();
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onPromptSessionStarting - promptSession=" << promptSession.get();
 
-    if (application == m_focusedApplication)
-        return;
-
-    // set state of previously focused app to suspended
-    if (m_focusedApplication && m_lifecycleExceptions.filter(m_focusedApplication->appId().section('_',0,0)).empty()) {
-        Application *lastApplication = applicationForStage(application->stage());
-        suspendApplication(lastApplication);
+    Application* app = findApplicationWithSession(m_mirConfig->the_prompt_session_manager()->application_for(promptSession), false);
+    if (app) {
+        app->appendPromptSession(promptSession);
     }
-
-    if (application->stage() == Application::MainStage)
-        m_mainStageApplication = application;
-    else
-        m_sideStageApplication = application;
-
-    m_focusedApplication = application;
-    m_focusedApplication->setFocused(true);
-    if (m_focusedApplication->state() != Application::Starting)
-        m_focusedApplication->setState(Application::Running);
-    move(m_applications.indexOf(application), 0);
-    Q_EMIT focusedApplicationIdChanged();
-    m_dbusWindowStack->FocusedWindowChanged(0, application->appId(), application->stage());
 }
 
-Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session)
+void ApplicationManager::onPromptSessionStopping(const std::shared_ptr<ms::PromptSession>& promptSession)
 {
-    return findApplicationWithSession(session.get());
-}
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onPromptSessionStopping - promptSession=" << promptSession.get();
 
-Application* ApplicationManager::findApplicationWithSession(const ms::Session *session)
-{
     for (Application *app : m_applications) {
-        if (app->session().get() == session) {
-            return app;
-        }
+        app->removePromptSession(promptSession);
     }
-    return nullptr;
 }
 
-Application* ApplicationManager::findApplicationWithPid(const qint64 pid)
+Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session, bool includeChildSessions)
+{
+    return findApplicationWithSession(session.get(), includeChildSessions);
+}
+
+Application* ApplicationManager::findApplicationWithSession(const ms::Session *session, bool includeChildSessions)
+{
+    if (!session)
+        return nullptr;
+    return findApplicationWithPid(session->process_id(), includeChildSessions);
+}
+
+Application* ApplicationManager::findApplicationWithPid(const qint64 pid, bool includeChildSessions)
 {
     if (pid <= 0)
         return nullptr;
@@ -859,6 +884,24 @@ Application* ApplicationManager::findApplicationWithPid(const qint64 pid)
         if (app->m_pid == pid) {
             return app;
         }
+
+        if (includeChildSessions && app->containsProcess(pid)) {
+            return app;
+        }
+    }
+    return nullptr;
+}
+
+Application* ApplicationManager::findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession)
+{
+    for (Application *app : m_applications) {
+        bool found = false;
+        app->foreachPromptSession([&](const std::shared_ptr<mir::scene::PromptSession>& ps) {
+            if (promptSession == ps.get())
+                found = true;
+        });
+        if (found)
+            return app;
     }
     return nullptr;
 }
@@ -886,7 +929,6 @@ void ApplicationManager::add(Application* application)
     Q_EMIT countChanged();
     Q_EMIT applicationAdded(application->appId());
     if (m_applications.size() == 1) {
-        Q_EMIT topmostApplicationChanged(application);
         Q_EMIT emptyChanged();
     }
 }
@@ -909,7 +951,6 @@ void ApplicationManager::remove(Application *application)
         Q_EMIT applicationRemoved(application->appId());
         Q_EMIT countChanged();
         if (i == 0) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
             Q_EMIT emptyChanged();
         }
     }
@@ -925,13 +966,9 @@ void ApplicationManager::move(int from, int to) {
            by one, as explained in the documentation:
            http://qt-project.org/doc/qt-5.0/qtcore/qabstractitemmodel.html#beginMoveRows */
 
-        Application *oldTopmost = topmostApplication();
         beginMoveRows(parent, from, from, parent, to + (to > from ? 1 : 0));
         m_applications.move(from, to);
         endMoveRows();
-        if (topmostApplication() != oldTopmost) {
-            Q_EMIT topmostApplicationChanged(topmostApplication());
-        }
     }
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::move after " << toString();
 }
@@ -957,15 +994,6 @@ QString ApplicationManager::toString() const
         result.append(m_applications.at(i)->appId());
     }
     return result;
-}
-
-Application* ApplicationManager::topmostApplication() const
-{
-    if (m_applications.isEmpty()) {
-        return nullptr;
-    } else {
-        return m_applications[0];
-    }
 }
 
 } // namespace qtmir

@@ -42,22 +42,22 @@ public:
 
     ApplicationController& operator=(const ApplicationController&) = delete;
 
-    virtual pid_t primaryPidForAppId(const QString& appId) = 0;
-    virtual bool appIdHasProcessId(pid_t pid, const QString& appId) = 0;
+    virtual pid_t primaryPidForAppId(const QString &appId) = 0;
+    virtual bool appIdHasProcessId(pid_t pid, const QString &appId) = 0;
 
-    virtual bool stopApplicationWithAppId(const QString& appId) = 0;
-    virtual bool startApplicationWithAppIdAndArgs(const QString& appId, const QStringList& arguments) = 0;
+    virtual bool stopApplicationWithAppId(const QString &appId) = 0;
+    virtual bool startApplicationWithAppIdAndArgs(const QString &appId, const QStringList &arguments) = 0;
 
     virtual QFileInfo findDesktopFileForAppId(const QString &appId) const = 0;
 
 Q_SIGNALS:
-    void applicationAboutToBeStarted(QString id);
-    void applicationStarted(QString id);
-    void applicationStopped(QString id);
-    void applicationFocusRequest(QString id);
-    void applicationResumeRequest(QString id);
+    void applicationAboutToBeStarted(const QString &appId);
+    void applicationStarted(const QString &appId);
+    void applicationStopped(const QString &appId);
+    void applicationFocusRequest(const QString &appId);
+    void applicationResumeRequest(const QString &appId);
 
-    void applicationError(QString id, ApplicationController::Error error);
+    void applicationError(const QString &appId, ApplicationController::Error error);
 
 protected:
     ApplicationController() = default;

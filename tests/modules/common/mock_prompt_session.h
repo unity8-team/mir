@@ -12,24 +12,20 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
-#ifndef WINDOW_SCREENSHOT_PROVIDER_H_
-#define WINDOW_SCREENSHOT_PROVIDER_H_
+#ifndef MOCK_MIR_PROMPT_SESSION_H
+#define MOCK_MIR_PROMPT_SESSION_H
 
-#include <QQuickImageProvider>
+#include <mir/scene/prompt_session.h>
+#include <gmock/gmock.h>
 
-namespace qtmir {
-
-class WindowScreenshotProvider : public QQuickImageProvider
+namespace testing
 {
-public:
-    WindowScreenshotProvider();
-
-    // id is ignored for now
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override;
+struct MockPromptSession : public mir::scene::PromptSession
+{
 };
+}
 
-} // namespace qtmir
-
-#endif // WINDOW_SCREENSHOT_PROVIDER_H_
+#endif // MOCK_MIR_PROMPT_SESSION_H

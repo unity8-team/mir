@@ -46,7 +46,7 @@ AppIdDesktopFile DBusWindowStack::GetAppIdFromPid(unsigned int pid)
 {
     AppIdDesktopFile res;
     ApplicationManager *appMgr = static_cast<ApplicationManager*>(parent());
-    const Application* app = static_cast<Application*>(appMgr->findApplicationWithPid(pid));
+    const Application *app = appMgr->findApplicationWithPid(pid, false);
     if (app) {
         res.app_id = app->appId();
         res.desktop_file = app->desktopFile();
