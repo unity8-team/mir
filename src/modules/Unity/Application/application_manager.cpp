@@ -319,9 +319,13 @@ void ApplicationManager::setSuspended(bool suspended)
     if (m_suspended) {
         suspendApplication(m_mainStageApplication);
         suspendApplication(m_sideStageApplication);
+        if (m_focusedApplication)
+            m_dbusWindowStack->FocusedWindowChanged(0, QString(), 0);
     } else {
         resumeApplication(m_mainStageApplication);
         resumeApplication(m_sideStageApplication);
+        if (m_focusedApplication)
+            m_dbusWindowStack->FocusedWindowChanged(0, m_focusedApplication->appId(), m_focusedApplication->stage());
     }
 }
 
