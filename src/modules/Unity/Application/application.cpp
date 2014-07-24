@@ -26,6 +26,9 @@
 // mir
 #include <mir/scene/session.h>
 #include <mir/scene/snapshot.h>
+#include <mir/scene/prompt_session_manager.h>
+
+namespace ms = mir::scene;
 
 namespace qtmir
 {
@@ -35,6 +38,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
                          DesktopFileReader *desktopFileReader,
                          State state,
                          const QStringList &arguments,
+                         const std::shared_ptr<ms::PromptSessionManager>& promptSessionManager,
                          ApplicationManager *parent)
     : ApplicationInfoInterface(desktopFileReader->appId(), parent)
     , m_appMgr(parent)
@@ -49,6 +53,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_arguments(arguments)
     , m_suspendTimer(new QTimer(this))
     , m_surface(nullptr)
+    , m_promptSessionManager(promptSessionManager)
     , m_screenShotGuard(new Guard)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
@@ -75,6 +80,7 @@ Application::~Application()
         QMutexLocker lk(&screenshotMutex);
         m_screenShotGuard.clear();
     }
+    stopPromptSessions();
     delete m_desktopData;
     delete m_surface;
 }
@@ -244,6 +250,7 @@ void Application::setState(Application::State state)
         {
         case Application::Suspended:
             if (m_state == Application::Running) {
+                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
@@ -261,6 +268,7 @@ void Application::setState(Application::State state)
             }
             break;
         case Application::Stopped:
+            stopPromptSessions();
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
             if (m_surface) {
@@ -404,6 +412,71 @@ void Application::discardSurface()
 void Application::updateFullscreenProperty()
 {
     setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
+}
+
+void Application::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
+{
+    qCDebug(QTMIR_APPLICATIONS) << "Application::appendPromptSession appId=" << appId()
+        << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
+
+    m_promptSessions.append(promptSession);
+}
+
+void Application::removePromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
+{
+    qCDebug(QTMIR_APPLICATIONS) << "Application::removePromptSession appId=" << appId()
+        << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
+
+    m_promptSessions.removeAll(promptSession);
+}
+
+void Application::stopPromptSessions()
+{
+    QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);
+
+    QListIterator<std::shared_ptr<ms::PromptSession>> it(copy);
+    for ( it.toBack(); it.hasPrevious(); ) {
+        m_promptSessionManager->stop_prompt_session(it.previous());
+    }
+}
+
+std::shared_ptr<ms::PromptSession> Application::activePromptSession() const
+{
+    if (m_promptSessions.count() > 0)
+        return m_promptSessions.back();
+    return nullptr;
+}
+
+void Application::foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const
+{
+    for (std::shared_ptr<mir::scene::PromptSession> promptSession : m_promptSessions) {
+        f(promptSession);
+    }
+}
+
+bool Application::containsProcess(pid_t pid) const
+{
+    if (m_pid == pid)
+        return true;
+
+    QListIterator<std::shared_ptr<ms::PromptSession>> iter(m_promptSessions);
+    while(iter.hasNext()) {
+        std::shared_ptr<ms::PromptSession> promptSession = iter.next();
+
+        std::shared_ptr<ms::Session> helper = m_promptSessionManager->helper_for(promptSession);
+        if (helper && helper->process_id() == pid)
+            return true;
+
+        bool found = false;
+        m_promptSessionManager->for_each_provider_in(promptSession,
+            [&found, pid](std::shared_ptr<ms::Session> const& provider) {
+                if (provider->process_id() == pid)
+                    found = true;
+            });
+        if (found)
+            return true;
+    }
+    return false;
 }
 
 } // namespace qtmir

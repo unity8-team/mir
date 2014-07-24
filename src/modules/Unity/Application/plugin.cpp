@@ -54,6 +54,7 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         Q_ASSERT(QLatin1String(uri) == QLatin1String("Unity.Application"));
 
         qRegisterMetaType<qtmir::ApplicationManager*>("ApplicationManager*"); //need for queueing signals
+        qRegisterMetaType<qtmir::MirSurfaceItem*>("MirSurfaceItem*");
 
         qmlRegisterUncreatableType<unity::shell::application::ApplicationManagerInterface>(
                     uri, 0, 1, "ApplicationManagerInterface", "Abstract interface. Cannot be created in QML");

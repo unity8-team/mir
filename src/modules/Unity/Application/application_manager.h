@@ -35,6 +35,7 @@ namespace mir {
     namespace scene {
         class Session;
         class Surface;
+        class PromptSession;
     }
 }
 
@@ -110,7 +111,7 @@ public:
     bool isEmpty() const { return rowCount() == 0; }
 
     const QList<Application*> &list() const { return m_applications; }
-    qtmir::Application* findApplicationWithPid(const qint64 pid);
+    qtmir::Application* findApplicationWithPid(const qint64 pid, bool includeChildSessions);
 
 public Q_SLOTS:
     void authorizeSession(const quint64 pid, bool &authorized);
@@ -119,6 +120,9 @@ public Q_SLOTS:
     void onSessionStopping(std::shared_ptr<mir::scene::Session> const& session);
 
     void onSessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+
+    void onPromptSessionStarting(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
+    void onPromptSessionStopping(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
 
     void onProcessStarting(const QString& appId);
     void onProcessStopped(const QString& appId);
@@ -137,13 +141,15 @@ private:
     void setFocused(Application *application);
     void add(Application *application);
     void remove(Application* application);
-    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
-    Application* findApplicationWithSession(const mir::scene::Session *session);
+    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session, bool includeChildSessions);
+    Application* findApplicationWithSession(const mir::scene::Session *session, bool includeChildSessions);
     Application* applicationForStage(Application::Stage stage);
     QModelIndex findIndex(Application* application);
     bool suspendApplication(Application *application);
     void resumeApplication(Application *application);
     QString toString() const;
+
+    Application* findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession);
 
     QSharedPointer<MirServerConfiguration> m_mirConfig;
 
@@ -157,7 +163,7 @@ private:
     QSharedPointer<DesktopFileReader::Factory> m_desktopFileReaderFactory;
     QSharedPointer<ProcInfo> m_procInfo;
     static ApplicationManager* the_application_manager;
-    bool m_fenceNext;
+    QList<pid_t> m_hiddenPIDs;
     QString m_nextFocusedAppId;
     bool m_suspended;
 

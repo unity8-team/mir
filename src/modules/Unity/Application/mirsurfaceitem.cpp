@@ -260,6 +260,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_surface(surface)
     , m_application(application)
     , m_firstFrameDrawn(false)
+    , m_parentSurface(nullptr)
     , m_textureProvider(nullptr)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
@@ -319,11 +320,22 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
-    connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    if (m_application) {
+        connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    }
 }
 
 MirSurfaceItem::~MirSurfaceItem()
 {
+    QList<MirSurfaceItem*> children(m_children);
+    for (MirSurfaceItem* child : children) {
+        child->setParentSurface(nullptr);
+        delete child;
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
     QMutexLocker locker(&m_mutex);
     m_surface->remove_observer(m_surfaceObserver);
@@ -335,6 +347,15 @@ MirSurfaceItem::~MirSurfaceItem()
 void MirSurfaceItem::release()
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::release - this=" << this;
+
+    QList<MirSurfaceItem*> children(m_children);
+    for (MirSurfaceItem* child : children) {
+        child->release();
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
     if (m_application) {
         m_application->setSurface(nullptr);
     }
@@ -682,6 +703,75 @@ bool MirSurfaceItem::clientIsRunning() const
             (m_application->state() == Application::Running
              || m_application->state() == Application::Starting))
         || !m_application;
+}
+
+void MirSurfaceItem::setParentSurface(MirSurfaceItem* surface)
+{
+    if (m_parentSurface == surface || surface == this)
+        return;
+
+    if (m_parentSurface) {
+        m_parentSurface->removeChildSurface(this);
+    }
+
+    m_parentSurface = surface;
+
+    if (m_parentSurface) {
+        m_parentSurface->addChildSurface(this);
+    }
+    Q_EMIT parentSurfaceChanged(surface);
+}
+
+MirSurfaceItem* MirSurfaceItem::parentSurface() const
+{
+    return m_parentSurface;
+}
+
+void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
+{
+    qDebug() << "MirSurfaceItem::addChildSurface " << surface->name() << " to " << name();
+
+    m_children.append(surface);
+    Q_EMIT childSurfacesChanged();
+}
+
+void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
+{
+    if (m_children.contains(surface)) {
+        m_children.removeOne(surface);
+
+        Q_EMIT childSurfacesChanged();
+    }
+}
+
+void MirSurfaceItem::foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const
+{
+    for(MirSurfaceItem* child : m_children) {
+        f(child);
+    }
+}
+
+QQmlListProperty<MirSurfaceItem> MirSurfaceItem::childSurfaces()
+{
+    return QQmlListProperty<MirSurfaceItem>(this,
+                                            0,
+                                            MirSurfaceItem::childSurfaceCount,
+                                            MirSurfaceItem::childSurfaceAt);
+}
+
+int MirSurfaceItem::childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+    return p->m_children.count();
+}
+
+MirSurfaceItem* MirSurfaceItem::childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
+{
+    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
+
+    if (index < 0 || index >= p->m_children.count())
+        return nullptr;
+    return p->m_children[index];
 }
 
 } // namespace qtmir
