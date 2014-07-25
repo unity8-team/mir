@@ -32,4 +32,6 @@ const char *mirSurfaceStateToStr(int value);
 const char *mirSurfaceFocusStateToStr(int value);
 const char *mirSurfaceVisibilityToStr(int value);
 
+const char *applicationStateToStr(int state);
+
 #endif // UBUNTUGESTURES_DEBUG_HELPER_H

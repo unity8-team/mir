@@ -17,6 +17,9 @@
 #include "debughelpers.h"
 #include <QTouchEvent>
 
+// Unity API
+#include <unity/shell/application/ApplicationInfoInterface.h>
+
 QString touchPointStateToString(Qt::TouchPointState state)
 {
     switch (state) {
@@ -166,6 +169,24 @@ const char *mirSurfaceVisibilityToStr(int value)
         return "occluded";
     case mir_surface_visibility_exposed:
         return "exposed";
+    default:
+        return "???";
+    }
+}
+
+using namespace unity::shell::application;
+
+const char *applicationStateToStr(int state)
+{
+    switch (state) {
+    case ApplicationInfoInterface::Starting:
+        return "starting";
+    case ApplicationInfoInterface::Running:
+        return "running";
+    case ApplicationInfoInterface::Suspended:
+        return "suspended";
+    case ApplicationInfoInterface::Stopped:
+        return "stopped";
     default:
         return "???";
     }

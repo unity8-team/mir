@@ -17,6 +17,7 @@
 // local
 #include "application.h"
 #include "application_manager.h"
+#include "debughelpers.h"
 #include "desktopfilereader.h"
 #include "taskcontroller.h"
 
@@ -244,7 +245,7 @@ void Application::updateScreenshot()
 
 void Application::setState(Application::State state)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setState - appId=" << appId() << "state=" << state;
+    qCDebug(QTMIR_APPLICATIONS) << "Application::setState - appId=" << appId() << "state=" << applicationStateToStr(state);
     if (m_state != state) {
         switch (state)
         {
