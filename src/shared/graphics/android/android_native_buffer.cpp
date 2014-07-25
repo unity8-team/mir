@@ -38,9 +38,9 @@ void mga::AndroidNativeBuffer::ensure_available_for(BufferAccess intent)
     fence->wait();
 }
 
-void mga::AndroidNativeBuffer::update_usage(NativeFence& merge_fd, BufferAccess updated_access)
+void mga::AndroidNativeBuffer::update_usage(Fd merge_fd, BufferAccess updated_access)
 {
-    fence->merge_with(merge_fd);
+    fence->merge_with(std::move(merge_fd));
     access = updated_access;
 }
 
@@ -54,7 +54,7 @@ buffer_handle_t mga::AndroidNativeBuffer::handle() const
     return native_window_buffer->handle;
 }
 
-mga::NativeFence mga::AndroidNativeBuffer::copy_fence() const
+mir::Fd mga::AndroidNativeBuffer::copy_fence() const
 {
     return fence->copy_native_handle();
 }

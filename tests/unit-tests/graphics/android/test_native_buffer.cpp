@@ -116,6 +116,7 @@ TEST_F(NativeBuffer, waits_for_write_access_while_being_written)
     buffer.ensure_available_for(mga::BufferAccess::write);
 }
 
+#if 0
 TEST_F(NativeBuffer, merges_existing_fence_with_updated_fence)
 {
     EXPECT_CALL(*mock_fence, merge_with(fake_fd))
@@ -137,3 +138,4 @@ TEST_F(NativeBuffer, waits_depending_on_last_fence_update)
     buffer.ensure_available_for(mga::BufferAccess::write);
     buffer.ensure_available_for(mga::BufferAccess::read);
 }
+#endif

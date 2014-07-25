@@ -132,9 +132,9 @@ std::weak_ptr<hwc_display_contents_1_t> mga::LayerList::native_list()
     return hwc_representation;
 }
 
-mga::NativeFence mga::LayerList::retirement_fence()
+mir::Fd mga::LayerList::retirement_fence()
 {
-    return hwc_representation->retireFenceFd;
+    return mir::Fd(hwc_representation->retireFenceFd);
 }
 
 mga::LayerList::LayerList(

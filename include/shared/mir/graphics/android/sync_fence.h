@@ -19,6 +19,7 @@
 #define MIR_GRAPHICS_ANDROID_SYNC_FENCE_H_
 
 #include "mir/graphics/android/fence.h"
+#include "mir/fd.h"
 #include <memory>
 
 namespace mir
@@ -46,8 +47,7 @@ public:
 class SyncFence : public Fence
 {
 public:
-    SyncFence(std::shared_ptr<SyncFileOps> const&, Fd fd);
-    ~SyncFence() noexcept;
+    explicit SyncFence(std::shared_ptr<SyncFileOps> const&, Fd fd);
 
     void wait();
     void merge_with(Fd merge_fd);

@@ -84,6 +84,7 @@ TEST_F(InterpreterResourceTest, deposit_buffer_has_ownership)
     EXPECT_EQ(use_count_before, stub_buffer1.use_count());
 }
 
+#if 0
 TEST_F(InterpreterResourceTest, update_usage_for)
 {
     int fence_fd = 44;
@@ -99,6 +100,7 @@ TEST_F(InterpreterResourceTest, update_usage_for)
         cache.update_native_fence(nullptr, fence_fd);
     }, std::runtime_error);
 }
+#endif
 
 TEST_F(InterpreterResourceTest, retreive_buffer_with_bad_key_throws)
 {

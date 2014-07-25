@@ -43,10 +43,10 @@ public:
 
     virtual ANativeWindowBuffer* anwb() const = 0;
     virtual buffer_handle_t handle() const = 0;
-    virtual android::NativeFence copy_fence() const = 0;
+    virtual Fd copy_fence() const = 0;
 
     virtual void ensure_available_for(android::BufferAccess intent) = 0;
-    virtual void update_usage(android::NativeFence& fence, android::BufferAccess current_usage) = 0;
+    virtual void update_usage(Fd fence, android::BufferAccess current_usage) = 0;
 
 protected:
     NativeBuffer() = default;

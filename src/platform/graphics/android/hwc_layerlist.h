@@ -19,7 +19,7 @@
 #ifndef MIR_GRAPHICS_ANDROID_HWC_LAYERLIST_H_
 #define MIR_GRAPHICS_ANDROID_HWC_LAYERLIST_H_
 
-#include "mir/graphics/android/fence.h"
+#include "mir/fd.h"
 #include "mir/geometry/rectangle.h"
 #include "hwc_layers.h"
 #include <hardware/hwcomposer.h>
@@ -63,7 +63,7 @@ public:
     std::list<HwcLayerEntry>::iterator end();
 
     std::weak_ptr<hwc_display_contents_1_t> native_list();
-    NativeFence retirement_fence();
+    Fd retirement_fence();
 private:
     LayerList& operator=(LayerList const&) = delete;
     LayerList(LayerList const&) = delete;

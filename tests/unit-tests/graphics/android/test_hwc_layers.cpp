@@ -167,6 +167,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_framebuffer_layer)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
+#if 0
 TEST_F(HWCLayersTest, apply_buffer_updates_to_overlay_layers)
 {
     int fake_fence = 552;
@@ -244,6 +245,7 @@ TEST_F(HWCLayersTest, buffer_fence_updates)
     hwc_layer->releaseFenceFd = fake_fence;
     layer.update_from_releasefence(mock_buffer);
 }
+#endif
 
 TEST_F(HWCLayersTest, check_layer_defaults_and_alpha)
 {

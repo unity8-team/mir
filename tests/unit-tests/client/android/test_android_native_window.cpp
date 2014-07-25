@@ -20,7 +20,6 @@
 #include "mir/graphics/android/android_driver_interpreter.h"
 #include "src/client/mir_client_surface.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
-#include "mir_test_doubles/mock_fence.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -143,11 +142,11 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_returns_right_buffer)
 {
     using namespace testing;
 
-    int fake_fd = 4948;
+    int fake_fd{4948};
     auto mock_buffer = std::make_shared<NiceMock<mtd::MockAndroidNativeBuffer>>();
     EXPECT_CALL(*mock_buffer, copy_fence())
         .Times(1)
-        .WillOnce(Return(fake_fd));
+        .WillOnce(Invoke([&fake_fd](){ return mir::Fd(fake_fd);}));
     EXPECT_CALL(*mock_driver_interpreter, driver_requests_buffer())
         .Times(1)
         .WillOnce(Return(mock_buffer.get()));

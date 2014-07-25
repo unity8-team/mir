@@ -21,6 +21,7 @@
 
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/geometry/size.h"
+#include "mir_test/gmock_fd_fix.h"
 #include <gmock/gmock.h>
 
 namespace mir
@@ -39,8 +40,6 @@ struct MockAndroidNativeBuffer : public graphics::NativeBuffer
             .WillByDefault(Return(&stub_anwb));
         ON_CALL(*this, handle())
             .WillByDefault(Return(&native_handle));
-        ON_CALL(*this, copy_fence())
-            .WillByDefault(Return(-1));
     }
 
     MockAndroidNativeBuffer(geometry::Size sz)
@@ -50,15 +49,21 @@ struct MockAndroidNativeBuffer : public graphics::NativeBuffer
         stub_anwb.height = sz.height.as_int();
     }
 
+    void update_usage(Fd fd, graphics::android::BufferAccess access)
+    {
+        update_usage_(fd, access);
+    }
+
     MOCK_CONST_METHOD0(anwb, ANativeWindowBuffer*());
     MOCK_CONST_METHOD0(handle, buffer_handle_t());
-    MOCK_CONST_METHOD0(copy_fence, graphics::android::NativeFence());
+    MOCK_CONST_METHOD0(copy_fence, Fd());
 
     MOCK_METHOD1(ensure_available_for, void(graphics::android::BufferAccess));
-    MOCK_METHOD2(update_usage, void(graphics::android::NativeFence&, graphics::android::BufferAccess));
+    MOCK_METHOD2(update_usage_, void(Fd&, graphics::android::BufferAccess));
 
     ANativeWindowBuffer stub_anwb;
     native_handle_t native_handle;
+
 };
 
 typedef testing::NiceMock<MockAndroidNativeBuffer> StubAndroidNativeBuffer;
