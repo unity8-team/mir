@@ -572,7 +572,7 @@ void ApplicationManager::onProcessFailed(const QString &appId, const bool during
      * Application to indicate it can be resumed.
      */
 
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onProcessStopped - appId=" << appId << "duringStartup=" << duringStartup;
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onProcessFailed - appId=" << appId << "duringStartup=" << duringStartup;
 
     Application *application = findApplication(appId);
     if (!application) {
