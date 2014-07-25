@@ -20,6 +20,7 @@ set(
   test_thread_name.cpp
   test_default_emergency_cleanup.cpp
   test_basic_observers.cpp
+  test_fd.cpp
 )
 
 add_subdirectory(options/)
@@ -49,7 +50,6 @@ target_link_libraries(
   mirclientplatform
   mirdraw
   mirtestdraw
-  mirlogging
 
   mir-test
   mir-test-doubles

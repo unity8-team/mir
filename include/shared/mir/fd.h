@@ -18,6 +18,8 @@
 #ifndef MIR_FD_H_
 #define MIR_FD_H_
 
+#include <atomic>
+
 namespace mir
 {
 class Fd
@@ -29,6 +31,7 @@ public:
     static int const invalid{-1};
     Fd(); //Initializes fd to the mir::Fd::invalid;
     Fd(Fd&&);
+    Fd(Fd const&);
     Fd& operator=(Fd);
     ~Fd() noexcept;
 
@@ -36,7 +39,13 @@ public:
     operator int() const;
 
 private:
-    int fd;
+    struct CountedFd
+    {
+        CountedFd(int fd);
+        int const raw_fd;
+        std::atomic<unsigned int> refcount;
+    };
+    CountedFd *fd;
 };
 } // namespace mir
 
