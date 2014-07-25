@@ -26,12 +26,6 @@ add_library(
 )
 
 set_target_properties(
-  mirclientplatformmesa PROPERTIES
-  OUTPUT_NAME mirclientplatform
-  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
-)
-
-set_target_properties(
   mirclientplatformmesa-static PROPERTIES
   OUTPUT_NAME mirclientplatform-static
   ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
@@ -53,24 +47,11 @@ target_link_libraries(
 install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  add_custom_command(TARGET mirclientplatformmesa
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove libmirclientplatform.so
-    COMMAND ${CMAKE_COMMAND} -E create_symlink mesa/$<TARGET_FILE_NAME:mirclientplatformmesa> libmirclientplatform.so
-    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
   add_custom_target(static-client-platform-symlink ALL
     DEPENDS mirclientplatformmesa-static
     COMMAND ${CMAKE_COMMAND} -E remove libmirclientplatform-static.a
     COMMAND ${CMAKE_COMMAND} -E create_symlink mesa/$<TARGET_FILE_NAME:mirclientplatformmesa-static> libmirclientplatform-static.a
     WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
-
-  install(CODE
-    "execute_process(
-       COMMAND ln -sf mir/clientplatform/mesa/libmirclientplatform.so
-       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-     )"
   )
 endif()
 

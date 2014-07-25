@@ -18,13 +18,6 @@ add_library(
   ${ANDROID_PLATFORM_SRC}
 )
 
-
-set_target_properties(
-  mirclientplatformandroid PROPERTIES
-  OUTPUT_NAME mirclientplatform
-  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/android
-)
-
 target_link_libraries(
   mirclientplatformandroid
 
@@ -51,26 +44,13 @@ target_link_libraries(
 )
 
 
-install(TARGETS mirclientplatformandroid LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/clientplatform/android)
+install(TARGETS mirclientplatformandroid LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
-  add_custom_command(TARGET mirclientplatformandroid
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove libmirclientplatform.so
-    COMMAND ${CMAKE_COMMAND} -E create_symlink android/$<TARGET_FILE_NAME:mirclientplatformandroid> libmirclientplatform.so
-    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
   add_custom_target(static-client-platform-symlink ALL
     DEPENDS mirclientplatformandroid-static
     COMMAND ${CMAKE_COMMAND} -E remove libmirclientplatform-static.a
     COMMAND ${CMAKE_COMMAND} -E create_symlink android/$<TARGET_FILE_NAME:mirclientplatformandroid-static> libmirclientplatform-static.a
     WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
-
-  install(CODE
-    "execute_process(
-       COMMAND ln -sf mir/clientplatform/android/libmirclientplatform.so
-       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-     )"
   )
 endif()
