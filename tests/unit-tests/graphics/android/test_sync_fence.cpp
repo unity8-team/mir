@@ -44,13 +44,12 @@ protected:
     virtual void SetUp()
     {
         mock_fops = std::make_shared<testing::NiceMock<MockFileOps>>();
-        dummy_fd_value = 3;
     }
 
-    int dummy_fd_value{3};
+    int dummy_fd_value{494};
     int invalid_fd_value{-1};
-    mir::Fd dummy_fd{std::move(dummy_fd_value)};
-    mir::Fd invalid_fd{std::move(invalid_fd_value)};
+    mir::Fd dummy_fd{dummy_fd_value};
+    mir::Fd invalid_fd{invalid_fd_value};
     std::shared_ptr<MockFileOps> mock_fops;
 };
 
@@ -100,11 +99,11 @@ struct IoctlSetter
     int fd;
 };
 }
-#if 0
+
 TEST_F(SyncSwTest, sync_merge_with_valid_fd)
 {
     using namespace testing;
-    int dummy_fd2 = 44;
+    mir::Fd dummy_fd2{44};
     int out_fd = 88;
     IoctlSetter setter(out_fd);
 
@@ -125,9 +124,8 @@ TEST_F(SyncSwTest, sync_merge_with_invalid_fd)
         .Times(0);
 
     mga::SyncFence fence1(mock_fops, std::move(dummy_fd));
-    fence1.merge_with(invalid_fd_value);
+    fence1.merge_with(mir::Fd{invalid_fd_value});
 }
-#endif
 
 TEST_F(SyncSwTest, copy_dups_fd)
 {

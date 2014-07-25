@@ -167,7 +167,6 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_framebuffer_layer)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-#if 0
 TEST_F(HWCLayersTest, apply_buffer_updates_to_overlay_layers)
 {
     int fake_fence = 552;
@@ -188,7 +187,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_overlay_layers)
     hwc_layer->releaseFenceFd = fake_fence;
     EXPECT_CALL(*native_handle_1, copy_fence())
         .Times(1)
-        .WillOnce(testing::Return(fake_fence));
+        .WillOnce(testing::Return(mir::Fd(fake_fence)));
     expected_layer.acquireFenceFd = fake_fence;
     layer.set_acquirefence_from(mock_buffer);
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
@@ -215,7 +214,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_fbtarget)
     hwc_layer->releaseFenceFd = fake_fence;
     EXPECT_CALL(*native_handle_1, copy_fence())
         .Times(1)
-        .WillOnce(testing::Return(fake_fence));
+        .WillOnce(testing::Return(mir::Fd(fake_fence)));
     expected_layer.acquireFenceFd = fake_fence;
     layer.set_acquirefence_from(mock_buffer);
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
@@ -235,7 +234,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_fbtarget)
 
 TEST_F(HWCLayersTest, buffer_fence_updates)
 {
-    int fake_fence = 552;
+    mir::Fd fake_fence{552};
     EXPECT_CALL(*native_handle_1, update_usage(fake_fence, mga::BufferAccess::read))
         .Times(1);
     mga::HWCLayer layer(
@@ -245,7 +244,6 @@ TEST_F(HWCLayersTest, buffer_fence_updates)
     hwc_layer->releaseFenceFd = fake_fence;
     layer.update_from_releasefence(mock_buffer);
 }
-#endif
 
 TEST_F(HWCLayersTest, check_layer_defaults_and_alpha)
 {

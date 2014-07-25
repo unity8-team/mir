@@ -35,7 +35,7 @@ struct NativeBuffer : public testing::Test
 
     std::shared_ptr<ANativeWindowBuffer> a_native_window_buffer;
     std::shared_ptr<mtd::MockFence> mock_fence;
-    int fake_fd;
+    mir::Fd fake_fd;
 };
 
 TEST_F(NativeBuffer, extends_lifetime_when_driver_calls_external_refcount_hooks)
@@ -116,7 +116,6 @@ TEST_F(NativeBuffer, waits_for_write_access_while_being_written)
     buffer.ensure_available_for(mga::BufferAccess::write);
 }
 
-#if 0
 TEST_F(NativeBuffer, merges_existing_fence_with_updated_fence)
 {
     EXPECT_CALL(*mock_fence, merge_with(fake_fd))
@@ -138,4 +137,3 @@ TEST_F(NativeBuffer, waits_depending_on_last_fence_update)
     buffer.ensure_available_for(mga::BufferAccess::write);
     buffer.ensure_available_for(mga::BufferAccess::read);
 }
-#endif

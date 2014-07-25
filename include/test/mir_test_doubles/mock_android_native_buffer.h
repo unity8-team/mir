@@ -59,7 +59,6 @@ struct MockAndroidNativeBuffer : public graphics::NativeBuffer
 
     ANativeWindowBuffer stub_anwb;
     native_handle_t native_handle;
-
 };
 
 typedef testing::NiceMock<MockAndroidNativeBuffer> StubAndroidNativeBuffer;

@@ -224,12 +224,11 @@ TEST_F(HwcDevice, resets_layers_when_prepare_gl_called)
     device.post_gl(stub_context);
 }
 
-#if 0
 TEST_F(HwcDevice, sets_and_updates_fences)
 {
     using namespace testing;
-    int fb_release_fence = 94;
-    int hwc_retire_fence = ::open("/dev/null", 0);
+    mir::Fd fb_release_fence{94};
+    mir::Fd hwc_retire_fence{::open("/dev/null", 0)};
     int* list_retire_fence = nullptr;
     auto set_fences_fn = [&](hwc_display_contents_1_t& contents)
     {
@@ -258,15 +257,13 @@ TEST_F(HwcDevice, sets_and_updates_fences)
     //check that the retire fence is closed
     bool retire_fence_was_closed{fcntl(hwc_retire_fence, F_GETFD) == -1};
     EXPECT_TRUE(retire_fence_was_closed);
-    if (!retire_fence_was_closed)
-        close(hwc_retire_fence);
 }
 
 TEST_F(HwcDevice, commits_correct_list_with_rejected_renderables)
 {
     using namespace testing;
-    int fb_acquire_fence = 80;
-    int fb_release_fence = 383;
+    mir::Fd fb_acquire_fence{80};
+    mir::Fd fb_release_fence{383};
 
     auto set_fences_fn = [&](hwc_display_contents_1_t& contents)
     {
@@ -309,10 +306,10 @@ TEST_F(HwcDevice, commits_correct_list_with_rejected_renderables)
 TEST_F(HwcDevice, commits_correct_list_when_all_accepted_as_overlays)
 {
     using namespace testing;
-    int overlay_acquire_fence1 = 80;
-    int overlay_acquire_fence2 = 81;
-    int release_fence1 = 381;
-    int release_fence2 = 382;
+    mir::Fd overlay_acquire_fence1{80};
+    mir::Fd overlay_acquire_fence2{81};
+    mir::Fd release_fence1{381};
+    mir::Fd release_fence2{382};
 
     auto set_fences_fn = [&](hwc_display_contents_1_t& contents)
     {
@@ -367,7 +364,6 @@ TEST_F(HwcDevice, commits_correct_list_when_all_accepted_as_overlays)
 
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
-#endif
 
 TEST_F(HwcDevice, discards_second_set_if_all_overlays_and_nothing_has_changed)
 {
@@ -442,13 +438,12 @@ TEST_F(HwcDevice, owns_overlay_buffers_until_next_set)
     EXPECT_THAT(stub_buffer1.use_count(), Eq(use_count_before));
 }
 
-#if 0
 TEST_F(HwcDevice, does_not_set_acquirefences_when_it_has_set_them_previously_without_update)
 {
     using namespace testing;
-    int acquire_fence1 = 39303;
-    int acquire_fence2 = 39302;
-    int acquire_fence3 = 39301;
+    mir::Fd acquire_fence1{39303};
+    mir::Fd acquire_fence2{39302};
+    mir::Fd acquire_fence3{39301};
 
     int release_fence1 = 381;
     int release_fence2 = 382;
@@ -523,7 +518,7 @@ TEST_F(HwcDevice, does_not_set_acquirefences_when_it_has_set_them_previously_wit
     stub_renderable1->set_buffer(updated_buffer);
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
-#endif
+
 TEST_F(HwcDevice, does_not_own_framebuffer_buffers_past_set)
 {
     using namespace testing;

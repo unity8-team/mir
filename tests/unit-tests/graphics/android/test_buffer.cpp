@@ -86,26 +86,24 @@ TEST_F(AndroidGraphicBufferBasic, format_query_test)
 TEST_F(AndroidGraphicBufferBasic, returns_native_buffer_times_two)
 {
     using namespace testing;
-    int fake_fd1{948};
-    int fake_fd2{949};
-    mir::Fd acquire_fake_fence_fd1(fake_fd1);
-    mir::Fd acquire_fake_fence_fd2(fake_fd2);
+    mir::Fd acquire_fake_fence_fd1(948);
+    mir::Fd acquire_fake_fence_fd2(949);
 
-    EXPECT_CALL(*mock_native_buffer, update_usage_(FakeFdMatches(fake_fd1), mga::BufferAccess::write))
+    EXPECT_CALL(*mock_native_buffer, update_usage(acquire_fake_fence_fd1, mga::BufferAccess::write))
         .Times(1);
-    EXPECT_CALL(*mock_native_buffer, update_usage_(FakeFdMatches(fake_fd2), mga::BufferAccess::read))
+    EXPECT_CALL(*mock_native_buffer, update_usage(acquire_fake_fence_fd2, mga::BufferAccess::read))
         .Times(1);
 
     mga::Buffer buffer(mock_native_buffer, extensions);
     {
         auto native_resource = buffer.native_buffer_handle();
         EXPECT_EQ(mock_native_buffer, native_resource);
-        native_resource->update_usage(std::move(acquire_fake_fence_fd1), mga::BufferAccess::write);
+        native_resource->update_usage(acquire_fake_fence_fd1, mga::BufferAccess::write);
     }
     {
         auto native_resource = buffer.native_buffer_handle();
         EXPECT_EQ(mock_native_buffer, native_resource);
-        native_resource->update_usage(std::move(acquire_fake_fence_fd2), mga::BufferAccess::read);
+        native_resource->update_usage(acquire_fake_fence_fd2, mga::BufferAccess::read);
     }
 }
 
