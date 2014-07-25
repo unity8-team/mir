@@ -21,7 +21,6 @@
 
 #include "mir/graphics/android/fence.h"
 
-#include "mir_test/gmock_fd_fix.h"
 #include <gmock/gmock.h>
 
 namespace mir
@@ -34,12 +33,8 @@ namespace doubles
 struct MockFence : public graphics::android::Fence
 {
     MOCK_METHOD0(wait, void());
-    MOCK_METHOD1(merge_with_, void(Fd&));
+    MOCK_METHOD1(merge_with, void(Fd));
     MOCK_CONST_METHOD0(copy_native_handle, Fd());
-    void merge_with(mir::Fd fd)
-    {
-        return merge_with_(fd);
-    }
 };
 
 }
