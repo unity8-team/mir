@@ -41,15 +41,15 @@ Vcs-Browser: http://bazaar.launchpad.net/~mir-team/qtmir/trunk/files
 Package: qtmir-android
 Architecture: armhf
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends},
+Conflicts: qtmir-desktop,
+           qtubuntu-desktop,
+           libqtmir,
+Replaces: qtmir-desktop,
+          qtubuntu-desktop,
+          libqtmir,
+Provides: qtmir
 Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Provides: qtmir,
-          qtubuntu,
-Conflicts: qtmir,
-           qtubuntu,
-Replaces: qtmir,
-          qtubuntu,
+         ${shlibs:Depends}
 Description: Qt platform abstraction (QPA) plugin for a Mir server (mobile)
  QtMir is a set of Qt5 components to enable one to write a Mir server with Qt.
  It contains a QPA (Qt Platform Abstraction) plugin which creates and manages
@@ -60,15 +60,14 @@ Description: Qt platform abstraction (QPA) plugin for a Mir server (mobile)
 Package: qtmir-desktop
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends},
+Conflicts: qtmir-android,
+           qtubuntu-android,
+Replaces: qtmir-android,
+          qtubuntu-android,
+          libqtmir,
+Provides: qtmir
 Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Provides: qtmir,
-          qtubuntu,
-Conflicts: qtmir,
-           qtubuntu,
-Replaces: qtmir,
-          qtubuntu,
+         ${shlibs:Depends}
 Description: Qt platform abstraction (QPA) plugin for a Mir server (desktop)
  QtMir is a set of Qt5 components to enable one to write a Mir server with Qt.
  It contains a QPA (Qt Platform Abstraction) plugin which creates and manages
@@ -76,19 +75,20 @@ Description: Qt platform abstraction (QPA) plugin for a Mir server (desktop)
  .
  This variant of the package is for GNU-based desktops.
 
+
 Package: qtdeclarative5-qtmir-plugin
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends},
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         qtmir | qtmir-desktop,
+         qtmir-desktop | qtmir-android
+Replaces: libunity-mir1,
+          libqtmir,
+Conflicts: libunity-mir1,
+           libqtmir,
 Provides: unity-application-impl,
           unity-application-impl-2,
-Replaces: unity-application-impl,
-          unity-application-impl2,
-Conflicts: unity-application-impl,
-           unity-application-impl2,
 Description: Qt plugin for Unity specific Mir APIs
  QtMir provides Qt/QML bindings for Mir features that are exposed through the
  qtmir-desktop or qtmir-android QPA plugin such as Application management

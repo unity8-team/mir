@@ -27,9 +27,9 @@ USES_GLES2 = $(findstring $(DEB_HOST_ARCH), $(gles2_architectures))
 	dh $@ --parallel --fail-missing
 
 override_dh_clean:
-	rm -rf $(ANDROID_DIR)
-	rm -rf $(DESKTOP_DIR)
+ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	rm -rf $(TMP1_DIR)
+endif
 	rm -rf $(TMP2_DIR)
 	dh_clean
 
