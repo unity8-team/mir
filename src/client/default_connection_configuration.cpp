@@ -47,21 +47,7 @@ std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
 std::string const default_platform_lib{MIR_CLIENT_PLATFORM_PATH "libmirclientplatform.so"};
 
-mir::SharedLibrary const* load_library(std::string const& libname)
-{
-    // There's no point in loading twice, and it isn't safe to unload...
-    static std::map<std::string, std::shared_ptr<mir::SharedLibrary>> libraries_cache;
-
-    if (auto& ptr = libraries_cache[libname])
-    {
-        return ptr.get();
-    }
-    else
-    {
-        ptr = std::make_shared<mir::SharedLibrary>(libname);
-        return ptr.get();
-    }
-}
+std::shared_ptr<mir::SharedLibrary> the_platform_plugin;
 }
 
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
@@ -104,14 +90,27 @@ std::shared_ptr<mcl::ClientPlatformFactory>
 mcl::DefaultConnectionConfiguration::the_client_platform_factory()
 {
     return client_platform_factory(
-        []
+        [this]
         {
             auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
-            std::string const val{val_raw ? val_raw : default_platform_lib};
-            auto const platform_lib = ::load_library(val);
+            if (val_raw)
+            {
+                the_platform_plugin = std::make_shared<mir::SharedLibrary>(val_raw);
+            }
+            else
+            {
+                auto plugins = mir::libraries_for_path(MIR_CLIENT_PLATFORM_PATH, *the_shared_library_prober_report());
+                if (plugins.empty())
+                {
+                    throw std::runtime_error("No client platform libraries found in " MIR_CLIENT_PLATFORM_PATH);
+                }
+                // TODO: Some sort of probe so we have some guarantee that
+                //       we've got the right plugin!
+                the_platform_plugin = plugins.front();
+            }
 
             auto const create_client_platform_factory =
-                platform_lib->load_function<mcl::CreateClientPlatformFactory>(
+                the_platform_plugin->load_function<mcl::CreateClientPlatformFactory>(
                     "create_client_platform_factory");
 
             return create_client_platform_factory();
