@@ -299,6 +299,12 @@ void ua_ui_window_properties_set_input_cb_and_ctx(UAUiWindowProperties* u_proper
     properties->set_input_cb_and_ctx(cb, ctx);
 }
 
+void ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties* u_properties, UAUiWindowEventCb cb, void* ctx)
+{
+    auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
+    properties->set_event_cb_and_ctx(cb, ctx);
+}
+
 void ua_ui_window_properties_set_dimensions(UAUiWindowProperties *u_properties, uint32_t width, uint32_t height)
 {
     auto properties = uamc::WindowProperties::from_u_window_properties(u_properties);
@@ -347,27 +353,33 @@ UStatus ua_ui_window_resize(UAUiWindow* u_window, uint32_t width, uint32_t heigh
 UStatus ua_ui_window_hide(UAUiWindow* u_window)
 {
     auto window = uamc::Window::from_u_window(u_window);
-    window->set_state(U_MINIMIZED_STATE);
+    window->hide();
     return (UStatus) 0;
 }
 
 UStatus ua_ui_window_show(UAUiWindow* u_window)
 {
     auto window = uamc::Window::from_u_window(u_window);
-    window->set_state(U_MAXIMIZED_STATE);
+    window->show();
     return (UStatus) 0;
 }
 
 void ua_ui_window_request_fullscreen(UAUiWindow* u_window)
 {
     auto window = uamc::Window::from_u_window(u_window);
-    window->set_state(U_FULLSCREEN_STATE);
+    window->request_fullscreen();
 }
 
 EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow* u_window)
 {
     auto window = uamc::Window::from_u_window(u_window);
     return window->get_native_type();
+}
+
+int ua_ui_window_is_focused(UAUiWindow *u_window)
+{
+    auto window = uamc::Window::from_u_window(u_window);
+    return window->is_focused();
 }
 
 // TODO: Sensors

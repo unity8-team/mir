@@ -83,7 +83,7 @@ struct View
     const GLfloat * color_data;
 };
 
-void on_new_event(void* ctx, const Event* ev)
+void on_new_event(void* ctx, const WindowEvent* ev)
 {
     int* surface = (int*) ctx;
 
@@ -115,14 +115,14 @@ int main(int argc, char** argv)
     UAUiWindowProperties* wprops1 = ua_ui_window_properties_new_for_normal_window();
     ua_ui_window_properties_set_titlen(wprops1, "Window 1", 8);
     ua_ui_window_properties_set_role(wprops1, U_MAIN_ROLE);
-    ua_ui_window_properties_set_input_cb_and_ctx(wprops1, on_new_event, &i);
+    ua_ui_window_properties_set_event_cb_and_ctx(wprops1, on_new_event, &i);
    
     UAUiWindow* surface1 = ua_ui_window_new_for_application_with_properties(instance, wprops1);
  
     UAUiWindowProperties* wprops2 = ua_ui_window_properties_new_for_normal_window();
     ua_ui_window_properties_set_titlen(wprops2, "Window 2", 8);
     ua_ui_window_properties_set_role(wprops2, U_MAIN_ROLE);
-    ua_ui_window_properties_set_input_cb_and_ctx(wprops2, on_new_event, &j);
+    ua_ui_window_properties_set_event_cb_and_ctx(wprops2, on_new_event, &j);
    
     UAUiWindow* surface2 = ua_ui_window_new_for_application_with_properties(instance, wprops2);
 

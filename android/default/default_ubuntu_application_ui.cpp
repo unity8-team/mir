@@ -229,6 +229,11 @@ ua_ui_window_properties_set_input_cb_and_ctx(
 }
 
 void
+ua_ui_window_properties_set_event_cb_and_ctx(UAUiWindowProperties*, UAUiWindowEventCb, void *)
+{
+}
+
+void
 ua_ui_window_properties_set_dimensions(
     UAUiWindowProperties *properties,
     uint32_t width,

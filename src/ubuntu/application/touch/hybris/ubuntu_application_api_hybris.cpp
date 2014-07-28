@@ -92,11 +92,14 @@ IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_titlen, UAUiWindowPropertie
 IMPLEMENT_FUNCTION1(const char*, ua_ui_window_properties_get_title, UAUiWindowProperties*);
 IMPLEMENT_VOID_FUNCTION2(ua_ui_window_properties_set_role, UAUiWindowProperties*, UAUiWindowRole);
 IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_input_cb_and_ctx, UAUiWindowProperties*, UAUiWindowInputEventCb, void*);
+IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_event_cb_and_ctx, UAUiWindowProperties*, UAUiWindowEventCb, void*);
 IMPLEMENT_VOID_FUNCTION3(ua_ui_window_properties_set_dimensions, UAUiWindowProperties*, uint32_t, uint32_t);
 
 // UAUiWindow
 IMPLEMENT_FUNCTION2(UAUiWindow*, ua_ui_window_new_for_application_with_properties, UApplicationInstance*, UAUiWindowProperties*);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_window_destroy, UAUiWindow*);
+IMPLEMENT_VOID_FUNCTION3(ua_ui_window_get_size, UAUiWindow*, uint32_t*, uint32_t*);
+IMPLEMENT_FUNCTION1(int, ua_ui_window_is_focused, UAUiWindow*);
 IMPLEMENT_FUNCTION3(UStatus, ua_ui_window_move, UAUiWindow*, uint32_t, uint32_t);
 IMPLEMENT_FUNCTION3(UStatus, ua_ui_window_resize, UAUiWindow*, uint32_t, uint32_t);
 IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_hide, UAUiWindow*);
