@@ -35,29 +35,54 @@ UALocationServiceSession*
 ua_location_service_create_session_for_low_accuracy(
     UALocationServiceRequirementsFlags /*flags*/)
 {
-    return new UbuntuApplicationLocationServiceSession{
-        Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})};
+    // Creating the instance might fail for a number of reason and
+    // we cannot allow exceptions to propagate to prevent applications
+    // from aborting. For that, we catch all exceptions, provide some error
+    // information to std::cerr and return a nullptr in case of errors.
+    try
+    {
+        return new UbuntuApplicationLocationServiceSession
+        {
+            // Creating the instance might fail for a number of reasons.
+
+            Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
+        };
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_create_session_for_low_accuracy: Error creating instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_create_session_for_low_accuracy: Error creating instance." << std::endl;
+    }
+
+    return nullptr;
 }
 
 UALocationServiceSession*
 ua_location_service_create_session_for_high_accuracy(
     UALocationServiceRequirementsFlags /*flags*/)
 {
+    // Creating the instance might fail for a number of reason and
+    // we cannot allow exceptions to propagate to prevent applications
+    // from aborting. For that, we catch all exceptions, provide some error
+    // information to std::cerr and return a nullptr in case of errors.
     try
     {
         return new UbuntuApplicationLocationServiceSession
         {
+            // Creating the instance might fail for a number of reasons.
+
             Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
         };
     } catch(const std::exception& e)
     {
-        fprintf(stderr, "Error creating session for high accuracy: %s \n", e.what());
+        std::cerr << "ua_location_service_create_session_for_high_accuracy: Error creating instance: " << e.what() << std::endl;
     } catch(...)
     {
-        fprintf(stderr, "Error creating session for high accuracy.\n");
+        std::cerr << "ua_location_service_create_session_for_high_accuracy: Error creating instance." << std::endl;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 UALocationServiceController*
