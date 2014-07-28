@@ -304,7 +304,7 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
-    q.allow_framedropping(true); // Force enabling of the third buffer
+    q.set_resize_delay(0); // Force enabling of the third buffer
     int const prefill = q.buffers_free_for_client();
     ASSERT_THAT(prefill, Gt(0));
     for (int i = 0; i < prefill; ++i)
@@ -397,7 +397,7 @@ TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
-        q.allow_framedropping(true); // Force enabling of the third buffer
+        q.set_resize_delay(0); // Force enabling of the third buffer
 
         auto handle1 = client_acquire_async(q);
         ASSERT_THAT(handle1->has_acquired_buffer(), Eq(true));
