@@ -533,6 +533,8 @@ int mc::BufferQueue::ideal_buffers() const
 void mc::BufferQueue::set_resize_delay(int nframes)
 {
     queue_resize_delay_frames = nframes;
+    if (nframes == 0)
+        extra_buffers = 1;
 }
 
 void mc::BufferQueue::drop_buffer(graphics::Buffer* buffer)

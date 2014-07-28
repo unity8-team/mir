@@ -1491,6 +1491,9 @@ TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_bu
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
+    // Ensure this test gets 3 real buffers immediately.
+    q.set_resize_delay(0);
+
     auto handle1 = client_acquire_async(q);
     ASSERT_THAT(handle1->has_acquired_buffer(), Eq(true));
     handle1->release_buffer();
