@@ -96,10 +96,10 @@ mc::BufferQueue::BufferQueue(
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
-    : min_buffers{std::min(2, max_buffers)}, ///< TODO: Configurable in future
+    : min_buffers{std::min(2, max_buffers)}, // TODO: Configurable in future
       max_buffers{max_buffers},
       missed_frames{0}, 
-      queue_resize_delay_frames{300},
+      queue_resize_delay_frames{100},
       extra_buffers{0},
       frame_dropping_enabled{false},
       the_properties{props},
