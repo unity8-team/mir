@@ -37,7 +37,6 @@ set_target_properties(mirserverlttng PROPERTIES
 target_link_libraries(
   mirlttng
 
-  mirsharedlttng
   -ldl
 )
 

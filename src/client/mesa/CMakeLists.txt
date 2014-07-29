@@ -3,7 +3,8 @@ include_directories(
     ${EGL_INCLUDE_DIRS}
 )
 
-set(MESA_PLATFORM_SRC
+add_library(
+  mirclientplatformmesaobjects OBJECT
 
   client_platform_factory.cpp
   client_platform.cpp
@@ -11,24 +12,13 @@ set(MESA_PLATFORM_SRC
   client_buffer.cpp
   mesa_native_display_container.cpp
   native_surface.cpp
-)  
+)
 
 add_library(
   mirclientplatformmesa MODULE
 
-  ${MESA_PLATFORM_SRC}
-)
-
-add_library(
-  mirclientplatformmesa-static STATIC
-
-  ${MESA_PLATFORM_SRC}
-)
-
-set_target_properties(
-  mirclientplatformmesa-static PROPERTIES
-  OUTPUT_NAME mirclientplatform-static
-  ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
+  $<TARGET_OBJECTS:mirclientplatformmesaobjects>
+  $<TARGET_OBJECTS:mirclient_platformimpl>
 )
 
 target_link_libraries(
@@ -37,21 +27,4 @@ target_link_libraries(
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
 
-target_link_libraries(
-  mirclientplatformmesa-static
-  mirclient
-
-  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
-)
-
 install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
-
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  add_custom_target(static-client-platform-symlink ALL
-    DEPENDS mirclientplatformmesa-static
-    COMMAND ${CMAKE_COMMAND} -E remove libmirclientplatform-static.a
-    COMMAND ${CMAKE_COMMAND} -E create_symlink mesa/$<TARGET_FILE_NAME:mirclientplatformmesa-static> libmirclientplatform-static.a
-    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
-endif()
-

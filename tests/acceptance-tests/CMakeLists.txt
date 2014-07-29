@@ -40,6 +40,7 @@ set(
   test_client_surface_visibility.cpp
   test_client_with_custom_display_config_deadlock.cpp
   test_macros.cpp
+  test_stale_frames.cpp
   ${GENERATED_PROTOBUF_SRCS}
   ${GENERATED_PROTOBUF_HDRS}
 )
@@ -63,7 +64,6 @@ target_link_libraries(
   mir_acceptance_tests
 
   mirserver
-  mirclient-static
   mirplatform
 
   mir-test
@@ -87,8 +87,16 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_ACCEPTANCE_TESTS"
   OFF)
 
+if (MIR_TEST_PLATFORM STREQUAL "mesa")
+  set (MIR_CLIENT_PLATFORM libmirclientplatformmesa.so)
+endif()
+
+if (MIR_TEST_PLATFORM STREQUAL "android")
+  set (MIR_CLIENT_PLATFORM libmirclientplatformandroid.so)
+endif()
+
 if (MIR_RUN_ACCEPTANCE_TESTS)
-  mir_discover_tests(mir_acceptance_tests MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/libmirclientplatform.so)
+  mir_discover_tests(mir_acceptance_tests MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_PLATFORM})
 endif (MIR_RUN_ACCEPTANCE_TESTS)
 
 install(

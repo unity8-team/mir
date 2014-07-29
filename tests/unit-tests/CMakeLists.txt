@@ -44,12 +44,9 @@ uses_android_input(mir_unit_tests)
 target_link_libraries(
   mir_unit_tests
 
-  mirclient-static
   mirserver
-  mirclientplatform-static
   mirdraw
   mirtestdraw
-  mirlogging
 
   mir-test
   mir-test-doubles

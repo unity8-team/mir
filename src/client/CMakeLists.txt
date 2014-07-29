@@ -3,8 +3,6 @@ set(EXEC_PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirclient")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/mirclient.pc.in
   ${CMAKE_CURRENT_BINARY_DIR}/mirclient.pc
@@ -29,6 +27,10 @@ add_definitions(-DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}/")
 add_subdirectory(rpc/)
 add_subdirectory(lttng/)
 
+add_library(mirclient_platformimpl OBJECT
+  aging_buffer.cpp
+)
+
 if(MIR_BUILD_PLATFORM_ANDROID)
 add_subdirectory(android/)
 endif()
@@ -37,10 +39,8 @@ if(MIR_BUILD_PLATFORM_MESA)
 add_subdirectory(mesa/)
 endif()
 
-set(
-  CLIENT_SOURCES
+add_library(mirclientobjects OBJECT
 
-  aging_buffer.cpp
   client_buffer_depository.cpp
   display_configuration.cpp
   error_connections.cpp
@@ -67,13 +67,7 @@ set(
 add_library(
   mirclient SHARED
 
-  ${CLIENT_SOURCES}
-)
-
-add_library(
-  mirclient-static
-
-  ${CLIENT_SOURCES}
+  $<TARGET_OBJECTS:mirclientobjects>
 )
 
 set_target_properties(
@@ -84,37 +78,16 @@ set_target_properties(
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
 
-set(
-  MIR_CLIENT_LIBRARIES
-  ${Boost_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${PROTOBUF_LIBRARIES}
-  ${XKBCOMMON_LIBRARIES}
-
-  mirprotobuf
-  mirsharedinput
-  mirsharedlogging
-  mirsharedenv
-  mirsharedgeometry
-  mirsharedsharedlibrary
-  mirclientrpc
-  mirclientlttngstatic
-
-  ${MIR_COMMON_PLATFORM_LIBRARIES}
-
-  3rd_party
-)
-
 target_link_libraries(
   mirclient
 
-  ${MIR_CLIENT_LIBRARIES}
-)
+  mirclientrpc
+  mirclientlttngstatic
+  mircommon
 
-target_link_libraries(
-  mirclient-static
-
-  ${MIR_CLIENT_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${XKBCOMMON_LIBRARIES}
 )
 
 install(
