@@ -46,7 +46,6 @@ target_link_libraries(
 
   mirclient-static
   mirserver
-  mirplatformgraphics
   mirclientplatform-static
   mirdraw
   mirtestdraw
@@ -65,6 +64,15 @@ target_link_libraries(
   ${GMOCK_MAIN_LIBRARY}
   ${Boost_LIBRARIES}
   ${UMOCKDEV_LIBRARIES}
+  # Mesa platform dependencies
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  # Android platform dependencies
+  ${LIBHARDWARE_LIBRARIES}
+  ${ANDROID_PROPERTIES_LIBRARIES}
+  # Shared platform dependencies
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
@@ -78,8 +86,20 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_UNIT_TESTS"
   OFF)
 
+if (MIR_TEST_PLATFORM STREQUAL "mesa")
+  set (MIR_CLIENT_PLATFORM libmirclientplatformmesa.so)
+endif()
+
+if (MIR_TEST_PLATFORM STREQUAL "android")
+  set (MIR_CLIENT_PLATFORM libmirclientplatformandroid.so)
+endif()
+
 if (MIR_RUN_UNIT_TESTS)
-  mir_discover_tests(mir_unit_tests LD_PRELOAD=libumockdev-preload.so.0 G_SLICE=always-malloc G_DEBUG=gc-friendly)
+  mir_discover_tests(mir_unit_tests
+                       LD_PRELOAD=libumockdev-preload.so.0
+                       G_SLICE=always-malloc
+                       G_DEBUG=gc-friendly
+                       MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_PLATFORM})
 endif (MIR_RUN_UNIT_TESTS)
 
 install(

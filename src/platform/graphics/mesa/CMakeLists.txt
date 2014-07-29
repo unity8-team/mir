@@ -12,7 +12,7 @@ string(REPLACE "-pedantic" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 add_definitions(-D__GBM__)
 
 add_library(
-  mirplatformgraphicsmesa SHARED
+  mirplatformgraphicsmesaobjects OBJECT
 
   platform.cpp
   buffer_allocator.cpp
@@ -35,6 +35,12 @@ add_library(
   anonymous_shm_file.cpp
   shm_buffer.cpp
   bypass.cpp
+)
+
+add_library(
+  mirplatformgraphicsmesa SHARED
+
+  $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 
 target_link_libraries(

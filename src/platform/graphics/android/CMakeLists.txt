@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 add_definitions( -DANDROID )
 
 add_library(
-  mirplatformgraphicsandroid SHARED
+  mirplatformgraphicsandroidobjects OBJECT
 
   android_platform.cpp
   android_buffer_allocator.cpp
@@ -39,10 +39,10 @@ add_library(
   hwc_fallback_gl_renderer.cpp
 )
 
-set_target_properties(
-  mirplatformgraphicsandroid PROPERTIES
-  OUTPUT_NAME mirplatformgraphics
-  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/android
+add_library(
+  mirplatformgraphicsandroid SHARED
+
+  $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
 
 target_link_libraries(
@@ -60,20 +60,4 @@ target_link_libraries(
   ${ANDROID_PROPERTIES_LIBRARIES}
 )
 
-install(TARGETS mirplatformgraphicsandroid LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/platformgraphics/android)
-
-if (MIR_TEST_PLATFORM STREQUAL "android")
-  add_custom_command(TARGET mirplatformgraphicsandroid
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove libmirplatformgraphics.so
-    COMMAND ${CMAKE_COMMAND} -E create_symlink android/$<TARGET_FILE_NAME:mirplatformgraphicsandroid> libmirplatformgraphics.so
-    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
-
-  install(CODE
-    "execute_process(
-       COMMAND ln -sf mir/platformgraphics/android/libmirplatformgraphics.so
-       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-     )"
-  )
-endif()
+install(TARGETS mirplatformgraphicsandroid LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})
