@@ -43,30 +43,6 @@ namespace qtmir {
 
 namespace {
 
-/* simplified version of systemTime from the android project, with the following copyright */
-/*
- * Copyright (C) 2005 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-nsecs_t systemTime()
-{
-    struct timespec t;
-    t.tv_sec = t.tv_nsec = 0;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return nsecs_t(t.tv_sec)*1000000000LL + t.tv_nsec;
-}
-
 bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
 {
     mirEvent.type = mir_event_type_key;
@@ -157,8 +133,9 @@ bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
     // TODO. Not useful to Qt at least...
     mirEvent.motion.down_time = 0;
 
-    // Using qtEvent->timestamp() didn't work (don't remember why)
-    mirEvent.motion.event_time = systemTime();
+    // Note: QtEventFeeder scales the event time down, scale it back up - precision is
+    // lost but the time difference should still be accurate to milliseconds
+    mirEvent.motion.event_time = static_cast<nsecs_t>(qtEvent->timestamp()) * 1000000;
 
     mirEvent.motion.pointer_count = qtEvent->touchPoints().count();
 

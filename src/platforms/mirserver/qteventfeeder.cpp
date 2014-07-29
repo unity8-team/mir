@@ -298,7 +298,7 @@ void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
     // Touch event propagation.
     QWindowSystemInterface::handleTouchEvent(
             window,
-            event.event_time / 1000000,
+            event.event_time / 1000000, //scales down the nsec_t (int64) to fit a ulong, precision lost but time difference suitable
             mTouchDevice,
             touchPoints);
 }
