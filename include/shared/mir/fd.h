@@ -18,7 +18,7 @@
 #ifndef MIR_FD_H_
 #define MIR_FD_H_
 
-#include <atomic>
+#include <memory>
 
 namespace mir
 {
@@ -31,21 +31,14 @@ public:
     static int const invalid{-1};
     Fd(); //Initializes fd to the mir::Fd::invalid;
     Fd(Fd&&);
-    Fd(Fd const&);
+    Fd(Fd const&) = default;
     Fd& operator=(Fd);
-    ~Fd() noexcept;
 
     //bit of a convenient kludge. take care not to close or otherwise destroy the FD.
     operator int() const;
 
 private:
-    struct CountedFd
-    {
-        CountedFd(int fd);
-        int const raw_fd;
-        std::atomic<unsigned int> refcount;
-    };
-    CountedFd *fd;
+    std::shared_ptr<int> fd;
 };
 } // namespace mir
 
