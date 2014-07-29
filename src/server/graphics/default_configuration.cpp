@@ -31,7 +31,6 @@
 #include "program_factory.h"
 
 #include "mir/shared_library.h"
-#include "mir/shared_library_loader.h"
 #include "mir/shared_library_prober.h"
 #include "mir/abnormal_exit.h"
 #include "mir/emergency_cleanup.h"

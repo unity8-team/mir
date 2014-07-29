@@ -17,7 +17,6 @@
  */
 
 #include "mir/shared_library.h"
-#include "mir/shared_library_loader.h"
 #include "mir/options/default_configuration.h"
 #include "mir/graphics/platform.h"
 #include "mir/default_configuration.h"

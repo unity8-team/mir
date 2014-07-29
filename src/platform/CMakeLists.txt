@@ -5,7 +5,6 @@ add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_
 
 add_library(
   mirplatform SHARED
-  shared_library_loader.cpp
   udev_wrapper.cpp
 )
 
