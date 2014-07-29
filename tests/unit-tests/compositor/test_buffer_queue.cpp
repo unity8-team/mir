@@ -1631,3 +1631,77 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
          }
     }
 }
+
+TEST_F(BufferQueueTest, switch_to_triple_buffers_is_permanent)
+{
+    for (int max_buffers = 3; max_buffers < max_nbuffers_to_test; ++max_buffers)
+    {
+         mc::BufferQueue q(max_buffers, allocator, basic_properties,
+                           policy_factory);
+
+         q.allow_framedropping(false);
+
+         int const delay = 10;
+         q.set_resize_delay(delay);
+
+         // First, verify we only have 2 real buffers
+         int const contracted_nbuffers = 2;
+         for (int f = 0; f < contracted_nbuffers-1; ++f)
+         {
+             auto client1 = client_acquire_async(q);
+             client1->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client1->has_acquired_buffer());
+             client1->release_buffer();
+         }
+         auto client2 = client_acquire_async(q);
+         client2->wait_for(std::chrono::milliseconds(100));
+         ASSERT_FALSE(client2->has_acquired_buffer());
+         q.compositor_release(q.compositor_acquire(this));
+         ASSERT_TRUE(client2->has_acquired_buffer());
+
+         // Now hold client2 buffer for a little too long...
+         for (int f = 0; f < delay*2; ++f)
+             q.compositor_release(q.compositor_acquire(this));
+         // this should have resulted in the queue expanding.
+
+         client2->release_buffer();
+         q.compositor_release(q.compositor_acquire(this));
+
+         // Force the queue to expand by making the free list empty:
+         std::shared_ptr<AcquireWaitHandle> client[2];
+         for (auto& c : client)
+         {
+             c = client_acquire_async(q);
+             c->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(c->has_acquired_buffer());
+         }
+         for (auto& c : client)
+         {
+             c->release_buffer();
+             q.compositor_release(q.compositor_acquire(this));
+         }
+
+         // Now let the client behave "well" and not skip frames:
+         for (int f = 0; f < delay*10; ++f)
+         {
+             q.client_release(client_acquire_sync(q));
+             q.compositor_release(q.compositor_acquire(this));
+         }
+
+         // Make sure the queue has stayed expanded. Do the original test
+         // again and verify clients get one more than before...
+         int const expanded_nbuffers = 3;
+         for (int f = 0; f < expanded_nbuffers-1; ++f)
+         {
+             auto client3 = client_acquire_async(q);
+             client3->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client3->has_acquired_buffer());
+             client3->release_buffer();
+         }
+         auto client4 = client_acquire_async(q);
+         client4->wait_for(std::chrono::milliseconds(100));
+
+         // Verify we haven't expanded to 4 buffers:
+         ASSERT_FALSE(client4->has_acquired_buffer());
+    }
+}
