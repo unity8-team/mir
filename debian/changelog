@@ -1,8 +1,183 @@
-qtmir (0.4.0) UNRELEASED; urgency=medium
+qtmir (0.4.0+14.10.20140729-0ubuntu1) utopic; urgency=medium
 
+  [ Gerry Boland ]
   * Update for Mir 0.4.0 compatibility
+  * Remove unneeded properties from SurfaceManager and restore support
+    for surface with no app parent
+  * Add patches to ubuntuclient plugin to enable sharing of GL context -
+    needed for oxide
+  * Rename client plugin to ubuntumirclient (to match that of qtubuntu)
+    There are some apps which check the QPA name is ubuntumirclient, and
+    fail with ubuntuclient. Worst offender is Oxide, which is hard to
+    rebuild, so this change is easier fix.
+  * Revert 125, incorrect branch merged
+  * Rename client plugin to ubuntumirclient (to match that of qtubuntu)
+    There are some apps which check the QPA name is ubuntumirclient, and
+    fail with ubuntuclient. Worst offender is Oxide, which is hard to
+    rebuild, so this change is easier fix.
+  * Remove surface observer on MirSurfaceItem destruction
+  * New apps placed at start of model and are focused immediately.
+    AppMan model has proper surface and fullscreen roles now. Whitespace
+    fixes
+  * Enable UbuntuPlatformServices for a mirserver
+  * Fix FTBFS - header file moved
+  * Remove ubuntumirclient plugin as it moved to qtubuntu
+  * Empty commit to force rebuild for Qt5.3
+  * debian: update package name, fixes dependency wait in PPA
+  * Fix Qt5.3 compile - QQmlProfiler changed to QQuickProfiler
+  * Update README, rename root pro file to match project name
+  * debian: replace old libplatform-api-dev with newer libubuntu-
+    application-api-dev
+  * Fix lifecycle by pulling latest unity-mir code. Rename QML module
+    back to Unity.Application. Import unity-mir tests. Use category
+    logging
+  * Restore code to override side-stage apps to be on main stage on
+    single-stage devices
+  * Remove unused *toBeFocused state savers
+  * debian: update mir & papi version dependencies
+  * Fix out-of-tree builds
+  * Using const QString ref to save possible QString copy
+  * Small header file cleaning
+  * Fix test fails - do not run moc again on headers used by tests
+  * Downgrade error warning of unmanaged session startup
+  * Simplify focus logic, fix tablet lifecycle
+  * Workaround GL/GLES conflict between Qt and Mir. Split into 3
+    packages: GL qpa, GLES qpa & QML plugin Mir is GLES only. Qt on
+    desktop is desktop-GL only. To workaround this, (ab)use the fact
+    that MESA on the desktop allows you to bind GL apis to a GLES
+    context via eglBindAPI. To use this, need to compile with QPA
+    separately for GL and GLES targets. Thus need to split the packaging
+    into: + qtmir-android - qpa plugin for GLES targets + qtmir-desktop
+    - qpa plugin for desktop-GL targets (uses MESA hack) +
+    qtdeclarative5-qtmir-plugin - the QML plugin Also stopped unit tests
+    from being installed
+  * Re-enable Buffer Queueing OpenGL, should improve graphics
+    performance
+  * Remove refresh-rate override as Mir now returns correct value
+  * MirGLContext - temporary gl context from mir does not have
+    attributes defined by GLConfig applied, so need to do so manually
+  * DisplayWindow listens for Hide/Show events with its event handler,
+    not via a static variable
+  * QtEventFeeder - add deconstructor to delete the mTouchDevice
+  * Application: delete TODO comment in setSession as nonsensical
+  * SessionName removed. PID matching was introduced some time ago and
+    so session name unnecessary
+  * Application: remove hack to guess app supported orientations,
+    implement properly later
+  * Fixed threading issue when screen-shotting application about to be
+    stopped. By Nick Dedekind
+  * Revert rev 179, add comment to clarify
+  * Application: replace direct call into MirSurfaceItem with a
+    signal/slot. Removes FIXME
+  * MirSurfaceItem: setting unfocused on creation breaks camera & videos
+    app, so disabling and added fixme
+  * Add FIXME about the custom roles
+  * Remove redundant comment
+  * Remove ApplicationManager::topmostApplication
+  * AppMan: if foreground app closes, set all unfocused to let shell
+    decide what next to focus
+  * Useless static_cast removed
+  * DebugHelpers: do not use default state for last option in the enum
+    today, the enum may grow in future
+  * MirBufferSGTexture: remove the Qt5.3 ifdefs, were probably broken
+    for older Qt versions
+  * MirSurfaceItem - standardize on qCDebug(QTMIR_SURFACES)
+  * MirSurfaceManager: generate roleNames only on read
+  * MirSurfaceManager: remove commented line
+  * TaskController: add a few more consts
+  * Removed WindowScreenshotProvider as not needed for now
+  * AppMan: be slightly more verbose with desktop file locating for
+    desktop_file_hint. Also use faster exists() static function
+  * AppMan: data - remove nonsensical default role
+  * ProcessController: expand documentation
+  * Clarify licences
+  * Give AppMan & SurfMan objectNames
+  * MirSurfaceItem: do not print keystrokes to log
+  * Fix crash bug - disable input events going to MirSurfaceItem whose
+    backing mir surface was destroyed
+  * SurfaceManager: do not add each surface to the model twice silly
+  * debian: only use gcc4.9 compiler to prevent ABI breaks due to some
+    C++11 features still being experimental in gcc
+  * AppMan: emit unfocus dbus event on suspend, and focus on resume
+  * Revert 214 - breaks install of qtmir and qtubuntu
+  * Input Event timestamp - do not overwrite timestamp of events sent to
+    client
 
- -- Gerry Boland <gerry.boland@canonical.com>  Thu, 03 Jul 2014 00:49:23 +0100
+  [ Nick Dedekind ]
+  * Compatibility with mir-0.5
+
+  [ Robert Bruce Park ]
+  * CI Train packaging cleanup. Minor packaging cleanup for CI Train
+    standards.
+  * Slightly more readable debian/rules.
+
+  [ Michael Zanetti ]
+  * append newly focused apps instead of prepending them. Allows the ui
+    to do the regular app focused animation for newly started apps too
+  * Fix multi touch points on mirsurfaceitems. Patch kindly provided by
+    anpok.
+  * also mir specific key codes through the QKeyEvent
+
+  [ Michael Terry ]
+  * Use virtual package names in Conflicts/Replaces fields and clean
+    build dirs when doing dh_clean.
+
+  [ Daniel d'Andrada ]
+  * ubuntuclient: Properly handle mir's resize event Take it as a
+    promise for a future buffer size instead of immediately obeying it.
+  * Some MirSurfaceItem fixes Don't assume that it always have an
+    Application. Slightly improve its ownership mess.
+  * Work around crash in MirSurfaceManager::onSurfaceAttributeChanged
+  * Improve debug output of surfaces handled by MirSurfaceManager
+  * Make mirserver QPA implement QPlatformIntegration::inputContext() So
+    that shell can get a virtual keyboard
+  * Wait for screen orientation to stabilize before committing to it
+  * Reduce orientation stabilization time and cancel pending change when
+    facing up/down
+  * Merge multiple qml size changes into a single mir surface resize
+    Resizing a mir surface is a costly operation and qml items can get
+    resized multiple times in a single event loop iteration. Besides, a
+    qml item changes its width and height separately
+  * Add WindowScreenshotProvider
+  * s/upstart-app-launch-2/ubuntu-app-launch-2
+  * Add clipboard support had to remove the dependency of mirserver to
+    platform-api-client as it caused a clash as both libs are loading
+    unityrpc.proto. That's a protobuffer limitation. Added the protobuf
+    generated files directly (unityrpc.cpp and unityrpc.h) as I couldn't
+    bend qmake to my will.
+  * UbuntuPlatformServices is no longer shared by both QPAs
+  * Update Application::fullscreen when the application gets its surface
+  * MirSurfaceManager: s/DLOG/qCDebug Use Qt's new categorized logging
+    system
+  * MirSurfaceManager: improve debug output
+  * Hold back this commit for now as qtmir trunk still uses an old mir
+    version
+  * adapt to latest mir/devel + input_sender branch
+  * MirSurfaceManager: improve debug output
+  * Revert to the old ways regarding rotation Where unity8 doesn't move
+    and apps rotate by themselves. Retake that rotation approach at a
+    later time
+  * Forward item focus to the underlying mir surface
+  * Dispatch keys to mir surface
+  * Add a comment with the rationale behind the frame dropper
+  * Fix copyright headers
+  * Fix and update debian/copyright
+  * Removing debian/qtdeclarative5-qtmir-plugin.maintscript This came
+    with the copy-pasting unity-mir packaging. Makes no sense in qtmir
+    as it never installed a com.canonical.Unity.conf file in the first
+    place. That's unity-mir's problems.
+  * Add a TODO notice
+  * Fix copy-and-paste error in log message
+  * Improve Application::setState debug output
+
+  [ Kevin Gunn ]
+  * merge lp:~nick-dedekind/qtmir/prompt_sessions
+  * no change, rebuild
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 29 Jul 2014 15:13:00 +0000
 
 qtmir (0.0.1-ppa5) utopic; urgency=medium
 
