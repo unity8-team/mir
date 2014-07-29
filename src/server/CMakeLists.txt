@@ -2,6 +2,14 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server)
 
+set(MIRSERVER_ABI 24) # Be sure to increment MIR_VERSION_MINOR at the same time
+
+set(MIR_SERVER_PLATFORM_PLUGIN_PATH
+  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/mir/server-platform-${MIRSERVER_ABI}
+  PARENT_SCOPE
+)
+add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
+
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)
 add_subdirectory(input/)
@@ -97,8 +105,6 @@ else()
       ${MIRSERVER_LINKS}
   )
 endif()
-
-set(MIRSERVER_ABI 24) # Be sure to increment MIR_VERSION_MINOR at the same time
 
 set_target_properties(
   mirserver

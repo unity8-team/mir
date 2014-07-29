@@ -1,6 +1,8 @@
 include_directories(${PROJECT_SOURCE_DIR}/include/platform)
 include_directories(${UDEV_INCLUDE_DIRS})
 
+add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
+
 add_library(
   mirplatform SHARED
   shared_library_loader.cpp

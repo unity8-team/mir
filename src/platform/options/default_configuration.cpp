@@ -22,6 +22,7 @@
 #include "mir/graphics/platform.h"
 #include "mir/default_configuration.h"
 #include "mir/abnormal_exit.h"
+#include "mir/shared_library_prober.h"
 
 namespace mo = mir::options;
 
@@ -37,6 +38,7 @@ char const* const mo::legacy_input_report_opt     = "legacy-input-report";
 char const* const mo::connector_report_opt        = "connector-report";
 char const* const mo::scene_report_opt            = "scene-report";
 char const* const mo::input_report_opt            = "input-report";
+char const* const mo::shared_library_prober_report_opt = "shared-library-prober-report";
 char const* const mo::host_socket_opt             = "host-socket";
 char const* const mo::frontend_threads_opt        = "ipc-thread-pool";
 char const* const mo::name_opt                    = "name";
@@ -59,7 +61,6 @@ int const glog_stderrthreshold_default = 2;
 int const glog_minloglevel_default     = 0;
 char const* const glog_log_dir_default = "";
 bool const enable_input_default        = true;
-char const* const default_platform_graphics_lib = "libmirplatformgraphics.so";
 }
 
 mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
@@ -79,8 +80,8 @@ mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
             "Socket filename [string:default=$XDG_RUNTIME_DIR/mir_socket or /tmp/mir_socket]")
         (no_server_socket_opt, "Do not provide a socket filename for client connections")
         (prompt_socket_opt, "Provide a \"..._trusted\" filename for prompt helper connections")
-        (platform_graphics_lib, po::value<std::string>()->default_value(default_platform_graphics_lib),
-            "Library to use for platform graphics support")
+        (platform_graphics_lib, po::value<std::string>(),
+            "Library to use for platform graphics support (default: autodetect)")
         (enable_input_opt, po::value<bool>()->default_value(enable_input_default),
             "Enable input.")
         (compositor_report_opt, po::value<std::string>()->default_value(off_opt_value),
@@ -99,6 +100,8 @@ mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
             "How to handle the MessageProcessor report. [{log,lttng,off}]")
         (scene_report_opt, po::value<std::string>()->default_value(off_opt_value),
             "How to handle the scene report. [{log,lttng,off}]")
+        (shared_library_prober_report_opt, po::value<std::string>()->default_value(off_opt_value),
+                "How to handle the shared library prober report. [{log,lttng,off}]")
         (glog,
             "Use google::GLog for logging")
         (glog_stderrthreshold, po::value<int>()->default_value(glog_stderrthreshold_default),
@@ -124,30 +127,69 @@ mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
         add_platform_options();
 }
 
+namespace
+{
+class NullSharedLibraryProberReport : public mir::SharedLibraryProberReport
+{
+public:
+    void probing_path(boost::filesystem::path const& /*path*/) override
+    {
+    }
+    void probing_failed(boost::filesystem::path const& /*path*/, std::exception const& /*error*/) override
+    {
+    }
+    void loading_library(boost::filesystem::path const& /*filename*/) override
+    {
+    }
+    void loading_failed(boost::filesystem::path const& /*filename*/, std::exception const& /*error*/) override
+    {
+    }
+};
+}
+
 void mo::DefaultConfiguration::add_platform_options()
 {
     namespace po = boost::program_options;
     po::options_description program_options;
     program_options.add_options()
         (platform_graphics_lib,
-         po::value<std::string>()->default_value(default_platform_graphics_lib), "");
+         po::value<std::string>(), "");
     mo::ProgramOption options;
     options.parse_arguments(program_options, argc, argv);
 
-    std::string graphics_libname;
+    // TODO: We should just load all the platform plugins we can and
+    //       present their options. We don't necessarily know here which one will
+    //       be used.
+    std::shared_ptr<mir::SharedLibrary> graphics_lib;
     auto env_libname = ::getenv("MIR_SERVER_PLATFORM_GRAPHICS_LIB");
-    if (!options.is_set(platform_graphics_lib) && env_libname)
+    try
     {
-        graphics_libname = std::string{env_libname};
-    }
-    else
-    {
-        graphics_libname = options.get<std::string>(platform_graphics_lib);
-    }
+        if (options.is_set(platform_graphics_lib))
+        {
+            graphics_lib = std::make_shared<mir::SharedLibrary>(options.get<std::string>(platform_graphics_lib));
+        }
+        else if (env_libname)
+        {
+            graphics_lib = std::make_shared<mir::SharedLibrary>(std::string{env_libname});
+        }
+        else
+        {
+            NullSharedLibraryProberReport nuller;
+            auto plugins = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, nuller);
+            graphics_lib = plugins.front();
+        }
 
-    auto graphics_lib = load_library(graphics_libname);
-    auto add_platform_options = graphics_lib->load_function<mir::graphics::AddPlatformOptions>(std::string("add_platform_options"));
-    add_platform_options(*this->program_options);
+        auto add_platform_options = graphics_lib->load_function<mir::graphics::AddPlatformOptions>(std::string("add_platform_options"));
+        add_platform_options(*this->program_options);
+    }
+    catch(...)
+    {
+        // We don't actually care at this point if this failed.
+        // Maybe we've been pointed at the wrong place. Maybe this platform doesn't actually
+        // *have* platform-specific options.
+        // Regardless, if we need a platform and can't find one then we'll bail later
+        // in startup with a useful error.
+    }
 }
 
 boost::program_options::options_description_easy_init mo::DefaultConfiguration::add_options()

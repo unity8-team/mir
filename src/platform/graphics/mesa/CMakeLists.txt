@@ -11,7 +11,6 @@ include_directories(
 string(REPLACE "-pedantic" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 add_definitions(-D__GBM__)
 
-
 add_library(
   mirplatformgraphicsmesa SHARED
 
@@ -38,12 +37,6 @@ add_library(
   bypass.cpp
 )
 
-set_target_properties(
-  mirplatformgraphicsmesa PROPERTIES
-  OUTPUT_NAME mirplatformgraphics
-  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
-)
-
 target_link_libraries(
   mirplatformgraphicsmesa
   mirplatform
@@ -55,20 +48,4 @@ target_link_libraries(
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
 
-install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/platformgraphics/mesa)
-
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  add_custom_command(TARGET mirplatformgraphicsmesa
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove libmirplatformgraphics.so
-    COMMAND ${CMAKE_COMMAND} -E create_symlink mesa/$<TARGET_FILE_NAME:mirplatformgraphicsmesa> libmirplatformgraphics.so
-    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
-  )
-
-  install(CODE
-    "execute_process(
-       COMMAND ln -sf mir/platformgraphics/mesa/libmirplatformgraphics.so
-       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-     )"
-  )
-endif()
+install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})

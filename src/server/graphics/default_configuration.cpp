@@ -32,6 +32,7 @@
 
 #include "mir/shared_library.h"
 #include "mir/shared_library_loader.h"
+#include "mir/shared_library_prober.h"
 #include "mir/abnormal_exit.h"
 #include "mir/emergency_cleanup.h"
 
@@ -42,6 +43,12 @@
 #include <map>
 
 namespace mg = mir::graphics;
+
+namespace
+{
+// TODO: Temporary, until we actually manage module lifetimes
+static std::shared_ptr<mir::SharedLibrary> platform_library;
+}
 
 std::shared_ptr<mg::BufferInitializer>
 mir::DefaultServerConfiguration::the_buffer_initializer()
@@ -71,8 +78,22 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
             if (!the_options()->is_set(options::host_socket_opt))
             {
                 // fallback to standalone if host socket is unset
-                auto graphics_lib = mir::load_library(the_options()->get<std::string>(options::platform_graphics_lib));
-                auto create_platform = graphics_lib->load_function<mg::CreatePlatform>("create_platform");
+                if (the_options()->is_set(options::platform_graphics_lib))
+                {
+                    platform_library = std::make_shared<mir::SharedLibrary>(the_options()->get<std::string>(options::platform_graphics_lib));
+                }
+                else
+                {
+                    auto platforms = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, *the_shared_library_prober_report());
+                    if (platforms.empty())
+                    {
+                        throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);
+                    }
+                    // TODO: Infrastructure for platform libraries to actually probe
+                    //       the platform they're on, load the correct one, etc.
+                    platform_library = platforms.front();
+                }
+                auto create_platform = platform_library->load_function<mg::CreatePlatform>("create_platform");
                 return create_platform(the_options(), the_emergency_cleanup(), the_display_report());
             }
 
@@ -89,8 +110,22 @@ std::shared_ptr<mg::NativePlatform>  mir::DefaultServerConfiguration::the_graphi
     return graphics_native_platform(
         [this]()
         {
-            auto graphics_lib = mir::load_library(the_options()->get<std::string>(options::platform_graphics_lib));
-            auto create_native_platform = graphics_lib->load_function<mg::CreateNativePlatform>("create_native_platform");
+            if (the_options()->is_set(options::platform_graphics_lib))
+            {
+                platform_library = std::make_shared<mir::SharedLibrary>(the_options()->get<std::string>(options::platform_graphics_lib));
+            }
+            else
+            {
+                auto platforms = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, *the_shared_library_prober_report());
+                if (platforms.empty())
+                {
+                    throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);
+                }
+                // TODO: Infrastructure for platform libraries to actually probe
+                //       the platform they're on, load the correct one, etc.
+                platform_library = platforms.front();
+            }
+            auto create_native_platform = platform_library->load_function<mg::CreateNativePlatform>("create_native_platform");
 
             return create_native_platform(the_display_report());
         });
