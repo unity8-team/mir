@@ -4,7 +4,7 @@ libdir=@LIBDIR@
 includedir=@INCLUDEDIR@
 
 Name: mircommon
-Description: Mir common headers
+Description: Mir client and server common library
 Version: @MIR_VERSION_MAJOR@.@MIR_VERSION_MINOR@.@MIR_VERSION_PATCH@
-Libs:
+Libs: -L@LIBDIR@ -lmircommon -Wl,-rpath-link,@LIBDIR@
 Cflags: -I@INCLUDEDIR@
