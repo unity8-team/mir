@@ -26,7 +26,7 @@ c7328ef5ea4531c0fa981b3e15a69ea5c8162d09  include/server/mir/compositor/display_
 215f6cf88826381cd3ec37a6d2179a70093c0bc5  include/server/mir/display_changer.h
 8402804d05851f85b613a50b18620d3ce1a4e147  include/server/mir/server_configuration.h
 5ba863e9bb4dc9802aa74a7864f576df25142c2d  include/server/mir/logging/glog_logger.h
-4aa04639e1fd20395aa33ab15c5ce21c60bb79e9  include/server/mir/default_server_configuration.h
+dbca72eed405777f73c34c01d0974742000b5004  include/server/mir/default_server_configuration.h
 a35c5495d8fd28fc0e375b17495fc5caab51b329  include/server/mir/emergency_cleanup.h
 e5e4dd7bcaf186810043fa0f05be42d7e49b0843  include/server/mir/scene/surface_coordinator.h
 dd8f054f786b9746d9e513f2656e931234b5283a  include/server/mir/scene/surface_creation_parameters.h
@@ -146,7 +146,6 @@ be7d58c9fde2ce91cc66dd6144b76e08b536266b  include/shared/mir/int_wrapper.h
 99ef5f3bf548508fae24c60f74be1dea018a6e8c  include/shared/mir_toolkit/mesa/native_display.h
 183d9e5e6cfe48b3d9145a28541dd4202ff6137b  include/shared/mir_toolkit/common.h
 bdaceadd56e41d2cb708f7c4da97acf84dfc75b7  include/shared/mir_toolkit/event.h
-5d0213652adc4821a2a180ced74808ca0bbf2c45  include/platform/mir/shared_library_loader.h
 498d728ea1052cb6cadb9de7828ae48eb5a201df  include/platform/mir/emergency_cleanup_registry.h
 5dc095474ef3e294c0aa4008e9ed997bdb21d34c  include/platform/mir/graphics/gl_config.h
 656a7e1ae3b246930431a6174526fbdc2c76649e  include/platform/mir/graphics/platform.h
@@ -189,4 +188,4 @@ f62525771ca2612959ff88498883630458513235  include/platform/mir/graphics/gl_progr
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 f42afacda33e598f9c29f2f5b72932f75dd7d27c  include/platform/mir/options/program_option.h
 5879da8056f9a4ff8960f586d27117c87b110b2a  include/platform/mir/options/default_configuration.h
-3b5be510366571c992e0927cc5662af9b0611ae1  include/platform/mir/options/configuration.h
+a30c584f56efa3077f2c6aaeaf4a0e30b8987f55  include/platform/mir/options/configuration.h
