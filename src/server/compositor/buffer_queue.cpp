@@ -288,6 +288,16 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
+    if (!remove(buffer.get(), buffers_sent_to_compositor))
+    {
+        BOOST_THROW_EXCEPTION(
+            std::logic_error("unexpected release: buffer was not given to compositor"));
+    }
+
+    /* Not ready to release it yet, other compositors still reference this buffer */
+    if (contains(buffer.get(), buffers_sent_to_compositor))
+        return;
+
     /*
      * Calculate if we need extra buffers in the queue to account for a slow
      * client that can't keep up with composition.
@@ -329,16 +339,6 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 
 //    fprintf(stderr, "missed_frames = %d, extra_buffers = %d, nbuffers = %d\n",
 //        missed_frames, extra_buffers, (int)buffers.size());
-
-    if (!remove(buffer.get(), buffers_sent_to_compositor))
-    {
-        BOOST_THROW_EXCEPTION(
-            std::logic_error("unexpected release: buffer was not given to compositor"));
-    }
-
-    /* Not ready to release it yet, other compositors still reference this buffer */
-    if (contains(buffer.get(), buffers_sent_to_compositor))
-        return;
 
     if (max_buffers <= 1)
         return;
