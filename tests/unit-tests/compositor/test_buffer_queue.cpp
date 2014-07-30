@@ -1754,7 +1754,7 @@ TEST_F(BufferQueueTest, idle_clients_dont_get_expanded_buffers)
          for (int f = 0; f < delay*10; ++f)
              q.compositor_release(q.compositor_acquire(this));
 
-         // Verify we still only have double buffering. And idle client should
+         // Verify we still only have double buffering. An idle client should
          // not be a reason to expand to triple.
          for (int f = 0; f < contracted_nbuffers-1; ++f)
          {
