@@ -39,9 +39,12 @@ extern "C" {
         U_SHUTDOWN_DIALOG_ROLE,
     } UAUiWindowRole;
 
-
+    // Deprecated! Use UAUiWindowEventCb instead
     typedef void (*input_event_cb)(void* ctx, const Event* ev);
     typedef input_event_cb UAUiWindowInputEventCb;
+
+    typedef void (*event_cb)(void* ctx, const WindowEvent* ev);
+    typedef event_cb UAUiWindowEventCb;
 
     typedef void UAUiWindowProperties;
     
@@ -70,11 +73,18 @@ extern "C" {
     UBUNTU_DLL_PUBLIC UAUiWindowRole
     ua_ui_window_properties_get_role(
         UAUiWindowProperties *properties);
-   
+
+    // Deprecated! Use ua_ui_window_properties_set_event_cb_and_ctx instead.
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_input_cb_and_ctx(
         UAUiWindowProperties *properties,
         UAUiWindowInputEventCb cb,
+        void *ctx);
+
+    UBUNTU_DLL_PUBLIC void
+    ua_ui_window_properties_set_event_cb_and_ctx(
+        UAUiWindowProperties *properties,
+        UAUiWindowEventCb cb,
         void *ctx);
 
     UBUNTU_DLL_PUBLIC void

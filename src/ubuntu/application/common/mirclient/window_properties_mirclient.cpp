@@ -23,8 +23,9 @@ namespace uamc = ubuntu::application::mir::client;
 uamc::WindowProperties::WindowProperties()
     : parameters(),
       type(mir_surface_type_normal),
-      cb(nullptr),
-      input_ctx(nullptr)
+      _input_cb(nullptr),
+      _event_cb(nullptr),
+      _event_cb_ctx(nullptr)
 {
     parameters.name = nullptr;
     parameters.width = 0;
@@ -50,8 +51,14 @@ void uamc::WindowProperties::set_title(char const* window_title, size_t length)
 
 void uamc::WindowProperties::set_input_cb_and_ctx(UAUiWindowInputEventCb callback, void* ctx)
 {
-    cb = callback;
-    input_ctx = ctx;
+    _input_cb = callback;
+    _event_cb_ctx = ctx;
+}
+
+void uamc::WindowProperties::set_event_cb_and_ctx(UAUiWindowEventCb callback, void* ctx)
+{
+    _event_cb = callback;
+    _event_cb_ctx = ctx;
 }
 
 void uamc::WindowProperties::set_dimensions(uint32_t width, uint32_t height)
@@ -80,10 +87,15 @@ MirSurfaceType uamc::WindowProperties::surface_type() const
 
 UAUiWindowInputEventCb uamc::WindowProperties::input_cb() const
 {
-    return cb;
+    return _input_cb;
 }
 
-void* uamc::WindowProperties::input_context() const
+UAUiWindowEventCb uamc::WindowProperties::event_cb() const
 {
-    return input_ctx;
+    return _event_cb;
+}
+
+void* uamc::WindowProperties::event_cb_context() const
+{
+    return _event_cb_ctx;
 }
