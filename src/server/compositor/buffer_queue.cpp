@@ -302,6 +302,8 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         return;
 
     ++compositor_frames_per_client_frame;
+    bool client_trying_to_keep_up =
+        compositor_frames_per_client_frame <= max_buffers;
 
     /*
      * Calculate if we need extra buffers in the queue to account for a slow
@@ -312,7 +314,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         missed_frames = 0;
         extra_buffers = 0;
     }
-    else if (compositor_frames_per_client_frame <= max_buffers)
+    else if (client_trying_to_keep_up)
     {
         /*
          * A client that's keeping up will be in-phase with composition. That
