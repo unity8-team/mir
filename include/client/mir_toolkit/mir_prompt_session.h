@@ -37,7 +37,7 @@ extern "C" {
  *   \param [in,out] context            User data passed to the callback functions
  *   \return                            A handle that can be passed to mir_wait_for
  */
-MIR_API MirPromptSession *mir_connection_create_prompt_session_sync(
+MirPromptSession *mir_connection_create_prompt_session_sync(
     MirConnection* connection,
     pid_t application_pid,
     mir_prompt_session_state_change_callback state_change_callback,
@@ -57,7 +57,7 @@ MIR_API MirPromptSession *mir_connection_create_prompt_session_sync(
  *   \param [in,out] context     User data passed to the callback function
  *   \return                     A handle that can be passed to mir_wait_for
  */
-MIR_API MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
+MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
     MirPromptSession *prompt_session,
     unsigned int no_of_fds,
     mir_client_fd_callback callback,
@@ -67,14 +67,14 @@ MIR_API MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
  * Stop and release the specified prompt session
  *   \param [in] prompt_session  The prompt session
  */
-MIR_API void mir_prompt_session_release_sync(MirPromptSession *prompt_session);
+void mir_prompt_session_release_sync(MirPromptSession *prompt_session);
 
 /**
  * Test for a valid prompt session
  *   \param [in] prompt_session  The prompt session
  *   \return                     True if prompt_session is valid, false otherwise
  */
-MIR_API MirBool mir_prompt_session_is_valid(MirPromptSession *prompt_session);
+MirBool mir_prompt_session_is_valid(MirPromptSession *prompt_session);
 
 /**
  * Retrieve a text description of the last error. The returned string is owned
@@ -84,7 +84,7 @@ MIR_API MirBool mir_prompt_session_is_valid(MirPromptSession *prompt_session);
  *                           invalid connection, or the empty string "" if the
  *                           connection is valid.
  */
-MIR_API char const *mir_prompt_session_error_message(MirPromptSession *prompt_session);
+char const *mir_prompt_session_error_message(MirPromptSession *prompt_session);
 
 #ifdef __cplusplus
 }

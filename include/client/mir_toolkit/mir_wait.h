@@ -35,7 +35,7 @@ struct MirWaitHandle;
  * have completed.
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  */
-MIR_API void mir_wait_for(MirWaitHandle *wait_handle);
+void mir_wait_for(MirWaitHandle *wait_handle);
 
 /**
  * Wait on the supplied handle until one instance of the associated request
@@ -44,7 +44,7 @@ MIR_API void mir_wait_for(MirWaitHandle *wait_handle);
  * with the wait handle; only one.
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  */
-MIR_API void mir_wait_for_one(MirWaitHandle *wait_handle);
+void mir_wait_for_one(MirWaitHandle *wait_handle);
 
 
 #ifdef __cplusplus

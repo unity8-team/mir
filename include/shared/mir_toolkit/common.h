@@ -21,11 +21,6 @@
 #ifndef MIR_COMMON_H_
 #define MIR_COMMON_H_
 
-/**
- * Used to mark an exported symbol
- */
-#define MIR_API __attribute__((visibility("default")))
-
 #include <mir_toolkit/cursors.h>
 
 /**

@@ -38,7 +38,7 @@ extern "C" {
  * Release resources assosciated with cursor parameters
  *     \param [in] parameters The operand
  */
-MIR_API void mir_cursor_configuration_destroy(MirCursorConfiguration *parameters);
+void mir_cursor_configuration_destroy(MirCursorConfiguration *parameters);
 
 /**
  * Returns a new MirCursorConfiguration representing a named cursor
@@ -50,7 +50,7 @@ MIR_API void mir_cursor_configuration_destroy(MirCursorConfiguration *parameters
  *    \return A cursor parameters object which must be passed
  *            to_mir_cursor_configuration_destroy
  */
-MIR_API MirCursorConfiguration *mir_cursor_configuration_from_name(char const* name);
+MirCursorConfiguration *mir_cursor_configuration_from_name(char const* name);
 
 #ifdef __cplusplus
 }
