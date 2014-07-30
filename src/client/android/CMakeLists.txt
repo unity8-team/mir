@@ -16,7 +16,7 @@ add_library(
 add_library(
   mirclientplatformandroid MODULE
 
-  $<TARGET_OBJECTS:mirclientplatformandroid>
+  $<TARGET_OBJECTS:mirclientplatformandroidobjects>
   $<TARGET_OBJECTS:mirclient_platformimpl>
 )
 

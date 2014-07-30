@@ -26,6 +26,7 @@ add_subdirectory(input/)
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
   add_subdirectory(graphics/android)
+  list(APPEND INTEGRATION_TESTS_SRCS $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>)
 endif()
 
 if(MIR_TEST_PLATFORM STREQUAL "mesa")
@@ -38,6 +39,7 @@ if(MIR_TEST_PLATFORM STREQUAL "mesa")
   )
   add_subdirectory(graphics/mesa)
   list(APPEND INTEGRATION_TESTS_SRCS test_drm_auth_magic.cpp)
+  list(APPEND INTEGRATION_TESTS_SRCS $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>)
 endif()
 
 link_directories(${LIBRARY_OUTPUT_PATH})
@@ -54,7 +56,6 @@ target_link_libraries(
   mir-test-doubles
 
   mirserver
-  mirplatformgraphics
   mirdraw
   mirtestdraw
 
@@ -65,6 +66,15 @@ target_link_libraries(
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
+  # Mesa platform dependencies
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  # Android platform dependencies
+  ${LIBHARDWARE_LIBRARIES}
+  ${ANDROID_PROPERTIES_LIBRARIES}
+  # Shared platform dependencies
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
