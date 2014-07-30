@@ -101,7 +101,7 @@ mc::BufferQueue::BufferQueue(
       missed_frames{0}, 
       queue_resize_delay_frames{100},
       extra_buffers{0},
-      compositor_frames_per_client_frame{0},
+      client_trying_to_keep_up{false},
       frame_dropping_enabled{false},
       the_properties{props},
       force_new_compositor_buffer{false},
@@ -215,7 +215,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
 {
     std::lock_guard<decltype(guard)> lock(guard);
 
-    compositor_frames_per_client_frame = 0;
+    client_trying_to_keep_up = true;
 
     if (buffers_owned_by_client.empty())
     {
@@ -301,10 +301,6 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     if (contains(buffer.get(), buffers_sent_to_compositor))
         return;
 
-    ++compositor_frames_per_client_frame;
-    bool client_trying_to_keep_up =
-        compositor_frames_per_client_frame <= max_buffers;
-
     /*
      * Calculate if we need extra buffers in the queue to account for a slow
      * client that can't keep up with composition.
@@ -342,6 +338,8 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
             if (missed_frames < queue_resize_delay_frames)
                 --missed_frames;
         }
+
+        client_trying_to_keep_up = false;
     }
 
 //    fprintf(stderr, "missed_frames = %d, extra_buffers = %d, nbuffers = %d\n",
