@@ -1611,23 +1611,35 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
          ASSERT_FALSE(client2->has_acquired_buffer());
          q.compositor_release(q.compositor_acquire(this));
          ASSERT_TRUE(client2->has_acquired_buffer());
+         client2->release_buffer();
 
-         // Now hold client2 buffer for a little too long...
+         // Flush the queue
          for (int f = 0; f < delay*2; ++f)
              q.compositor_release(q.compositor_acquire(this));
-         // this should have resulted in the queue expanding.
 
-         client2->release_buffer();
-         q.compositor_release(q.compositor_acquire(this));
+         // Simulate a slow client. Not an idle one, but one trying to keep up
+         // and repeatedly failing to miss the frame deadline.
+         for (int f = 0; f < delay*2; ++f)
+         {
+             auto client3 = client_acquire_async(q);
+             client3->wait_for(std::chrono::milliseconds(100));
+             q.compositor_release(q.compositor_acquire(this));
+             ASSERT_TRUE(client3->has_acquired_buffer());
+             client3->release_buffer();
+         }
+
+         // Flush the queue
+         for (int f = 0; f < delay*2; ++f)
+             q.compositor_release(q.compositor_acquire(this));
 
          // Verify the queue expanded:
          int const expanded_nbuffers = expected_nbuffers + 1;
          for (int f = 0; f < expanded_nbuffers-1; ++f)
          {
-             auto client3 = client_acquire_async(q);
-             client3->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(client3->has_acquired_buffer()) << "frame " << f;
-             client3->release_buffer();
+             auto client4 = client_acquire_async(q);
+             client4->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client4->has_acquired_buffer()) << "frame " << f;
+             client4->release_buffer();
          }
     }
 }
