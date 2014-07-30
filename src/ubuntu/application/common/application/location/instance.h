@@ -56,10 +56,16 @@ class UBUNTU_DLL_LOCAL Instance
 
     ~Instance() noexcept
     {
-        bus->stop();
+        try
+        {
+            bus->stop();
 
-        if (worker.joinable())
-            worker.join();
+            if (worker.joinable())
+                worker.join();
+        } catch(...)
+        {
+            // We silently ignore errors to fulfill our noexcept guarantee.
+        }
     }
 
     core::dbus::Bus::Ptr bus;

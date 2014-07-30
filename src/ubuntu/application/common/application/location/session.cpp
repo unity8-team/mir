@@ -30,6 +30,9 @@ void
 ua_location_service_session_ref(
     UALocationServiceSession *session)
 {
+    if (not session)
+        return;
+
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
     s->ref();
 }
@@ -38,6 +41,9 @@ void
 ua_location_service_session_unref(
     UALocationServiceSession *session)
 {
+    if (not session)
+        return;
+
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
     s->unref();
 }
@@ -48,7 +54,11 @@ ua_location_service_session_set_position_updates_handler(
     UALocationServiceSessionPositionUpdatesHandler handler,
     void *context)
 {
+    if (not session)
+        return;
+
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
+
     try
     {
         std::lock_guard<std::mutex> lg(s->position_updates.guard);
@@ -69,7 +79,11 @@ ua_location_service_session_set_heading_updates_handler(
     UALocationServiceSessionHeadingUpdatesHandler handler,
     void *context)
 {
+    if (not session)
+        return;
+
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
+
     try
     {
         std::lock_guard<std::mutex> lg(s->heading_updates.guard);
@@ -90,7 +104,11 @@ ua_location_service_session_set_velocity_updates_handler(
     UALocationServiceSessionVelocityUpdatesHandler handler,
     void *context)
 {
+    if (not session)
+        return;
+
     auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
+
     try
     {
         std::lock_guard<std::mutex> lg(s->velocity_updates.guard);
@@ -109,9 +127,10 @@ UStatus
 ua_location_service_session_start_position_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return U_STATUS_ERROR;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
@@ -129,9 +148,10 @@ void
 ua_location_service_session_stop_position_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
@@ -146,9 +166,10 @@ UStatus
 ua_location_service_session_start_heading_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return U_STATUS_ERROR;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
@@ -166,9 +187,10 @@ void
 ua_location_service_session_stop_heading_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
@@ -183,9 +205,10 @@ UStatus
 ua_location_service_session_start_velocity_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return U_STATUS_ERROR;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
@@ -203,9 +226,10 @@ void
 ua_location_service_session_stop_velocity_updates(
     UALocationServiceSession *session)
 {
-    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
-    if (!s)
+    if (not session)
         return;
+
+    auto s = static_cast<UbuntuApplicationLocationServiceSession*>(session);
 
     try
     {
