@@ -327,6 +327,9 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         }
     }
 
+//    fprintf(stderr, "missed_frames = %d, extra_buffers = %d, nbuffers = %d\n",
+//        missed_frames, extra_buffers, (int)buffers.size());
+
     if (!remove(buffer.get(), buffers_sent_to_compositor))
     {
         BOOST_THROW_EXCEPTION(
