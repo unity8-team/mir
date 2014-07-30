@@ -1670,30 +1670,28 @@ TEST_F(BufferQueueTest, switch_to_triple_buffers_is_permanent)
          ASSERT_FALSE(client2->has_acquired_buffer());
          q.compositor_release(q.compositor_acquire(this));
          ASSERT_TRUE(client2->has_acquired_buffer());
+         client2->release_buffer();
 
-         // Now hold client2 buffer for a little too long...
+         // Flush the queue
          for (int f = 0; f < delay*2; ++f)
              q.compositor_release(q.compositor_acquire(this));
-         // this should have resulted in the queue expanding.
 
-         client2->release_buffer();
-         q.compositor_release(q.compositor_acquire(this));
-
-         // Force the queue to expand by making the free list empty:
-         std::shared_ptr<AcquireWaitHandle> client[2];
-         for (auto& c : client)
+         // Simulate a slow client. Not an idle one, but one trying to keep up
+         // and repeatedly failing to miss the frame deadline.
+         for (int f = 0; f < delay*2; ++f)
          {
-             c = client_acquire_async(q);
-             c->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(c->has_acquired_buffer());
-         }
-         for (auto& c : client)
-         {
-             c->release_buffer();
+             auto client3 = client_acquire_async(q);
+             client3->wait_for(std::chrono::milliseconds(100));
              q.compositor_release(q.compositor_acquire(this));
+             ASSERT_TRUE(client3->has_acquired_buffer());
+             client3->release_buffer();
          }
 
-         // Now let the client behave "well" and not skip frames:
+         // Flush the queue
+         for (int f = 0; f < delay*2; ++f)
+             q.compositor_release(q.compositor_acquire(this));
+
+         // Now let the client behave "well" and keep up.
          for (int f = 0; f < delay*10; ++f)
          {
              q.client_release(client_acquire_sync(q));
@@ -1705,16 +1703,16 @@ TEST_F(BufferQueueTest, switch_to_triple_buffers_is_permanent)
          int const expanded_nbuffers = 3;
          for (int f = 0; f < expanded_nbuffers-1; ++f)
          {
-             auto client3 = client_acquire_async(q);
-             client3->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(client3->has_acquired_buffer());
-             client3->release_buffer();
+             auto client4 = client_acquire_async(q);
+             client4->wait_for(std::chrono::milliseconds(100));
+             ASSERT_TRUE(client4->has_acquired_buffer());
+             client4->release_buffer();
          }
-         auto client4 = client_acquire_async(q);
-         client4->wait_for(std::chrono::milliseconds(100));
+         auto client5 = client_acquire_async(q);
+         client5->wait_for(std::chrono::milliseconds(100));
 
          // Verify we haven't expanded to 4 buffers:
-         ASSERT_FALSE(client4->has_acquired_buffer());
+         ASSERT_FALSE(client5->has_acquired_buffer());
     }
 }
 
