@@ -64,7 +64,6 @@ target_link_libraries(
   mir_acceptance_tests
 
   mirserver
-  mirplatform
 
   mir-test
   mir-test-framework

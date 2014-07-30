@@ -68,8 +68,8 @@ list(APPEND MIRSERVER_ARCHIVES
 )
 
 list(APPEND MIRSERVER_LINKS
-  mirplatform
   mirclient
+  mirplatformgraphicscommon
   mircommon
   3rd_party
   xcursorloader
