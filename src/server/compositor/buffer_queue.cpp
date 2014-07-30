@@ -312,15 +312,14 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         missed_frames = 0;
         extra_buffers = 0;
     }
-    else
+    else if (compositor_frames_per_client_frame <= max_buffers)
     {
         /*
          * A client that's keeping up will be in-phase with composition. That
          * means it will stay, or quickly equalize at a point where there are
          * no client buffers still held when composition finishes.
          */
-        bool client_idle = (compositor_frames_per_client_frame > max_buffers);
-        bool client_behind = !client_idle && !buffers_owned_by_client.empty();
+        bool client_behind = !buffers_owned_by_client.empty();
 
         if (client_behind && missed_frames < queue_resize_delay_frames)
         {
