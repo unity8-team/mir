@@ -343,9 +343,6 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
         client_trying_to_keep_up = false;
     }
 
-//    fprintf(stderr, "missed_frames = %d, extra_buffers = %d, nbuffers = %d\n",
-//        missed_frames, extra_buffers, (int)buffers.size());
-
     if (max_buffers <= 1)
         return;
 

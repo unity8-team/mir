@@ -20,8 +20,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <GLES2/gl2.h>
-#define __USE_BSD 1  /* for usleep() */
-#include <unistd.h>  /* sleep() */
 
 static GLuint load_shader(const char *src, GLenum type)
 {
@@ -127,7 +125,6 @@ int main(int argc, char *argv[])
         glUniform1f(theta, angle);
         angle += 0.02f;
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        usleep(17000);
         mir_eglapp_swap_buffers();
     }
 
