@@ -41,6 +41,7 @@ set(
   test_client_with_custom_display_config_deadlock.cpp
   test_macros.cpp
   test_stale_frames.cpp
+  test_server_without_active_outputs.cpp
   ${GENERATED_PROTOBUF_SRCS}
   ${GENERATED_PROTOBUF_HDRS}
 )
@@ -64,6 +65,8 @@ target_link_libraries(
   mir_acceptance_tests
 
   mirserver
+  mirclient
+  mirplatform
 
   mir-test
   mir-test-framework
@@ -87,11 +90,11 @@ CMAKE_DEPENDENT_OPTION(
   OFF)
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  set (MIR_CLIENT_PLATFORM libmirclientplatformmesa.so)
+  set (MIR_CLIENT_PLATFORM mir-client-platform-mesa.so)
 endif()
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
-  set (MIR_CLIENT_PLATFORM libmirclientplatformandroid.so)
+  set (MIR_CLIENT_PLATFORM mir-client-platform-android.so)
 endif()
 
 if (MIR_RUN_ACCEPTANCE_TESTS)

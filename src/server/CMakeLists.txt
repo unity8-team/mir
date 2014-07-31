@@ -52,7 +52,6 @@ add_library(mirserver ${MIRSERVER_LINKAGE}
 )
 
 list(APPEND MIRSERVER_ARCHIVES
-  miroptions
   mircompositor
   mirfrontend
   mirgraphics
@@ -69,7 +68,7 @@ list(APPEND MIRSERVER_ARCHIVES
 
 list(APPEND MIRSERVER_LINKS
   mirclient
-  mirplatformgraphicscommon
+  mirplatform
   mircommon
   3rd_party
   xcursorloader
