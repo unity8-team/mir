@@ -54,4 +54,14 @@ target_link_libraries(
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
 
+set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+
+set_target_properties(
+  mirplatformgraphicsmesa PROPERTIES
+  OUTPUT_NAME platform-graphics-mesa
+  PREFIX ""
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+)
+
+
 install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})
