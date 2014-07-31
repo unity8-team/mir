@@ -62,7 +62,7 @@ target_link_libraries(
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 set_target_properties(
-  mirplatformgraphicsmesa PROPERTIES
+  mirplatformgraphicsandroid PROPERTIES
   OUTPUT_NAME platform-graphics-android
   PREFIX ""
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
