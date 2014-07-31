@@ -49,7 +49,7 @@ target_link_libraries(
   mirplatformgraphicsandroid
 
   mirsharedandroid
-  mirplatformgraphicscommon
+  mirplatform
   mircommon
 
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
