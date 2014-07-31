@@ -55,19 +55,30 @@ ua_location_service_controller_query_status(
 
     *out_flags = 0;
 
-    auto service = Instance::instance().get_service();
+    try
+    {
+        auto service = Instance::instance().get_service();
 
-    if (service->is_online().get())
-        *out_flags |= UA_LOCATION_SERVICE_ENABLED;
-    else
-        *out_flags |= UA_LOCATION_SERVICE_DISABLED;
+        if (service->is_online().get())
+            *out_flags |= UA_LOCATION_SERVICE_ENABLED;
+        else
+            *out_flags |= UA_LOCATION_SERVICE_DISABLED;
 
-    if (service->does_satellite_based_positioning().get())
-        *out_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
-    else
-        *out_flags |= UA_LOCATION_SERVICE_GPS_DISABLED;
+        if (service->does_satellite_based_positioning().get())
+            *out_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
+        else
+            *out_flags |= UA_LOCATION_SERVICE_GPS_DISABLED;
 
-    return U_STATUS_SUCCESS;
+        return U_STATUS_SUCCESS;
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_query_status: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_query_status: error accessing instance." << std::endl;
+    }
+
+    return U_STATUS_ERROR;
 }
 
 UStatus
@@ -76,10 +87,21 @@ ua_location_service_controller_enable_service(
 {
     (void) controller;
 
-    auto service = Instance::instance().get_service();
-    service->is_online().set(true);
+    try
+    {
+        auto service = Instance::instance().get_service();
+        service->is_online().set(true);
 
-    return U_STATUS_SUCCESS;
+        return U_STATUS_SUCCESS;
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_enable_service: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_enable_service: error accessing instance." << std::endl;
+    }
+
+    return U_STATUS_ERROR;
 }
 
 UStatus
@@ -88,10 +110,21 @@ ua_location_service_controller_disable_service(
 {
     (void) controller;
 
-    auto service = Instance::instance().get_service();
-    service->is_online().set(false);
-    
-    return U_STATUS_SUCCESS;
+    try
+    {
+        auto service = Instance::instance().get_service();
+        service->is_online().set(false);
+
+        return U_STATUS_SUCCESS;
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_disable_service: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_disable_service: error accessing instance." << std::endl;
+    }
+
+    return U_STATUS_ERROR;
 }
 
 UStatus
@@ -100,10 +133,21 @@ ua_location_service_controller_enable_gps(
 {
     (void) controller;
 
-    auto service = Instance::instance().get_service();
-    service->does_satellite_based_positioning().set(true);
+    try
+    {
+        auto service = Instance::instance().get_service();
+        service->does_satellite_based_positioning().set(true);
 
-    return U_STATUS_SUCCESS;
+        return U_STATUS_SUCCESS;
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_enable_gps: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_enable_gps: error accessing instance." << std::endl;
+    }
+
+    return U_STATUS_ERROR;
 }
 
 UStatus
@@ -112,8 +156,19 @@ ua_location_service_controller_disable_gps(
 {
     (void) controller;
 
-    auto service = Instance::instance().get_service();
-    service->does_satellite_based_positioning().set(false);
+    try
+    {
+        auto service = Instance::instance().get_service();
+        service->does_satellite_based_positioning().set(false);
 
-    return U_STATUS_SUCCESS;
+        return U_STATUS_SUCCESS;
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_disable_gps: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_disable_gps: error accessing instance." << std::endl;
+    }
+
+    return U_STATUS_ERROR;
 }

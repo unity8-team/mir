@@ -1,3 +1,12 @@
+platform-api (2.2.0+14.10.20140730-0ubuntu1) utopic; urgency=low
+
+  [ thomas-voss ]
+  * Check for null in functions accessing a session object. Make sure
+    that exceptions cannot propagate for controller interactions. (LP:
+    #1338610)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 30 Jul 2014 07:26:34 +0000
+
 platform-api (2.2.0+14.10.20140728-0ubuntu1) utopic; urgency=medium
 
   [ Gerry Boland ]
