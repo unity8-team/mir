@@ -1,3 +1,10 @@
+platform-api (2.2.0+14.10.20140801-0ubuntu1) utopic; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Remove stale event.h header, use public one instead.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 01 Aug 2014 10:16:51 +0000
+
 platform-api (2.2.0+14.10.20140730-0ubuntu1) utopic; urgency=low
 
   [ thomas-voss ]
