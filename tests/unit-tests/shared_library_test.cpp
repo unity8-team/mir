@@ -21,11 +21,11 @@
 #include <gtest/gtest.h>
 
 #include <boost/exception/diagnostic_information.hpp>
-
 #include <stdexcept>
-#include <system_error>
-#include <unistd.h>
-#include <libgen.h>
+
+#include "mir_test_framework/executable_path.h"
+
+namespace mtf = mir_test_framework;
 
 namespace
 {
@@ -54,26 +54,12 @@ private:
 
 #define EXPECT_THAT(target, condition) EXPECT_TRUE((target, condition))
 
-std::string binary_path()
-{
-    char buf[1024];
-    auto tmp = readlink("/proc/self/exe", buf, sizeof buf);
-    if (tmp < 0)
-        throw std::system_error{errno, std::system_category(), "Failed to find our executable path"};
-
-    if (tmp > static_cast<ssize_t>(sizeof(buf) - 1))
-        throw std::runtime_error{"Path to executable is too long!"};
-
-    buf[tmp] = '\0';
-    return dirname(buf);
-}
-
 class SharedLibrary : public testing::Test
 {
 public:
     SharedLibrary()
         : nonexistent_library{"imma_totally_not_a_library"},
-          existing_library{binary_path() + "/../lib/mir-client-platform-mesa.so"},
+          existing_library{mtf::library_path() + "/mir-client-platform-mesa.so"},
           nonexistent_function{"yo_dawg"},
           existing_function{"create_client_platform_factory"}
     {
