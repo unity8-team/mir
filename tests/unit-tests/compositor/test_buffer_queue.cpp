@@ -1641,11 +1641,11 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
         // and repeatedly failing to miss the frame deadline.
         for (int f = 0; f < delay*2; ++f)
         {
-            auto client3 = client_acquire_async(q);
-            client3->wait_for(std::chrono::milliseconds(100));
+            auto client = client_acquire_async(q);
+            client->wait_for(std::chrono::milliseconds(100));
             q.compositor_release(q.compositor_acquire(this));
-            ASSERT_TRUE(client3->has_acquired_buffer());
-            client3->release_buffer();
+            ASSERT_TRUE(client->has_acquired_buffer());
+            client->release_buffer();
         }
 
         // Verify we now have triple buffers
@@ -1672,11 +1672,11 @@ TEST_F(BufferQueueTest, switch_to_triple_buffers_is_permanent)
         // and repeatedly failing to miss the frame deadline.
         for (int f = 0; f < delay*2; ++f)
         {
-            auto client3 = client_acquire_async(q);
-            client3->wait_for(std::chrono::milliseconds(100));
+            auto client = client_acquire_async(q);
+            client->wait_for(std::chrono::milliseconds(100));
             q.compositor_release(q.compositor_acquire(this));
-            ASSERT_TRUE(client3->has_acquired_buffer());
-            client3->release_buffer();
+            ASSERT_TRUE(client->has_acquired_buffer());
+            client->release_buffer();
         }
 
         EXPECT_EQ(3, unique_synchronous_buffers(q));
@@ -1728,10 +1728,6 @@ TEST_F(BufferQueueTest, idle_clients_dont_get_expanded_buffers)
 
         client2->release_buffer();
 
-        // Composite lots leaving the client idle
-        for (int f = 0; f < delay*10; ++f)
-            q.compositor_release(q.compositor_acquire(this));
-
         // Verify we still only have double buffering. An idle client should
         // not be a reason to expand to triple.
         EXPECT_EQ(2, unique_synchronous_buffers(q));
@@ -1757,15 +1753,15 @@ TEST_F(BufferQueueTest, really_slow_clients_dont_get_expanded_buffers)
         // never be helped by triple buffering.
         for (int f = 0; f < delay*2; ++f)
         {
-            auto client3 = client_acquire_async(q);
-            client3->wait_for(std::chrono::milliseconds(100));
+            auto client = client_acquire_async(q);
+            client->wait_for(std::chrono::milliseconds(100));
 
             q.compositor_release(q.compositor_acquire(this));
             q.compositor_release(q.compositor_acquire(this));
             q.compositor_release(q.compositor_acquire(this));
 
-            ASSERT_TRUE(client3->has_acquired_buffer());
-            client3->release_buffer();
+            ASSERT_TRUE(client->has_acquired_buffer());
+            client->release_buffer();
         }
 
         // Verify we still only have double buffering. An idle client should
@@ -1794,10 +1790,10 @@ TEST_F(BufferQueueTest, synchronous_clients_dont_get_expanded_buffers)
         // refresh rate)
         for (int f = 0; f < delay*2; ++f)
         {
-            auto client3 = client_acquire_async(q);
-            client3->wait_for(std::chrono::milliseconds(100));
-            ASSERT_TRUE(client3->has_acquired_buffer());
-            client3->release_buffer();
+            auto client = client_acquire_async(q);
+            client->wait_for(std::chrono::milliseconds(100));
+            ASSERT_TRUE(client->has_acquired_buffer());
+            client->release_buffer();
 
             q.compositor_release(q.compositor_acquire(this));
         }
