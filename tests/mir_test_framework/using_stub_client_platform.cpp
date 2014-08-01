@@ -27,6 +27,10 @@ namespace mtf = mir_test_framework;
 namespace
 {
 
+void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
+{
+}
+
 MirWaitHandle* mir_connect_override(
     char const *socket_file,
     char const *app_name,
@@ -42,6 +46,7 @@ void mir_connection_release_override(MirConnection *connection)
 {
     try
     {
+        mir_connection_set_lifecycle_event_callback(connection, null_lifecycle_callback, nullptr);
         auto wait_handle = connection->disconnect();
         mir_wait_for(wait_handle);
     }
