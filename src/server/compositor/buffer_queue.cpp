@@ -303,26 +303,18 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
          * frame will have client_lag == 1. Those are the clients we can help
          * by going to triple buffering.
          */
-        bool client_behind = (client_lag == 1);
-
-        if (client_behind && missed_frames < queue_resize_delay_frames)
+        if (client_lag == 1 && missed_frames < queue_resize_delay_frames)
         {
             ++missed_frames;
             if (missed_frames >= queue_resize_delay_frames)
                 extra_buffers = 1;
         }
 
-        if (!client_behind && missed_frames > 0)
+        if (client_lag != 1 &&
+            missed_frames > 0 &&
+            missed_frames < queue_resize_delay_frames)
         {
-            /*
-             * Allow missed_frames to recover back down to zero, so long as
-             * the ceiling is never hit (meaning you're keeping up most of the
-             * time). If the ceiling is hit, keep it there with the extra
-             * buffer allocated so we don't shrink again and cause yet more
-             * missed frames.
-             */
-            if (missed_frames < queue_resize_delay_frames)
-                --missed_frames;
+            --missed_frames;
         }
     }
 
