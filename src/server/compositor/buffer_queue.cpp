@@ -101,7 +101,7 @@ mc::BufferQueue::BufferQueue(
       missed_frames{0}, 
       queue_resize_delay_frames{100},
       extra_buffers{0},
-      client_trying_to_keep_up{false},
+      client_lag{0},
       frame_dropping_enabled{false},
       the_properties{props},
       force_new_compositor_buffer{false},
@@ -178,6 +178,8 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
+    client_lag = 1;
+
     pending_client_notifications.push_back(std::move(complete));
 
     if (!free_buffers.empty())
@@ -215,7 +217,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
 {
     std::lock_guard<decltype(guard)> lock(guard);
 
-    client_trying_to_keep_up = true;
+    client_lag = 0;
 
     if (buffers_owned_by_client.empty())
     {
@@ -281,26 +283,6 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     std::shared_ptr<mg::Buffer> const acquired_buffer =
         buffer_for(current_compositor_buffer, buffers);
 
-    if (buffer_to_release)
-        release(buffer_to_release, std::move(lock));
-
-    return acquired_buffer;
-}
-
-void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& buffer)
-{
-    std::unique_lock<decltype(guard)> lock(guard);
-
-    if (!remove(buffer.get(), buffers_sent_to_compositor))
-    {
-        BOOST_THROW_EXCEPTION(
-            std::logic_error("unexpected release: buffer was not given to compositor"));
-    }
-
-    /* Not ready to release it yet, other compositors still reference this buffer */
-    if (contains(buffer.get(), buffers_sent_to_compositor))
-        return;
-
     /*
      * Calculate if we need extra buffers in the queue to account for a slow
      * client that can't keep up with composition.
@@ -313,12 +295,15 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     else
     {
         /*
-         * A client that's keeping up will be in-phase with composition. That
-         * means it will stay, or quickly equalize at a point where there are
-         * no client buffers still held when composition finishes.
+         * A fully synchronous and fast client that's keeping up with the
+         * compositor will have client_lag == 0.
+         * An idle client (or intentionally slow to redraw) will have
+         * client_lag > 1.
+         * Only clients that are trying to keep up and just failing by one
+         * frame will have client_lag == 1. Those are the clients we can help
+         * by going to triple buffering.
          */
-        bool client_behind = client_trying_to_keep_up &&
-                             !buffers_owned_by_client.empty();
+        bool client_behind = (client_lag == 1);
 
         if (client_behind && missed_frames < queue_resize_delay_frames)
         {
@@ -339,9 +324,30 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
             if (missed_frames < queue_resize_delay_frames)
                 --missed_frames;
         }
-
-        client_trying_to_keep_up = false;
     }
+
+    if (client_lag)
+        ++client_lag;
+
+    if (buffer_to_release)
+        release(buffer_to_release, std::move(lock));
+
+    return acquired_buffer;
+}
+
+void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& buffer)
+{
+    std::unique_lock<decltype(guard)> lock(guard);
+
+    if (!remove(buffer.get(), buffers_sent_to_compositor))
+    {
+        BOOST_THROW_EXCEPTION(
+            std::logic_error("unexpected release: buffer was not given to compositor"));
+    }
+
+    /* Not ready to release it yet, other compositors still reference this buffer */
+    if (contains(buffer.get(), buffers_sent_to_compositor))
+        return;
 
     if (max_buffers <= 1)
         return;
