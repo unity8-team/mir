@@ -101,7 +101,7 @@ mc::BufferQueue::BufferQueue(
       missed_frames{0}, 
       queue_resize_delay_frames{100},
       extra_buffers{0},
-      client_trying_to_keep_up{false},
+      client_lag{0},
       frame_dropping_enabled{false},
       the_properties{props},
       force_new_compositor_buffer{false},
@@ -177,6 +177,7 @@ mc::BufferQueue::BufferQueue(
 void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
 {
     std::unique_lock<decltype(guard)> lock(guard);
+//    fprintf(stderr, "%s\n", __FUNCTION__);
 
     pending_client_notifications.push_back(std::move(complete));
 
@@ -215,7 +216,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
 {
     std::lock_guard<decltype(guard)> lock(guard);
 
-    client_trying_to_keep_up = true;
+//    fprintf(stderr, "%s\n", __FUNCTION__);
 
     if (buffers_owned_by_client.empty())
     {
@@ -237,6 +238,7 @@ std::shared_ptr<mg::Buffer>
 mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
+//    fprintf(stderr, "%s\n", __FUNCTION__);
 
     bool use_current_buffer = false;
     if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
@@ -282,7 +284,10 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         buffer_for(current_compositor_buffer, buffers);
 
     if (buffer_to_release)
+    {
+        client_lag = 1;
         release(buffer_to_release, std::move(lock));
+    }
 
     return acquired_buffer;
 }
@@ -290,6 +295,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& buffer)
 {
     std::unique_lock<decltype(guard)> lock(guard);
+//    fprintf(stderr, "%s\n", __FUNCTION__);
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))
     {
@@ -317,17 +323,14 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
          * means it will stay, or quickly equalize at a point where there are
          * no client buffers still held when composition finishes.
          */
-        bool client_behind = client_trying_to_keep_up &&
-                             !buffers_owned_by_client.empty();
-
-        if (client_behind && missed_frames < queue_resize_delay_frames)
+        if (client_lag == 1 && missed_frames < queue_resize_delay_frames)
         {
             ++missed_frames;
             if (missed_frames >= queue_resize_delay_frames)
                 extra_buffers = 1;
         }
 
-        if (!client_behind && missed_frames > 0)
+        if (client_lag != 1 && missed_frames > 0)
         {
             /*
              * Allow missed_frames to recover back down to zero, so long as
@@ -340,8 +343,14 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
                 --missed_frames;
         }
 
-        client_trying_to_keep_up = false;
+//        fprintf(stderr, "missed_frames %d, extra %d\n",
+//            missed_frames, extra_buffers);
     }
+
+    // Let client_lag go above 1 to represent an idle client (one that's
+    // sleeping and not trying to keep up with the compositor)
+    if (client_lag)
+        ++client_lag;
 
     if (max_buffers <= 1)
         return;
@@ -366,7 +375,10 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     }
 
     if (current_compositor_buffer != buffer.get())
+    {
+        client_lag = 0;
         release(buffer.get(), std::move(lock));
+    }
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
@@ -456,6 +468,7 @@ void mc::BufferQueue::give_buffer_to_client(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
+//    fprintf(stderr, "%s\n", __FUNCTION__);
     /* Clears callback */
     auto give_to_client_cb = std::move(pending_client_notifications.front());
     pending_client_notifications.pop_front();
