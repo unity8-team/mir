@@ -1560,6 +1560,43 @@ namespace
 
         return static_cast<int>(buffers_acquired.size());
     }
+
+    int unique_synchronous_buffers(mc::BufferQueue& q)
+    {
+        if (q.framedropping_allowed())
+            return 0;
+
+        int const max = 10;
+
+        // Flush the queue
+        for (int f = 0; f < max; ++f)
+            q.compositor_release(q.compositor_acquire(0));
+
+        auto compositor = q.compositor_acquire(0);
+        int count = 1;  // ^ count the compositor buffer
+
+        std::shared_ptr<AcquireWaitHandle> client;
+        while (count < max)
+        {
+            client = client_acquire_async(q);
+            client->wait_for(std::chrono::milliseconds(100));
+            if (!client->has_acquired_buffer())
+                break;
+            ++count;
+            client->release_buffer();
+        }
+
+        q.compositor_release(compositor);
+        client->wait_for(std::chrono::milliseconds(100));
+        EXPECT_TRUE(client->has_acquired_buffer());
+        client->release_buffer();
+
+        // Flush the queue
+        for (int f = 0; f < max; ++f)
+            q.compositor_release(q.compositor_acquire(0));
+
+        return count;
+    }
 } // namespace
 
 TEST_F(BufferQueueTest, queue_size_scales_instantly_on_framedropping)
@@ -1597,25 +1634,7 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
          int const delay = 10;
          q.set_resize_delay(delay);
 
-         // First, verify we only have 2 real buffers
-         int const expected_nbuffers = 2;
-         for (int f = 0; f < expected_nbuffers-1; ++f)
-         {
-             auto client1 = client_acquire_async(q);
-             client1->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(client1->has_acquired_buffer());
-             client1->release_buffer();
-         }
-         auto client2 = client_acquire_async(q);
-         client2->wait_for(std::chrono::milliseconds(100));
-         ASSERT_FALSE(client2->has_acquired_buffer());
-         q.compositor_release(q.compositor_acquire(this));
-         ASSERT_TRUE(client2->has_acquired_buffer());
-         client2->release_buffer();
-
-         // Flush the queue
-         for (int f = 0; f < delay*2; ++f)
-             q.compositor_release(q.compositor_acquire(this));
+         EXPECT_EQ(2, unique_synchronous_buffers(q));
 
          // Simulate a slow client. Not an idle one, but one trying to keep up
          // and repeatedly failing to miss the frame deadline.
@@ -1628,19 +1647,7 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
              client3->release_buffer();
          }
 
-         // Flush the queue
-         for (int f = 0; f < delay*2; ++f)
-             q.compositor_release(q.compositor_acquire(this));
-
-         // Verify the queue expanded:
-         int const expanded_nbuffers = expected_nbuffers + 1;
-         for (int f = 0; f < expanded_nbuffers-1; ++f)
-         {
-             auto client4 = client_acquire_async(q);
-             client4->wait_for(std::chrono::milliseconds(100));
-             ASSERT_TRUE(client4->has_acquired_buffer()) << "frame " << f;
-             client4->release_buffer();
-         }
+         EXPECT_EQ(3, unique_synchronous_buffers(q));
     }
 }
 
