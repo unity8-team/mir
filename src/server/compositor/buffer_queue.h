@@ -90,7 +90,7 @@ private:
 
     int const min_buffers, max_buffers;
     int missed_frames, queue_resize_delay_frames, extra_buffers;
-    int client_lag;
+    bool client_trying_to_keep_up;
     bool frame_dropping_enabled;
     graphics::BufferProperties the_properties;
     bool force_new_compositor_buffer;
