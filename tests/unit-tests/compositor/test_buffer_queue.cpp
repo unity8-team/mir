@@ -1579,7 +1579,6 @@ namespace
         while (count < max)
         {
             client = client_acquire_async(q);
-            client->wait_for(std::chrono::milliseconds(100));
             if (!client->has_acquired_buffer())
                 break;
             ++count;
@@ -1587,7 +1586,6 @@ namespace
         }
 
         q.compositor_release(compositor);
-        client->wait_for(std::chrono::milliseconds(100));
         EXPECT_TRUE(client->has_acquired_buffer());
         client->release_buffer();
 
@@ -1642,7 +1640,6 @@ TEST_F(BufferQueueTest, queue_size_scales_for_slow_clients)
         for (int f = 0; f < delay*2; ++f)
         {
             auto client = client_acquire_async(q);
-            client->wait_for(std::chrono::milliseconds(100));
             q.compositor_release(q.compositor_acquire(this));
             ASSERT_TRUE(client->has_acquired_buffer());
             client->release_buffer();
@@ -1673,7 +1670,6 @@ TEST_F(BufferQueueTest, switch_to_triple_buffers_is_permanent)
         for (int f = 0; f < delay*2; ++f)
         {
             auto client = client_acquire_async(q);
-            client->wait_for(std::chrono::milliseconds(100));
             q.compositor_release(q.compositor_acquire(this));
             ASSERT_TRUE(client->has_acquired_buffer());
             client->release_buffer();
@@ -1711,12 +1707,10 @@ TEST_F(BufferQueueTest, idle_clients_dont_get_expanded_buffers)
         for (int f = 0; f < contracted_nbuffers-1; ++f)
         {
             auto client1 = client_acquire_async(q);
-            client1->wait_for(std::chrono::milliseconds(100));
             ASSERT_TRUE(client1->has_acquired_buffer());
             client1->release_buffer();
         }
         auto client2 = client_acquire_async(q);
-        client2->wait_for(std::chrono::milliseconds(100));
         ASSERT_FALSE(client2->has_acquired_buffer());
         q.compositor_release(q.compositor_acquire(this));
         ASSERT_TRUE(client2->has_acquired_buffer());
@@ -1754,7 +1748,6 @@ TEST_F(BufferQueueTest, really_slow_clients_dont_get_expanded_buffers)
         for (int f = 0; f < delay*2; ++f)
         {
             auto client = client_acquire_async(q);
-            client->wait_for(std::chrono::milliseconds(100));
 
             q.compositor_release(q.compositor_acquire(this));
             q.compositor_release(q.compositor_acquire(this));
@@ -1791,7 +1784,6 @@ TEST_F(BufferQueueTest, synchronous_clients_dont_get_expanded_buffers)
         for (int f = 0; f < delay*2; ++f)
         {
             auto client = client_acquire_async(q);
-            client->wait_for(std::chrono::milliseconds(100));
             ASSERT_TRUE(client->has_acquired_buffer());
             client->release_buffer();
 
