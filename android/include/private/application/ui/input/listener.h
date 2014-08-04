@@ -18,7 +18,7 @@
 #ifndef UBUNTU_APPLICATION_UI_INPUT_LISTENER_H_
 #define UBUNTU_APPLICATION_UI_INPUT_LISTENER_H_
 
-#include "private/application/ui/input/event.h"
+#include "ubuntu/application/ui/input/event.h"
 #include "private/platform/shared_ptr.h"
 
 namespace ubuntu
