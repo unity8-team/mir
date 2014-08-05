@@ -1,6 +1,6 @@
-qtmir-gles (0.4.0+14.10.20140805-0ubuntu2) UNRELEASED; urgency=medium
+qtmir-gles (0.4.0+14.10.20140805.1-0ubuntu1) UNRELEASED; urgency=medium
 
-  * Sync with upstream. 
+  * Sync with upstream.
 
  -- Thomas Voß <thomas.voss@canonical.com>  Tue, 05 Aug 2014 21:19:57 +0200
 
