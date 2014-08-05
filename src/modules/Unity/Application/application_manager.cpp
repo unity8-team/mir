@@ -290,11 +290,6 @@ bool ApplicationManager::requestFocusApplication(const QString &inputAppId)
         return false;
     }
 
-    Application *currentlyFocusedApplication = findApplication(focusedApplicationId());
-    if (currentlyFocusedApplication) {
-        m_nextFocusedAppId = appId;
-    }
-
     Q_EMIT focusRequested(appId);
     return true;
 }
@@ -660,11 +655,6 @@ void ApplicationManager::screenshotUpdated()
         Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
 
         qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received new screenshot for", application->appId();
-
-        if (!m_nextFocusedAppId.isEmpty()) {
-            Q_EMIT focusRequested(m_nextFocusedAppId);
-            m_nextFocusedAppId.clear();
-        }
     } else {
         qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received screenshotUpdated signal but application has disappeard.";
     }

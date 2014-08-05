@@ -164,7 +164,6 @@ private:
     QSharedPointer<ProcInfo> m_procInfo;
     static ApplicationManager* the_application_manager;
     QList<pid_t> m_hiddenPIDs;
-    QString m_nextFocusedAppId;
     bool m_suspended;
 
     friend class Application;
