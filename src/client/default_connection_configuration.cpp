@@ -35,6 +35,7 @@
 #include "lifecycle_control.h"
 #include "mir/shared_library.h"
 #include "client_platform_factory.h"
+#include "probing_client_platform_factory.h"
 #include "mir_event_distributor.h"
 #include "mir/shared_library_prober.h"
 
@@ -46,7 +47,9 @@ std::string const off_opt_val{"off"};
 std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
 
-std::shared_ptr<mir::SharedLibrary> the_platform_plugin;
+// Shove this here until we properly manage the lifetime of our
+// loadable modules
+std::shared_ptr<mcl::ProbingClientPlatformFactory> the_platform_prober;
 }
 
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
@@ -92,27 +95,19 @@ mcl::DefaultConnectionConfiguration::the_client_platform_factory()
         [this]
         {
             auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
+            std::vector<std::shared_ptr<mir::SharedLibrary>> platform_plugins;
             if (val_raw)
             {
-                the_platform_plugin = std::make_shared<mir::SharedLibrary>(val_raw);
+                platform_plugins.push_back(std::make_shared<mir::SharedLibrary>(val_raw));
             }
             else
             {
-                auto plugins = mir::libraries_for_path(MIR_CLIENT_PLATFORM_PATH, *the_shared_library_prober_report());
-                if (plugins.empty())
-                {
-                    throw std::runtime_error("No client platform libraries found in " MIR_CLIENT_PLATFORM_PATH);
-                }
-                // TODO: Some sort of probe so we have some guarantee that
-                //       we've got the right plugin!
-                the_platform_plugin = plugins.front();
+                platform_plugins = mir::libraries_for_path(MIR_CLIENT_PLATFORM_PATH, *the_shared_library_prober_report());
             }
 
-            auto const create_client_platform_factory =
-                the_platform_plugin->load_function<mcl::CreateClientPlatformFactory>(
-                    "create_client_platform_factory");
+            the_platform_prober = std::make_shared<mcl::ProbingClientPlatformFactory>(platform_plugins);
 
-            return create_client_platform_factory();
+            return the_platform_prober;
         });
 }
 

@@ -22,7 +22,7 @@
 #include <system_error>
 #include <boost/filesystem.hpp>
 
-std::list<std::shared_ptr<mir::SharedLibrary>>
+std::vector<std::shared_ptr<mir::SharedLibrary>>
 mir::libraries_for_path(std::string const& path, mir::SharedLibraryProberReport& report)
 {
     report.probing_path(path);
@@ -43,7 +43,7 @@ mir::libraries_for_path(std::string const& path, mir::SharedLibraryProberReport&
             throw std::runtime_error{"Boost error from unknown category"};
         }
     }
-    std::list<std::shared_ptr<mir::SharedLibrary>> libraries;
+    std::vector<std::shared_ptr<mir::SharedLibrary>> libraries;
     for (; iterator != boost::filesystem::directory_iterator() ; ++iterator)
     {
         if (iterator->path().extension().string() == ".so")

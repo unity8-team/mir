@@ -59,9 +59,9 @@ class SharedLibrary : public testing::Test
 public:
     SharedLibrary()
         : nonexistent_library{"imma_totally_not_a_library"},
-          existing_library{mtf::library_path() + "/mir-client-platform-mesa.so"},
+          existing_library{mtf::library_path() + "/client-platform-mesa.so"},
           nonexistent_function{"yo_dawg"},
-          existing_function{"create_client_platform_factory"}
+          existing_function{"create_client_platform"}
     {
     }
 

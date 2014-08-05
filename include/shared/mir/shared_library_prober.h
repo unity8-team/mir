@@ -29,7 +29,7 @@ namespace mir
 {
 class SharedLibrary;
 
-std::list<std::shared_ptr<SharedLibrary>> libraries_for_path(std::string const& path, SharedLibraryProberReport& report);
+std::vector<std::shared_ptr<SharedLibrary>> libraries_for_path(std::string const& path, SharedLibraryProberReport& report);
 }
 
 

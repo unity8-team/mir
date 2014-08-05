@@ -3,6 +3,7 @@ include_directories(
     ${GLESv2_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}
     ${UMOCKDEV_INCLUDE_DIRS}
+    ${ANDROID_HEADERS_INCLUDE_DIRS}
 )
 
 set(
@@ -23,6 +24,7 @@ set(
   using_stub_client_platform.cpp
   udev_environment.cpp
   declarative_placement_strategy.cpp
+  stub_client_platform_factory.cpp
 )
 
 list(APPEND TEST_FRAMEWORK_SRCS
@@ -53,6 +55,27 @@ target_link_libraries(
   ${GMOCK_MAIN_LIBRARY}
   ${UMOCKDEV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+)
+
+set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols-client.map)
+
+add_library(
+  mirclientplatformstub MODULE
+
+  stub_client_platform_module.cpp
+)
+
+target_link_libraries(
+  mirclientplatformstub
+
+  mir-test-framework
+)
+
+set_target_properties(
+  mirclientplatformstub PROPERTIES;
+  OUTPUT_NAME client-platform-dummy
+  PREFIX ""
+  LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
 
 add_custom_command(TARGET mir-test-framework POST_BUILD

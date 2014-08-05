@@ -16,19 +16,24 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "client_platform_factory.h"
+#include "../client_platform_factory.h"
+#include "mir_toolkit/client_types.h"
+#include "../client_context.h"
 #include "android_client_platform.h"
+
+#include <stdexcept>
 
 namespace mcl = mir::client;
 namespace mcla = mcl::android;
 
-std::shared_ptr<mcl::ClientPlatform>
-mcla::ClientPlatformFactory::create_client_platform(mcl::ClientContext* /*context*/)
+extern "C" std::shared_ptr<mcl::ClientPlatform>
+mcl::create_client_platform(mcl::ClientContext* context)
 {
+    MirPlatformPackage platform;
+    context->populate(platform);
+    if (platform.data_items != 0 || platform.fd_items != 0)
+    {
+        throw new std::runtime_error{"Attempted to create Android client platform on non-Android server"};
+    }
     return std::make_shared<mcla::AndroidClientPlatform>();
-}
-
-extern "C" std::shared_ptr<mcl::ClientPlatformFactory> mcl::create_client_platform_factory()
-{
-    return std::make_shared<mcla::ClientPlatformFactory>();
 }

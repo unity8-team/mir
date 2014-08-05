@@ -16,13 +16,17 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "client_platform_factory.h"
+#include "../client_platform_factory.h"
 #include "client_platform.h"
+#include "mir_toolkit/client_types.h"
+#include "../client_context.h"
 #include "buffer_file_ops.h"
 #include "../egl_native_display_container.h"
 
 #include <sys/mman.h>
 #include <unistd.h>
+#include <stdexcept>
+#include <iostream>
 
 namespace mcl = mir::client;
 namespace mclm = mcl::mesa;
@@ -57,15 +61,17 @@ struct RealBufferFileOps : public mclm::BufferFileOps
 
 }
 
-std::shared_ptr<mcl::ClientPlatform>
-mclm::ClientPlatformFactory::create_client_platform(mcl::ClientContext* context)
+extern "C" std::shared_ptr<mcl::ClientPlatform> mcl::create_client_platform(mcl::ClientContext* context)
 {
-    auto buffer_file_ops = std::make_shared<RealBufferFileOps>();
+    MirPlatformPackage package;
+    std::cout<<"Constructing mesa client platform…"<<std::endl;
+    context->populate(package);
+    if (package.data_items != 0 || package.fd_items != 1)
+    {
+        std::cout<<"\tOops! Not a mesa platform!"<<std::endl;
+        throw std::runtime_error{"Attempted to create Mesa client platform on non-Mesa server"};
+    }
+;    auto buffer_file_ops = std::make_shared<RealBufferFileOps>();
     return std::make_shared<mclm::ClientPlatform>(
         context, buffer_file_ops, mcl::EGLNativeDisplayContainer::instance());
-}
-
-extern "C" std::shared_ptr<mcl::ClientPlatformFactory> mcl::create_client_platform_factory()
-{
-    return std::make_shared<mclm::ClientPlatformFactory>();
 }

@@ -21,7 +21,12 @@
 #include "mir_test_doubles/mock_android_alloc_device.h"
 #include "mir_test_doubles/mock_hwc_composer_device_1.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <hardware/hardware.h>
+#pragma GCC diagnostic pop
+
 #include <gmock/gmock.h>
 #include <memory>
 

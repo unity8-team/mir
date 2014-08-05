@@ -60,6 +60,7 @@ target_link_libraries(
   mirserver
   mirdraw
   mirtestdraw
+  mirsharedandroid
 
   3rd_party
 

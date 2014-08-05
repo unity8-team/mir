@@ -89,13 +89,7 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_ACCEPTANCE_TESTS"
   OFF)
 
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  set (MIR_CLIENT_PLATFORM mir-client-platform-mesa.so)
-endif()
-
-if (MIR_TEST_PLATFORM STREQUAL "android")
-  set (MIR_CLIENT_PLATFORM mir-client-platform-android.so)
-endif()
+set (MIR_CLIENT_PLATFORM client-platform-dummy.so)
 
 if (MIR_RUN_ACCEPTANCE_TESTS)
   mir_discover_tests(mir_acceptance_tests MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_PLATFORM})

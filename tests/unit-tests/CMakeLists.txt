@@ -2,7 +2,23 @@ include(CMakeDependentOption)
 
 add_definitions(-DTEST_RECORDINGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/input_recordings/")
 
-include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${UMOCKDEV_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
+if (MIR_BUILD_PLATFORM_ANDROID)
+  add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+endif()
+
+if (MIR_BUILD_PLATFORM_MESA)
+  add_definitions(-DMIR_BUILD_PLATFORM_MESA)
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
+
+include_directories(
+  ${ANDROID_HEADERS_INCLUDE_DIRS}
+  ${DRM_INCLUDE_DIRS}
+  ${GBM_INCLUDE_DIRS}
+  ${UMOCKDEV_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}
+)
 # TODO: Aim to remove
 include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
 
@@ -51,6 +67,7 @@ target_link_libraries(
   mirserver
   mirdraw
   mirtestdraw
+  mirsharedandroid
 
   mir-test
   mir-test-doubles
@@ -87,13 +104,7 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_UNIT_TESTS"
   OFF)
 
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-  set (MIR_CLIENT_PLATFORM mir-client-platform-mesa.so)
-endif()
-
-if (MIR_TEST_PLATFORM STREQUAL "android")
-  set (MIR_CLIENT_PLATFORM mir-client-platform-android.so)
-endif()
+set (MIR_CLIENT_PLATFORM client-platform-dummy.so)
 
 if (MIR_RUN_UNIT_TESTS)
   mir_discover_tests(mir_unit_tests

@@ -34,6 +34,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <iostream>
+
 namespace mcl = mir::client;
 namespace mircv = mir::input::receiver;
 namespace gp = google::protobuf;
@@ -117,6 +119,7 @@ MirConnection::MirConnection(
         channel(conf.the_rpc_channel()),
         server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         logger(conf.the_logger()),
+        connect_done{false},
         client_platform_factory(conf.the_client_platform_factory()),
         input_platform(conf.the_input_platform()),
         display_configuration(conf.the_display_configuration()),
@@ -249,10 +252,12 @@ void default_lifecycle_event_handler(MirLifecycleState transition)
 
 void MirConnection::connected(mir_connected_callback callback, void * context)
 {
+    std::cout<<"In connected() callback…"<<std::endl;
     bool safe_to_callback = true;
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
 
+        std::cout<<"\tlock taken…"<<std::endl;
         if (!connect_result.has_platform() || !connect_result.has_display_configuration())
         {
             if (!connect_result.has_error())
@@ -263,12 +268,18 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
                 set_error_message("Connect failed");
             }
         }
+
+        connect_done = true;
+        std::cout<<"\tconnect_done marked as true…"<<std::endl;
+
         /*
          * We need to create the client platform after the connection has been
          * established, to ensure that the client platform has access to all
          * needed data (e.g. platform package).
          */
+        std::cout<<"\tcreating client platform factory…"<<std::endl;
         platform = client_platform_factory->create_client_platform(this);
+        std::cout<<"\tcreated client platform factory…"<<std::endl;
         native_display = platform->create_egl_native_display();
         display_configuration->set_configuration(connect_result.display_configuration());
         lifecycle_control->set_lifecycle_event_handler(default_lifecycle_event_handler);
@@ -286,10 +297,12 @@ MirWaitHandle* MirConnection::connect(
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
 
+        std::cout<<"Taken connect lock..."<<std::endl;
         connect_parameters.set_application_name(app_name);
         connect_wait_handle.expect_result();
     }
 
+    std::cout<<"Released lock; calling server.connect()"<<std::endl;
     server.connect(
         0,
         &connect_parameters,
@@ -367,9 +380,10 @@ bool MirConnection::is_valid(MirConnection *connection)
 
 void MirConnection::populate(MirPlatformPackage& platform_package)
 {
-    std::lock_guard<decltype(mutex)> lock(mutex);
-
-    if (!connect_result.has_error() && connect_result.has_platform())
+    // connect_result is write-once: once it's valid, we don't need to lock
+    // to use it.
+    std::cout<<"In populate()"<<std::endl;
+    if (connect_done && !connect_result.has_error() && connect_result.has_platform())
     {
         auto const& platform = connect_result.platform();
 

@@ -158,13 +158,15 @@ include_directories (${GLESv2_INCLUDE_DIRS})
 include_directories (${EGL_INCLUDE_DIRS})
 include_directories (${GLM_INCLUDE_DIRS})
 
+find_package( PkgConfig )
+
 if (MIR_BUILD_PLATFORM_ANDROID)
   find_package(AndroidProperties REQUIRED)
   find_package(LibHardware REQUIRED)
+  pkg_check_modules( ANDROID_HEADERS REQUIRED android-headers )
 endif()
 
 if (MIR_BUILD_PLATFORM_MESA)
-  find_package( PkgConfig )
   pkg_check_modules( GBM REQUIRED gbm>=9.0.0)
   pkg_check_modules( DRM REQUIRED libdrm )
 endif()

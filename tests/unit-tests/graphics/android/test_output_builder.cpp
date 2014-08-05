@@ -108,9 +108,10 @@ public:
     mtd::StubGLConfig stub_gl_config;
     mga::PbufferGLContext gl_context{
         mga::to_mir_format(mock_egl.fake_visual_id), stub_gl_config, mock_display_report};
-    mtd::StubGLProgramFactory const stub_program_factory;
+    mtd::StubGLProgramFactory stub_program_factory;
 };
 }
+
 TEST_F(OutputBuilder, hwc_version_10_success)
 {
     using namespace testing;
