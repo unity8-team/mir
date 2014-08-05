@@ -6,13 +6,6 @@ qtmir (0.4.0+14.10.20140805-0ubuntu1) utopic; urgency=low
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 05 Aug 2014 12:01:39 +0000
 
-qtmir (0.4.0+14.10.20140729-0ubuntu2) UNRELEASED; urgency=medium
-
-  * Bumped dependency for Mir 0.6.0.
-  * Switch to using supported API (the_ipc_factory -> new_ipc_factory).
-
- -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Thu, 31 Jul 2014 13:43:56 +0300
-
 qtmir (0.4.0+14.10.20140729-0ubuntu1) utopic; urgency=medium
 
   [ Gerry Boland ]
