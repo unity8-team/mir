@@ -1,1 +1,2 @@
 add_subdirectory(standaloneserver)
+add_subdirectory(standaloneclient)
