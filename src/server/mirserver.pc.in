@@ -7,5 +7,5 @@ Name: mirserver
 Description: Mir server library
 Version: @MIR_VERSION@
 Requires.private: protobuf >= 2.4.1
-Libs: -L@LIBDIR@ -lmirserver -Wl,-rpath-link,@LIBDIR@
+Libs: -L@LIBDIR@ -lmirserver
 Cflags: -I@INCLUDEDIR@ -I@PLATFORM_INCLUDEDIR@ -I@COMMON_INCLUDEDIR@ 
