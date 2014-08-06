@@ -5,7 +5,7 @@
 #        so long as these test projects get attempted on native builds,
 #        that is sufficient test coverage.
 
-if (NOT CMAKE_FIND_ROOT_PATH MATCHES "${MIR_NDK_PATH}")
+if (NOT CMAKE_FIND_ROOT_PATH_MODE_PROGRAM MATCHES "NEVER")
   add_subdirectory(standaloneserver)
   add_subdirectory(standaloneclient)
 endif()
