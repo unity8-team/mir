@@ -38,7 +38,7 @@ add_library(
 )
 
 add_library(
-  mirplatformgraphicsmesa SHARED
+  mirplatformgraphicsmesa MODULE
 
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
@@ -62,6 +62,5 @@ set_target_properties(
   PREFIX ""
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
-
 
 install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})

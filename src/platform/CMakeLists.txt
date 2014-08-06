@@ -9,6 +9,7 @@ add_library(
 
   $<TARGET_OBJECTS:mirplatformgraphicscommon>
   $<TARGET_OBJECTS:miroptions>
+  $<TARGET_OBJECTS:mirfatal>
 )
 
 target_link_libraries(mirplatform
@@ -29,3 +30,4 @@ install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 add_subdirectory(graphics/)
 add_subdirectory(options)
+add_subdirectory(fatal)

@@ -39,8 +39,7 @@ add_library(
   hwc_fallback_gl_renderer.cpp
 )
 
-add_library(
-  mirplatformgraphicsandroid SHARED
+add_library(mirplatformgraphicsandroid SHARED
 
   $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
