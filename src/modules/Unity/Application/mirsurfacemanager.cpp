@@ -290,6 +290,7 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const Application* applicat
 
     QList<MirSurfaceItem*> surfaceChildren;
     getSurfaceDecendents(parentItem, surfaceChildren);
+    // stop adding providers to the child stack if we come across one which has not yet added a surface.
     bool continueProviders = true;
 
     auto refreshFn = [&](const std::shared_ptr<mir::scene::PromptSession>& promptSession) {
