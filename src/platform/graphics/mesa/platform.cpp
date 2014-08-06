@@ -28,6 +28,7 @@
 #include "mir/options/option.h"
 #include "mir/graphics/native_buffer.h"
 #include "mir/emergency_cleanup_registry.h"
+#include "mir/udev/wrapper.h"
 
 #include "drm_close_threadsafe.h"
 
@@ -268,4 +269,21 @@ extern "C" void add_platform_options(boost::program_options::options_description
         (bypass_option_name,
          boost::program_options::value<bool>()->default_value(true),
          "[platform-specific] utilize the bypass optimization for fullscreen surfaces.");
+}
+
+extern "C" mg::PlatformPriority probe_platform()
+{
+    auto udev = std::make_shared<mir::udev::Context>();
+
+    mir::udev::Enumerator drm_devices{udev};
+    drm_devices.match_subsystem("drm");
+    drm_devices.match_sysname("card[0-9]*");
+    drm_devices.scan_devices();
+
+    for(auto& device : drm_devices)
+    {
+        return mg::PlatformPriority::best;
+    }
+
+    return mg::PlatformPriority::unsupported;
 }

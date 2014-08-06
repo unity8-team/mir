@@ -3,6 +3,7 @@ MIR_GRAPHICS_PLATFORM_1 {
     add_platform_options;
     create_platform;
     create_native_platform;
+    probe_platform;
     # Needed for Mesa integration for now; should be superceded by
     # support for dynamically loaded platforms in Mesa's libEGL in
     # the glorious future.
