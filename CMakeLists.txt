@@ -66,8 +66,6 @@ if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
   message(SEND_ERROR "protoc executable not found! Missing protobuf-compiler package?")
 endif()
 
-pkg_check_modules(MIRCOMMON REQUIRED mircommon)
-
 # Try to find hybris, and disable hybris from build if not found
 find_library(Hybris
   NAMES hybris-common

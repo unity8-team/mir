@@ -25,8 +25,6 @@ add_library(
 	${SOURCES}
 )
 
-SET(MIRCOMMON_LINK -Wl,--whole-archive ubuntu_application_api_mircommon -Wl,--no-whole-archive)
-
 target_link_libraries(
   ubuntu_application_api_mirclient
 
