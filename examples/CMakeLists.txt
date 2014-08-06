@@ -4,24 +4,11 @@ include_directories(${MIR_3RD_PARTY_INCLUDE_DIRECTORIES})
 include_directories(${MIR_ANDROID_INCLUDE_DIRECTORIES})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -fno-strict-aliasing -Wextra")
 
-#
-# Use pkg-config to find the mirclient/mirserver libraries and flags. CMake
-# sets up helpful temporary builds of our *.pc files we can use to point to 
-# the build tree (not the *.pc files that get installed).
-# This provides some basic testing that our *.pc.in files are correct.
-#
-set(ENV{PKG_CONFIG_PATH}
-  "${Mir_BINARY_DIR}/src/client:${Mir_BINARY_DIR}/src/server"
-)
-find_package(PkgConfig)
-pkg_check_modules(MIRSERVER REQUIRED mirserver)
-pkg_check_modules(MIRCLIENT REQUIRED mirclient)
-
 add_library(eglapp STATIC
   eglapp.c
 )
 target_link_libraries(eglapp
-  ${MIRCLIENT_LIBRARIES}
+  mirclient
   ${EGL_LIBRARIES}
   ${GLESv2_LIBRARIES}
 )
@@ -61,23 +48,24 @@ add_executable(mir_demo_client_basic
 )
 
 target_link_libraries(mir_demo_client_basic
-  ${MIRCLIENT_LIBRARIES}
+  mirclient
+
   ${Boost_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
 add_executable(mir_test_client_release_at_exit release_at_exit.c)
-target_link_libraries(mir_test_client_release_at_exit ${MIRCLIENT_LIBRARIES})
+target_link_libraries(mir_test_client_release_at_exit mirclient)
 
 add_executable(mir_demo_client_multiwin multiwin.c)
-target_link_libraries(mir_demo_client_multiwin ${MIRCLIENT_LIBRARIES})
+target_link_libraries(mir_demo_client_multiwin mirclient)
 
 add_executable(mir_demo_client_fingerpaint fingerpaint.c)
-target_link_libraries(mir_demo_client_fingerpaint ${MIRCLIENT_LIBRARIES})
+target_link_libraries(mir_demo_client_fingerpaint mirclient)
 
 add_executable(mir_demo_client_progressbar progressbar.c)
-target_link_libraries(mir_demo_client_progressbar ${MIRCLIENT_LIBRARIES})
+target_link_libraries(mir_demo_client_progressbar mirclient)
 
 add_executable(mir_demo_client_display_config demo_client_display_config.c)
 target_link_libraries(mir_demo_client_display_config eglapp)
@@ -87,7 +75,8 @@ add_executable(mir_demo_client_flicker
 )
 
 target_link_libraries(mir_demo_client_flicker
-  ${MIRCLIENT_LIBRARIES}
+  mirclient
+
   ${Boost_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -99,16 +88,18 @@ add_executable(mir_demo_client_scroll
 
 target_link_libraries(mir_demo_client_scroll
   mirdraw
-  ${MIRCLIENT_LIBRARIES}
+  mirclient
+
   ${Boost_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EGL_LIBRARIES}
   ${GLESv2_LIBRARIES}
+
 )
 
 add_executable(mir_demo_client_prompt_session prompt_session.c)
-target_link_libraries(mir_demo_client_prompt_session ${MIRCLIENT_LIBRARIES})
+target_link_libraries(mir_demo_client_prompt_session mirclient)
 
 add_library(mirdraw STATIC graphics_utils.cpp)
 target_link_libraries(mirdraw ${GLESv2_LIBRARIES})
@@ -125,7 +116,7 @@ add_executable(mir_demo_standalone_render_to_fb
 )
 
 target_link_libraries(mir_demo_standalone_render_to_fb
-    ${MIRSERVER_LIBRARIES}
+    mirserver
     mirlogging
     mirdraw
     ${Boost_LIBRARIES}
@@ -136,7 +127,7 @@ add_executable(mir_demo_standalone_render_overlays
 )
 
 target_link_libraries(mir_demo_standalone_render_overlays
-    ${MIRSERVER_LIBRARIES}
+    mirserver
     mirtestdraw
     mircommon
 )
@@ -149,7 +140,7 @@ set(RENDER_SURFACES_SOURCES
 )
 add_executable(mir_demo_standalone_render_surfaces ${RENDER_SURFACES_SOURCES})
 target_link_libraries(mir_demo_standalone_render_surfaces
-    ${MIRSERVER_LIBRARIES}
+    mirserver
     mirshell
     ${Boost_LIBRARIES}
 )
@@ -160,7 +151,7 @@ add_executable(mir_demo_standalone_input_filter
 )
 
 target_link_libraries(mir_demo_standalone_input_filter
-  ${MIRSERVER_LIBRARIES}
+  mirserver
 )
 
 set (INSTALL_DEMOS
@@ -193,7 +184,7 @@ add_executable(mir_demo_server_basic
 )
 
 target_link_libraries(mir_demo_server_basic
-  ${MIRSERVER_LIBRARIES}
+  mirserver
   ${Boost_LIBRARIES}
 )
 
@@ -202,7 +193,7 @@ install(TARGETS mir_demo_server_basic
 )
 
 add_executable(mir_demo_server_minimal minimal_server.cpp)
-target_link_libraries(mir_demo_server_minimal ${MIRSERVER_LIBRARIES})
+target_link_libraries(mir_demo_server_minimal mirserver)
 install(TARGETS mir_demo_server_minimal
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
@@ -216,7 +207,7 @@ add_executable(mir_demo_server_translucent
 )
 
 target_link_libraries(mir_demo_server_translucent
-  ${MIRSERVER_LIBRARIES}
+  mirserver
   ${Boost_LIBRARIES}
 )
 
