@@ -8,7 +8,7 @@ add_executable(mir_demo_server_shell
 )
 
 target_link_libraries(mir_demo_server_shell
-  mirserver
+  ${MIRSERVER_LIBRARIES}
 )
 
 install(TARGETS mir_demo_server_shell RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
