@@ -126,7 +126,12 @@ struct StubClientPlatform : public mcl::ClientPlatform
 
     MirNativeBuffer* convert_native_buffer(mir::graphics::NativeBuffer* buf) const
     {
+        static_cast<void>(buf);
+#ifndef ANDROID
         return buf;
+#else
+        return nullptr;
+#endif
     }
 };
 }
