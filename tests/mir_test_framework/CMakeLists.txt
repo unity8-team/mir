@@ -33,34 +33,16 @@ list(APPEND TEST_FRAMEWORK_SRCS
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
 
 add_library(
-  mir-test-framework STATIC
+  mir-test-framework OBJECT
   ${TEST_FRAMEWORK_SRCS}
 )
-uses_android_input(mir-test-framework)
 
-target_link_libraries(
-  mir-test-framework
-
-  mirserver
-  mirclient
-
-  3rd_party
-
-  ${PROTOBUF_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_LIBRARY}
-  ${GMOCK_MAIN_LIBRARY}
-  ${UMOCKDEV_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-)
-
-add_custom_command(TARGET mir-test-framework POST_BUILD
+add_custom_command(TARGET mirtesting POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/udev_recordings ${CMAKE_BINARY_DIR}/bin/udev_recordings
   COMMENT "Copying umockdev recordings to build dir..."
 )
-add_custom_command(TARGET mir-test-framework POST_BUILD
+add_custom_command(TARGET mirtesting POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/testing-cursor-theme ${CMAKE_BINARY_DIR}/bin/testing-cursor-theme
   COMMENT "Copying testing cursor themes to build dir..."

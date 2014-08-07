@@ -69,10 +69,7 @@ target_link_libraries(
   mirclient
   mirplatform
 
-  mir-test
-  mir-test-framework
-  mir-test-doubles
-  mir-test-doubles-platform
+  mirtesting
   3rd_party
 
   ${PROTOBUF_LIBRARIES}

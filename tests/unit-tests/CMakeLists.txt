@@ -52,10 +52,7 @@ target_link_libraries(
   mirdraw
   mirtestdraw
 
-  mir-test
-  mir-test-doubles
-  mir-test-doubles-platform
-  mir-test-framework
+  mirtesting
 
   3rd_party
 

@@ -51,9 +51,7 @@ uses_android_input(mir_integration_tests)
 target_link_libraries(
   mir_integration_tests
 
-  mir-test
-  mir-test-framework
-  mir-test-doubles
+  mirtesting
 
   mirserver
   mirdraw

@@ -45,10 +45,37 @@ if (MIR_BUILD_UNIT_TESTS)
   add_subdirectory(unit-tests/)
 endif (MIR_BUILD_UNIT_TESTS)
 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MIR_ANDROID_INPUT_COMPILE_FLAGS}")
+
 add_subdirectory(mir_test/)
 add_subdirectory(mir_test_framework/)
 add_subdirectory(mir_test_doubles/)
 add_subdirectory(client-language/)
 add_subdirectory(mir-stress/)
+
+add_library(mirtesting SHARED
+  $<TARGET_OBJECTS:mir-test>
+  $<TARGET_OBJECTS:mir-test-framework>
+  $<TARGET_OBJECTS:mir-test-doubles>
+  $<TARGET_OBJECTS:mir-test-doubles-platform>
+  $<TARGET_OBJECTS:mirclientobjects>  # XXX redundant but required
+  $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>  # XXX redundant but required
+)
+
+target_link_libraries(mirtesting
+  mirserver
+  mirclient
+  3rd_party
+  -ldrm  #FIXME: Mesa only
+  ${PROTOBUF_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${GTEST_LIBRARY}
+  ${GMOCK_LIBRARY}
+  ${GMOCK_MAIN_LIBRARY}
+  ${UMOCKDEV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+)
+
+uses_android_input(mirtesting)
 
 mir_add_memcheck_test()

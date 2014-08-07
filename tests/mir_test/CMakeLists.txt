@@ -1,5 +1,5 @@
 add_library(
-  mir-test STATIC
+  mir-test OBJECT
 
   pipe.cpp
   display_config_matchers.cpp

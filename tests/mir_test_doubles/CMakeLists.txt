@@ -35,34 +35,6 @@ list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
 )
 endif()
 
-add_library(
-  mir-test-doubles STATIC
-  ${TEST_UTILS_SRCS})
-uses_android_input(mir-test-doubles)
+add_library(mir-test-doubles OBJECT ${TEST_UTILS_SRCS})
+add_library(mir-test-doubles-platform OBJECT ${MIR_TEST_DOUBLES_PLATFORM_SRCS})
 
-target_link_libraries(
-  mir-test-doubles
-
-  mirserver
-
-  3rd_party
-
-  ${PROTOBUF_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${GMOCK_LIBRARY}
-  ${GMOCK_MAIN_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-)
-
-add_library(
-  mir-test-doubles-platform STATIC
-  ${MIR_TEST_DOUBLES_PLATFORM_SRCS})
-
-target_link_libraries(
-  mir-test-doubles-platform
-
-  -ldl
-  ${GMOCK_LIBRARY}
-  ${GMOCK_MAIN_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-)

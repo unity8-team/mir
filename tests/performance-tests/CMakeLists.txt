@@ -13,8 +13,7 @@ add_executable(
 target_link_libraries(
   mir_performance_tests
 
-  mir-test
-  mir-test-framework
+  mirtesting
 
   ${GTEST_BOTH_LIBRARIES}
 )

@@ -26,6 +26,8 @@ if (${CMAKE_CROSSCOMPILING})
         -DCMAKE_TOOLCHAIN_FILE=${CMAKE_MODULE_PATH}/LinuxCrossCompile.cmake)
 endif()
 
+set(GTEST_CMAKE_ARGS ${GTEST_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=-fPIC)
+
 ExternalProject_Add(
     GMock
     #where to build in source tree

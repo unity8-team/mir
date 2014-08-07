@@ -15,7 +15,7 @@ target_link_libraries(
   input-reader-perf
 
   android-input
-  mir-test-doubles
+  mirtesting
  )
 
 uses_android_input(input-reader-perf)
