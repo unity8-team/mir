@@ -130,16 +130,11 @@ QString Application::splashTitle() const
     return m_desktopData->splashTitle();
 }
 
-QUrl Application::splashImage() const
+QString Application::splashImage() const
 {
     QString imageString = m_desktopData->splashImage();
     QString pathString = m_desktopData->path();
-
-    if (QFileInfo(pathString + '/' + imageString).exists()) {
-        return QUrl(pathString + '/' + imageString);
-    } else {
-        return QUrl(imageString);
-    }
+    return pathString + '/' + imageString;
 }
 
 bool Application::splashShowHeader() const

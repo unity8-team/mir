@@ -85,7 +85,7 @@ public:
     QString comment() const override;
     QUrl icon() const override;
     QString splashTitle() const;
-    QUrl splashImage() const;
+    QString splashImage() const;
     bool splashShowHeader() const;
     QColor splashColor() const;
     QColor splashColorHeader() const;
