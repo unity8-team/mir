@@ -55,6 +55,19 @@ void add_dummy_platform(std::vector<std::shared_ptr<mir::SharedLibrary>>& module
     modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
 }
 
+std::shared_ptr<void> ensure_android_probing_fails()
+{
+    using namespace testing;
+    auto mock_android = std::make_shared<NiceMock<mtd::HardwareAccessMock>>();
+    ON_CALL(*mock_android, hw_get_module(_, _))
+       .WillByDefault(Return(-1));
+    return mock_android;
+}
+
+std::shared_ptr<void> ensure_mesa_probing_fails()
+{
+    return std::make_shared<mtf::UdevEnvironment>();
+}
 }
 
 TEST(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
@@ -69,9 +82,7 @@ TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 {
     using namespace testing;
     mtf::UdevEnvironment udev;
-    NiceMock<mtd::HardwareAccessMock> mock_android;
-    ON_CALL(mock_android, hw_get_module(_, _))
-       .WillByDefault(Return(-1));
+    auto block_android = ensure_android_probing_fails();
 
     udev.add_standard_device("standard-drm-devices");
 
@@ -92,7 +103,7 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
 {
     using namespace testing;
 
-    mtf::UdevEnvironment udev;
+    auto block_mesa = ensure_mesa_probing_fails();
     NiceMock<mtd::HardwareAccessMock> mock_hardware;
 
     auto modules = available_platforms();
@@ -110,10 +121,8 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
 TEST(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
 {
     using namespace testing;
-    mtf::UdevEnvironment udev;
-    NiceMock<mtd::HardwareAccessMock> mock_android;
-    ON_CALL(mock_android, hw_get_module(_, _))
-       .WillByDefault(Return(-1));
+    auto block_android = ensure_android_probing_fails();
+    auto block_mesa = ensure_mesa_probing_fails();
 
 
     EXPECT_THROW(mir::graphics::module_for_device(available_platforms()),
@@ -123,10 +132,8 @@ TEST(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
 TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
 {
     using namespace testing;
-    mtf::UdevEnvironment udev;
-    NiceMock<mtd::HardwareAccessMock> mock_android;
-    ON_CALL(mock_android, hw_get_module(_, _))
-       .WillByDefault(Return(-1));
+    auto block_android = ensure_android_probing_fails();
+    auto block_mesa = ensure_mesa_probing_fails();
 
     auto modules = available_platforms();
     add_dummy_platform(modules);
