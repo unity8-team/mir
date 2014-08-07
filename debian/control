@@ -52,8 +52,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libmirplatformgraphics-mesa-24 (= ${binary:Version}) |
-           libmirplatformgraphics-android-24 (= ${binary:Version}),
+         mir-platform-graphics-mesa-24 | mir-platform-graphics-android-24,
 Description: Display server for Ubuntu - server library
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
@@ -143,8 +142,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libmirclientplatform-mesa-8 (= ${binary:Version}) |
-           libmirclientplatform-android-8 (= ${binary:Version}),
+         mir-client-platform-mesa-8 | mir-client-platform-android-8,
 Description: Display server for Ubuntu - client library
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
