@@ -13,22 +13,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
+ * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>>
  */
 
 #include "mir/graphics/platform.h"
-#include "platform_probe.h"
 
-std::shared_ptr<mir::SharedLibrary>
-mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules)
+extern "C" mir::graphics::PlatformPriority probe_platform()
 {
-    for(auto& module : modules)
-    {
-        auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform");
-        if (probe() > 0)
-        {
-            return module;
-        }
-    }
-    throw std::runtime_error{"Failed to find platform for current system"};
+    return mir::graphics::supported;
+}
+
+mir::graphics::ModuleProperties const description {
+    "dummy"
+};
+
+extern "C" mir::graphics::ModuleProperties const* describe_module()
+{
+    return &description;
 }

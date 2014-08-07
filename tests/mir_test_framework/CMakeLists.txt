@@ -78,6 +78,21 @@ set_target_properties(
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
 
+set(server_symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols-server.map)
+add_library(
+  mirplatformgraphicsstub MODULE
+
+  platform_graphics_dummy.cpp
+)
+
+set_target_properties(
+  mirplatformgraphicsstub PROPERTIES;
+  OUTPUT_NAME platform-graphics-dummy
+  PREFIX ""
+  LINK_FLAGS "-Wl,--version-script,${server_symbol_map}"
+)
+
+
 add_custom_command(TARGET mir-test-framework POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/udev_recordings ${CMAKE_BINARY_DIR}/bin/udev_recordings

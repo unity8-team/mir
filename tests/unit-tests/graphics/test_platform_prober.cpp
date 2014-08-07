@@ -50,6 +50,11 @@ std::vector<std::shared_ptr<mir::SharedLibrary>> available_platforms()
     return modules;
 }
 
+void add_dummy_platform(std::vector<std::shared_ptr<mir::SharedLibrary>>& modules)
+{
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
+}
+
 }
 
 TEST(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
@@ -113,4 +118,24 @@ TEST(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
 
     EXPECT_THROW(mir::graphics::module_for_device(available_platforms()),
                  std::runtime_error);
+}
+
+TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
+{
+    using namespace testing;
+    mtf::UdevEnvironment udev;
+    NiceMock<mtd::HardwareAccessMock> mock_android;
+    ON_CALL(mock_android, hw_get_module(_, _))
+       .WillByDefault(Return(-1));
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    auto module = mir::graphics::module_for_device(modules);
+    ASSERT_NE(nullptr, module);
+
+    auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
+    auto description = descriptor();
+
+    EXPECT_THAT(description->name, HasSubstr("dummy"));
 }
