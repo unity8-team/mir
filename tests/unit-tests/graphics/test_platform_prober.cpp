@@ -21,15 +21,14 @@
 #include "src/server/graphics/platform_probe.h"
 #include "mir/graphics/platform.h"
 
+#include "mir/raii.h"
+
 #ifdef MIR_BUILD_PLATFORM_MESA
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
 #endif
 
-#ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/mock_android_hw.h"
-#endif
-
 #include "mir_test_framework/udev_environment.h"
 #include "mir_test_framework/executable_path.h"
 
@@ -50,6 +49,7 @@ std::vector<std::shared_ptr<mir::SharedLibrary>> available_platforms()
 #endif
     return modules;
 }
+
 }
 
 TEST(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
@@ -64,6 +64,9 @@ TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 {
     using namespace testing;
     mtf::UdevEnvironment udev;
+    NiceMock<mtd::HardwareAccessMock> mock_android;
+    ON_CALL(mock_android, hw_get_module(_, _))
+       .WillByDefault(Return(-1));
 
     udev.add_standard_device("standard-drm-devices");
 
@@ -98,3 +101,16 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
     EXPECT_THAT(description->name, HasSubstr("android"));
 }
 #endif
+
+TEST(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
+{
+    using namespace testing;
+    mtf::UdevEnvironment udev;
+    NiceMock<mtd::HardwareAccessMock> mock_android;
+    ON_CALL(mock_android, hw_get_module(_, _))
+       .WillByDefault(Return(-1));
+
+
+    EXPECT_THROW(mir::graphics::module_for_device(available_platforms()),
+                 std::runtime_error);
+}
