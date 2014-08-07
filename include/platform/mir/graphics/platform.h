@@ -126,7 +126,12 @@ public:
 };
 
 /**
- * @brief The PlatformPriority enum
+ * A measure of how good this module is at supporting the current device
+ *
+ * \note This is compared as an integer; best + 1 is a valid PlatformPriority that
+ *       will be used in preference to a module that reports best.
+ *       Platform modules distributed with Mir will never use a priority higher
+ *       than best.
  */
 enum PlatformPriority : uint32_t
 {
@@ -135,10 +140,13 @@ enum PlatformPriority : uint32_t
                          *   possibly with degraded performance or features.
                          */
     best = 256          /**< Capable of providing a Platform with the best features and
-                         *   performance this device is capable of
+                         *   performance this device is capable of.
                          */
 };
 
+/**
+ * Describes a platform module
+ */
 struct ModuleProperties
 {
     char const* name;
