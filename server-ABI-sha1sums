@@ -32,15 +32,14 @@ c9730cac4a3a101f9706ec6f444958abe047fd88  include/platform/mir/graphics/internal
 590572a9d86a9481b4531ad44414c6f76352fe7a  include/platform/mir/graphics/nested_context.h
 27807b8ba288590f3749cfb32512eda4d0de6c7d  include/platform/mir/graphics/overlapping_output_grouping.h
 32c70ee44b8dc9372dec0c54471aa8d831adcb1c  include/platform/mir/graphics/pixel_format_utils.h
-656a7e1ae3b246930431a6174526fbdc2c76649e  include/platform/mir/graphics/platform.h
+3995d5fad95e3ae48351a823ab017bfc87498e53  include/platform/mir/graphics/platform.h
 9c7712af84b6fde1970ff802ad2ea78f892c7b7e  include/platform/mir/graphics/platform_ipc_package.h
 15f201741a465de33e55ffc1ea775b507a5be950  include/platform/mir/graphics/renderable.h
 4b640ec72b04cc2de7671afd7c78942fb9e775a7  include/platform/mir/graphics/tessellation_helpers.h
-3b5be510366571c992e0927cc5662af9b0611ae1  include/platform/mir/options/configuration.h
+a30c584f56efa3077f2c6aaeaf4a0e30b8987f55  include/platform/mir/options/configuration.h
 3a961c5e85b0b9d20eadddd938677776288c06c6  include/platform/mir/options/default_configuration.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 1133726e66a246bd3988616e205e186278a64731  include/platform/mir/options/program_option.h
-5d0213652adc4821a2a180ced74808ca0bbf2c45  include/platform/mir/shared_library_loader.h
 505444aeb61d0f55893a7ba0998b25c2041f76c4  include/server/mir/asio_main_loop.h
 a4c8f0b0c30784ea6930a8ee6651f1d6efa47231  include/server/mir/compositor/buffer_stream.h
 f4030e400baf8baa9c38e7c6ec6b4a5ad7134aeb  include/server/mir/compositor/compositor.h
@@ -57,7 +56,7 @@ e0860c43bf5196a792ffd7216826925e16275d07  include/server/mir/compositor/renderer
 51391bd29f7499f8cbb89e4ba33acf2b72d93592  include/server/mir/compositor/renderer.h
 686a839fd0cd5fa469344dc49190ff9d578efc25  include/server/mir/compositor/scene_element.h
 4fcf34e424128b87ddc76733594e32e09ebbd486  include/server/mir/compositor/scene.h
-488dcb1e275e32b5dde03cdfdb1538d3694cb8fe  include/server/mir/default_server_configuration.h
+c22cbc76ec437a413a0c761e63425e32a85b9f1d  include/server/mir/default_server_configuration.h
 bbb15c910dbc8d7c9a4cc982890486b7e16197e4  include/server/mir/default_server_status_listener.h
 215f6cf88826381cd3ec37a6d2179a70093c0bc5  include/server/mir/display_changer.h
 af1ff0714be973ac76d56006a2e5991f68cd1dec  include/server/mir/display_server.h
@@ -191,7 +190,7 @@ b4e96264b9a57a1f2ceceb700c5379658905ded7  include/shared/mir/thread_name.h
 183d9e5e6cfe48b3d9145a28541dd4202ff6137b  include/shared/mir_toolkit/common.h
 fce4c1a9e0d037244f7e9e96ea2d8eaab4fc404c  include/shared/mir_toolkit/cursors.h
 bdaceadd56e41d2cb708f7c4da97acf84dfc75b7  include/shared/mir_toolkit/event.h
-99ef5f3bf548508fae24c60f74be1dea018a6e8c  include/shared/mir_toolkit/mesa/native_display.h
+4975998aa1056ed0d39dcc538127453e516ad8e9  include/shared/mir_toolkit/mesa/native_display.h
 101017c17714a57db57d79b7b5e7df40a3568236  include/shared/mir_toolkit/mir_native_buffer.h
 9f646fa12eaca5fc3b7a8fde6208673c071c8ef3  include/shared/mir/udev/wrapper.h
 9fd77ab693cc4c9a200e44804f5493733528a674  include/shared/mir/variable_length_array.h
