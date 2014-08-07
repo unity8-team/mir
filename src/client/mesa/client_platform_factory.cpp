@@ -64,11 +64,9 @@ struct RealBufferFileOps : public mclm::BufferFileOps
 extern "C" std::shared_ptr<mcl::ClientPlatform> mcl::create_client_platform(mcl::ClientContext* context)
 {
     MirPlatformPackage package;
-    std::cout<<"Constructing mesa client platform…"<<std::endl;
     context->populate(package);
     if (package.data_items != 0 || package.fd_items != 1)
     {
-        std::cout<<"\tOops! Not a mesa platform!"<<std::endl;
         throw std::runtime_error{"Attempted to create Mesa client platform on non-Mesa server"};
     }
 ;    auto buffer_file_ops = std::make_shared<RealBufferFileOps>();
