@@ -22,7 +22,10 @@
 #include "mir_test_doubles/mock_client_surface.h"
 #include "mir_test_framework/executable_path.h"
 
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/mock_android_hw.h"
+#endif
+
 #include "src/client/client_platform_factory.h"
 
 #include "mir/shared_library.h"

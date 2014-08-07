@@ -28,6 +28,22 @@
 namespace mtf = mir_test_framework;
 namespace mtd = mir::test::doubles;
 
+namespace
+{
+std::vector<std::shared_ptr<mir::SharedLibrary>>
+all_available_modules()
+{
+    std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
+#ifdef MIR_BUILD_PLATFORM_MESA
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-mesa.so"));
+#endif
+#ifdef MIR_BUILD_PLATFORM_ANDROID
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-android.so"));
+#endif
+    return modules;
+}
+}
+
 TEST(ProbingClientPlatformFactory, ThrowsErrorWhenConstructedWithNoPlatforms)
 {
     std::vector<std::shared_ptr<mir::SharedLibrary>> empty_modules;
@@ -39,11 +55,7 @@ TEST(ProbingClientPlatformFactory, ThrowsErrorWhenNoPlatformPluginProbesSuccessf
 {
     using namespace testing;
 
-    auto android_platform = std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-android.so");
-    auto mesa_platform = std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-mesa.so");
-
-    std::vector<std::shared_ptr<mir::SharedLibrary>> modules = {android_platform, mesa_platform};
-    mir::client::ProbingClientPlatformFactory factory{modules};
+    mir::client::ProbingClientPlatformFactory factory{all_available_modules()};
 
     mtd::MockClientContext context;
     ON_CALL(context, populate(_))
@@ -60,15 +72,12 @@ TEST(ProbingClientPlatformFactory, ThrowsErrorWhenNoPlatformPluginProbesSuccessf
                  std::runtime_error);
 }
 
-TEST(ProbingClientPlatformFactory, CreatesPlatformFromAppropriateModule)
+#ifdef MIR_BUILD_PLATFORM_MESA
+TEST(ProbingClientPlatformFactory, CreatesMesaPlatformWhenAppropriate)
 {
     using namespace testing;
 
-    auto android_platform = std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-android.so");
-    auto mesa_platform = std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-mesa.so");
-
-    std::vector<std::shared_ptr<mir::SharedLibrary>> modules = {android_platform, mesa_platform};
-    mir::client::ProbingClientPlatformFactory factory{modules};
+    mir::client::ProbingClientPlatformFactory factory{all_available_modules()};
 
     mtd::MockClientContext context;
     ON_CALL(context, populate(_))
@@ -82,15 +91,26 @@ TEST(ProbingClientPlatformFactory, CreatesPlatformFromAppropriateModule)
                            }));
     auto platform = factory.create_client_platform(&context);
     EXPECT_EQ(mir_platform_type_gbm, platform->platform_type());
+}
+#endif
 
+#ifdef MIR_BUILD_PLATFORM_ANDROID
+TEST(ProbingClientPlatformFactory, CreatesAndroidPlatformWhenAppropriate)
+{
+    using namespace testing;
+
+    mir::client::ProbingClientPlatformFactory factory{all_available_modules()};
+
+    mtd::MockClientContext context;
     ON_CALL(context, populate(_))
             .WillByDefault(Invoke([](MirPlatformPackage& pkg)
                            {
-                               // Mock up something that looks like a GBM platform package,
+                               // Mock up something that looks like a Android platform package,
                                // until we send the actual platform type over the wire!
                                ::memset(&pkg, 0, sizeof(MirPlatformPackage));
                            }));
 
-    platform = factory.create_client_platform(&context);
+    auto platform = factory.create_client_platform(&context);
     EXPECT_EQ(mir_platform_type_android, platform->platform_type());
 }
+#endif

@@ -58,7 +58,6 @@ target_link_libraries(
   mirserver
   mirdraw
   mirtestdraw
-  mirsharedandroid
 
   3rd_party
 
@@ -81,7 +80,7 @@ target_link_libraries(
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
+if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_integration_tests
   mirsharedandroid
   ${ANDROID_PROPERTIES_LIBRARIES}

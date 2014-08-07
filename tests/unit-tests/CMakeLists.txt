@@ -68,7 +68,6 @@ target_link_libraries(
   mirserver
   mirdraw
   mirtestdraw
-  mirsharedandroid
 
   mir-test
   mir-test-doubles
@@ -97,7 +96,7 @@ target_link_libraries(
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
+if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_unit_tests 
   mirsharedandroid
   ${ANDROID_PROPERTIES_LIBRARIES}

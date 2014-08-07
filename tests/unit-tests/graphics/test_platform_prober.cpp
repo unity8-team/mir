@@ -28,7 +28,10 @@
 #include "mir_test_doubles/mock_gbm.h"
 #endif
 
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/mock_android_hw.h"
+#endif
+
 #include "mir_test_framework/udev_environment.h"
 #include "mir_test_framework/executable_path.h"
 
