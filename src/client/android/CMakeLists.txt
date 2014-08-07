@@ -1,8 +1,6 @@
 include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 add_definitions(-DANDROID)
 
-set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-
 add_library(mirclientplatformandroidobjects OBJECT
   buffer.cpp
   android_client_buffer_factory.cpp
@@ -24,7 +22,7 @@ set_target_properties(
   mirclientplatformandroid PROPERTIES
   OUTPUT_NAME mirclientplatform
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/android
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${pluginsymbol_map}"
 )
 
 target_link_libraries(

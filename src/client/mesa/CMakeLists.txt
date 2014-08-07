@@ -3,8 +3,6 @@ include_directories(
     ${EGL_INCLUDE_DIRS}
 )
 
-set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-
 add_library(mirclientplatformmesaobjects OBJECT
   client_platform_factory.cpp
   client_platform.cpp
@@ -25,7 +23,7 @@ set_target_properties(
   mirclientplatformmesa PROPERTIES
   OUTPUT_NAME mirclientplatform
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${pluginsymbol_map}"
 )
 
 target_link_libraries(

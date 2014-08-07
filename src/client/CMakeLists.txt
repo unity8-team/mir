@@ -23,6 +23,8 @@ add_library(mirclient_platformimpl OBJECT
   aging_buffer.cpp
 )
 
+set(pluginsymbol_map ${CMAKE_CURRENT_SOURCE_DIR}/pluginsymbols.map)
+
 if(MIR_BUILD_PLATFORM_ANDROID)
 add_subdirectory(android/)
 endif()
