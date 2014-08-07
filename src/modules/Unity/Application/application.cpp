@@ -135,10 +135,10 @@ QUrl Application::splashImage() const
     QString imageString = m_desktopData->splashImage();
     QString pathString = m_desktopData->path();
 
-    if (QFileInfo(imageString).exists()) {
-        return QUrl(imageString);
-    } else {
+    if (QFileInfo(pathString + '/' + imageString).exists()) {
         return QUrl(pathString + '/' + imageString);
+    } else {
+        return QUrl(imageString);
     }
 }
 
