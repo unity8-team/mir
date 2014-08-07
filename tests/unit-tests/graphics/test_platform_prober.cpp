@@ -52,21 +52,47 @@ std::vector<std::shared_ptr<mir::SharedLibrary>> available_platforms()
 
 void add_dummy_platform(std::vector<std::shared_ptr<mir::SharedLibrary>>& modules)
 {
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
+    modules.insert(modules.begin(), std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
 }
 
 std::shared_ptr<void> ensure_android_probing_fails()
 {
+#ifdef MIR_BUILD_PLATFORM_ANDROID
     using namespace testing;
     auto mock_android = std::make_shared<NiceMock<mtd::HardwareAccessMock>>();
     ON_CALL(*mock_android, hw_get_module(_, _))
        .WillByDefault(Return(-1));
     return mock_android;
+#else
+    return std::shared_ptr<void>{};
+#endif
 }
 
 std::shared_ptr<void> ensure_mesa_probing_fails()
 {
     return std::make_shared<mtf::UdevEnvironment>();
+}
+
+std::shared_ptr<void> ensure_mesa_probing_succeeds()
+{
+    auto udev = std::make_shared<mtf::UdevEnvironment>();
+
+    udev->add_standard_device("standard-drm-devices");
+
+    return udev;
+}
+
+std::shared_ptr<void> ensure_android_probing_succeeds()
+{
+#ifdef MIR_BUILD_PLATFORM_ANDROID
+    using namespace testing;
+    auto mock_android = std::make_shared<NiceMock<mtd::HardwareAccessMock>>();
+    ON_CALL(*mock_android, hw_get_module(_, _))
+       .WillByDefault(Return(0));
+    return mock_android;
+#else
+    return std::shared_ptr<void>{};
+#endif
 }
 }
 
@@ -81,10 +107,8 @@ TEST(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
 TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 {
     using namespace testing;
-    mtf::UdevEnvironment udev;
     auto block_android = ensure_android_probing_fails();
-
-    udev.add_standard_device("standard-drm-devices");
+    auto fake_mesa = ensure_mesa_probing_succeeds();
 
     auto modules = available_platforms();
 
@@ -104,7 +128,7 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
     using namespace testing;
 
     auto block_mesa = ensure_mesa_probing_fails();
-    NiceMock<mtd::HardwareAccessMock> mock_hardware;
+    auto fake_android = ensure_android_probing_succeeds();
 
     auto modules = available_platforms();
 
@@ -145,4 +169,23 @@ TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
     auto description = descriptor();
 
     EXPECT_THAT(description->name, HasSubstr("dummy"));
+}
+
+TEST(ServerPlatformProbe, LoadsMesaOrAndroidInPreferenceToDummy)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    auto module = mir::graphics::module_for_device(modules);
+    ASSERT_NE(nullptr, module);
+
+    auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
+    auto description = descriptor();
+
+    EXPECT_THAT(description->name, Not(HasSubstr("dummy")));
 }

@@ -22,13 +22,21 @@
 std::shared_ptr<mir::SharedLibrary>
 mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules)
 {
+    mir::graphics::PlatformPriority best_priority_so_far = mir::graphics::unsupported;
+    std::shared_ptr<mir::SharedLibrary> best_module_so_far;
     for(auto& module : modules)
     {
         auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform");
-        if (probe() > 0)
+        auto module_priority = probe();
+        if (module_priority > best_priority_so_far)
         {
-            return module;
+            best_priority_so_far = module_priority;
+            best_module_so_far = module;
         }
+    }
+    if (best_priority_so_far > mir::graphics::unsupported)
+    {
+        return best_module_so_far;
     }
     throw std::runtime_error{"Failed to find platform for current system"};
 }
