@@ -8,6 +8,7 @@ add_library(
   gl_extensions_base.cpp
   program_factory.cpp
   surfaceless_egl_context.cpp
+  platform_probe.cpp
 )
 
 add_subdirectory(nested/)

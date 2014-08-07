@@ -156,7 +156,7 @@ std::shared_ptr<mg::InternalClient> mga::AndroidPlatform::create_internal_client
 extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
-    std::shared_ptr<DisplayReport> const& display_report)
+    std::shared_ptr<DisplayReport> const& display_report) noexcept
 {
     auto logger = make_logger(*options);
     auto overlay_option = should_use_overlay_optimization(*options);
@@ -200,4 +200,13 @@ extern "C" mg::PlatformPriority probe_platform()
     // not doing anything with it?
 
     return err < 0 ? mg::PlatformPriority::unsupported : mg::PlatformPriority::best;
+}
+
+mg::ModuleProperties const description = {
+    "android"
+};
+
+extern "C" mg::ModuleProperties const* describe_module()
+{
+    return &description;
 }

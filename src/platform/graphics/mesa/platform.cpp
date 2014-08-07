@@ -230,7 +230,7 @@ mgm::BypassOption mgm::Platform::bypass_option() const
 extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
-    std::shared_ptr<DisplayReport> const& report)
+    std::shared_ptr<DisplayReport> const& report) noexcept
 {
     auto real_fops = std::make_shared<RealVTFileOperations>();
     auto real_pops = std::unique_ptr<RealPosixProcessOperations>(new RealPosixProcessOperations{});
@@ -286,4 +286,13 @@ extern "C" mg::PlatformPriority probe_platform()
     }
 
     return mg::PlatformPriority::unsupported;
+}
+
+mg::ModuleProperties const description = {
+    "mesa"
+};
+
+extern "C" mg::ModuleProperties const* describe_module()
+{
+    return &description;
 }

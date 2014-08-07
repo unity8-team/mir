@@ -139,6 +139,11 @@ enum PlatformPriority : uint32_t
                          */
 };
 
+struct ModuleProperties
+{
+    char const* name;
+};
+
 /**
  * Function prototype used to return a new graphics platform.
  *
@@ -157,7 +162,7 @@ extern "C" typedef std::shared_ptr<Platform>(*CreatePlatform)(
 extern "C" std::shared_ptr<Platform> create_platform(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
-    std::shared_ptr<DisplayReport> const& report);
+    std::shared_ptr<DisplayReport> const& report) noexcept;
 extern "C" typedef void(*AddPlatformOptions)(
     boost::program_options::options_description& config);
 extern "C" void add_platform_options(
@@ -168,6 +173,9 @@ extern "C" void add_platform_options(
 //       so we should be associating platforms with graphics devices in some way
 extern "C" typedef PlatformPriority(*PlatformProbe)();
 extern "C" PlatformPriority probe_platform();
+
+extern "C" typedef ModuleProperties const*(*DescribeModule)();
+extern "C" ModuleProperties const* describe_module();
 }
 }
 
