@@ -68,6 +68,12 @@ public:
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
+        RoleSplashTitle,
+        RoleSplashImage,
+        RoleSplashShowHeader,
+        RoleSplashColor,
+        RoleSplashColorHeader,
+        RoleSplashColorFooter,
     };
 
     // Mapping enums to Ubuntu Platform API enums.

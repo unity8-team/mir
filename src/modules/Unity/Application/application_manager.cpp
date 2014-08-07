@@ -213,6 +213,12 @@ ApplicationManager::ApplicationManager(
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
+    m_roleNames.insert(RoleSplashTitle, "splashTitle");
+    m_roleNames.insert(RoleSplashImage, "splashImage");
+    m_roleNames.insert(RoleSplashShowHeader, "splashShowHeader");
+    m_roleNames.insert(RoleSplashColor, "splashColor");
+    m_roleNames.insert(RoleSplashColorHeader, "splashColorHeader");
+    m_roleNames.insert(RoleSplashColorFooter, "splashColorFooter");
 }
 
 ApplicationManager::~ApplicationManager()
@@ -250,6 +256,18 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->surface());
             case RoleFullscreen:
                 return QVariant::fromValue(application->fullscreen());
+            case RoleSplashTitle:
+                return QVariant::fromValue(application->splashTitle());
+            case RoleSplashImage:
+                return QVariant::fromValue(application->splashImage());
+            case RoleSplashShowHeader:
+                return QVariant::fromValue(application->splashShowHeader());
+            case RoleSplashColor:
+                return QVariant::fromValue(application->splashColor());
+            case RoleSplashColorHeader:
+                return QVariant::fromValue(application->splashColorHeader());
+            case RoleSplashColorFooter:
+                return QVariant::fromValue(application->splashColorFooter());
             default:
                 return QVariant();
         }
