@@ -282,6 +282,7 @@ extern "C" mg::PlatformPriority probe_platform()
 
     for(auto& device : drm_devices)
     {
+        static_cast<void>(device);
         return mg::PlatformPriority::best;
     }
 
