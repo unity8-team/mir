@@ -58,6 +58,7 @@ class Application : public unity::shell::application::ApplicationInfoInterface
     Q_PROPERTY(Stage stage READ stage WRITE setStage NOTIFY stageChanged)
     Q_PROPERTY(SupportedOrientations supportedOrientations READ supportedOrientations CONSTANT)
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
+    Q_PROPERTY(QQmlListProperty<qtmir::MirSurfaceItem> promptSurfaces READ promptSurfaces NOTIFY promptSurfacesChanged DESIGNABLE false)
 
 public:
     Q_DECLARE_FLAGS(Stages, Stage)
@@ -112,6 +113,10 @@ public:
 
     bool containsProcess(pid_t pid) const;
 
+    void foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const;
+    void addPromptSurface(MirSurfaceItem* surface);
+    void removeSurface(MirSurfaceItem* surface);
+
 public Q_SLOTS:
     void suspend();
     void resume();
@@ -121,6 +126,7 @@ Q_SIGNALS:
     void fullscreenChanged();
     void stageChanged(Stage stage);
     void surfaceChanged();
+    void promptSurfacesChanged();
 
     void surfaceDestroyed(MirSurfaceItem *surface);
 
@@ -144,6 +150,10 @@ private:
 
     void updateFullscreenProperty();
 
+    QQmlListProperty<MirSurfaceItem> promptSurfaces();
+    static int promptSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop);
+    static MirSurfaceItem* promptSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index);
+
     ApplicationManager* m_appMgr;
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
@@ -162,6 +172,7 @@ private:
     QTimer* m_suspendTimer;
     SupportedOrientations m_supportedOrientations;
     MirSurfaceItem *m_surface;
+    QList<MirSurfaceItem*> m_promptSurfaces;
     QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
     std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
 

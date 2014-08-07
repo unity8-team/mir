@@ -312,6 +312,9 @@ MirSurfaceItem::~MirSurfaceItem()
     if (m_parentSurface) {
         m_parentSurface->removeChildSurface(this);
     }
+    if (m_application) {
+        m_application->removeSurface(this);
+    }
 
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
     QMutexLocker locker(&m_mutex);
@@ -334,7 +337,7 @@ void MirSurfaceItem::release()
     }
 
     if (m_application) {
-        m_application->setSurface(nullptr);
+        m_application->removeSurface(this);
     }
     if (!parent()) {
         deleteLater();
@@ -651,7 +654,7 @@ QString MirSurfaceItem::appId()
 
 void MirSurfaceItem::setApplication(Application *app)
 {
-    m_application = app;
+   m_application = app;
 }
 
 void MirSurfaceItem::onApplicationStateChanged()
@@ -714,6 +717,8 @@ void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
 
 void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
 {
+    qDebug() << "MirSurfaceItem::removeChildSurface " << surface->name() << " from " << name();
+
     if (m_children.contains(surface)) {
         m_children.removeOne(surface);
 

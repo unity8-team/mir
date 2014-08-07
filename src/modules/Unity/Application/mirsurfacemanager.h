@@ -93,7 +93,7 @@ protected:
     );
 
     void refreshPromptSessionSurfaces(const mir::scene::Session *session);
-    void refreshPromptSessionSurfaces(const Application* application);
+    void refreshPromptSessionSurfaces(Application* application);
 
     void removePromptSessionSurface(MirSurfaceItem* surface);
 
