@@ -1,6 +1,6 @@
 qtmir (0.4.1-0ubuntu1) UNRELEASED; urgency=medium
 
-  [ Nick Dedekind
+  [ Nick Dedekind ]
   * Added prompt surfaces to application
 
  -- Nicholas Dedekind <nicholas.dedekind@gmail.com>  Thu, 07 Aug 2014 14:56:41 +0100
