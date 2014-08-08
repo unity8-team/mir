@@ -195,11 +195,9 @@ public:
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        if (num_frames < 0)
-        {
+        // Waking from sleep - no frames yet, but eventually force one
+        if (!num_frames)
             timeout = snooze;
-            num_frames = 0;
-        }
 
         if (num_frames > frames_scheduled)
             frames_scheduled = num_frames;
@@ -262,9 +260,8 @@ void mc::MultiThreadedCompositor::schedule_compositing(int num)
     std::unique_lock<std::mutex> lk(state_guard);
 
     report->scheduled();
-
     for (auto& f : thread_functors)
-        f->schedule_compositing(restarting ? -num : num);
+        f->schedule_compositing(restarting ? 0 : num);
 
     restarting = false;
 }
