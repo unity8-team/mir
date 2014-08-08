@@ -18,6 +18,8 @@ set(LIBDIR ${Mir_BINARY_DIR}/lib)
 set(INCLUDEDIR ${Mir_SOURCE_DIR}/include/server)
 set(PLATFORM_INCLUDEDIR ${Mir_SOURCE_DIR}/include/platform)
 set(COMMON_INCLUDEDIR ${Mir_SOURCE_DIR}/include/shared)
+configure_file(${Mir_SOURCE_DIR}/src/platform/mirplatform.pc.in
+               ${StandaloneServer_BINARY_DIR}/mirplatform.pc)
 configure_file(${Mir_SOURCE_DIR}/src/server/mirserver.pc.in
                ${StandaloneServer_BINARY_DIR}/mirserver.pc)
 set(ENV{PKG_CONFIG_PATH} ${StandaloneServer_BINARY_DIR})
