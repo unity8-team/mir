@@ -22,6 +22,7 @@
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/compositor/display_buffer_compositor_factory.h"
 #include "mir/compositor/scene.h"
+#include "mir/compositor/scene_element.h"
 #include "mir/compositor/compositor_report.h"
 #include "mir/scene/legacy_scene_change_notification.h"
 #include "mir/scene/surface_observer.h"
@@ -60,6 +61,36 @@ private:
     std::function<void()> const apply;
 };
 
+void drop_frame(std::shared_ptr<mc::Scene> const& scene, int nframes)
+{
+    // Consume each renderable twice using the same compositor_id. This is
+    // to ensure the multi-monitor frame sync code doesn't hand the same
+    // frame to any real compositor after us.
+
+    int n = 2 * nframes;
+    for (int f = 0; f < n; ++f)
+    {
+        auto const& elements = scene->scene_elements_for(0);
+        for (auto& element : elements)
+            (void)element->renderable()->buffer();
+    }
+}
+
+/*
+ * When we're waking up from sleep, we will eventually force a new frame
+ * to be composited. But we intentionally delay a little, to allow clients
+ * and nested servers to produce new frames for us to show on wakeup. Should
+ * any client or nested server provide new content during this delay, the
+ * delay will be cancelled and a new frame composited immediately.
+ */
+std::chrono::milliseconds const snooze(500);
+
+/*
+ * Annoyingly, we can't use milliseconds::max() because that's actually
+ * negative and will trigger immediate wakeups (!?)
+ */
+std::chrono::milliseconds const forever(INT_MAX);
+
 }
 
 namespace mir
@@ -95,6 +126,7 @@ public:
           buffer(buffer),
           running{true},
           frames_scheduled{0},
+          timeout{forever},
           report{report}
     {
     }
@@ -123,8 +155,14 @@ public:
         std::unique_lock<std::mutex> lock{run_mutex};
         while (running)
         {
-            /* Wait until compositing has been scheduled or we are stopped */
-            run_cv.wait(lock, [&]{ return (frames_scheduled > 0) || !running; });
+            while (!frames_scheduled && running)
+            {
+                auto status = run_cv.wait_for(lock, timeout);
+                if (!frames_scheduled && status == std::cv_status::timeout)
+                    frames_scheduled = 1;
+            }
+
+            timeout = forever;
 
             /*
              * Check if we are running before compositing, since we may have
@@ -157,11 +195,16 @@ public:
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        if (num_frames > frames_scheduled)
+        if (num_frames < 0)
         {
-            frames_scheduled = num_frames;
-            run_cv.notify_one();
+            timeout = snooze;
+            num_frames = 0;
         }
+
+        if (num_frames > frames_scheduled)
+            frames_scheduled = num_frames;
+
+        run_cv.notify_one();
     }
 
     void stop()
@@ -176,6 +219,7 @@ private:
     mg::DisplayBuffer& buffer;
     bool running;
     int frames_scheduled;
+    std::chrono::milliseconds timeout;
     std::mutex run_mutex;
     std::condition_variable run_cv;
     std::shared_ptr<CompositorReport> const report;
@@ -218,8 +262,11 @@ void mc::MultiThreadedCompositor::schedule_compositing(int num)
     std::unique_lock<std::mutex> lk(state_guard);
 
     report->scheduled();
+
     for (auto& f : thread_functors)
-        f->schedule_compositing(num);
+        f->schedule_compositing(restarting ? -num : num);
+
+    restarting = false;
 }
 
 void mc::MultiThreadedCompositor::start()
@@ -248,6 +295,12 @@ void mc::MultiThreadedCompositor::start()
     /* Optional first render */
     if (compose_on_start)
     {
+        if (restarting)
+        {
+            int const max_buffer_queue_depth = 3;
+            drop_frame(scene, max_buffer_queue_depth);
+        }
+
         lk.unlock();
         schedule_compositing(1);
     }
@@ -279,6 +332,7 @@ void mc::MultiThreadedCompositor::stop()
     // If the compositor is restarted we've likely got clients blocked
     // so we will need to schedule compositing immediately
     compose_on_start = true;
+    restarting = true;
 }
 
 void mc::MultiThreadedCompositor::create_compositing_threads()
