@@ -709,7 +709,7 @@ MirSurfaceItem* MirSurfaceItem::parentSurface() const
 
 void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
 {
-    qDebug() << "MirSurfaceItem::addChildSurface " << surface->name() << " to " << name();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::addChildSurface " << surface->name() << " to " << name();
 
     m_children.append(surface);
     Q_EMIT childSurfacesChanged();
@@ -717,7 +717,7 @@ void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
 
 void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
 {
-    qDebug() << "MirSurfaceItem::removeChildSurface " << surface->name() << " from " << name();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::removeChildSurface " << surface->name() << " from " << name();
 
     if (m_children.contains(surface)) {
         m_children.removeOne(surface);

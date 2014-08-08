@@ -487,8 +487,8 @@ bool Application::containsProcess(pid_t pid) const
 
 void Application::addPromptSurface(MirSurfaceItem* surface)
 {
+    qCDebug(QTMIR_APPLICATIONS) << "Application::addPromptSurface " << surface->name() << " to " << name();
     if (surface == m_surface || m_promptSurfaces.contains(surface)) return;
-    qDebug() << "MirSurfaceItem::addPromptSurface " << surface->name() << " to " << name();
 
     surface->setApplication(this);
     m_promptSurfaces.append(surface);
@@ -500,6 +500,8 @@ void Application::removeSurface(MirSurfaceItem* surface)
     if (m_surface == surface) {
         setSurface(nullptr);
     } else if (m_promptSurfaces.contains(surface)) {
+        qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface " << surface->name() << " from " << name();
+
         m_promptSurfaces.removeAll(surface);
         surface->setApplication(nullptr);
 
