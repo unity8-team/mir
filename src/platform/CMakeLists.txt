@@ -1,7 +1,5 @@
 include_directories(${PROJECT_SOURCE_DIR}/include/platform)
 
-# This needs to change whenever libmirplatform.so's ABI changes in an
-# incompatible way
 set(MIRPLATFORM_ABI 1)
 
 # This needs to change whenever the much smaller ABI between the platform
@@ -45,3 +43,17 @@ install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 add_subdirectory(graphics/)
 add_subdirectory(options)
 add_subdirectory(fatal)
+
+set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirplatform")
+set(COMMON_INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mircommon")
+set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/mirplatform.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mirplatform.pc
+)
+
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/mirplatform.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
