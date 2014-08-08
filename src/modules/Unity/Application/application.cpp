@@ -76,7 +76,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 Application::~Application()
 {
     QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces);
-    for(MirSurfaceItem* promptSurface : promptSurfaces) {
+    for (MirSurfaceItem* promptSurface : promptSurfaces) {
         delete promptSurface;
     }
 
@@ -497,11 +497,11 @@ void Application::addPromptSurface(MirSurfaceItem* surface)
 
 void Application::removeSurface(MirSurfaceItem* surface)
 {
+    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface " << surface->name() << " from " << name();
+
     if (m_surface == surface) {
         setSurface(nullptr);
     } else if (m_promptSurfaces.contains(surface)) {
-        qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface " << surface->name() << " from " << name();
-
         m_promptSurfaces.removeAll(surface);
         surface->setApplication(nullptr);
 
@@ -511,7 +511,7 @@ void Application::removeSurface(MirSurfaceItem* surface)
 
 void Application::foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const
 {
-    for(MirSurfaceItem* promptSurface : m_promptSurfaces) {
+    for (MirSurfaceItem* promptSurface : m_promptSurfaces) {
         f(promptSurface);
     }
 }

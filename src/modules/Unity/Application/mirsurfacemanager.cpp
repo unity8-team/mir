@@ -343,7 +343,7 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
             });
 
         for (MirSurfaceItem* item : surfaces) {
-            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::rehostPromptSessionSurfaces - remove: " << item->name();
+            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - remove: " << item->name();
             Q_EMIT item->removed();
         }
     };

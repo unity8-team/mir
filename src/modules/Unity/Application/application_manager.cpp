@@ -249,6 +249,8 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->screenshot());
             case RoleSurface:
                 return QVariant::fromValue(application->surface());
+            case RoleFullscreen:
+                return QVariant::fromValue(application->fullscreen());
             case RoleApplication:
                 return QVariant::fromValue(application);
             default:

@@ -654,7 +654,7 @@ QString MirSurfaceItem::appId()
 
 void MirSurfaceItem::setApplication(Application *app)
 {
-   m_application = app;
+    m_application = app;
 }
 
 void MirSurfaceItem::onApplicationStateChanged()
