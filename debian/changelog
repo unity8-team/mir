@@ -1,8 +1,9 @@
-qtmir-gles (0.4.1+14.10.20140808-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.1+14.10.20140808-0ubuntu1) utopic; urgency=medium
 
+  [ Thomas Voß ]
   * Sync with upstream. 
 
- -- Thomas Voß <thomas.voss@canonical.com>  Fri, 08 Aug 2014 15:01:40 +0200
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 08 Aug 2014 13:09:25 +0000
 
 qtmir-gles (0.4.0+14.10.20140805.1-0ubuntu1) utopic; urgency=medium
 
