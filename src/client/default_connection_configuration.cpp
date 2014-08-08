@@ -94,15 +94,17 @@ mcl::DefaultConnectionConfiguration::the_client_platform_factory()
     return client_platform_factory(
         [this]
         {
-            auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
+            auto const platform_override = getenv("MIR_CLIENT_PLATFORM_LIB");
             std::vector<std::shared_ptr<mir::SharedLibrary>> platform_plugins;
-            if (val_raw)
+            if (platform_override)
             {
-                platform_plugins.push_back(std::make_shared<mir::SharedLibrary>(val_raw));
+                platform_plugins.push_back(std::make_shared<mir::SharedLibrary>(platform_override));
             }
             else
             {
-                platform_plugins = mir::libraries_for_path(MIR_CLIENT_PLATFORM_PATH, *the_shared_library_prober_report());
+                auto const platform_path_override = getenv("MIR_CLIENT_PLATFORM_PATH");
+                auto const platform_path = platform_path_override ? platform_path_override : MIR_CLIENT_PLATFORM_PATH;
+                platform_plugins = mir::libraries_for_path(platform_path, *the_shared_library_prober_report());
             }
 
             the_platform_prober = std::make_shared<mcl::ProbingClientPlatformFactory>(platform_plugins);

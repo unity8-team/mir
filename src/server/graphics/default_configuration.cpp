@@ -28,7 +28,7 @@
 #include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/gl_config.h"
 #include "mir/graphics/cursor.h"
-#include "platform_probe.h"
+#include "src/platform/graphics/platform_probe.h"
 #include "program_factory.h"
 
 #include "mir/shared_library.h"
@@ -84,7 +84,7 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
                 }
                 else
                 {
-                    auto platforms = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, *the_shared_library_prober_report());
+                    auto platforms = mir::libraries_for_path(the_options()->get<std::string>(options::platform_graphics_path), *the_shared_library_prober_report());
                     if (platforms.empty())
                     {
                         throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);
@@ -97,7 +97,7 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
 
             return std::make_shared<mir::graphics::nested::NestedPlatform>(
                 the_host_connection(),
-                the_input_dispatcher(),
+                the_input_dispatcher(), 
                 the_display_report(),
                 the_graphics_native_platform());
         });
@@ -114,7 +114,7 @@ std::shared_ptr<mg::NativePlatform>  mir::DefaultServerConfiguration::the_graphi
             }
             else
             {
-                auto platforms = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, *the_shared_library_prober_report());
+                auto platforms = mir::libraries_for_path(the_options()->get<std::string>(options::platform_graphics_path), *the_shared_library_prober_report());
                 if (platforms.empty())
                 {
                     throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);

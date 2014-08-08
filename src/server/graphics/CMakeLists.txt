@@ -1,4 +1,4 @@
-include_directories(${GLESv2_INCLUDE_DIRS})
+include_directories(${GLESv2_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
 
 add_library(
   mirgraphics OBJECT
@@ -8,7 +8,6 @@ add_library(
   gl_extensions_base.cpp
   program_factory.cpp
   surfaceless_egl_context.cpp
-  platform_probe.cpp
 )
 
 add_subdirectory(nested/)

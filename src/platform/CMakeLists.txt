@@ -1,7 +1,5 @@
 include_directories(${PROJECT_SOURCE_DIR}/include/platform)
 
-add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
-
 # This needs to change whenever libmirplatform.so's ABI changes in an
 # incompatible way
 set(MIRPLATFORM_ABI 1)
@@ -18,6 +16,7 @@ set(MIR_SERVER_PLATFORM_PLUGIN_PATH
   PARENT_SCOPE
 )
 
+add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
 
 add_library(
   mirplatform SHARED

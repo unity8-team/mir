@@ -22,6 +22,7 @@
 #include "mir/default_configuration.h"
 #include "mir/abnormal_exit.h"
 #include "mir/shared_library_prober.h"
+#include "../graphics/platform_probe.h"
 
 namespace mo = mir::options;
 
@@ -52,6 +53,7 @@ char const* const mo::log_opt_value = "log";
 char const* const mo::lttng_opt_value = "lttng";
 
 char const* const mo::platform_graphics_lib = "platform-graphics-lib";
+char const* const mo::platform_graphics_path = "platform-graphics-path";
 
 namespace
 {
@@ -60,6 +62,8 @@ int const glog_stderrthreshold_default = 2;
 int const glog_minloglevel_default     = 0;
 char const* const glog_log_dir_default = "";
 bool const enable_input_default        = true;
+
+std::shared_ptr<mir::SharedLibrary> graphics_lib;
 }
 
 mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
@@ -102,6 +106,8 @@ mo::DefaultConfiguration::DefaultConfiguration(
         (prompt_socket_opt, "Provide a \"..._trusted\" filename for prompt helper connections")
         (platform_graphics_lib, po::value<std::string>(),
             "Library to use for platform graphics support (default: autodetect)")
+        (platform_graphics_path, po::value<std::string>()->default_value(MIR_SERVER_PLATFORM_PLUGIN_PATH),
+            "Library to use for platform graphics support (default: " MIR_SERVER_PLATFORM_PLUGIN_PATH ")")
         (enable_input_opt, po::value<bool>()->default_value(enable_input_default),
             "Enable input.")
         (compositor_report_opt, po::value<std::string>()->default_value(off_opt_value),
@@ -174,14 +180,16 @@ void mo::DefaultConfiguration::add_platform_options()
     program_options.add_options()
         (platform_graphics_lib,
          po::value<std::string>(), "");
+    program_options.add_options()
+        (platform_graphics_path,
+         po::value<std::string>()->default_value(MIR_SERVER_PLATFORM_PLUGIN_PATH),
+        "");
     mo::ProgramOption options;
     options.parse_arguments(program_options, argc, argv);
 
-    // TODO: We should just load all the platform plugins we can and
-    //       present their options. We don't necessarily know here which one will
-    //       be used.
-    std::shared_ptr<mir::SharedLibrary> graphics_lib;
+    // TODO: We should just load all the platform plugins we can and present their options.
     auto env_libname = ::getenv("MIR_SERVER_PLATFORM_GRAPHICS_LIB");
+    auto env_libpath = ::getenv("MIR_SERVER_PLATFORM_GRAPHICS_PATH");
     try
     {
         if (options.is_set(platform_graphics_lib))
@@ -194,9 +202,10 @@ void mo::DefaultConfiguration::add_platform_options()
         }
         else
         {
+            auto const plugin_path = env_libpath ? env_libpath : options.get<std::string>(platform_graphics_path);
             NullSharedLibraryProberReport nuller;
-            auto plugins = mir::libraries_for_path(MIR_SERVER_PLATFORM_PLUGIN_PATH, nuller);
-            graphics_lib = plugins.front();
+            auto plugins = mir::libraries_for_path(plugin_path, nuller);
+            graphics_lib = mir::graphics::module_for_device(plugins);
         }
 
         auto add_platform_options = graphics_lib->load_function<mir::graphics::AddPlatformOptions>(std::string("add_platform_options"));
