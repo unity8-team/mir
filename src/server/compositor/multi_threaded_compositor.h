@@ -81,7 +81,6 @@ private:
     std::mutex state_guard;
     CompositorState state;
     bool compose_on_start;
-    bool restarting = false;
 
     void schedule_compositing(int number_composites);
     

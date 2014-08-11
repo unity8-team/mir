@@ -61,16 +61,15 @@ private:
     std::function<void()> const apply;
 };
 
-void drop_frame(std::shared_ptr<mc::Scene> const& scene, int nframes)
+void drop_frames(mc::Scene& scene, int nframes)
 {
-    // Consume each renderable twice using the same compositor_id. This is
-    // to ensure the multi-monitor frame sync code doesn't hand the same
-    // frame to any real compositor after us.
+    // Consume nframes+1. The +1 is required for force the multi-monitor
+    // frame sync logic to release old buffers. It will only do so on the
+    // second and subsequent calls for a given CompositorID (0).
 
-    int n = 2 * nframes;
-    for (int f = 0; f < n; ++f)
+    for (int f = 0; f < nframes + 1; ++f)
     {
-        auto const& elements = scene->scene_elements_for(0);
+        auto const& elements = scene.scene_elements_for(0);
         for (auto& element : elements)
             (void)element->renderable()->buffer();
     }
@@ -197,12 +196,16 @@ public:
 
         // Waking from sleep - no frames yet, but eventually force one
         if (!num_frames)
+        {
             timeout = snooze;
+            run_cv.notify_one();
+        }
 
         if (num_frames > frames_scheduled)
+        {
             frames_scheduled = num_frames;
-
-        run_cv.notify_one();
+            run_cv.notify_one();
+        }
     }
 
     void stop()
@@ -261,9 +264,7 @@ void mc::MultiThreadedCompositor::schedule_compositing(int num)
 
     report->scheduled();
     for (auto& f : thread_functors)
-        f->schedule_compositing(restarting ? 0 : num);
-
-    restarting = false;
+        f->schedule_compositing(num);
 }
 
 void mc::MultiThreadedCompositor::start()
@@ -292,14 +293,12 @@ void mc::MultiThreadedCompositor::start()
     /* Optional first render */
     if (compose_on_start)
     {
-        if (restarting)
-        {
-            int const max_buffer_queue_depth = 3;
-            drop_frame(scene, max_buffer_queue_depth);
-        }
+        int const max_buffer_queue_depth = 3;
+        drop_frames(*scene, max_buffer_queue_depth);
 
         lk.unlock();
-        schedule_compositing(1);
+        schedule_compositing(0);  // Zero means wait a little for clients
+                                  // and then after a short delay force one.
     }
 }
 
@@ -329,7 +328,6 @@ void mc::MultiThreadedCompositor::stop()
     // If the compositor is restarted we've likely got clients blocked
     // so we will need to schedule compositing immediately
     compose_on_start = true;
-    restarting = true;
 }
 
 void mc::MultiThreadedCompositor::create_compositing_threads()
