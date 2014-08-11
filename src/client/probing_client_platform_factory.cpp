@@ -2,8 +2,6 @@
 
 #include <stdexcept>
 
-#include <iostream>
-
 namespace mcl = mir::client;
 
 mcl::ProbingClientPlatformFactory::ProbingClientPlatformFactory(std::vector<std::shared_ptr<mir::SharedLibrary>> const& modules)

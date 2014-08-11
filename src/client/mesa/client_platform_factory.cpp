@@ -26,7 +26,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdexcept>
-#include <iostream>
 
 namespace mcl = mir::client;
 namespace mclm = mcl::mesa;

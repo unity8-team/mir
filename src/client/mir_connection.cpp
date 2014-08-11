@@ -34,8 +34,6 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include <iostream>
-
 namespace mcl = mir::client;
 namespace mircv = mir::input::receiver;
 namespace gp = google::protobuf;
