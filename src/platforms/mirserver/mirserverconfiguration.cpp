@@ -151,7 +151,7 @@ MirServerConfiguration::the_connection_creator()
         {
             return std::make_shared<ConnectionCreator>(
                 m_unityService,
-                the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                new_ipc_factory(the_session_authorizer()),
                 the_session_authorizer(),
                 the_message_processor_report());
         });
