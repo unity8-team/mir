@@ -39,6 +39,7 @@ mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> con
     }
     if (best_priority_so_far > mir::graphics::unsupported)
     {
+        report.module_selected(*best_module_so_far->load_function<DescribeModule>("describe_module")());
         return best_module_so_far;
     }
     throw std::runtime_error{"Failed to find platform for current system"};

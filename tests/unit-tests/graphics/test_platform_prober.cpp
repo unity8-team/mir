@@ -302,3 +302,26 @@ TEST_F(ServerPlatformProbe, LogsWithCorrectPriorityOnlyMesaSupported)
 
     auto module = mir::graphics::module_for_device(modules, report);
 }
+
+TEST_F(ServerPlatformProbe, LogsSelectedPlugin)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    NiceMock<MockPlatformProbeReport> report;
+    char const* selected_name;
+    EXPECT_CALL(report, module_selected(_))
+        .WillOnce(Invoke([&selected_name](mir::graphics::ModuleProperties const& descriptor)
+                         {
+                             selected_name = descriptor.name;
+                         }));
+
+    auto module = mir::graphics::module_for_device(modules, report);
+    auto describe = module->load_function<mir::graphics::DescribeModule>("describe_module");
+    EXPECT_STREQ(describe()->name, selected_name);
+}
