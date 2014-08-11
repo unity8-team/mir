@@ -235,17 +235,31 @@ void Application::updateScreenshot()
             if (wk.isNull())
                 return;
 
-            qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
+            qCDebug(QTMIR_APPLICATIONS) << "Application - Mir snapshot ready with size"
                                         << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
 
-            m_screenshotImage = QImage( (const uchar*)snapshot.pixels, // since we mirror, no need to offset starting position
+            {
+                // since we mirror, no need to offset starting position of the pixels
+                QImage fullSizeScreenshot = QImage( (const uchar*)snapshot.pixels,
                             snapshot.size.width.as_int(),
                             snapshot.size.height.as_int(),
                             QImage::Format_ARGB32_Premultiplied).mirrored();
 
+                // For the sake of reducing memory consumption.
+                m_screenshotImage = fullSizeScreenshot.scaledToHeight(fullSizeScreenshot.height() / 2,
+                    Qt::SmoothTransformation);
+            }
+
             m_screenshot = QString("image://application/%1/%2").arg(m_desktopData->appId()).arg(QDateTime::currentMSecsSinceEpoch());
             Q_EMIT screenshotChanged(m_screenshot);
         });
+}
+
+void Application::discardScreenshot()
+{
+    m_screenshotImage = QImage();
+    m_screenshot.clear();
+    Q_EMIT screenshotChanged(m_screenshot);
 }
 
 void Application::setState(Application::State state)

@@ -95,7 +95,8 @@ public:
     MirSurfaceItem* surface() const;
 
     QImage screenshotImage() const;
-    void updateScreenshot();
+    Q_INVOKABLE void updateScreenshot();
+    Q_INVOKABLE void discardScreenshot();
 
     bool canBeResumed() const;
     void setCanBeResumed(const bool);
