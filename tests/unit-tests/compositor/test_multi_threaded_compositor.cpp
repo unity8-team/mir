@@ -608,6 +608,44 @@ TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
     compositor.stop();
 }
 
+TEST(MultiThreadedCompositor, restart_flushes_the_scene)
+{
+    using namespace testing;
+
+    int const ndisplays = 1;
+    int const buffer_queue_depth = 3;
+    auto display = std::make_shared<StubDisplayWithMockBuffers>(ndisplays);
+    auto mock_scene = std::make_shared<mtd::MockScene>();
+    auto factory = std::make_shared<NullDisplayBufferCompositorFactory>();
+    auto mock_report =
+        std::make_shared<testing::NiceMock<mtd::MockCompositorReport>>();
+
+    int const nstarts = 2;
+    int const nstops = nstarts;
+    EXPECT_CALL(*mock_report, started())
+        .Times(nstarts);
+    EXPECT_CALL(*mock_report, stopped())
+        .Times(nstops);
+    EXPECT_CALL(*mock_scene, add_observer(_))
+        .Times(nstarts);
+    EXPECT_CALL(*mock_scene, remove_observer(_))
+        .Times(nstarts);
+
+    EXPECT_CALL(*mock_scene, scene_elements_for(_))
+        .Times(nstarts * (buffer_queue_depth + 1))
+        .WillRepeatedly(Return(mc::SceneElementSequence{}));
+
+    mc::MultiThreadedCompositor compositor{display, mock_scene, factory,
+                                           mock_report, true};
+
+    compositor.start();
+    compositor.stop();
+    compositor.start();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    compositor.stop();
+}
+
 TEST(MultiThreadedCompositor, cleans_up_after_throw_in_start)
 {
     unsigned int const nbuffers{3};

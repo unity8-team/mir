@@ -294,10 +294,12 @@ void mc::MultiThreadedCompositor::start()
     if (compose_on_start)
     {
         int const max_buffer_queue_depth = 3;
+        if (0) // XXX
         drop_frames(*scene, max_buffer_queue_depth);
 
         lk.unlock();
-        schedule_compositing(0);  // Zero means wait a little for clients
+        // XXX
+        schedule_compositing(1);  // Zero means wait a little for clients
                                   // and then after a short delay force one.
     }
 }
