@@ -76,15 +76,6 @@ void drop_frames(mc::Scene& scene, int nframes)
 }
 
 /*
- * When we're waking up from sleep, we will eventually force a new frame
- * to be composited. But we intentionally delay a little, to allow clients
- * and nested servers to produce new frames for us to show on wakeup. Should
- * any client or nested server provide new content during this delay, the
- * delay will be cancelled and a new frame composited immediately.
- */
-std::chrono::milliseconds const snooze(500);
-
-/*
  * Annoyingly, we can't use milliseconds::max() because that's actually
  * negative and will trigger immediate wakeups (!?)
  */
@@ -120,12 +111,14 @@ class CompositingFunctor
 public:
     CompositingFunctor(std::shared_ptr<mc::DisplayBufferCompositorFactory> const& db_compositor_factory,
                        mg::DisplayBuffer& buffer,
+                       std::chrono::milliseconds restart_delay,
                        std::shared_ptr<CompositorReport> const& report)
         : display_buffer_compositor_factory{db_compositor_factory},
           buffer(buffer),
           running{true},
           frames_scheduled{0},
           timeout{forever},
+          restart_delay{restart_delay},
           report{report}
     {
     }
@@ -197,7 +190,7 @@ public:
         // Waking from sleep - no frames yet, but eventually force one
         if (!num_frames)
         {
-            timeout = snooze;
+            timeout = restart_delay;
             run_cv.notify_one();
         }
 
@@ -221,6 +214,7 @@ private:
     bool running;
     int frames_scheduled;
     std::chrono::milliseconds timeout;
+    std::chrono::milliseconds const restart_delay;
     std::mutex run_mutex;
     std::condition_variable run_cv;
     std::shared_ptr<CompositorReport> const report;
@@ -234,13 +228,15 @@ mc::MultiThreadedCompositor::MultiThreadedCompositor(
     std::shared_ptr<mc::Scene> const& scene,
     std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory,
     std::shared_ptr<CompositorReport> const& compositor_report,
-    bool compose_on_start)
+    bool compose_on_start,
+    std::chrono::milliseconds restart_delay)
     : display{display},
       scene{scene},
       display_buffer_compositor_factory{db_compositor_factory},
       report{compositor_report},
       state{CompositorState::stopped},
-      compose_on_start{compose_on_start}
+      compose_on_start{compose_on_start},
+      restart_delay{restart_delay}
 {
     observer = std::make_shared<ms::LegacySceneChangeNotification>(
     [this]()
@@ -335,7 +331,7 @@ void mc::MultiThreadedCompositor::create_compositing_threads()
     /* Start the display buffer compositing threads */
     display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
     {
-        auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, report};
+        auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, restart_delay, report};
         auto thread_functor = std::unique_ptr<mc::CompositingFunctor>(thread_functor_raw);
 
         threads.push_back(std::thread{std::ref(*thread_functor)});

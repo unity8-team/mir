@@ -641,8 +641,6 @@ TEST(MultiThreadedCompositor, restart_flushes_the_scene)
     compositor.start();
     compositor.stop();
     compositor.start();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     compositor.stop();
 }
 
@@ -655,8 +653,10 @@ TEST(MultiThreadedCompositor, resume_on_idle_scene_is_delayed)
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
+
+    std::chrono::milliseconds const delay(500);
     mc::MultiThreadedCompositor compositor{display, scene, factory,
-                                           null_report, true};
+                                           null_report, true, delay};
 
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
 
@@ -675,8 +675,8 @@ TEST(MultiThreadedCompositor, resume_on_idle_scene_is_delayed)
     while (!factory->check_record_count_for_each_buffer(nbuffers, 2))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     auto to = system_clock::now();
-    int delay_ms = duration_cast<milliseconds>(to - from).count();
-    EXPECT_THAT(delay_ms, Ge(500));
+    auto measured_delay = duration_cast<milliseconds>(to - from);
+    EXPECT_THAT(measured_delay, Ge(delay));
 
     compositor.stop();
 }
@@ -690,8 +690,9 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
+    std::chrono::milliseconds const delay(10000);
     mc::MultiThreadedCompositor compositor{display, scene, factory,
-                                           null_report, true};
+                                           null_report, true, delay};
 
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
 
@@ -712,8 +713,8 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
     while (!factory->check_record_count_for_each_buffer(nbuffers, 2))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     auto to = system_clock::now();
-    int delay_ms = duration_cast<milliseconds>(to - from).count();
-    EXPECT_THAT(delay_ms, Lt(50));
+    auto measured_delay = duration_cast<milliseconds>(to - from);
+    EXPECT_THAT(measured_delay, Lt(delay));
 
     compositor.stop();
 }

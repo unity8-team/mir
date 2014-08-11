@@ -25,6 +25,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <chrono>
 
 namespace mir
 {
@@ -60,7 +61,9 @@ public:
                             std::shared_ptr<Scene> const& scene,
                             std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory,
                             std::shared_ptr<CompositorReport> const& compositor_report,
-                            bool compose_on_start);
+                            bool compose_on_start,
+                            std::chrono::milliseconds restart_delay =
+                                std::chrono::milliseconds(500));
     ~MultiThreadedCompositor();
 
     void start();
@@ -81,6 +84,7 @@ private:
     std::mutex state_guard;
     CompositorState state;
     bool compose_on_start;
+    std::chrono::milliseconds const restart_delay;
 
     void schedule_compositing(int number_composites);
     
