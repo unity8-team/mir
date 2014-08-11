@@ -646,6 +646,80 @@ TEST(MultiThreadedCompositor, restart_flushes_the_scene)
     compositor.stop();
 }
 
+TEST(MultiThreadedCompositor, resume_on_idle_scene_is_delayed)
+{
+    using namespace testing;
+
+    unsigned int const nbuffers = 3;
+
+    auto display = std::make_shared<StubDisplay>(nbuffers);
+    auto scene = std::make_shared<StubScene>();
+    auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
+    mc::MultiThreadedCompositor compositor{display, scene, factory,
+                                           null_report, true};
+
+    EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
+
+    compositor.start();
+
+    while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
+
+    compositor.stop();
+
+    using namespace std::chrono;
+    auto from = system_clock::now();
+
+    compositor.start();
+    while (!factory->check_record_count_for_each_buffer(nbuffers, 2))
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    auto to = system_clock::now();
+    int delay_ms = duration_cast<milliseconds>(to - from).count();
+    EXPECT_THAT(delay_ms, Ge(500));
+
+    compositor.stop();
+}
+
+TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
+{
+    using namespace testing;
+
+    unsigned int const nbuffers = 3;
+
+    auto display = std::make_shared<StubDisplay>(nbuffers);
+    auto scene = std::make_shared<StubScene>();
+    auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
+    mc::MultiThreadedCompositor compositor{display, scene, factory,
+                                           null_report, true};
+
+    EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
+
+    compositor.start();
+
+    while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
+
+    compositor.stop();
+
+    using namespace std::chrono;
+    auto from = system_clock::now();
+
+    compositor.start();
+    for (int i = 0; i < 10; ++i)
+        scene->emit_change_event();
+    while (!factory->check_record_count_for_each_buffer(nbuffers, 2))
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    auto to = system_clock::now();
+    int delay_ms = duration_cast<milliseconds>(to - from).count();
+    EXPECT_THAT(delay_ms, Lt(50));
+
+    compositor.stop();
+}
+
 TEST(MultiThreadedCompositor, cleans_up_after_throw_in_start)
 {
     unsigned int const nbuffers{3};
