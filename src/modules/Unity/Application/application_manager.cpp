@@ -213,6 +213,7 @@ ApplicationManager::ApplicationManager(
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
+    m_roleNames.insert(RoleApplication, "application");
 }
 
 ApplicationManager::~ApplicationManager()
@@ -250,6 +251,8 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->surface());
             case RoleFullscreen:
                 return QVariant::fromValue(application->fullscreen());
+            case RoleApplication:
+                return QVariant::fromValue(application);
             default:
                 return QVariant();
         }
@@ -319,13 +322,17 @@ void ApplicationManager::setSuspended(bool suspended)
     if (m_suspended) {
         suspendApplication(m_mainStageApplication);
         suspendApplication(m_sideStageApplication);
-        if (m_focusedApplication)
+        if (m_focusedApplication) {
+            m_focusedApplication->setFocused(false);
             m_dbusWindowStack->FocusedWindowChanged(0, QString(), 0);
+        }
     } else {
         resumeApplication(m_mainStageApplication);
         resumeApplication(m_sideStageApplication);
-        if (m_focusedApplication)
+        if (m_focusedApplication) {
+            m_focusedApplication->setFocused(true);
             m_dbusWindowStack->FocusedWindowChanged(0, m_focusedApplication->appId(), m_focusedApplication->stage());
+        }
     }
 }
 
