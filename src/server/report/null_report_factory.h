@@ -36,6 +36,7 @@ public:
     std::shared_ptr<frontend::MessageProcessorReport> create_message_processor_report() override;
     std::shared_ptr<input::InputReport> create_input_report() override;
     std::shared_ptr<SharedLibraryProberReport> create_shared_library_prober_report() override;
+    std::shared_ptr<graphics::PlatformProbeReport> create_platform_probe_report() override;
 };
 
 std::shared_ptr<compositor::CompositorReport> null_compositor_report();
@@ -46,6 +47,7 @@ std::shared_ptr<frontend::SessionMediatorReport> null_session_mediator_report();
 std::shared_ptr<frontend::MessageProcessorReport> null_message_processor_report();
 std::shared_ptr<input::InputReport> null_input_report();
 std::shared_ptr<SharedLibraryProberReport> null_shared_library_prober_report();
+std::shared_ptr<graphics::PlatformProbeReport> null_platform_probe_report();
 }
 }
 

@@ -110,6 +110,7 @@ class Cursor;
 class CursorImage;
 class GLConfig;
 class GLProgramFactory;
+class PlatformProbeReport;
 namespace nested { class HostConnection; }
 }
 namespace input
@@ -309,6 +310,7 @@ public:
     virtual std::shared_ptr<time::Clock> the_clock();
     virtual std::shared_ptr<ServerActionQueue> the_server_action_queue();
     virtual std::shared_ptr<SharedLibraryProberReport> the_shared_library_prober_report();
+    virtual std::shared_ptr<graphics::PlatformProbeReport> the_platform_probe_report();
 
 protected:
     std::shared_ptr<options::Option> the_options() const;
@@ -410,6 +412,7 @@ protected:
     CachedPtr<EmergencyCleanup> emergency_cleanup;
     CachedPtr<shell::HostLifecycleEventListener> host_lifecycle_event_listener;
     CachedPtr<SharedLibraryProberReport> shared_library_prober_report;
+    CachedPtr<graphics::PlatformProbeReport> platform_probe_report;
 
 private:
     std::shared_ptr<options::Configuration> const configuration_options;

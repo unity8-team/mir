@@ -16,24 +16,29 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_PLATFORM_PROBE_H_
-#define MIR_GRAPHICS_PLATFORM_PROBE_H_
+#ifndef MIR_GRAPHICS_PLATFORM_PROBE_REPORT_H_
+#define MIR_GRAPHICS_PLATFORM_PROBE_REPORT_H_
 
-#include <vector>
-#include <memory>
-#include "mir/shared_library.h"
-#include "platform_probe_report.h"
+#include "mir/graphics/platform.h"
 
 namespace mir
 {
 namespace graphics
 {
-class Platform;
-class PlatformProbeReport;
 
-std::shared_ptr<SharedLibrary> module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules, PlatformProbeReport& report);
+class PlatformProbeReport
+{
+public:
+    PlatformProbeReport() = default;
+    virtual ~PlatformProbeReport() = default;
 
+    PlatformProbeReport(PlatformProbeReport const&) = delete;
+    PlatformProbeReport& operator=(PlatformProbeReport const&) = delete;
+
+    virtual void module_probed(ModuleProperties const& module, PlatformPriority probe_value) = 0;
+    virtual void module_selected(ModuleProperties const& module) =  0;
+};
 }
 }
 
-#endif // MIR_GRAPHICS_PLATFORM_PROBE_H_
+#endif // MIR_GRAPHICS_PLATFORM_PROBE_REPORT_H_

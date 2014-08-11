@@ -20,14 +20,17 @@
 #include "platform_probe.h"
 
 std::shared_ptr<mir::SharedLibrary>
-mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules)
+mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules,
+                                 PlatformProbeReport& report)
 {
     mir::graphics::PlatformPriority best_priority_so_far = mir::graphics::unsupported;
     std::shared_ptr<mir::SharedLibrary> best_module_so_far;
     for(auto& module : modules)
     {
-        auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform");
+        auto probe = module->load_function<PlatformProbe>("probe_platform");
         auto module_priority = probe();
+        auto describe = module->load_function<DescribeModule>("describe_module");
+        report.module_probed(*describe(), module_priority);
         if (module_priority > best_priority_so_far)
         {
             best_priority_so_far = module_priority;

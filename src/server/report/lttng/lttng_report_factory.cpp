@@ -67,3 +67,8 @@ std::shared_ptr<mir::SharedLibraryProberReport> mir::report::LttngReportFactory:
     return std::make_shared<lttng::SharedLibraryProberReport>();
 }
 
+std::shared_ptr<mir::graphics::PlatformProbeReport> mir::report::LttngReportFactory::create_platform_probe_report()
+{
+    return std::shared_ptr<mir::graphics::PlatformProbeReport>{};
+}
+

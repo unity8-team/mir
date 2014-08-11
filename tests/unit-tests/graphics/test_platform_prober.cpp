@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include "src/platform/graphics/platform_probe_report.h"
 #include "src/platform/graphics/platform_probe.h"
 #include "mir/graphics/platform.h"
 
@@ -37,6 +38,7 @@
 
 namespace mtf = mir_test_framework;
 namespace mtd = mir::test::doubles;
+namespace mg = mir::graphics;
 
 namespace
 {
@@ -97,17 +99,31 @@ std::shared_ptr<void> ensure_android_probing_succeeds()
     return std::shared_ptr<void>{};
 #endif
 }
+
+class MockPlatformProbeReport : public mir::graphics::PlatformProbeReport
+{
+public:
+    MOCK_METHOD2(module_probed, void(mg::ModuleProperties const&, mg::PlatformPriority));
+    MOCK_METHOD1(module_selected, void(mg::ModuleProperties const&));
+};
+using StubPlatformProbeReport = testing::NiceMock<MockPlatformProbeReport>;
+
+class ServerPlatformProbe : public testing::Test
+{
+public:
+    StubPlatformProbeReport stub_probe_report;
+};
 }
 
-TEST(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
+TEST_F(ServerPlatformProbe, ConstructingWithNoModulesIsAnError)
 {
     std::vector<std::shared_ptr<mir::SharedLibrary>> empty_modules;
-    EXPECT_THROW(mir::graphics::module_for_device(empty_modules),
+    EXPECT_THROW(mir::graphics::module_for_device(empty_modules, stub_probe_report),
                  std::runtime_error);
 }
 
 #ifdef MIR_BUILD_PLATFORM_MESA
-TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
+TEST_F(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 {
     using namespace testing;
     auto block_android = ensure_android_probing_fails();
@@ -115,7 +131,7 @@ TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 
     auto modules = available_platforms();
 
-    auto module = mir::graphics::module_for_device(modules);
+    auto module = mir::graphics::module_for_device(modules, stub_probe_report);
     ASSERT_NE(nullptr, module);
 
     auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
@@ -126,7 +142,7 @@ TEST(ServerPlatformProbe, LoadsMesaPlatformWhenDrmDevicePresent)
 #endif
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
+TEST_F(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
 {
     using namespace testing;
 
@@ -135,7 +151,7 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
 
     auto modules = available_platforms();
 
-    auto module = mir::graphics::module_for_device(modules);
+    auto module = mir::graphics::module_for_device(modules, stub_probe_report);
     ASSERT_NE(nullptr, module);
 
     auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
@@ -145,18 +161,18 @@ TEST(ServerPlatformProbe, LoadsAndroidPlatformWhenHwaccessSucceeds)
 }
 #endif
 
-TEST(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
+TEST_F(ServerPlatformProbe, ThrowsExceptionWhenNothingProbesSuccessfully)
 {
     using namespace testing;
     auto block_android = ensure_android_probing_fails();
     auto block_mesa = ensure_mesa_probing_fails();
 
 
-    EXPECT_THROW(mir::graphics::module_for_device(available_platforms()),
+    EXPECT_THROW(mir::graphics::module_for_device(available_platforms(), stub_probe_report),
                  std::runtime_error);
 }
 
-TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
+TEST_F(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
 {
     using namespace testing;
     auto block_android = ensure_android_probing_fails();
@@ -165,7 +181,7 @@ TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
     auto modules = available_platforms();
     add_dummy_platform(modules);
 
-    auto module = mir::graphics::module_for_device(modules);
+    auto module = mir::graphics::module_for_device(modules, stub_probe_report);
     ASSERT_NE(nullptr, module);
 
     auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
@@ -174,7 +190,7 @@ TEST(ServerPlatformProbe, LoadsSupportedModuleWhenNoBestModule)
     EXPECT_THAT(description->name, HasSubstr("dummy"));
 }
 
-TEST(ServerPlatformProbe, LoadsMesaOrAndroidInPreferenceToDummy)
+TEST_F(ServerPlatformProbe, LoadsMesaOrAndroidInPreferenceToDummy)
 {
     using namespace testing;
 
@@ -184,11 +200,27 @@ TEST(ServerPlatformProbe, LoadsMesaOrAndroidInPreferenceToDummy)
     auto modules = available_platforms();
     add_dummy_platform(modules);
 
-    auto module = mir::graphics::module_for_device(modules);
+    auto module = mir::graphics::module_for_device(modules, stub_probe_report);
     ASSERT_NE(nullptr, module);
 
     auto descriptor = module->load_function<mir::graphics::DescribeModule>("describe_module");
     auto description = descriptor();
 
     EXPECT_THAT(description->name, Not(HasSubstr("dummy")));
+}
+
+TEST_F(ServerPlatformProbe, LogsEachModuleProbed)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    NiceMock<MockPlatformProbeReport> report;
+    EXPECT_CALL(report, module_probed(_,_)).Times(modules.size());
+
+    auto module = mir::graphics::module_for_device(modules, report);
 }

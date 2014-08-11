@@ -77,3 +77,8 @@ std::shared_ptr<mir::SharedLibraryProberReport> mr::LoggingReportFactory::create
 {
     return std::make_shared<mir::logging::SharedLibraryProberReport>(logger);
 }
+
+std::shared_ptr<mir::graphics::PlatformProbeReport> mr::LoggingReportFactory::create_platform_probe_report()
+{
+    return std::shared_ptr<mir::graphics::PlatformProbeReport>{};
+}

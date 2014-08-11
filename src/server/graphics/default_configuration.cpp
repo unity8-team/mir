@@ -89,7 +89,7 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
                     {
                         throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);
                     }
-                    platform_library = mir::graphics::module_for_device(platforms);
+                    platform_library = mir::graphics::module_for_device(platforms, *the_platform_probe_report());
                 }
                 auto create_platform = platform_library->load_function<mg::CreatePlatform>("create_platform");
                 return create_platform(the_options(), the_emergency_cleanup(), the_display_report());
@@ -103,7 +103,7 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
         });
 }
 
-std::shared_ptr<mg::NativePlatform>  mir::DefaultServerConfiguration::the_graphics_native_platform()
+std::shared_ptr<mg::NativePlatform> mir::DefaultServerConfiguration::the_graphics_native_platform()
 {
     return graphics_native_platform(
         [this]()
@@ -119,7 +119,7 @@ std::shared_ptr<mg::NativePlatform>  mir::DefaultServerConfiguration::the_graphi
                 {
                     throw std::runtime_error("Failed to find any platform plugins in: " MIR_SERVER_PLATFORM_PLUGIN_PATH);
                 }
-                platform_library = mir::graphics::module_for_device(platforms);
+                platform_library = mir::graphics::module_for_device(platforms, *the_platform_probe_report());
             }
             auto create_native_platform = platform_library->load_function<mg::CreateNativePlatform>("create_native_platform");
 

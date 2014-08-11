@@ -126,3 +126,12 @@ auto mir::DefaultServerConfiguration::the_shared_library_prober_report() -> std:
             return report_factory(options::shared_library_prober_report_opt)->create_shared_library_prober_report();
         });
 }
+
+auto mir::DefaultServerConfiguration::the_platform_probe_report() -> std::shared_ptr<mg::PlatformProbeReport>
+{
+    return platform_probe_report(
+        [this]() -> std::shared_ptr<mir::graphics::PlatformProbeReport>
+        {
+            return report_factory(options::platform_probe_report_opt)->create_platform_probe_report();
+        });
+}

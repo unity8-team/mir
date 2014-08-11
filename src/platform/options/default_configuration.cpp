@@ -44,6 +44,7 @@ char const* const mo::frontend_threads_opt        = "ipc-thread-pool";
 char const* const mo::name_opt                    = "name";
 char const* const mo::offscreen_opt               = "offscreen";
 char const* const mo::fatal_abort_opt             = "on-fatal-error-abort";
+char const* const mo::platform_probe_report_opt   = "platform-probe-report";
 
 
 char const* const mo::glog                 = "glog";
@@ -175,6 +176,16 @@ public:
     {
     }
 };
+
+class NullPlatformProbeReport : public mir::graphics::PlatformProbeReport
+{
+    void module_probed(const mir::graphics::ModuleProperties &, mir::graphics::PlatformPriority) override
+    {
+    }
+    void module_selected(const mir::graphics::ModuleProperties &) override
+    {
+    }
+};
 }
 
 void mo::DefaultConfiguration::add_platform_options()
@@ -207,9 +218,10 @@ void mo::DefaultConfiguration::add_platform_options()
         else
         {
             auto const plugin_path = env_libpath ? env_libpath : options.get<std::string>(platform_graphics_path);
-            NullSharedLibraryProberReport nuller;
-            auto plugins = mir::libraries_for_path(plugin_path, nuller);
-            graphics_lib = mir::graphics::module_for_device(plugins);
+            NullSharedLibraryProberReport null_shared_library_report;
+            NullPlatformProbeReport null_platform_probe_report;
+            auto plugins = mir::libraries_for_path(plugin_path, null_shared_library_report);
+            graphics_lib = mir::graphics::module_for_device(plugins, null_platform_probe_report);
         }
 
         auto add_platform_options = graphics_lib->load_function<mir::graphics::AddPlatformOptions>(std::string("add_platform_options"));
