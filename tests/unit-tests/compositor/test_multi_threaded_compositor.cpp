@@ -664,7 +664,6 @@ TEST(MultiThreadedCompositor, resume_on_idle_scene_is_delayed)
 
     while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
 
     compositor.stop();
@@ -700,7 +699,6 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
 
     while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
 
     compositor.stop();
