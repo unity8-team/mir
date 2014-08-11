@@ -52,18 +52,18 @@ struct ClientPlatformTraits
 
     std::string const platform_library_name;
     std::function<void(MirPlatformPackage&)> const populate_package_for;
-    MirPlatformType platform_type;
+    MirPlatformType const platform_type;
 };
 
-struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits>
+struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits const*>
 {
     ClientPlatformTest()
-        : platform_library{mtf::library_path() + "/" + GetParam().platform_library_name},
+        : platform_library{mtf::library_path() + "/" + GetParam()->platform_library_name},
           create_client_platform{platform_library.load_function<mcl::CreateClientPlatform>("create_client_platform")}
     {
         using namespace testing;
         ON_CALL(context, populate(_))
-            .WillByDefault(Invoke(GetParam().populate_package_for));
+            .WillByDefault(Invoke(GetParam()->populate_package_for));
     }
 
     mtd::MockClientContext context;
@@ -108,13 +108,13 @@ ClientPlatformTraits const mesa_platform{"client-platform-dummy.so",
 
 INSTANTIATE_TEST_CASE_P(PlatformLibraries,
                         ClientPlatformTest,
-                        ::testing::Values(android_platform, mesa_platform));
+                        ::testing::Values(&android_platform, &mesa_platform));
 
 TEST_P(ClientPlatformTest, platform_name)
 {
     auto platform = create_client_platform(&context);
 
-    EXPECT_EQ(GetParam().platform_type, platform->platform_type());
+    EXPECT_EQ(GetParam()->platform_type, platform->platform_type());
 }
 
 TEST_P(ClientPlatformTest, platform_creates)
