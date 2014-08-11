@@ -17,6 +17,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "src/platform/graphics/platform_probe_report.h"
 #include "src/platform/graphics/platform_probe.h"
@@ -221,6 +222,83 @@ TEST_F(ServerPlatformProbe, LogsEachModuleProbed)
 
     NiceMock<MockPlatformProbeReport> report;
     EXPECT_CALL(report, module_probed(_,_)).Times(modules.size());
+
+    auto module = mir::graphics::module_for_device(modules, report);
+}
+
+namespace
+{
+MATCHER_P(ModuleNameMatches, name, "")
+{
+    return strcmp(name, arg.name) == 0;
+}
+}
+
+TEST_F(ServerPlatformProbe, LogsWithCorrectPriorityAllSupported)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    NiceMock<MockPlatformProbeReport> report;
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("dummy"),mir::graphics::supported));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("mesa"),mir::graphics::best))
+        .Times(AtMost(1));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("android"),mir::graphics::best))
+        .Times(AtMost(1));
+
+    auto module = mir::graphics::module_for_device(modules, report);
+}
+
+TEST_F(ServerPlatformProbe, LogsWithCorrectPriorityOnlyAndroidSupported)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_fails();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    NiceMock<MockPlatformProbeReport> report;
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("dummy"),mir::graphics::supported));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("mesa"),mir::graphics::unsupported))
+        .Times(AtMost(1));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("android"),mir::graphics::best))
+        .Times(AtMost(1));
+
+    auto module = mir::graphics::module_for_device(modules, report);
+}
+
+TEST_F(ServerPlatformProbe, LogsWithCorrectPriorityOnlyMesaSupported)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_fails();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    NiceMock<MockPlatformProbeReport> report;
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("dummy"),mir::graphics::supported));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("mesa"),mir::graphics::best))
+        .Times(AtMost(1));
+    EXPECT_CALL(report,
+                module_probed(ModuleNameMatches("android"),mir::graphics::unsupported))
+        .Times(AtMost(1));
 
     auto module = mir::graphics::module_for_device(modules, report);
 }
