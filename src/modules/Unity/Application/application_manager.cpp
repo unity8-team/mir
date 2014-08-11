@@ -213,6 +213,7 @@ ApplicationManager::ApplicationManager(
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
+    m_roleNames.insert(RoleApplication, "application");
 }
 
 ApplicationManager::~ApplicationManager()
@@ -250,6 +251,8 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->surface());
             case RoleFullscreen:
                 return QVariant::fromValue(application->fullscreen());
+            case RoleApplication:
+                return QVariant::fromValue(application);
             default:
                 return QVariant();
         }
@@ -290,18 +293,7 @@ bool ApplicationManager::requestFocusApplication(const QString &inputAppId)
         return false;
     }
 
-    if (application == m_focusedApplication) {
-        return true;
-    }
-
-    // Update the screenshot for the currently focused app
-    Application *currentlyFocusedApplication = findApplication(focusedApplicationId());
-    if (currentlyFocusedApplication) {
-        m_nextFocusedAppId = appId;
-        currentlyFocusedApplication->updateScreenshot();
-    } else {
-        Q_EMIT focusRequested(appId);
-    }
+    Q_EMIT focusRequested(appId);
     return true;
 }
 
@@ -349,8 +341,6 @@ bool ApplicationManager::suspendApplication(Application *application)
     if (application == nullptr)
         return false;
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::suspendApplication - appId=" << application->appId();
-
-    updateScreenshot(application->appId());
 
     // Present in exceptions list, return.
     if (!m_lifecycleExceptions.filter(application->appId().section('_',0,0)).empty())
@@ -672,11 +662,6 @@ void ApplicationManager::screenshotUpdated()
         Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
 
         qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received new screenshot for", application->appId();
-
-        if (!m_nextFocusedAppId.isEmpty()) {
-            Q_EMIT focusRequested(m_nextFocusedAppId);
-            m_nextFocusedAppId.clear();
-        }
     } else {
         qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received screenshotUpdated signal but application has disappeard.";
     }

@@ -75,6 +75,11 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 
 Application::~Application()
 {
+    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces);
+    for (MirSurfaceItem* promptSurface : promptSurfaces) {
+        delete promptSurface;
+    }
+
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
     {
         // In case we get a threaded screenshot callback once the application is deleted.
@@ -82,8 +87,8 @@ Application::~Application()
         m_screenShotGuard.clear();
     }
     stopPromptSessions();
-    delete m_desktopData;
     delete m_surface;
+    delete m_desktopData;
 }
 
 bool Application::isValid() const
@@ -478,6 +483,61 @@ bool Application::containsProcess(pid_t pid) const
             return true;
     }
     return false;
+}
+
+void Application::addPromptSurface(MirSurfaceItem* surface)
+{
+    qCDebug(QTMIR_APPLICATIONS) << "Application::addPromptSurface " << surface->name() << " to " << name();
+    if (surface == m_surface || m_promptSurfaces.contains(surface))
+        return;
+
+    surface->setApplication(this);
+    m_promptSurfaces.append(surface);
+    Q_EMIT promptSurfacesChanged();
+}
+
+void Application::removeSurface(MirSurfaceItem* surface)
+{
+    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface " << surface->name() << " from " << name();
+
+    if (m_surface == surface) {
+        setSurface(nullptr);
+    } else if (m_promptSurfaces.contains(surface)) {
+        m_promptSurfaces.removeAll(surface);
+        surface->setApplication(nullptr);
+
+        Q_EMIT promptSurfacesChanged();
+    }
+}
+
+void Application::foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const
+{
+    for (MirSurfaceItem* promptSurface : m_promptSurfaces) {
+        f(promptSurface);
+    }
+}
+
+QQmlListProperty<MirSurfaceItem> Application::promptSurfaces()
+{
+    return QQmlListProperty<MirSurfaceItem>(this,
+                                            0,
+                                            Application::promptSurfaceCount,
+                                            Application::promptSurfaceAt);
+}
+
+int Application::promptSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
+{
+    Application *p = qobject_cast<Application*>(prop->object);
+    return p->m_promptSurfaces.count();
+}
+
+MirSurfaceItem* Application::promptSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
+{
+    Application *p = qobject_cast<Application*>(prop->object);
+
+    if (index < 0 || index >= p->m_promptSurfaces.count())
+        return nullptr;
+    return p->m_promptSurfaces[index];
 }
 
 } // namespace qtmir
