@@ -66,9 +66,15 @@ class UBUNTU_DLL_LOCAL Instance
               {
                   // Update our cached value.
                   if (value)
+                  {
                       cached_state_flags |= UA_LOCATION_SERVICE_GPS_ENABLED;
+                      cached_state_flags &= ~UA_LOCATION_SERVICE_GPS_DISABLED;
+                  }
                   else
+                  {
                       cached_state_flags |= UA_LOCATION_SERVICE_GPS_DISABLED;
+                      cached_state_flags &= ~UA_LOCATION_SERVICE_GPS_ENABLED;
+                  }
 
                   // And notify change handler if one is set.
                   if (changed_handler)
@@ -78,9 +84,15 @@ class UBUNTU_DLL_LOCAL Instance
               {
                   // Update our cached value.
                   if (value)
+                  {
                       cached_state_flags |= UA_LOCATION_SERVICE_ENABLED;
+                      cached_state_flags &= ~UA_LOCATION_SERVICE_DISABLED;
+                  }
                   else
+                  {
                       cached_state_flags |= UA_LOCATION_SERVICE_DISABLED;
+                      cached_state_flags &= ~UA_LOCATION_SERVICE_ENABLED;
+                  }
 
                   // And notify change handler if one is set.
                   if (changed_handler)
