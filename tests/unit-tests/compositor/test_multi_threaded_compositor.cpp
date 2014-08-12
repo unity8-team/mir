@@ -662,6 +662,7 @@ TEST(MultiThreadedCompositor, resume_on_idle_scene_is_delayed)
 
     compositor.start();
 
+    scene->emit_change_event();
     while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
@@ -690,14 +691,17 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
-    std::chrono::milliseconds const delay(10000);
+    std::chrono::milliseconds const long_delay(10000);
+    std::chrono::milliseconds const max_frame_time(1000); // Valgrind :)
+    ASSERT_LT(max_frame_time, long_delay);
     mc::MultiThreadedCompositor compositor{display, scene, factory,
-                                           null_report, true, delay};
+                                           null_report, true, long_delay};
 
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
 
     compositor.start();
 
+    scene->emit_change_event();
     while (!factory->check_record_count_for_each_buffer(nbuffers, 1))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
@@ -714,7 +718,7 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     auto to = system_clock::now();
     auto measured_delay = duration_cast<milliseconds>(to - from);
-    EXPECT_THAT(measured_delay, Lt(delay));
+    EXPECT_THAT(measured_delay, Lt(max_frame_time));
 
     compositor.stop();
 }
