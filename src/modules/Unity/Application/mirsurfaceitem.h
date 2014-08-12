@@ -40,6 +40,7 @@ class MirSurfaceManager;
 class QSGMirSurfaceNode;
 class QMirSurfaceTextureProvider;
 class Application;
+class MirSurfaceItemModel;
 
 class MirSurfaceObserver : public mir::scene::SurfaceObserver {
 public:
@@ -74,7 +75,7 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
-    Q_PROPERTY(QQmlListProperty<qtmir::MirSurfaceItem> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
+    Q_PROPERTY(MirSurfaceItemModel* childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -121,8 +122,11 @@ public:
 
     void setApplication(Application *app);
 
-    void setParentSurface(MirSurfaceItem* surface);
     MirSurfaceItem* parentSurface() const;
+
+    void addChildSurface(MirSurfaceItem* surface);
+    void insertChildSurface(uint index, MirSurfaceItem* surface);
+    void removeChildSurface(MirSurfaceItem* surface);
     void foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const;
 
 Q_SIGNALS:
@@ -152,12 +156,8 @@ protected:
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *);
 
-    void addChildSurface(MirSurfaceItem* surface);
-    void removeChildSurface(MirSurfaceItem* surface);
-
-    QQmlListProperty<MirSurfaceItem> childSurfaces();
-    static int childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop);
-    static MirSurfaceItem* childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index);
+    MirSurfaceItemModel* childSurfaces() const;
+    void setParentSurface(MirSurfaceItem* surface);
 
 private Q_SLOTS:
     void surfaceDamaged();
@@ -194,7 +194,7 @@ private:
     bool m_firstFrameDrawn;
 
     MirSurfaceItem* m_parentSurface;
-    QList<MirSurfaceItem*> m_children;
+    MirSurfaceItemModel* m_children;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 

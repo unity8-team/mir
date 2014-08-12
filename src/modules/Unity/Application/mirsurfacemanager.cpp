@@ -95,7 +95,7 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 MirSurfaceManager::MirSurfaceManager(
         const QSharedPointer<MirServerConfiguration>& mirConfig,
         QObject *parent)
-    : QAbstractListModel(parent)
+    : MirSurfaceItemModel(parent)
     , m_mirConfig(mirConfig)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
@@ -107,13 +107,6 @@ MirSurfaceManager::~MirSurfaceManager()
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::~MirSurfaceManager - this=" << this;
 
     m_mirSurfaceToItemHash.clear();
-}
-
-QHash<int, QByteArray> MirSurfaceManager::roleNames() const
-{
-    QHash<int, QByteArray> roleNames;
-    roleNames.insert(RoleSurface, "surface");
-    return roleNames;
 }
 
 void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,
@@ -139,10 +132,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
 
-        beginInsertRows(QModelIndex(), 0, 0);
-        m_surfaceItems.prepend(item);
-        endInsertRows();
-        Q_EMIT countChanged();
+        insertSurface(0, item);
 
         refreshPromptSessionSurfaces(m_mirSessionToItemHash.key(item));
     });
@@ -156,13 +146,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
             m_mirSessionToItemHash.remove(m_mirSessionToItemHash.key(mirSurfaceItem));
         }
 
-        int i = m_surfaceItems.indexOf(mirSurfaceItem);
-        if (i != -1) {
-            beginRemoveRows(QModelIndex(), i, i);
-            m_surfaceItems.removeAt(i);
-            endRemoveRows();
-            Q_EMIT countChanged();
-        }
+        removeSurface(mirSurfaceItem);
     });
 }
 
@@ -233,31 +217,6 @@ void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
     }
 }
 
-int MirSurfaceManager::rowCount(const QModelIndex & /*parent*/) const
-{
-    return m_surfaceItems.count();
-}
-
-QVariant MirSurfaceManager::data(const QModelIndex & index, int role) const
-{
-    if (index.row() >= 0 && index.row() < m_surfaceItems.count()) {
-        MirSurfaceItem *surfaceItem = m_surfaceItems.at(index.row());
-        switch (role) {
-            case RoleSurface:
-                return QVariant::fromValue(surfaceItem);
-            default:
-                return QVariant();
-        }
-    } else {
-        return QVariant();
-    }
-}
-
-MirSurfaceItem* MirSurfaceManager::getSurface(int index)
-{
-    return m_surfaceItems[index];
-}
-
 void appendSurfaceDecendents(MirSurfaceItem* item, QList<MirSurfaceItem*>& surfaceChildren)
 {
     // recursive function. fetch all decendent surface items as a list.
@@ -299,9 +258,8 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
     // stop adding providers to the child stack if we come across one which has not yet added a surface.
     bool continueProviders = true;
 
+    uint promptSurfaceIndex = 0;
     auto refreshFn = [&](const std::shared_ptr<mir::scene::PromptSession>& promptSession) {
-
-        MirSurfaceItem* parentSurface = nullptr;
 
         manager->for_each_provider_in(promptSession,
             [&](const std::shared_ptr<ms::Session> &session) {
@@ -311,7 +269,6 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
                     return;
 
                 auto it = m_mirSessionToItemHash.find(session.get());
-                MirSurfaceItem *nextParentSurface = nullptr;
 
                 while (it != m_mirSessionToItemHash.end() && it.key() == session.get()) { // all surfaces for session
                     MirSurfaceItem *surface = it.value();
@@ -322,23 +279,8 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
                         break;
                     }
 
-                    // FIXME - all providers should be "prompt surfaces" of application
-
-                    // first privder is a application "prompt surface"
-                    if (parentSurface == nullptr) {
-                        surface->setParentSurface(nullptr);
-                        application->addPromptSurface(surface);
-                    // susquent provider is child of previous provider
-                    } else {
-                        surface->setParentSurface(parentSurface);
-                    }
-                    if (!nextParentSurface)
-                        nextParentSurface = surface;
+                    application->insertPromptSurface(promptSurfaceIndex++, surface);
                     ++it;
-                }
-                // first valid session surface is parent of next provider session surface.
-                if (nextParentSurface) {
-                    parentSurface = nextParentSurface;
                 }
             });
 

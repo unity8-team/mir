@@ -33,6 +33,7 @@ SOURCES += application_manager.cpp \
     mirsurfacemanager.cpp \
     ubuntukeyboardinfo.cpp \
     mirsurfaceitem.cpp \
+    mirsurfaceitemmodel.cpp \
     mirbuffersgtexture.cpp \
     processcontroller.cpp \
     proc_info.cpp \
@@ -52,6 +53,7 @@ HEADERS += application_manager.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
     mirsurfaceitem.h \
+    mirsurfaceitemmodel.h \
     mirbuffersgtexture.h \
     processcontroller.h \
     proc_info.h \

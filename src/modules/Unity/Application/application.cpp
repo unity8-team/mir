@@ -20,6 +20,7 @@
 #include "debughelpers.h"
 #include "desktopfilereader.h"
 #include "taskcontroller.h"
+#include "mirsurfaceitemmodel.h"
 
 // QPA mirserver
 #include "logging.h"
@@ -54,6 +55,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_arguments(arguments)
     , m_suspendTimer(new QTimer(this))
     , m_surface(nullptr)
+    , m_promptSurfaces(new MirSurfaceItemModel(this))
     , m_promptSessionManager(promptSessionManager)
     , m_screenShotGuard(new Guard)
 {
@@ -75,7 +77,7 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 
 Application::~Application()
 {
-    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces);
+    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces->list());
     for (MirSurfaceItem* promptSurface : promptSurfaces) {
         delete promptSurface;
     }
@@ -89,6 +91,7 @@ Application::~Application()
     stopPromptSessions();
     delete m_surface;
     delete m_desktopData;
+    delete m_promptSurfaces;
 }
 
 bool Application::isValid() const
@@ -487,57 +490,38 @@ bool Application::containsProcess(pid_t pid) const
 
 void Application::addPromptSurface(MirSurfaceItem* surface)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::addPromptSurface " << surface->name() << " to " << name();
-    if (surface == m_surface || m_promptSurfaces.contains(surface))
-        return;
+    insertPromptSurface(m_promptSurfaces->count(), surface);
+}
 
-    surface->setApplication(this);
-    m_promptSurfaces.append(surface);
-    Q_EMIT promptSurfacesChanged();
+void Application::insertPromptSurface(uint index, MirSurfaceItem* surface)
+{
+    qCDebug(QTMIR_APPLICATIONS) << "Application::insertPromptSurface @ " << index << " - " << surface->name() << " to " << name();
+
+    m_promptSurfaces->insertSurface(index, surface);
 }
 
 void Application::removeSurface(MirSurfaceItem* surface)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface " << surface->name() << " from " << name();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface - " << surface->name() << " from " << name();
 
     if (m_surface == surface) {
         setSurface(nullptr);
-    } else if (m_promptSurfaces.contains(surface)) {
-        m_promptSurfaces.removeAll(surface);
+    } else if (m_promptSurfaces->contains(surface)) {
+        m_promptSurfaces->removeSurface(surface);
         surface->setApplication(nullptr);
-
-        Q_EMIT promptSurfacesChanged();
     }
 }
 
 void Application::foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const
 {
-    for (MirSurfaceItem* promptSurface : m_promptSurfaces) {
+    for (MirSurfaceItem* promptSurface : m_promptSurfaces->list()) {
         f(promptSurface);
     }
 }
 
-QQmlListProperty<MirSurfaceItem> Application::promptSurfaces()
+MirSurfaceItemModel* Application::promptSurfaces() const
 {
-    return QQmlListProperty<MirSurfaceItem>(this,
-                                            0,
-                                            Application::promptSurfaceCount,
-                                            Application::promptSurfaceAt);
-}
-
-int Application::promptSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
-{
-    Application *p = qobject_cast<Application*>(prop->object);
-    return p->m_promptSurfaces.count();
-}
-
-MirSurfaceItem* Application::promptSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
-{
-    Application *p = qobject_cast<Application*>(prop->object);
-
-    if (index < 0 || index >= p->m_promptSurfaces.count())
-        return nullptr;
-    return p->m_promptSurfaces[index];
+    return m_promptSurfaces;
 }
 
 } // namespace qtmir

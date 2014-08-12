@@ -21,7 +21,6 @@
 #include <memory>
 
 // Qt
-#include <QAbstractListModel>
 #include <QHash>
 #include <QMutex>
 
@@ -30,6 +29,7 @@
 
 // local
 #include "mirsurfaceitem.h"
+#include "mirsurfaceitemmodel.h"
 
 namespace mir {
     namespace scene {
@@ -45,30 +45,14 @@ namespace qtmir {
 
 class Application;
 
-class MirSurfaceManager : public QAbstractListModel
+class MirSurfaceManager : public MirSurfaceItemModel
 {
     Q_OBJECT
 
-    Q_ENUMS(Roles)
-    Q_PROPERTY(int count READ count NOTIFY countChanged)
-
 public:
-    enum Roles {
-        RoleSurface = Qt::UserRole,
-    };
-
     static MirSurfaceManager* singleton();
 
     ~MirSurfaceManager();
-
-    // from QAbstractItemModel
-    int rowCount(const QModelIndex & parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-    int count() const { return rowCount(); }
-
-    Q_INVOKABLE MirSurfaceItem* getSurface(int index);
 
 Q_SIGNALS:
     void countChanged();
@@ -102,7 +86,6 @@ private:
 
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
     QMultiHash<const mir::scene::Session *, MirSurfaceItem *> m_mirSessionToItemHash;
-    QList<MirSurfaceItem*> m_surfaceItems;
     static MirSurfaceManager *the_surface_manager;
     QMutex m_mutex;
 };
