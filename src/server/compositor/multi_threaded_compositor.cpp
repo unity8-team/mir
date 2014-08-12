@@ -116,7 +116,6 @@ public:
           buffer(buffer),
           running{true},
           frames_scheduled{0},
-          timeout{forever},
           report{report}
     {
     }
@@ -145,11 +144,11 @@ public:
         std::unique_lock<std::mutex> lock{run_mutex};
         while (running)
         {
-            while (!frames_scheduled && running)
+            while (running && !frames_scheduled)
             {
                 auto status = run_cv.wait_for(lock, timeout);
                 if (!frames_scheduled && status == std::cv_status::timeout)
-                    frames_scheduled = 1;
+                    frames_scheduled = deferred_frames_scheduled;
             }
 
             timeout = forever;
@@ -181,17 +180,20 @@ public:
         mir::terminate_with_current_exception();
     }
 
-    void schedule_compositing(int num_frames) // negative means delay in ms
+    void schedule_compositing(int num_frames,
+                              std::chrono::milliseconds delay =
+                                  std::chrono::milliseconds::zero())
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        if (num_frames < 0)
+        if (delay != std::chrono::milliseconds::zero())
         {
-            timeout = std::chrono::milliseconds(-num_frames);
+            timeout = delay;
+            deferred_frames_scheduled = num_frames;
+            frames_scheduled = 0;
             run_cv.notify_one();
         }
-
-        if (num_frames > frames_scheduled)
+        else if (num_frames > frames_scheduled)
         {
             frames_scheduled = num_frames;
             run_cv.notify_one();
@@ -210,7 +212,8 @@ private:
     mg::DisplayBuffer& buffer;
     bool running;
     int frames_scheduled;
-    std::chrono::milliseconds timeout;
+    int deferred_frames_scheduled = 0;
+    std::chrono::milliseconds timeout = forever;
     std::mutex run_mutex;
     std::condition_variable run_cv;
     std::shared_ptr<CompositorReport> const report;
@@ -250,13 +253,14 @@ mc::MultiThreadedCompositor::~MultiThreadedCompositor()
     stop();
 }
 
-void mc::MultiThreadedCompositor::schedule_compositing(int num)
+void mc::MultiThreadedCompositor::schedule_compositing(int num,
+                                       std::chrono::milliseconds delay)
 {
     std::unique_lock<std::mutex> lk(state_guard);
 
     report->scheduled();
     for (auto& f : thread_functors)
-        f->schedule_compositing(num);
+        f->schedule_compositing(num, delay);
 }
 
 void mc::MultiThreadedCompositor::start()
@@ -289,7 +293,7 @@ void mc::MultiThreadedCompositor::start()
         drop_frames(*scene, max_buffer_queue_depth);
 
         lk.unlock();
-        schedule_compositing(-restart_delay.count());
+        schedule_compositing(1, restart_delay);
     }
 }
 

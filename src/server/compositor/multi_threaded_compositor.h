@@ -86,7 +86,8 @@ private:
     bool compose_on_start;
     std::chrono::milliseconds const restart_delay;
 
-    void schedule_compositing(int number_composites);
+    void schedule_compositing(int number_composites,
+          std::chrono::milliseconds delay = std::chrono::milliseconds::zero());
     
     std::shared_ptr<mir::scene::Observer> observer;
 };

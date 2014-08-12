@@ -712,8 +712,7 @@ TEST(MultiThreadedCompositor, resume_on_busy_scene_is_not_delayed)
     auto from = system_clock::now();
 
     compositor.start();
-    for (int i = 0; i < 10; ++i)
-        scene->emit_change_event();
+    scene->emit_change_event();
     while (!factory->check_record_count_for_each_buffer(nbuffers, 2))
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     auto to = system_clock::now();
