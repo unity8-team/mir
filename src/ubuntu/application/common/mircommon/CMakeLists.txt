@@ -10,7 +10,7 @@ set(SOURCES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC --std=c++11")
 
 include_directories(
-  ${MIRCOMMON_INCLUDE_DIRS}
+  ${MIRCLIENT_INCLUDE_DIRS}
   )
 
 add_library(
