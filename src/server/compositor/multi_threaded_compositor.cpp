@@ -111,14 +111,12 @@ class CompositingFunctor
 public:
     CompositingFunctor(std::shared_ptr<mc::DisplayBufferCompositorFactory> const& db_compositor_factory,
                        mg::DisplayBuffer& buffer,
-                       std::chrono::milliseconds restart_delay,
                        std::shared_ptr<CompositorReport> const& report)
         : display_buffer_compositor_factory{db_compositor_factory},
           buffer(buffer),
           running{true},
           frames_scheduled{0},
           timeout{forever},
-          restart_delay{restart_delay},
           report{report}
     {
     }
@@ -183,14 +181,13 @@ public:
         mir::terminate_with_current_exception();
     }
 
-    void schedule_compositing(int num_frames)
+    void schedule_compositing(int num_frames) // negative means delay in ms
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        // Waking from sleep - no frames yet, but eventually force one
-        if (!num_frames)
+        if (num_frames < 0)
         {
-            timeout = restart_delay;
+            timeout = std::chrono::milliseconds(-num_frames);
             run_cv.notify_one();
         }
 
@@ -214,7 +211,6 @@ private:
     bool running;
     int frames_scheduled;
     std::chrono::milliseconds timeout;
-    std::chrono::milliseconds const restart_delay;
     std::mutex run_mutex;
     std::condition_variable run_cv;
     std::shared_ptr<CompositorReport> const report;
@@ -293,8 +289,7 @@ void mc::MultiThreadedCompositor::start()
         drop_frames(*scene, max_buffer_queue_depth);
 
         lk.unlock();
-        schedule_compositing(0);  // Zero means wait a little for clients
-                                  // and then after a short delay force one.
+        schedule_compositing(-restart_delay.count());
     }
 }
 
@@ -331,7 +326,7 @@ void mc::MultiThreadedCompositor::create_compositing_threads()
     /* Start the display buffer compositing threads */
     display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
     {
-        auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, restart_delay, report};
+        auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, report};
         auto thread_functor = std::unique_ptr<mc::CompositingFunctor>(thread_functor_raw);
 
         threads.push_back(std::thread{std::ref(*thread_functor)});
