@@ -217,15 +217,6 @@ void MirSurfaceManager::onSurfaceAttributeChanged(const ms::Surface *surface,
     }
 }
 
-void appendSurfaceDecendents(MirSurfaceItem* item, QList<MirSurfaceItem*>& surfaceChildren)
-{
-    // recursive function. fetch all decendent surface items as a list.
-    item->foreachChildSurface([&surfaceChildren](MirSurfaceItem* child) {
-        surfaceChildren.append(child);
-        appendSurfaceDecendents(child, surfaceChildren);
-    });
-}
-
 void MirSurfaceManager::refreshPromptSessionSurfaces(const mir::scene::Session* session)
 {
     if (!session)
@@ -253,7 +244,6 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
     QList<MirSurfaceItem*> surfaces;
     application->foreachPromptSurface([&surfaces](MirSurfaceItem* promptSurface) {
         surfaces.append(promptSurface);
-        appendSurfaceDecendents(promptSurface, surfaces);
     });
     // stop adding providers to the child stack if we come across one which has not yet added a surface.
     bool continueProviders = true;
