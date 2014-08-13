@@ -1,3 +1,26 @@
+qtmir (0.4.1+14.10.20140811.1-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Michał Sawicz ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Cemil Azizoglu ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Alan Griffiths ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Kevin Gunn ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 11 Aug 2014 21:12:34 +0000
+
 qtmir (0.4.1+14.10.20140811-0ubuntu1) utopic; urgency=low
 
   [ Gerry Boland ]
