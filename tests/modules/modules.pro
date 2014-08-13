@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = ApplicationManager TaskController
+SUBDIRS = Application ApplicationManager TaskController

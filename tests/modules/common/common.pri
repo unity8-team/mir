@@ -13,6 +13,9 @@ HEADERS += ../common/mock_application_controller.h \
     ../common/mock_prompt_session.h
     ../common/mock_prompt_session_manager.h
     ../common/mock_session.h
+    ../common/stub_input_channel.h
+    ../common/stub_scene_surface.h
+    ../common/qtmir_test.h
 
 INCLUDEPATH += ../../../src/modules \
     ../common

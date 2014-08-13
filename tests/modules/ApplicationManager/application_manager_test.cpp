@@ -15,96 +15,21 @@
  *
  */
 
-#include <Unity/Application/application_manager.h>
-
-#include <Unity/Application/applicationcontroller.h>
-#include <Unity/Application/taskcontroller.h>
-#include <Unity/Application/proc_info.h>
-#include <mirserverconfiguration.h>
-
-#include <core/posix/linux/proc/process/oom_score_adj.h>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 #include <thread>
 #include <condition_variable>
 #include <QSignalSpy>
 
-#include "mock_application_controller.h"
-#include "mock_desktop_file_reader.h"
-#include "mock_oom_controller.h"
-#include "mock_process_controller.h"
-#include "mock_proc_info.h"
-#include "mock_session.h"
-#include "mock_focus_controller.h"
-#include "mock_prompt_session_manager.h"
-#include "mock_prompt_session.h"
+ #include "qtmir_test.h"
 
 using namespace qtmir;
 
 namespace ms = mir::scene;
 
-class TestMirConfiguration: public MirServerConfiguration
-{
-public:
-    TestMirConfiguration()
-    : MirServerConfiguration(0, nullptr)
-    , mock_prompt_session_manager(std::make_shared<testing::MockPromptSessionManager>())
-    {
-    }
-
-    std::shared_ptr<ms::PromptSessionManager> the_prompt_session_manager() override
-    {
-        return prompt_session_manager([this]()
-           ->std::shared_ptr<ms::PromptSessionManager>
-           {
-               return the_mock_prompt_session_manager();
-           });
-    }
-
-    std::shared_ptr<testing::MockPromptSessionManager> the_mock_prompt_session_manager()
-    {
-        return mock_prompt_session_manager;
-    }
-
-    std::shared_ptr<testing::MockPromptSessionManager> mock_prompt_session_manager;
-};
-
-class ApplicationManagerTests : public ::testing::Test
+class ApplicationManagerTests : public ::testing::QtMirTest
 {
 public:
     ApplicationManagerTests()
-        : processController{
-            QSharedPointer<ProcessController::OomController> (
-                &oomController,
-                [](ProcessController::OomController*){})
-        }
-        , mirConfig{
-            QSharedPointer<TestMirConfiguration> (new TestMirConfiguration)
-        }
-        , taskController{
-              QSharedPointer<TaskController> (
-                  new TaskController(
-                      nullptr,
-                      QSharedPointer<ApplicationController>(
-                          &appController,
-                          [](ApplicationController*){}),
-                      QSharedPointer<ProcessController>(
-                          &processController,
-                          [](ProcessController*){})
-                  )
-              )
-        }
-        , applicationManager{
-            mirConfig,
-            taskController,
-            QSharedPointer<DesktopFileReader::Factory>(
-                &desktopFileReaderFactory,
-                [](DesktopFileReader::Factory*){}),
-            QSharedPointer<ProcInfo>(&procInfo,[](ProcInfo *){})
-        }
-    {
-    }
+    {}
 
     Application* startApplication(quint64 procId, QString const& appId)
     {
@@ -135,15 +60,6 @@ public:
         applicationManager.onSessionStarting(appSession);
         return application;
     }
-
-    testing::NiceMock<testing::MockOomController> oomController;
-    testing::NiceMock<testing::MockProcessController> processController;
-    testing::NiceMock<testing::MockApplicationController> appController;
-    testing::NiceMock<testing::MockProcInfo> procInfo;
-    testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<TestMirConfiguration> mirConfig;
-    QSharedPointer<TaskController> taskController;
-    ApplicationManager applicationManager;
 };
 
 TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsInOomScoreAdjustment)
