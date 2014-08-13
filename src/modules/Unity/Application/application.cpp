@@ -155,11 +155,6 @@ bool Application::focused() const
     return m_focused;
 }
 
-QUrl Application::screenshot() const
-{
-    return m_screenshot;
-}
-
 bool Application::fullscreen() const
 {
     return m_fullscreen;
@@ -213,53 +208,6 @@ void Application::setStage(Application::Stage stage)
         Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleStage);
         return;
     }
-}
-
-QImage Application::screenshotImage() const
-{
-    return m_screenshotImage;
-}
-
-void Application::updateScreenshot()
-{
-    if (!m_session)
-        return;
-
-    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
-
-    m_session->take_snapshot(
-        [&, wk](mir::scene::Snapshot const& snapshot)
-        {
-            // In case we get a threaded screenshot callback once the application is deleted.
-            QMutexLocker lk(&screenshotMutex);
-            if (wk.isNull())
-                return;
-
-            qCDebug(QTMIR_APPLICATIONS) << "Application - Mir snapshot ready with size"
-                                        << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
-
-            {
-                // since we mirror, no need to offset starting position of the pixels
-                QImage fullSizeScreenshot = QImage( (const uchar*)snapshot.pixels,
-                            snapshot.size.width.as_int(),
-                            snapshot.size.height.as_int(),
-                            QImage::Format_ARGB32_Premultiplied).mirrored();
-
-                // For the sake of reducing memory consumption.
-                m_screenshotImage = fullSizeScreenshot.scaledToHeight(fullSizeScreenshot.height() / 2,
-                    Qt::SmoothTransformation);
-            }
-
-            m_screenshot = QString("image://application/%1/%2").arg(m_desktopData->appId()).arg(QDateTime::currentMSecsSinceEpoch());
-            Q_EMIT screenshotChanged(m_screenshot);
-        });
-}
-
-void Application::discardScreenshot()
-{
-    m_screenshotImage = QImage();
-    m_screenshot.clear();
-    Q_EMIT screenshotChanged(m_screenshot);
 }
 
 void Application::setState(Application::State state)
