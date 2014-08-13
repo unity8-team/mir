@@ -72,3 +72,14 @@ extern "C" std::shared_ptr<mcl::ClientPlatform> mcl::create_client_platform(mcl:
     return std::make_shared<mclm::ClientPlatform>(
         context, buffer_file_ops, mcl::EGLNativeDisplayContainer::instance());
 }
+
+extern "C" bool
+mcl::is_appropriate_module(mcl::ClientContext* context)
+{
+    MirPlatformPackage platform;
+    context->populate(platform);
+    // TODO: Actually check what platform we're using, rather than blindly
+    //       hope we can distinguish them from the stuff they've put in the
+    //       PlatformPackage.
+    return platform.data_items == 0 && platform.fd_items == 1;
+}
