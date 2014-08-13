@@ -18,14 +18,11 @@ mcl::ProbingClientPlatformFactory::create_client_platform(mcl::ClientContext* co
 {
     for (auto& module : platform_modules)
     {
-        auto factory = module->load_function<mir::client::CreateClientPlatform>("create_client_platform");
-        try
+        auto probe = module->load_function<mir::client::ClientPlatformProbe>("is_appropriate_module");
+        if (probe(context))
         {
+            auto factory = module->load_function<mir::client::CreateClientPlatform>("create_client_platform");
             return factory(context);
-        }
-        catch(...)
-        {
-
         }
     }
     throw std::runtime_error{"No appropriate client platform module found"};

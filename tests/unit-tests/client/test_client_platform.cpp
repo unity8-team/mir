@@ -59,7 +59,8 @@ struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits
 {
     ClientPlatformTest()
         : platform_library{mtf::library_path() + "/" + GetParam()->platform_library_name},
-          create_client_platform{platform_library.load_function<mcl::CreateClientPlatform>("create_client_platform")}
+          create_client_platform{platform_library.load_function<mcl::CreateClientPlatform>("create_client_platform")},
+          probe{platform_library.load_function<mcl::ClientPlatformProbe>("is_appropriate_module")}
     {
         using namespace testing;
         ON_CALL(context, populate(_))
@@ -72,6 +73,7 @@ struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits
 #endif
     mir::SharedLibrary platform_library;
     mcl::CreateClientPlatform const create_client_platform;
+    mcl::ClientPlatformProbe const probe;
 };
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
@@ -137,4 +139,25 @@ TEST_P(ClientPlatformTest, platform_creates_egl_native_display)
     auto platform = create_client_platform(&context);
     auto native_display = platform->create_egl_native_display();
     EXPECT_NE(nullptr, native_display.get());
+}
+
+TEST_P(ClientPlatformTest, platform_probe_returns_success_when_matching)
+{
+    EXPECT_TRUE(probe(&context));
+}
+
+TEST_P(ClientPlatformTest, platform_probe_returns_false_when_not_matching)
+{
+    using namespace testing;
+    ON_CALL(context, populate(_))
+        .WillByDefault(Invoke([](MirPlatformPackage& pkg)
+                              {
+                                  //Mock up something that hopefully looks nothing like
+                                  //what the platform is expecting...
+                                  ::memset(&pkg, 0, sizeof(pkg));
+                                  pkg.data_items = 0xdeadbeef;
+                                  pkg.fd_items = -23;
+                              }));
+
+    EXPECT_FALSE(probe(&context));
 }
