@@ -77,16 +77,16 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 
 Application::~Application()
 {
-    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces->list());
-    for (MirSurfaceItem* promptSurface : promptSurfaces) {
-        delete promptSurface;
-    }
-
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
     {
         // In case we get a threaded screenshot callback once the application is deleted.
         QMutexLocker lk(&screenshotMutex);
         m_screenShotGuard.clear();
+    }
+
+    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces->list());
+    for (MirSurfaceItem* promptSurface : promptSurfaces) {
+        delete promptSurface;
     }
     stopPromptSessions();
     delete m_surface;
@@ -495,7 +495,7 @@ void Application::addPromptSurface(MirSurfaceItem* surface)
 
 void Application::insertPromptSurface(uint index, MirSurfaceItem* surface)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::insertPromptSurface @ " << index << " - " << surface->name() << " to " << name();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::insertPromptSurface @ " << index << " - " << surface->name() << " to " << appId();
 
     surface->setApplication(this);
     m_promptSurfaces->insertSurface(index, surface);
@@ -503,7 +503,7 @@ void Application::insertPromptSurface(uint index, MirSurfaceItem* surface)
 
 void Application::removeSurface(MirSurfaceItem* surface)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface - " << surface->name() << " from " << name();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface - " << surface->name() << " from " << appId();
 
     if (m_surface == surface) {
         setSurface(nullptr);
