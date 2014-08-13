@@ -283,14 +283,14 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(Application* application)
                     ++it;
                 }
             });
-
-        for (MirSurfaceItem* item : surfaces) {
-            qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - remove: " << item->name();
-            Q_EMIT item->removed();
-        }
     };
 
     application->foreachPromptSession(refreshFn);
+
+    for (MirSurfaceItem* item : surfaces) {
+        qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::refreshPromptSessionSurfaces - remove: " << item->name();
+        Q_EMIT item->removed();
+    }
 }
 
 } // namespace qtmir

@@ -497,6 +497,7 @@ void Application::insertPromptSurface(uint index, MirSurfaceItem* surface)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::insertPromptSurface @ " << index << " - " << surface->name() << " to " << name();
 
+    surface->setApplication(this);
     m_promptSurfaces->insertSurface(index, surface);
 }
 
