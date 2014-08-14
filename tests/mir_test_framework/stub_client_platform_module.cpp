@@ -28,3 +28,8 @@ extern "C" std::shared_ptr<mcl::ClientPlatform> create_client_platform(mcl::Clie
 {
     return mtf::StubClientPlatformFactory{}.create_client_platform(context);
 }
+
+extern "C" bool is_appropriate_module(mcl::ClientContext* /*context*/)
+{
+    return true;
+}
