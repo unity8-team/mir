@@ -45,7 +45,7 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
     // We ignore requestedSize here intentionally to avoid keeping scaled copies around
     Q_UNUSED(requestedSize)
 
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - appId=" << imageId;
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - imageId=" << imageId;
 
     QString appId = imageId.split('/').first();
 
