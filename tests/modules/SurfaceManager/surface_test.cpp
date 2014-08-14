@@ -34,12 +34,6 @@ public:
     SurfaceTests()
     {}
 
-    uint countChildSurfaces(MirSurfaceItem* surface) {
-        uint count = 0;
-        surface->foreachChildSurface([&count](MirSurfaceItem*) { count++; });
-        return count;
-    }
-
     QList<MirSurfaceItem*> listChildSurfaces(MirSurfaceItem* surface) {
         QList<MirSurfaceItem*> surfaces;
         surface->foreachChildSurface([&surfaces](MirSurfaceItem* child) { surfaces << child; });
@@ -122,7 +116,7 @@ TEST_F(SurfaceTests, RemoveChildSurface)
 
     msiParent->removeChildSurface(msiChild1);
     EXPECT_EQ(msiChild1->parentSurface(), nullptr);
-    EXPECT_EQ(countChildSurfaces(msiParent), 0);
+    EXPECT_THAT(listChildSurfaces(msiParent), IsEmpty());
 }
 
 TEST_F(SurfaceTests, DeleleChildSurfaceRemovesFromParent)
@@ -151,7 +145,7 @@ TEST_F(SurfaceTests, DeleleChildSurfaceRemovesFromParent)
 
     delete msiChild1;
     EXPECT_EQ(msiChild1->parentSurface(), nullptr);
-    EXPECT_EQ(countChildSurfaces(msiParent), 0);
+    EXPECT_THAT(listChildSurfaces(msiParent), IsEmpty());
 }
 
 TEST_F(SurfaceTests, DeleleParentDeletesChildren)

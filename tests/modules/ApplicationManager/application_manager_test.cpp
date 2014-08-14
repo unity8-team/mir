@@ -30,36 +30,6 @@ class ApplicationManagerTests : public ::testing::QtMirTest
 public:
     ApplicationManagerTests()
     {}
-
-    Application* startApplication(quint64 procId, QString const& appId)
-    {
-        using namespace testing;
-
-        ON_CALL(appController,appIdHasProcessId(procId, appId)).WillByDefault(Return(true));
-
-        // Set up Mocks & signal watcher
-        auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
-        ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
-        ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
-
-        ON_CALL(desktopFileReaderFactory, createInstance(appId, _)).WillByDefault(Return(mockDesktopFileReader));
-
-        EXPECT_CALL(appController, startApplicationWithAppIdAndArgs(appId, _))
-                .Times(1)
-                .WillOnce(Return(true));
-
-        auto application = applicationManager.startApplication(appId, ApplicationManager::NoFlag);
-        applicationManager.onProcessStarting(appId);
-
-        bool authed = false;
-        applicationManager.authorizeSession(procId, authed);
-        EXPECT_EQ(authed, true);
-
-        auto appSession = std::make_shared<MockSession>(appId.toStdString(), procId);
-
-        applicationManager.onSessionStarting(appSession);
-        return application;
-    }
 };
 
 TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsInOomScoreAdjustment)

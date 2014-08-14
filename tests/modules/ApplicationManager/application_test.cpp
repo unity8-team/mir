@@ -34,12 +34,6 @@ public:
     ApplicationTests()
     {}
 
-    uint countPromptSurfaces(Application* app) {
-        uint count = 0;
-        app->foreachPromptSurface([&count](MirSurfaceItem*) { count++; });
-        return count;
-    }
-
     QList<MirSurfaceItem*> listPromptSurfaces(Application* app) {
         QList<MirSurfaceItem*> surfaces;
         app->foreachPromptSurface([&surfaces](MirSurfaceItem* surface) { surfaces << surface; });
@@ -155,7 +149,7 @@ TEST_F(ApplicationTests, RemovePromptSurface)
 
     app->removeSurface(msi1);
     EXPECT_EQ(msi1->application(), nullptr);
-    EXPECT_EQ(countPromptSurfaces(app.data()), 0);
+    EXPECT_THAT(listPromptSurfaces(app.data()), IsEmpty());
 }
 
 TEST_F(ApplicationTests, DelelePromptSurfaceRemovesFromApplcation)
@@ -197,7 +191,7 @@ TEST_F(ApplicationTests, DelelePromptSurfaceRemovesFromApplcation)
     // delete surfaces
     delete msi1;
     EXPECT_EQ(msi1->application(), nullptr);
-    EXPECT_EQ(countPromptSurfaces(app.data()), 0);
+    EXPECT_THAT(listPromptSurfaces(app.data()), IsEmpty());
 }
 
 TEST_F(ApplicationTests, DeleleAppDeletesPromptSurfaces)

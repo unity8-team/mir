@@ -83,7 +83,7 @@ MirSurfaceManager* MirSurfaceManager::singleton()
         SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
         PromptSessionListener *promptSessionListener = static_cast<PromptSessionListener*>(nativeInterface->nativeResourceForIntegration("PromptSessionListener"));
 
-        the_surface_manager = new MirSurfaceManager(nativeInterface->m_mirConfig);
+        the_surface_manager = new MirSurfaceManager(nativeInterface->m_mirConfig, ApplicationManager::singleton());
 
         connectToSessionListener(the_surface_manager, sessionListener);
         connectToSurfaceConfigurator(the_surface_manager, surfaceConfigurator);
@@ -94,9 +94,11 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 
 MirSurfaceManager::MirSurfaceManager(
         const QSharedPointer<MirServerConfiguration>& mirConfig,
+        ApplicationManager* applicationManager,
         QObject *parent)
     : MirSurfaceItemModel(parent)
     , m_mirConfig(mirConfig)
+    , m_applicationManager(applicationManager)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
     setObjectName("qtmir::SurfaceManager");
@@ -115,9 +117,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::onSessionCreatedSurface - session=" << session
                             << "surface=" << surface.get() << "surface.name=" << surface->name().c_str();
 
-    ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
-
-    Application* application = appMgr->findApplicationWithSession(session, false);
+    Application* application = m_applicationManager->findApplicationWithSession(session, false);
     auto qmlSurface = new MirSurfaceItem(surface, application);
     {
         QMutexLocker lock(&m_mutex);
@@ -129,7 +129,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
         application->setSurface(qmlSurface);
 
     // Only notify QML of surface creation once it has drawn its first frame.
-    connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, [&](MirSurfaceItem *item) {
+    connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, this, [&](MirSurfaceItem *item) {
         Q_EMIT surfaceCreated(item);
 
         insertSurface(0, item);
@@ -138,7 +138,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
     });
 
     // clean up after MirSurfaceItem is destroyed
-    connect(qmlSurface, &MirSurfaceItem::destroyed, [&](QObject *item) {
+    connect(qmlSurface, &MirSurfaceItem::destroyed, this, [&](QObject *item) {
         auto mirSurfaceItem = static_cast<MirSurfaceItem*>(item);
         {
             QMutexLocker lock(&m_mutex);
@@ -185,8 +185,7 @@ void MirSurfaceManager::onPromptProviderAdded(const mir::scene::PromptSession *p
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::onPromptProviderAdded - promptSession=" << promptSession
                             << "session=" << session.get();
 
-    ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
-    Application* application = appMgr->findApplicationWithPromptSession(promptSession);
+    Application* application = m_applicationManager->findApplicationWithPromptSession(promptSession);
 
     refreshPromptSessionSurfaces(application);
 }
@@ -197,8 +196,7 @@ void MirSurfaceManager::onPromptProviderRemoved(const mir::scene::PromptSession 
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::onPromptProviderRemoved - promptSession=" << promptSession
                             << "session=" << session.get();
 
-    ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
-    Application* application = appMgr->findApplicationWithPromptSession(promptSession);
+    Application* application = m_applicationManager->findApplicationWithPromptSession(promptSession);
 
     refreshPromptSessionSurfaces(application);
 }
@@ -221,8 +219,7 @@ void MirSurfaceManager::refreshPromptSessionSurfaces(const mir::scene::Session* 
 {
     if (!session)
         return;
-    ApplicationManager* appMgr = static_cast<ApplicationManager*>(ApplicationManager::singleton());
-    Application* application = appMgr->findApplicationWithSession(session, true);
+    Application* application = m_applicationManager->findApplicationWithSession(session, true);
 
     refreshPromptSessionSurfaces(application);
 }
