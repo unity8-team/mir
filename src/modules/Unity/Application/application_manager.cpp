@@ -19,6 +19,7 @@
 #include "application.h"
 #include "desktopfilereader.h"
 #include "dbuswindowstack.h"
+#include "mirsurfaceitemmodel.h"
 #include "proc_info.h"
 #include "taskcontroller.h"
 #include "upstart/applicationcontroller.h"
@@ -213,7 +214,7 @@ ApplicationManager::ApplicationManager(
 
     m_roleNames.insert(RoleSurface, "surface");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
-    m_roleNames.insert(RoleApplication, "application");
+    m_roleNames.insert(RolePromptSurfaces, "promptSurfaces");
 }
 
 ApplicationManager::~ApplicationManager()
@@ -251,8 +252,8 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->surface());
             case RoleFullscreen:
                 return QVariant::fromValue(application->fullscreen());
-            case RoleApplication:
-                return QVariant::fromValue(application);
+            case RolePromptSurfaces:
+                return QVariant::fromValue(application->promptSurfaces());
             default:
                 return QVariant();
         }

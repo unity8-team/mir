@@ -68,7 +68,7 @@ public:
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
-        RoleApplication,
+        RolePromptSurfaces,
     };
 
     // Mapping enums to Ubuntu Platform API enums.
