@@ -39,7 +39,6 @@ public:
         app->foreachPromptSurface([&surfaces](MirSurfaceItem* surface) { surfaces << surface; });
         return surfaces;
     }
-
 };
 
 TEST_F(ApplicationTests, AddPromptSurface)

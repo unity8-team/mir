@@ -704,7 +704,7 @@ void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
 
 void MirSurfaceItem::insertChildSurface(uint index, MirSurfaceItem* surface)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::addChildSurface @ " << index << " - " << surface->name() << " to " << name();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::insertChildSurface @ " << index << " - " << surface->name() << " to " << name();
 
     surface->setParentSurface(this);
     m_children->insertSurface(index, surface);

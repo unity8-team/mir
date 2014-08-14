@@ -39,7 +39,6 @@ public:
         surface->foreachChildSurface([&surfaces](MirSurfaceItem* child) { surfaces << child; });
         return surfaces;
     }
-
 };
 
 TEST_F(SurfaceTests, AddChildSurface)

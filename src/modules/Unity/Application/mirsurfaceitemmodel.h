@@ -31,11 +31,11 @@ class MirSurfaceItemModel : public QAbstractListModel
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 
 public:
+    explicit MirSurfaceItemModel(QObject *parent = 0);
+
     enum Roles {
         RoleSurface = Qt::UserRole,
     };
-
-    explicit MirSurfaceItemModel(QObject *parent = 0);
 
     QList<MirSurfaceItem*> list() const { return m_surfaceItems; }
     bool contains(MirSurfaceItem* surface) const { return m_surfaceItems.contains(surface); }

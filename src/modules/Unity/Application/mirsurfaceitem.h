@@ -74,8 +74,8 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
-    Q_PROPERTY(MirSurfaceItemModel* childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
+    Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false)
+    Q_PROPERTY(MirSurfaceItemModel* childSurfaces READ childSurfaces DESIGNABLE false CONSTANT)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -134,7 +134,6 @@ Q_SIGNALS:
     void stateChanged();
     void nameChanged();
     void parentSurfaceChanged(MirSurfaceItem* surface);
-    void childSurfacesChanged();
     void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
 
