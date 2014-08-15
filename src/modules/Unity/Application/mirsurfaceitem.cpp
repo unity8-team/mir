@@ -388,9 +388,7 @@ void MirSurfaceItem::surfaceDamaged()
         Q_EMIT firstFrameDrawn(this);
     }
 
-    if (clientIsRunning()) {
-        scheduleTextureUpdate();
-    }
+    scheduleTextureUpdate();
 }
 
 bool MirSurfaceItem::updateTexture()    // called by rendering thread (scene graph)
