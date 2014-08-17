@@ -1,8 +1,9 @@
-qtmir (0.4.1+14.10.20140816-0ubuntu1) UNRELEASED; urgency=medium
+qtmir (0.4.1+14.10.20140817-0ubuntu1) utopic; urgency=medium
 
+  [ Michał Sawicz ]
   * Unrevert "MirSurfaceItem: always try to consume new mir frames"
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Sun, 17 Aug 2014 02:35:58 +0200
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Sun, 17 Aug 2014 00:41:51 +0000
 
 qtmir (0.4.1+14.10.20140815.is.0.4.1+14.10.20140811.1-0ubuntu1) utopic; urgency=medium
 
