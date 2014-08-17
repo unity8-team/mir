@@ -1,3 +1,10 @@
+qtmir (0.4.1+14.10.20140815.is.0.4.1+14.10.20140811.1-0ubuntu1) utopic; urgency=medium
+
+  * Reverting previous commit since unity8 started deadlocking in ap
+    test runs (requested by Saviq)
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sat, 16 Aug 2014 17:18:12 -0300
+
 qtmir (0.4.1+14.10.20140815-0ubuntu1) utopic; urgency=low
 
   [ Daniel d'Andrada ]
