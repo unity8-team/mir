@@ -505,7 +505,7 @@ TEST_F(ApplicationManagerTests,two_session_on_one_application_after_starting)
     EXPECT_EQ(first_session, the_app->session());
 }
 
-TEST_F(ApplicationManagerTests,suspended_suspends_focused_app)
+TEST_F(ApplicationManagerTests,suspended_suspends_focused_app_and_marks_it_unfocused_in_the_model)
 {
     using namespace ::testing;
     quint64 a_procId = 5921;
@@ -535,11 +535,12 @@ TEST_F(ApplicationManagerTests,suspended_suspends_focused_app)
     applicationManager.setSuspended(true);
 
     EXPECT_EQ(Application::Suspended, the_app->state());
+    EXPECT_EQ(false, the_app->focused());
 
     applicationManager.setSuspended(false);
 
     EXPECT_EQ(Application::Running, the_app->state());
-
+    EXPECT_EQ(true, the_app->focused());
 }
 
 TEST_F(ApplicationManagerTests,requestFocusApplication)

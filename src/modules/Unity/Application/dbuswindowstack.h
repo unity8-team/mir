@@ -54,8 +54,8 @@ public:
     explicit DBusWindowStack(ApplicationManager* parent);
     ~DBusWindowStack();
 
-    Q_INVOKABLE Q_SCRIPTABLE AppIdDesktopFile GetAppIdFromPid(unsigned int pid);
-    Q_INVOKABLE Q_SCRIPTABLE QList<WindowInfo> GetWindowStack();
+    Q_INVOKABLE Q_SCRIPTABLE qtmir::AppIdDesktopFile GetAppIdFromPid(unsigned int pid);
+    Q_INVOKABLE Q_SCRIPTABLE QList<qtmir::WindowInfo> GetWindowStack();
     Q_INVOKABLE Q_SCRIPTABLE QStringList GetWindowProperties(unsigned int window_id, const QString &app_id, const QStringList &names);
 
 Q_SIGNALS:
