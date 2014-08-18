@@ -42,9 +42,6 @@ ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager 
 QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize *size,
                                                    const QSize &requestedSize)
 {
-    // We ignore requestedSize here intentionally to avoid keeping scaled copies around
-    Q_UNUSED(requestedSize)
-
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - imageId=" << imageId;
 
     QString appId = imageId.split('/').first();
@@ -79,10 +76,13 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
                             snapshot.size.height.as_int(),
                             QImage::Format_ARGB32_Premultiplied).mirrored();
 
+                *size = requestedSize.boundedTo(fullSizeScreenshot.size());
+
                 QMutexLocker screenshotMutexLocker(&screenshotMutex);
-                // For the sake of reducing memory consumption.
-                screenshotImage = fullSizeScreenshot.scaledToHeight(fullSizeScreenshot.height() / 2,
+
+                screenshotImage = fullSizeScreenshot.scaled(*size, Qt::IgnoreAspectRatio,
                     Qt::SmoothTransformation);
+
                 screenshotTakenCondition.wakeAll();
             }
         });
@@ -99,8 +99,6 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
     }
 
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - working with size" << screenshotImage;
-    size->setWidth(screenshotImage.width());
-    size->setHeight(screenshotImage.height());
 
     return screenshotImage;
 }
