@@ -7,6 +7,7 @@ INCLUDEPATH += \
     ../../../src/platforms/mirserver
 
 SOURCES += \
+    surface_item_model_test.cpp \
     surface_manager_test.cpp \
     surface_test.cpp
 
