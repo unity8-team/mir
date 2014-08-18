@@ -32,7 +32,7 @@ void MirSurfaceItemModel::insertSurface(uint index, MirSurfaceItem* surface)
 
     int existingSurfaceIndex = m_surfaceItems.indexOf(surface);
     if (existingSurfaceIndex != -1) {
-        move(existingSurfaceIndex, index);
+        move(existingSurfaceIndex, qMin(index, (uint)count()-1));
     } else {
         beginInsertRows(QModelIndex(), index, index);
         m_surfaceItems.insert(index, surface);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -14,8 +14,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
-#include <Unity/Application/application_manager.h>
 
 #include <Unity/Application/application.h>
 #include <Unity/Application/mirsurfaceitem.h>
@@ -151,7 +149,7 @@ TEST_F(ApplicationTests, RemovePromptSurface)
     EXPECT_THAT(listPromptSurfaces(app.data()), IsEmpty());
 }
 
-TEST_F(ApplicationTests, DelelePromptSurfaceRemovesFromApplcation)
+TEST_F(ApplicationTests, DeletePromptSurfaceRemovesFromApplication)
 {
     using namespace testing;
 
@@ -193,7 +191,7 @@ TEST_F(ApplicationTests, DelelePromptSurfaceRemovesFromApplcation)
     EXPECT_THAT(listPromptSurfaces(app.data()), IsEmpty());
 }
 
-TEST_F(ApplicationTests, DeleleAppDeletesPromptSurfaces)
+TEST_F(ApplicationTests, DeleteApplicationDeletesPromptSurfaces)
 {
     using namespace testing;
 

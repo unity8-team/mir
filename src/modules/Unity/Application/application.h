@@ -114,7 +114,6 @@ public:
 
     bool containsProcess(pid_t pid) const;
 
-    MirSurfaceItemModel* promptSurfaces() const;
     void foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const;
     void addPromptSurface(MirSurfaceItem* surface);
     void insertPromptSurface(uint index, MirSurfaceItem* surface);
@@ -145,6 +144,7 @@ private:
     void setFullscreen(bool fullscreen);
     void setSession(const std::shared_ptr<mir::scene::Session>& session);
     void setSurface(MirSurfaceItem *surface);
+    MirSurfaceItemModel* promptSurfaces() const;
 
     void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
