@@ -76,12 +76,16 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
                             snapshot.size.height.as_int(),
                             QImage::Format_ARGB32_Premultiplied).mirrored();
 
-                *size = requestedSize.boundedTo(fullSizeScreenshot.size());
-
                 QMutexLocker screenshotMutexLocker(&screenshotMutex);
 
-                screenshotImage = fullSizeScreenshot.scaled(*size, Qt::IgnoreAspectRatio,
-                    Qt::SmoothTransformation);
+                if (requestedSize.isValid()) {
+                    *size = requestedSize.boundedTo(fullSizeScreenshot.size());
+                    screenshotImage = fullSizeScreenshot.scaled(*size, Qt::IgnoreAspectRatio,
+                        Qt::SmoothTransformation);
+                } else {
+                    *size = fullSizeScreenshot.size();
+                    screenshotImage = fullSizeScreenshot;
+                }
 
                 screenshotTakenCondition.wakeAll();
             }
