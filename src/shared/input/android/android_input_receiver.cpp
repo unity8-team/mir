@@ -100,13 +100,16 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
      *      gain significant benefit.
      */
 
-    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
-    int const event_rate_hz = 60;
-    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
-    nsecs_t frame_time = (now / one_frame) * one_frame;
+    bool resampling_enabled = !already_resampled;
 
-    if (already_resampled)
-        frame_time = -1;  // Nested server - disable further resampling
+    nsecs_t frame_time = -1;
+    if (resampling_enabled)
+    {
+        nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
+        int const event_rate_hz = 60;
+        nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
+        frame_time = (now / one_frame) * one_frame;
+    }
 
     if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)
