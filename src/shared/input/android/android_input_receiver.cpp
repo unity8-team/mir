@@ -105,11 +105,28 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
     nsecs_t frame_time = (now / one_frame) * one_frame;
 
+    if (already_resampled)
+        frame_time = -1;  // Nested server - disable further resampling
+
     if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {
         mia::Lexicon::translate(android_event, ev);
+
+        if (ev.type == mir_event_type_motion)
+        {
+            /*
+             * Already resampled? Remember that because it means we're in
+             * a nested server or similar. We don't want to resample already
+             * resampled motion events. That would add an extra frame of
+             * latency we don't need.
+             */
+            already_resampled = (ev.motion.flags & mir_motion_flag_resampled);
+
+            ev.motion.flags = static_cast<MirMotionFlag>(
+                ev.motion.flags | mir_motion_flag_resampled);
+        }
 
         map_key_event(xkb_mapper, ev);
 
