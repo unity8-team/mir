@@ -68,6 +68,7 @@ public:
     enum MoreRoles {
         RoleSurface = RoleScreenshot+1,
         RoleFullscreen,
+        RoleApplication,
         RoleSplashTitle,
         RoleSplashImage,
         RoleSplashShowHeader,

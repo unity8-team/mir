@@ -15,7 +15,7 @@ QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 CONFIG   += link_pkgconfig
-PKGCONFIG += mircommon mirserver mirclient egl xkbcommon url-dispatcher-1
+PKGCONFIG += mirserver protobuf egl xkbcommon url-dispatcher-1
 
 LIBS += -lboost_system
 
