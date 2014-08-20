@@ -54,6 +54,7 @@ public:
     EGLNativeWindowType get_native_type();
 
     UApplicationUiWindowState state() const;
+    UApplicationUiWindowOrientation orientation() const;
 
     void hide();
     void show();
