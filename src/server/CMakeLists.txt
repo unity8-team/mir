@@ -2,8 +2,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server)
 
-set(MIRSERVER_ABI 24) # Be sure to increment MIR_VERSION_MINOR at the same time
-
 add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
 
 add_subdirectory(compositor/)
@@ -73,6 +71,8 @@ install(DIRECTORY
 install(DIRECTORY
   ${CMAKE_SOURCE_DIR}/include/server/mir DESTINATION "include/mirserver"
 )
+
+set(MIRSERVER_ABI 25) # Be sure to increment MIR_VERSION_MINOR at the same time
 
 set_target_properties(
   mirserver

@@ -1,6 +1,8 @@
 include_directories(${PROJECT_SOURCE_DIR}/include/platform)
 
-set(MIRPLATFORM_ABI 1)
+set(MIRPLATFORM_ABI 2)
+
+set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 # This needs to change whenever the much smaller ABI between the platform
 # modules and the server changes in an incompatible way.
@@ -36,6 +38,7 @@ set_target_properties(
 
   PROPERTIES
   SOVERSION ${MIRPLATFORM_ABI}
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
 
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
