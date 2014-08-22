@@ -19,7 +19,7 @@
 #include "application.h"
 #include "desktopfilereader.h"
 #include "dbuswindowstack.h"
-#include "mirsurfaceitemmodel.h"
+#include "mirsessionitem.h"
 #include "proc_info.h"
 #include "taskcontroller.h"
 #include "upstart/applicationcontroller.h"
@@ -212,9 +212,8 @@ ApplicationManager::ApplicationManager(
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::ApplicationManager (this=%p)" << this;
     setObjectName("qtmir::ApplicationManager");
 
-    m_roleNames.insert(RoleSurface, "surface");
+    m_roleNames.insert(RoleSession, "session");
     m_roleNames.insert(RoleFullscreen, "fullscreen");
-    m_roleNames.insert(RolePromptSurfaces, "promptSurfaces");
 }
 
 ApplicationManager::~ApplicationManager()
@@ -248,12 +247,10 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue(application->focused());
             case RoleScreenshot:
                 return QVariant::fromValue(application->screenshot());
-            case RoleSurface:
-                return QVariant::fromValue(application->surface());
+            case RoleSession:
+                return QVariant::fromValue(application->session());
             case RoleFullscreen:
                 return QVariant::fromValue(application->fullscreen());
-            case RolePromptSurfaces:
-                return QVariant::fromValue(application->promptSurfaces());
             default:
                 return QVariant();
         }
@@ -775,15 +772,15 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
 
-    Application* application = findApplicationWithPid(session->process_id(), false);
-    if (application && application->state() != Application::Running) {
-        application->setSession(session);
-    } else {
-        if (m_hiddenPIDs.contains(session->process_id())) {
-            return;
-        }
-        qCWarning(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - unmanaged application starting";
-    }
+    // Application* application = findApplicationWithPid(session->process_id(), false);
+    // if (application && application->state() != Application::Running) {
+    //     application->setSession(session);
+    // } else {
+    //     if (m_hiddenPIDs.contains(session->process_id())) {
+    //         return;
+    //     }
+    //     qCWarning(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - unmanaged application starting";
+    // }
 }
 
 void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& session)

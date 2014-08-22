@@ -14,54 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIR_SURFACE_ITEM_MODEL_H
-#define MIR_SURFACE_ITEM_MODEL_H
+#ifndef MIRSURFACEITEMMODEL_H
+#define MIRSURFACEITEMMODEL_H
 
-// Qt
-#include <QAbstractListModel>
+// Llocal
+#include "miritemmodel.h"
 
 namespace qtmir {
 
 class MirSurfaceItem;
-
-class MirSurfaceItemModel : public QAbstractListModel
-{
-    Q_OBJECT
-    Q_ENUMS(Roles)
-    Q_PROPERTY(int count READ count NOTIFY countChanged)
-
-public:
-    explicit MirSurfaceItemModel(QObject *parent = 0);
-
-    enum Roles {
-        RoleSurface = Qt::UserRole,
-    };
-
-    QList<MirSurfaceItem*> list() const { return m_surfaceItems; }
-    bool contains(MirSurfaceItem* surface) const { return m_surfaceItems.contains(surface); }
-    int count() const { return rowCount(); }
-
-    void insertSurface(uint index, MirSurfaceItem* surface);
-    void removeSurface(MirSurfaceItem* surface);
-
-    // from QAbstractItemModel
-    int rowCount(const QModelIndex & parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-
-    Q_INVOKABLE MirSurfaceItem* getSurface(int index);
-
-Q_SIGNALS:
-    void countChanged();
-
-private:
-    void move(int from, int to);
-    QList<MirSurfaceItem*> m_surfaceItems;
-};
+typedef MirItemModel<MirSurfaceItem> MirSurfaceItemModel;
 
 } // namespace qtmir
 
 Q_DECLARE_METATYPE(qtmir::MirSurfaceItemModel*)
 
-#endif // MIR_SURFACE_ITEM_MODEL_H
+#endif // MIRSURFACEITEMMODEL_H

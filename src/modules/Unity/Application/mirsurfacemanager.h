@@ -56,7 +56,6 @@ public:
     ~MirSurfaceManager();
 
 Q_SIGNALS:
-    void countChanged();
     void surfaceCreated(MirSurfaceItem* surface);
     void surfaceDestroyed(MirSurfaceItem* surface);
 //    void surfaceResized(MirSurface*);

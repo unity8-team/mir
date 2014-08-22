@@ -66,9 +66,8 @@ public:
 
     // FIXME: these roles should be added to unity-api and removed from here
     enum MoreRoles {
-        RoleSurface = RoleScreenshot+1,
+        RoleSession = RoleScreenshot+1,
         RoleFullscreen,
-        RolePromptSurfaces,
     };
 
     // Mapping enums to Ubuntu Platform API enums.

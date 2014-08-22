@@ -19,8 +19,8 @@
 #include "application_manager.h"
 #include "debughelpers.h"
 #include "desktopfilereader.h"
+#include "mirsessionitem.h"
 #include "taskcontroller.h"
-#include "mirsurfaceitemmodel.h"
 
 // QPA mirserver
 #include "logging.h"
@@ -34,7 +34,6 @@ namespace ms = mir::scene;
 
 namespace qtmir
 {
-QMutex screenshotMutex;
 
 Application::Application(const QSharedPointer<TaskController>& taskController,
                          DesktopFileReader *desktopFileReader,
@@ -54,10 +53,8 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_fullscreen(false)
     , m_arguments(arguments)
     , m_suspendTimer(new QTimer(this))
-    , m_surface(nullptr)
-    , m_promptSurfaces(new MirSurfaceItemModel(this))
+    , m_session(nullptr)
     , m_promptSessionManager(promptSessionManager)
-    , m_screenShotGuard(new Guard)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
 
@@ -78,20 +75,10 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
 Application::~Application()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
-    {
-        // In case we get a threaded screenshot callback once the application is deleted.
-        QMutexLocker lk(&screenshotMutex);
-        m_screenShotGuard.clear();
-    }
 
-    QList<MirSurfaceItem*> promptSurfaces(m_promptSurfaces->list());
-    for (MirSurfaceItem* promptSurface : promptSurfaces) {
-        delete promptSurface;
-    }
     stopPromptSessions();
-    delete m_surface;
+    delete m_session;
     delete m_desktopData;
-    delete m_promptSurfaces;
 }
 
 bool Application::isValid() const
@@ -168,11 +155,6 @@ bool Application::fullscreen() const
     return m_fullscreen;
 }
 
-std::shared_ptr<mir::scene::Session> Application::session() const
-{
-    return m_session;
-}
-
 bool Application::canBeResumed() const
 {
     return m_canBeResumed;
@@ -193,11 +175,30 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
-void Application::setSession(const std::shared_ptr<mir::scene::Session>& session)
+void Application::setSession(MirSessionItem *newSession)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << session.get();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << newSession;
 
-    m_session = session;
+    if (newSession == m_session)
+        return;
+
+    if (m_session) {
+        m_session->disconnect(this);
+    }
+
+    m_session = newSession;
+
+    if (m_session) {
+        m_session->setParent(this);
+        m_session->setApplication(this);
+
+        connect(m_session, &MirSessionItem::fullscreenChanged, this, [this](bool fullscreen) {
+            setFullscreen(fullscreen);
+        });
+        setFullscreen(m_session->fullscreen());
+    }
+
+    Q_EMIT sessionChanged(m_session);
 }
 
 void Application::setStage(Application::Stage stage)
@@ -228,16 +229,9 @@ void Application::updateScreenshot()
     if (!m_session)
         return;
 
-    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
-
-    m_session->take_snapshot(
-        [&, wk](mir::scene::Snapshot const& snapshot)
+    m_session->takeSnapshot(
+        [this](mir::scene::Snapshot const& snapshot)
         {
-            // In case we get a threaded screenshot callback once the application is deleted.
-            QMutexLocker lk(&screenshotMutex);
-            if (wk.isNull())
-                return;
-
             qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
                                         << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
 
@@ -259,7 +253,6 @@ void Application::setState(Application::State state)
         {
         case Application::Suspended:
             if (m_state == Application::Running) {
-                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
@@ -277,7 +270,6 @@ void Application::setState(Application::State state)
             }
             break;
         case Application::Stopped:
-            stopPromptSessions();
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
             if (m_surface) {
@@ -353,74 +345,10 @@ Application::SupportedOrientations Application::supportedOrientations() const
     return m_supportedOrientations;
 }
 
-MirSurfaceItem* Application::surface() const
+MirSurfaceItem* Application::session() const
 {
     // Only notify QML of surface creation once it has drawn its first frame.
-    if (m_surface && m_surface->isFirstFrameDrawn()) {
-        return m_surface;
-    } else {
-        return nullptr;
-    }
-}
-
-void Application::setSurface(MirSurfaceItem *newSurface)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setSurface - appId=" << appId() << "surface=" << newSurface;
-
-    if (newSurface == m_surface) {
-        return;
-    }
-
-    if (m_surface) {
-        m_surface->disconnect(this);
-        m_surface->setApplication(nullptr);
-        m_surface->setParent(nullptr);
-    }
-
-    MirSurfaceItem *previousSurface = surface();
-    m_surface = newSurface;
-
-    if (newSurface) {
-        m_surface->setParent(this);
-        m_surface->setApplication(this);
-
-        // Only notify QML of surface creation once it has drawn its first frame.
-        if (!surface()) {
-            connect(newSurface, &MirSurfaceItem::firstFrameDrawn,
-                    this, &Application::emitSurfaceChanged);
-        }
-
-        connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
-                this, &Application::discardSurface);
-
-        connect(newSurface, &MirSurfaceItem::stateChanged,
-            this, &Application::updateFullscreenProperty);
-    }
-
-    if (previousSurface != surface()) {
-        emitSurfaceChanged();
-    }
-
-    updateFullscreenProperty();
-}
-
-void Application::emitSurfaceChanged()
-{
-    Q_EMIT surfaceChanged();
-    QModelIndex appIndex = m_appMgr->findIndex(this);
-    Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleSurface);
-}
-
-void Application::discardSurface()
-{
-    MirSurfaceItem *discardedSurface = m_surface;
-    setSurface(nullptr);
-    delete discardedSurface;
-}
-
-void Application::updateFullscreenProperty()
-{
-    setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
+    return m_session;
 }
 
 void Application::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
@@ -486,43 +414,6 @@ bool Application::containsProcess(pid_t pid) const
             return true;
     }
     return false;
-}
-
-void Application::addPromptSurface(MirSurfaceItem* surface)
-{
-    insertPromptSurface(m_promptSurfaces->count(), surface);
-}
-
-void Application::insertPromptSurface(uint index, MirSurfaceItem* surface)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::insertPromptSurface @ " << index << " - " << surface->name() << " to " << appId();
-
-    surface->setApplication(this);
-    m_promptSurfaces->insertSurface(index, surface);
-}
-
-void Application::removeSurface(MirSurfaceItem* surface)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::removeSurface - " << surface->name() << " from " << appId();
-
-    if (m_surface == surface) {
-        setSurface(nullptr);
-    } else if (m_promptSurfaces->contains(surface)) {
-        m_promptSurfaces->removeSurface(surface);
-        surface->setApplication(nullptr);
-    }
-}
-
-void Application::foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const
-{
-    for (MirSurfaceItem* promptSurface : m_promptSurfaces->list()) {
-        f(promptSurface);
-    }
-}
-
-MirSurfaceItemModel* Application::promptSurfaces() const
-{
-    return m_promptSurfaces;
 }
 
 } // namespace qtmir

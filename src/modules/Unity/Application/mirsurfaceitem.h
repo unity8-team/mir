@@ -32,6 +32,7 @@
 #include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
+#include "mirsurfaceitemmodel.h"
 #include "ubuntukeyboardinfo.h"
 
 namespace qtmir {
@@ -40,7 +41,6 @@ class MirSurfaceManager;
 class QSGMirSurfaceNode;
 class QMirSurfaceTextureProvider;
 class Application;
-class MirSurfaceItemModel;
 
 class MirSurfaceObserver : public mir::scene::SurfaceObserver {
 public:
@@ -79,7 +79,7 @@ class MirSurfaceItem : public QQuickItem
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                            QPointer<Application> application,
+                            QPointer<MirSessionItem> session,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -107,7 +107,7 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
-    Application *application() const;
+    MirSessionItem *session() const;
 
     Q_INVOKABLE void release();
 
@@ -120,7 +120,7 @@ public:
 
     bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
 
-    void setApplication(Application *app);
+    void setSession(MirSessionItem *app);
 
     MirSurfaceItem* parentSurface() const;
 
@@ -140,7 +140,7 @@ Q_SIGNALS:
     void removed();
 
 protected Q_SLOTS:
-    void onApplicationStateChanged();
+    void onApplicationStateChanged(Application::State state);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

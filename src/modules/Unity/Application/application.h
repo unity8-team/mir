@@ -28,9 +28,6 @@
 // Unity API
 #include <unity/shell/application/ApplicationInfoInterface.h>
 
-// local
-#include "mirsurfaceitem.h"
-
 namespace mir {
     namespace scene {
         class Session;
@@ -45,7 +42,7 @@ namespace qtmir
 class ApplicationManager;
 class DesktopFileReader;
 class TaskController;
-class MirSurfaceItemModel;
+class MirSessionItem;
 
 class Application : public unity::shell::application::ApplicationInfoInterface
 {
@@ -58,8 +55,7 @@ class Application : public unity::shell::application::ApplicationInfoInterface
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
     Q_PROPERTY(Stage stage READ stage WRITE setStage NOTIFY stageChanged)
     Q_PROPERTY(SupportedOrientations supportedOrientations READ supportedOrientations CONSTANT)
-    Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged DESIGNABLE false)
-    Q_PROPERTY(MirSurfaceItemModel* promptSurfaces READ promptSurfaces DESIGNABLE false CONSTANT)
+    Q_PROPERTY(MirSessionItem* session READ session NOTIFY sessionChanged DESIGNABLE false)
 
 public:
     Q_DECLARE_FLAGS(Stages, Stage)
@@ -93,7 +89,7 @@ public:
 
     void setStage(Stage stage);
 
-    MirSurfaceItem* surface() const;
+    MirSessionItem* session() const;
 
     QImage screenshotImage() const;
     void updateScreenshot();
@@ -105,7 +101,6 @@ public:
     QString desktopFile() const;
     QString exec() const;
     bool fullscreen() const;
-    std::shared_ptr<mir::scene::Session> session() const;
     std::shared_ptr<mir::scene::PromptSession> activePromptSession() const;
     void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const;
 
@@ -113,11 +108,6 @@ public:
     SupportedOrientations supportedOrientations() const;
 
     bool containsProcess(pid_t pid) const;
-
-    void foreachPromptSurface(std::function<void(MirSurfaceItem*)> f) const;
-    void addPromptSurface(MirSurfaceItem* surface);
-    void insertPromptSurface(uint index, MirSurfaceItem* surface);
-    void removeSurface(MirSurfaceItem* surface);
 
 public Q_SLOTS:
     void suspend();
@@ -127,13 +117,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void fullscreenChanged();
     void stageChanged(Stage stage);
-    void surfaceChanged();
-
-    void surfaceDestroyed(MirSurfaceItem *surface);
-
-private Q_SLOTS:
-    void discardSurface();
-    void emitSurfaceChanged();
+    void sessionChanged(MirSessionItem *session);
 
 private:
     QString longAppId() const;
@@ -142,15 +126,12 @@ private:
     void setState(State state);
     void setFocused(bool focus);
     void setFullscreen(bool fullscreen);
-    void setSession(const std::shared_ptr<mir::scene::Session>& session);
-    void setSurface(MirSurfaceItem *surface);
-    MirSurfaceItemModel* promptSurfaces() const;
+    void setSession(MirSessionItem *session);
 
     void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void stopPromptSessions();
 
-    void updateFullscreenProperty();
 
     ApplicationManager* m_appMgr;
     QSharedPointer<TaskController> m_taskController;
@@ -165,17 +146,12 @@ private:
     QImage m_screenshotImage;
     bool m_canBeResumed;
     bool m_fullscreen;
-    std::shared_ptr<mir::scene::Session> m_session;
     QStringList m_arguments;
     QTimer* m_suspendTimer;
     SupportedOrientations m_supportedOrientations;
-    MirSurfaceItem *m_surface;
-    MirSurfaceItemModel* m_promptSurfaces;
+    MirSessionItem *m_session;
     QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
     std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
-
-    class Guard {};
-    QSharedPointer<Guard> m_screenShotGuard;
 
     friend class ApplicationManager;
     friend class MirSurfaceManager;
