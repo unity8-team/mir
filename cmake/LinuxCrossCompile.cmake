@@ -22,11 +22,9 @@ list(APPEND CMAKE_SYSTEM_LIBRARY_PATH
   "${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}"
 )
 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-set(CMAKE_EXECUTABLE_RUNTIME_C_FLAG "-Wl,-rpath-link,")
-set(CMAKE_EXECUTABLE_RUNTIME_CXX_FLAG "-Wl,-rpath-link,")
-set(CMAKE_INSTALL_RPATH "${MIR_NDK_PATH}/lib:${MIR_NDK_PATH}/lib/${MIR_ARM_EABI}:${MIR_NDK_PATH}/usr/lib:${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--rpath-link,${LIBRARY_OUTPUT_PATH} -Wl,--rpath-link,${MIR_NDK_PATH}/lib -Wl,--rpath-link,${MIR_NDK_PATH}/lib/${MIR_ARM_EABI} -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--rpath-link,${LIBRARY_OUTPUT_PATH} -Wl,--rpath-link,${MIR_NDK_PATH}/lib -Wl,--rpath-link,${MIR_NDK_PATH}/lib/${MIR_ARM_EABI} -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}")
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--rpath-link,${LIBRARY_OUTPUT_PATH} -Wl,--rpath-link,${MIR_NDK_PATH}/lib -Wl,--rpath-link,${MIR_NDK_PATH}/lib/${MIR_ARM_EABI} -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib -Wl,--rpath-link,${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}")
 
 set(ENV{PKG_CONFIG_PATH} "${MIR_NDK_PATH}/usr/lib/pkgconfig:${MIR_NDK_PATH}/usr/lib/${MIR_ARM_EABI}/pkgconfig")
 set(ENV{PKG_CONFIG_SYSROOT_DIR} "${MIR_NDK_PATH}")

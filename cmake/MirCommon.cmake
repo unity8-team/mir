@@ -39,10 +39,8 @@ function (mir_discover_tests EXECUTABLE)
   if(DISABLE_GTEST_TEST_DISCOVERY)
     add_test(${EXECUTABLE} ${VALGRIND_EXECUTABLE} ${VALGRIND_ARGS} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} "--gtest_filter=-*DeathTest.*")
     add_test(${EXECUTABLE}_death_tests ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} "--gtest_filter=*DeathTest.*")
-    if (${ARGC} GREATER 1)
-      set_property(TEST ${EXECUTABLE} PROPERTY ENVIRONMENT ${ARGN})
-      set_property(TEST ${EXECUTABLE}_death_tests PROPERTY ENVIRONMENT ${ARGN})
-    endif()
+    set_property(TEST ${EXECUTABLE} PROPERTY ENVIRONMENT LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH} ${ARGN})
+    set_property(TEST ${EXECUTABLE}_death_tests PROPERTY ENVIRONMENT LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH} ${ARGN})
   else()
     set(CHECK_TEST_DISCOVERY_TARGET_NAME "check_discover_tests_in_${EXECUTABLE}")
     set(TEST_DISCOVERY_TARGET_NAME "discover_tests_in_${EXECUTABLE}")
@@ -51,10 +49,11 @@ function (mir_discover_tests EXECUTABLE)
     # These targets are always considered out-of-date, and are always run (at least for normal builds, except for make test/install).
     add_custom_target(
       ${CHECK_TEST_DISCOVERY_TARGET_NAME} ALL
-      ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests > /dev/null
+      LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests > /dev/null
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Check that discovering Tests in ${EXECUTABLE} works")
 
+    list(APPEND EXTRA_ENV_FLAGS "--add-environment" "LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH}")
     if (${ARGC} GREATER 1)
       foreach (env ${ARGN})
         list(APPEND EXTRA_ENV_FLAGS "--add-environment" "${env}")
@@ -63,7 +62,7 @@ function (mir_discover_tests EXECUTABLE)
 
     add_custom_target(
       ${TEST_DISCOVERY_TARGET_NAME} ALL
-      ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests | ${CMAKE_BINARY_DIR}/mir_gtest/mir_discover_gtest_tests --executable=${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} ${DISCOVER_FLAGS}
+      LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests | ${CMAKE_BINARY_DIR}/mir_gtest/mir_discover_gtest_tests --executable=${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} ${DISCOVER_FLAGS}
       ${EXTRA_ENV_FLAGS}
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Discovering Tests in ${EXECUTABLE}" VERBATIM)
