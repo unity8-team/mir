@@ -379,7 +379,12 @@ void Application::discardSurface()
 
 void Application::updateFullscreenProperty()
 {
-    setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
+    if (m_surface) {
+        setFullscreen(m_surface->state() == MirSurfaceItem::Fullscreen);
+    } else {
+        // Keep the current value of the fullscreen property until we get a new
+        // surface
+    }
 }
 
 void Application::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
