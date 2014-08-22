@@ -50,12 +50,13 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
         return QImage();
     }
 
-    // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
-    // return the screenshot that was saved to disk.
-    if (!app->session() || !app->session()->default_surface()) {
-        qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
-        return QImage();
-    }
+    // FIXME - why do we need this? app decides what to do.
+    // // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
+    // // return the screenshot that was saved to disk.
+    // if (!session || !session->session() || !session->session()->default_surface()) {
+    //     qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
+    //     return QImage();
+    // }
 
     QImage image = app->screenshotImage();
 

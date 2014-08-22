@@ -32,6 +32,7 @@
 #include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
+#include "mirsessionitem.h"
 #include "mirsurfaceitemmodel.h"
 #include "ubuntukeyboardinfo.h"
 
@@ -140,7 +141,7 @@ Q_SIGNALS:
     void removed();
 
 protected Q_SLOTS:
-    void onApplicationStateChanged(Application::State state);
+    void onSessionStateChanged(MirSessionItem::State state);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -184,12 +185,10 @@ private:
 
     bool clientIsRunning() const;
 
-    QString appId();
-
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
-    QPointer<Application> m_application;
+    QPointer<MirSessionItem> m_session;
     bool m_firstFrameDrawn;
 
     MirSurfaceItem* m_parentSurface;

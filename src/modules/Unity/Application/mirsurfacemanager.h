@@ -45,6 +45,7 @@ namespace qtmir {
 
 class Application;
 class ApplicationManager;
+class MirSessionManager;
 
 class MirSurfaceManager : public MirSurfaceItemModel
 {
@@ -74,6 +75,7 @@ protected:
     MirSurfaceManager(
         const QSharedPointer<MirServerConfiguration>& mirConfig,
         ApplicationManager* applicationManager,
+        MirSessionManager* sessionManager,
         QObject *parent = 0
     );
 
@@ -87,6 +89,7 @@ protected:
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
     ApplicationManager* m_applicationManager;
+    MirSessionManager* m_sessionManager;
     static MirSurfaceManager *the_surface_manager;
 };
 

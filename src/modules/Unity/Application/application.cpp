@@ -52,14 +52,10 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_canBeResumed(true)
     , m_fullscreen(false)
     , m_arguments(arguments)
-    , m_suspendTimer(new QTimer(this))
     , m_session(nullptr)
     , m_promptSessionManager(promptSessionManager)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
-
-    m_suspendTimer->setSingleShot(true);
-    connect(m_suspendTimer, SIGNAL(timeout()), this, SLOT(suspend()));
 
     // FIXME(greyback) need to save long appId internally until ubuntu-app-launch can hide it from us
     m_longAppId = desktopFileReader->file().remove(QRegExp(".desktop$")).split('/').last();
@@ -195,6 +191,11 @@ void Application::setSession(MirSessionItem *newSession)
         connect(m_session, &MirSessionItem::fullscreenChanged, this, [this](bool fullscreen) {
             setFullscreen(fullscreen);
         });
+
+        connect(m_session, &MirSessionItem::suspend, this, &Application::suspend);
+        connect(m_session, &MirSessionItem::resume, this, &Application::resume);
+        connect(m_session, &MirSessionItem::respawn, this, &Application::respawn);
+
         setFullscreen(m_session->fullscreen());
     }
 
@@ -226,10 +227,10 @@ QImage Application::screenshotImage() const
 
 void Application::updateScreenshot()
 {
-    if (!m_session)
+    if (!session())
         return;
 
-    m_session->takeSnapshot(
+    session()->takeSnapshot(
         [this](mir::scene::Snapshot const& snapshot)
         {
             qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
@@ -251,30 +252,17 @@ void Application::setState(Application::State state)
     if (m_state != state) {
         switch (state)
         {
+        case Application::Starting:
+            if (session()) session()->setState(MirSessionItem::State::Starting);
+            break;
         case Application::Suspended:
-            if (m_state == Application::Running) {
-                session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
-                m_suspendTimer->start(3000);
-            }
+            if (session()) session()->setState(MirSessionItem::State::Suspended);
             break;
         case Application::Running:
-            if (m_suspendTimer->isActive())
-                m_suspendTimer->stop();
-
-            if (m_state == Application::Suspended) {
-                resume();
-                session()->set_lifecycle_state(mir_lifecycle_state_resumed);
-            } else if (m_state == Application::Stopped) {
-                respawn();
-                state = Application::Starting;
-            }
+            if (session()) session()->setState(MirSessionItem::State::Running);
             break;
         case Application::Stopped:
-            if (m_suspendTimer->isActive())
-                m_suspendTimer->stop();
-            if (m_surface) {
-                m_surface->stopFrameDropper();
-            }
+            if (session()) session()->setState(MirSessionItem::State::Stopped);
             break;
         default:
             break;
@@ -300,7 +288,6 @@ void Application::setFocused(bool focused)
 
 void Application::setFullscreen(bool fullscreen)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::setFullscreen - appId=" << appId() << "fullscreen=" << fullscreen;
     if (m_fullscreen != fullscreen) {
         m_fullscreen = fullscreen;
         Q_EMIT fullscreenChanged();
@@ -312,20 +299,12 @@ void Application::setFullscreen(bool fullscreen)
 void Application::suspend()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::suspend - appId=" << appId();
-    if (m_surface) {
-        m_surface->stopFrameDropper();
-    } else {
-        qDebug() << "Application::suspend - no surface to call stopFrameDropper() on!";
-    }
     m_taskController->suspend(longAppId());
 }
 
 void Application::resume()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::resume - appId=" << appId();
-    if (m_surface) {
-        m_surface->startFrameDropper();
-    }
     m_taskController->resume(longAppId());
 }
 
@@ -345,9 +324,8 @@ Application::SupportedOrientations Application::supportedOrientations() const
     return m_supportedOrientations;
 }
 
-MirSurfaceItem* Application::session() const
+MirSessionItem* Application::session() const
 {
-    // Only notify QML of surface creation once it has drawn its first frame.
     return m_session;
 }
 

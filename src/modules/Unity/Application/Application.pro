@@ -30,11 +30,11 @@ SOURCES += application_manager.cpp \
     applicationscreenshotprovider.cpp \
     dbuswindowstack.cpp \
     taskcontroller.cpp \
+    mirsessionmanager.cpp \
     mirsurfacemanager.cpp \
     ubuntukeyboardinfo.cpp \
     mirsessionitem.cpp \
     mirsurfaceitem.cpp \
-    mirsurfaceitemmodel.cpp \
     mirbuffersgtexture.cpp \
     processcontroller.cpp \
     proc_info.cpp \
@@ -49,6 +49,7 @@ HEADERS += application_manager.h \
     applicationscreenshotprovider.h \
     dbuswindowstack.h \
     taskcontroller.h \
+    mirsessionmanager.h \
     mirsurfacemanager.h \
     ubuntukeyboardinfo.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \

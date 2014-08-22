@@ -22,6 +22,7 @@
 #include "application.h"
 #include "debughelpers.h"
 #include "mirbuffersgtexture.h"
+#include "mirsessionitem.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
 
@@ -299,7 +300,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
     if (m_session) {
-        connect(m_session.data(), &MirSessionItem::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+        connect(m_session.data(), &MirSessionItem::stateChanged, this, &MirSurfaceItem::onSessionStateChanged);
     }
 }
 
@@ -572,7 +573,7 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
     const char *didResize = clientIsRunning() && mirSizeIsDifferent ? "surface resized" : "surface NOT resized";
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceSize"
-            << "appId =" << appId()
+            << "surface =" << this
             << ", old (" << mirWidth << "," << mirHeight << ")"
             << ", new (" << qmlWidth << "," << qmlHeight << ")"
             << didResize;
@@ -607,7 +608,7 @@ void MirSurfaceItem::dropPendingBuffers()
         // buffer to be destroyed/released straight away.
         m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
         qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::dropPendingBuffers()"
-            << "appId =" << appId()
+            << "surface =" << this
             << "buffer dropped."
             << renderable->buffers_ready_for_compositor()
             << "left.";
@@ -616,14 +617,14 @@ void MirSurfaceItem::dropPendingBuffers()
 
 void MirSurfaceItem::stopFrameDropper()
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper surface = " << this;
     QMutexLocker locker(&m_mutex);
     m_frameDropperTimer.stop();
 }
 
 void MirSurfaceItem::startFrameDropper()
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper surface = " << this;
     QMutexLocker locker(&m_mutex);
     if (!m_frameDropperTimer.isActive()) {
         m_frameDropperTimer.start();
@@ -640,28 +641,19 @@ void MirSurfaceItem::scheduleTextureUpdate()
     m_frameDropperTimer.start();
 }
 
-QString MirSurfaceItem::appId()
-{
-    if (m_session) {
-        return m_session->appId();
-    } else {
-        return QString();
-    }
-}
 
-void MirSurfaceItem::setSession(MirSurfaceItem *session)
+void MirSurfaceItem::setSession(MirSessionItem *session)
 {
     m_session = session;
 }
 
-void MirSurfaceItem::onApplicationStateChanged(Application::State state)
+void MirSurfaceItem::onSessionStateChanged(MirSessionItem::State state)
 {
     switch (state) {
-        case Application::Running:
+        case MirSessionItem::State::Running:
             syncSurfaceSizeWithItemSize();
             break;
-        case Application::Stopped:
-            stopFrameDropper();
+        default:
             break;
     }
 }
@@ -682,8 +674,8 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
 bool MirSurfaceItem::clientIsRunning() const
 {
     return (m_session &&
-            (m_session->state() == Application::Running
-             || m_session->state() == Application::Starting))
+            (m_session->state() == MirSessionItem::State::Running
+             || m_session->state() == MirSessionItem::State::Starting))
         || !m_session;
 }
 
@@ -703,7 +695,7 @@ MirSurfaceItem* MirSurfaceItem::parentSurface() const
 
 void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
 {
-    insertChildSurface(m_children->count(), surface);
+    insertChildSurface(m_children->rowCount(), surface);
 }
 
 void MirSurfaceItem::insertChildSurface(uint index, MirSurfaceItem* surface)
@@ -711,7 +703,7 @@ void MirSurfaceItem::insertChildSurface(uint index, MirSurfaceItem* surface)
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::insertChildSurface @ " << index << " - " << surface->name() << " to " << name();
 
     surface->setParentSurface(this);
-    m_children->insertSurface(index, surface);
+    m_children->insert(index, surface);
 }
 
 void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
@@ -719,7 +711,7 @@ void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::removeChildSurface - " << surface->name() << " from " << name();
 
     if (m_children->contains(surface)) {
-        m_children->removeSurface(surface);
+        m_children->remove(surface);
         surface->setParentSurface(nullptr);
     }
 }

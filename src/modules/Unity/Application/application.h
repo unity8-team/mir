@@ -147,7 +147,6 @@ private:
     bool m_canBeResumed;
     bool m_fullscreen;
     QStringList m_arguments;
-    QTimer* m_suspendTimer;
     SupportedOrientations m_supportedOrientations;
     MirSessionItem *m_session;
     QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
@@ -155,7 +154,7 @@ private:
 
     friend class ApplicationManager;
     friend class MirSurfaceManager;
-    friend class MirSurfaceItem;
+    friend class MirSessionItem;
 };
 
 } // namespace qtmir
