@@ -39,7 +39,7 @@
 #include <mir/scene/prompt_session_manager.h>
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
-#include <mircommon/mir/geometry/rectangles.h>
+#include <mir/geometry/rectangles.h>
 
 // Qt
 #include <QGuiApplication>
