@@ -245,8 +245,6 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue((int)application->state());
             case RoleFocused:
                 return QVariant::fromValue(application->focused());
-            case RoleScreenshot:
-                return QVariant::fromValue(application->screenshot());
             case RoleSurface:
                 return QVariant::fromValue(application->surface());
             case RoleFullscreen:
@@ -545,20 +543,6 @@ bool ApplicationManager::stopApplication(const QString &inputAppId)
     return result;
 }
 
-bool ApplicationManager::updateScreenshot(const QString &appId)
-{
-    Application *application = findApplication(appId);
-    if (!application) {
-        qWarning() << "ApplicationManager::updateScreenshot - No such running application with appId=" << appId;
-        return false;
-    }
-
-    application->updateScreenshot();
-    QModelIndex appIndex = findIndex(application);
-    Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
-    return true;
-}
-
 void ApplicationManager::onProcessFailed(const QString &appId, const bool duringStartup)
 {
     /* Applications fail if they fail to launch, crash or are killed. If failed to start, must
@@ -651,19 +635,6 @@ void ApplicationManager::onResumeRequested(const QString& appId)
     // be notified of that through the onProcessStartReportReceived slot. Else resume.
     if (application->state() == Application::Suspended) {
         application->setState(Application::Running);
-    }
-}
-
-void ApplicationManager::screenshotUpdated()
-{
-    if (sender()) {
-        Application *application = static_cast<Application*>(sender());
-        QModelIndex appIndex = findIndex(application);
-        Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
-
-        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received new screenshot for", application->appId();
-    } else {
-        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received screenshotUpdated signal but application has disappeard.";
     }
 }
 
@@ -909,8 +880,6 @@ void ApplicationManager::add(Application* application)
 {
     Q_ASSERT(application != nullptr);
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::add - appId=" << application->appId();
-
-    connect(application, &Application::screenshotChanged, this, &ApplicationManager::screenshotUpdated);
 
     beginInsertRows(QModelIndex(), m_applications.count(), m_applications.count());
     m_applications.append(application);

@@ -4,7 +4,8 @@ include(../common/common.pri)
 TARGET = application_manager_test
 
 INCLUDEPATH += \
-    ../../../src/platforms/mirserver
+    ../../../src/platforms/mirserver \
+    ../../../src/modules/Unity/Application
 
 SOURCES += \
     application_manager_test.cpp
