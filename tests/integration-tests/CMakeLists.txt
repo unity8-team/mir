@@ -83,7 +83,7 @@ target_link_libraries(
 if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_integration_tests
   mirsharedandroid
-  ${ANDROID_PROPERTIES_LIBRARIES}
+  ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
 
