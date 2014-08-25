@@ -153,7 +153,7 @@ uaum::event_to_ubuntu_deprecated_event(MirEvent const* mir_event, Event& ubuntu_
 }
 
 bool uaum::orientation_to_ubuntu_orientation(MirOrientation const mir_orient,
-                                             UApplicationUiWindowOrientation &ubuntu_orient)
+                                             UApplicationUiWindowOrientation& ubuntu_orient)
 {
     switch (mir_orient) {
     case mir_orientation_normal:
