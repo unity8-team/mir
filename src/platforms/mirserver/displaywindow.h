@@ -21,7 +21,7 @@
 
 #include <qpa/qplatformwindow.h>
 
-#include <mirplatform/mir/graphics/display_buffer.h>
+#include <mir/graphics/display_buffer.h>
 
 #include <QObject>
 

@@ -155,11 +155,6 @@ bool Application::focused() const
     return m_focused;
 }
 
-QUrl Application::screenshot() const
-{
-    return m_screenshot;
-}
-
 bool Application::fullscreen() const
 {
     return m_fullscreen;
@@ -213,39 +208,6 @@ void Application::setStage(Application::Stage stage)
         Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleStage);
         return;
     }
-}
-
-QImage Application::screenshotImage() const
-{
-    return m_screenshotImage;
-}
-
-void Application::updateScreenshot()
-{
-    if (!m_session)
-        return;
-
-    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
-
-    m_session->take_snapshot(
-        [&, wk](mir::scene::Snapshot const& snapshot)
-        {
-            // In case we get a threaded screenshot callback once the application is deleted.
-            QMutexLocker lk(&screenshotMutex);
-            if (wk.isNull())
-                return;
-
-            qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
-                                        << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
-
-            m_screenshotImage = QImage( (const uchar*)snapshot.pixels, // since we mirror, no need to offset starting position
-                            snapshot.size.width.as_int(),
-                            snapshot.size.height.as_int(),
-                            QImage::Format_ARGB32_Premultiplied).mirrored();
-
-            m_screenshot = QString("image://application/%1/%2").arg(m_desktopData->appId()).arg(QDateTime::currentMSecsSinceEpoch());
-            Q_EMIT screenshotChanged(m_screenshot);
-        });
 }
 
 void Application::setState(Application::State state)
@@ -417,7 +379,12 @@ void Application::discardSurface()
 
 void Application::updateFullscreenProperty()
 {
-    setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
+    if (m_surface) {
+        setFullscreen(m_surface->state() == MirSurfaceItem::Fullscreen);
+    } else {
+        // Keep the current value of the fullscreen property until we get a new
+        // surface
+    }
 }
 
 void Application::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
