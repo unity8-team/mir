@@ -33,6 +33,7 @@
 #include "mir/shared_library.h"
 #include "client_platform_factory.h"
 #include "mir_event_distributor.h"
+#include "shared_library_cache.h"
 
 namespace mcl = mir::client;
 
@@ -43,10 +44,11 @@ std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
 std::string const default_platform_lib{"libmirclientplatform.so"};
 
-mir::SharedLibrary const* load_library(std::string const& libname)
+mir::SharedLibrary const* load_library(
+    mcl::SharedLibraryCache& shared_library_cache,
+    std::string const& libname)
 {
-
-    if (auto& ptr = mcl::libraries_cache(libname))
+    if (auto& ptr = shared_library_cache.library(libname))
     {
         return ptr.get();
     }
@@ -60,7 +62,8 @@ mir::SharedLibrary const* load_library(std::string const& libname)
 
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
     std::string const& socket_file)
-    : socket_file{socket_file}
+    : shared_library_cache{mcl::SharedLibraryCache::instance()},
+      socket_file{socket_file}
 {
 }
 
@@ -98,11 +101,11 @@ std::shared_ptr<mcl::ClientPlatformFactory>
 mcl::DefaultConnectionConfiguration::the_client_platform_factory()
 {
     return client_platform_factory(
-        []
+        [this]
         {
             auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
             std::string const val{val_raw ? val_raw : default_platform_lib};
-            auto const platform_lib = ::load_library(val);
+            auto const platform_lib = ::load_library(*the_shared_library_cache(), val);
 
             auto const create_client_platform_factory =
                 platform_lib->load_function<mcl::CreateClientPlatformFactory>(
@@ -198,4 +201,9 @@ std::shared_ptr<mcl::EventHandlerRegister> mcl::DefaultConnectionConfiguration::
         {
             return std::make_shared<MirEventDistributor>();
         });
+}
+
+std::shared_ptr<mcl::SharedLibraryCache> mcl::DefaultConnectionConfiguration::the_shared_library_cache()
+{
+    return shared_library_cache;
 }

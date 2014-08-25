@@ -26,6 +26,7 @@
 #include "display_configuration.h"
 #include "connection_surface_map.h"
 #include "lifecycle_control.h"
+#include "shared_library_cache.h"
 
 #include "mir/logging/logger.h"
 
@@ -63,23 +64,8 @@ private:
     MirDisplayConfiguration* const config;
 };
 
-using LibrariesCache = std::map<std::string, std::shared_ptr<mir::SharedLibrary>>;
-
 std::mutex connection_guard;
 MirConnection* valid_connections{nullptr};
-// There's no point in loading twice, and it isn't safe to
-// unload while there are valid connections
-std::map<std::string, std::shared_ptr<mir::SharedLibrary>>* libraries_cache_ptr{nullptr};
-}
-
-std::shared_ptr<mir::SharedLibrary>& mcl::libraries_cache(std::string const& libname)
-{
-    std::lock_guard<std::mutex> lock(connection_guard);
-
-    if (!libraries_cache_ptr)
-        libraries_cache_ptr = new LibrariesCache;
-
-    return (*libraries_cache_ptr)[libname];
 }
 
 MirConnection::Deregisterer::~Deregisterer()
@@ -94,13 +80,6 @@ MirConnection::Deregisterer::~Deregisterer()
             break;
         }
     }
-
-    // When the last valid connection goes we can clear the libraries cache
-    if (!valid_connections)
-    {
-        delete libraries_cache_ptr;
-        libraries_cache_ptr = nullptr;
-    }
 }
 
 MirConnection::MirConnection(std::string const& error_message) :
@@ -114,6 +93,7 @@ MirConnection::MirConnection(std::string const& error_message) :
 MirConnection::MirConnection(
     mir::client::ConnectionConfiguration& conf) :
         deregisterer{this},
+        shared_library_cache{conf.the_shared_library_cache()},
         channel(conf.the_rpc_channel()),
         server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         logger(conf.the_logger()),

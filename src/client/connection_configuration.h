@@ -52,6 +52,7 @@ class DisplayConfiguration;
 class LifecycleControl;
 class EventSink;
 class EventHandlerRegister;
+class SharedLibraryCache;
 
 class ConnectionConfiguration
 {
@@ -67,6 +68,7 @@ public:
     virtual std::shared_ptr<LifecycleControl> the_lifecycle_control() = 0;
     virtual std::shared_ptr<EventSink> the_event_sink() = 0;
     virtual std::shared_ptr<EventHandlerRegister> the_event_handler_register() = 0;
+    virtual std::shared_ptr<SharedLibraryCache> the_shared_library_cache() = 0;
 
 protected:
     ConnectionConfiguration() = default;

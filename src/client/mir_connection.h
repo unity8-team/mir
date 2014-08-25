@@ -46,6 +46,7 @@ class ConnectionSurfaceMap;
 class DisplayConfiguration;
 class LifecycleControl;
 class EventHandlerRegister;
+class SharedLibraryCache;
 
 namespace rpc
 {
@@ -137,6 +138,10 @@ private:
     // MUST be first data member so it is destroyed last.
     struct Deregisterer
     { MirConnection* const self; ~Deregisterer(); } deregisterer;
+
+    // MUST be placed before any variables for components that are loaded
+    // from a shared library, e.g., ClientPlatform
+    std::shared_ptr<mir::client::SharedLibraryCache> const shared_library_cache;
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
