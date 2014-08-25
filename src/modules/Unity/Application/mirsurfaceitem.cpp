@@ -237,6 +237,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_surface(surface)
     , m_application(application)
     , m_firstFrameDrawn(false)
+    , m_orientation(Qt::PortraitOrientation)
     , m_parentSurface(nullptr)
     , m_textureProvider(nullptr)
 {
@@ -357,6 +358,44 @@ MirSurfaceItem::Type MirSurfaceItem::type() const
 MirSurfaceItem::State MirSurfaceItem::state() const
 {
     return static_cast<MirSurfaceItem::State>(m_surface->state());
+}
+
+Qt::ScreenOrientation MirSurfaceItem::orientation() const
+{
+    return m_orientation;
+}
+
+void MirSurfaceItem::setOrientation(const Qt::ScreenOrientation orientation)
+{
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::setOrientation - orientation=" << orientation;
+
+    if (m_orientation == orientation)
+        return;
+
+    MirOrientation mirOrientation;
+    switch(orientation) {
+    case Qt::PrimaryOrientation: // this doesn't really suit our API, so just map it to Portrait
+    case Qt::PortraitOrientation:
+        mirOrientation = mir_orientation_normal;
+        break;
+    case Qt::LandscapeOrientation:
+        mirOrientation = mir_orientation_left;
+        break;
+    case Qt::InvertedLandscapeOrientation:
+        mirOrientation = mir_orientation_right;
+        break;
+    case Qt::InvertedPortraitOrientation:
+        mirOrientation = mir_orientation_inverted;
+        break;
+    default:
+        qWarning("Unrecognized Qt::ScreenOrientation!");
+        return;
+    }
+
+    m_surface->set_orientation(mirOrientation);
+
+    m_orientation = orientation;
+    Q_EMIT orientationChanged();
 }
 
 QString MirSurfaceItem::name() const

@@ -73,6 +73,7 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    Q_PROPERTY(Qt::ScreenOrientation orientation READ orientation WRITE setOrientation NOTIFY orientationChanged DESIGNABLE false)
     Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
     Q_PROPERTY(QQmlListProperty<qtmir::MirSurfaceItem> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
 
@@ -106,6 +107,7 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
+    Qt::ScreenOrientation orientation() const;
     Application *application() const;
 
     Q_INVOKABLE void release();
@@ -119,6 +121,7 @@ public:
 
     bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
 
+    void setOrientation(const Qt::ScreenOrientation orientation);
     void setApplication(Application *app);
 
     void setParentSurface(MirSurfaceItem* surface);
@@ -129,6 +132,7 @@ Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
+    void orientationChanged();
     void parentSurfaceChanged(MirSurfaceItem* surface);
     void childSurfacesChanged();
     void surfaceDestroyed();
@@ -192,6 +196,7 @@ private:
     std::shared_ptr<mir::scene::Surface> m_surface;
     QPointer<Application> m_application;
     bool m_firstFrameDrawn;
+    Qt::ScreenOrientation m_orientation; //FIXME -  have to save the state as Mir has no getter for it (bug:1357429)
 
     MirSurfaceItem* m_parentSurface;
     QList<MirSurfaceItem*> m_children;
