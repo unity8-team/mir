@@ -66,7 +66,7 @@ public:
 
     // FIXME: these roles should be added to unity-api and removed from here
     enum MoreRoles {
-        RoleSurface = RoleScreenshot+1,
+        RoleSurface = RoleFocused+1,
         RoleFullscreen,
         RoleApplication,
     };
@@ -99,7 +99,6 @@ public:
     Q_INVOKABLE void unfocusCurrentApplication() override;
     Q_INVOKABLE qtmir::Application* startApplication(const QString &appId, const QStringList &arguments) override;
     Q_INVOKABLE bool stopApplication(const QString &appId) override;
-    Q_INVOKABLE bool updateScreenshot(const QString &appId) override;
 
     // QAbstractListModel
     int rowCount(const QModelIndex & parent = QModelIndex()) const override;
@@ -134,9 +133,6 @@ public Q_SLOTS:
 Q_SIGNALS:
     void focusRequested(const QString &appId);
     void emptyChanged();
-
-private Q_SLOTS:
-    void screenshotUpdated();
 
 private:
     void setFocused(Application *application);

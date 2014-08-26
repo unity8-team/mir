@@ -1,3 +1,69 @@
+qtmir (0.4.2+14.10.20140825-0ubuntu1) utopic; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Revamp screenshotting to use an image provider again, removing
+    screenshot-related methods on Application
+
+  [ Daniel van Vugt ]
+  * Add support for building against Mir when it's installed somewhere
+    other than /usr (like with a custom $PKG_CONFIG_PATH).
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 25 Aug 2014 07:46:36 +0000
+
+qtmir (0.4.1+14.10.20140817-0ubuntu1) utopic; urgency=medium
+
+  [ Michał Sawicz ]
+  * Unrevert "MirSurfaceItem: always try to consume new mir frames"
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Sun, 17 Aug 2014 00:41:51 +0000
+
+qtmir (0.4.1+14.10.20140815.is.0.4.1+14.10.20140811.1-0ubuntu1) utopic; urgency=medium
+
+  * Reverting previous commit since unity8 started deadlocking in ap
+    test runs (requested by Saviq)
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sat, 16 Aug 2014 17:18:12 -0300
+
+qtmir (0.4.1+14.10.20140815-0ubuntu1) utopic; urgency=low
+
+  [ Daniel d'Andrada ]
+  * MirSurfaceItem: always try to consume new mir frames Otherwise those
+    frames will get dropped and MirSurfaceItem will therefore never use
+    them, being left displaying an old, stale, frame until the
+    application renders again.This could happen for instance if an
+    application was rendering between the time the Application object
+    goes to Suspended state and the actual process getting SIG_STOPPED
+    (ie, suspended for real). Frames rendered in this interval were
+    getting dropped and once that app was resumed and its MirSurfaceItem
+    brought to front the user would see an old stale frame until some
+    new event caused the application to render a new frame (e.g. an
+    input event) (LP: #1353374)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 15 Aug 2014 17:13:24 +0000
+
+qtmir (0.4.1+14.10.20140811.1-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Michał Sawicz ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Cemil Azizoglu ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Alan Griffiths ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+  [ Kevin Gunn ]
+  * Bumped dependency for Mir 0.6.0. Switch to using supported API
+    (the_ipc_factory -> new_ipc_factory).
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 11 Aug 2014 21:12:34 +0000
+
 qtmir (0.4.1+14.10.20140811-0ubuntu1) utopic; urgency=low
 
   [ Gerry Boland ]
