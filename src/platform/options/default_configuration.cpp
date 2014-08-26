@@ -128,7 +128,7 @@ mo::DefaultConfiguration::DefaultConfiguration(
             "How to handle the MessageProcessor report. [{log,lttng,off}]")
         (scene_report_opt, po::value<std::string>()->default_value(off_opt_value),
             "How to handle the scene report. [{log,lttng,off}]")
-        (shared_library_prober_report_opt, po::value<std::string>()->default_value(log_opt_value),
+        (shared_library_prober_report_opt, po::value<std::string>()->default_value(off_opt_value),
                 "How to handle the shared library prober report. [{log,lttng,off}]")
         (glog,
             "Use google::GLog for logging")
