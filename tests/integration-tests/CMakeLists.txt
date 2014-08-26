@@ -41,13 +41,38 @@ if(MIR_TEST_PLATFORM STREQUAL "mesa")
 endif()
 
 link_directories(${LIBRARY_OUTPUT_PATH})
-add_executable(
-  mir_integration_tests
-  ${INTEGRATION_TESTS_SRCS}
+
+add_library(miromnibus SHARED
   ${MIR_SERVER_OBJECTS}
   $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
+)
+
+target_link_libraries(miromnibus
+  3rd_party
+  mirdraw
+  mirtestdraw
+  mirclientrpc
+  mirclientlttngstatic
+
+  ${PROTOBUF_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+  ${DRM_LDFLAGS}
+  ${GBM_LDFLAGS}
+  ${MIR_PLATFORM_REFERENCES}
+  ${MIR_COMMON_REFERENCES}
+  ${MIR_SERVER_REFERENCES}
+)
+
+install(TARGETS miromnibus
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+add_executable(
+  mir_integration_tests
+  ${INTEGRATION_TESTS_SRCS}
 )
 
 uses_android_input(mir_integration_tests)
@@ -59,24 +84,16 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
 
-  mirdraw
-  mirtestdraw
-  mirclientrpc
-  mirclientlttngstatic
-
+  miromnibus
   3rd_party
 
-  ${PROTOBUF_LIBRARIES}
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
-  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
-  ${MIR_PLATFORM_REFERENCES}
-  ${MIR_COMMON_REFERENCES}
-  ${MIR_SERVER_REFERENCES}
+  ${DRM_LDFLAGS}
+  ${GBM_LDFLAGS}
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
