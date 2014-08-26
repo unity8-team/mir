@@ -65,13 +65,6 @@ target_link_libraries(
   ${GBM_LDFLAGS}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
-target_link_libraries(mir_unit_tests 
-  mirsharedandroid
-  ${ANDROID_PROPERTIES_LDFLAGS}
-)
-endif()
-
 # Umockdev uses glib, which uses the deprecated "register" allocation specifier
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
 

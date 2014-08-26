@@ -67,13 +67,6 @@ target_link_libraries(
   ${GBM_LDFLAGS}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
-target_link_libraries(mir_integration_tests
-  mirsharedandroid
-  ${ANDROID_PROPERTIES_LDFLAGS}
-)
-endif()
-
 CMAKE_DEPENDENT_OPTION(
   MIR_RUN_INTEGRATION_TESTS
   "Run integration tests as part of default testing"

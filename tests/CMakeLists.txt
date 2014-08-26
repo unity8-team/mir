@@ -54,9 +54,17 @@ if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
     ${MIR_SERVER_REFERENCES}
   )
 
+  if (MIR_TEST_PLATFORM STREQUAL "android")
+  target_link_libraries(miromnibus 
+    mirsharedandroid
+    ${ANDROID_PROPERTIES_LDFLAGS}
+  )
+
   install(TARGETS miromnibus
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
+endif()
+  
 endif()
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
