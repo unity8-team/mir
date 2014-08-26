@@ -754,7 +754,8 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
 
 void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& session)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
+    Q_UNUSED(session);
+    // qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
 
     // Application* application = findApplicationWithPid(session->process_id(), false);
     // if (application && application->state() != Application::Running) {

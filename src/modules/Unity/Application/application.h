@@ -143,7 +143,7 @@ private:
     std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
 
     friend class ApplicationManager;
-    friend class MirSurfaceManager;
+    friend class MirSessionManager;
     friend class MirSessionItem;
 };
 

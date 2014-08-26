@@ -56,6 +56,8 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         qRegisterMetaType<qtmir::ApplicationManager*>("ApplicationManager*"); //need for queueing signals
         qRegisterMetaType<qtmir::MirSurfaceItem*>("MirSurfaceItem*");
         qRegisterMetaType<qtmir::MirSurfaceItemModel*>("MirSurfaceItemModel*");
+        qRegisterMetaType<qtmir::MirSessionItem*>("MirSessionItem*");
+        qRegisterMetaType<qtmir::MirSessionItemModel*>("MirSessionItemModel*");
 
         qmlRegisterUncreatableType<unity::shell::application::ApplicationManagerInterface>(
                     uri, 0, 1, "ApplicationManagerInterface", "Abstract interface. Cannot be created in QML");
@@ -64,11 +66,13 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         qmlRegisterUncreatableType<unity::shell::application::ApplicationInfoInterface>(
                     uri, 0, 1, "ApplicationInfoInterface", "Abstract interface. Cannot be created in QML");
         qmlRegisterUncreatableType<qtmir::Application>(
-                    uri, 0, 1, "ApplicationInfo", "ApplicationInfo can't be instantiated");
+                    uri, 0, 1, "Application", "Application can't be instantiated");
         qmlRegisterSingletonType<qtmir::MirSurfaceManager>(
                     uri, 0, 1, "SurfaceManager", surfaceManagerSingleton);
         qmlRegisterUncreatableType<qtmir::MirSurfaceItem>(
                     uri, 0, 1, "MirSurfaceItem", "MirSurfaceItem can't be instantiated from QML");
+        qmlRegisterUncreatableType<qtmir::MirSessionItem>(
+                    uri, 0, 1, "MirSessionItem", "MirSessionItem can't be instantiated from QML");
         qmlRegisterType<qtmir::UbuntuKeyboardInfo>(uri, 0, 1, "UbuntuKeyboardInfo");
     }
 

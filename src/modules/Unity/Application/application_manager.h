@@ -168,6 +168,7 @@ private:
     friend class Application;
     friend class DBusWindowStack;
     friend class MirSurfaceManager;
+    friend class MirSessionManager;
 };
 
 } // namespace qtmir

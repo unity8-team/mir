@@ -110,14 +110,23 @@ MirSessionItem *MirSessionManager::findSession(const mir::scene::Session* sessio
 
 void MirSessionManager::onSessionStarting(std::shared_ptr<mir::scene::Session> const& session)
 {
+    qCDebug(QTMIR_APPLICATIONS) << "MirSessionManager::onSessionStarting - sessionName=" <<  session->name().c_str();
+
     MirSessionItem* sessionItem = new MirSessionItem(session);
     insert(0, sessionItem);
+
+    Application* application = m_applicationManager->findApplicationWithSession(session, false);
+    if (application) {
+        application->setSession(sessionItem);
+    }
 
     Q_EMIT sessionStarting(sessionItem);
 }
 
 void MirSessionManager::onSessionStopping(std::shared_ptr<mir::scene::Session> const& session)
 {
+    qCDebug(QTMIR_APPLICATIONS) << "MirSessionManager::onSessionStopping - sessionName=" << session->name().c_str();
+
     MirSessionItem* sessionItem = findSession(session.get());
     remove(sessionItem);
 
