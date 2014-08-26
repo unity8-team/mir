@@ -85,14 +85,10 @@ public:
     Stage stage() const override;
     State state() const override;
     bool focused() const override;
-    QUrl screenshot() const override;
 
     void setStage(Stage stage);
 
     MirSessionItem* session() const;
-
-    QImage screenshotImage() const;
-    void updateScreenshot();
 
     bool canBeResumed() const;
     void setCanBeResumed(const bool);
@@ -139,8 +135,6 @@ private:
     Stages m_supportedStages;
     State m_state;
     bool m_focused;
-    QUrl m_screenshot;
-    QImage m_screenshotImage;
     bool m_canBeResumed;
     QStringList m_arguments;
     SupportedOrientations m_supportedOrientations;

@@ -18,12 +18,18 @@
 #include "applicationscreenshotprovider.h"
 #include "application_manager.h"
 #include "application.h"
+#include "mirsessionitem.h"
 
 // QPA-mirserver
 #include "logging.h"
 
 // mir
 #include <mir/scene/session.h>
+
+// Qt
+#include <QMutex>
+#include <QMutexLocker>
+#include <QWaitCondition>
 
 namespace qtmir
 {
@@ -37,10 +43,7 @@ ApplicationScreenshotProvider::ApplicationScreenshotProvider(ApplicationManager 
 QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize *size,
                                                    const QSize &requestedSize)
 {
-    // We ignore requestedSize here intentionally to avoid keeping scaled copies around
-    Q_UNUSED(requestedSize)
-
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - appId=" << imageId;
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider::requestImage - imageId=" << imageId;
 
     QString appId = imageId.split('/').first();
 
@@ -50,21 +53,60 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
         return QImage();
     }
 
-    // FIXME - why do we need this? app decides what to do.
-    // // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
-    // // return the screenshot that was saved to disk.
-    // if (!session || !session->session() || !session->session()->default_surface()) {
-    //     qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
-    //     return QImage();
-    // }
+    // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
+    // return the screenshot that was saved to disk.
+    MirSessionItem* session = app->session();
+    if (!session || !session->session() || !session->session()->default_surface()) {
+        qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
+        return QImage();
+    }
 
-    QImage image = app->screenshotImage();
+    QImage screenshotImage;
+    QMutex screenshotMutex;
+    QWaitCondition screenshotTakenCondition;
 
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - working with size" << image;
-    size->setWidth(image.width());
-    size->setHeight(image.height());
+    session->session()->take_snapshot(
+        [&](mir::scene::Snapshot const& snapshot)
+        {
+            qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
+                                        << snapshot.size.height.as_int() << "x" << snapshot.size.width.as_int();
 
-    return image;
+            {
+                // since we mirror, no need to offset starting position of the pixels
+                QImage fullSizeScreenshot = QImage( (const uchar*)snapshot.pixels,
+                            snapshot.size.width.as_int(),
+                            snapshot.size.height.as_int(),
+                            QImage::Format_ARGB32_Premultiplied).mirrored();
+
+                QMutexLocker screenshotMutexLocker(&screenshotMutex);
+
+                if (requestedSize.isValid()) {
+                    *size = requestedSize.boundedTo(fullSizeScreenshot.size());
+                    screenshotImage = fullSizeScreenshot.scaled(*size, Qt::IgnoreAspectRatio,
+                        Qt::SmoothTransformation);
+                } else {
+                    *size = fullSizeScreenshot.size();
+                    screenshotImage = fullSizeScreenshot;
+                }
+
+                screenshotTakenCondition.wakeAll();
+            }
+        });
+
+    {
+        QMutexLocker screenshotMutexLocker(&screenshotMutex);
+        if (screenshotImage.isNull()) {
+            // mir is taking a snapshot in a separate thread. Wait here until it's done.
+            screenshotTakenCondition.wait(&screenshotMutex);
+        } else {
+            // mir took a snapshot synchronously or it was asynchronous but already finished.
+            // In either case, there's no need to wait.
+        }
+    }
+
+    qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - working with size" << screenshotImage;
+
+    return screenshotImage;
 }
 
 } // namespace qtmir

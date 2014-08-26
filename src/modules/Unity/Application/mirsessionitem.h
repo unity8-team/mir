@@ -31,7 +31,6 @@
 
 namespace mir {
     namespace scene {
-        class Snapshot;
         class Session;
     }
 }
@@ -69,7 +68,6 @@ public:
     void setSession();
     void setApplication(Application* item);
     void setSurface(MirSurfaceItem* surface);
-    void setScreenshot(const QUrl& m_screenshot);
     void setState(State state);
 
     void addChildSession(MirSessionItem* session);
@@ -77,7 +75,6 @@ public:
     void removeChildSession(MirSessionItem* session);
 
     std::shared_ptr<mir::scene::Session> session() const;
-    void takeSnapshot(std::function<void(mir::scene::Snapshot const& snapshot)>);
 
 Q_SIGNALS:
     void surfaceChanged(MirSurfaceItem*);
@@ -109,9 +106,6 @@ private:
     bool m_fullscreen;
     State m_state;
     QTimer* m_suspendTimer;
-
-    class Guard {};
-    QSharedPointer<Guard> m_screenShotGuard;
 };
 
 } // namespace qtmir

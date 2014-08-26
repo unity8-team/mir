@@ -19,6 +19,8 @@
 #include <condition_variable>
 #include <QSignalSpy>
 
+#include <applicationscreenshotprovider.h>
+
  #include "qtmir_test.h"
 
 using namespace qtmir;
@@ -1760,7 +1762,16 @@ TEST_F(ApplicationManagerTests, threadedScreenshot)
             }).detach();
         }));
 
-    application->updateScreenshot();
+    auto mockSurface = std::make_shared<MockSurface>();
+    EXPECT_CALL(*session, default_surface()).WillRepeatedly(Return(mockSurface));
+
+    {
+        ApplicationScreenshotProvider screenshotProvider(&applicationManager);
+        QSize actualSize;
+        QSize requestedSize;
+        QString imageId("webapp/123456");
+        screenshotProvider.requestImage(imageId, &actualSize, requestedSize);
+    }
 
     {
         std::unique_lock<decltype(mutex)> lk(mutex);
@@ -1781,7 +1792,6 @@ TEST_F(ApplicationManagerTests, threadedScreenshotAfterAppDelete)
 
     std::mutex mutex;
     std::condition_variable cv;
-    bool ready = false;
     bool done = false;
 
     auto application = startApplication(procId1, "webapp");
@@ -1790,28 +1800,30 @@ TEST_F(ApplicationManagerTests, threadedScreenshotAfterAppDelete)
         [&](mir::scene::SnapshotCallback const& callback)
         {
             std::thread ([&, callback]() {
-                std::unique_lock<std::mutex> lk(mutex);
-                cv.wait(lk, [&]{ return ready; } );
-
                 mir::scene::Snapshot snapshot{mir::geometry::Size{0,0},
                                               mir::geometry::Stride{0},
                                               nullptr};
 
+                // stop the application before calling the callback
+                applicationManager.stopApplication(application->appId());
+
                 callback(snapshot);
 
                 done = true;
-                lk.unlock();
                 cv.notify_one();
             }).detach();
         }));
-    application->updateScreenshot();
+
+    auto mockSurface = std::make_shared<MockSurface>();
+    EXPECT_CALL(*session, default_surface()).WillRepeatedly(Return(mockSurface));
 
     {
-        std::lock_guard<decltype(mutex)> lk(mutex);
-        applicationManager.stopApplication(application->appId());
-        ready = true;
+        ApplicationScreenshotProvider screenshotProvider(&applicationManager);
+        QSize actualSize;
+        QSize requestedSize;
+        QString imageId("webapp/123456");
+        screenshotProvider.requestImage(imageId, &actualSize, requestedSize);
     }
-    cv.notify_one();
 
     {
         std::unique_lock<decltype(mutex)> lk(mutex);

@@ -40,7 +40,7 @@
 #include <mir/scene/prompt_session_manager.h>
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
-#include <mircommon/mir/geometry/rectangles.h>
+#include <mir/geometry/rectangles.h>
 
 // Qt
 #include <QGuiApplication>
@@ -245,8 +245,6 @@ QVariant ApplicationManager::data(const QModelIndex &index, int role) const
                 return QVariant::fromValue((int)application->state());
             case RoleFocused:
                 return QVariant::fromValue(application->focused());
-            case RoleScreenshot:
-                return QVariant::fromValue(application->screenshot());
             case RoleSession:
                 return QVariant::fromValue(application->session());
             case RoleFullscreen:
@@ -541,20 +539,6 @@ bool ApplicationManager::stopApplication(const QString &inputAppId)
 
     delete application;
     return result;
-}
-
-bool ApplicationManager::updateScreenshot(const QString &appId)
-{
-    Application *application = findApplication(appId);
-    if (!application) {
-        qWarning() << "ApplicationManager::updateScreenshot - No such running application with appId=" << appId;
-        return false;
-    }
-
-    application->updateScreenshot();
-    QModelIndex appIndex = findIndex(application);
-    Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
-    return true;
 }
 
 void ApplicationManager::onProcessFailed(const QString &appId, const bool duringStartup)
@@ -908,7 +892,6 @@ void ApplicationManager::add(Application* application)
     Q_ASSERT(application != nullptr);
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::add - appId=" << application->appId();
 
-    connect(application, &Application::screenshotChanged, this, [this] { onAppDataChanged(RoleScreenshot); });
     connect(application, &Application::fullscreenChanged, this, [this](bool) { onAppDataChanged(RoleFullscreen); });
     connect(application, &Application::focusedChanged, this, [this](bool) { onAppDataChanged(RoleFocused); });
     connect(application, &Application::stateChanged, this, [this](Application::State) { onAppDataChanged(RoleState); });

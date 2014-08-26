@@ -34,7 +34,6 @@
 
 namespace qtmir
 {
-QMutex screenshotMutex;
 
 MirSessionItem::MirSessionItem(const std::shared_ptr<mir::scene::Session>& session, QQuickItem *parent)
     : QQuickItem(parent)
@@ -46,7 +45,6 @@ MirSessionItem::MirSessionItem(const std::shared_ptr<mir::scene::Session>& sessi
     , m_fullscreen(false)
     , m_state(State::Starting)
     , m_suspendTimer(new QTimer(this))
-    , m_screenShotGuard(new Guard)
 {
     qCDebug(QTMIR_SESSIONS) << "MirSessionItem::MirSessionItem() " << this->name();
 
@@ -66,11 +64,6 @@ MirSessionItem::MirSessionItem(const std::shared_ptr<mir::scene::Session>& sessi
 MirSessionItem::~MirSessionItem()
 {
     qCDebug(QTMIR_SESSIONS) << "MirSessionItem::~MirSessionItem() " << name();
-    {
-        // In case we get a threaded screenshot callback once the application is deleted.
-        QMutexLocker lk(&screenshotMutex);
-        m_screenShotGuard.clear();
-    }
 
     QList<MirSessionItem*> children(m_children->list());
     for (MirSessionItem* child : children) {
@@ -289,20 +282,6 @@ void MirSessionItem::removeChildSession(MirSessionItem* session)
 MirSessionItemModel* MirSessionItem::childSessions() const
 {
     return m_children;
-}
-
-void MirSessionItem::takeSnapshot(std::function<void(mir::scene::Snapshot const&)> f)
-{
-    QWeakPointer<Guard> wk(m_screenShotGuard.toWeakRef());
-
-    m_session->take_snapshot([wk, f](mir::scene::Snapshot const& snapshot) {
-        // In case we get a threaded screenshot callback once the application is deleted.
-        QMutexLocker lk(&screenshotMutex);
-        if (wk.isNull())
-            return;
-
-        f(snapshot);
-    });
 }
 
 } // namespace qtmir
