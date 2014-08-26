@@ -42,8 +42,17 @@ ua_location_service_controller_set_status_changed_handler(
     void *context)
 {
     (void) controller;
-    (void) handler;
-    (void) context;
+
+    try
+    {
+        Instance::instance().set_changed_handler_with_context(handler, context);
+    } catch(const std::exception& e)
+    {
+        std::cerr << "ua_location_service_controller_set_status_changed_handler: error accessing instance: " << e.what() << std::endl;
+    } catch(...)
+    {
+        std::cerr << "ua_location_service_controller_set_status_changed_handler: error accessing instance." << std::endl;
+    }
 }
 
 UStatus

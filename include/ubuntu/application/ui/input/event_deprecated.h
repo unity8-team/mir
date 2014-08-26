@@ -76,17 +76,7 @@ extern "C" {
                 nsecs_t down_time; ///< Timestamp that marks the down event
                 nsecs_t event_time; ///< Timestamp that marks when this event happened
                 size_t pointer_count; ///< Number of pointers reported in this event
-                struct PointerCoordinate
-                {
-                    int id; ///< Unique id of the pointer
-                    float x, raw_x; ///< Processed and raw x coordinates
-                    float y, raw_y; ///< Processed and raw y coordinates
-                    float touch_major; ///< Touch major coordinate
-                    float touch_minor; ///< Touch minor coordinate
-                    float size; ///< Size of the pointer/touch
-                    float pressure; ///< Pressure of the touch
-                    float orientation; ///< Orientation
-                } pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT]; ///< Pointer information, valid from [0,pointer_count).
+                struct PointerCoordinate pointer_coordinates[UBUNTU_APPLICATION_UI_INPUT_EVENT_MAX_POINTER_COUNT]; ///< Pointer information, valid from [0,pointer_count).
             } motion;
         } details;
     } Event;
