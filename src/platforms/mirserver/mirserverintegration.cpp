@@ -83,7 +83,11 @@ MirServerIntegration::MirServerIntegration()
     // For access to sensors, qtmir uses portions of platform-api. For it to function we need
     // to ensure a valid backend has been specified
     if (qEnvironmentVariableIsEmpty("UBUNTU_PLATFORM_API_BACKEND")) {
-        qputenv("UBUNTU_PLATFORM_API_BACKEND", "touch_mirserver");
+        if (qgetenv("DESKTOP_SESSION").contains("mir")) {
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "desktop_mirserver");
+        } else {
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "touch_mirserver");
+        }
     }
 
     m_mirConfig = QSharedPointer<MirServerConfiguration>(
