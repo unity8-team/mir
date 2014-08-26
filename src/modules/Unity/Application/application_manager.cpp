@@ -652,16 +652,16 @@ void ApplicationManager::onResumeRequested(const QString& appId)
     }
 }
 
-void ApplicationManager::screenshotUpdated()
+void ApplicationManager::onAppDataChanged(int role)
 {
     if (sender()) {
         Application *application = static_cast<Application*>(sender());
         QModelIndex appIndex = findIndex(application);
-        Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << RoleScreenshot);
+        Q_EMIT dataChanged(appIndex, appIndex, QVector<int>() << role);
 
-        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received new screenshot for", application->appId();
+        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onAppDataChanged: Received " << m_roleNames[role] << " update", application->appId();
     } else {
-        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::screenshotUpdated: Received screenshotUpdated signal but application has disappeard.";
+        qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onAppDataChanged: Received " << m_roleNames[role] << " signal but application has disappeard.";
     }
 }
 
@@ -908,7 +908,11 @@ void ApplicationManager::add(Application* application)
     Q_ASSERT(application != nullptr);
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::add - appId=" << application->appId();
 
-    connect(application, &Application::screenshotChanged, this, &ApplicationManager::screenshotUpdated);
+    connect(application, &Application::screenshotChanged, this, [this] { onAppDataChanged(RoleScreenshot); });
+    connect(application, &Application::fullscreenChanged, this, [this](bool) { onAppDataChanged(RoleFullscreen); });
+    connect(application, &Application::focusedChanged, this, [this](bool) { onAppDataChanged(RoleFocused); });
+    connect(application, &Application::stateChanged, this, [this](Application::State) { onAppDataChanged(RoleState); });
+    connect(application, &Application::stageChanged, this, [this](Application::Stage) { onAppDataChanged(RoleStage); });
 
     beginInsertRows(QModelIndex(), m_applications.count(), m_applications.count());
     m_applications.append(application);
@@ -929,6 +933,8 @@ void ApplicationManager::remove(Application *application)
         m_sideStageApplication = nullptr;
     if (application == m_mainStageApplication)
         m_mainStageApplication = nullptr;
+
+    application->disconnect(this);
 
     int i = m_applications.indexOf(application);
     if (i != -1) {

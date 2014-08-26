@@ -42,7 +42,6 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
                          const std::shared_ptr<ms::PromptSessionManager>& promptSessionManager,
                          ApplicationManager *parent)
     : ApplicationInfoInterface(desktopFileReader->appId(), parent)
-    , m_appMgr(parent)
     , m_taskController(taskController)
     , m_desktopData(desktopFileReader)
     , m_pid(0)
@@ -50,7 +49,6 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_state(state)
     , m_focused(false)
     , m_canBeResumed(true)
-    , m_fullscreen(false)
     , m_arguments(arguments)
     , m_session(nullptr)
     , m_promptSessionManager(promptSessionManager)
@@ -148,7 +146,7 @@ QUrl Application::screenshot() const
 
 bool Application::fullscreen() const
 {
-    return m_fullscreen;
+    return m_session ? m_session->fullscreen() : false;
 }
 
 bool Application::canBeResumed() const
@@ -182,21 +180,20 @@ void Application::setSession(MirSessionItem *newSession)
         m_session->disconnect(this);
     }
 
+    bool oldFullscreen = fullscreen();
     m_session = newSession;
 
     if (m_session) {
         m_session->setParent(this);
         m_session->setApplication(this);
 
-        connect(m_session, &MirSessionItem::fullscreenChanged, this, [this](bool fullscreen) {
-            setFullscreen(fullscreen);
-        });
-
         connect(m_session, &MirSessionItem::suspend, this, &Application::suspend);
         connect(m_session, &MirSessionItem::resume, this, &Application::resume);
         connect(m_session, &MirSessionItem::respawn, this, &Application::respawn);
+        connect(m_session, &MirSessionItem::fullscreenChanged, this, &Application::fullscreenChanged);
 
-        setFullscreen(m_session->fullscreen());
+        if (oldFullscreen != fullscreen())
+            Q_EMIT fullscreenChanged(fullscreen());
     }
 
     Q_EMIT sessionChanged(m_session);
@@ -213,10 +210,6 @@ void Application::setStage(Application::Stage stage)
 
         m_stage = stage;
         Q_EMIT stageChanged(stage);
-
-        QModelIndex appIndex = m_appMgr->findIndex(this);
-        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleStage);
-        return;
     }
 }
 
@@ -269,9 +262,6 @@ void Application::setState(Application::State state)
         }
         m_state = state;
         Q_EMIT stateChanged(state);
-
-        QModelIndex appIndex = m_appMgr->findIndex(this);
-        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleState);
     }
 }
 
@@ -281,18 +271,6 @@ void Application::setFocused(bool focused)
     if (m_focused != focused) {
         m_focused = focused;
         Q_EMIT focusedChanged(focused);
-        QModelIndex appIndex = m_appMgr->findIndex(this);
-        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleFocused);
-    }
-}
-
-void Application::setFullscreen(bool fullscreen)
-{
-    if (m_fullscreen != fullscreen) {
-        m_fullscreen = fullscreen;
-        Q_EMIT fullscreenChanged();
-        QModelIndex appIndex = m_appMgr->findIndex(this);
-        Q_EMIT m_appMgr->dataChanged(appIndex, appIndex, QVector<int>() << ApplicationManager::RoleFullscreen);
     }
 }
 

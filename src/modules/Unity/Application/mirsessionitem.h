@@ -85,7 +85,7 @@ Q_SIGNALS:
     void removed();
     void aboutToBeDestroyed();
     void stateChanged(State state);
-    void fullscreenChanged(bool);
+    void fullscreenChanged(bool fullscreen);
 
     void suspend();
     void resume();

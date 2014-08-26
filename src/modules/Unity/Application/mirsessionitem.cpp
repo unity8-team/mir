@@ -188,9 +188,7 @@ void MirSessionItem::setSurface(MirSurfaceItem *newSurface)
         Q_EMIT surfaceChanged(m_surface);
     }
 
-    if (m_application) {
-        updateFullscreenProperty();
-    }
+    updateFullscreenProperty();
 }
 
 void MirSessionItem::updateFullscreenProperty()

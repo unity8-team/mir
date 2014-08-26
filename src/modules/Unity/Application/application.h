@@ -115,7 +115,7 @@ public Q_SLOTS:
     void respawn();
 
 Q_SIGNALS:
-    void fullscreenChanged();
+    void fullscreenChanged(bool fullscreen);
     void stageChanged(Stage stage);
     void sessionChanged(MirSessionItem *session);
 
@@ -125,15 +125,12 @@ private:
     void setPid(pid_t pid);
     void setState(State state);
     void setFocused(bool focus);
-    void setFullscreen(bool fullscreen);
     void setSession(MirSessionItem *session);
 
     void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void stopPromptSessions();
 
-
-    ApplicationManager* m_appMgr;
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
     QString m_longAppId;
@@ -145,7 +142,6 @@ private:
     QUrl m_screenshot;
     QImage m_screenshotImage;
     bool m_canBeResumed;
-    bool m_fullscreen;
     QStringList m_arguments;
     SupportedOrientations m_supportedOrientations;
     MirSessionItem *m_session;

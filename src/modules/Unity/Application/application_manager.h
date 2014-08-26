@@ -135,7 +135,7 @@ Q_SIGNALS:
     void emptyChanged();
 
 private Q_SLOTS:
-    void screenshotUpdated();
+    void onAppDataChanged(int role);
 
 private:
     void setFocused(Application *application);
