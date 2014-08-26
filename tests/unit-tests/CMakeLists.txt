@@ -41,10 +41,6 @@ link_directories(${LIBRARY_OUTPUT_PATH})
 
 add_executable(mir_unit_tests 
   ${UNIT_TEST_SOURCES}
-  ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
-  ${MIR_PLATFORM_OBJECTS}
-  ${MIR_COMMON_OBJECTS}
 )
 
 uses_android_input(mir_unit_tests)
@@ -52,31 +48,21 @@ uses_android_input(mir_unit_tests)
 target_link_libraries(
   mir_unit_tests
 
-  mirdraw
-  mirtestdraw
-  mirclientrpc
-  mirclientlttngstatic
-  demo-shell
-
   mir-test
   mir-test-doubles
   mir-test-doubles-platform
   mir-test-framework
 
-  3rd_party
+  demo-shell
+  miromnibus
 
-  ${PROTOBUF_LIBRARIES}
+  ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
-  ${Boost_LIBRARIES}
-  ${UMOCKDEV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-  ${LIBHARDWARE_LDFLAGS} ${LIBHARDWARE_LIBRARIES}
-  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
-  ${MIR_PLATFORM_REFERENCES}
-  ${MIR_COMMON_REFERENCES}
-  ${MIR_SERVER_REFERENCES}
+  ${DRM_LDFLAGS}
+  ${GBM_LDFLAGS}
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "android")

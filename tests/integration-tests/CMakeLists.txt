@@ -42,34 +42,6 @@ endif()
 
 link_directories(${LIBRARY_OUTPUT_PATH})
 
-add_library(miromnibus SHARED
-  ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
-  ${MIR_PLATFORM_OBJECTS}
-  ${MIR_COMMON_OBJECTS}
-)
-
-target_link_libraries(miromnibus
-  3rd_party
-  mirdraw
-  mirtestdraw
-  mirclientrpc
-  mirclientlttngstatic
-
-  ${PROTOBUF_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
-  ${DRM_LDFLAGS}
-  ${GBM_LDFLAGS}
-  ${MIR_PLATFORM_REFERENCES}
-  ${MIR_COMMON_REFERENCES}
-  ${MIR_SERVER_REFERENCES}
-)
-
-install(TARGETS miromnibus
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
 add_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
@@ -85,7 +57,6 @@ target_link_libraries(
   mir-test-doubles
 
   miromnibus
-  3rd_party
 
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}

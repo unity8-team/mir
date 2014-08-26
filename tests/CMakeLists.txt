@@ -29,6 +29,36 @@ option(MIR_BUILD_INTEGRATION_TESTS "Build integration tests" ON)
 option(MIR_BUILD_PERFORMANCE_TESTS "Build performance tests" ON)
 option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
 
+if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
+  add_library(miromnibus SHARED
+    ${MIR_SERVER_OBJECTS}
+    $<TARGET_OBJECTS:mirclientobjects>
+    ${MIR_PLATFORM_OBJECTS}
+    ${MIR_COMMON_OBJECTS}
+  )
+  
+  target_link_libraries(miromnibus
+    3rd_party
+    mirdraw
+    mirtestdraw
+    mirclientrpc
+    mirclientlttngstatic
+  
+    ${PROTOBUF_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+    ${DRM_LDFLAGS}
+    ${GBM_LDFLAGS}
+    ${MIR_PLATFORM_REFERENCES}
+    ${MIR_COMMON_REFERENCES}
+    ${MIR_SERVER_REFERENCES}
+  )
+
+  install(TARGETS miromnibus
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+
 if (MIR_BUILD_ACCEPTANCE_TESTS)
   add_subdirectory(acceptance-tests/)
 endif (MIR_BUILD_ACCEPTANCE_TESTS)
