@@ -70,7 +70,7 @@ struct MirNativeWindowDeleter
     void operator()(EGLNativeWindowType* type)
     {
         delete type;
-        delete window;
+        window->mir_dereference();
     }
 
 private:

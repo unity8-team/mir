@@ -37,7 +37,12 @@ EGLNativeWindowType mga::InternalClient::egl_native_window(std::shared_ptr<Inter
     if (!client_windows[surface])
     {
         auto interpreter = std::make_shared<mga::InternalClientWindow>(surface);
-        client_windows[surface] = std::make_shared<mga::MirNativeWindow>(interpreter);
+        std::shared_ptr<MirNativeWindow> mnw(
+            new MirNativeWindow(interpreter),
+            [](MirNativeWindow* mnw){
+            mnw->mir_dereference();
+        });
+        client_windows[surface] = mnw;
     }
 
     return client_windows[surface].get();

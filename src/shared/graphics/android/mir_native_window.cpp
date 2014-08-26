@@ -47,8 +47,15 @@ static int cancelBuffer_static(struct ANativeWindow* window,
 static int cancelBuffer_deprecated_static(struct ANativeWindow* window,
                                struct ANativeWindowBuffer* buffer);
 
-static void incRef(android_native_base_t*)
+static void incref_hook(struct android_native_base_t* base)
 {
+    auto buffer = reinterpret_cast<mga::MirNativeWindow*>(base->reserved[0]);
+    buffer->driver_reference();
+}
+void decref_hook(struct android_native_base_t* base)
+{
+    auto buffer = reinterpret_cast<mga::MirNativeWindow*>(base->reserved[0]);
+    buffer->driver_dereference();
 }
 
 int query_static(const ANativeWindow* anw, int key, int* value)
@@ -131,8 +138,39 @@ void report_exception_at_driver_boundary(std::exception const& e)
 
 }
 
+void mga::MirNativeWindow::driver_reference()
+{
+    std::unique_lock<std::mutex> lk(mutex);
+    driver_references++;
+}
+
+void mga::MirNativeWindow::driver_dereference()
+{
+    std::unique_lock<std::mutex> lk(mutex);
+    driver_references--;
+    if ((!mir_reference) && (driver_references == 0))
+    {
+        lk.unlock();
+        delete this;
+    }
+}
+
+void mga::MirNativeWindow::mir_dereference()
+{
+    std::unique_lock<std::mutex> lk(mutex);
+    mir_reference = false;
+    if (driver_references == 0)
+    {
+        lk.unlock();
+        delete this;
+    }
+}
+
+
 mga::MirNativeWindow::MirNativeWindow(std::shared_ptr<AndroidDriverInterpreter> const& interpreter)
- : driver_interpreter(interpreter)
+ : driver_interpreter(interpreter),
+      mir_reference(true),
+      driver_references(0)
 {
     ANativeWindow::query = &query_static;
     ANativeWindow::perform = &perform_static;
@@ -145,8 +183,9 @@ mga::MirNativeWindow::MirNativeWindow(std::shared_ptr<AndroidDriverInterpreter> 
     ANativeWindow::cancelBuffer_DEPRECATED = &cancelBuffer_deprecated_static;
     ANativeWindow::cancelBuffer = &cancelBuffer_static;
 
-    ANativeWindow::common.incRef = &incRef;
-    ANativeWindow::common.decRef = &incRef;
+    ANativeWindow::common.incRef = &incref_hook;
+    ANativeWindow::common.decRef = &decref_hook;
+    ANativeWindow::common.reserved[0] = this;
 
     const_cast<int&>(ANativeWindow::minSwapInterval) = 0;
     const_cast<int&>(ANativeWindow::maxSwapInterval) = 1;

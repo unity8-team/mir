@@ -22,6 +22,7 @@
 #include <system/window.h>
 #include <cstdarg>
 #include <memory>
+#include <mutex>
 
 namespace mir
 {
@@ -30,6 +31,10 @@ namespace graphics
 namespace android
 {
 class AndroidDriverInterpreter;
+
+class ANWDeleter
+{
+};
 
 class MirNativeWindow : public ANativeWindow
 {
@@ -43,9 +48,16 @@ public:
     int queueBuffer(struct ANativeWindowBuffer* buffer, int fence);
     int cancelBuffer(struct ANativeWindowBuffer* buffer, int fence);
     int setSwapInterval(int interval);
-private:
 
+    void driver_reference();
+    void driver_dereference();
+    void mir_dereference();
+private:
+    virtual ~MirNativeWindow() = default;
     std::shared_ptr<AndroidDriverInterpreter> const driver_interpreter;
+    std::mutex mutex;
+    bool mir_reference;
+    int driver_references;
 };
 
 }

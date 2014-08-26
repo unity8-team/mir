@@ -85,7 +85,11 @@ std::shared_ptr<ANativeWindow> mga::ResourceFactory::create_native_window(
 {
     auto cache = std::make_shared<mga::InterpreterCache>();
     auto interpreter = std::make_shared<ServerRenderWindow>(fb_bundle, cache);
-    return std::make_shared<MirNativeWindow>(interpreter);
+    auto mnw = new MirNativeWindow(interpreter);
+    return std::shared_ptr<MirNativeWindow>(mnw,
+        [](MirNativeWindow* mnw){
+        mnw->mir_dereference();
+    });
 }
 
 std::shared_ptr<mga::DisplayDevice> mga::ResourceFactory::create_fb_device(
