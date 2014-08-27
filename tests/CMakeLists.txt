@@ -59,12 +59,11 @@ if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
     mirsharedandroid
     ${ANDROID_PROPERTIES_LDFLAGS}
   )
+  endif()
 
   install(TARGETS miromnibus
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/tools
   )
-endif()
-  
 endif()
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
