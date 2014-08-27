@@ -22,6 +22,8 @@
 #include <mir/input/input_dispatcher.h>
 #include <mir/shell/input_targeter.h>
 
+#include <qpa/qwindowsysteminterface.h>
+
 class QTouchDevice;
 
 /*
@@ -30,7 +32,28 @@ class QTouchDevice;
 class QtEventFeeder : public mir::input::InputDispatcher
 {
 public:
-    QtEventFeeder();
+    // Interface between QtEventFeeder and the actual QWindowSystemInterface functions
+    // and other related Qt methods and objects to enable replacing them with mocks in
+    // pure unit tests.
+    class QtWindowSystem {
+        public:
+        virtual ~QtWindowSystem() {}
+        virtual bool hasTargetWindow() = 0;
+        virtual QRect targetWindowGeometry() = 0;
+        virtual void registerTouchDevice(QTouchDevice *device) = 0;
+        virtual void handleExtendedKeyEvent(ulong timestamp, QEvent::Type type, int key,
+                Qt::KeyboardModifiers modifiers,
+                quint32 nativeScanCode, quint32 nativeVirtualKey,
+                quint32 nativeModifiers,
+                const QString& text = QString(), bool autorep = false,
+                ushort count = 1) = 0;
+        virtual void handleTouchEvent(ulong timestamp, QTouchDevice *device,
+                const QList<struct QWindowSystemInterface::TouchPoint> &points,
+                Qt::KeyboardModifiers mods = Qt::NoModifier) = 0;
+    };
+
+    QtEventFeeder(QtWindowSystem *windowSystem = nullptr);
+    virtual ~QtEventFeeder();
 
     static const int MirEventActionMask;
     static const int MirEventActionPointerIndexMask;
@@ -45,8 +68,14 @@ public:
 private:
     void dispatchKey(MirKeyEvent const& event);
     void dispatchMotion(MirMotionEvent const& event);
+    void validateTouches(QList<QWindowSystemInterface::TouchPoint> &touchPoints);
+    bool validateTouch(QWindowSystemInterface::TouchPoint &touchPoint);
 
     QTouchDevice *mTouchDevice;
+    QtWindowSystem *mQtWindowSystem;
+
+    // Maps the id of an active touch to its last known state
+    QHash<int, QWindowSystemInterface::TouchPoint> mActiveTouches;
 };
 
 #endif // MIR_QT_EVENT_FEEDER_H

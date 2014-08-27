@@ -18,10 +18,10 @@
  */
 
 #include "qteventfeeder.h"
+#include "logging.h"
 
 #include <qpa/qplatforminputcontext.h>
 #include <qpa/qplatformintegration.h>
-#include <qpa/qwindowsysteminterface.h>
 #include <QGuiApplication>
 #include <private/qguiapplication_p.h>
 
@@ -133,9 +133,61 @@ static uint32_t translateKeysym(uint32_t sym, char *string, size_t size) {
     return toupper(sym);
 }
 
+namespace {
 
-QtEventFeeder::QtEventFeeder()
+class RealQtWindowSystem : public QtEventFeeder::QtWindowSystem {
+
+    bool hasTargetWindow() override
+    {
+        if (mTopLevelWindow.isNull() && !QGuiApplication::topLevelWindows().isEmpty()) {
+            mTopLevelWindow = QGuiApplication::topLevelWindows().first();
+        }
+        return !mTopLevelWindow.isNull();
+    }
+
+    QRect targetWindowGeometry() override
+    {
+        Q_ASSERT(!mTopLevelWindow.isNull());
+        return mTopLevelWindow->geometry();
+    }
+
+    void registerTouchDevice(QTouchDevice *device) override
+    {
+        QWindowSystemInterface::registerTouchDevice(device);
+    }
+
+    void handleExtendedKeyEvent(ulong timestamp, QEvent::Type type, int key,
+                Qt::KeyboardModifiers modifiers,
+                quint32 nativeScanCode, quint32 nativeVirtualKey,
+                quint32 nativeModifiers,
+                const QString& text, bool autorep, ushort count) override
+    {
+        Q_ASSERT(!mTopLevelWindow.isNull());
+        QWindowSystemInterface::handleExtendedKeyEvent(mTopLevelWindow.data(), timestamp, type, key, modifiers,
+                nativeScanCode, nativeVirtualKey, nativeModifiers, text, autorep, count);
+    }
+
+    void handleTouchEvent(ulong timestamp, QTouchDevice *device,
+            const QList<struct QWindowSystemInterface::TouchPoint> &points, Qt::KeyboardModifiers mods) override
+    {
+        Q_ASSERT(!mTopLevelWindow.isNull());
+        QWindowSystemInterface::handleTouchEvent(mTopLevelWindow.data(), timestamp, device, points, mods);
+    }
+private:
+    QPointer<QWindow> mTopLevelWindow;
+};
+
+} // anonymous namespace
+
+
+QtEventFeeder::QtEventFeeder(QtEventFeeder::QtWindowSystem *windowSystem)
 {
+    if (windowSystem) {
+        mQtWindowSystem = windowSystem;
+    } else {
+        mQtWindowSystem = new RealQtWindowSystem;
+    }
+
     // Initialize touch device. Hardcoded just like in qtubuntu
     // TODO: Create them from info gathered from Mir and store things like device id and source
     //       in a QTouchDevice-derived class created by us. So that we can properly assemble back
@@ -145,7 +197,12 @@ QtEventFeeder::QtEventFeeder()
     mTouchDevice->setCapabilities(
             QTouchDevice::Position | QTouchDevice::Area | QTouchDevice::Pressure |
             QTouchDevice::NormalizedPosition);
-    QWindowSystemInterface::registerTouchDevice(mTouchDevice);
+    mQtWindowSystem->registerTouchDevice(mTouchDevice);
+}
+
+QtEventFeeder::~QtEventFeeder()
+{
+    delete mQtWindowSystem;
 }
 
 void QtEventFeeder::dispatch(MirEvent const& event)
@@ -171,10 +228,8 @@ void QtEventFeeder::dispatch(MirEvent const& event)
 
 void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
 {
-    if (QGuiApplication::topLevelWindows().isEmpty())
+    if (!mQtWindowSystem->hasTargetWindow())
         return;
-
-    QWindow *window = QGuiApplication::topLevelWindows().first();
 
     ulong timestamp = event.event_time / 1000000;
     xkb_keysym_t xk_sym = static_cast<xkb_keysym_t>(event.key_code);
@@ -221,20 +276,33 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
         }
     }
 
-    QWindowSystemInterface::handleExtendedKeyEvent(window, timestamp, keyType, keyCode, modifiers, event.scan_code, event.key_code, event.modifiers, text);
+    mQtWindowSystem->handleExtendedKeyEvent(timestamp, keyType, keyCode, modifiers,
+            event.scan_code, event.key_code, event.modifiers, text);
 }
 
 void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
 {
-    if (QGuiApplication::topLevelWindows().isEmpty())
+    if (!mQtWindowSystem->hasTargetWindow())
         return;
 
-    QWindow *window = QGuiApplication::topLevelWindows().first();
+    int mirMotionAction = event.action & MirEventActionMask;
+
+    // Ignore the events that do not interest us (or that we currently don't support or know
+    // how to translate into Qt events)
+    if (mirMotionAction != mir_motion_action_move
+            && mirMotionAction != mir_motion_action_down
+            && mirMotionAction != mir_motion_action_up
+            && mirMotionAction != mir_motion_action_pointer_down
+            && mirMotionAction != mir_motion_action_pointer_up
+            && mirMotionAction != mir_motion_action_cancel) {
+        return;
+    }
+
 
     // FIXME(loicm) Max pressure is device specific. That one is for the Samsung Galaxy Nexus. That
     //     needs to be fixed as soon as the compat input lib adds query support.
     const float kMaxPressure = 1.28;
-    const QRect kWindowGeometry = window->geometry();
+    const QRect kWindowGeometry = mQtWindowSystem->targetWindowGeometry();
     QList<QWindowSystemInterface::TouchPoint> touchPoints;
 
     // TODO: Is it worth setting the Qt::TouchPointStationary ones? Currently they are left
@@ -257,7 +325,7 @@ void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
         touchPoints.append(touchPoint);
     }
 
-    switch (event.action & MirEventActionMask) {
+    switch (mirMotionAction) {
     case mir_motion_action_move:
         // No extra work needed.
         break;
@@ -291,13 +359,17 @@ void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
     case mir_motion_action_scroll:
     case mir_motion_action_hover_enter:
     case mir_motion_action_hover_exit:
-        default:
-        qWarning() << "unhandled motion event action" << (int)(event.action & MirEventActionMask);
+    default:
+        // Should never reach this point. If so, it's a programming error.
+        qFatal("Trying to handle unsupported motion event action");
     }
 
+    // Qt needs a happy, sane stream of touch events. So let's make sure we're not forwarding
+    // any insanity.
+    validateTouches(touchPoints);
+
     // Touch event propagation.
-    QWindowSystemInterface::handleTouchEvent(
-            window,
+    mQtWindowSystem->handleTouchEvent(
             event.event_time / 1000000, //scales down the nsec_t (int64) to fit a ulong, precision lost but time difference suitable
             mTouchDevice,
             touchPoints);
@@ -322,4 +394,87 @@ void QtEventFeeder::device_reset(int32_t device_id, nsecs_t when)
 {
     Q_UNUSED(device_id);
     Q_UNUSED(when);
+}
+
+void QtEventFeeder::validateTouches(QList<QWindowSystemInterface::TouchPoint> &touchPoints)
+{
+    QSet<int> updatedTouches;
+
+    {
+        int i = 0;
+        while (i < touchPoints.count()) {
+            bool mustDiscardTouch = !validateTouch(touchPoints[i]);
+            if (mustDiscardTouch) {
+                touchPoints.removeAt(i);
+            } else {
+                updatedTouches.insert(touchPoints.at(i).id);
+                ++i;
+            }
+        }
+    }
+
+    // Release all unmentioned touches.
+    {
+        QHash<int, QWindowSystemInterface::TouchPoint>::iterator it = mActiveTouches.begin();
+        while (it != mActiveTouches.end()) {
+            if (!updatedTouches.contains(it.key())) {
+                qCWarning(QTMIR_MIR_MESSAGES)
+                    << "QtEventFeeder: Mir forgot about a touch (id =" << it.key() << "). Releasing it.";
+                it.value().state = Qt::TouchPointReleased;
+                touchPoints.append(it.value());
+                it = mActiveTouches.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+}
+
+bool QtEventFeeder::validateTouch(QWindowSystemInterface::TouchPoint &touchPoint)
+{
+    bool ok = true;
+
+    switch (touchPoint.state) {
+    case Qt::TouchPointPressed:
+        if (mActiveTouches.contains(touchPoint.id)) {
+            qCWarning(QTMIR_MIR_MESSAGES)
+                << "QtEventFeeder: Mir pressed an already existing touch (id =" << touchPoint.id
+                << "). Making it move instead.";
+            touchPoint.state = Qt::TouchPointMoved;
+        }
+        mActiveTouches[touchPoint.id] = touchPoint;
+        break;
+    case Qt::TouchPointMoved:
+        if (!mActiveTouches.contains(touchPoint.id)) {
+            qCWarning(QTMIR_MIR_MESSAGES)
+                << "QtEventFeeder: Mir moved a touch that wasn't pressed before (id =" << touchPoint.id
+                << "). Making it press instead.";
+            touchPoint.state = Qt::TouchPointPressed;
+        }
+        mActiveTouches[touchPoint.id] = touchPoint;
+        break;
+    case Qt::TouchPointStationary:
+        if (!mActiveTouches.contains(touchPoint.id)) {
+            qCWarning(QTMIR_MIR_MESSAGES)
+                << "QtEventFeeder: There's an stationary touch that wasn't pressed before (id =" << touchPoint.id
+                << "). Making it press instead.";
+            touchPoint.state = Qt::TouchPointPressed;
+        }
+        mActiveTouches[touchPoint.id] = touchPoint;
+        break;
+    case Qt::TouchPointReleased:
+        if (!mActiveTouches.contains(touchPoint.id)) {
+            qCWarning(QTMIR_MIR_MESSAGES)
+                << "QtEventFeeder: Mir released a touch that wasn't pressed before (id =" << touchPoint.id
+                << "). Ignoring it.";
+            ok = false;
+        } else {
+            mActiveTouches.remove(touchPoint.id);
+        }
+        break;
+    default:
+        qFatal("QtEventFeeder: invalid touch state");
+    }
+
+    return ok;
 }

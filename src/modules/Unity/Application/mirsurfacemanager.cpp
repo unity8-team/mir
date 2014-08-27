@@ -19,9 +19,11 @@
 #include <QMutexLocker>
 
 // local
-#include "debughelpers.h"
 #include "mirsurfacemanager.h"
 #include "application_manager.h"
+
+// common
+#include <debughelpers.h>
 
 // QPA mirserver
 #include "nativeinterface.h"
