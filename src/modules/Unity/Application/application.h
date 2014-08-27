@@ -31,8 +31,6 @@
 namespace mir {
     namespace scene {
         class Session;
-        class PromptSession;
-        class PromptSessionManager;
     }
 }
 
@@ -42,7 +40,7 @@ namespace qtmir
 class ApplicationManager;
 class DesktopFileReader;
 class TaskController;
-class MirSessionItem;
+class Session;
 
 class Application : public unity::shell::application::ApplicationInfoInterface
 {
@@ -55,7 +53,7 @@ class Application : public unity::shell::application::ApplicationInfoInterface
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
     Q_PROPERTY(Stage stage READ stage WRITE setStage NOTIFY stageChanged)
     Q_PROPERTY(SupportedOrientations supportedOrientations READ supportedOrientations CONSTANT)
-    Q_PROPERTY(MirSessionItem* session READ session NOTIFY sessionChanged DESIGNABLE false)
+    Q_PROPERTY(Session* session READ session NOTIFY sessionChanged DESIGNABLE false)
 
 public:
     Q_DECLARE_FLAGS(Stages, Stage)
@@ -73,7 +71,6 @@ public:
                 DesktopFileReader *desktopFileReader,
                 State state,
                 const QStringList &arguments,
-                const std::shared_ptr<mir::scene::PromptSessionManager>& promptSessionManager,
                 ApplicationManager *parent);
     virtual ~Application();
 
@@ -88,7 +85,7 @@ public:
 
     void setStage(Stage stage);
 
-    MirSessionItem* session() const;
+    Session* session() const;
 
     bool canBeResumed() const;
     void setCanBeResumed(const bool);
@@ -97,8 +94,6 @@ public:
     QString desktopFile() const;
     QString exec() const;
     bool fullscreen() const;
-    std::shared_ptr<mir::scene::PromptSession> activePromptSession() const;
-    void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const;
 
     Stages supportedStages() const;
     SupportedOrientations supportedOrientations() const;
@@ -113,7 +108,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void fullscreenChanged(bool fullscreen);
     void stageChanged(Stage stage);
-    void sessionChanged(MirSessionItem *session);
+    void sessionChanged(Session *session);
 
 private:
     QString longAppId() const;
@@ -121,11 +116,7 @@ private:
     void setPid(pid_t pid);
     void setState(State state);
     void setFocused(bool focus);
-    void setSession(MirSessionItem *session);
-
-    void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
-    void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
-    void stopPromptSessions();
+    void setSession(Session *session);
 
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
@@ -138,13 +129,11 @@ private:
     bool m_canBeResumed;
     QStringList m_arguments;
     SupportedOrientations m_supportedOrientations;
-    MirSessionItem *m_session;
-    QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
-    std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
+    Session *m_session;
 
     friend class ApplicationManager;
-    friend class MirSessionManager;
-    friend class MirSessionItem;
+    friend class SessionManager;
+    friend class Session;
 };
 
 } // namespace qtmir

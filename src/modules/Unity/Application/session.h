@@ -14,17 +14,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIRSESSIONITEM_H
-#define MIRSESSIONITEM_H
+#ifndef SESSION_H
+#define SESSION_H
 
 // std
 #include <memory>
 
 // local
-#include "mirsessionitemmodel.h"
+#include "sessionmodel.h"
 
 // Qt
-#include <QQuickItem>
+#include <QObject>
+#include <QTimer>
 
 // Unity API
 #include <unity/shell/application/ApplicationInfoInterface.h>
@@ -32,25 +33,29 @@
 namespace mir {
     namespace scene {
         class Session;
+        class PromptSession;
+        class PromptSessionManager;
     }
 }
 
 namespace qtmir {
 
 class Application;
+class MirSurfaceItem;
 
-class MirSessionItem : public QQuickItem
+class Session : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
-    Q_PROPERTY(MirSessionItem* parentSession READ parentSession NOTIFY parentSessionChanged DESIGNABLE false)
-    Q_PROPERTY(MirSessionItemModel* childSessions READ childSessions DESIGNABLE false CONSTANT)
+    Q_PROPERTY(Session* parentSession READ parentSession NOTIFY parentSessionChanged DESIGNABLE false)
+    Q_PROPERTY(SessionModel* childSessions READ childSessions DESIGNABLE false CONSTANT)
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
 
 public:
-    explicit MirSessionItem(const std::shared_ptr<mir::scene::Session>& session,
-                            QQuickItem *parent = 0);
-    ~MirSessionItem();
+    explicit Session(const std::shared_ptr<mir::scene::Session>& session,
+                     const std::shared_ptr<mir::scene::PromptSessionManager>& promptSessionManager,
+                     QObject *parent = 0);
+    ~Session();
 
     // Session State
     typedef unity::shell::application::ApplicationInfoInterface::State State;
@@ -61,7 +66,7 @@ public:
     QString name() const;
     Application* application() const;
     MirSurfaceItem* surface() const;
-    MirSessionItem* parentSession() const;
+    Session* parentSession() const;
     State state() const;
     bool fullscreen() const;
 
@@ -70,15 +75,18 @@ public:
     void setSurface(MirSurfaceItem* surface);
     void setState(State state);
 
-    void addChildSession(MirSessionItem* session);
-    void insertChildSession(uint index, MirSessionItem* session);
-    void removeChildSession(MirSessionItem* session);
+    void addChildSession(Session* session);
+    void insertChildSession(uint index, Session* session);
+    void removeChildSession(Session* session);
 
     std::shared_ptr<mir::scene::Session> session() const;
 
+    std::shared_ptr<mir::scene::PromptSession> activePromptSession() const;
+    void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const;
+
 Q_SIGNALS:
     void surfaceChanged(MirSurfaceItem*);
-    void parentSessionChanged(MirSessionItem*);
+    void parentSessionChanged(Session*);
     void removed();
     void aboutToBeDestroyed();
     void stateChanged(State state);
@@ -93,23 +101,31 @@ private Q_SLOTS:
     void discardSurface();
 
 private:
-    MirSessionItemModel* childSessions() const;
-    void setParentSession(MirSessionItem* session);
+    SessionModel* childSessions() const;
+    void setParentSession(Session* session);
+
+    void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
+    void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
+    void stopPromptSessions();
 
     void setFullscreen(bool fullscreen);
 
     std::shared_ptr<mir::scene::Session> m_session;
     Application* m_application;
     MirSurfaceItem* m_surface;
-    MirSessionItem* m_parentSession;
-    MirSessionItemModel* m_children;
+    Session* m_parentSession;
+    SessionModel* m_children;
     bool m_fullscreen;
     State m_state;
     QTimer* m_suspendTimer;
+    QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
+    std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
+
+    friend class SessionManager;
 };
 
 } // namespace qtmir
 
-Q_DECLARE_METATYPE(qtmir::MirSessionItem*)
+Q_DECLARE_METATYPE(qtmir::Session*)
 
-#endif // MIRSESSIONITEM_H
+#endif // SESSION_H

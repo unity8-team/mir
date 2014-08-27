@@ -17,7 +17,7 @@
 // local
 #include "application.h"
 #include "debughelpers.h"
-#include "mirsessionitem.h"
+#include "session.h"
 #include "mirsurfacemanager.h"
 #include "mirsurfaceitem.h"
 
@@ -26,27 +26,32 @@
 
 // mir
 #include <mir/scene/session.h>
+#include <mir/scene/prompt_session_manager.h>
 
 // Qt
 #include <QPainter>
 #include <QQmlEngine>
-#include <QTimer>
+
+namespace ms = mir::scene;
 
 namespace qtmir
 {
 
-MirSessionItem::MirSessionItem(const std::shared_ptr<mir::scene::Session>& session, QQuickItem *parent)
-    : QQuickItem(parent)
+Session::Session(const std::shared_ptr<ms::Session>& session,
+                 const std::shared_ptr<ms::PromptSessionManager>& promptSessionManager,
+                 QObject *parent)
+    : QObject(parent)
     , m_session(session)
     , m_application(nullptr)
     , m_surface(nullptr)
     , m_parentSession(nullptr)
-    , m_children(new MirSessionItemModel(this))
+    , m_children(new SessionModel(this))
     , m_fullscreen(false)
     , m_state(State::Starting)
     , m_suspendTimer(new QTimer(this))
+    , m_promptSessionManager(promptSessionManager)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::MirSessionItem() " << this->name();
+    qCDebug(QTMIR_SESSIONS) << "Session::Session() " << this->name();
 
     QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
 
@@ -61,12 +66,13 @@ MirSessionItem::MirSessionItem(const std::shared_ptr<mir::scene::Session>& sessi
     });
 }
 
-MirSessionItem::~MirSessionItem()
+Session::~Session()
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::~MirSessionItem() " << name();
+    qCDebug(QTMIR_SESSIONS) << "Session::~Session() " << name();
+    stopPromptSessions();
 
-    QList<MirSessionItem*> children(m_children->list());
-    for (MirSessionItem* child : children) {
+    QList<Session*> children(m_children->list());
+    for (Session* child : children) {
         delete child;
     }
     if (m_parentSession) {
@@ -79,9 +85,9 @@ MirSessionItem::~MirSessionItem()
     delete m_children;
 }
 
-void MirSessionItem::release()
+void Session::release()
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::release " << name();
+    qCDebug(QTMIR_SESSIONS) << "Session::release " << name();
     Q_EMIT aboutToBeDestroyed();
 
     if (m_parentSession) {
@@ -95,22 +101,22 @@ void MirSessionItem::release()
     }
 }
 
-QString MirSessionItem::name() const
+QString Session::name() const
 {
     return QString::fromStdString(m_session->name());
 }
 
-std::shared_ptr<mir::scene::Session> MirSessionItem::session() const
+std::shared_ptr<ms::Session> Session::session() const
 {
     return m_session;
 }
 
-Application* MirSessionItem::application() const
+Application* Session::application() const
 {
     return m_application;
 }
 
-MirSurfaceItem* MirSessionItem::surface() const
+MirSurfaceItem* Session::surface() const
 {
     // Only notify QML of surface creation once it has drawn its first frame.
     if (m_surface && m_surface->isFirstFrameDrawn()) {
@@ -120,22 +126,22 @@ MirSurfaceItem* MirSessionItem::surface() const
     }
 }
 
-MirSessionItem* MirSessionItem::parentSession() const
+Session* Session::parentSession() const
 {
     return m_parentSession;
 }
 
-MirSessionItem::State MirSessionItem::state() const
+Session::State Session::state() const
 {
     return m_state;
 }
 
-bool MirSessionItem::fullscreen() const
+bool Session::fullscreen() const
 {
     return m_fullscreen;
 }
 
-void MirSessionItem::setApplication(Application* application)
+void Session::setApplication(Application* application)
 {
     if (m_application == application)
         return;
@@ -143,9 +149,9 @@ void MirSessionItem::setApplication(Application* application)
     m_application = application;
 }
 
-void MirSessionItem::setSurface(MirSurfaceItem *newSurface)
+void Session::setSurface(MirSurfaceItem *newSurface)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::setSurface - session=" << name() << "surface=" << newSurface;
+    qCDebug(QTMIR_SESSIONS) << "Session::setSurface - session=" << name() << "surface=" << newSurface;
 
     if (newSurface == m_surface) {
         return;
@@ -170,11 +176,11 @@ void MirSessionItem::setSurface(MirSurfaceItem *newSurface)
                     this, [this] { Q_EMIT surfaceChanged(m_surface); });
         }
 
-        connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
-                this, &MirSessionItem::discardSurface);
+        // connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
+        //         this, &Session::discardSurface);
 
         connect(newSurface, &MirSurfaceItem::stateChanged,
-            this, &MirSessionItem::updateFullscreenProperty);
+            this, &Session::updateFullscreenProperty);
     }
 
     if (previousSurface != surface()) {
@@ -184,28 +190,28 @@ void MirSessionItem::setSurface(MirSurfaceItem *newSurface)
     updateFullscreenProperty();
 }
 
-void MirSessionItem::updateFullscreenProperty()
+void Session::updateFullscreenProperty()
 {
     setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
 }
 
-void MirSessionItem::discardSurface()
+void Session::discardSurface()
 {
     MirSurfaceItem *discardedSurface = m_surface;
     setSurface(nullptr);
     delete discardedSurface;
 }
 
-void MirSessionItem::setFullscreen(bool fullscreen)
+void Session::setFullscreen(bool fullscreen)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::setFullscreen - session=" << this << "fullscreen=" << fullscreen;
+    qCDebug(QTMIR_SESSIONS) << "Session::setFullscreen - session=" << this << "fullscreen=" << fullscreen;
     if (m_fullscreen != fullscreen) {
         m_fullscreen = fullscreen;
         Q_EMIT fullscreenChanged(m_fullscreen);
     }
 }
 
-void MirSessionItem::setParentSession(MirSessionItem* session)
+void Session::setParentSession(Session* session)
 {
     if (m_parentSession == session || session == this)
         return;
@@ -215,33 +221,35 @@ void MirSessionItem::setParentSession(MirSessionItem* session)
     Q_EMIT parentSessionChanged(session);
 }
 
-void MirSessionItem::setState(State state)
+void Session::setState(State state)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::setState - session=" << this << "state=" << applicationStateToStr(state);
+    qCDebug(QTMIR_SESSIONS) << "Session::setState - session=" << this << "state=" << applicationStateToStr(state);
     if (m_state != state) {
         switch (state)
         {
-        case MirSessionItem::State::Suspended:
-            if (m_state == MirSessionItem::State::Running) {
+        case Session::State::Suspended:
+            if (m_state == Session::State::Running) {
+                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
             break;
-        case MirSessionItem::State::Running:
+        case Session::State::Running:
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
 
-            if (m_state == MirSessionItem::State::Suspended) {
+            if (m_state == Session::State::Suspended) {
                 if (m_surface)
                     m_surface->startFrameDropper();
                 Q_EMIT resume();
                 session()->set_lifecycle_state(mir_lifecycle_state_resumed);
-            } else if (m_state == MirSessionItem::State::Stopped) {
+            } else if (m_state == Session::State::Stopped) {
                 Q_EMIT respawn();
-                state = MirSessionItem::State::Starting;
+                state = Session::State::Starting;
             }
             break;
-        case MirSessionItem::State::Stopped:
+        case Session::State::Stopped:
+            stopPromptSessions();
             if (m_suspendTimer->isActive())
                 m_suspendTimer->stop();
             if (m_surface)
@@ -256,22 +264,22 @@ void MirSessionItem::setState(State state)
     }
 }
 
-void MirSessionItem::addChildSession(MirSessionItem* session)
+void Session::addChildSession(Session* session)
 {
     insertChildSession(m_children->rowCount(), session);
 }
 
-void MirSessionItem::insertChildSession(uint index, MirSessionItem* session)
+void Session::insertChildSession(uint index, Session* session)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::insertChildSession - " << session->name() << " to " << name() << " @  " << index;
+    qCDebug(QTMIR_SESSIONS) << "Session::insertChildSession - " << session->name() << " to " << name() << " @  " << index;
 
     session->setParentSession(this);
     m_children->insert(index, session);
 }
 
-void MirSessionItem::removeChildSession(MirSessionItem* session)
+void Session::removeChildSession(Session* session)
 {
-    qCDebug(QTMIR_SESSIONS) << "MirSessionItem::removeChildSession - " << session->name() << " from " << name();
+    qCDebug(QTMIR_SESSIONS) << "Session::removeChildSession - " << session->name() << " from " << name();
 
     if (m_children->contains(session)) {
         m_children->remove(session);
@@ -279,9 +287,53 @@ void MirSessionItem::removeChildSession(MirSessionItem* session)
     }
 }
 
-MirSessionItemModel* MirSessionItem::childSessions() const
+SessionModel* Session::childSessions() const
 {
     return m_children;
+}
+
+void Session::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
+{
+    qCDebug(QTMIR_SESSIONS) << "Session::appendPromptSession session=" << name()
+            << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
+
+    m_promptSessions.append(promptSession);
+}
+
+void Session::removePromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
+{
+    qCDebug(QTMIR_SESSIONS) << "Session::removePromptSession session=" << name()
+            << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
+
+    m_promptSessions.removeAll(promptSession);
+}
+
+void Session::stopPromptSessions()
+{
+    QList<Session*> children(m_children->list());
+    for (Session* child : children) {
+        child->stopPromptSessions();
+    }
+
+    QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);
+    QListIterator<std::shared_ptr<ms::PromptSession>> it(copy);
+    for ( it.toBack(); it.hasPrevious(); ) {
+        m_promptSessionManager->stop_prompt_session(it.previous());
+    }
+}
+
+std::shared_ptr<ms::PromptSession> Session::activePromptSession() const
+{
+    if (m_promptSessions.count() > 0)
+        return m_promptSessions.back();
+    return nullptr;
+}
+
+void Session::foreachPromptSession(std::function<void(const std::shared_ptr<ms::PromptSession>&)> f) const
+{
+    for (std::shared_ptr<ms::PromptSession> promptSession : m_promptSessions) {
+        f(promptSession);
+    }
 }
 
 } // namespace qtmir

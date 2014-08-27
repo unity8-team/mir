@@ -19,7 +19,7 @@
 #include "application.h"
 #include "desktopfilereader.h"
 #include "dbuswindowstack.h"
-#include "mirsessionitem.h"
+#include "session.h"
 #include "proc_info.h"
 #include "taskcontroller.h"
 #include "upstart/applicationcontroller.h"
@@ -29,7 +29,6 @@
 #include "mirserverconfiguration.h"
 #include "nativeinterface.h"
 #include "sessionlistener.h"
-#include "promptsessionlistener.h"
 #include "sessionauthorizer.h"
 #include "taskcontroller.h"
 #include "logging.h"
@@ -37,7 +36,6 @@
 // mir
 #include <mir/scene/surface.h>
 #include <mir/scene/session.h>
-#include <mir/scene/prompt_session_manager.h>
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
 #include <mir/geometry/rectangles.h>
@@ -109,14 +107,6 @@ void connectToSessionListener(ApplicationManager *manager, SessionListener *list
                      manager, &ApplicationManager::onSessionCreatedSurface);
 }
 
-void connectToPromptSessionListener(ApplicationManager * manager, PromptSessionListener * listener)
-{
-    QObject::connect(listener, &PromptSessionListener::promptSessionStarting,
-                     manager, &ApplicationManager::onPromptSessionStarting);
-    QObject::connect(listener, &PromptSessionListener::promptSessionStopping,
-                     manager, &ApplicationManager::onPromptSessionStopping);
-}
-
 void connectToSessionAuthorizer(ApplicationManager *manager, SessionAuthorizer *authorizer)
 {
     QObject::connect(authorizer, &SessionAuthorizer::requestAuthorizationForSession,
@@ -153,7 +143,6 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
 
     SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
     SessionAuthorizer *sessionAuthorizer = static_cast<SessionAuthorizer*>(nativeInterface->nativeResourceForIntegration("SessionAuthorizer"));
-    PromptSessionListener *promptSessionListener = static_cast<PromptSessionListener*>(nativeInterface->nativeResourceForIntegration("PromptSessionListener"));
 
     QSharedPointer<upstart::ApplicationController> appController(new upstart::ApplicationController());
     QSharedPointer<TaskController> taskController(new TaskController(nullptr, appController));
@@ -173,7 +162,6 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
                                          );
 
     connectToSessionListener(appManager, sessionListener);
-    connectToPromptSessionListener(appManager, promptSessionListener);
     connectToSessionAuthorizer(appManager, sessionAuthorizer);
     connectToTaskController(appManager, taskController.data());
 
@@ -455,7 +443,6 @@ Application *ApplicationManager::startApplication(const QString &inputAppId, Exe
                 m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
                 Application::Starting,
                 arguments,
-                m_mirConfig->the_prompt_session_manager(),
                 this);
 
     if (!application->isValid()) {
@@ -483,7 +470,6 @@ void ApplicationManager::onProcessStarting(const QString &appId)
                     m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
                     Application::Starting,
                     QStringList(),
-                    m_mirConfig->the_prompt_session_manager(),
                     this);
 
         if (!application->isValid()) {
@@ -743,7 +729,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
         desktopData,
         Application::Starting,
         arguments,
-        m_mirConfig->the_prompt_session_manager(),
         this);
     application->setPid(pid);
     application->setStage(stage);
@@ -757,7 +742,7 @@ void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& s
     Q_UNUSED(session);
     // qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
 
-    // Application* application = findApplicationWithPid(session->process_id(), false);
+    // Application* application = findApplicationWithPid(session->process_id());
     // if (application && application->state() != Application::Running) {
     //     application->setSession(session);
     // } else {
@@ -773,7 +758,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping - sessionName=" << session->name().c_str();
 
     // in case application closed not by hand of shell, check again here:
-    Application* application = findApplicationWithSession(session, false);
+    Application* application = findApplicationWithSession(session);
     if (application) {
         /* Can remove the application from the running apps list immediately in these curcumstances:
          *  1. application is not managed by upstart (this message from Mir is only notice the app has stopped, must do
@@ -809,45 +794,26 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionCreatedSurface - sessionName=" << session->name().c_str();
     Q_UNUSED(surface);
 
-    Application* application = findApplicationWithSession(session, false);
+    Application* application = findApplicationWithSession(session);
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
         application->setState(Application::Running);
     }
 }
 
-void ApplicationManager::onPromptSessionStarting(const std::shared_ptr<ms::PromptSession>& promptSession)
+Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onPromptSessionStarting - promptSession=" << promptSession.get();
-
-    Application* app = findApplicationWithSession(m_mirConfig->the_prompt_session_manager()->application_for(promptSession), false);
-    if (app) {
-        app->appendPromptSession(promptSession);
-    }
+    return findApplicationWithSession(session.get());
 }
 
-void ApplicationManager::onPromptSessionStopping(const std::shared_ptr<ms::PromptSession>& promptSession)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onPromptSessionStopping - promptSession=" << promptSession.get();
-
-    for (Application *app : m_applications) {
-        app->removePromptSession(promptSession);
-    }
-}
-
-Application* ApplicationManager::findApplicationWithSession(const std::shared_ptr<ms::Session> &session, bool includeChildSessions)
-{
-    return findApplicationWithSession(session.get(), includeChildSessions);
-}
-
-Application* ApplicationManager::findApplicationWithSession(const ms::Session *session, bool includeChildSessions)
+Application* ApplicationManager::findApplicationWithSession(const ms::Session *session)
 {
     if (!session)
         return nullptr;
-    return findApplicationWithPid(session->process_id(), includeChildSessions);
+    return findApplicationWithPid(session->process_id());
 }
 
-Application* ApplicationManager::findApplicationWithPid(const qint64 pid, bool includeChildSessions)
+Application* ApplicationManager::findApplicationWithPid(const qint64 pid)
 {
     if (pid <= 0)
         return nullptr;
@@ -856,24 +822,6 @@ Application* ApplicationManager::findApplicationWithPid(const qint64 pid, bool i
         if (app->m_pid == pid) {
             return app;
         }
-
-        if (includeChildSessions && app->containsProcess(pid)) {
-            return app;
-        }
-    }
-    return nullptr;
-}
-
-Application* ApplicationManager::findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession)
-{
-    for (Application *app : m_applications) {
-        bool found = false;
-        app->foreachPromptSession([&](const std::shared_ptr<mir::scene::PromptSession>& ps) {
-            if (promptSession == ps.get())
-                found = true;
-        });
-        if (found)
-            return app;
     }
     return nullptr;
 }

@@ -14,19 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIRSESSIONITEMMODEL_H
-#define MIRSESSIONITEMMODEL_H
+#ifndef SESSIONMODEL_H
+#define SESSIONMODEL_H
 
 // Local
-#include "miritemmodel.h"
+#include "mirobjectmodel.h"
 
 namespace qtmir {
 
-class MirSessionItem;
-typedef MirItemModel<MirSessionItem> MirSessionItemModel;
+class Session;
+typedef MirObjectModel<Session> SessionModel;
 
 } // namespace qtmir
 
-Q_DECLARE_METATYPE(qtmir::MirSessionItemModel*)
+Q_DECLARE_METATYPE(qtmir::SessionModel*)
 
-#endif // MIRSESSIONITEMMODEL_H
+#endif // SESSIONMODEL_H

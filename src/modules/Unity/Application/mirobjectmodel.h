@@ -14,21 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIRITEMMODEL_H
-#define MIRITEMMODEL_H
+#ifndef MIROBJECTMODEL_H
+#define MIROBJECTMODEL_H
 
 // Qt
 #include <QAbstractListModel>
 
 namespace qtmir {
 
-class MirSurfaceItem;
-
 template<class TYPE>
-class MirItemModel : public QAbstractListModel
+class MirObjectModel : public QAbstractListModel
 {
 public:
-    MirItemModel(QObject *parent = 0)
+    MirObjectModel(QObject *parent = 0)
     : QAbstractListModel(parent)
     {}
 
@@ -109,4 +107,4 @@ protected:
 
 } // namespace qtmir
 
-#endif // MIRITEMMODEL_H
+#endif // MIROBJECTMODEL_H

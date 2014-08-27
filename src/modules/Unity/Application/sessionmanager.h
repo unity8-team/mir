@@ -14,22 +14,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIR_SESSION_MANAGER_H
-#define MIR_SESSION_MANAGER_H
+#ifndef SESSIONMANAGER_H
+#define SESSIONMANAGER_H
 
 // std
 #include <memory>
 
 // Qt
 #include <QHash>
-#include <QMutex>
+#include <QSharedPointer>
 
 // Mir
 #include <mir_toolkit/common.h>
 
 // local
-#include "mirsessionitem.h"
-#include "mirsessionitemmodel.h"
+#include "session.h"
+#include "sessionmodel.h"
 
 namespace mir {
     namespace scene {
@@ -45,42 +45,46 @@ namespace qtmir {
 class Application;
 class ApplicationManager;
 
-class MirSessionManager : public MirSessionItemModel
+class SessionManager : public SessionModel
 {
     Q_OBJECT
 
 public:
-    static MirSessionManager* singleton();
+    static SessionManager* singleton();
 
-    ~MirSessionManager();
+    ~SessionManager();
 
-    MirSessionItem *findSession(const mir::scene::Session* session) const;
+    Session *findSession(const mir::scene::Session* session) const;
 
 Q_SIGNALS:
-    void sessionStarting(MirSessionItem* session);
-    void sessionStopping(MirSessionItem* session);
+    void sessionStarting(Session* session);
+    void sessionStopping(Session* session);
 
 public Q_SLOTS:
     void onSessionStarting(std::shared_ptr<mir::scene::Session> const& session);
     void onSessionStopping(std::shared_ptr<mir::scene::Session> const& session);
 
+    void onPromptSessionStarting(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
+    void onPromptSessionStopping(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
     void onPromptProviderAdded(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
     void onPromptProviderRemoved(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
 
 protected:
-    MirSessionManager(
+    SessionManager(
         const QSharedPointer<MirServerConfiguration>& mirConfig,
         ApplicationManager* applicationManager,
         QObject *parent = 0
     );
+
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
     ApplicationManager* m_applicationManager;
-    static MirSessionManager *the_session_manager;
+    static SessionManager *the_session_manager;
 
-    QList<MirSessionItem*> m_sessions;
+    QList<Session*> m_sessions;
+    QHash<const mir::scene::PromptSession *, Session *> m_mirPromptToSessionHash;
 };
 
 } // namespace qtmir
 
-#endif // MIR_SESSION_MANAGER_H
+#endif // SESSIONMANAGER_H

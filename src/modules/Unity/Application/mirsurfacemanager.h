@@ -45,7 +45,7 @@ namespace qtmir {
 
 class Application;
 class ApplicationManager;
-class MirSessionManager;
+class SessionManager;
 
 class MirSurfaceManager : public MirSurfaceItemModel
 {
@@ -68,28 +68,21 @@ public Q_SLOTS:
 
     void onSurfaceAttributeChanged(const mir::scene::Surface *, MirSurfaceAttrib, int);
 
-    void onPromptProviderAdded(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
-    void onPromptProviderRemoved(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
-
 protected:
     MirSurfaceManager(
         const QSharedPointer<MirServerConfiguration>& mirConfig,
         ApplicationManager* applicationManager,
-        MirSessionManager* sessionManager,
+        SessionManager* sessionManager,
         QObject *parent = 0
     );
 
-    void refreshPromptSessionSurfaces(const mir::scene::Session *session);
-    void refreshPromptSessionSurfaces(Application* application);
-
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
-    QMultiHash<const mir::scene::Session *, MirSurfaceItem *> m_mirSessionToItemHash;
     QMutex m_mutex;
 
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
     ApplicationManager* m_applicationManager;
-    MirSessionManager* m_sessionManager;
+    SessionManager* m_sessionManager;
     static MirSurfaceManager *the_surface_manager;
 };
 

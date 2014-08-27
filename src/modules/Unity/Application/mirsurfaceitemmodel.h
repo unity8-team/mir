@@ -18,12 +18,12 @@
 #define MIRSURFACEITEMMODEL_H
 
 // Llocal
-#include "miritemmodel.h"
+#include "mirobjectmodel.h"
 
 namespace qtmir {
 
 class MirSurfaceItem;
-typedef MirItemModel<MirSurfaceItem> MirSurfaceItemModel;
+typedef MirObjectModel<MirSurfaceItem> MirSurfaceItemModel;
 
 } // namespace qtmir
 

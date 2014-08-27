@@ -32,7 +32,7 @@
 #include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
-#include "mirsessionitem.h"
+#include "session.h"
 #include "mirsurfaceitemmodel.h"
 #include "ubuntukeyboardinfo.h"
 
@@ -80,7 +80,7 @@ class MirSurfaceItem : public QQuickItem
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                            QPointer<MirSessionItem> session,
+                            QPointer<Session> session,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -108,7 +108,7 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
-    MirSessionItem *session() const;
+    Session *session() const;
 
     Q_INVOKABLE void release();
 
@@ -121,7 +121,7 @@ public:
 
     bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
 
-    void setSession(MirSessionItem *app);
+    void setSession(Session *app);
 
     MirSurfaceItem* parentSurface() const;
 
@@ -141,7 +141,7 @@ Q_SIGNALS:
     void removed();
 
 protected Q_SLOTS:
-    void onSessionStateChanged(MirSessionItem::State state);
+    void onSessionStateChanged(Session::State state);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -188,7 +188,7 @@ private:
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
-    QPointer<MirSessionItem> m_session;
+    QPointer<Session> m_session;
     bool m_firstFrameDrawn;
 
     MirSurfaceItem* m_parentSurface;

@@ -19,7 +19,7 @@
 #include "application_manager.h"
 #include "debughelpers.h"
 #include "desktopfilereader.h"
-#include "mirsessionitem.h"
+#include "session.h"
 #include "taskcontroller.h"
 
 // QPA mirserver
@@ -28,7 +28,6 @@
 // mir
 #include <mir/scene/session.h>
 #include <mir/scene/snapshot.h>
-#include <mir/scene/prompt_session_manager.h>
 
 namespace ms = mir::scene;
 
@@ -39,7 +38,6 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
                          DesktopFileReader *desktopFileReader,
                          State state,
                          const QStringList &arguments,
-                         const std::shared_ptr<ms::PromptSessionManager>& promptSessionManager,
                          ApplicationManager *parent)
     : ApplicationInfoInterface(desktopFileReader->appId(), parent)
     , m_taskController(taskController)
@@ -51,7 +49,6 @@ Application::Application(const QSharedPointer<TaskController>& taskController,
     , m_canBeResumed(true)
     , m_arguments(arguments)
     , m_session(nullptr)
-    , m_promptSessionManager(promptSessionManager)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::Application - appId=" << desktopFileReader->appId() << "state=" << state;
 
@@ -70,7 +67,6 @@ Application::~Application()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::~Application";
 
-    stopPromptSessions();
     delete m_session;
     delete m_desktopData;
 }
@@ -164,7 +160,7 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
-void Application::setSession(MirSessionItem *newSession)
+void Application::setSession(Session *newSession)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << newSession;
 
@@ -182,10 +178,10 @@ void Application::setSession(MirSessionItem *newSession)
         m_session->setParent(this);
         m_session->setApplication(this);
 
-        connect(m_session, &MirSessionItem::suspend, this, &Application::suspend);
-        connect(m_session, &MirSessionItem::resume, this, &Application::resume);
-        connect(m_session, &MirSessionItem::respawn, this, &Application::respawn);
-        connect(m_session, &MirSessionItem::fullscreenChanged, this, &Application::fullscreenChanged);
+        connect(m_session, &Session::suspend, this, &Application::suspend);
+        connect(m_session, &Session::resume, this, &Application::resume);
+        connect(m_session, &Session::respawn, this, &Application::respawn);
+        connect(m_session, &Session::fullscreenChanged, this, &Application::fullscreenChanged);
 
         if (oldFullscreen != fullscreen())
             Q_EMIT fullscreenChanged(fullscreen());
@@ -215,16 +211,16 @@ void Application::setState(Application::State state)
         switch (state)
         {
         case Application::Starting:
-            if (session()) session()->setState(MirSessionItem::State::Starting);
+            if (session()) session()->setState(Session::State::Starting);
             break;
         case Application::Suspended:
-            if (session()) session()->setState(MirSessionItem::State::Suspended);
+            if (session()) session()->setState(Session::State::Suspended);
             break;
         case Application::Running:
-            if (session()) session()->setState(MirSessionItem::State::Running);
+            if (session()) session()->setState(Session::State::Running);
             break;
         case Application::Stopped:
-            if (session()) session()->setState(MirSessionItem::State::Stopped);
+            if (session()) session()->setState(Session::State::Stopped);
             break;
         default:
             break;
@@ -271,74 +267,9 @@ Application::SupportedOrientations Application::supportedOrientations() const
     return m_supportedOrientations;
 }
 
-MirSessionItem* Application::session() const
+Session* Application::session() const
 {
     return m_session;
-}
-
-void Application::appendPromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::appendPromptSession appId=" << appId()
-        << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
-
-    m_promptSessions.append(promptSession);
-}
-
-void Application::removePromptSession(const std::shared_ptr<ms::PromptSession>& promptSession)
-{
-    qCDebug(QTMIR_APPLICATIONS) << "Application::removePromptSession appId=" << appId()
-        << "promptSession=" << (promptSession ? promptSession.get() : nullptr);
-
-    m_promptSessions.removeAll(promptSession);
-}
-
-void Application::stopPromptSessions()
-{
-    QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);
-
-    QListIterator<std::shared_ptr<ms::PromptSession>> it(copy);
-    for ( it.toBack(); it.hasPrevious(); ) {
-        m_promptSessionManager->stop_prompt_session(it.previous());
-    }
-}
-
-std::shared_ptr<ms::PromptSession> Application::activePromptSession() const
-{
-    if (m_promptSessions.count() > 0)
-        return m_promptSessions.back();
-    return nullptr;
-}
-
-void Application::foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const
-{
-    for (std::shared_ptr<mir::scene::PromptSession> promptSession : m_promptSessions) {
-        f(promptSession);
-    }
-}
-
-bool Application::containsProcess(pid_t pid) const
-{
-    if (m_pid == pid)
-        return true;
-
-    QListIterator<std::shared_ptr<ms::PromptSession>> iter(m_promptSessions);
-    while(iter.hasNext()) {
-        std::shared_ptr<ms::PromptSession> promptSession = iter.next();
-
-        std::shared_ptr<ms::Session> helper = m_promptSessionManager->helper_for(promptSession);
-        if (helper && helper->process_id() == pid)
-            return true;
-
-        bool found = false;
-        m_promptSessionManager->for_each_provider_in(promptSession,
-            [&found, pid](std::shared_ptr<ms::Session> const& provider) {
-                if (provider->process_id() == pid)
-                    found = true;
-            });
-        if (found)
-            return true;
-    }
-    return false;
 }
 
 } // namespace qtmir

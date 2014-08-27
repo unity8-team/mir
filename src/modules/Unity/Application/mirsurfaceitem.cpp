@@ -22,7 +22,7 @@
 #include "application.h"
 #include "debughelpers.h"
 #include "mirbuffersgtexture.h"
-#include "mirsessionitem.h"
+#include "session.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
 
@@ -232,7 +232,7 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                               QPointer<MirSessionItem> session,
+                               QPointer<Session> session,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
@@ -300,7 +300,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
     if (m_session) {
-        connect(m_session.data(), &MirSessionItem::stateChanged, this, &MirSurfaceItem::onSessionStateChanged);
+        connect(m_session.data(), &Session::stateChanged, this, &MirSurfaceItem::onSessionStateChanged);
     }
 }
 
@@ -342,7 +342,7 @@ void MirSurfaceItem::release()
     }
 }
 
-MirSessionItem* MirSurfaceItem::session() const
+Session* MirSurfaceItem::session() const
 {
     return m_session.data();
 }
@@ -640,15 +640,15 @@ void MirSurfaceItem::scheduleTextureUpdate()
 }
 
 
-void MirSurfaceItem::setSession(MirSessionItem *session)
+void MirSurfaceItem::setSession(Session *session)
 {
     m_session = session;
 }
 
-void MirSurfaceItem::onSessionStateChanged(MirSessionItem::State state)
+void MirSurfaceItem::onSessionStateChanged(Session::State state)
 {
     switch (state) {
-        case MirSessionItem::State::Running:
+        case Session::State::Running:
             syncSurfaceSizeWithItemSize();
             break;
         default:
@@ -672,8 +672,8 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
 bool MirSurfaceItem::clientIsRunning() const
 {
     return (m_session &&
-            (m_session->state() == MirSessionItem::State::Running
-             || m_session->state() == MirSessionItem::State::Starting))
+            (m_session->state() == Session::State::Running
+             || m_session->state() == Session::State::Starting))
         || !m_session;
 }
 
