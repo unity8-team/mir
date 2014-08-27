@@ -61,8 +61,13 @@ if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
   )
   endif()
 
+  set_target_properties(miromnibus
+    PROPERTIES
+    SOVERSION ${MIRSERVER_ABI}
+  )
+
   install(TARGETS miromnibus
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/tools
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 endif()
 

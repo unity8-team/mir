@@ -99,3 +99,5 @@ set_target_properties(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mirserver.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
+
+set(MIRSERVER_ABI ${MIRSERVER_ABI} PARENT_SCOPE)
