@@ -62,7 +62,6 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
     QImage screenshotImage;
     QMutex screenshotMutex;
     QWaitCondition screenshotTakenCondition;
-    QMutexLocker screenshotMutexLocker(&screenshotMutex);
 
     app->session()->take_snapshot(
         [&](mir::scene::Snapshot const& snapshot)
@@ -92,12 +91,15 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
             }
         });
 
-    if (screenshotImage.isNull()) {
-        // mir is taking a snapshot in a separate thread. Wait here until it's done.
-        screenshotTakenCondition.wait(&screenshotMutex);
-    } else {
-        // mir took a snapshot synchronously or it was asynchronous but already finished.
-        // In either case, there's no need to wait.
+    {
+        QMutexLocker screenshotMutexLocker(&screenshotMutex);
+        if (screenshotImage.isNull()) {
+            // mir is taking a snapshot in a separate thread. Wait here until it's done.
+            screenshotTakenCondition.wait(&screenshotMutex);
+        } else {
+            // mir took a snapshot synchronously or it was asynchronous but already finished.
+            // In either case, there's no need to wait.
+        }
     }
 
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - working with size" << screenshotImage;
