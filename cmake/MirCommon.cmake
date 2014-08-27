@@ -52,6 +52,14 @@ function (mir_discover_tests EXECUTABLE)
       LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests > /dev/null
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Check that discovering Tests in ${EXECUTABLE} works")
+      
+    if (MIR_BUILD_PLATFORM_ANDROID)
+      add_dependencies(${CHECK_TEST_DISCOVERY_TARGET_NAME} mirplatformgraphicsandroid)
+    endif()
+    
+    if (MIR_BUILD_PLATFORM_MESA)
+      add_dependencies(${CHECK_TEST_DISCOVERY_TARGET_NAME} mirplatformgraphicsmesa)
+    endif()
 
     list(APPEND EXTRA_ENV_FLAGS "--add-environment" "LD_LIBRARY_PATH=${LIBRARY_OUTPUT_PATH}")
     if (${ARGC} GREATER 1)
