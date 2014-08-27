@@ -73,7 +73,7 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         qmlRegisterUncreatableType<unity::shell::application::ApplicationInfoInterface>(
                     uri, 0, 1, "ApplicationInfoInterface", "Abstract interface. Cannot be created in QML");
         qmlRegisterUncreatableType<qtmir::Application>(
-                    uri, 0, 1, "Application", "Application can't be instantiated");
+                    uri, 0, 1, "ApplicationInfo", "Application can't be instantiated");
         qmlRegisterSingletonType<qtmir::MirSurfaceManager>(
                     uri, 0, 1, "SurfaceManager", surfaceManagerSingleton);
         qmlRegisterSingletonType<qtmir::SessionManager>(
