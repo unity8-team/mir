@@ -177,7 +177,7 @@ UApplicationUiWindowOrientation uamc::Window::orientation() const
     if (uaum::orientation_to_ubuntu_orientation(mir_orientation, ubuntu_orientation)) {
         return ubuntu_orientation;
     } else {
-        printf("Unknown MirOrientation!");
+        printf("Unknown MirOrientation!\n");
         return U_ORIENTATION_NORMAL;
     }
 }
