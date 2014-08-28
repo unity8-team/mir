@@ -50,9 +50,14 @@ class SessionManager : public SessionModel
     Q_OBJECT
 
 public:
-    static SessionManager* singleton();
-
+    explicit SessionManager(
+        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        ApplicationManager* applicationManager,
+        QObject *parent = 0
+    );
     ~SessionManager();
+
+    static SessionManager* singleton();
 
     Session *findSession(const mir::scene::Session* session) const;
 
@@ -70,11 +75,6 @@ public Q_SLOTS:
     void onPromptProviderRemoved(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
 
 protected:
-    SessionManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
-        ApplicationManager* applicationManager,
-        QObject *parent = 0
-    );
 
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;

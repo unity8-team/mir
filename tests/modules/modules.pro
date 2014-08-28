@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = ApplicationManager SurfaceManager TaskController
+SUBDIRS = ApplicationManager General SessionManager TaskController

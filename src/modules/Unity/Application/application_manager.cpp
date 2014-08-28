@@ -740,17 +740,6 @@ void ApplicationManager::authorizeSession(const quint64 pid, bool &authorized)
 void ApplicationManager::onSessionStarting(std::shared_ptr<ms::Session> const& session)
 {
     Q_UNUSED(session);
-    // qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - sessionName=" <<  session->name().c_str();
-
-    // Application* application = findApplicationWithPid(session->process_id());
-    // if (application && application->state() != Application::Running) {
-    //     application->setSession(session);
-    // } else {
-    //     if (m_hiddenPIDs.contains(session->process_id())) {
-    //         return;
-    //     }
-    //     qCWarning(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStarting - unmanaged application starting";
-    // }
 }
 
 void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& session)

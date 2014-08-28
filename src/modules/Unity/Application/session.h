@@ -78,6 +78,7 @@ public:
     void addChildSession(Session* session);
     void insertChildSession(uint index, Session* session);
     void removeChildSession(Session* session);
+    void foreachChildSession(std::function<void(Session* session)> f) const;
 
     std::shared_ptr<mir::scene::Session> session() const;
 

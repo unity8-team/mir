@@ -52,9 +52,14 @@ class MirSurfaceManager : public MirSurfaceItemModel
     Q_OBJECT
 
 public:
-    static MirSurfaceManager* singleton();
-
+    explicit MirSurfaceManager(
+        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        SessionManager* sessionManager,
+        QObject *parent = 0
+    );
     ~MirSurfaceManager();
+
+    static MirSurfaceManager* singleton();
 
 Q_SIGNALS:
     void surfaceCreated(MirSurfaceItem* surface);
@@ -69,19 +74,12 @@ public Q_SLOTS:
     void onSurfaceAttributeChanged(const mir::scene::Surface *, MirSurfaceAttrib, int);
 
 protected:
-    MirSurfaceManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
-        ApplicationManager* applicationManager,
-        SessionManager* sessionManager,
-        QObject *parent = 0
-    );
 
     QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
     QMutex m_mutex;
 
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
-    ApplicationManager* m_applicationManager;
     SessionManager* m_sessionManager;
     static MirSurfaceManager *the_surface_manager;
 };

@@ -277,6 +277,14 @@ void Session::removeChildSession(Session* session)
     }
 }
 
+void Session::foreachChildSession(std::function<void(Session* session)> f) const
+{
+    QList<Session*> children(m_children->list());
+    for (Session* child : children) {
+        f(child);
+    }
+}
+
 SessionModel* Session::childSessions() const
 {
     return m_children;

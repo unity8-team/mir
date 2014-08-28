@@ -1,15 +1,13 @@
 include(../../test-includes.pri)
 include(../common/common.pri)
 
-TARGET = surface_manager_test
+TARGET = general_tests
 
 INCLUDEPATH += \
     ../../../src/platforms/mirserver
 
 SOURCES += \
-    surface_item_model_test.cpp \
-    surface_manager_test.cpp \
-    surface_test.cpp
+    mir_object_model_test.cpp \
 
 # need to link in the QPA plugin too for access to MirServerConfiguration
 LIBS += -Wl,-rpath,$${PWD}/../../../src/platforms/mirserver \

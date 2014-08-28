@@ -25,6 +25,7 @@
 #include <Unity/Application/application_manager.h>
 #include <Unity/Application/applicationcontroller.h>
 #include <Unity/Application/mirsurfacemanager.h>
+#include <Unity/Application/sessionmanager.h>
 #include <Unity/Application/taskcontroller.h>
 #include <Unity/Application/proc_info.h>
 #include <mirserverconfiguration.h>
@@ -72,22 +73,6 @@ public:
     std::shared_ptr<StubPromptSessionManager> mock_prompt_session_manager;
 };
 
-class QtMirTestMirSurfaceManager : public MirSurfaceManager
-{
-public:
-    QtMirTestMirSurfaceManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
-        ApplicationManager* applicationManager
-    )
-    : MirSurfaceManager(mirConfig, applicationManager)
-    {}
-
-    QList<MirSurfaceItem*> surfacesForSession(const mir::scene::Session *session) const
-    {
-        return m_mirSessionToItemHash.values(session);
-    }
-};
-
 class QtMirTest : public ::testing::Test
 {
 public:
@@ -121,9 +106,13 @@ public:
                 [](DesktopFileReader::Factory*){}),
             QSharedPointer<ProcInfo>(&procInfo,[](ProcInfo *){})
         }
-        , surfaceManager{
+        , sessionManager{
             mirConfig,
             &applicationManager,
+        }
+        , surfaceManager{
+            mirConfig,
+            &sessionManager
         }
     {
     }
@@ -153,9 +142,9 @@ public:
         EXPECT_EQ(authed, true);
 
         auto appSession = std::make_shared<MockSession>(appId.toStdString(), procId);
-
-        applicationManager.onSessionStarting(appSession);
+        sessionManager.onSessionStarting(appSession);
         return application;
+        return nullptr;
     }
 
     testing::NiceMock<testing::MockOomController> oomController;
@@ -166,7 +155,8 @@ public:
     QSharedPointer<QtMirTestConfiguration> mirConfig;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
-    QtMirTestMirSurfaceManager surfaceManager;
+    SessionManager sessionManager;
+    MirSurfaceManager surfaceManager;
 };
 } // namespace testing
 

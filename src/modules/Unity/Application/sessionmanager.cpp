@@ -123,15 +123,13 @@ void SessionManager::onSessionStarting(std::shared_ptr<mir::scene::Session> cons
     insert(0, qmlSession);
 
     Application* application = m_applicationManager->findApplicationWithSession(session);
-    if (application) {
+    if (application && application->state() != Application::Running) {
         application->setSession(qmlSession);
     }
     // need to remove if we've destroyed outside
     connect(qmlSession, &Session::destroyed, this, [&](QObject *item) {
         auto sessionToRemove = static_cast<Session*>(item);
         remove(sessionToRemove);
-
-        Q_EMIT sessionStopping(qmlSession);
     });
 
     Q_EMIT sessionStarting(qmlSession);
