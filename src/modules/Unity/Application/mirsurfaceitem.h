@@ -33,7 +33,6 @@
 #include <mir_toolkit/common.h>
 
 #include "session.h"
-#include "mirsurfaceitemmodel.h"
 #include "ubuntukeyboardinfo.h"
 
 namespace qtmir {
@@ -75,8 +74,6 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false)
-    Q_PROPERTY(MirSurfaceItemModel* childSurfaces READ childSurfaces DESIGNABLE false CONSTANT)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -123,18 +120,10 @@ public:
 
     void setSession(Session *app);
 
-    MirSurfaceItem* parentSurface() const;
-
-    void addChildSurface(MirSurfaceItem* surface);
-    void insertChildSurface(uint index, MirSurfaceItem* surface);
-    void removeChildSurface(MirSurfaceItem* surface);
-    void foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const;
-
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
-    void parentSurfaceChanged(MirSurfaceItem* surface);
     void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
 
@@ -155,9 +144,6 @@ protected:
     void touchEvent(QTouchEvent *event) override;
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *);
-
-    MirSurfaceItemModel* childSurfaces() const;
-    void setParentSurface(MirSurfaceItem* surface);
 
 private Q_SLOTS:
     void surfaceDamaged();
@@ -190,9 +176,6 @@ private:
     std::shared_ptr<mir::scene::Surface> m_surface;
     QPointer<Session> m_session;
     bool m_firstFrameDrawn;
-
-    MirSurfaceItem* m_parentSurface;
-    MirSurfaceItemModel* m_children;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 
