@@ -20,50 +20,28 @@
 #include "mir/compositor/compositor.h"
 #include "mir/report_exception.h"
 #include "mir/run_mir.h"
-#include <mir/graphics/display.h>
-#include <mir/graphics/display_configuration.h>
 
 #include <iostream>
 #include <thread>
 
 namespace
 {
-
-void set_power(MirPowerMode mode, mir::examples::BasicServerConfiguration& config, int counter)
-{
-    std::shared_ptr<mir::graphics::Display> display = config.the_display();
-    std::shared_ptr<mir::graphics::DisplayConfiguration> displayConfig = display->configuration();
-    std::shared_ptr<mir::compositor::Compositor> compositor = config.the_compositor();
-
-    std::cout << "stopping compositor: " << counter << std::endl;
-    compositor->stop();
-
-    //displayConfig->for_each_output(
-    //   [&](const mir::graphics::UserDisplayConfigurationOutput displayConfigOutput) {
-    //       displayConfigOutput.power_mode = mode;
-    //   }
-    //);
-
-    bool const power_on = mode == MirPowerMode::mir_power_mode_on;
-
-    if (power_on)
-    {
-        std::cout << "starting compositor: " << counter << std::endl;
-        compositor->start();
-    }
-
-}
 void stress_compositor_thread(bool& done, mir::examples::BasicServerConfiguration& config)
 {
     int counter = 0;
-    MirPowerMode power_mode = MirPowerMode::mir_power_mode_off;
     while (!done)
     {
         counter++;
-        power_mode = (power_mode == MirPowerMode::mir_power_mode_off) ?
-                MirPowerMode::mir_power_mode_on : MirPowerMode::mir_power_mode_off;
+        std::shared_ptr<mir::compositor::Compositor> compositor = config.the_compositor();
 
-        set_power(power_mode, config, counter);
+        std::cout << "stopping compositor: " << counter << std::endl;        
+        compositor->stop();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        std::cout << "starting compositor: " << counter << std::endl;
+        compositor->start();
+
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
