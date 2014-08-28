@@ -30,6 +30,8 @@
 
 #include <QDebug>
 
+Q_LOGGING_CATEGORY(QTMIR_MIR_INPUT, "qtmir.mir.input")
+
 // from android-input AMOTION_EVENT_ACTION_*, hidden inside mir bowels
 // mir headers should define them
 const int QtEventFeeder::MirEventActionMask = 0xff;
@@ -418,8 +420,8 @@ void QtEventFeeder::validateTouches(QList<QWindowSystemInterface::TouchPoint> &t
         QHash<int, QWindowSystemInterface::TouchPoint>::iterator it = mActiveTouches.begin();
         while (it != mActiveTouches.end()) {
             if (!updatedTouches.contains(it.key())) {
-                qCWarning(QTMIR_MIR_MESSAGES)
-                    << "QtEventFeeder: Mir forgot about a touch (id =" << it.key() << "). Releasing it.";
+                qCWarning(QTMIR_MIR_INPUT)
+                    << "There's a touch (id =" << it.key() << ") missing. Releasing it.";
                 it.value().state = Qt::TouchPointReleased;
                 touchPoints.append(it.value());
                 it = mActiveTouches.erase(it);
@@ -437,8 +439,8 @@ bool QtEventFeeder::validateTouch(QWindowSystemInterface::TouchPoint &touchPoint
     switch (touchPoint.state) {
     case Qt::TouchPointPressed:
         if (mActiveTouches.contains(touchPoint.id)) {
-            qCWarning(QTMIR_MIR_MESSAGES)
-                << "QtEventFeeder: Mir pressed an already existing touch (id =" << touchPoint.id
+            qCWarning(QTMIR_MIR_INPUT)
+                << "Would press an already existing touch (id =" << touchPoint.id
                 << "). Making it move instead.";
             touchPoint.state = Qt::TouchPointMoved;
         }
@@ -446,8 +448,8 @@ bool QtEventFeeder::validateTouch(QWindowSystemInterface::TouchPoint &touchPoint
         break;
     case Qt::TouchPointMoved:
         if (!mActiveTouches.contains(touchPoint.id)) {
-            qCWarning(QTMIR_MIR_MESSAGES)
-                << "QtEventFeeder: Mir moved a touch that wasn't pressed before (id =" << touchPoint.id
+            qCWarning(QTMIR_MIR_INPUT)
+                << "Would move a touch that wasn't pressed before (id =" << touchPoint.id
                 << "). Making it press instead.";
             touchPoint.state = Qt::TouchPointPressed;
         }
@@ -455,8 +457,8 @@ bool QtEventFeeder::validateTouch(QWindowSystemInterface::TouchPoint &touchPoint
         break;
     case Qt::TouchPointStationary:
         if (!mActiveTouches.contains(touchPoint.id)) {
-            qCWarning(QTMIR_MIR_MESSAGES)
-                << "QtEventFeeder: There's an stationary touch that wasn't pressed before (id =" << touchPoint.id
+            qCWarning(QTMIR_MIR_INPUT)
+                << "There's an stationary touch that wasn't pressed before (id =" << touchPoint.id
                 << "). Making it press instead.";
             touchPoint.state = Qt::TouchPointPressed;
         }
@@ -464,8 +466,8 @@ bool QtEventFeeder::validateTouch(QWindowSystemInterface::TouchPoint &touchPoint
         break;
     case Qt::TouchPointReleased:
         if (!mActiveTouches.contains(touchPoint.id)) {
-            qCWarning(QTMIR_MIR_MESSAGES)
-                << "QtEventFeeder: Mir released a touch that wasn't pressed before (id =" << touchPoint.id
+            qCWarning(QTMIR_MIR_INPUT)
+                << "Would release a touch that wasn't pressed before (id =" << touchPoint.id
                 << "). Ignoring it.";
             ok = false;
         } else {
