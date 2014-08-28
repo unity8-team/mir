@@ -285,7 +285,7 @@ void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
     if (!mQtWindowSystem->hasTargetWindow())
         return;
 
-    int mirMotionAction = event.action & MirEventActionMask;
+    const int mirMotionAction = event.action & MirEventActionMask;
 
     // Ignore the events that do not interest us (or that we currently don't support or know
     // how to translate into Qt events)
