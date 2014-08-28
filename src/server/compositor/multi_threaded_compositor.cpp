@@ -31,6 +31,7 @@
 
 #include <thread>
 #include <condition_variable>
+#include <iostream>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -93,23 +94,15 @@ public:
                        std::shared_ptr<CompositorReport> const& report)
         : display_buffer_compositor_factory{db_compositor_factory},
           buffer(buffer),
+          compositing{true},
           running{true},
           frames_scheduled{0},
           report{report}
     {
     }
 
-    void operator()() noexcept  // noexcept is important! (LP: #1237332)
-    try
+    void composite()
     {
-        mir::set_thread_name("Mir/Comp");
-
-        /*
-         * Make the buffer the current rendering target, and release
-         * it when the thread is finished.
-         */
-        CurrentRenderingTarget target{buffer};
-
         auto display_buffer_compositor = display_buffer_compositor_factory->create_compositor_for(buffer);
 
         CompositorReport::SubCompositorId report_id =
@@ -121,16 +114,16 @@ public:
                               report_id);
 
         std::unique_lock<std::mutex> lock{run_mutex};
-        while (running)
+        while (compositing)
         {
             /* Wait until compositing has been scheduled or we are stopped */
-            run_cv.wait(lock, [&]{ return (frames_scheduled > 0) || !running; });
+            composite_cv.wait(lock, [&]{ return (frames_scheduled > 0) || !compositing; });
 
             /*
              * Check if we are running before compositing, since we may have
              * been stopped while waiting for the run_cv above.
              */
-            if (running)
+            if (compositing)
             {
                 /*
                  * Each surface could have a number of frames ready in its buffer
@@ -148,6 +141,30 @@ public:
             }
         }
     }
+
+    void operator()() noexcept  // noexcept is important! (LP: #1237332)
+    try
+    {
+        mir::set_thread_name("Mir/Comp");
+        std::cout << "Starting compositor thread...." << std::endl;
+
+        /*
+         * Make the buffer the current rendering target, and release
+         * it when the thread is finished.
+         */
+        CurrentRenderingTarget target{buffer};
+
+        while (running)
+        {
+            {
+                std::unique_lock<std::mutex> lock{start_mutex};
+                running_cv.wait(lock, [&]{ return compositing || !running; });
+            }
+
+            if (compositing)
+                composite();
+        }
+    }
     catch(...)
     {
         mir::terminate_with_current_exception();
@@ -160,24 +177,46 @@ public:
         if (num_frames > frames_scheduled)
         {
             frames_scheduled = num_frames;
-            run_cv.notify_one();
+            composite_cv.notify_one();
         }
+    }
+
+    void start()
+    {
+        std::lock_guard<std::mutex> lock{run_mutex};
+        compositing = true;
+        running_cv.notify_one();
     }
 
     void stop()
     {
         std::lock_guard<std::mutex> lock{run_mutex};
-        running = false;
-        run_cv.notify_one();
+        compositing = false;
+        composite_cv.notify_one();
+    }
+
+    void exit()
+    {
+        {
+            std::lock_guard<std::mutex> lock{start_mutex};
+            running = false;
+            compositing = false;
+            running_cv.notify_one();
+        }
+
+        stop();
     }
 
 private:
     std::shared_ptr<mc::DisplayBufferCompositorFactory> const display_buffer_compositor_factory;
     mg::DisplayBuffer& buffer;
+    bool compositing;
     bool running;
     int frames_scheduled;
     std::mutex run_mutex;
-    std::condition_variable run_cv;
+    std::mutex start_mutex;
+    std::condition_variable composite_cv;
+    std::condition_variable running_cv;
     std::shared_ptr<CompositorReport> const report;
 };
 
@@ -211,6 +250,15 @@ mc::MultiThreadedCompositor::MultiThreadedCompositor(
 mc::MultiThreadedCompositor::~MultiThreadedCompositor()
 {
     stop();
+
+    for (auto& f : thread_functors)
+        f->exit();
+
+    for (auto& t : threads)
+        t.join();
+
+    thread_functors.clear();
+    threads.clear();
 }
 
 void mc::MultiThreadedCompositor::schedule_compositing(int num)
@@ -236,14 +284,14 @@ void mc::MultiThreadedCompositor::start()
     /* To cleanup state if any code below throws */
     ApplyIfUnwinding cleanup_if_unwinding{
         [this, &lk]{
-            destroy_compositing_threads(lk);
+            stop_compositing_threads(lk);
         }};
 
     lk.unlock();
     scene->add_observer(observer);
     lk.lock();
 
-    create_compositing_threads();
+    start_compositing_threads();
 
     /* Optional first render */
     if (compose_on_start)
@@ -274,29 +322,37 @@ void mc::MultiThreadedCompositor::stop()
     scene->remove_observer(observer);
     lk.lock();
 
-    destroy_compositing_threads(lk);
+    stop_compositing_threads(lk);
 
     // If the compositor is restarted we've likely got clients blocked
     // so we will need to schedule compositing immediately
     compose_on_start = true;
 }
 
-void mc::MultiThreadedCompositor::create_compositing_threads()
+void mc::MultiThreadedCompositor::start_compositing_threads()
 {
-    /* Start the display buffer compositing threads */
-    display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
+    if (threads.empty())
     {
-        auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, report};
-        auto thread_functor = std::unique_ptr<mc::CompositingFunctor>(thread_functor_raw);
+        /* Start the display buffer compositing threads */
+        display->for_each_display_buffer([this](mg::DisplayBuffer& buffer)
+        {
+            auto thread_functor_raw = new mc::CompositingFunctor{display_buffer_compositor_factory, buffer, report};
+            auto thread_functor = std::unique_ptr<mc::CompositingFunctor>(thread_functor_raw);
 
-        threads.push_back(std::thread{std::ref(*thread_functor)});
-        thread_functors.push_back(std::move(thread_functor));
-    });
+            threads.push_back(std::thread{std::ref(*thread_functor)});
+            thread_functors.push_back(std::move(thread_functor));
+        });
+    }
+    else
+    {
+        for (auto& f : thread_functors)
+            f->start();
+    }
 
     state = CompositorState::started;
 }
 
-void mc::MultiThreadedCompositor::destroy_compositing_threads(std::unique_lock<std::mutex>& lock)
+void mc::MultiThreadedCompositor::stop_compositing_threads(std::unique_lock<std::mutex>& lock)
 {
     /* Could be called during unwinding,
      * ensure the lock is held before changing state
@@ -306,12 +362,6 @@ void mc::MultiThreadedCompositor::destroy_compositing_threads(std::unique_lock<s
 
     for (auto& f : thread_functors)
         f->stop();
-
-    for (auto& t : threads)
-        t.join();
-
-    thread_functors.clear();
-    threads.clear();
 
     report->stopped();
 

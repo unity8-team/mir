@@ -67,8 +67,8 @@ public:
     void stop();
 
 private:
-    void create_compositing_threads();
-    void destroy_compositing_threads(std::unique_lock<std::mutex>& lock);
+    void start_compositing_threads();
+    void stop_compositing_threads(std::unique_lock<std::mutex>& lock);
 
     std::shared_ptr<graphics::Display> const display;
     std::shared_ptr<Scene> const scene;
