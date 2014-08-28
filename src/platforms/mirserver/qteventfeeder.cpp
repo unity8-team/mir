@@ -135,7 +135,7 @@ static uint32_t translateKeysym(uint32_t sym, char *string, size_t size) {
 
 namespace {
 
-class RealQtWindowSystem : public QtEventFeeder::QtWindowSystem {
+class QtWindowSystem : public QtEventFeeder::QtWindowSystemInterface {
 
     bool hasTargetWindow() override
     {
@@ -180,12 +180,12 @@ private:
 } // anonymous namespace
 
 
-QtEventFeeder::QtEventFeeder(QtEventFeeder::QtWindowSystem *windowSystem)
+QtEventFeeder::QtEventFeeder(QtEventFeeder::QtWindowSystemInterface *windowSystem)
 {
     if (windowSystem) {
         mQtWindowSystem = windowSystem;
     } else {
-        mQtWindowSystem = new RealQtWindowSystem;
+        mQtWindowSystem = new QtWindowSystem;
     }
 
     // Initialize touch device. Hardcoded just like in qtubuntu

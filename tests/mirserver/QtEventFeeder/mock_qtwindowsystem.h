@@ -20,7 +20,7 @@
 
 #include <qteventfeeder.h>
 
-class MockQtWindowSystem : public QtEventFeeder::QtWindowSystem {
+class MockQtWindowSystem : public QtEventFeeder::QtWindowSystemInterface {
 public:
     MOCK_METHOD0(hasTargetWindow, bool());
     MOCK_METHOD0(targetWindowGeometry, QRect());

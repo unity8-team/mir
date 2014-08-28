@@ -35,9 +35,9 @@ public:
     // Interface between QtEventFeeder and the actual QWindowSystemInterface functions
     // and other related Qt methods and objects to enable replacing them with mocks in
     // pure unit tests.
-    class QtWindowSystem {
+    class QtWindowSystemInterface {
         public:
-        virtual ~QtWindowSystem() {}
+        virtual ~QtWindowSystemInterface() {}
         virtual bool hasTargetWindow() = 0;
         virtual QRect targetWindowGeometry() = 0;
         virtual void registerTouchDevice(QTouchDevice *device) = 0;
@@ -52,7 +52,7 @@ public:
                 Qt::KeyboardModifiers mods = Qt::NoModifier) = 0;
     };
 
-    QtEventFeeder(QtWindowSystem *windowSystem = nullptr);
+    QtEventFeeder(QtWindowSystemInterface *windowSystem = nullptr);
     virtual ~QtEventFeeder();
 
     static const int MirEventActionMask;
@@ -72,7 +72,7 @@ private:
     bool validateTouch(QWindowSystemInterface::TouchPoint &touchPoint);
 
     QTouchDevice *mTouchDevice;
-    QtWindowSystem *mQtWindowSystem;
+    QtWindowSystemInterface *mQtWindowSystem;
 
     // Maps the id of an active touch to its last known state
     QHash<int, QWindowSystemInterface::TouchPoint> mActiveTouches;
