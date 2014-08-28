@@ -169,6 +169,8 @@ void Application::setSession(Session *newSession)
 
     if (m_session) {
         m_session->disconnect(this);
+        m_session->setApplication(nullptr);
+        m_session->setParent(nullptr);
     }
 
     bool oldFullscreen = fullscreen();
