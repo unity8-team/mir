@@ -87,6 +87,16 @@ void QtEventFeederTest::setIrrelevantMockWindowSystemExpectations()
         .WillRepeatedly(Return(QRect(0,0,100,100)));
 }
 
+
+/*
+   Mir sends a MirEvent([touch(id=0,state=pressed)]. QtEventFeeder happily forwards that to Qt.
+
+   Then, Mir sends a MirEvent([touch(id=1,state=pressed)]). In MirEvents, every single active touch
+   point must be listed in the event even if it didn't change at all in the meantime. So that's a bug.
+   But instead of crashing or forwarding the bogus event stream down to Qt, QtEventFeeder should attempt
+   to fix the situation by synthesizing a touch[id=1,state=released] to be send along with the
+   touch(id=1,state=pressed) it got. So that Qt receives a correct touch event stream.
+ */
 TEST_F(QtEventFeederTest, GenerateMissingTouchEnd)
 {
 
@@ -94,8 +104,7 @@ TEST_F(QtEventFeederTest, GenerateMissingTouchEnd)
 
     EXPECT_CALL(*mockWindowSystem, handleTouchEvent(_,_,AllOf(SizeIs(1),
                                                               Contains(AllOf(HasId(0),
-                                                                             IsPressed()))),_))
-        .Times(1);
+                                                                             IsPressed()))),_)).Times(1);
 
     MirEvent mirEvent;
     mirEvent.type = mir_event_type_motion;
@@ -118,8 +127,7 @@ TEST_F(QtEventFeederTest, GenerateMissingTouchEnd)
     EXPECT_CALL(*mockWindowSystem, handleTouchEvent(_,_,AllOf(SizeIs(2),
                                                               Contains(AllOf(HasId(0),IsReleased())),
                                                               Contains(AllOf(HasId(1),IsPressed()))
-                                                             ),_))
-        .Times(1);
+                                                             ),_)).Times(1);
 
     mirEvent.type = mir_event_type_motion;
     mirEvent.motion.pointer_count = 1;
@@ -143,8 +151,7 @@ TEST_F(QtEventFeederTest, PressSameTouchTwice)
 
     EXPECT_CALL(*mockWindowSystem, handleTouchEvent(_,_,AllOf(SizeIs(1),
                                                               Contains(AllOf(HasId(0),
-                                                                             IsPressed()))),_))
-        .Times(1);
+                                                                             IsPressed()))),_)).Times(1);
 
     MirEvent mirEvent;
     mirEvent.type = mir_event_type_motion;
@@ -166,8 +173,7 @@ TEST_F(QtEventFeederTest, PressSameTouchTwice)
 
     EXPECT_CALL(*mockWindowSystem, handleTouchEvent(_,_,AllOf(SizeIs(1),
                                                               Contains(AllOf(HasId(0), StateIsMoved()))
-                                                             ),_))
-        .Times(1);
+                                                             ),_)).Times(1);
 
     mirEvent.type = mir_event_type_motion;
     mirEvent.motion.pointer_count = 1;
