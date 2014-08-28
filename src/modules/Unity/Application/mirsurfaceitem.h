@@ -124,7 +124,6 @@ Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
-    void surfaceDestroyed();
     void firstFrameDrawn(MirSurfaceItem *item);
 
     void removed();

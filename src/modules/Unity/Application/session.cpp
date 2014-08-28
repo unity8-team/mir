@@ -176,9 +176,6 @@ void Session::setSurface(MirSurfaceItem *newSurface)
                     this, [this] { Q_EMIT surfaceChanged(m_surface); });
         }
 
-        connect(newSurface, &MirSurfaceItem::surfaceDestroyed,
-                this, &Session::discardSurface);
-
         connect(newSurface, &MirSurfaceItem::stateChanged,
             this, &Session::updateFullscreenProperty);
     }
@@ -193,16 +190,6 @@ void Session::setSurface(MirSurfaceItem *newSurface)
 void Session::updateFullscreenProperty()
 {
     setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
-}
-
-void Session::discardSurface()
-{
-    // if it has a parent, it means the surface is still being used.
-    if (!parent()) {
-        MirSurfaceItem *discardedSurface = m_surface;
-        setSurface(nullptr);
-        delete discardedSurface;
-    }
 }
 
 void Session::setFullscreen(bool fullscreen)

@@ -323,9 +323,7 @@ void MirSurfaceItem::release()
     if (m_session) {
         m_session->setSurface(nullptr);
     }
-    if (!parent()) {
-        deleteLater();
-    }
+    deleteLater();
 }
 
 Session* MirSurfaceItem::session() const

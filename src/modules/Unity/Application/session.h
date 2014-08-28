@@ -98,7 +98,6 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void updateFullscreenProperty();
-    void discardSurface();
 
 private:
     SessionModel* childSessions() const;
