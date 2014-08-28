@@ -35,6 +35,7 @@ public:
     // Interface between QtEventFeeder and the actual QWindowSystemInterface functions
     // and other related Qt methods and objects to enable replacing them with mocks in
     // pure unit tests.
+    // TODO - Make it work with multimonitor scenarios
     class QtWindowSystemInterface {
         public:
         virtual ~QtWindowSystemInterface() {}
