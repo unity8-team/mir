@@ -188,7 +188,7 @@ bb27ec04b2861d128f420698491941f71e1aefc0  include/shared/mir/recursive_read_writ
 903210453b98267e47c03ab2920c1db047ba0457  include/shared/mir/report/lttng/mir_tracepoint.h
 52b6b60543a361e91dbeaa2549114239f57b6b4e  include/shared/mir/report/lttng/tracepoint_provider.h
 dc80f8a57f133276dd5a72f4d0360a7b71154d16  include/shared/mir/shared_library.h
-ae2fe86fa305d7eb2ef436e9338a6bb8b7934023  include/shared/mir/shared_library_prober.h
+4d80544bf59ef452979b934d664ac592aff58c82  include/shared/mir/shared_library_prober.h
 53e4159f2a0b564cb39a7785b4e229f6f7424779  include/shared/mir/shared_library_prober_report.h
 b4e96264b9a57a1f2ceceb700c5379658905ded7  include/shared/mir/thread_name.h
 9907751d046e4aea81881cf19e5df52c7a6a813e  include/shared/mir_toolkit/client_types.h
