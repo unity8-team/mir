@@ -47,6 +47,8 @@ add_executable(
   ${INTEGRATION_TESTS_SRCS}
 )
 
+add_dependencies(mir_integration_tests GMock)
+
 uses_android_input(mir_integration_tests)
 
 target_link_libraries(
