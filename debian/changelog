@@ -1,3 +1,13 @@
+platform-api (2.2.0+14.10.20140829-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * Rebuild for the Mir 0.7.0 release.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 29 Aug 2014 18:08:03 +0000
+
 platform-api (2.2.0+14.10.20140825-0ubuntu1) utopic; urgency=low
 
   [ thomas-voss ]
