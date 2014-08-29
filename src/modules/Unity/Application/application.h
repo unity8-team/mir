@@ -109,7 +109,8 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onSessionSuspended();
     void onSessionResumed();
-    void onSessionRespawned();
+
+    void respawn();
 
 private:
     QString longAppId() const;

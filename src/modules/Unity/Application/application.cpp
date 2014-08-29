@@ -183,7 +183,6 @@ void Application::setSession(Session *newSession)
 
         connect(m_session, &Session::suspended, this, &Application::onSessionSuspended);
         connect(m_session, &Session::resumed, this, &Application::onSessionResumed);
-        connect(m_session, &Session::respawned, this, &Application::onSessionRespawned);
         connect(m_session, &Session::fullscreenChanged, this, &Application::fullscreenChanged);
 
         if (oldFullscreen != fullscreen())
@@ -219,7 +218,7 @@ void Application::setState(Application::State state)
             {
             case Session::State::Running:
                 if (m_state == Session::State::Stopped) {
-                    onSessionRespawned();
+                    respawn();
                     state = Session::State::Starting;
                 }
                 break;
@@ -253,9 +252,9 @@ void Application::onSessionResumed()
     m_taskController->resume(longAppId());
 }
 
-void Application::onSessionRespawned()
+void Application::respawn()
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionRespawned - appId=" << appId();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::respawn - appId=" << appId();
     m_taskController->start(appId(), m_arguments);
 }
 

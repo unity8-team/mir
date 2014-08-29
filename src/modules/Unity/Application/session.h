@@ -95,7 +95,6 @@ Q_SIGNALS:
 
     void suspended();
     void resumed();
-    void respawned();
 
 private Q_SLOTS:
     void updateFullscreenProperty();

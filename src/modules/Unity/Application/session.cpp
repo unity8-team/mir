@@ -228,9 +228,6 @@ void Session::setState(State state)
                     m_surface->startFrameDropper();
                 Q_EMIT resumed();
                 session()->set_lifecycle_state(mir_lifecycle_state_resumed);
-            } else if (m_state == Session::State::Stopped) {
-                Q_EMIT respawned();
-                state = Session::State::Starting;
             }
             break;
         case Session::State::Stopped:
