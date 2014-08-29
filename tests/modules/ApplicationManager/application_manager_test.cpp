@@ -65,8 +65,10 @@ TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsI
                 ApplicationManager::NoFlag,
                 QStringList());
 
-    application->suspend();
-    application->resume();
+    // FIXME - this is doesn't really excerise the actualt behaviour since suspend/resume should be
+    // controlled by state changes. Requires using suspend timer.
+    QMetaObject::invokeMethod(application, "onSessionSuspended");
+    QMetaObject::invokeMethod(application, "onSessionResumed");
 }
 
 // Currently disabled as we need to make sure that we have a corresponding mir session, too.

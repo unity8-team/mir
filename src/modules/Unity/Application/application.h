@@ -84,6 +84,7 @@ public:
     bool focused() const override;
 
     void setStage(Stage stage);
+    void setState(State state);
 
     Session* session() const;
 
@@ -100,21 +101,20 @@ public:
 
     bool containsProcess(pid_t pid) const;
 
-public Q_SLOTS:
-    void suspend();
-    void resume();
-    void respawn();
-
 Q_SIGNALS:
     void fullscreenChanged(bool fullscreen);
     void stageChanged(Stage stage);
     void sessionChanged(Session *session);
 
+private Q_SLOTS:
+    void onSessionSuspended();
+    void onSessionResumed();
+    void onSessionRespawned();
+
 private:
     QString longAppId() const;
     pid_t pid() const;
     void setPid(pid_t pid);
-    void setState(State state);
     void setFocused(bool focus);
     void setSession(Session *session);
 

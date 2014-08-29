@@ -93,9 +93,9 @@ Q_SIGNALS:
     void stateChanged(State state);
     void fullscreenChanged(bool fullscreen);
 
-    void suspend();
-    void resume();
-    void respawn();
+    void suspended();
+    void resumed();
+    void respawned();
 
 private Q_SLOTS:
     void updateFullscreenProperty();

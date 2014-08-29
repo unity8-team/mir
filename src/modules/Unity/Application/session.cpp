@@ -62,7 +62,7 @@ Session::Session(const std::shared_ptr<ms::Session>& session,
         } else {
             qDebug() << "Application::suspend - no surface to call stopFrameDropper() on!";
         }
-        Q_EMIT suspend();
+        Q_EMIT suspended();
     });
 }
 
@@ -206,16 +206,6 @@ void Session::setFullscreen(bool fullscreen)
     }
 }
 
-void Session::setParentSession(Session* session)
-{
-    if (m_parentSession == session || session == this)
-        return;
-
-    m_parentSession = session;
-
-    Q_EMIT parentSessionChanged(session);
-}
-
 void Session::setState(State state)
 {
     qCDebug(QTMIR_SESSIONS) << "Session::setState - session=" << this << "state=" << applicationStateToStr(state);
@@ -236,10 +226,10 @@ void Session::setState(State state)
             if (m_state == Session::State::Suspended) {
                 if (m_surface)
                     m_surface->startFrameDropper();
-                Q_EMIT resume();
+                Q_EMIT resumed();
                 session()->set_lifecycle_state(mir_lifecycle_state_resumed);
             } else if (m_state == Session::State::Stopped) {
-                Q_EMIT respawn();
+                Q_EMIT respawned();
                 state = Session::State::Starting;
             }
             break;
@@ -256,7 +246,21 @@ void Session::setState(State state)
 
         m_state = state;
         Q_EMIT stateChanged(state);
+
+        foreachChildSession([state](Session* session) {
+            session->setState(state);
+        });
     }
+}
+
+void Session::setParentSession(Session* session)
+{
+    if (m_parentSession == session || session == this)
+        return;
+
+    m_parentSession = session;
+
+    Q_EMIT parentSessionChanged(session);
 }
 
 void Session::addChildSession(Session* session)
@@ -270,6 +274,8 @@ void Session::insertChildSession(uint index, Session* session)
 
     session->setParentSession(this);
     m_children->insert(index, session);
+
+    session->setState(state());
 }
 
 void Session::removeChildSession(Session* session)

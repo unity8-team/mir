@@ -179,10 +179,11 @@ void Application::setSession(Session *newSession)
     if (m_session) {
         m_session->setParent(this);
         m_session->setApplication(this);
+        m_session->setState(state());
 
-        connect(m_session, &Session::suspend, this, &Application::suspend);
-        connect(m_session, &Session::resume, this, &Application::resume);
-        connect(m_session, &Session::respawn, this, &Application::respawn);
+        connect(m_session, &Session::suspended, this, &Application::onSessionSuspended);
+        connect(m_session, &Session::resumed, this, &Application::onSessionResumed);
+        connect(m_session, &Session::respawned, this, &Application::onSessionRespawned);
         connect(m_session, &Session::fullscreenChanged, this, &Application::fullscreenChanged);
 
         if (oldFullscreen != fullscreen())
@@ -210,7 +211,22 @@ void Application::setState(Application::State state)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setState - appId=" << appId() << "state=" << applicationStateToStr(state);
     if (m_state != state) {
-        if (session()) session()->setState((Session::State)state);
+        if (session()) {
+            session()->setState((Session::State)state);
+        } else {
+            // If we have have no session, we may have to respawn it.
+            switch (state)
+            {
+            case Session::State::Running:
+                if (m_state == Session::State::Stopped) {
+                    onSessionRespawned();
+                    state = Session::State::Starting;
+                }
+                break;
+            default:
+                break;
+            }
+        }
         m_state = state;
         Q_EMIT stateChanged(state);
     }
@@ -225,21 +241,21 @@ void Application::setFocused(bool focused)
     }
 }
 
-void Application::suspend()
+void Application::onSessionSuspended()
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::suspend - appId=" << appId();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionSuspended - appId=" << appId();
     m_taskController->suspend(longAppId());
 }
 
-void Application::resume()
+void Application::onSessionResumed()
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::resume - appId=" << appId();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionResumed - appId=" << appId();
     m_taskController->resume(longAppId());
 }
 
-void Application::respawn()
+void Application::onSessionRespawned()
 {
-    qCDebug(QTMIR_APPLICATIONS) << "Application::respawn - appId=" << appId();
+    qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionRespawned - appId=" << appId();
     m_taskController->start(appId(), m_arguments);
 }
 
