@@ -46,8 +46,6 @@ uses_android_input(mir-test-doubles)
 target_link_libraries(
   mir-test-doubles
 
-  mirserver
-
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
