@@ -46,8 +46,8 @@ std::string const lttng_opt_val{"lttng"};
 std::string const default_platform_lib{"libmirclientplatform.so"};
 
 mir::SharedLibrary const* load_library(std::string const& libname)
-
 {
+
     if (auto& ptr = mcl::libraries_cache(libname))
     {
         return ptr.get();
