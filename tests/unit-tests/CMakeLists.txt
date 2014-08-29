@@ -38,6 +38,7 @@ set(
   test_shared_library_prober.cpp
   test_fatal.cpp
   test_fd.cpp
+  test_shared_library_prober.cpp
 )
 
 add_subdirectory(options/)
