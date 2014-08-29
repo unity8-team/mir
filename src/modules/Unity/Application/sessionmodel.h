@@ -18,12 +18,12 @@
 #define SESSIONMODEL_H
 
 // Local
-#include "mirobjectmodel.h"
+#include "objectlistmodel.h"
 
 namespace qtmir {
 
 class Session;
-typedef MirObjectModel<Session> SessionModel;
+typedef ObjectListModel<Session> SessionModel;
 
 } // namespace qtmir
 

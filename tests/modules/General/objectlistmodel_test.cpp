@@ -15,18 +15,18 @@
  *
  */
 
-#include <Unity/Application/mirobjectmodel.h>
+#include <Unity/Application/objectlistmodel.h>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 using namespace qtmir;
 
-TEST(MirObjectModelTests, TestInsert)
+TEST(ObjectListModelTests, TestInsert)
 {
     using namespace testing;
 
-    MirObjectModel<QObject> model;
+    ObjectListModel<QObject> model;
     QObject object1;
     QObject object2;
     QObject object3;
@@ -54,11 +54,11 @@ TEST(MirObjectModelTests, TestInsert)
     EXPECT_THAT(model.list(), ElementsAre(&object3, &object1, &object5, &object2, &object4));
 }
 
-TEST(MirObjectModelTests, TestMove)
+TEST(ObjectListModelTests, TestMove)
 {
     using namespace testing;
 
-    MirObjectModel<QObject> model;
+    ObjectListModel<QObject> model;
     QObject object1;
     QObject object2;
     QObject object3;
@@ -92,11 +92,11 @@ TEST(MirObjectModelTests, TestMove)
     EXPECT_THAT(model.list(), ElementsAre(&object4, &object1, &object5, &object3, &object2));
 }
 
-TEST(MirObjectModelTests, TestRemove)
+TEST(ObjectListModelTests, TestRemove)
 {
     using namespace testing;
 
-    MirObjectModel<QObject> model;
+    ObjectListModel<QObject> model;
     QObject object1;
     QObject object2;
     QObject object3;

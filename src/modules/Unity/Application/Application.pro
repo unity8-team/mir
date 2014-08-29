@@ -54,10 +54,10 @@ HEADERS += application_manager.h \
     ubuntukeyboardinfo.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
-    mirobjectmodel.h \
     mirsurfaceitem.h \
     mirsurfaceitemmodel.h \
     mirbuffersgtexture.h \
+    objectlistmodel.h \
     processcontroller.h \
     proc_info.h \
     session.h \
