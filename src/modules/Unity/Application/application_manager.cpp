@@ -622,7 +622,7 @@ void ApplicationManager::onResumeRequested(const QString& appId)
     }
 }
 
-void ApplicationManager::onAppDataChanged(int role)
+void ApplicationManager::onAppDataChanged(const int role)
 {
     if (sender()) {
         Application *application = static_cast<Application*>(sender());

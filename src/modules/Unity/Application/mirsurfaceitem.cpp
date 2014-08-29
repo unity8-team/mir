@@ -623,7 +623,6 @@ void MirSurfaceItem::scheduleTextureUpdate()
     m_frameDropperTimer.start();
 }
 
-
 void MirSurfaceItem::setSession(Session *session)
 {
     m_session = session;
