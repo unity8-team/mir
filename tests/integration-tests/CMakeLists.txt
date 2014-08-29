@@ -58,7 +58,7 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
 
-  miromnibus
+  mir-all-bare
 
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}

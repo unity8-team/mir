@@ -5,5 +5,5 @@ usr/bin/mir_integration_tests
 usr/bin/mir_performance_tests
 usr/lib/*/mir/tools/libmirclientlttng.so
 usr/lib/*/mir/tools/libmirserverlttng.so
-usr/lib/*/libmiromnibus.so.25
-usr/lib/*/libmiromnibus.so
+usr/lib/*/libmir-all-bare.so.25
+usr/lib/*/libmir-all-bare.so

@@ -30,14 +30,14 @@ option(MIR_BUILD_PERFORMANCE_TESTS "Build performance tests" ON)
 option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
 
 if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
-  add_library(miromnibus SHARED
+  add_library(mir-all-bare SHARED
     ${MIR_SERVER_OBJECTS}
     $<TARGET_OBJECTS:mirclientobjects>
     ${MIR_PLATFORM_OBJECTS}
     ${MIR_COMMON_OBJECTS}
   )
   
-  target_link_libraries(miromnibus
+  target_link_libraries(mir-all-bare
     3rd_party
     mirdraw
     mirtestdraw
@@ -55,18 +55,18 @@ if (MIR_BUILD_INTEGRATION_TESTS OR MIR_BUILD_UNIT_TESTS)
   )
 
   if (MIR_TEST_PLATFORM STREQUAL "android")
-  target_link_libraries(miromnibus 
+  target_link_libraries(mir-all-bare 
     mirsharedandroid
     ${ANDROID_PROPERTIES_LDFLAGS}
   )
   endif()
 
-  set_target_properties(miromnibus
+  set_target_properties(mir-all-bare
     PROPERTIES
     SOVERSION ${MIRSERVER_ABI}
   )
 
-  install(TARGETS miromnibus
+  install(TARGETS mir-all-bare
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 endif()

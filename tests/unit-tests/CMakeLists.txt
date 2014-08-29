@@ -56,7 +56,7 @@ target_link_libraries(
   mir-test-framework
 
   demo-shell
-  miromnibus
+  mir-all-bare
 
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
