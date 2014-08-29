@@ -29,6 +29,8 @@
 
 #include "mir/logging/logger.h"
 
+#include <dlfcn.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <unistd.h>
@@ -70,9 +72,16 @@ MirConnection* valid_connections{nullptr};
 // There's no point in loading twice, and it isn't safe to
 // unload while there are valid connections
 std::map<std::string, std::shared_ptr<mir::SharedLibrary>>* libraries_cache_ptr{nullptr};
-}
 
-#include <dlfcn.h>
+// Hack around the way Qt loads mir
+void ensure_loaded_with_rtld_global()
+{
+    Dl_info info;
+
+    dladdr(reinterpret_cast<void*>(&ensure_loaded_with_rtld_global), &info);
+    dlopen(info.dli_fname,  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
+}
+}
 
 std::shared_ptr<mir::SharedLibrary>& mcl::libraries_cache(std::string const& libname)
 {
@@ -80,8 +89,7 @@ std::shared_ptr<mir::SharedLibrary>& mcl::libraries_cache(std::string const& lib
 
     if (!libraries_cache_ptr)
     {
-        // Hack around the way Qt loads mir
-        dlopen("libmirclient.so.8",  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
+        ensure_loaded_with_rtld_global();
         libraries_cache_ptr = new LibrariesCache;
     }
 
