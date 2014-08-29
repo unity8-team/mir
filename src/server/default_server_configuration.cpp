@@ -50,8 +50,20 @@ namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mi = mir::input;
 
+
+#include <dlfcn.h>
+
+namespace
+{
+void test_init()
+{
+    // Hack around the way Qt loads mir
+    dlopen("libmirserver.so.25",  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
+}
+}
+
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
-        DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
+        DefaultServerConfiguration((test_init(), std::make_shared<mo::DefaultConfiguration>(argc, argv)))
 {
 }
 

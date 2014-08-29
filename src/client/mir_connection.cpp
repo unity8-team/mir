@@ -72,12 +72,18 @@ MirConnection* valid_connections{nullptr};
 std::map<std::string, std::shared_ptr<mir::SharedLibrary>>* libraries_cache_ptr{nullptr};
 }
 
+#include <dlfcn.h>
+
 std::shared_ptr<mir::SharedLibrary>& mcl::libraries_cache(std::string const& libname)
 {
     std::lock_guard<std::mutex> lock(connection_guard);
 
     if (!libraries_cache_ptr)
+    {
+        // Hack around the way Qt loads mir
+        dlopen("libmirclient.so.8",  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
         libraries_cache_ptr = new LibrariesCache;
+    }
 
     return (*libraries_cache_ptr)[libname];
 }
