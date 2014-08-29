@@ -17,7 +17,7 @@
 #ifndef MIRSURFACEITEMMODEL_H
 #define MIRSURFACEITEMMODEL_H
 
-// Llocal
+// Local
 #include "mirobjectmodel.h"
 
 namespace qtmir {

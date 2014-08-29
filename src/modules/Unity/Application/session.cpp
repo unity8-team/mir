@@ -81,8 +81,8 @@ Session::~Session()
     if (m_application) {
         m_application->setSession(nullptr);
     }
-    delete m_surface;
-    delete m_children;
+    delete m_surface; m_surface = nullptr;
+    delete m_children; m_children = nullptr;
 }
 
 void Session::release()
@@ -189,7 +189,12 @@ void Session::setSurface(MirSurfaceItem *newSurface)
 
 void Session::updateFullscreenProperty()
 {
-    setFullscreen(m_surface && m_surface->state() == MirSurfaceItem::Fullscreen);
+    if (m_surface) {
+        setFullscreen(m_surface->state() == MirSurfaceItem::Fullscreen);
+    } else {
+        // Keep the current value of the fullscreen property until we get a new
+        // surface
+    }
 }
 
 void Session::setFullscreen(bool fullscreen)

@@ -210,23 +210,7 @@ void Application::setState(Application::State state)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setState - appId=" << appId() << "state=" << applicationStateToStr(state);
     if (m_state != state) {
-        switch (state)
-        {
-        case Application::Starting:
-            if (session()) session()->setState(Session::State::Starting);
-            break;
-        case Application::Suspended:
-            if (session()) session()->setState(Session::State::Suspended);
-            break;
-        case Application::Running:
-            if (session()) session()->setState(Session::State::Running);
-            break;
-        case Application::Stopped:
-            if (session()) session()->setState(Session::State::Stopped);
-            break;
-        default:
-            break;
-        }
+        if (session()) session()->setState((Session::State)state);
         m_state = state;
         Q_EMIT stateChanged(state);
     }
