@@ -238,6 +238,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_surface(surface)
     , m_session(session)
     , m_firstFrameDrawn(false)
+    , m_live(true)
     , m_textureProvider(nullptr)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
@@ -345,6 +346,11 @@ QString MirSurfaceItem::name() const
 {
     //FIXME - how to listen to change in this property?
     return QString::fromStdString(m_surface->name());
+}
+
+bool MirSurfaceItem::live() const
+{
+    return m_live;
 }
 
 // Called from the rendering (scene graph) thread
@@ -518,6 +524,14 @@ void MirSurfaceItem::setState(const State &state)
 {
     if (this->state() != state) {
         m_surface->configure(mir_surface_attrib_state, static_cast<int>(state));
+    }
+}
+
+void MirSurfaceItem::setLive(const bool live)
+{
+    if (m_live != live) {
+        m_live = live;
+        Q_EMIT liveChanged(m_live);
     }
 }
 

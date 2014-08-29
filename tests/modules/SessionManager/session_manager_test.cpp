@@ -111,9 +111,9 @@ TEST_F(SessionManagerTests, TestPromptSession)
 
     EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), for_each_provider_in(mirPromptSession,_)).WillRepeatedly(InvokeWithoutArgs([]{}));
 
-    QSignalSpy spyRemoved(qtmirProviderSession, SIGNAL(removed()));
+    EXPECT_EQ(qtmirProviderSession->live(), true);
     sessionManager.onPromptProviderRemoved(mirPromptSession.get(), mirProviderSession);
-    EXPECT_EQ(spyRemoved.count(), 1);
+    EXPECT_EQ(qtmirProviderSession->live(), false);
 
     sessionManager.onPromptSessionStopping(mirPromptSession);
 

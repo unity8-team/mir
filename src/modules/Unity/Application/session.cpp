@@ -48,6 +48,7 @@ Session::Session(const std::shared_ptr<ms::Session>& session,
     , m_children(new SessionModel(this))
     , m_fullscreen(false)
     , m_state(State::Starting)
+    , m_live(true)
     , m_suspendTimer(new QTimer(this))
     , m_promptSessionManager(promptSessionManager)
 {
@@ -139,6 +140,11 @@ Session::State Session::state() const
 bool Session::fullscreen() const
 {
     return m_fullscreen;
+}
+
+bool Session::live() const
+{
+    return m_live;
 }
 
 void Session::setApplication(Application* application)
@@ -247,6 +253,14 @@ void Session::setState(State state)
         foreachChildSession([state](Session* session) {
             session->setState(state);
         });
+    }
+}
+
+void Session::setLive(const bool live)
+{
+    if (m_live != live) {
+        m_live = live;
+        Q_EMIT liveChanged(m_live);
     }
 }
 

@@ -50,6 +50,7 @@ class Session : public QObject
     Q_PROPERTY(Session* parentSession READ parentSession NOTIFY parentSessionChanged DESIGNABLE false)
     Q_PROPERTY(SessionModel* childSessions READ childSessions DESIGNABLE false CONSTANT)
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
+    Q_PROPERTY(bool live READ live NOTIFY liveChanged)
 
 public:
     explicit Session(const std::shared_ptr<mir::scene::Session>& session,
@@ -69,6 +70,7 @@ public:
     Session* parentSession() const;
     State state() const;
     bool fullscreen() const;
+    bool live() const;
 
     void setSession();
     void setApplication(Application* item);
@@ -92,6 +94,7 @@ Q_SIGNALS:
     void aboutToBeDestroyed();
     void stateChanged(State state);
     void fullscreenChanged(bool fullscreen);
+    void liveChanged(bool live);
 
     void suspended();
     void resumed();
@@ -108,6 +111,7 @@ private:
     void stopPromptSessions();
 
     void setFullscreen(bool fullscreen);
+    void setLive(const bool);
 
     std::shared_ptr<mir::scene::Session> m_session;
     Application* m_application;
@@ -116,6 +120,7 @@ private:
     SessionModel* m_children;
     bool m_fullscreen;
     State m_state;
+    bool m_live;
     QTimer* m_suspendTimer;
     QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
     std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;

@@ -153,9 +153,9 @@ void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *se
         }
     }
 
-    Q_EMIT surfaceDestroyed(item);
     item->setEnabled(false); //disable input events
-    Q_EMIT item->removed();
+    item->setLive(false); //disable input events
+    Q_EMIT surfaceDestroyed(item);
 }
 
 // NB: Surface might be a dangling pointer here, so refrain from dereferencing it.

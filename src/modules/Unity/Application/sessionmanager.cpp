@@ -144,8 +144,8 @@ void SessionManager::onSessionStopping(std::shared_ptr<mir::scene::Session> cons
 
     remove(qmlSession);
 
+    qmlSession->setLive(false);
     Q_EMIT sessionStopping(qmlSession);
-    Q_EMIT qmlSession->removed();
 }
 
 void SessionManager::onPromptSessionStarting(const std::shared_ptr<ms::PromptSession>& promptSession)
@@ -202,7 +202,7 @@ void SessionManager::onPromptProviderRemoved(const mir::scene::PromptSession *pr
         qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderAdded - could not find session item for provider session";
         return;
     }
-    Q_EMIT qmlPromptProvider->removed();
+    qmlPromptProvider->setLive(false);
 }
 
 } // namespace qtmir

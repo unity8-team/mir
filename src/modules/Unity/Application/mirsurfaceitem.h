@@ -74,6 +74,7 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    Q_PROPERTY(bool live READ live NOTIFY liveChanged)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
@@ -105,6 +106,7 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
+    bool live() const;
     Session *session() const;
 
     Q_INVOKABLE void release();
@@ -124,9 +126,8 @@ Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
+    void liveChanged(bool live);
     void firstFrameDrawn(MirSurfaceItem *item);
-
-    void removed();
 
 protected Q_SLOTS:
     void onSessionStateChanged(Session::State state);
@@ -160,6 +161,7 @@ private:
 
     void setType(const Type&);
     void setState(const State&);
+    void setLive(const bool);
 
     // called by MirSurfaceManager
     void setAttribute(const MirSurfaceAttrib, const int);
@@ -175,6 +177,7 @@ private:
     std::shared_ptr<mir::scene::Surface> m_surface;
     QPointer<Session> m_session;
     bool m_firstFrameDrawn;
+    bool m_live;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 
