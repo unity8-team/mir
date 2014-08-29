@@ -1,8 +1,9 @@
-qtmir-gles (0.4.2+14.10.20140829-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.2+14.10.20140829-0ubuntu1) utopic; urgency=medium
 
+  [ Cemil Azizoglu ]
   * Sync with upstream
 
- -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Fri, 29 Aug 2014 14:25:44 -0500
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 29 Aug 2014 19:32:00 +0000
 
 qtmir-gles (0.4.2+14.10.20140825-0ubuntu1) utopic; urgency=medium
 
