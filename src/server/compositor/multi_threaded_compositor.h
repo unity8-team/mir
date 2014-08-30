@@ -23,7 +23,7 @@
 
 #include <mutex>
 #include <memory>
-#include <vector>
+#include <map>
 #include <thread>
 
 namespace mir
@@ -31,6 +31,7 @@ namespace mir
 namespace graphics
 {
 class Display;
+class DisplayBuffer;
 }
 namespace scene
 {
@@ -41,8 +42,9 @@ namespace compositor
 {
 
 class DisplayBufferCompositorFactory;
-class CompositingFunctor;
+class CompositorThreadFactory;
 class Scene;
+class CompositorThread;
 class CompositorReport;
 
 enum class CompositorState
@@ -59,6 +61,7 @@ public:
     MultiThreadedCompositor(std::shared_ptr<graphics::Display> const& display,
                             std::shared_ptr<Scene> const& scene,
                             std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory,
+                            std::shared_ptr<CompositorThreadFactory> const& compositor_thread_factory,
                             std::shared_ptr<CompositorReport> const& compositor_report,
                             bool compose_on_start);
     ~MultiThreadedCompositor();
@@ -67,23 +70,22 @@ public:
     void stop();
 
 private:
-    void create_compositing_threads();
-    void destroy_compositing_threads(std::unique_lock<std::mutex>& lock);
+    void start_compositing_threads();
+    void stop_compositing_threads(std::unique_lock<std::mutex>& lock);
 
     std::shared_ptr<graphics::Display> const display;
     std::shared_ptr<Scene> const scene;
     std::shared_ptr<DisplayBufferCompositorFactory> const display_buffer_compositor_factory;
+    std::shared_ptr<CompositorThreadFactory> const compositor_thread_factory;
     std::shared_ptr<CompositorReport> const report;
 
-    std::vector<std::unique_ptr<CompositingFunctor>> thread_functors;
-    std::vector<std::thread> threads;
-
+    std::map<graphics::DisplayBuffer*, std::unique_ptr<CompositorThread>> threads;
     std::mutex state_guard;
     CompositorState state;
     bool compose_on_start;
 
     void schedule_compositing(int number_composites);
-    
+
     std::shared_ptr<mir::scene::Observer> observer;
 };
 

@@ -22,6 +22,7 @@
 #include "src/server/compositor/gl_renderer_factory.h"
 #include "src/server/scene/basic_surface.h"
 #include "src/server/compositor/default_display_buffer_compositor_factory.h"
+#include "src/server/compositor/compositor_thread_factory.h"
 #include "src/server/compositor/multi_threaded_compositor.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
@@ -158,6 +159,7 @@ struct SurfaceStackCompositor : public testing::Test
         mt::fake_shared(stack),
         mt::fake_shared(renderer_factory),
         null_comp_report};
+    mc::CompositorThreadFactory comp_thread_factory;
 };
 }
 
@@ -167,6 +169,7 @@ TEST_F(SurfaceStackCompositor, composes_on_start_if_told_to_in_constructor)
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, true);
     mt_compositor.start();
 
@@ -180,6 +183,7 @@ TEST_F(SurfaceStackCompositor, does_not_composes_on_start_if_told_not_to_in_cons
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
     mt_compositor.start();
 
@@ -193,6 +197,7 @@ TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
     mt_compositor.start();
 
@@ -214,6 +219,7 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
     mt_compositor.start();
 
@@ -236,6 +242,7 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
     mt_compositor.start();
 
@@ -256,6 +263,7 @@ TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
     mt_compositor.start();
 
@@ -280,6 +288,7 @@ TEST_F(SurfaceStackCompositor, moving_a_surface_triggers_composition)
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
 
     mt_compositor.start();
@@ -298,6 +307,7 @@ TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
 
     mt_compositor.start();
@@ -318,6 +328,7 @@ TEST_F(SurfaceStackCompositor, buffer_updates_trigger_composition)
         mt::fake_shared(stub_display),
         mt::fake_shared(stack),
         mt::fake_shared(dbc_factory),
+        mt::fake_shared(comp_thread_factory),
         null_comp_report, false);
 
     mt_compositor.start();

@@ -16,6 +16,8 @@ set(
   timeout_frame_dropping_policy_factory.cpp
   buffer_queue.cpp
   recently_used_cache.cpp
+  compositor_thread.cpp
+  compositor_thread_factory.cpp
 )
 
 ADD_LIBRARY(

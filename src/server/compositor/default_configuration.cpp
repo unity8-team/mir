@@ -20,6 +20,7 @@
 
 #include "buffer_stream_factory.h"
 #include "default_display_buffer_compositor_factory.h"
+#include "compositor_thread_factory.h"
 #include "multi_threaded_compositor.h"
 #include "gl_renderer_factory.h"
 #include "compositing_screencast.h"
@@ -78,6 +79,7 @@ mir::DefaultServerConfiguration::the_compositor()
                 the_display(),
                 the_scene(),
                 the_display_buffer_compositor_factory(),
+                std::make_shared<mc::CompositorThreadFactory>(),
                 the_compositor_report(),
                 !the_options()->is_set(options::host_socket_opt));
         });

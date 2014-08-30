@@ -37,6 +37,7 @@ public:
 
     void raise();
     bool raised();
+    void reset();
 
     void wait();
     template<typename rep, typename period>
