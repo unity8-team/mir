@@ -39,9 +39,7 @@ public:
 
     ~MockCompositorThread()
     {
-        stop();
-        //using ::testing::Mock;
-        //Mock::VerifyAndClearExpectations(this);
+        destroyed();
     }
 
     void run(std::unique_ptr<compositor::CompositorLoop> loop) override
@@ -58,7 +56,7 @@ public:
 
     MOCK_METHOD0(run_, void());
     MOCK_METHOD0(pause_, void());
-    MOCK_METHOD0(stop, void());
+    MOCK_METHOD0(destroyed, void());
 };
 
 }

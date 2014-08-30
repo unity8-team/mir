@@ -126,7 +126,7 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock{observer_mutex};
-            
+
             // Any old event will do.
             if (observer)
                 observer->surfaces_reordered();
@@ -336,20 +336,32 @@ class CompositorThreadMockFactory : public mc::CompositorThreadFactory
 public:
     CompositorThreadMockFactory() : CompositorThreadMockFactory(
         [](mtd::MockCompositorThread* t) {
+            //Can't use NiceMock on MockCompositorThread
             using namespace testing;
             EXPECT_CALL(*t, run_()).Times(AnyNumber());
             EXPECT_CALL(*t, pause_()).Times(AnyNumber());
-            EXPECT_CALL(*t, stop()).Times(AnyNumber());
+            EXPECT_CALL(*t, destroyed());
         })
     {
     }
 
     CompositorThreadMockFactory(std::function<void(mtd::MockCompositorThread*)> notify_on_create)
-        : on_create{notify_on_create}
+        : on_create{notify_on_create},
+          num_thread_deaths_{0}
     {
         using namespace testing;
         ON_CALL(*this, create_thread(_))
            .WillByDefault(Invoke(this, &CompositorThreadMockFactory::create_thread_));
+    }
+
+    void record_thread_death()
+    {
+        num_thread_deaths_++;
+    }
+
+    int num_thread_deaths() const
+    {
+        return num_thread_deaths_;
     }
 
     std::unique_ptr<mc::CompositorThread> create_compositor_thread_for(std::unique_ptr<mc::CompositorLoop> loop) override
@@ -361,6 +373,9 @@ public:
     {
         using namespace testing;
         auto mock_thread = new mtd::MockCompositorThread(loop);
+        ON_CALL(*mock_thread, destroyed())
+            .WillByDefault(Invoke(this, &CompositorThreadMockFactory::record_thread_death));
+
         if (on_create)
             on_create(mock_thread);
         return std::unique_ptr<mc::CompositorThread>{mock_thread};
@@ -369,6 +384,7 @@ public:
     MOCK_METHOD1(create_thread, std::unique_ptr<mc::CompositorThread>(std::unique_ptr<mc::CompositorLoop>&));
 private:
     std::function<void(mtd::MockCompositorThread*)> on_create;
+    int num_thread_deaths_;
 };
 
 TEST(MultiThreadedCompositor, compositing_happens_in_different_threads)
@@ -655,11 +671,9 @@ TEST(MultiThreadedCompositor, no_threads_created_when_adding_scene_observer_thro
     using namespace testing;
 
     unsigned int const nbuffers{3};
-
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto db_compositor_factory = std::make_shared<SurfaceUpdatingDisplayBufferCompositorFactory>(scene);
-
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>();
 
     mc::MultiThreadedCompositor compositor{display, scene, db_compositor_factory, mock_thread_factory, null_report, true};
@@ -672,19 +686,18 @@ TEST(MultiThreadedCompositor, no_threads_created_when_adding_scene_observer_thro
     scene->throw_on_add_observer(false);
 }
 
-TEST(MultiThreadedCompositor, allocated_threads_get_cleaned_up_when_creating_another_throws)
+TEST(MultiThreadedCompositor, cleans_up_allocated_threads_after_throw_during_next_thread_creation)
 {
     using namespace testing;
 
     unsigned int const nbuffers{3};
-
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto db_compositor_factory = std::make_shared<SurfaceUpdatingDisplayBufferCompositorFactory>(scene);
 
     auto set_mock_thread_expectations = [&](mtd::MockCompositorThread* t) {
         EXPECT_CALL(*t, pause_());
-        EXPECT_CALL(*t, stop());
+        EXPECT_CALL(*t, destroyed());
     };
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>(set_mock_thread_expectations);
 
@@ -696,6 +709,7 @@ TEST(MultiThreadedCompositor, allocated_threads_get_cleaned_up_when_creating_ano
         .WillOnce(Throw(std::runtime_error("")));
 
     EXPECT_THROW(compositor.start(), std::runtime_error);
+    EXPECT_THAT(mock_thread_factory->num_thread_deaths(), Eq(2));
 }
 
 TEST(MultiThreadedCompositor, recycles_threads)
@@ -703,21 +717,16 @@ TEST(MultiThreadedCompositor, recycles_threads)
     using namespace testing;
 
     unsigned int const nbuffers{3};
-
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto db_compositor_factory = std::make_shared<SurfaceUpdatingDisplayBufferCompositorFactory>(scene);
 
-    int num_thread_stops = 0;
-    auto count_stops = [&num_thread_stops]{ num_thread_stops++; };
-
     auto set_mock_thread_expectations = [&](mtd::MockCompositorThread* t) {
-        EXPECT_CALL(*t, run_())
-            .Times(1);
+        //Run is only called when a thread has been recycled
+        EXPECT_CALL(*t, run_());
+        EXPECT_CALL(*t, destroyed());
         EXPECT_CALL(*t, pause_())
             .Times(2);
-        EXPECT_CALL(*t, stop())
-            .WillRepeatedly(Invoke(count_stops));
     };
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>(set_mock_thread_expectations);
 
@@ -731,7 +740,7 @@ TEST(MultiThreadedCompositor, recycles_threads)
     compositor.start();
     compositor.stop();
 
-    EXPECT_THAT(num_thread_stops, Eq(0));
+    EXPECT_THAT(mock_thread_factory->num_thread_deaths(), Eq(0));
 }
 
 TEST(MultiThreadedCompositor, allocates_new_threads_for_new_display_buffers)
@@ -739,11 +748,9 @@ TEST(MultiThreadedCompositor, allocates_new_threads_for_new_display_buffers)
     using namespace testing;
 
     unsigned int const nbuffers{3};
-
     auto display = std::make_shared<StubDisplay>(nbuffers);
     auto scene = std::make_shared<StubScene>();
     auto db_compositor_factory = std::make_shared<SurfaceUpdatingDisplayBufferCompositorFactory>(scene);
-
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>();
 
     mc::MultiThreadedCompositor compositor{display, scene, db_compositor_factory, mock_thread_factory, null_report, true};
@@ -760,7 +767,7 @@ TEST(MultiThreadedCompositor, allocates_new_threads_for_new_display_buffers)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, cleans_up_threads_for_unused_display_buffers_at_start)
+TEST(MultiThreadedCompositor, cleans_up_threads_for_unused_display_buffers_at_next_start)
 {
     using namespace testing;
 
@@ -770,16 +777,11 @@ TEST(MultiThreadedCompositor, cleans_up_threads_for_unused_display_buffers_at_st
     auto scene = std::make_shared<StubScene>();
     auto db_compositor_factory = std::make_shared<SurfaceUpdatingDisplayBufferCompositorFactory>(scene);
 
-    int num_thread_stops = 0;
-    auto count_stops = [&num_thread_stops]{ num_thread_stops++; };
-
     auto set_mock_thread_expectations = [&](mtd::MockCompositorThread* t) {
         EXPECT_CALL(*t, run_())
             .Times(0);
-        EXPECT_CALL(*t, pause_())
-            .Times(1);
-        EXPECT_CALL(*t, stop())
-            .WillRepeatedly(Invoke(count_stops));
+        EXPECT_CALL(*t, pause_());
+        EXPECT_CALL(*t, destroyed());
     };
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>(set_mock_thread_expectations);
 
@@ -795,7 +797,7 @@ TEST(MultiThreadedCompositor, cleans_up_threads_for_unused_display_buffers_at_st
 
     compositor.start();
 
-    EXPECT_THAT(num_thread_stops, Eq(nbuffers));
+    EXPECT_THAT(mock_thread_factory->num_thread_deaths(), Eq(nbuffers));
 }
 
 TEST(MultiThreadedCompositor, destructor_cleans_up_threads)
@@ -811,17 +813,18 @@ TEST(MultiThreadedCompositor, destructor_cleans_up_threads)
     auto set_mock_thread_expectations = [&](mtd::MockCompositorThread* t) {
         EXPECT_CALL(*t, run_())
             .Times(0);
-        EXPECT_CALL(*t, pause_())
-            .Times(1);
-        EXPECT_CALL(*t, stop())
-            .Times(1);
+        EXPECT_CALL(*t, pause_());
+        EXPECT_CALL(*t, destroyed());
     };
     auto mock_thread_factory = std::make_shared<CompositorThreadMockFactory>(set_mock_thread_expectations);
 
     EXPECT_CALL(*mock_thread_factory, create_thread(_))
         .Times(nbuffers);
 
-    mc::MultiThreadedCompositor compositor{display, scene, db_compositor_factory, mock_thread_factory, null_report, true};
-    compositor.start();
-}
+    {
+        mc::MultiThreadedCompositor compositor{display, scene, db_compositor_factory, mock_thread_factory, null_report, true};
+        compositor.start();
+    }
 
+    EXPECT_THAT(mock_thread_factory->num_thread_deaths(), Eq(nbuffers));
+}

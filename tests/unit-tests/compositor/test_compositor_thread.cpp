@@ -24,15 +24,13 @@
 #include "mir/raii.h"
 
 #include <memory>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <chrono>
 #include <thread>
 #include <exception>
 #include <csignal>
-//#include <cstdlib>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 namespace mc = mir::compositor;
 
