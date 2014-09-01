@@ -338,7 +338,10 @@ void Session::stopPromptSessions()
     QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);
     QListIterator<std::shared_ptr<ms::PromptSession>> it(copy);
     for ( it.toBack(); it.hasPrevious(); ) {
-        m_promptSessionManager->stop_prompt_session(it.previous());
+        std::shared_ptr<ms::PromptSession> promptSession = it.previous();
+        qCDebug(QTMIR_SESSIONS) << "Session::stopPromptSessions - promptSession=" << promptSession.get();
+
+        m_promptSessionManager->stop_prompt_session(promptSession);
     }
 }
 
