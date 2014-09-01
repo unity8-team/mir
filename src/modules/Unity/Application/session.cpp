@@ -153,6 +153,7 @@ void Session::setApplication(Application* application)
         return;
 
     m_application = application;
+    Q_EMIT applicationChanged(application);
 }
 
 void Session::setSurface(MirSurfaceItem *newSurface)

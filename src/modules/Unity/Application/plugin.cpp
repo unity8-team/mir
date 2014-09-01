@@ -61,6 +61,7 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
         Q_ASSERT(QLatin1String(uri) == QLatin1String("Unity.Application"));
 
         qRegisterMetaType<qtmir::ApplicationManager*>("ApplicationManager*"); //need for queueing signals
+        qRegisterMetaType<qtmir::Application*>("Application*");
         qRegisterMetaType<qtmir::MirSurfaceItem*>("MirSurfaceItem*");
         qRegisterMetaType<qtmir::MirSurfaceItemModel*>("MirSurfaceItemModel*");
         qRegisterMetaType<qtmir::Session*>("Session*");

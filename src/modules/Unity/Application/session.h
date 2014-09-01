@@ -47,6 +47,7 @@ class Session : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
+    Q_PROPERTY(Application* application READ application NOTIFY applicationChanged DESIGNABLE false)
     Q_PROPERTY(Session* parentSession READ parentSession NOTIFY parentSessionChanged DESIGNABLE false)
     Q_PROPERTY(SessionModel* childSessions READ childSessions DESIGNABLE false CONSTANT)
     Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
@@ -90,7 +91,7 @@ public:
 Q_SIGNALS:
     void surfaceChanged(MirSurfaceItem*);
     void parentSessionChanged(Session*);
-    void removed();
+    void applicationChanged(Application* application);
     void aboutToBeDestroyed();
     void stateChanged(State state);
     void fullscreenChanged(bool fullscreen);
