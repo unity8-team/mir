@@ -684,12 +684,3 @@ TEST_F(ClientLibrary, multi_surface_client_tracks_buffer_fds_correctly)
 
     mir_connection_release(connection);
 }
-
-/*
-using ClientLibraryDeathTest = ClientLibrary;
-
-TEST_F(ClientLibraryDeathTest, server_disconnect_kills_client_by_default)
-{
-
-}
-*/
