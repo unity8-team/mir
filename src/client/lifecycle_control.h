@@ -35,6 +35,8 @@ public:
     ~LifecycleControl();
 
     void set_lifecycle_event_handler(std::function<void(MirLifecycleState)> const&);
+    void replace_lifecycle_event_handler_if_matches(void(*match)(MirLifecycleState),
+                                                    std::function<void(MirLifecycleState)> const& new_handler);
     void call_lifecycle_event_handler(uint32_t state);
 
 private:

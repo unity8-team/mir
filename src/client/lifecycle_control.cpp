@@ -36,6 +36,19 @@ void mcl::LifecycleControl::set_lifecycle_event_handler(std::function<void(MirLi
     handle_lifecycle_event = fn;
 }
 
+void mir::client::LifecycleControl::replace_lifecycle_event_handler_if_matches(
+    void (*match)(MirLifecycleState),
+    const std::function<void (MirLifecycleState)> &new_handler)
+{
+    std::lock_guard<decltype(guard)> lock(guard);
+
+    auto current_target = handle_lifecycle_event.target<void(*)(MirLifecycleState)>();
+    if (current_target && *current_target == match)
+    {
+        handle_lifecycle_event = new_handler;
+    }
+}
+
 void mcl::LifecycleControl::call_lifecycle_event_handler(uint32_t state)
 {
     std::unique_lock<std::mutex> lk(guard);
