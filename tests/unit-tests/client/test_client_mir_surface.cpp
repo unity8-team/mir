@@ -392,10 +392,6 @@ void null_event_callback(MirSurface*, MirEvent const*, void*)
 {
 }
 
-void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
-{
-}
-
 MATCHER_P(BufferPackageMatches, package, "")
 {
     // Can't simply use memcmp() on the whole struct because age is not sent over the wire
@@ -421,9 +417,8 @@ struct MirClientSurfaceTest : public testing::Test
 
     ~MirClientSurfaceTest()
     {
-        // Clear the lifecycle callback in order not to get SIGHUP by the
-        // default lifecycle handler during connection teardown
-        connection->register_lifecycle_event_callback(null_lifecycle_callback, nullptr);
+        // Clean up nicely after ourselves...
+        connection->disconnect();
     }
 
     void start_test_server()

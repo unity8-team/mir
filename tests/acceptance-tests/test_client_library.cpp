@@ -21,7 +21,6 @@
 
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
-#include "mir_test_framework/using_stub_client_platform.h"
 
 #include "src/client/client_buffer.h"
 
@@ -60,7 +59,6 @@ struct ClientLibrary : mir_test_framework::InProcessServer
 {
     mtf::StubbedServerConfiguration server_configuration;
     mir::DefaultServerConfiguration& server_config() override { return server_configuration; }
-    mtf::UsingStubClientPlatform using_stub_client_platform;
 
     std::set<MirSurface*> surfaces;
     MirConnection* connection = nullptr;
@@ -640,7 +638,7 @@ TEST_F(ClientLibrary, connect_errors_dont_blow_up)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, MultiSurfaceClientTracksBufferFdsCorrectly)
+TEST_F(ClientLibrary, multi_surface_client_tracks_buffer_fds_correctly)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
@@ -686,3 +684,12 @@ TEST_F(ClientLibrary, MultiSurfaceClientTracksBufferFdsCorrectly)
 
     mir_connection_release(connection);
 }
+
+/*
+using ClientLibraryDeathTest = ClientLibrary;
+
+TEST_F(ClientLibraryDeathTest, server_disconnect_kills_client_by_default)
+{
+
+}
+*/

@@ -19,7 +19,6 @@
 #include "mir_toolkit/client_types.h"
 #include "mir_test_framework/testing_process_manager.h"
 #include "mir_test_framework/detect_server.h"
-#include "mir_test_framework/using_stub_client_platform.h"
 #include "src/client/mir_connection.h"
 #include "mir/run_mir.h"
 
@@ -107,7 +106,6 @@ void mtf::TestingProcessManager::launch_client_process(TestingClientConfiguratio
         SCOPED_TRACE("Client");
         if (!config.use_real_graphics(test_options))
         {
-            mtf::UsingStubClientPlatform p;
             config.exec();
         }
         else
