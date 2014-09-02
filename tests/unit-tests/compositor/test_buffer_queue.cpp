@@ -434,7 +434,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
                 auto handle = client_acquire_async(q);
                 handle->wait_for(std::chrono::seconds(1));
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-                ids_acquired.insert(handle->id().as_uint32_t());
+                ids_acquired.insert(handle->id().as_value());
                 client_buffers.push_back(handle->buffer());
             }
 
@@ -582,7 +582,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
-        mg::BufferID client_id;
+        mg::Buffer* last_client_acquired_buffer{nullptr};
 
         for (int i = 0; i < 20; i++)
         {
@@ -590,7 +590,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
             {
                 auto handle = client_acquire_async(q);
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-                client_id = handle->id();
+                last_client_acquired_buffer = handle->buffer();
                 handle->release_buffer();
             }
 
@@ -598,7 +598,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
             {
                 void const* user_id = reinterpret_cast<void const*>(monitor_id);
                 auto buffer = q.compositor_acquire(user_id);
-                ASSERT_THAT(buffer->id(), Eq(client_id));
+                ASSERT_THAT(buffer.get(), Eq(last_client_acquired_buffer));
                 q.compositor_release(buffer);
             }
         }
@@ -782,7 +782,7 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
         {
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-            ids_acquired.insert(handle->id().as_uint32_t());
+            ids_acquired.insert(handle->id().as_value());
             handle->release_buffer();
         }
 
@@ -970,7 +970,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
-        mg::BufferID history[5];
+        std::vector<mg::BufferID> history;
         std::shared_ptr<AcquireWaitHandle> producing[5];
 
         const int width0 = 123;
@@ -991,7 +991,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             q.resize(new_size);
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-            history[produce] = handle->id();
+            history.emplace_back(handle->id());
             producing[produce] = handle;
             auto buffer = handle->buffer();
             ASSERT_THAT(buffer->size(), Eq(new_size));
@@ -1007,6 +1007,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         width = width0;
         height = height0;
 
+        ASSERT_THAT(history.size(), Eq(nbuffers_to_use));
         for (int consume = 0; consume < nbuffers_to_use; ++consume)
         {
             geom::Size expect_size{width, height};
@@ -1483,7 +1484,7 @@ TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffe
     q.drop_old_buffers();
 
     auto comp = q.compositor_acquire(this);
-    ASSERT_THAT(comp->id(), Ne(mg::BufferID{}));
+    ASSERT_THAT(comp, Ne(nullptr));
 }
 
 TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_buffers)
