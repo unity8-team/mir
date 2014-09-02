@@ -298,9 +298,20 @@ void MirConnection::done_disconnect()
     disconnect_wait_handle.result_received();
 }
 
+namespace
+{
+void null_lifecycle_handler(MirLifecycleState)
+{
+}
+}
+
 MirWaitHandle* MirConnection::disconnect()
 {
     disconnect_wait_handle.expect_result();
+    // Don't kill the client with a signal on disconnect when the client has explicitly
+    // requested disconnection.
+    lifecycle_control->replace_lifecycle_event_handler_if_matches(&default_lifecycle_event_handler,
+                                                                  &null_lifecycle_handler);
     server.disconnect(0, &ignored, &ignored,
                       google::protobuf::NewCallback(this, &MirConnection::done_disconnect));
 
