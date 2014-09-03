@@ -37,7 +37,7 @@ e317f93ccaf160d507908b92a91745e61e550793  include/platform/mir/graphics/platform
 9c7712af84b6fde1970ff802ad2ea78f892c7b7e  include/platform/mir/graphics/platform_ipc_package.h
 15f201741a465de33e55ffc1ea775b507a5be950  include/platform/mir/graphics/renderable.h
 4b640ec72b04cc2de7671afd7c78942fb9e775a7  include/platform/mir/graphics/tessellation_helpers.h
-d84a16fe115bdc37b2177aa1dbf078da78ba08ac  include/platform/mir/options/configuration.h
+fa6c01085011b28bd35f4aee82697855699fcc27  include/platform/mir/options/configuration.h
 3a961c5e85b0b9d20eadddd938677776288c06c6  include/platform/mir/options/default_configuration.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 1133726e66a246bd3988616e205e186278a64731  include/platform/mir/options/program_option.h
@@ -57,7 +57,7 @@ e0860c43bf5196a792ffd7216826925e16275d07  include/server/mir/compositor/renderer
 51391bd29f7499f8cbb89e4ba33acf2b72d93592  include/server/mir/compositor/renderer.h
 686a839fd0cd5fa469344dc49190ff9d578efc25  include/server/mir/compositor/scene_element.h
 4fcf34e424128b87ddc76733594e32e09ebbd486  include/server/mir/compositor/scene.h
-d69ff1401221ffa9adce7f8d85074a6f8b234baf  include/server/mir/default_server_configuration.h
+7431f70be1309f15ccd14e5f3973bd5ffc5bac5c  include/server/mir/default_server_configuration.h
 bbb15c910dbc8d7c9a4cc982890486b7e16197e4  include/server/mir/default_server_status_listener.h
 215f6cf88826381cd3ec37a6d2179a70093c0bc5  include/server/mir/display_changer.h
 af1ff0714be973ac76d56006a2e5991f68cd1dec  include/server/mir/display_server.h

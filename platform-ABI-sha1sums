@@ -37,7 +37,7 @@ e317f93ccaf160d507908b92a91745e61e550793  include/platform/mir/graphics/platform
 9c7712af84b6fde1970ff802ad2ea78f892c7b7e  include/platform/mir/graphics/platform_ipc_package.h
 15f201741a465de33e55ffc1ea775b507a5be950  include/platform/mir/graphics/renderable.h
 4b640ec72b04cc2de7671afd7c78942fb9e775a7  include/platform/mir/graphics/tessellation_helpers.h
-d84a16fe115bdc37b2177aa1dbf078da78ba08ac  include/platform/mir/options/configuration.h
+fa6c01085011b28bd35f4aee82697855699fcc27  include/platform/mir/options/configuration.h
 3a961c5e85b0b9d20eadddd938677776288c06c6  include/platform/mir/options/default_configuration.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 1133726e66a246bd3988616e205e186278a64731  include/platform/mir/options/program_option.h
