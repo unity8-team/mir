@@ -103,7 +103,6 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, shutdown);
     signal(SIGTERM, shutdown);
-    signal(SIGHUP, shutdown);
 
     static const MirSurfaceType types[2] =
     {

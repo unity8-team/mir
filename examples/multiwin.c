@@ -218,7 +218,6 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, shutdown);
     signal(SIGTERM, shutdown);
-    signal(SIGHUP, shutdown);
 
     while (running)
     {
