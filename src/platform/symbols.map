@@ -242,6 +242,7 @@ MIRPLATFORM_2 {
     mir::options::Option::operator*;
     mir::options::Option::?Option*;
     mir::options::Option::Option*;
+    mir::options::platform_probe_report_opt*;
     mir::options::platform_graphics_lib*;
     mir::options::ProgramOption::get*;
     mir::options::ProgramOption::is_set*;
