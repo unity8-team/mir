@@ -179,10 +179,10 @@ public:
 
 class NullPlatformProbeReport : public mir::graphics::PlatformProbeReport
 {
-    void module_probed(const mir::graphics::ModuleProperties &, mir::graphics::PlatformPriority) override
+    void module_probed(mir::graphics::ModuleProperties const&, mir::graphics::PlatformPriority) override
     {
     }
-    void module_selected(const mir::graphics::ModuleProperties &) override
+    void module_selected(mir::graphics::ModuleProperties const&) override
     {
     }
 };
