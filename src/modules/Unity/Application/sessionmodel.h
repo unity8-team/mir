@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Canonical, Ltd.
+ * Copyright (C) 2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -14,13 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UBUNTU_APPLICATION_PLUGIN_LOGGING_H
-#define UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+#ifndef SESSIONMODEL_H
+#define SESSIONMODEL_H
 
-#include <QLoggingCategory>
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_APPLICATIONS)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_SESSIONS)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_SURFACES)
-Q_DECLARE_LOGGING_CATEGORY(QTMIR_MIR_MESSAGES)
+// Local
+#include "objectlistmodel.h"
 
-#endif // UBUNTU_APPLICATION_PLUGIN_LOGGING_H
+namespace qtmir {
+
+class Session;
+typedef ObjectListModel<Session> SessionModel;
+
+} // namespace qtmir
+
+Q_DECLARE_METATYPE(qtmir::SessionModel*)
+
+#endif // SESSIONMODEL_H

@@ -32,6 +32,7 @@
 #include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
+#include "session.h"
 #include "ubuntukeyboardinfo.h"
 
 namespace qtmir {
@@ -73,12 +74,11 @@ class MirSurfaceItem : public QQuickItem
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
-    Q_PROPERTY(MirSurfaceItem *parentSurface READ parentSurface NOTIFY parentSurfaceChanged DESIGNABLE false FINAL)
-    Q_PROPERTY(QQmlListProperty<qtmir::MirSurfaceItem> childSurfaces READ childSurfaces NOTIFY childSurfacesChanged DESIGNABLE false)
+    Q_PROPERTY(bool live READ live NOTIFY liveChanged)
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                            QPointer<Application> application,
+                            QPointer<Session> session,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -106,7 +106,8 @@ public:
     Type type() const;
     State state() const;
     QString name() const;
-    Application *application() const;
+    bool live() const;
+    Session *session() const;
 
     Q_INVOKABLE void release();
 
@@ -119,25 +120,17 @@ public:
 
     bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
 
-    void setApplication(Application *app);
-
-    void setParentSurface(MirSurfaceItem* surface);
-    MirSurfaceItem* parentSurface() const;
-    void foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const;
+    void setSession(Session *app);
 
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
     void nameChanged();
-    void parentSurfaceChanged(MirSurfaceItem* surface);
-    void childSurfacesChanged();
-    void surfaceDestroyed();
+    void liveChanged(bool live);
     void firstFrameDrawn(MirSurfaceItem *item);
 
-    void removed();
-
 protected Q_SLOTS:
-    void onApplicationStateChanged();
+    void onSessionStateChanged(Session::State state);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -151,13 +144,6 @@ protected:
     void touchEvent(QTouchEvent *event) override;
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *);
-
-    void addChildSurface(MirSurfaceItem* surface);
-    void removeChildSurface(MirSurfaceItem* surface);
-
-    QQmlListProperty<MirSurfaceItem> childSurfaces();
-    static int childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop);
-    static MirSurfaceItem* childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index);
 
 private Q_SLOTS:
     void surfaceDamaged();
@@ -175,6 +161,7 @@ private:
 
     void setType(const Type&);
     void setState(const State&);
+    void setLive(const bool);
 
     // called by MirSurfaceManager
     void setAttribute(const MirSurfaceAttrib, const int);
@@ -185,16 +172,12 @@ private:
 
     bool clientIsRunning() const;
 
-    QString appId();
-
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
-    QPointer<Application> m_application;
+    QPointer<Session> m_session;
     bool m_firstFrameDrawn;
-
-    MirSurfaceItem* m_parentSurface;
-    QList<MirSurfaceItem*> m_children;
+    bool m_live;
 
     QMirSurfaceTextureProvider *m_textureProvider;
 

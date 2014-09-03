@@ -21,7 +21,6 @@
 #include <memory>
 
 // Qt
-#include <QAbstractListModel>
 #include <QHash>
 #include <QMutex>
 
@@ -30,6 +29,7 @@
 
 // local
 #include "mirsurfaceitem.h"
+#include "mirsurfaceitemmodel.h"
 
 namespace mir {
     namespace scene {
@@ -44,34 +44,24 @@ class MirServerConfiguration;
 namespace qtmir {
 
 class Application;
+class ApplicationManager;
+class SessionManager;
 
-class MirSurfaceManager : public QAbstractListModel
+class MirSurfaceManager : public MirSurfaceItemModel
 {
     Q_OBJECT
 
-    Q_ENUMS(Roles)
-    Q_PROPERTY(int count READ count NOTIFY countChanged)
-
 public:
-    enum Roles {
-        RoleSurface = Qt::UserRole,
-    };
+    explicit MirSurfaceManager(
+        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        SessionManager* sessionManager,
+        QObject *parent = 0
+    );
+    ~MirSurfaceManager();
 
     static MirSurfaceManager* singleton();
 
-    ~MirSurfaceManager();
-
-    // from QAbstractItemModel
-    int rowCount(const QModelIndex & parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-    int count() const { return rowCount(); }
-
-    Q_INVOKABLE MirSurfaceItem* getSurface(int index);
-
 Q_SIGNALS:
-    void countChanged();
     void surfaceCreated(MirSurfaceItem* surface);
     void surfaceDestroyed(MirSurfaceItem* surface);
 //    void surfaceResized(MirSurface*);
@@ -83,28 +73,15 @@ public Q_SLOTS:
 
     void onSurfaceAttributeChanged(const mir::scene::Surface *, MirSurfaceAttrib, int);
 
-    void onPromptProviderAdded(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
-    void onPromptProviderRemoved(const mir::scene::PromptSession *, const std::shared_ptr<mir::scene::Session> &);
-
 protected:
-    MirSurfaceManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
-        QObject *parent = 0
-    );
 
-    void refreshPromptSessionSurfaces(const mir::scene::Session *session);
-    void refreshPromptSessionSurfaces(Application* application);
-
-    void removePromptSessionSurface(MirSurfaceItem* surface);
+    QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
+    QMutex m_mutex;
 
 private:
     QSharedPointer<MirServerConfiguration> m_mirConfig;
-
-    QHash<const mir::scene::Surface *, MirSurfaceItem *> m_mirSurfaceToItemHash;
-    QMultiHash<const mir::scene::Session *, MirSurfaceItem *> m_mirSessionToItemHash;
-    QList<MirSurfaceItem*> m_surfaceItems;
+    SessionManager* m_sessionManager;
     static MirSurfaceManager *the_surface_manager;
-    QMutex m_mutex;
 };
 
 } // namespace qtmir

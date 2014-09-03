@@ -18,6 +18,7 @@
 #include "applicationscreenshotprovider.h"
 #include "application_manager.h"
 #include "application.h"
+#include "session.h"
 
 // QPA-mirserver
 #include "logging.h"
@@ -54,7 +55,8 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
 
     // TODO: if app not ready, return an app-provided splash image. If app has been stopped with saved state
     // return the screenshot that was saved to disk.
-    if (!app->session() || !app->session()->default_surface()) {
+    Session* session = app->session();
+    if (!session || !session->session() || !session->session()->default_surface()) {
         qWarning() << "ApplicationScreenshotProvider - app session not found - asking for screenshot too early";
         return QImage();
     }
@@ -63,7 +65,7 @@ QImage ApplicationScreenshotProvider::requestImage(const QString &imageId, QSize
     QMutex screenshotMutex;
     QWaitCondition screenshotTakenCondition;
 
-    app->session()->take_snapshot(
+    session->session()->take_snapshot(
         [&](mir::scene::Snapshot const& snapshot)
         {
             qCDebug(QTMIR_APPLICATIONS) << "ApplicationScreenshotProvider - Mir snapshot ready with size"
