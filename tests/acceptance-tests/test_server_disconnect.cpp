@@ -203,6 +203,16 @@ TEST_F(ServerDisconnect, client_can_call_connection_functions_after_connection_b
     });
 }
 
+namespace
+{
+//LP: 1364772
+//Valgrind can send SIGKILL to the program when it perceives a thread is stuck.
+MATCHER_P(ValgrindSafeSignalMatches, val, "")
+{
+    return ((arg == val) || (arg == SIGKILL));
+}
+}
+
 TEST_F(ServerDisconnect, causes_client_to_terminate_by_default)
 {
     TestingServerConfiguration server_config;
@@ -226,6 +236,6 @@ TEST_F(ServerDisconnect, causes_client_to_terminate_by_default)
         ASSERT_EQ(1, client_results.size());
         EXPECT_EQ(mtf::TerminationReason::child_terminated_by_signal,
                   client_results[0].reason);
-        EXPECT_EQ(SIGHUP, client_results[0].signal);
+        EXPECT_THAT(client_results[0].signal, ValgrindSafeSignalMatches(SIGHUP));
     });
 }
