@@ -18,6 +18,7 @@
 
 #include "mir_toolkit/mir_client_library.h"
 
+#include "valgrind/valgrind.h"
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_framework/cross_process_sync.h"
 #include "mir_test/cross_process_action.h"
@@ -205,11 +206,14 @@ TEST_F(ServerDisconnect, client_can_call_connection_functions_after_connection_b
 
 namespace
 {
-//LP: 1364772
-//Valgrind can send SIGKILL to the program when it perceives a thread is stuck.
 MATCHER_P(ValgrindSafeSignalMatches, val, "")
 {
-    return ((arg == val) || (arg == SIGKILL));
+    //LP: #1364772
+    //Valgrind can send SIGKILL to the program when it perceives a thread is stuck.
+    if(RUNNING_ON_VALGRIND)
+        return ((arg == val) || (arg == SIGKILL));
+    else
+        return (arg == val);
 }
 }
 
