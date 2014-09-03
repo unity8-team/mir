@@ -38,6 +38,7 @@ set(
   test_shared_library_prober.cpp
   test_fatal.cpp
   test_fd.cpp
+  test_shared_library_prober.cpp
 )
 
 add_subdirectory(options/)
@@ -52,12 +53,16 @@ add_subdirectory(input/)
 add_subdirectory(android_input/)
 add_subdirectory(scene/)
 add_subdirectory(draw/)
+add_subdirectory(examples/)
 
 link_directories(${LIBRARY_OUTPUT_PATH})
 
 add_executable(mir_unit_tests 
   ${UNIT_TEST_SOURCES}
+  ${MIR_SERVER_OBJECTS}
   $<TARGET_OBJECTS:mirclientobjects>
+  ${MIR_PLATFORM_OBJECTS}
+  ${MIR_COMMON_OBJECTS}
 )
 
 uses_android_input(mir_unit_tests)
@@ -65,9 +70,11 @@ uses_android_input(mir_unit_tests)
 target_link_libraries(
   mir_unit_tests
 
-  mirserver
   mirdraw
   mirtestdraw
+  mirclientrpc
+  mirclientlttngstatic
+  demo-shell
 
   mir-test
   mir-test-doubles
@@ -94,12 +101,15 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${LIBHARDWARE_LDFLAGS} ${LIBHARDWARE_LIBRARIES}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${MIR_PLATFORM_REFERENCES}
+  ${MIR_COMMON_REFERENCES}
+  ${MIR_SERVER_REFERENCES}
 )
 
 if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_unit_tests 
   mirsharedandroid
-  ${ANDROID_PROPERTIES_LIBRARIES}
+  ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
 

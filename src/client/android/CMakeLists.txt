@@ -1,3 +1,4 @@
+string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
 include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 add_definitions(-DANDROID)
 

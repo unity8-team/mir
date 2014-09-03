@@ -48,14 +48,12 @@ target_link_libraries(
   mirplatformgraphicsandroid
 
   mirsharedandroid
-  mirplatform
-  mircommon
 
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${LIBHARDWARE_LIBRARIES}
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
-  ${ANDROID_PROPERTIES_LIBRARIES}
+  ${ANDROID_PROPERTIES_LDFLAGS}
 )
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)

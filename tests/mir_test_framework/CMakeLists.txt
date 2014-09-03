@@ -43,9 +43,6 @@ uses_android_input(mir-test-framework)
 target_link_libraries(
   mir-test-framework
 
-  mirserver
-  mirclient
-
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
@@ -63,12 +60,6 @@ add_library(
   mirclientplatformstub MODULE
 
   stub_client_platform_module.cpp
-)
-
-target_link_libraries(
-  mirclientplatformstub
-
-  mir-test-framework
 )
 
 set_target_properties(

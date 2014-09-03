@@ -6,6 +6,7 @@
 #include "client_platform_factory.h"
 #include "mir/shared_library.h"
 
+#include <iostream>
 namespace mir
 {
 namespace client
@@ -14,6 +15,11 @@ class ProbingClientPlatformFactory : public ClientPlatformFactory
 {
 public:
     ProbingClientPlatformFactory(std::vector<std::shared_ptr<SharedLibrary>> const& modules);
+
+    ~ProbingClientPlatformFactory()
+    {
+        std::cout<<"Deleting the thang"<<std::endl;
+    }
 
     std::shared_ptr<ClientPlatform> create_client_platform(ClientContext *context) override;
 private:

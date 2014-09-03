@@ -44,8 +44,12 @@ link_directories(${LIBRARY_OUTPUT_PATH})
 add_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
+  ${MIR_SERVER_OBJECTS}
   $<TARGET_OBJECTS:mirclientobjects>
+  ${MIR_PLATFORM_OBJECTS}
+  ${MIR_COMMON_OBJECTS}
 )
+
 uses_android_input(mir_integration_tests)
 
 target_link_libraries(
@@ -55,9 +59,10 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
 
-  mirserver
   mirdraw
   mirtestdraw
+  mirclientrpc
+  mirclientlttngstatic
 
   3rd_party
 
@@ -78,12 +83,15 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  ${MIR_PLATFORM_REFERENCES}
+  ${MIR_COMMON_REFERENCES}
+  ${MIR_SERVER_REFERENCES}
 )
 
 if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_integration_tests
   mirsharedandroid
-  ${ANDROID_PROPERTIES_LIBRARIES}
+  ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
 
@@ -94,8 +102,18 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_INTEGRATION_TESTS"
   OFF)
 
+set (MIR_CLIENT_MODULE "client-platform-dummy.so")
+
+if (MIR_TEST_PLATFORM STREQUAL "android")
+  # Android platform integration tests have Android-specific tests
+  # requiring a real platform
+  set (MIR_CLIENT_MODULE "client-platform-android.so")
+endif()
+
 if (MIR_RUN_INTEGRATION_TESTS)
-  mir_discover_tests(mir_integration_tests)
+  mir_discover_tests(mir_integration_tests
+    MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_MODULE}
+  )
 endif (MIR_RUN_INTEGRATION_TESTS)
 
 install(

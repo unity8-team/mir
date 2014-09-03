@@ -21,6 +21,7 @@
 #include "mir_test_framework/executable_path.h"
 
 #include <system_error>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -28,6 +29,7 @@ namespace mtf = mir_test_framework;
 
 namespace
 {
+
 class MockSharedLibraryProberReport : public mir::SharedLibraryProberReport
 {
 public:

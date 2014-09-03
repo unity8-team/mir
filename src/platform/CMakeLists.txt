@@ -1,6 +1,8 @@
 include_directories(${PROJECT_SOURCE_DIR}/include/platform)
 
-set(MIRPLATFORM_ABI 1)
+set(MIRPLATFORM_ABI 2)
+
+set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 # This needs to change whenever the much smaller ABI between the platform
 # modules and the server changes in an incompatible way.
@@ -16,19 +18,28 @@ set(MIR_SERVER_PLATFORM_PLUGIN_PATH
 
 add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
 
-add_library(
-  mirplatform SHARED
-
+set(MIR_PLATFORM_OBJECTS
   $<TARGET_OBJECTS:mirplatformgraphicscommon>
   $<TARGET_OBJECTS:miroptions>
   $<TARGET_OBJECTS:mirfatal>
 )
 
+set(MIR_PLATFORM_REFERENCES
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
+)
+
+set(MIR_PLATFORM_OBJECTS ${MIR_PLATFORM_OBJECTS} PARENT_SCOPE)
+set(MIR_PLATFORM_REFERENCES ${MIR_PLATFORM_REFERENCES} PARENT_SCOPE)
+
+add_library(mirplatform SHARED
+  ${MIR_PLATFORM_OBJECTS}
+)
+
 target_link_libraries(mirplatform
 
   mircommon
-  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
-  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
+  ${MIR_PLATFORM_REFERENCES}
 )
 
 set_target_properties(
@@ -36,6 +47,7 @@ set_target_properties(
 
   PROPERTIES
   SOVERSION ${MIRPLATFORM_ABI}
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
 
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -22,7 +22,7 @@
 #include "shared_library_prober_report.h"
 
 #include <string>
-#include <list>
+#include <vector>
 #include <memory>
 
 namespace mir

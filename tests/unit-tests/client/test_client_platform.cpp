@@ -84,11 +84,11 @@ ClientPlatformTraits const android_platform{"client-platform-android.so",
                                             },
                                             mir_platform_type_android
                                            };
-#else
-ClientPlatformTraits const android_platform{"client-platform-dummy.so",
-                                            [](MirPlatformPackage&) {},
-                                            mir_platform_type_gbm
-                                           };
+
+INSTANTIATE_TEST_CASE_P(Android,
+                        ClientPlatformTest,
+                        ::testing::Values(&android_platform));
+
 #endif
 
 #ifdef MIR_BUILD_PLATFORM_MESA
@@ -100,17 +100,13 @@ ClientPlatformTraits const mesa_platform{"client-platform-mesa.so",
                                          },
                                          mir_platform_type_gbm
                                         };
-#else
-ClientPlatformTraits const mesa_platform{"client-platform-dummy.so",
-                                         [](MirPlatformPackage&) {},
-                                         mir_platform_type_gbm
-                                        };
+
+INSTANTIATE_TEST_CASE_P(Mesa,
+                        ClientPlatformTest,
+                        ::testing::Values(&mesa_platform));
+
 #endif
 }
-
-INSTANTIATE_TEST_CASE_P(PlatformLibraries,
-                        ClientPlatformTest,
-                        ::testing::Values(&android_platform, &mesa_platform));
 
 TEST_P(ClientPlatformTest, platform_name)
 {

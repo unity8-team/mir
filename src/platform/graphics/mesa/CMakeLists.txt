@@ -46,7 +46,6 @@ add_library(
 target_link_libraries(
   mirplatformgraphicsmesa
 
-  mirplatform
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
