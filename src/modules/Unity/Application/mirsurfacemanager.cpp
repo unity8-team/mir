@@ -23,6 +23,7 @@
 #include "mirsurfacemanager.h"
 #include "sessionmanager.h"
 #include "application_manager.h"
+#include "tracepoints.h" // generated from tracepoints.tp
 
 // QPA mirserver
 #include "nativeinterface.h"
@@ -114,6 +115,7 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, this, [&](MirSurfaceItem *item) {
+        tracepoint(qtmir, firstFrameDrawn);
         Q_EMIT surfaceCreated(item);
 
         insert(0, item);
@@ -128,7 +130,9 @@ void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *sessi
         }
 
         remove(mirSurfaceItem);
+        tracepoint(qtmir, surfaceDestroyed);
     });
+    tracepoint(qtmir, surfaceCreated);
 }
 
 void MirSurfaceManager::onSessionDestroyingSurface(const mir::scene::Session *session,
