@@ -123,6 +123,8 @@ mo::DefaultConfiguration::DefaultConfiguration(
             "How to handle to Input report. [{log,lttng,off}]")
         (legacy_input_report_opt, po::value<std::string>()->default_value(off_opt_value),
             "How to handle the Legacy Input report. [{log,off}]")
+        (platform_probe_report_opt, po::value<std::string>()->default_value(log_opt_value),
+            "How to handle the Platform Probe report. [{log,lttng,off}]")
         (session_mediator_report_opt, po::value<std::string>()->default_value(off_opt_value),
             "How to handle the SessionMediator report. [{log,lttng,off}]")
         (msg_processor_report_opt, po::value<std::string>()->default_value(off_opt_value),

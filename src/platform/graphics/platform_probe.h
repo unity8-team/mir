@@ -22,14 +22,13 @@
 #include <vector>
 #include <memory>
 #include "mir/shared_library.h"
-#include "platform_probe_report.h"
+#include "mir/graphics/platform_probe_report.h"
 
 namespace mir
 {
 namespace graphics
 {
 class Platform;
-class PlatformProbeReport;
 
 std::shared_ptr<SharedLibrary> module_for_device(std::vector<std::shared_ptr<SharedLibrary>> const& modules, PlatformProbeReport& report);
 

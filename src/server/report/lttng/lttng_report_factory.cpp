@@ -23,6 +23,7 @@
 #include "display_report.h"
 #include "input_report.h"
 #include "message_processor_report.h"
+#include "platform_probe_report.h"
 #include "scene_report.h"
 #include "session_mediator_report.h"
 #include "shared_library_prober_report.h"
@@ -69,6 +70,6 @@ std::shared_ptr<mir::SharedLibraryProberReport> mir::report::LttngReportFactory:
 
 std::shared_ptr<mir::graphics::PlatformProbeReport> mir::report::LttngReportFactory::create_platform_probe_report()
 {
-    return std::shared_ptr<mir::graphics::PlatformProbeReport>{};
+    return std::make_shared<lttng::PlatformProbeReport>();
 }
 

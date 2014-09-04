@@ -26,6 +26,7 @@
 #include "session_mediator_report.h"
 #include "input_report.h"
 #include "mir/logging/shared_library_prober_report.h"
+#include "platform_probe_report.h"
 
 #include "mir/default_server_configuration.h"
 
@@ -80,5 +81,5 @@ std::shared_ptr<mir::SharedLibraryProberReport> mr::LoggingReportFactory::create
 
 std::shared_ptr<mir::graphics::PlatformProbeReport> mr::LoggingReportFactory::create_platform_probe_report()
 {
-    return std::shared_ptr<mir::graphics::PlatformProbeReport>{};
+    return std::make_shared<logging::PlatformProbeReport>(logger);
 }

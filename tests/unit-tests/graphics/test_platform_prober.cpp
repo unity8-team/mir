@@ -19,9 +19,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "src/platform/graphics/platform_probe_report.h"
 #include "src/platform/graphics/platform_probe.h"
 #include "mir/graphics/platform.h"
+#include "mir/graphics/platform_probe_report.h"
 
 #include "mir/raii.h"
 

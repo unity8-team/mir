@@ -11,6 +11,7 @@ set(
   compositor_report.cpp
   scene_report.cpp
   logging_report_factory.cpp
+  platform_probe_report.cpp
 )
 
 add_library(
