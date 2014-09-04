@@ -17,14 +17,15 @@ include_directories(
 )
 
 set(MIRCLIENT_ABI 8)
-set(MIRCLIENT_PLATFORM_ABI 1)
+set(CLIENT_PLATFORM_VERSION "MIR_CLIENTPLATFORM_1")
 set(symbol_map ${CMAKE_SOURCE_DIR}/src/client/symbols.map)
 
 set(MIR_CLIENT_PLATFORM_PATH
-  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/mir/client-platform-${MIRCLIENT_PLATFORM_ABI}
+  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/mir/client-platform-1
 )
 
 add_definitions(-DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}/")
+add_definitions(-DCLIENT_PLATFORM_VERSION="${CLIENT_PLATFORM_VERSION}")
 
 add_subdirectory(rpc/)
 add_subdirectory(lttng/)
