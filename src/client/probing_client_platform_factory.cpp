@@ -18,11 +18,18 @@ mcl::ProbingClientPlatformFactory::create_client_platform(mcl::ClientContext* co
 {
     for (auto& module : platform_modules)
     {
-        auto probe = module->load_function<mir::client::ClientPlatformProbe>("is_appropriate_module");
-        if (probe(context))
+        try
         {
-            auto factory = module->load_function<mir::client::CreateClientPlatform>("create_client_platform");
-            return factory(context);
+            auto probe = module->load_function<mir::client::ClientPlatformProbe>("is_appropriate_module", CLIENT_PLATFORM_VERSION);
+            if (probe(context))
+            {
+                auto factory = module->load_function<mir::client::CreateClientPlatform>("create_client_platform", CLIENT_PLATFORM_VERSION);
+                return factory(context);
+            }
+        }
+        catch(std::runtime_error)
+        {
+            // We were handled a SharedLibrary that's not a client platform module?
         }
     }
     throw std::runtime_error{"No appropriate client platform module found"};
