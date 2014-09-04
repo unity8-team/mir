@@ -22,6 +22,7 @@
 #include "application.h"
 #include "debughelpers.h"
 #include "mirbuffersgtexture.h"
+#include "session.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
 
@@ -231,14 +232,14 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                               QPointer<Application> application,
+                               QPointer<Session> session,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
-    , m_application(application)
+    , m_session(session)
     , m_firstFrameDrawn(false)
+    , m_live(true)
     , m_orientation(Qt::PortraitOrientation)
-    , m_parentSurface(nullptr)
     , m_textureProvider(nullptr)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
@@ -298,23 +299,15 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     //m_surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
     connect(this, &QQuickItem::activeFocusChanged, this, &MirSurfaceItem::updateMirSurfaceFocus);
 
-    if (m_application) {
-        connect(application.data(), &Application::stateChanged, this, &MirSurfaceItem::onApplicationStateChanged);
+    if (m_session) {
+        connect(m_session.data(), &Session::stateChanged, this, &MirSurfaceItem::onSessionStateChanged);
     }
 }
 
 MirSurfaceItem::~MirSurfaceItem()
 {
-    QList<MirSurfaceItem*> children(m_children);
-    for (MirSurfaceItem* child : children) {
-        child->setParentSurface(nullptr);
-        delete child;
-    }
-    if (m_parentSurface) {
-        m_parentSurface->removeChildSurface(this);
-    }
-    if (m_application) {
-        m_application->removeSurface(this);
+    if (m_session) {
+        m_session->setSurface(nullptr);
     }
 
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::~MirSurfaceItem - this=" << this;
@@ -329,25 +322,15 @@ void MirSurfaceItem::release()
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::release - this=" << this;
 
-    QList<MirSurfaceItem*> children(m_children);
-    for (MirSurfaceItem* child : children) {
-        child->release();
+    if (m_session) {
+        m_session->setSurface(nullptr);
     }
-    if (m_parentSurface) {
-        m_parentSurface->removeChildSurface(this);
-    }
-
-    if (m_application) {
-        m_application->removeSurface(this);
-    }
-    if (!parent()) {
-        deleteLater();
-    }
+    deleteLater();
 }
 
-Application* MirSurfaceItem::application() const
+Session* MirSurfaceItem::session() const
 {
-    return m_application.data();
+    return m_session.data();
 }
 
 MirSurfaceItem::Type MirSurfaceItem::type() const
@@ -402,6 +385,11 @@ QString MirSurfaceItem::name() const
 {
     //FIXME - how to listen to change in this property?
     return QString::fromStdString(m_surface->name());
+}
+
+bool MirSurfaceItem::live() const
+{
+    return m_live;
 }
 
 // Called from the rendering (scene graph) thread
@@ -578,6 +566,14 @@ void MirSurfaceItem::setState(const State &state)
     }
 }
 
+void MirSurfaceItem::setLive(const bool live)
+{
+    if (m_live != live) {
+        m_live = live;
+        Q_EMIT liveChanged(m_live);
+    }
+}
+
 // Called by MirSurfaceItemManager upon a msh::Surface attribute change
 void MirSurfaceItem::setAttribute(const MirSurfaceAttrib attribute, const int /*value*/)
 {
@@ -612,7 +608,7 @@ void MirSurfaceItem::updateMirSurfaceSize()
 
     const char *didResize = clientIsRunning() && mirSizeIsDifferent ? "surface resized" : "surface NOT resized";
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::updateMirSurfaceSize"
-            << "appId =" << appId()
+            << "surface =" << this
             << ", old (" << mirWidth << "," << mirHeight << ")"
             << ", new (" << qmlWidth << "," << qmlHeight << ")"
             << didResize;
@@ -647,7 +643,7 @@ void MirSurfaceItem::dropPendingBuffers()
         // buffer to be destroyed/released straight away.
         m_surface->compositor_snapshot((void*)123/*user_id*/)->buffer();
         qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::dropPendingBuffers()"
-            << "appId =" << appId()
+            << "surface =" << this
             << "buffer dropped."
             << renderable->buffers_ready_for_compositor()
             << "left.";
@@ -656,14 +652,14 @@ void MirSurfaceItem::dropPendingBuffers()
 
 void MirSurfaceItem::stopFrameDropper()
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::stopFrameDropper surface = " << this;
     QMutexLocker locker(&m_mutex);
     m_frameDropperTimer.stop();
 }
 
 void MirSurfaceItem::startFrameDropper()
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper appId = " << appId();
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::startFrameDropper surface = " << this;
     QMutexLocker locker(&m_mutex);
     if (!m_frameDropperTimer.isActive()) {
         m_frameDropperTimer.start();
@@ -680,24 +676,19 @@ void MirSurfaceItem::scheduleTextureUpdate()
     m_frameDropperTimer.start();
 }
 
-QString MirSurfaceItem::appId()
+void MirSurfaceItem::setSession(Session *session)
 {
-    if (m_application) {
-        return m_application->appId();
-    } else {
-        return QString();
-    }
+    m_session = session;
 }
 
-void MirSurfaceItem::setApplication(Application *app)
+void MirSurfaceItem::onSessionStateChanged(Session::State state)
 {
-    m_application = app;
-}
-
-void MirSurfaceItem::onApplicationStateChanged()
-{
-    if (m_application->state() == Application::Running) {
-        syncSurfaceSizeWithItemSize();
+    switch (state) {
+        case Session::State::Running:
+            syncSurfaceSizeWithItemSize();
+            break;
+        default:
+            break;
     }
 }
 
@@ -716,81 +707,10 @@ void MirSurfaceItem::syncSurfaceSizeWithItemSize()
 
 bool MirSurfaceItem::clientIsRunning() const
 {
-    return (m_application &&
-            (m_application->state() == Application::Running
-             || m_application->state() == Application::Starting))
-        || !m_application;
-}
-
-void MirSurfaceItem::setParentSurface(MirSurfaceItem* surface)
-{
-    if (m_parentSurface == surface || surface == this)
-        return;
-
-    if (m_parentSurface) {
-        m_parentSurface->removeChildSurface(this);
-    }
-
-    m_parentSurface = surface;
-
-    if (m_parentSurface) {
-        m_parentSurface->addChildSurface(this);
-    }
-    Q_EMIT parentSurfaceChanged(surface);
-}
-
-MirSurfaceItem* MirSurfaceItem::parentSurface() const
-{
-    return m_parentSurface;
-}
-
-void MirSurfaceItem::addChildSurface(MirSurfaceItem* surface)
-{
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::addChildSurface " << surface->name() << " to " << name();
-
-    m_children.append(surface);
-    Q_EMIT childSurfacesChanged();
-}
-
-void MirSurfaceItem::removeChildSurface(MirSurfaceItem* surface)
-{
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::removeChildSurface " << surface->name() << " from " << name();
-
-    if (m_children.contains(surface)) {
-        m_children.removeOne(surface);
-
-        Q_EMIT childSurfacesChanged();
-    }
-}
-
-void MirSurfaceItem::foreachChildSurface(std::function<void(MirSurfaceItem*)> f) const
-{
-    for(MirSurfaceItem* child : m_children) {
-        f(child);
-    }
-}
-
-QQmlListProperty<MirSurfaceItem> MirSurfaceItem::childSurfaces()
-{
-    return QQmlListProperty<MirSurfaceItem>(this,
-                                            0,
-                                            MirSurfaceItem::childSurfaceCount,
-                                            MirSurfaceItem::childSurfaceAt);
-}
-
-int MirSurfaceItem::childSurfaceCount(QQmlListProperty<MirSurfaceItem> *prop)
-{
-    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
-    return p->m_children.count();
-}
-
-MirSurfaceItem* MirSurfaceItem::childSurfaceAt(QQmlListProperty<MirSurfaceItem> *prop, int index)
-{
-    MirSurfaceItem *p = qobject_cast<MirSurfaceItem*>(prop->object);
-
-    if (index < 0 || index >= p->m_children.count())
-        return nullptr;
-    return p->m_children[index];
+    return (m_session &&
+            (m_session->state() == Session::State::Running
+             || m_session->state() == Session::State::Starting))
+        || !m_session;
 }
 
 } // namespace qtmir

@@ -36,6 +36,8 @@ SOURCES += application_manager.cpp \
     mirbuffersgtexture.cpp \
     processcontroller.cpp \
     proc_info.cpp \
+    session.cpp \
+    sessionmanager.cpp \
     upstart/applicationcontroller.cpp \
 
 
@@ -47,14 +49,19 @@ HEADERS += application_manager.h \
     applicationscreenshotprovider.h \
     dbuswindowstack.h \
     taskcontroller.h \
+    sessionmanager.h \
     mirsurfacemanager.h \
     ubuntukeyboardinfo.h \
     /usr/include/unity/shell/application/ApplicationManagerInterface.h \
     /usr/include/unity/shell/application/ApplicationInfoInterface.h \
     mirsurfaceitem.h \
+    mirsurfaceitemmodel.h \
     mirbuffersgtexture.h \
+    objectlistmodel.h \
     processcontroller.h \
     proc_info.h \
+    session.h \
+    sessionmodel.h \
     upstart/applicationcontroller.h
 
 installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)

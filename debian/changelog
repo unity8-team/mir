@@ -1,3 +1,22 @@
+qtmir (0.4.3+14.10.20140903-0ubuntu1) utopic; urgency=medium
+
+  [ Nick Dedekind ]
+  * Use a model for child surfaces/sessions. Add surface tests.
+  * Support for nesting prompt sessions.
+
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 03 Sep 2014 08:03:52 +0000
+
+qtmir (0.4.2+14.10.20140829-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * Rebuild for the Mir 0.7.0 release.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 29 Aug 2014 18:59:49 +0000
+
 qtmir (0.4.2+14.10.20140825-0ubuntu1) utopic; urgency=low
 
   [ Daniel d'Andrada ]

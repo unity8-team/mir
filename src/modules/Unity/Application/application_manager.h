@@ -66,9 +66,8 @@ public:
 
     // FIXME: these roles should be added to unity-api and removed from here
     enum MoreRoles {
-        RoleSurface = RoleFocused+1,
+        RoleSession = RoleFocused+1,
         RoleFullscreen,
-        RoleApplication,
     };
 
     // Mapping enums to Ubuntu Platform API enums.
@@ -111,7 +110,7 @@ public:
     bool isEmpty() const { return rowCount() == 0; }
 
     const QList<Application*> &list() const { return m_applications; }
-    qtmir::Application* findApplicationWithPid(const qint64 pid, bool includeChildSessions);
+    qtmir::Application* findApplicationWithPid(const qint64 pid);
 
 public Q_SLOTS:
     void authorizeSession(const quint64 pid, bool &authorized);
@@ -120,9 +119,6 @@ public Q_SLOTS:
     void onSessionStopping(std::shared_ptr<mir::scene::Session> const& session);
 
     void onSessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
-
-    void onPromptSessionStarting(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
-    void onPromptSessionStopping(const std::shared_ptr<mir::scene::PromptSession>& promptSession);
 
     void onProcessStarting(const QString& appId);
     void onProcessStopped(const QString& appId);
@@ -134,12 +130,15 @@ Q_SIGNALS:
     void focusRequested(const QString &appId);
     void emptyChanged();
 
+private Q_SLOTS:
+    void onAppDataChanged(const int role);
+
 private:
     void setFocused(Application *application);
     void add(Application *application);
     void remove(Application* application);
-    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session, bool includeChildSessions);
-    Application* findApplicationWithSession(const mir::scene::Session *session, bool includeChildSessions);
+    Application* findApplicationWithSession(const std::shared_ptr<mir::scene::Session> &session);
+    Application* findApplicationWithSession(const mir::scene::Session *session);
     Application* applicationForStage(Application::Stage stage);
     QModelIndex findIndex(Application* application);
     bool suspendApplication(Application *application);
@@ -166,6 +165,7 @@ private:
     friend class Application;
     friend class DBusWindowStack;
     friend class MirSurfaceManager;
+    friend class SessionManager;
 };
 
 } // namespace qtmir
