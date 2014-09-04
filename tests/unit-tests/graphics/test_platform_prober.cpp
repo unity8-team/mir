@@ -325,3 +325,22 @@ TEST_F(ServerPlatformProbe, LogsSelectedPlugin)
     auto describe = module->load_function<mir::graphics::DescribeModule>("describe_module");
     EXPECT_STREQ(describe()->name, selected_name);
 }
+
+TEST_F(ServerPlatformProbe, IgnoresNonPlatformModules)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() +
+                                                           "/libmirclient.so"));
+
+
+    NiceMock<MockPlatformProbeReport> report;
+    auto module = mir::graphics::module_for_device(modules, report);
+    EXPECT_NE(nullptr, module);
+}

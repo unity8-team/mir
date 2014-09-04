@@ -27,14 +27,21 @@ mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> con
     std::shared_ptr<mir::SharedLibrary> best_module_so_far;
     for(auto& module : modules)
     {
-        auto probe = module->load_function<PlatformProbe>("probe_platform");
-        auto module_priority = probe();
-        auto describe = module->load_function<DescribeModule>("describe_module");
-        report.module_probed(*describe(), module_priority);
-        if (module_priority > best_priority_so_far)
+        try
         {
-            best_priority_so_far = module_priority;
-            best_module_so_far = module;
+            auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform");
+            auto module_priority = probe();
+            auto describe = module->load_function<DescribeModule>("describe_module");
+            report.module_probed(*describe(), module_priority);
+            if (module_priority > best_priority_so_far)
+            {
+                best_priority_so_far = module_priority;
+                best_module_so_far = module;
+            }
+        }
+        catch (std::runtime_error)
+        {
+            // Tried to probe a SharedLibrary that isn't a platform module?
         }
     }
     if (best_priority_so_far > mir::graphics::unsupported)
