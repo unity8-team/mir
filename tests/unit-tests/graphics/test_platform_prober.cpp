@@ -192,3 +192,21 @@ TEST(ServerPlatformProbe, LoadsMesaOrAndroidInPreferenceToDummy)
 
     EXPECT_THAT(description->name, Not(HasSubstr("dummy")));
 }
+
+TEST(ServerPlatformProbe, IgnoresNonPlatformModules)
+{
+    using namespace testing;
+
+    auto ensure_mesa = ensure_mesa_probing_succeeds();
+    auto ensure_android = ensure_android_probing_succeeds();
+
+    auto modules = available_platforms();
+    add_dummy_platform(modules);
+
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() +
+                                                           "/libmirclient.so"));
+
+
+    auto module = mir::graphics::module_for_device(modules);
+    EXPECT_NE(nullptr, module);
+}
