@@ -62,6 +62,13 @@ add_library(
   stub_client_platform_module.cpp
 )
 
+target_link_libraries(
+  mirclientplatformstub
+
+  mir-test-framework
+  ${UMOCKDEV_LIBRARIES}
+)
+
 set_target_properties(
   mirclientplatformstub PROPERTIES;
   OUTPUT_NAME client-platform-dummy

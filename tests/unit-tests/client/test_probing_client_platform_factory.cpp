@@ -114,3 +114,27 @@ TEST(ProbingClientPlatformFactory, CreatesAndroidPlatformWhenAppropriate)
     EXPECT_EQ(mir_platform_type_android, platform->platform_type());
 }
 #endif
+
+TEST(ProbingClientPlatformFactory, IgnoresNonClientPlatformModules)
+{
+    using namespace testing;
+
+    auto modules = all_available_modules();
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/libmirserver.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-dummy.so"));
+
+    mir::client::ProbingClientPlatformFactory factory{modules};
+
+    mtd::MockClientContext context;
+    ON_CALL(context, populate(_))
+            .WillByDefault(Invoke([](MirPlatformPackage& pkg)
+                           {
+                               // Mock up something that looks like a Dummy platform package,
+                               // until we send the actual platform type over the wire!
+                               ::memset(&pkg, 0, sizeof(MirPlatformPackage));
+                               pkg.data_items = 20;
+                               strcpy(reinterpret_cast<char*>(pkg.data), "Dummy platform");
+                           }));
+
+    auto platform = factory.create_client_platform(&context);
+}

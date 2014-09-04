@@ -68,7 +68,7 @@ extern "C" std::shared_ptr<mcl::ClientPlatform> mcl::create_client_platform(mcl:
     {
         throw std::runtime_error{"Attempted to create Mesa client platform on non-Mesa server"};
     }
-;    auto buffer_file_ops = std::make_shared<RealBufferFileOps>();
+    auto buffer_file_ops = std::make_shared<RealBufferFileOps>();
     return std::make_shared<mclm::ClientPlatform>(
         context, buffer_file_ops, mcl::EGLNativeDisplayContainer::instance());
 }
