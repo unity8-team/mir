@@ -185,6 +185,9 @@ class NullPlatformProbeReport : public mir::graphics::PlatformProbeReport
     void module_selected(mir::graphics::ModuleProperties const&) override
     {
     }
+    void invalid_module_probed(std::exception const&) override
+    {
+    }
 };
 }
 

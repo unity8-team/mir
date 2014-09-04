@@ -36,6 +36,7 @@ public:
     PlatformProbeReport& operator=(PlatformProbeReport const&) = delete;
 
     virtual void module_probed(ModuleProperties const& module, PlatformPriority probe_value) = 0;
+    virtual void invalid_module_probed(std::exception const& error) = 0;
     virtual void module_selected(ModuleProperties const& module) =  0;
 };
 }

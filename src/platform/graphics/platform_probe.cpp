@@ -39,9 +39,9 @@ mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> con
                 best_module_so_far = module;
             }
         }
-        catch (std::runtime_error)
+        catch (std::runtime_error const& error)
         {
-            // Tried to probe a SharedLibrary that isn't a platform module?
+            report.invalid_module_probed(error);
         }
     }
     if (best_priority_so_far > mir::graphics::unsupported)

@@ -106,6 +106,7 @@ class MockPlatformProbeReport : public mir::graphics::PlatformProbeReport
 public:
     MOCK_METHOD2(module_probed, void(mg::ModuleProperties const&, mg::PlatformPriority));
     MOCK_METHOD1(module_selected, void(mg::ModuleProperties const&));
+    MOCK_METHOD1(invalid_module_probed, void(std::exception const&));
 };
 using StubPlatformProbeReport = testing::NiceMock<MockPlatformProbeReport>;
 
@@ -343,4 +344,24 @@ TEST_F(ServerPlatformProbe, IgnoresNonPlatformModules)
     NiceMock<MockPlatformProbeReport> report;
     auto module = mir::graphics::module_for_device(modules, report);
     EXPECT_NE(nullptr, module);
+}
+
+TEST_F(ServerPlatformProbe, LogsModulesThatFailToLoad)
+{
+    using namespace testing;
+
+    std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() +
+                                                           "/libmirclient.so"));
+    add_dummy_platform(modules);
+
+
+    NiceMock<MockPlatformProbeReport> report;
+    EXPECT_CALL(report, invalid_module_probed(_))
+        .WillOnce(Invoke([](std::exception const& error)
+    {
+        EXPECT_THAT(error.what(), HasSubstr("libmirclient")) << "Name of the failing module";
+        EXPECT_THAT(error.what(), HasSubstr("probe_platform")) << "Name of the expected function";
+    }));
+    auto module = mir::graphics::module_for_device(modules, report);
 }
