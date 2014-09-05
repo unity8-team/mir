@@ -3,6 +3,7 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/server)
 
 add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
+add_definitions(-DSERVER_PLATFORM_VERSION="${SERVER_PLATFORM_VERSION}")
 
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)

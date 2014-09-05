@@ -91,7 +91,8 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
                     }
                     platform_library = mir::graphics::module_for_device(platforms, *the_platform_probe_report());
                 }
-                auto create_platform = platform_library->load_function<mg::CreatePlatform>("create_platform");
+                auto create_platform = platform_library->load_function<mg::CreatePlatform>("create_platform",
+                                                                                           SERVER_PLATFORM_VERSION);
                 return create_platform(the_options(), the_emergency_cleanup(), the_display_report());
             }
 
@@ -121,7 +122,8 @@ std::shared_ptr<mg::NativePlatform> mir::DefaultServerConfiguration::the_graphic
                 }
                 platform_library = mir::graphics::module_for_device(platforms, *the_platform_probe_report());
             }
-            auto create_native_platform = platform_library->load_function<mg::CreateNativePlatform>("create_native_platform");
+            auto create_native_platform = platform_library->load_function<mg::CreateNativePlatform>("create_native_platform",
+                                                                                                    SERVER_PLATFORM_VERSION);
 
             return create_native_platform(the_display_report());
         });

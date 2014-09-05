@@ -29,7 +29,8 @@ mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> con
     {
         try
         {
-            auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform");
+            auto probe = module->load_function<mir::graphics::PlatformProbe>("probe_platform",
+                                                                             SERVER_PLATFORM_VERSION);
             auto module_priority = probe();
             auto describe = module->load_function<DescribeModule>("describe_module");
             report.module_probed(*describe(), module_priority);
