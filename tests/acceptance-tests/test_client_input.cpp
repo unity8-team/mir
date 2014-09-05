@@ -25,7 +25,6 @@
 #include "src/server/scene/session_container.h"
 
 #include "mir_test_framework/in_process_server.h"
-#include "mir_test_framework/using_stub_client_platform.h"
 #include "mir_test_framework/fake_event_hub_server_configuration.h"
 #include "mir_test_framework/declarative_placement_strategy.h"
 #include "mir_test/wait_condition.h"
@@ -213,7 +212,6 @@ struct TestClientInput : mtf::InProcessServer
     std::string const test_client_name_2{"client2"};
     geom::Rectangle const screen_geometry{{0, 0}, {1000, 800}};
     TestServerConfiguration server_configuration_{screen_geometry};
-    mtf::UsingStubClientPlatform using_stub_client_platform;
 };
 
 }
