@@ -418,6 +418,8 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
 
     mir_connection_set_lifecycle_event_callback(connection, &detect_hangup, NULL);
 
+    mir_connection_set_lifecycle_event_callback(connection, &detect_hangup, NULL);
+
     *width = surfaceparm.width;
     *height = surfaceparm.height;
 
