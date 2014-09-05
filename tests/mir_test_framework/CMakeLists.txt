@@ -14,7 +14,6 @@ set(
   server_runner.cpp
   testing_server_options.cpp
   input_testing_server_options.cpp
-  input_testing_client_configuration.cpp
   stubbed_server_configuration.cpp
   testing_process_manager.cpp
   testing_client_options.cpp
@@ -22,6 +21,7 @@ set(
   process.cpp
   udev_environment.cpp
   declarative_placement_strategy.cpp
+  fake_event_hub_server_configuration.cpp
 )
 
 list(APPEND TEST_FRAMEWORK_SRCS
