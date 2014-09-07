@@ -14,6 +14,8 @@ DEFINES += MESA_EGL_NO_X11_HEADERS
 QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
+INCLUDEPATH += ../../common
+
 CONFIG   += link_pkgconfig
 PKGCONFIG += mirserver protobuf egl xkbcommon url-dispatcher-1
 
@@ -21,6 +23,7 @@ LIBS += -lboost_system
 
 SOURCES += \
     connectioncreator.cpp \
+    ../../common/debughelpers.cpp \
     focussetter.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
@@ -47,6 +50,7 @@ SOURCES += \
 
 HEADERS += \
     connectioncreator.h \
+    ../../common/debughelpers.h \
     focussetter.h \
     qteventfeeder.h \
     plugin.h \

@@ -17,22 +17,24 @@
 #include "debughelpers.h"
 #include <QTouchEvent>
 
+#include <mir_toolkit/event.h>
+
 // Unity API
 #include <unity/shell/application/ApplicationInfoInterface.h>
 
-QString touchPointStateToString(Qt::TouchPointState state)
+const char *touchPointStateToString(Qt::TouchPointState state)
 {
     switch (state) {
     case Qt::TouchPointPressed:
-        return QString("pressed");
+        return "pressed";
     case Qt::TouchPointMoved:
-        return QString("moved");
+        return "moved";
     case Qt::TouchPointStationary:
-        return QString("stationary");
+        return "stationary";
     case Qt::TouchPointReleased:
-        return QString("released");
+        return "released";
     default:
-        return QString("UNKNOWN!");
+        return "UNKNOWN!";
     }
 }
 
@@ -169,6 +171,36 @@ const char *mirSurfaceVisibilityToStr(int value)
         return "occluded";
     case mir_surface_visibility_exposed:
         return "exposed";
+    default:
+        return "???";
+    }
+}
+
+const char *mirMotionActionToStr(int value)
+{
+    switch (value) {
+    case mir_motion_action_move:
+        return "move";
+    case mir_motion_action_down:
+        return "down";
+    case mir_motion_action_up:
+        return "up";
+    case mir_motion_action_pointer_down:
+        return "pointer_down";
+    case mir_motion_action_cancel:
+        return "cancel";
+    case mir_motion_action_pointer_up:
+        return "pointer_up";
+    case mir_motion_action_outside:
+        return "outside";
+    case mir_motion_action_hover_move:
+        return "hover_move";
+    case mir_motion_action_scroll:
+        return "scroll";
+    case mir_motion_action_hover_enter:
+        return "hover_enter";
+    case mir_motion_action_hover_exit:
+        return "hover_exit";
     default:
         return "???";
     }

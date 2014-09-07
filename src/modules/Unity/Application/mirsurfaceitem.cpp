@@ -20,11 +20,13 @@
 
 // local
 #include "application.h"
-#include "debughelpers.h"
 #include "mirbuffersgtexture.h"
 #include "session.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
+
+// common
+#include <debughelpers.h>
 
 // Qt
 #include <QDebug>
