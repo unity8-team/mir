@@ -1,3 +1,20 @@
+qtmir (0.4.3+14.10.20140907-0ubuntu1) utopic; urgency=low
+
+  [ Daniel d'Andrada ]
+  * QtEventFeeder: validate touches before sending them to Qt
+
+  [ josharenson ]
+  * Fix a small typo in the README file
+
+  [ Alan Griffiths ]
+  * Provide Mir with a handler for any command-line arguments it fails
+    to parse. For the moment, these are simply ignored.
+
+  [ Gerry Boland ]
+  * Add LTTng tracepoints
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Sun, 07 Sep 2014 19:42:56 +0000
+
 qtmir (0.4.3+14.10.20140903-0ubuntu1) utopic; urgency=medium
 
   [ Nick Dedekind ]
