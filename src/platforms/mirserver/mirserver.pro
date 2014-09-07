@@ -1,3 +1,5 @@
+include(../../lttng-compiler.pri)
+
 TARGET = qpa-mirserver
 TEMPLATE = lib
 
@@ -76,6 +78,8 @@ HEADERS += \
     ubuntutheme.h \
     unityprotobufservice.h \
     unityrpc.h
+
+LTTNG_TP_FILES += tracepoints.tp
 
 # Installation path
 target.path +=  $$[QT_INSTALL_PLUGINS]/platforms
