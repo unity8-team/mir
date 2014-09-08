@@ -133,10 +133,32 @@ QUrl Application::splashImage() const
     }
 }
 
+QColor Application::colorFromString(const QString &colorString, const char *colorName) const
+{
+    // NB: A color that is not fully opaque means "Color not set. Use a default color".
+
+    if (colorString.isEmpty()) {
+        return QColor(0, 0, 0, 0);
+    } else {
+        QColor color(colorString);
+
+        if (!color.isValid()) {
+            color.setRgba(qRgba(0, 0, 0, 0));
+            qCWarning(QTMIR_APPLICATIONS) << QString("Invalid %1: \"%2\"")
+                .arg(colorName).arg(colorString);
+        }
+
+        // Force a fully opaque color.
+        color.setAlpha(1.0);
+
+        return color;
+    }
+}
+
 bool Application::splashShowHeader() const
 {
     QString showHeader = m_desktopData->splashShowHeader();
-    if (showHeader == "false") {
+    if (showHeader.toLower() == "false") {
         return false;
     } else {
         return true;
@@ -145,32 +167,20 @@ bool Application::splashShowHeader() const
 
 QColor Application::splashColor() const
 {
-    QString color = m_desktopData->splashColor();
-    if (color.isEmpty()) {
-        return QColor(0, 0, 0, 0);
-    } else {
-        return QColor(color);
-    }
+    QString colorStr = m_desktopData->splashColor();
+    return colorFromString(colorStr, "splashColor");
 }
 
 QColor Application::splashColorHeader() const
 {
-    QString color = m_desktopData->splashColorHeader();
-    if (color.isEmpty()) {
-        return QColor(0, 0, 0, 0);
-    } else {
-        return QColor(color);
-    }
+    QString colorStr = m_desktopData->splashColorHeader();
+    return colorFromString(colorStr, "splashColorHeader");
 }
 
 QColor Application::splashColorFooter() const
 {
-    QString color = m_desktopData->splashColorFooter();
-    if (color.isEmpty()) {
-        return QColor(0, 0, 0, 0);
-    } else {
-        return QColor(color);
-    }
+    QString colorStr = m_desktopData->splashColorFooter();
+    return colorFromString(colorStr, "splashColorFooter");
 }
 
 QString Application::exec() const

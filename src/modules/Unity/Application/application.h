@@ -124,6 +124,7 @@ private:
     void setPid(pid_t pid);
     void setFocused(bool focus);
     void setSession(Session *session);
+    QColor colorFromString(const QString &colorString, const char *colorName) const;
 
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
