@@ -110,6 +110,58 @@ QUrl Application::icon() const
     }
 }
 
+QString Application::splashTitle() const
+{
+    return m_desktopData->splashTitle();
+}
+
+QString Application::splashImage() const
+{
+    QString imageString = m_desktopData->splashImage();
+    QString pathString = m_desktopData->path();
+    return pathString + '/' + imageString;
+}
+
+bool Application::splashShowHeader() const
+{
+    QString showHeader = m_desktopData->splashShowHeader();
+    if (showHeader == "false") {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+QColor Application::splashColor() const
+{
+    QString color = m_desktopData->splashColor();
+    if (color.isEmpty()) {
+        return QColor(0, 0, 0, 0);
+    } else {
+        return QColor(color);
+    }
+}
+
+QColor Application::splashColorHeader() const
+{
+    QString color = m_desktopData->splashColorHeader();
+    if (color.isEmpty()) {
+        return QColor(0, 0, 0, 0);
+    } else {
+        return QColor(color);
+    }
+}
+
+QColor Application::splashColorFooter() const
+{
+    QString color = m_desktopData->splashColorFooter();
+    if (color.isEmpty()) {
+        return QColor(0, 0, 0, 0);
+    } else {
+        return QColor(color);
+    }
+}
+
 QString Application::exec() const
 {
     return m_desktopData->exec();
