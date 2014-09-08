@@ -79,15 +79,15 @@ public:
     QString name() const override;
     QString comment() const override;
     QUrl icon() const override;
-    QString splashTitle() const;
-    QString splashImage() const;
-    bool splashShowHeader() const;
-    QColor splashColor() const;
-    QColor splashColorHeader() const;
-    QColor splashColorFooter() const;
     Stage stage() const override;
     State state() const override;
     bool focused() const override;
+    QString splashTitle() const override;
+    QUrl splashImage() const override;
+    bool splashShowHeader() const override;
+    QColor splashColor() const override;
+    QColor splashColorHeader() const override;
+    QColor splashColorFooter() const override;
 
     void setStage(Stage stage);
     void setState(State state);

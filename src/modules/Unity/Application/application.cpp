@@ -115,11 +115,22 @@ QString Application::splashTitle() const
     return m_desktopData->splashTitle();
 }
 
-QString Application::splashImage() const
+QUrl Application::splashImage() const
 {
-    QString imageString = m_desktopData->splashImage();
-    QString pathString = m_desktopData->path();
-    return pathString + '/' + imageString;
+    if (m_desktopData->splashImage().isEmpty()) {
+        return QUrl();
+    } else {
+        QFileInfo imageFileInfo(m_desktopData->path(), m_desktopData->splashImage());
+        if (imageFileInfo.exists()) {
+            return QUrl::fromLocalFile(imageFileInfo.canonicalFilePath());
+        } else {
+            qCWarning(QTMIR_APPLICATIONS)
+                << QString("Application(%1).splashImage file does not exist: \"%2\". Ignoring it.")
+                    .arg(appId()).arg(imageFileInfo.absoluteFilePath());
+
+            return QUrl();
+        }
+    }
 }
 
 bool Application::splashShowHeader() const
