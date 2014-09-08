@@ -200,5 +200,6 @@ void Screen::onOrientationReadingChanged()
 
     // Make sure to switch to the main Qt thread context
     QCoreApplication::postEvent(this, new OrientationReadingEvent(
-                                    OrientationReadingEvent::m_type, m_orientationSensor->reading()->orientation()));
+                                              OrientationReadingEvent::m_type,
+                                              m_orientationSensor->reading()->orientation()));
 }
