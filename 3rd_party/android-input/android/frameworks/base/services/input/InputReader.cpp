@@ -5937,7 +5937,7 @@ void MultiTouchInputMapper::syncTouch(nsecs_t when, bool* outHavePointerIds) {
         outCount += 1;
     }
 
-    mCurrentRawPointerData.pointerCount = outCount;
+    mCurrentRawPointerData.pointerCount = newPointerIds.size();
     mPointerIds = newPointerIds;
 
     mMultiTouchMotionAccumulator.finishSync();
