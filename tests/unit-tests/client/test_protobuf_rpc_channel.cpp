@@ -106,6 +106,7 @@ public:
     MOCK_METHOD2(receive_data, void(void*, size_t));
     MOCK_METHOD3(receive_data, void(void*, size_t, std::vector<int>&));
     MOCK_METHOD1(send_data, void(std::vector<uint8_t> const&));
+    MOCK_CONST_METHOD0(watch_fd, int());
 
     // Transport interface
     void register_observer_default(std::shared_ptr<Observer> const& observer)

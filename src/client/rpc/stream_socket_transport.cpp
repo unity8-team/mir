@@ -240,6 +240,11 @@ void mclr::StreamSocketTransport::send_data(const std::vector<uint8_t>& buffer)
     }
 }
 
+int mclr::StreamSocketTransport::watch_fd() const
+{
+    return 65;
+}
+
 void mclr::StreamSocketTransport::init()
 {
     // We use sockets rather than a pipe so that we can control

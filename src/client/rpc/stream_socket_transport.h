@@ -46,6 +46,8 @@ public:
     void receive_data(void* buffer, size_t read_bytes, std::vector<int>& fds) override;
     void send_data(const std::vector<uint8_t> &buffer) override;
 
+    int watch_fd() const override;
+
 private:
     void init();
     int open_socket(std::string const& path);
