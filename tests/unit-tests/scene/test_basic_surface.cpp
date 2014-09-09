@@ -26,12 +26,15 @@
 #include "mir/scene/null_surface_observer.h"
 
 #include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/mock_input_sender.h"
+#include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test/fake_shared.h"
 
 #include "src/server/report/null_report_factory.h"
 
 #include <algorithm>
+#include <future>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -58,6 +61,7 @@ class MockSurfaceAttribObserver : public ms::NullSurfaceObserver
 {
 public:
     MOCK_METHOD2(attrib_changed, void(MirSurfaceAttrib, int));
+    MOCK_METHOD1(hidden_set_to, void(bool));
 };
 
 class StubEventSink : public mir::frontend::EventSink
@@ -77,8 +81,8 @@ struct StubSurfaceConfigurator : ms::SurfaceConfigurator
 
 struct BasicSurfaceTest : public testing::Test
 {
-    std::string name{"aa"};
-    geom::Rectangle rect{{4,7},{5,9}};
+    std::string const name{"aa"};
+    geom::Rectangle const rect{{4,7},{5,9}};
 
     testing::NiceMock<MockCallback> mock_callback;
     std::function<void()> null_change_cb{[]{}};
@@ -90,6 +94,8 @@ struct BasicSurfaceTest : public testing::Test
     void const* compositor_id{nullptr};
     std::shared_ptr<ms::LegacySurfaceChangeNotification> observer =
         std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb, [this](int){mock_change_cb();});
+    std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
+    testing::NiceMock<mtd::MockInputSender> mock_sender;
 
     ms::BasicSurface surface{
         name,
@@ -97,6 +103,7 @@ struct BasicSurfaceTest : public testing::Test
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report};
@@ -121,7 +128,8 @@ TEST_F(BasicSurfaceTest, id_always_unique)
     {
         surfaces[i].reset(new ms::BasicSurface(
                 name, rect, false, mock_buffer_stream,
-                std::shared_ptr<mi::InputChannel>(), stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
+                std::shared_ptr<mi::InputChannel>(), stub_input_sender,
+                stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
             );
 
         for (int j = 0; j < i; ++j)
@@ -140,7 +148,8 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
     {
         surfaces[i].reset(new ms::BasicSurface(
                 name, rect, false, mock_buffer_stream,
-                std::shared_ptr<mi::InputChannel>(), stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
+                std::shared_ptr<mi::InputChannel>(), stub_input_sender,
+                stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
             );
 
         ASSERT_TRUE(surfaces[i]->compositor_snapshot(compositor_id)->id());
@@ -309,6 +318,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         false,
         mock_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         stub_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report};
@@ -375,6 +385,78 @@ TEST_F(BasicSurfaceTest, set_input_region)
     }
 }
 
+TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to_larger_size)
+{
+    geom::Rectangle const new_rect{rect.top_left,{10,10}};
+    surface.resize(new_rect.size);
+
+    for (auto x = new_rect.top_left.x.as_int() - 1;
+         x <= new_rect.top_right().x.as_int();
+         x++)
+    {
+        for (auto y = new_rect.top_left.y.as_int() - 1;
+             y <= new_rect.bottom_left().y.as_int();
+             y++)
+        {
+            auto const test_pt = geom::Point{x, y};
+            auto const contains = surface.input_area_contains(test_pt);
+            if (new_rect.contains(test_pt))
+            {
+                EXPECT_TRUE(contains) << " point = " << test_pt;
+            }
+            else
+            {
+                EXPECT_FALSE(contains) << " point = " << test_pt;
+            }
+        }
+    }
+}
+
+TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to_smaller_size)
+{
+    geom::Rectangle const new_rect{rect.top_left,{2,2}};
+    surface.resize(new_rect.size);
+
+    for (auto x = rect.top_left.x.as_int() - 1;
+         x <= rect.top_right().x.as_int();
+         x++)
+    {
+        for (auto y = rect.top_left.y.as_int() - 1;
+             y <= rect.bottom_left().y.as_int();
+             y++)
+        {
+            auto const test_pt = geom::Point{x, y};
+            auto const contains = surface.input_area_contains(test_pt);
+            if (new_rect.contains(test_pt))
+            {
+                EXPECT_TRUE(contains) << " point = " << test_pt;
+            }
+            else
+            {
+                EXPECT_FALSE(contains) << " point = " << test_pt;
+            }
+        }
+    }
+}
+
+TEST_F(BasicSurfaceTest, restores_default_input_region_when_setting_empty_input_region)
+{
+    std::vector<geom::Rectangle> const rectangles = {
+        {{geom::X{0}, geom::Y{0}}, {geom::Width{1}, geom::Height{1}}}, //region0
+    };
+
+    surface.set_input_region(rectangles);
+    EXPECT_FALSE(surface.input_area_contains(rect.bottom_right() - geom::Displacement{1,1}));
+
+    surface.set_input_region({});
+    EXPECT_TRUE(surface.input_area_contains(rect.bottom_right() - geom::Displacement{1,1}));
+}
+
+TEST_F(BasicSurfaceTest, disables_input_when_setting_input_region_with_empty_rectangle)
+{
+    surface.set_input_region({geom::Rectangle()});
+    EXPECT_FALSE(surface.input_area_contains(rect.top_left));
+}
 
 TEST_F(BasicSurfaceTest, reception_mode_is_normal_by_default)
 {
@@ -388,44 +470,249 @@ TEST_F(BasicSurfaceTest, reception_mode_can_be_changed)
     EXPECT_EQ(mi::InputReceptionMode::receives_all_input, surface.reception_mode());
 }
 
-TEST_F(BasicSurfaceTest, notifies_about_visibility_attrib_changes)
+namespace
+{
+
+struct AttributeTestParameters
+{
+    MirSurfaceAttrib attribute;
+    int default_value;
+    int a_valid_value;
+    int an_invalid_value;
+};
+
+struct BasicSurfaceAttributeTest : public BasicSurfaceTest,
+    public ::testing::WithParamInterface<AttributeTestParameters>
+{
+};
+
+AttributeTestParameters const surface_visibility_test_parameters{
+    mir_surface_attrib_visibility,
+    mir_surface_visibility_exposed,
+    mir_surface_visibility_occluded,
+    -1
+};
+
+AttributeTestParameters const surface_type_test_parameters{
+    mir_surface_attrib_type,
+    mir_surface_type_normal,
+    mir_surface_type_freestyle,
+    -1
+};
+
+AttributeTestParameters const surface_state_test_parameters{
+    mir_surface_attrib_state,
+    mir_surface_state_restored,
+    mir_surface_state_fullscreen,
+    1178312
+};
+
+AttributeTestParameters const surface_swapinterval_test_parameters{
+    mir_surface_attrib_swapinterval,
+    1,
+    0,
+    -1
+};
+
+AttributeTestParameters const surface_dpi_test_parameters{
+    mir_surface_attrib_dpi,
+    0,
+    90,
+    -1
+};
+
+AttributeTestParameters const surface_focus_test_parameters{
+    mir_surface_attrib_focus,
+    mir_surface_unfocused,
+    mir_surface_focused,
+    -1
+};
+
+}
+
+TEST_P(BasicSurfaceAttributeTest, default_value)
+{
+    auto const& params = GetParam();
+    auto const& attribute = params.attribute;
+    auto const& default_value = params.default_value;
+    
+    EXPECT_EQ(default_value, surface.query(attribute));
+}
+
+TEST_P(BasicSurfaceAttributeTest, notifies_about_attrib_changes)
 {
     using namespace testing;
+
+    auto const& params = GetParam();
+    auto const& attribute = params.attribute;
+    auto const& value1 = params.a_valid_value;
+    auto const& value2 = params.default_value;
+
     MockSurfaceAttribObserver mock_surface_observer;
 
     InSequence s;
-    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_occluded))
+    EXPECT_CALL(mock_surface_observer, attrib_changed(attribute, value1))
         .Times(1);
-    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_exposed))
+    EXPECT_CALL(mock_surface_observer, attrib_changed(attribute, value2))
         .Times(1);
 
     surface.add_observer(mt::fake_shared(mock_surface_observer));
 
-    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
-    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
+    surface.configure(attribute, value1);
+    surface.configure(attribute, value2);
 }
 
-TEST_F(BasicSurfaceTest, does_not_notify_if_visibility_attrib_is_unchanged)
+TEST_P(BasicSurfaceAttributeTest, does_not_notify_if_attrib_is_unchanged)
 {
     using namespace testing;
+
+    auto const& params = GetParam();
+    auto const& attribute = params.attribute;
+    auto const& default_value = params.default_value;
+    auto const& another_value = params.a_valid_value;
+
     MockSurfaceAttribObserver mock_surface_observer;
 
-    EXPECT_CALL(mock_surface_observer, attrib_changed(mir_surface_attrib_visibility, mir_surface_visibility_occluded))
+    EXPECT_CALL(mock_surface_observer, attrib_changed(attribute, another_value))
         .Times(1);
 
     surface.add_observer(mt::fake_shared(mock_surface_observer));
 
-    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_exposed);
-    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
-    surface.configure(mir_surface_attrib_visibility, mir_surface_visibility_occluded);
+    surface.configure(attribute, default_value);
+    surface.configure(attribute, another_value);
+    surface.configure(attribute, another_value);
 }
 
-TEST_F(BasicSurfaceTest, throws_on_invalid_visibility_attrib_value)
+TEST_P(BasicSurfaceAttributeTest, throws_on_invalid_value)
+{
+    using namespace testing;
+    
+    auto const& params = GetParam();
+    auto const& attribute = params.attribute;
+    auto const& invalid_value = params.an_invalid_value;
+    
+    EXPECT_THROW({
+            surface.configure(attribute, invalid_value);
+        }, std::logic_error);
+}
+
+INSTANTIATE_TEST_CASE_P(SurfaceTypeAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_type_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceVisibilityAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_visibility_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceStateAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_state_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceSwapintervalAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_swapinterval_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceDPIAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_dpi_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceFocusAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_focus_test_parameters));
+
+TEST_F(BasicSurfaceTest, configure_returns_value_set_by_configurator)
+{
+    using namespace testing;
+    
+    struct FocusSwappingConfigurator : public StubSurfaceConfigurator
+    {
+        int select_attribute_value(ms::Surface const&, MirSurfaceAttrib attrib, int value) override 
+        {
+            if (attrib != mir_surface_attrib_focus)
+                return value;
+            else if (value == mir_surface_focused)
+                return mir_surface_unfocused;
+            else
+                return mir_surface_focused;
+        }
+    };
+
+    ms::BasicSurface surface{
+        name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        mt::fake_shared(mock_sender),
+        std::make_shared<FocusSwappingConfigurator>(),
+        nullptr,
+        report};
+    
+    EXPECT_EQ(mir_surface_unfocused, surface.configure(mir_surface_attrib_focus, mir_surface_focused));
+    EXPECT_EQ(mir_surface_focused, surface.configure(mir_surface_attrib_focus, mir_surface_unfocused));
+}
+
+TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
+{
+    using namespace ::testing;
+
+    ms::BasicSurface surface{
+        name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        mt::fake_shared(mock_sender),
+        stub_configurator,
+        nullptr,
+        report};
+
+    MirEvent event;
+    EXPECT_CALL(mock_sender, send_event(_,_));
+
+    surface.consume(event);
+}
+
+TEST_F(BasicSurfaceTest, observer_can_trigger_state_change_within_notification)
 {
     using namespace testing;
 
-    EXPECT_THROW({
-        surface.configure(mir_surface_attrib_visibility,
-                          static_cast<int>(mir_surface_visibility_exposed) + 1);
-    }, std::logic_error);
+    auto const state_changer = [&]{
+       surface.set_hidden(false);
+    };
+
+    //Make sure another thread can also change state
+    auto const async_state_changer = [&]{
+        std::async(std::launch::async, state_changer);
+    };
+
+    EXPECT_CALL(mock_callback, call()).Times(3)
+        .WillOnce(InvokeWithoutArgs(state_changer))
+        .WillOnce(InvokeWithoutArgs(async_state_changer))
+        .WillOnce(Return());
+
+    surface.add_observer(observer);
+
+    surface.set_hidden(true);
+}
+
+TEST_F(BasicSurfaceTest, observer_can_remove_itself_within_notification)
+{
+    using namespace testing;
+    MockSurfaceAttribObserver observer1;
+    MockSurfaceAttribObserver observer2;
+    MockSurfaceAttribObserver observer3;
+
+    //Both of these observers should still get their notifications
+    //regardless of the unregistration of observer2
+    EXPECT_CALL(observer1, hidden_set_to(true)).Times(2);
+    EXPECT_CALL(observer3, hidden_set_to(true)).Times(2);
+
+    auto const remove_observer = [&]{
+        surface.remove_observer(mt::fake_shared(observer2));
+    };
+
+    EXPECT_CALL(observer2, hidden_set_to(true)).Times(1)
+        .WillOnce(InvokeWithoutArgs(remove_observer));
+
+    surface.add_observer(mt::fake_shared(observer1));
+    surface.add_observer(mt::fake_shared(observer2));
+    surface.add_observer(mt::fake_shared(observer3));
+
+    surface.set_hidden(true);
+    surface.set_hidden(true);
 }

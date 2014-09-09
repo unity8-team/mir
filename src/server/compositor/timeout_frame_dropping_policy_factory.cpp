@@ -41,23 +41,26 @@ public:
 
 private:
     std::chrono::milliseconds const timeout;
-    std::unique_ptr<mir::time::Alarm> alarm;
     std::atomic<unsigned int> pending_swaps;
+
+    // Ensure alarm gets destroyed first so its handler does not access dead
+    // objects.
+    std::unique_ptr<mir::time::Alarm> const alarm;
 };
 
 TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                                        std::chrono::milliseconds timeout,
                                                        std::function<void(void)> drop_frame)
     : timeout{timeout},
-      pending_swaps{0}
+      pending_swaps{0},
+      alarm{timer->create_alarm([this, drop_frame]
+        {
+            assert(pending_swaps.load() > 0);
+            drop_frame();
+            if (--pending_swaps > 0)
+                alarm->reschedule_in(this->timeout);
+        })}
 {
-    alarm = timer->create_alarm([this, drop_frame]
-    {
-       assert(pending_swaps.load() > 0);
-       drop_frame();
-       if (--pending_swaps > 0)
-           alarm->reschedule_in(this->timeout);
-    });
 }
 
 void TimeoutFrameDroppingPolicy::swap_now_blocking()

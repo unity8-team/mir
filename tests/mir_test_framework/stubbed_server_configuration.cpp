@@ -31,6 +31,7 @@
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_renderer.h"
+#include "mir_test_doubles/stub_input_sender.h"
 
 #ifdef ANDROID
 #include "mir_test_doubles/mock_android_native_buffer.h"
@@ -42,6 +43,7 @@
 #include "src/server/input/null_input_dispatcher.h"
 #include "src/server/input/null_input_targeter.h"
 
+#include <system_error>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
@@ -71,7 +73,7 @@ public:
         if (fd < 0)
             BOOST_THROW_EXCEPTION(
                 boost::enable_error_info(
-                    std::runtime_error("Failed to open dummy fd")) << boost::errinfo_errno(errno));
+                    std::system_error(errno, std::system_category(), "Failed to open dummy fd")));
     }
 
     std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override
@@ -115,6 +117,13 @@ class StubGraphicBufferAllocator : public mtd::StubBufferAllocator
  public:
     std::shared_ptr<mg::Buffer> alloc_buffer(mg::BufferProperties const& properties) override
     {
+        if (properties.size.width == geom::Width{0} ||
+            properties.size.height == geom::Height{0})
+        {
+            BOOST_THROW_EXCEPTION(
+                std::runtime_error("Request for allocation of buffer with invalid size"));
+        }
+
         return std::make_shared<StubFDBuffer>(properties);
     }
 };
@@ -153,7 +162,8 @@ public:
             }
             for(auto i=0; i<native_handle->fd_items; i++)
             {
-                packer->pack_fd(native_handle->fd[i]);
+                using namespace mir;
+                packer->pack_fd(Fd(IntOwnedFd{native_handle->fd[i]}));
             }
 
             packer->pack_flags(native_handle->flags);
@@ -262,8 +272,17 @@ std::shared_ptr<mi::InputDispatcher> mtf::StubbedServerConfiguration::the_input_
         return std::make_shared<mi::NullInputDispatcher>();
 }
 
+std::shared_ptr<mi::InputSender> mtf::StubbedServerConfiguration::the_input_sender()
+{
+    auto options = the_options();
+
+    if (options->get<bool>("tests-use-real-input"))
+        return DefaultServerConfiguration::the_input_sender();
+    else
+        return std::make_shared<mtd::StubInputSender>();
+}
+
 std::shared_ptr<mg::Cursor> mtf::StubbedServerConfiguration::the_cursor()
 {
     return std::make_shared<StubCursor>();
 }
-

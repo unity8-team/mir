@@ -99,15 +99,38 @@ static bool socket_error_is_transient(int error_code)
     return (error_code == EINTR);
 }
 
-void mclr::StreamSocketTransport::receive_data(void* buffer, size_t read_bytes)
+void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_requested)
 {
-    size_t bytes_read{0};
-    while(bytes_read < read_bytes)
+    /*
+     * Explicitly implement this, rather than delegating to receive_data(buffer, size, fds)
+     * so that we can catch when we discard file descriptors.
+     *
+     * See comment for DISABLED_ReceivingMoreFdsThanExpectedInMultipleChunksRaisesException
+     * test in test_stream_transport.cpp for details.
+     */
+    if (bytes_requested == 0)
     {
-        ssize_t const result = recv(socket_fd,
-                                    static_cast<uint8_t*>(buffer) + bytes_read,
-                                    read_bytes - bytes_read,
-                                    MSG_WAITALL | MSG_NOSIGNAL);
+        BOOST_THROW_EXCEPTION(std::logic_error("Attempted to receive 0 bytes"));
+    }
+    size_t bytes_read{0};
+    while(bytes_read < bytes_requested)
+    {
+        // Store the data in the buffer requested
+        struct iovec iov;
+        iov.iov_base = static_cast<uint8_t*>(buffer) + bytes_read;
+        iov.iov_len = bytes_requested - bytes_read;
+
+        // Message to read
+        struct msghdr header;
+        header.msg_name = NULL;
+        header.msg_namelen = 0;
+        header.msg_iov = &iov;
+        header.msg_iovlen = 1;
+        header.msg_controllen = 0;
+        header.msg_control = nullptr;
+        header.msg_flags = 0;
+
+        ssize_t const result = recvmsg(socket_fd, &header, MSG_NOSIGNAL | MSG_WAITALL);
 
         if (result == 0)
         {
@@ -132,25 +155,35 @@ void mclr::StreamSocketTransport::receive_data(void* buffer, size_t read_bytes)
                         boost::enable_error_info(socket_error("Failed to read message from server"))
                              << boost::errinfo_errno(errno));
         }
+
+        if (header.msg_flags & MSG_CTRUNC)
+        {
+            BOOST_THROW_EXCEPTION(std::runtime_error("Unexpectedly received fds"));
+        }
+
         bytes_read += result;
     }
 }
 
-void mclr::StreamSocketTransport::receive_data(void* buffer, size_t read_bytes, std::vector<int>& fds)
+void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_requested, std::vector<int>& fds)
 {
+    if (bytes_requested == 0)
+    {
+        BOOST_THROW_EXCEPTION(std::logic_error("Attempted to receive 0 bytes"));
+    }
     size_t bytes_read{0};
-    bool fds_read{false};
-    while (bytes_read < read_bytes)
+    unsigned fds_read{0};
+    while (bytes_read < bytes_requested)
     {
         // Store the data in the buffer requested
         struct iovec iov;
         iov.iov_base = static_cast<uint8_t*>(buffer) + bytes_read;
-        iov.iov_len = read_bytes - bytes_read;
+        iov.iov_len = bytes_requested - bytes_read;
         
         // Allocate space for control message
         static auto const builtin_n_fds = 5;
         static auto const builtin_cmsg_space = CMSG_SPACE(builtin_n_fds * sizeof(int));
-        auto const fds_bytes = fds.size() * sizeof(int);
+        auto const fds_bytes = (fds.size() - fds_read) * sizeof(int);
         mir::VariableLengthArray<builtin_cmsg_space> control{CMSG_SPACE(fds_bytes)};
         
         // Message to read
@@ -193,50 +226,60 @@ void mclr::StreamSocketTransport::receive_data(void* buffer, size_t read_bytes, 
         // file descriptors back to the caller
         struct cmsghdr const* const cmsg = CMSG_FIRSTHDR(&header);
         if (cmsg)
-        {            
+        {
             // NOTE: This relies on the file descriptor cmsg being read
             // (and written) atomically.
-            if (fds_read)
+            if (cmsg->cmsg_len > CMSG_LEN(fds_bytes) || (header.msg_flags & MSG_CTRUNC))
             {
-                // Presumably these new file descriptors are for a later message.
-                // However, we can't preserve them, so warn now rather than wondering
-                // where the fds went later.
-                BOOST_THROW_EXCEPTION(std::runtime_error("Unexpectedly received file descriptors"));
+                BOOST_THROW_EXCEPTION(std::runtime_error("Received more fds than expected"));
             }
-            if (cmsg->cmsg_len == CMSG_LEN(fds_bytes) &&
-                cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS)
-            {
-                int const* const data = reinterpret_cast<int const*>CMSG_DATA(cmsg);
-                int i = 0;
-                for (auto& fd : fds)
-                    fd = data[i++];
-
-                fds_read = true;
-            }
-            else
+            if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS)
             {
                 BOOST_THROW_EXCEPTION(fd_reception_error());
             }
+            int const* const data = reinterpret_cast<int const*>CMSG_DATA(cmsg);
+            ptrdiff_t const header_size = reinterpret_cast<char const*>(data) - reinterpret_cast<char const*>(cmsg);
+            int const nfds = (cmsg->cmsg_len - header_size) / sizeof(int);
+            for (int i = 0; i < nfds; i++)
+                fds[fds_read + i] = data[i];
+
+            fds_read += nfds;
         }
+    }
+    if (fds_read < fds.size())
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error("Receieved fewer fds than expected"));
     }
 }
 
 void mclr::StreamSocketTransport::send_data(const std::vector<uint8_t>& buffer)
 {
-    ssize_t const bytes_written = send(socket_fd, buffer.data(), buffer.size(), MSG_NOSIGNAL);
-
-    if (bytes_written < 0)
+    size_t bytes_written{0};
+    while (bytes_written < buffer.size())
     {
-        if (errno == EPIPE)
+        ssize_t const result = send(socket_fd,
+                                    buffer.data() + bytes_written,
+                                    buffer.size() - bytes_written,
+                                    MSG_NOSIGNAL);
+
+        if (result < 0)
         {
-            notify_disconnected();
+            if (socket_error_is_transient(errno))
+            {
+                continue;
+            }
+            if (errno == EPIPE)
+            {
+                notify_disconnected();
+                BOOST_THROW_EXCEPTION(
+                            boost::enable_error_info(socket_disconnected_error("Failed to send message to server"))
+                            << boost::errinfo_errno(errno));
+            }
             BOOST_THROW_EXCEPTION(
-                        boost::enable_error_info(socket_disconnected_error("Failed to send message to server"))
+                        boost::enable_error_info(socket_error("Failed to send message to server"))
                         << boost::errinfo_errno(errno));
         }
-        BOOST_THROW_EXCEPTION(
-                    boost::enable_error_info(socket_error("Failed to send message to server"))
-                    << boost::errinfo_errno(errno));
+        bytes_written += result;
     }
 }
 

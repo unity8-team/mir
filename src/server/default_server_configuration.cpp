@@ -17,6 +17,7 @@
  */
 
 #include "mir/default_server_configuration.h"
+#include "mir/fatal.h"
 #include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
 #include "mir/asio_main_loop.h"
@@ -38,10 +39,7 @@
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
 #include "mir/scene/null_prompt_session_listener.h"
-
-#include <map>
-#include <vector>
-#include <mutex>
+#include "default_emergency_cleanup.h"
 
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
@@ -139,6 +137,11 @@ mir::DefaultServerConfiguration::the_session_authorizer()
         {
             return true;
         }
+
+        bool prompt_session_is_allowed(mf::SessionCredentials const& /* creds */) override
+        {
+            return true;
+        }
     };
     return session_authorizer(
         [&]()
@@ -146,6 +149,8 @@ mir::DefaultServerConfiguration::the_session_authorizer()
             return std::make_shared<DefaultSessionAuthorizer>();
         });
 }
+
+mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
 
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {
@@ -181,34 +186,18 @@ std::shared_ptr<mir::ServerStatusListener> mir::DefaultServerConfiguration::the_
 
 std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emergency_cleanup()
 {
-    struct DefaultEmergencyCleanup : public EmergencyCleanup
-    {
-        void add(EmergencyCleanupHandler const& handler) override
-        {
-            std::lock_guard<std::mutex> lock{handlers_mutex};
-            handlers.push_back(handler);
-        }
-
-        void operator()() const override
-        {
-            decltype(handlers) handlers_copy;
-
-            {
-                std::unique_lock<std::mutex> lock{handlers_mutex};
-                handlers_copy = handlers;
-            }
-
-            for (auto const& handler : handlers_copy)
-                handler();
-        }
-
-        mutable std::mutex handlers_mutex;
-        std::vector<EmergencyCleanupHandler> handlers;
-    };
-
     return emergency_cleanup(
         []()
         {
             return std::make_shared<DefaultEmergencyCleanup>();
         });
+}
+
+auto mir::DefaultServerConfiguration::the_fatal_error_strategy()
+-> void (*)(char const* reason, ...)
+{
+    if (the_options()->is_set(options::fatal_abort_opt))
+        return &fatal_error_abort;
+    else
+        return fatal_error;
 }

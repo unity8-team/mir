@@ -18,12 +18,14 @@
 
 #include "mir/run_mir.h"
 #include "mir/display_server.h"
+#include "mir/fatal.h"
 #include "mir/main_loop.h"
 #include "mir/server_configuration.h"
 #include "mir/frontend/connector.h"
 #include "mir/raii.h"
 #include "mir/emergency_cleanup.h"
 
+#include <atomic>
 #include <exception>
 #include <mutex>
 #include <csignal>
@@ -77,14 +79,18 @@ void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&
             server_ptr->stop();
         });
 
+    FatalErrorStrategy fatal_error_strategy{config.the_fatal_error_strategy()};
+
     DisplayServer server(config);
     server_ptr = &server;
 
     weak_emergency_cleanup = config.the_emergency_cleanup();
 
+    static std::atomic<unsigned int> concurrent_calls{0};
+
     auto const raii = raii::paired_calls(
-        [&]{ for (auto sig : intercepted) old_handler[sig] = signal(sig, fatal_signal_cleanup); },
-        [&]{ for (auto sig : intercepted) signal(sig, old_handler[sig]); });
+        [&]{ if (!concurrent_calls++) for (auto sig : intercepted) old_handler[sig] = signal(sig, fatal_signal_cleanup); },
+        [&]{ if (!--concurrent_calls) for (auto sig : intercepted) signal(sig, old_handler[sig]); });
 
     init(server);
     server.run();

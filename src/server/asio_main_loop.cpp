@@ -182,6 +182,14 @@ public:
         }
     }
 
+    ~FDHandler()
+    {
+        for (auto & desc : stream_descriptors)
+        {
+            desc->release(); // release native handle which is not owned by main loop
+        }
+    }
+
     bool is_owned_by(void const* possible_owner) const
     {
         return owner == possible_owner;
@@ -336,22 +344,58 @@ public:
     bool reschedule_in(std::chrono::milliseconds delay) override;
     bool reschedule_for(mir::time::Timestamp time_point) override;
 private:
+    void stop();
+    bool cancel_unlocked();
     void update_timer();
     struct InternalState
     {
         explicit InternalState(std::function<void(void)> callback)
-            : callback{callback}
+            : callback{callback}, state{pending}
         {
         }
 
-        mutable std::mutex m;
-        std::function<void(void)> callback;
+        std::mutex m;
+        int callbacks_running = 0;
+        std::condition_variable callback_done;
+        std::function<void(void)> const callback;
         State state;
     };
 
     ::deadline_timer timer;
-    std::shared_ptr<InternalState> data;
+    std::shared_ptr<InternalState> const data;
+    std::function<void(boost::system::error_code const& ec)> const handler;
+
+    friend auto make_handler(std::weak_ptr<InternalState> possible_data)
+    -> std::function<void(boost::system::error_code const& ec)>;
 };
+
+auto make_handler(std::weak_ptr<AlarmImpl::InternalState> possible_data)
+-> std::function<void(boost::system::error_code const& ec)>
+{
+    // Awkwardly, we can't stop the async_wait handler from being called
+    // on a destroyed AlarmImpl. This means we need to wedge a weak_ptr
+    // into the async_wait callback.
+    return [possible_data](boost::system::error_code const& ec)
+    {
+        if (!ec)
+        {
+            if (auto data = possible_data.lock())
+            {
+                std::unique_lock<decltype(data->m)> lock(data->m);
+                if (data->state == mir::time::Alarm::pending)
+                {
+                    data->state = mir::time::Alarm::triggered;
+                    ++data->callbacks_running;
+                    lock.unlock();
+                    data->callback();
+                    lock.lock();
+                    --data->callbacks_running;
+                    data->callback_done.notify_all();
+                }
+            }
+        }
+    };
+}
 
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
                      std::chrono::milliseconds delay,
@@ -372,19 +416,35 @@ AlarmImpl::AlarmImpl(boost::asio::io_service& io,
 AlarmImpl::AlarmImpl(boost::asio::io_service& io,
                      std::function<void(void)> callback)
     : timer{io},
-      data{std::make_shared<InternalState>(callback)}
+      data{std::make_shared<InternalState>(callback)},
+      handler{make_handler(data)}
 {
     data->state = triggered;
 }
 
 AlarmImpl::~AlarmImpl() noexcept
 {
-    AlarmImpl::cancel();
+    AlarmImpl::stop();
+}
+
+void AlarmImpl::stop()
+{
+    std::unique_lock<decltype(data->m)> lock(data->m);
+
+    while (data->callbacks_running > 0)
+        data->callback_done.wait(lock);
+
+    cancel_unlocked();
 }
 
 bool AlarmImpl::cancel()
 {
     std::lock_guard<decltype(data->m)> lock(data->m);
+    return cancel_unlocked();
+}
+
+bool AlarmImpl::cancel_unlocked()
+{
     if (data->state == triggered)
         return false;
 
@@ -416,25 +476,8 @@ bool AlarmImpl::reschedule_for(mir::time::Timestamp time_point)
 
 void AlarmImpl::update_timer()
 {
+    timer.async_wait(handler);
     std::lock_guard<decltype(data->m)> lock(data->m);
-    // Awkwardly, we can't stop the async_wait handler from being called
-    // on a destroyed AlarmImpl. This means we need to wedge a shared_ptr
-    // into the async_wait callback.
-    std::weak_ptr<InternalState> possible_data = data;
-    timer.async_wait([possible_data](boost::system::error_code const& ec)
-    {
-        auto data = possible_data.lock();
-        if (!data)
-            return;
-
-        std::unique_lock<decltype(data->m)> lock(data->m);
-        if (!ec && data->state == pending)
-        {
-            data->state = triggered;
-            lock.unlock();
-            data->callback();
-        }
-    });
     data->state = pending;
 }
 }

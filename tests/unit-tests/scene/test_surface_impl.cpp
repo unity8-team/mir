@@ -26,6 +26,7 @@
 #include "mir_test_doubles/stub_buffer_stream.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/mock_input_targeter.h"
+#include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/mock_surface_configurator.h"
@@ -79,6 +80,7 @@ struct Surface : testing::Test
     mf::SurfaceId stub_id;
     std::shared_ptr<ms::SurfaceConfigurator> null_configurator;
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
+    std::shared_ptr<mtd::StubInputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
 };
 }
 
@@ -92,6 +94,7 @@ TEST_F(Surface, attributes)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -111,6 +114,7 @@ TEST_F(Surface, types)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -151,6 +155,7 @@ TEST_F(Surface, states)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -181,50 +186,6 @@ TEST_F(Surface, states)
     EXPECT_EQ(mir_surface_state_fullscreen, surf.state());
 }
 
-TEST_F(Surface, dpi_is_initialized)
-{
-    using namespace testing;
-
-    ms::BasicSurface surf(
-        std::string("stub"),
-        geom::Rectangle{{},{}},
-        false,
-        buffer_stream,
-        std::shared_ptr<mi::InputChannel>(),
-        null_configurator,
-        std::shared_ptr<mg::CursorImage>(),
-        report);
-
-    EXPECT_EQ(0, surf.dpi()); // The current default. It will change.
-}
-
-TEST_F(Surface, dpi_changes)
-{
-    using namespace testing;
-
-    ms::BasicSurface surf(
-        std::string("stub"),
-        geom::Rectangle{{},{}},
-        false,
-        buffer_stream,
-        std::shared_ptr<mi::InputChannel>(),
-        null_configurator,
-        std::shared_ptr<mg::CursorImage>(),
-        report);
-
-    EXPECT_EQ(123, surf.configure(mir_surface_attrib_dpi, 123));
-    EXPECT_EQ(123, surf.dpi());
-
-    EXPECT_EQ(456, surf.configure(mir_surface_attrib_dpi, 456));
-    EXPECT_EQ(456, surf.dpi());
-
-    surf.configure(mir_surface_attrib_dpi, -1);
-    EXPECT_EQ(456, surf.dpi());
-
-    EXPECT_EQ(789, surf.configure(mir_surface_attrib_dpi, 789));
-    EXPECT_EQ(789, surf.dpi());
-}
-
 bool operator==(MirEvent const& a, MirEvent const& b)
 {
     // We will always fill unused bytes with zero, so memcmp is accurate...
@@ -244,6 +205,7 @@ TEST_F(Surface, clamps_undersized_resize)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         nullptr,
         report);
@@ -266,6 +228,7 @@ TEST_F(Surface, emits_resize_events)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -300,6 +263,7 @@ TEST_F(Surface, emits_resize_events_only_on_change)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -343,6 +307,7 @@ TEST_F(Surface, remembers_alpha)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -384,6 +349,7 @@ TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -410,6 +376,7 @@ TEST_F(Surface, configurator_selects_attribute_values)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         mt::fake_shared(configurator),
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -427,6 +394,7 @@ TEST_F(Surface, take_input_focus)
         false,
         buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);
@@ -447,6 +415,7 @@ TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
         false,
         stub_buffer_stream,
         std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
         null_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report);

@@ -20,6 +20,7 @@
 #define MIR_SCENE_BASIC_SURFACE_H_
 
 #include "mir/scene/surface.h"
+#include "mir/basic_observers.h"
 #include "mir/scene/surface_observer.h"
 
 #include "mir/geometry/rectangle.h"
@@ -47,6 +48,7 @@ class Buffer;
 namespace input
 {
 class InputChannel;
+class InputSender;
 class Surface;
 }
 namespace scene
@@ -54,9 +56,11 @@ namespace scene
 class SceneReport;
 class SurfaceConfigurator;
 
-class SurfaceObservers : public SurfaceObserver
+class SurfaceObservers : public SurfaceObserver, BasicObservers<SurfaceObserver>
 {
 public:
+    using BasicObservers<SurfaceObserver>::add;
+    using BasicObservers<SurfaceObserver>::remove;
 
     void attrib_changed(MirSurfaceAttrib attrib, int value) override;
     void resized_to(geometry::Size const& size) override;
@@ -68,13 +72,6 @@ public:
     void transformation_set_to(glm::mat4 const& t) override;
     void reception_mode_set_to(input::InputReceptionMode mode) override;
     void cursor_image_set_to(graphics::CursorImage const& image) override;
-
-    void add(std::shared_ptr<SurfaceObserver> const& observer);
-    void remove(std::shared_ptr<SurfaceObserver> const& observer);
-
-private:
-    std::mutex mutex;
-    std::vector<std::shared_ptr<SurfaceObserver>> observers;
 };
 
 class BasicSurface : public Surface
@@ -86,6 +83,7 @@ public:
         bool nonrectangular,
         std::shared_ptr<compositor::BufferStream> const& buffer_stream,
         std::shared_ptr<input::InputChannel> const& input_channel,
+        std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<SurfaceConfigurator> const& configurator,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
         std::shared_ptr<SceneReport> const& report);
@@ -121,6 +119,7 @@ public:
     geometry::Point top_left() const override;
     geometry::Rectangle input_bounds() const override;
     bool input_area_contains(geometry::Point const& point) const override;
+    void consume(MirEvent const& event);
     void set_alpha(float alpha) override;
     void set_orientation(MirOrientation orientation) override;
     void set_transformation(glm::mat4 const&) override;
@@ -136,6 +135,7 @@ public:
     MirSurfaceState state() const override;
     void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) override;
     int configure(MirSurfaceAttrib attrib, int value) override;
+    int query(MirSurfaceAttrib attrib) override;
     void hide() override;
     void show() override;
     
@@ -149,10 +149,12 @@ public:
 
 private:
     bool visible(std::unique_lock<std::mutex>&) const;
-    bool set_type(MirSurfaceType t);  // Use configure() to make public changes
-    bool set_state(MirSurfaceState s);
-    bool set_dpi(int);
-    void set_visibility(MirSurfaceVisibility v);
+    MirSurfaceType set_type(MirSurfaceType t);  // Use configure() to make public changes
+    MirSurfaceState set_state(MirSurfaceState s);
+    int set_dpi(int);
+    MirSurfaceVisibility set_visibility(MirSurfaceVisibility v);
+    int set_swap_interval(int);
+    MirSurfaceFocusState set_focus_state(MirSurfaceFocusState f);
 
     SurfaceObservers observers;
     std::mutex mutable guard;
@@ -164,17 +166,16 @@ private:
     bool hidden;
     input::InputReceptionMode input_mode;
     const bool nonrectangular;
-    std::vector<geometry::Rectangle> input_rectangles;
+    std::vector<geometry::Rectangle> custom_input_rectangles;
     std::shared_ptr<compositor::BufferStream> const surface_buffer_stream;
     std::shared_ptr<input::InputChannel> const server_input_channel;
+    std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
 
-    MirSurfaceType type_value;
-    MirSurfaceState state_value;
-    MirSurfaceVisibility visibility_value;
-    int dpi_value;
+    void initialize_attributes();
+    int attrib_values[mir_surface_attribs];
 };
 
 }

@@ -28,6 +28,20 @@ namespace mir
 {
 namespace client
 {
+
+/**
+ * \brief Client/Server communication implementation namespace.
+ *
+ * \par Theory of operation:
+ * The RPC layer is built in two parts: the transport layer and the protocol layer.
+ *
+ * The transport layer handles moving bytes and file descriptors between
+ * the client and the server, notifying when data is available, and notifying
+ * when the link has been disconnected..
+ *
+ * The protocol layer is responsible for mediating between the rest of the code
+ * and the transport layer. It provides an RPC interface built upon the transport.
+ */
 namespace rpc
 {
 /**
@@ -57,6 +71,11 @@ public:
      */
     virtual ~StreamTransport() = default;
 
+    /* Delete CopyAssign */
+    StreamTransport() = default;
+    StreamTransport(StreamTransport const&) = delete;
+    StreamTransport& operator=(StreamTransport const&) = delete;
+
     /**
      * \brief Observer of IO status
      * \note The Transport may call Observer members from arbitrary threads.
@@ -65,6 +84,7 @@ public:
     class Observer
     {
     public:
+        Observer() = default;
         virtual ~Observer() = default;
         /**
          * \brief Called by the Transport when data is available for reading
@@ -76,6 +96,9 @@ public:
          *       during destruction of the Transport, or it may fire multiple times.
          */
         virtual void on_disconnected() = 0;
+
+        Observer(Observer const&) = delete;
+        Observer& operator=(Observer const&) = delete;
     };
 
     /**
@@ -89,18 +112,18 @@ public:
     /**
      * \brief Read data from the server
      * \param [out] buffer          Buffer to read into
-     * \param [in]  read_bytes      Number of bytes to read
+     * \param [in]  bytes_requested Number of bytes to read
      * \throws A std::runtime_error if it is not possible to read
      *         read_bytes bytes from the server.
      *
      * \note This provides stream semantics - message boundaries are not preserved.
      */
-    virtual void receive_data(void* buffer, size_t read_bytes) = 0;
+    virtual void receive_data(void* buffer, size_t bytes_requested) = 0;
 
     /**
      * \brief Read data and file descriptors from the server
      * \param [out] buffer          Buffer to read into
-     * \param [in]  read_bytes      Number of bytes to read
+     * \param [in]  bytes_requested Number of bytes to read
      * \param [in,out] fds          File descriptors received in this read.
      *                              The value of fds.size() determines the number of
      *                              file descriptors to receive.
@@ -110,7 +133,7 @@ public:
      *
      * \note This provides stream semantics - message boundaries are not preserved.
      */
-    virtual void receive_data(void* buffer, size_t read_bytes, std::vector<int>& fds) = 0;
+    virtual void receive_data(void* buffer, size_t bytes_requested, std::vector<int>& fds) = 0;
 
     /**
      * \brief Write data to the server

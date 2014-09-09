@@ -405,9 +405,10 @@ TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_ca
     ml.register_fd_handler(
         {p1.read_fd()},
         this,
-        [](int)
+        [this](int)
         {
             FAIL() << "unregistered handler called";
+            ml.stop();
         });
 
     ml.register_fd_handler(
@@ -422,7 +423,7 @@ TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_ca
 
     ml.unregister_fd_handler(this);
 
-    EXPECT_EQ(-1, send(p1.write_fd(), &data_to_write, 1, MSG_NOSIGNAL));
+    EXPECT_EQ(1, write(p1.write_fd(), &data_to_write, 1));
     EXPECT_EQ(1, write(p2.write_fd(), &data_to_write, 1));
 
     ml.run();
@@ -431,7 +432,38 @@ TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_ca
     EXPECT_EQ(p2.read_fd(), p2_handler_executes);
 }
 
+TEST_F(AsioMainLoopTest, unregister_does_not_close_fds)
+{
+    mt::Pipe p1, p2;
+    char const data_to_write{'b'};
+    char data_read{0};
 
+    ml.register_fd_handler(
+        {p1.read_fd()},
+        this,
+        [this](int)
+        {
+            FAIL() << "unregistered handler called";
+            ml.stop();
+        });
+
+    ml.unregister_fd_handler(this);
+
+    ml.register_fd_handler(
+        {p1.read_fd()},
+        this,
+        [this,&data_read](int fd)
+        {
+            EXPECT_EQ(1, read(fd, &data_read, 1));
+            ml.stop();
+        });
+
+    EXPECT_EQ(1, write(p1.write_fd(), &data_to_write, 1));
+
+    ml.run();
+
+    EXPECT_EQ(data_to_write, data_read);
+}
 
 TEST_F(AsioMainLoopAlarmTest, main_loop_runs_until_stop_called)
 {
@@ -597,6 +629,52 @@ TEST_F(AsioMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
 
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
     EXPECT_EQ(1, call_count);
+}
+
+TEST_F(AsioMainLoopAlarmTest, alarm_callback_cannot_deadlock)
+{   // Regression test for deadlock bug LP: #1339700
+    std::mutex m;
+    std::atomic_bool failed(false);
+    int i = 0;
+    int const loops = 5;
+
+    auto alarm = ml.notify_in(std::chrono::milliseconds{0}, [&]()
+    {
+        // From this angle, ensure we can lock m (alarm should be unlocked)
+        int tries = 0;
+        while (!m.try_lock() && tries < 100) // 100 x 100 = try for 10 seconds
+        {
+            ++tries;
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        }
+        failed = (tries >= 100);
+        ASSERT_FALSE(failed);
+        ++i;
+        m.unlock();
+    });
+
+    std::thread t([&]()
+        {
+            m.lock();
+            while (i < loops && !failed)
+            {
+                // From this angle, ensure we can lock alarm while holding m
+                (void)alarm->state();
+                m.unlock();
+                std::this_thread::yield();
+                m.lock();
+            }
+            m.unlock();
+        });
+
+    UnblockMainLoop unblocker(ml);
+    for (int j = 0; j < loops; ++j)
+    {
+        clock->advance_by(std::chrono::milliseconds{101}, ml);
+        alarm->reschedule_in(std::chrono::milliseconds{100});
+    }
+
+    t.join();
 }
 
 TEST_F(AsioMainLoopAlarmTest, alarm_fires_at_correct_time_point)

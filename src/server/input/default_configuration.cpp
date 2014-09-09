@@ -24,19 +24,26 @@
 #include "android/android_input_registrar.h"
 #include "android/android_input_target_enumerator.h"
 #include "android/event_filter_dispatcher_policy.h"
+#include "android/input_sender.h"
+#include "android/input_channel_factory.h"
 #include "display_input_region.h"
 #include "event_filter_chain.h"
-#include "nested_input_configuration.h"
 #include "null_input_configuration.h"
 #include "cursor_controller.h"
 #include "null_input_dispatcher.h"
 #include "null_input_targeter.h"
+#include "xcursor_loader.h"
+#include "builtin_cursor_images.h"
+#include "null_input_send_observer.h"
+#include "null_input_channel_factory.h"
 
 #include "mir/input/android/default_android_input_configuration.h"
+#include "mir/input/touch_visualizer.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
 #include "mir/compositor/scene.h"
 #include "mir/report/legacy_input_report.h"
+#include "mir/main_loop.h"
 
 #include <InputDispatcher.h>
 
@@ -45,6 +52,7 @@ namespace mi = mir::input;
 namespace mia = mi::android;
 namespace mr = mir::report;
 namespace ms = mir::scene;
+namespace mg = mir::graphics;
 namespace msh = mir::shell;
 
 std::shared_ptr<mi::InputRegion> mir::DefaultServerConfiguration::the_input_region()
@@ -74,23 +82,24 @@ mir::DefaultServerConfiguration::the_input_configuration()
     [this]() -> std::shared_ptr<mi::InputConfiguration>
     {
         auto const options = the_options();
-        if (!options->get<bool>(options::enable_input_opt))
-        {
-            return std::make_shared<mi::NullInputConfiguration>();
-        }
-        else if (!options->is_set(options::host_socket_opt))
+        bool input_reading_required =
+            options->get<bool>(options::enable_input_opt) &&
+            !options->is_set(options::host_socket_opt);
+
+        if (input_reading_required)
         {
             // fallback to standalone if host socket is unset
             return std::make_shared<mia::DefaultInputConfiguration>(
                 the_input_dispatcher(),
                 the_input_region(),
                 the_cursor_listener(),
+                the_touch_visualizer(),
                 the_input_report()
                 );
         }
         else
         {
-            return std::make_shared<mi::NestedInputConfiguration>();
+            return std::make_shared<mi::NullInputConfiguration>();
         }
     });
 }
@@ -120,6 +129,27 @@ mir::DefaultServerConfiguration::the_input_registrar()
             return std::make_shared<mia::InputRegistrar>(the_scene());
         });
 }
+
+std::shared_ptr<mi::InputSender>
+mir::DefaultServerConfiguration::the_input_sender()
+{
+    return input_sender(
+        [this]()
+        {
+            return std::make_shared<mia::InputSender>(the_scene(), the_main_loop(), the_input_send_observer(), the_input_report());
+        });
+}
+
+std::shared_ptr<mi::InputSendObserver>
+mir::DefaultServerConfiguration::the_input_send_observer()
+{
+    return input_send_observer(
+        [this]()
+        {
+            return std::make_shared<mi::NullInputSendObserver>();
+        });
+}
+
 
 std::shared_ptr<msh::InputTargeter>
 mir::DefaultServerConfiguration::the_input_targeter()
@@ -191,7 +221,11 @@ mir::DefaultServerConfiguration::the_input_manager()
 
 std::shared_ptr<mi::InputChannelFactory> mir::DefaultServerConfiguration::the_input_channel_factory()
 {
-    return the_input_configuration()->the_input_channel_factory();
+    auto const options = the_options();
+    if (!options->get<bool>(options::enable_input_opt))
+        return std::make_shared<mi::NullInputChannelFactory>();
+    else
+        return std::make_shared<mia::InputChannelFactory>();
 }
 
 std::shared_ptr<mi::CursorListener>
@@ -204,4 +238,54 @@ mir::DefaultServerConfiguration::the_cursor_listener()
                 the_cursor(), the_default_cursor_image());
         });
 
+}
+
+std::shared_ptr<mi::TouchVisualizer>
+mir::DefaultServerConfiguration::the_touch_visualizer()
+{
+    struct NullTouchVisualizer : public mi::TouchVisualizer
+    {
+        void visualize_touches(std::vector<Spot> const& /* touches */) override
+        {
+        }
+    };
+    return touch_visualizer(
+        [this]()
+        {
+            return std::make_shared<NullTouchVisualizer>();
+        });
+}
+
+std::shared_ptr<mg::CursorImage>
+mir::DefaultServerConfiguration::the_default_cursor_image()
+{
+    return default_cursor_image(
+        [this]()
+        {
+            return the_cursor_images()->image(mir_default_cursor_name, mi::default_cursor_size);
+        });
+}
+
+namespace
+{
+bool has_default_cursor(mi::CursorImages& images)
+{
+    if (images.image(mir_default_cursor_name, mi::default_cursor_size))
+        return true;
+    return false;
+}
+}
+
+std::shared_ptr<mi::CursorImages>
+mir::DefaultServerConfiguration::the_cursor_images()
+{
+    return cursor_images(
+        [this]() -> std::shared_ptr<mi::CursorImages>
+        {
+            auto xcursor_loader = std::make_shared<mi::XCursorLoader>();
+            if (has_default_cursor(*xcursor_loader))
+                return xcursor_loader;
+            else
+                return std::make_shared<mi::BuiltinCursorImages>();
+        });
 }
