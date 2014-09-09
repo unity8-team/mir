@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = modules
+SUBDIRS = modules mirserver

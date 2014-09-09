@@ -31,20 +31,31 @@
 #include "logging.h"
 #include "unityprotobufservice.h"
 
+// mir
+#include <mir/options/default_configuration.h>
+
 // Qt
 #include <QDebug>
 
 // egl
 #include <EGL/egl.h>
 
+namespace mo  = mir::options;
 namespace msh = mir::shell;
 namespace ms = mir::scene;
+
+namespace
+{
+void ignore_unparsed_arguments(int /*argc*/, char const* const/*argv*/[])
+{
+}
+}
 
 Q_LOGGING_CATEGORY(QTMIR_MIR_MESSAGES, "qtmir.mir")
 
 MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QObject* parent)
     : QObject(parent)
-    , DefaultServerConfiguration(argc, argv)
+    , DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv, &ignore_unparsed_arguments))
     , m_unityService(std::make_shared<UnityProtobufService>())
 {
     qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration created";
