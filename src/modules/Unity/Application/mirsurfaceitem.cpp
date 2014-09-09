@@ -28,8 +28,10 @@
 
 // Qt
 #include <QDebug>
+#include <QGuiApplication>
 #include <QQmlEngine>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QSGSimpleTextureNode>
 #include <QSGTextureProvider>
 #include <QTimer>
@@ -356,19 +358,23 @@ void MirSurfaceItem::setOrientation(const Qt::ScreenOrientation orientation)
         return;
 
     MirOrientation mirOrientation;
-    switch(orientation) {
-    case Qt::PrimaryOrientation: // this doesn't really suit our API, so just map it to Portrait
+    Qt::ScreenOrientation nativeOrientation = QGuiApplication::primaryScreen()->nativeOrientation();
+    const bool landscapeNativeOrientation = (nativeOrientation == Qt::LandscapeOrientation);
+
+    switch(m_orientation) {
+    case Qt::PrimaryOrientation: // means orientation equals native orientation, set it as such and continue
+        m_orientation = nativeOrientation;
     case Qt::PortraitOrientation:
-        mirOrientation = mir_orientation_normal;
+        mirOrientation = (landscapeNativeOrientation) ? mir_orientation_right : mir_orientation_normal;
         break;
     case Qt::LandscapeOrientation:
-        mirOrientation = mir_orientation_left;
-        break;
-    case Qt::InvertedLandscapeOrientation:
-        mirOrientation = mir_orientation_right;
+        mirOrientation = (landscapeNativeOrientation) ? mir_orientation_normal : mir_orientation_left;
         break;
     case Qt::InvertedPortraitOrientation:
-        mirOrientation = mir_orientation_inverted;
+        mirOrientation = (landscapeNativeOrientation) ? mir_orientation_left : mir_orientation_inverted;
+        break;
+    case Qt::InvertedLandscapeOrientation:
+        mirOrientation = (landscapeNativeOrientation) ? mir_orientation_inverted : mir_orientation_right;
         break;
     default:
         qWarning("Unrecognized Qt::ScreenOrientation!");
