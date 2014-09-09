@@ -20,10 +20,12 @@
 #define MIR_COMPOSITOR_MULTI_THREADED_COMPOSITOR_H_
 
 #include "mir/compositor/compositor.h"
+#include "mir/thread/basic_thread_pool.h"
 
 #include <mutex>
 #include <memory>
 #include <vector>
+#include <future>
 #include <thread>
 #include <chrono>
 
@@ -79,7 +81,7 @@ private:
     std::shared_ptr<CompositorReport> const report;
 
     std::vector<std::unique_ptr<CompositingFunctor>> thread_functors;
-    std::vector<std::thread> threads;
+    std::vector<std::future<void>> futures;
 
     std::mutex state_guard;
     CompositorState state;
@@ -88,8 +90,9 @@ private:
 
     void schedule_compositing(int number_composites,
           std::chrono::milliseconds delay = std::chrono::milliseconds::zero());
-    
+
     std::shared_ptr<mir::scene::Observer> observer;
+    mir::thread::BasicThreadPool thread_pool;
 };
 
 }
