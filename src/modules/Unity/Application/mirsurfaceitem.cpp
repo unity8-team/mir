@@ -361,9 +361,12 @@ void MirSurfaceItem::setOrientation(const Qt::ScreenOrientation orientation)
     Qt::ScreenOrientation nativeOrientation = QGuiApplication::primaryScreen()->nativeOrientation();
     const bool landscapeNativeOrientation = (nativeOrientation == Qt::LandscapeOrientation);
 
-    switch(m_orientation) {
-    case Qt::PrimaryOrientation: // means orientation equals native orientation, set it as such and continue
-        m_orientation = nativeOrientation;
+    Qt::ScreenOrientation requestedOrientation = orientation;
+    if (orientation == Qt::PrimaryOrientation) { // means orientation equals native orientation, set it as such
+        requestedOrientation = nativeOrientation;
+    }
+
+    switch(requestedOrientation) {
     case Qt::PortraitOrientation:
         mirOrientation = (landscapeNativeOrientation) ? mir_orientation_right : mir_orientation_normal;
         break;
