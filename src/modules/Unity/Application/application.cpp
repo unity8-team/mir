@@ -136,11 +136,12 @@ QUrl Application::splashImage() const
 QColor Application::colorFromString(const QString &colorString, const char *colorName) const
 {
     // NB: A color that is not fully opaque means "Color not set. Use a default color".
+    QColor color;
 
     if (colorString.isEmpty()) {
-        return QColor(0, 0, 0, 0);
+        color.setRgba(qRgba(0, 0, 0, 0));
     } else {
-        QColor color(colorString);
+        color.setNamedColor(colorString);
 
         if (!color.isValid()) {
             color.setRgba(qRgba(0, 0, 0, 0));
@@ -149,10 +150,10 @@ QColor Application::colorFromString(const QString &colorString, const char *colo
         }
 
         // Force a fully opaque color.
-        color.setAlpha(1.0);
-
-        return color;
+        color.setAlpha(255);
     }
+
+    return color;
 }
 
 bool Application::splashShowHeader() const
