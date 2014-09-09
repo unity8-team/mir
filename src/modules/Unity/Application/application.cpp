@@ -143,14 +143,14 @@ QColor Application::colorFromString(const QString &colorString, const char *colo
     } else {
         color.setNamedColor(colorString);
 
-        if (!color.isValid()) {
+        if (color.isValid()) {
+            // Force a fully opaque color.
+            color.setAlpha(255);
+        } else {
             color.setRgba(qRgba(0, 0, 0, 0));
             qCWarning(QTMIR_APPLICATIONS) << QString("Invalid %1: \"%2\"")
                 .arg(colorName).arg(colorString);
         }
-
-        // Force a fully opaque color.
-        color.setAlpha(255);
     }
 
     return color;
