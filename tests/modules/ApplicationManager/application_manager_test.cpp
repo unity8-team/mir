@@ -392,6 +392,7 @@ TEST_F(ApplicationManagerTests,two_session_on_one_application_after_starting)
     applicationManager.authorizeSession(a_procId, authed);
 
     onSessionStarting(first_session);
+    applicationManager.focusApplication(an_app_id);
     applicationManager.onSessionCreatedSurface(first_session.get(), aSurface);
     onSessionStarting(second_session);
 
@@ -827,6 +828,7 @@ TEST_F(ApplicationManagerTests,onceAppAddedToApplicationLists_mirSurfaceCreatedE
 
     applicationManager.startApplication(appId, ApplicationManager::NoFlag);
     applicationManager.onProcessStarting(appId);
+    applicationManager.focusApplication(appId);
 
     std::shared_ptr<mir::scene::Session> session = std::make_shared<MockSession>("", procId);
 
