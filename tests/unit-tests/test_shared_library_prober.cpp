@@ -20,6 +20,11 @@
 
 #include "mir_test_framework/executable_path.h"
 
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <cstring>
+
 #include <system_error>
 
 #include <gtest/gtest.h>
@@ -45,9 +50,24 @@ public:
     SharedLibraryProber()
         : library_path{mtf::executable_path() + "/test_data"}
     {
+        // Can't use std::string, as mkdtemp mutates its argument.
+        auto tmp_name = std::unique_ptr<char[], std::function<void(char*)>>{strdup("/tmp/mir_empty_directory_XXXXXX"),
+                                                                            [](char* data) {free(data);}};
+        if (mkdtemp(tmp_name.get()) == NULL)
+        {
+            throw std::system_error{errno, std::system_category(), "Failed to create temporary directory"};
+        }
+        temporary_directory = std::string{tmp_name.get()};
+    }
+
+    ~SharedLibraryProber()
+    {
+        // Can't do anything useful in case of failure...
+        rmdir(temporary_directory.c_str());
     }
 
     std::string const library_path;
+    std::string temporary_directory;
     testing::NiceMock<MockSharedLibraryProberReport> null_report;
 };
 
@@ -79,8 +99,7 @@ TEST_F(SharedLibraryProber, NonExistentPathRaisesENOENTError)
 
 TEST_F(SharedLibraryProber, PathWithNoSharedLibrariesReturnsEmptyList)
 {
-    // /usr is guaranteed to exist, and shouldn't contain any libraries
-    auto libraries = mir::libraries_for_path("/usr", null_report);
+    auto libraries = mir::libraries_for_path(temporary_directory.c_str(), null_report);
     EXPECT_EQ(0, libraries.size());
 }
 
@@ -124,7 +143,7 @@ TEST_F(SharedLibraryProber, LogsNoLibrariesForPathWithoutLibraries)
 
     EXPECT_CALL(report, loading_library(_)).Times(0);
 
-    mir::libraries_for_path("/usr", report);
+    mir::libraries_for_path(temporary_directory.c_str(), report);
 }
 
 namespace
