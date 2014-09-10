@@ -147,6 +147,7 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_refreshRate = mode.vrefresh_hz;
 }
 
+// FIXME: nothing is using this method yet, but we should turn off sensors when display is off.
 void Screen::toggleSensors(const bool enable) const
 {
     qCDebug(QTMIR_SENSOR_MESSAGES) << "Screen::toggleSensors - enable=" << enable;
