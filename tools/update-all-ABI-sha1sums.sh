@@ -15,5 +15,8 @@ find include/server include/platform include/common \
 find include/platform include/common include.private/platform \
     -type f | sort | xargs sha1sum > platform-ABI-sha1sums
 
-find include/common include.private/common \
+find include/common \
+     include.private/common \
+     src/common/protobuf/mir_protobuf.proto \
+     src/common/protobuf/mir_protobuf_wire.proto \
     -type f | sort | xargs sha1sum > common-ABI-sha1sums

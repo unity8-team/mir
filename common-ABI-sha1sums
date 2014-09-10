@@ -49,3 +49,5 @@ b4e96264b9a57a1f2ceceb700c5379658905ded7  include.private/common/mir/thread_name
 675f213b0bf299e2280be52ea1bad241c7957382  include.private/common/mir/time/high_resolution_clock.h
 9f646fa12eaca5fc3b7a8fde6208673c071c8ef3  include.private/common/mir/udev/wrapper.h
 9fd77ab693cc4c9a200e44804f5493733528a674  include.private/common/mir/variable_length_array.h
+4a37e8db11463d7852e4f93da5b24225692f11ef  src/common/protobuf/mir_protobuf.proto
+b5548b9801ce0c875e59692ea271bb6cb2852fef  src/common/protobuf/mir_protobuf_wire.proto
