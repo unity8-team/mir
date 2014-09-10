@@ -370,10 +370,14 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
 
     if (application->stage() == Application::MainStage) {
         m_mainStageApplication = application;
-        resumeApplication(m_sideStageApplication); // in case unfocusCurrentApplication() was last called
     } else {
         m_sideStageApplication = application;
-        resumeApplication(m_mainStageApplication); // in case unfocusCurrentApplication() was last called
+    }
+
+    if (!m_suspended) {
+        resumeApplication(application); // in case unfocusCurrentApplication() was last called
+    } else {
+        suspendApplication(application); // Make sure we also have this one suspended if everything is suspended
     }
 
     m_focusedApplication = application;
@@ -787,6 +791,9 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
         application->setState(Application::Running);
+        if ((application != m_mainStageApplication && application != m_sideStageApplication) || m_suspended) {
+            suspendApplication(application);
+        }
     }
 }
 

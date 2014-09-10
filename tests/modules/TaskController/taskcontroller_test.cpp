@@ -16,9 +16,12 @@
  */
 
 #include <Unity/Application/taskcontroller.h>
+#include <Unity/Application/desktopfilereader.h>
+#include <Unity/Application/application.h>
 
 #include "mock_oom_controller.h"
 #include "mock_process_controller.h"
+#include "mock_desktop_file_reader.h"
 
 #include <core/posix/fork.h>
 #include <core/posix/linux/proc/process/oom_score_adj.h>
@@ -145,7 +148,13 @@ TEST(TaskController, suspendingAnApplicationAdjustsOomScoreForCorrectPid)
                                   appControllerPtr,
                                   processControllerPtr);
 
-    taskController.suspend(appId);
+
+    auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
+    ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
+    ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
+    Application *app = new Application(QSharedPointer<TaskController>(&taskController), mockDesktopFileReader, Application::Running, QStringList(), nullptr);
+    taskController.suspend(app);
+    delete app;
 }
 
 TEST(TaskController, resumingAnApplicationAdjustsOomScoreForCorrectPid)
@@ -177,7 +186,11 @@ TEST(TaskController, resumingAnApplicationAdjustsOomScoreForCorrectPid)
                                   appControllerPtr,
                                   processControllerPtr);
 
-    taskController.resume(appId);
+    auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
+    ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
+    ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
+    Application *app = new Application(QSharedPointer<TaskController>(&taskController), mockDesktopFileReader, Application::Running, QStringList(), nullptr);
+    taskController.resume(app);
 }
 
 TEST(TaskController, aStartedApplicationIsOomScoreAdjusted)
