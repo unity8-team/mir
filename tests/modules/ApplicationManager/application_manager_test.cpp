@@ -441,6 +441,47 @@ TEST_F(ApplicationManagerTests,suspended_suspends_focused_app_and_marks_it_unfoc
     EXPECT_EQ(true, the_app->focused());
 }
 
+TEST_F(ApplicationManagerTests,suspended_suspends_starting_app_when_it_gets_ready)
+{
+    using namespace ::testing;
+    quint64 a_procId = 5921;
+    const char an_app_id[] = "some_app";
+    QByteArray a_cmd( "/usr/bin/app1 --desktop_file_hint=some_app");
+    std::shared_ptr<mir::scene::Surface> aSurface(nullptr);
+
+    ON_CALL(procInfo,command_line(_)).WillByDefault(Return(a_cmd));
+
+    ON_CALL(appController,appIdHasProcessId(_,_)).WillByDefault(Return(false));
+
+    bool authed = true;
+
+    std::shared_ptr<mir::scene::Session> first_session = std::make_shared<MockSession>("Oo", a_procId);
+    applicationManager.authorizeSession(a_procId, authed);
+
+    onSessionStarting(first_session);
+
+    Application * the_app = applicationManager.findApplication(an_app_id);
+    applicationManager.focusApplication(an_app_id);
+    EXPECT_EQ(Application::Starting, the_app->state());
+
+    applicationManager.setSuspended(true);
+
+    // Not suspending yet, as it's still starting
+    EXPECT_EQ(Application::Starting, the_app->state());
+
+    // This signals the app is ready now
+    applicationManager.onSessionCreatedSurface(first_session.get(), aSurface);
+
+    // And given that the AppManager is suspended now, this should go to suspended too
+    EXPECT_EQ(Application::Suspended, the_app->state());
+    EXPECT_EQ(false, the_app->focused());
+
+    applicationManager.setSuspended(false);
+
+    EXPECT_EQ(Application::Running, the_app->state());
+    EXPECT_EQ(true, the_app->focused());
+}
+
 TEST_F(ApplicationManagerTests,requestFocusApplication)
 {
     using namespace ::testing;
