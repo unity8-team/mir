@@ -12,8 +12,8 @@ find include/server include/platform include/common \
 # Platform headers include mircommon headers. TODO: Script to identify which
 # headers so we can know which mircommon header changes should also result in a
 # bump to MIRPLATFORM_ABI.
-find include/platform include/common \
+find include/platform include/common include.private/platform \
     -type f | sort | xargs sha1sum > platform-ABI-sha1sums
 
-find include/common \
+find include/common include.private/common \
     -type f | sort | xargs sha1sum > common-ABI-sha1sums
