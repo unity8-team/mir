@@ -54,6 +54,7 @@ add_subdirectory(android_input/)
 add_subdirectory(scene/)
 add_subdirectory(draw/)
 add_subdirectory(examples/)
+add_subdirectory(thread/)
 
 link_directories(${LIBRARY_OUTPUT_PATH})
 
@@ -64,6 +65,8 @@ add_executable(mir_unit_tests
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
+
+add_dependencies(mir_unit_tests GMock)
 
 uses_android_input(mir_unit_tests)
 
