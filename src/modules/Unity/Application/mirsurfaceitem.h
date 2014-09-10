@@ -172,6 +172,10 @@ private:
 
     bool clientIsRunning() const;
 
+    QString appId() const;
+    void endCurrentTouchSequence(ulong timestamp);
+    void validateAndDeliverTouchEvent(QTouchEvent *event);
+
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
@@ -188,6 +192,24 @@ private:
     QTimer m_frameDropperTimer;
 
     QTimer m_updateMirSurfaceSizeTimer;
+
+    class TouchEvent {
+    public:
+        TouchEvent &operator= (const QTouchEvent &qtEvent) {
+            type = qtEvent.type();
+            timestamp = qtEvent.timestamp();
+            touchPoints = qtEvent.touchPoints();
+            touchPointStates = qtEvent.touchPointStates();
+            return *this;
+        }
+
+        void updateTouchPointStatesAndType();
+
+        int type;
+        ulong timestamp;
+        QList<QTouchEvent::TouchPoint> touchPoints;
+        Qt::TouchPointStates touchPointStates;
+    } *m_lastTouchEvent;
 
     friend class MirSurfaceManager;
 };
