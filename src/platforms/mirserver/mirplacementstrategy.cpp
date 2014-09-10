@@ -16,6 +16,7 @@
 
 #include "mirplacementstrategy.h"
 #include "logging.h"
+#include "tracepoints.h" // generated from tracepoints.tp
 
 #include <mir/geometry/rectangle.h>
 #include <mir/shell/display_layout.h>
@@ -35,6 +36,8 @@ ms::SurfaceCreationParameters
 MirPlacementStrategy::place(ms::Session const& /*session*/,
         ms::SurfaceCreationParameters const& requestParameters)
 {
+    tracepoint(qtmirserver, surfacePlacementStart);
+
     // TODO: Callback unity8 so that it can make a decision on that.
     //       unity8 must bear in mind that the called function will be on a Mir thread though.
     //       The QPA shouldn't be deciding for itself on such things.
@@ -49,6 +52,8 @@ MirPlacementStrategy::place(ms::Session const& /*session*/,
     qCDebug(QTMIR_MIR_MESSAGES) << "MirPlacementStrategy: requested ("
         << requestParameters.size.width.as_int() << "," << requestParameters.size.height.as_int() << ") and returned ("
         << placedParameters.size.width.as_int() << "," << placedParameters.size.height.as_int() << ")";
+
+    tracepoint(qtmirserver, surfacePlacementEnd);
 
     return placedParameters;
 }

@@ -1,0 +1,10 @@
+TRACEPOINT_EVENT(qtmirserver, starting, TP_ARGS(0), TP_FIELDS())
+TRACEPOINT_EVENT(qtmirserver, stopping, TP_ARGS(0), TP_FIELDS())
+TRACEPOINT_EVENT(qtmirserver, surfaceCreated, TP_ARGS(0), TP_FIELDS())
+TRACEPOINT_EVENT(qtmirserver, surfaceDestroyed, TP_ARGS(0), TP_FIELDS())
+
+TRACEPOINT_EVENT(qtmirserver, sessionAuthorizeStart, TP_ARGS(0), TP_FIELDS())
+TRACEPOINT_EVENT(qtmirserver, sessionAuthorizeEnd, TP_ARGS(0), TP_FIELDS())
+
+TRACEPOINT_EVENT(qtmirserver, surfacePlacementStart, TP_ARGS(0), TP_FIELDS())
+TRACEPOINT_EVENT(qtmirserver, surfacePlacementEnd, TP_ARGS(0), TP_FIELDS())

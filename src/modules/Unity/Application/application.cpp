@@ -17,10 +17,12 @@
 // local
 #include "application.h"
 #include "application_manager.h"
-#include "debughelpers.h"
 #include "desktopfilereader.h"
 #include "session.h"
 #include "taskcontroller.h"
+
+// common
+#include <debughelpers.h>
 
 // QPA mirserver
 #include "logging.h"

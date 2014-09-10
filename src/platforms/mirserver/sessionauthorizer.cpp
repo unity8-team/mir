@@ -16,6 +16,7 @@
 
 #include "sessionauthorizer.h"
 #include "logging.h"
+#include "tracepoints.h" // generated from tracepoints.tp
 
 // mir
 #include <mir/frontend/session_credentials.h>
@@ -33,10 +34,13 @@ SessionAuthorizer::~SessionAuthorizer()
 
 bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
 {
+    tracepoint(qtmirserver, sessionAuthorizeStart);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::connection_is_allowed - this=" << this << "pid=" << creds.pid();
     bool authorized = true;
 
     Q_EMIT requestAuthorizationForSession(creds.pid(), authorized); // needs to block until authorized value returned
+    tracepoint(qtmirserver, sessionAuthorizeEnd);
+
     return authorized;
 }
 

@@ -16,6 +16,7 @@
 
 #include "sessionlistener.h"
 #include "logging.h"
+#include "tracepoints.h" // generated from tracepoints.tp
 
 namespace ms = mir::scene;
 
@@ -38,12 +39,14 @@ SessionListener::~SessionListener()
 
 void SessionListener::starting(std::shared_ptr<ms::Session> const& session)
 {
+    tracepoint(qtmirserver, starting);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::starting - this=" << this << "session=" << session.get();
     Q_EMIT sessionStarting(session);
 }
 
 void SessionListener::stopping(std::shared_ptr<ms::Session> const& session)
 {
+    tracepoint(qtmirserver, stopping);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::stopping - this=" << this << "session=" << session.get();
     Q_EMIT sessionStopping(session);
 }
@@ -62,6 +65,7 @@ void SessionListener::unfocused()
 
 void SessionListener::surface_created(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
+    tracepoint(qtmirserver, surfaceCreated);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::surface_created - this=" << this << "session=" << &session
                                    << "surface=" << surface.get();
     Q_EMIT sessionCreatedSurface(&session, surface);
@@ -69,6 +73,7 @@ void SessionListener::surface_created(ms::Session& session, std::shared_ptr<ms::
 
 void SessionListener::destroying_surface(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
+    tracepoint(qtmirserver, surfaceDestroyed);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::destroying_surface - this=" << this << "session=" << &session
                                    << "surface=" << surface.get();
     Q_EMIT sessionDestroyingSurface(&session, surface);

@@ -1,3 +1,5 @@
+include(../../../lttng-compiler.pri)
+
 TARGET = unityapplicationplugin
 TEMPLATE = lib
 
@@ -12,7 +14,7 @@ QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
 PKGCONFIG += mirserver glib-2.0 process-cpp ubuntu-app-launch-2
 
-INCLUDEPATH += ../../../platforms/mirserver
+INCLUDEPATH += ../../../platforms/mirserver ../../../common
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
 QMAKE_RPATHDIR += $$[QT_INSTALL_PLUGINS]/platforms # where libqpa-mirserver.so is installed
 
@@ -24,7 +26,7 @@ uri = Unity.Application
 
 SOURCES += application_manager.cpp \
     application.cpp \
-    debughelpers.cpp \
+    ../../../common/debughelpers.cpp \
     desktopfilereader.cpp \
     plugin.cpp \
     applicationscreenshotprovider.cpp \
@@ -44,7 +46,7 @@ SOURCES += application_manager.cpp \
 HEADERS += application_manager.h \
     applicationcontroller.h \
     application.h \
-    debughelpers.h \
+    ../../../common/debughelpers.h \
     desktopfilereader.h \
     applicationscreenshotprovider.h \
     dbuswindowstack.h \
@@ -63,6 +65,8 @@ HEADERS += application_manager.h \
     session.h \
     sessionmodel.h \
     upstart/applicationcontroller.h
+
+LTTNG_TP_FILES += tracepoints.tp
 
 installPath = $$[QT_INSTALL_QML]/$$replace(uri, \\., /)
 
