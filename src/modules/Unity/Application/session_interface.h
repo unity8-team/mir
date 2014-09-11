@@ -37,7 +37,6 @@ namespace qtmir {
 
 class MirSurfaceItem;
 
-// TODO: Move it to unity-api
 class SessionInterface : public QObject {
     Q_OBJECT
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
