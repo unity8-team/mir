@@ -56,6 +56,7 @@ add_library(mirclientobjects OBJECT
   mir_surface_api.cpp
   logging/rpc_report.cpp
   logging/input_receiver_report.cpp
+  logging/perf_report.cpp
   default_connection_configuration.cpp
   surface_map.cpp
   lifecycle_control.cpp
@@ -67,6 +68,7 @@ add_library(mirclientobjects OBJECT
   mir_prompt_session_api.cpp
   mir_event_distributor.cpp
   probing_client_platform_factory.cpp
+  periodic_perf_report.cpp
 )
 
 add_library(
