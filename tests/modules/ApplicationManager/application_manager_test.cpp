@@ -25,6 +25,7 @@
  #include "qtmir_test.h"
 
 using namespace qtmir;
+using mir::scene::MockSession;
 
 namespace ms = mir::scene;
 
@@ -1774,7 +1775,7 @@ TEST_F(ApplicationManagerTests, threadedScreenshot)
             }).detach();
         }));
 
-    auto mockSurface = std::make_shared<MockSurface>();
+    auto mockSurface = std::make_shared<ms::MockSurface>();
     EXPECT_CALL(*session, default_surface()).WillRepeatedly(Return(mockSurface));
 
     {
@@ -1826,7 +1827,7 @@ TEST_F(ApplicationManagerTests, threadedScreenshotAfterAppDelete)
             }).detach();
         }));
 
-    auto mockSurface = std::make_shared<MockSurface>();
+    auto mockSurface = std::make_shared<ms::MockSurface>();
     EXPECT_CALL(*session, default_surface()).WillRepeatedly(Return(mockSurface));
 
     {

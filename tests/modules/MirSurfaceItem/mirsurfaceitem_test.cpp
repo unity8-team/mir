@@ -15,26 +15,27 @@
  *
  */
 
-#ifndef MOCK_MIR_SHELL_FOCUS_CONTROLLER_H
-#define MOCK_MIR_SHELL_FOCUS_CONTROLLER_H
+#include <gtest/gtest.h>
 
-#include <mir/shell/focus_controller.h>
-#include <gmock/gmock.h>
+// the test subject
+#include <mirsurfaceitem.h>
 
-#include <string>
+// mocks
+#include <mock_surface.h>
+#include <mock_session.h>
 
-namespace mir {
-namespace shell {
+using namespace qtmir;
 
-class MockFocusController : public FocusController
+using mir::scene::MockSurface;
+using qtmir::MockSession;
+
+TEST(MirSurfaceItemTest, Foo)
 {
-public:
-    MOCK_METHOD0(focus_next, void());
-    MOCK_CONST_METHOD0(focussed_application, std::weak_ptr<scene::Session>());
-    MOCK_METHOD1(set_focus_to, void(std::shared_ptr<scene::Session>const&));
-};
-
-} // namespace shell
-} // namespace mir
-
-#endif // MOCK_MIR_SHELL_FOCUS_CONTROLLER_H_
+    std::shared_ptr<MockSurface> mockSurface = std::make_shared<MockSurface>();
+    MockSession *mockSession = new MockSession;
+    /*
+    MirSurfaceItem *surfaceItem = new MirSurfaceItem(mockSurface,
+        QPointer<mockSession);
+    delete surfaceItem;
+    */
+}

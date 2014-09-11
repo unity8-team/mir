@@ -63,6 +63,7 @@ HEADERS += application_manager.h \
     processcontroller.h \
     proc_info.h \
     session.h \
+    session_interface.h \
     sessionmodel.h \
     upstart/applicationcontroller.h
 

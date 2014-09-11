@@ -35,7 +35,7 @@
 #include "mock_oom_controller.h"
 #include "mock_process_controller.h"
 #include "mock_proc_info.h"
-#include "mock_session.h"
+#include "mock_mir_session.h"
 #include "mock_focus_controller.h"
 #include "mock_prompt_session_manager.h"
 #include "mock_prompt_session.h"
@@ -43,14 +43,13 @@
 namespace ms = mir::scene;
 using namespace qtmir;
 
-namespace testing
-{
+namespace qtmir {
 
-class QtMirTestConfiguration: public MirServerConfiguration
+class FakeMirServerConfiguration: public MirServerConfiguration
 {
-    typedef NiceMock<testing::MockPromptSessionManager> StubPromptSessionManager;
+    typedef testing::NiceMock<mir::scene::MockPromptSessionManager> StubPromptSessionManager;
 public:
-    QtMirTestConfiguration()
+    FakeMirServerConfiguration()
     : MirServerConfiguration(0, nullptr)
     , mock_prompt_session_manager(std::make_shared<StubPromptSessionManager>())
     {
@@ -73,6 +72,10 @@ public:
     std::shared_ptr<StubPromptSessionManager> mock_prompt_session_manager;
 };
 
+} // namespace qtmir
+
+namespace testing {
+
 class QtMirTest : public ::testing::Test
 {
 public:
@@ -83,7 +86,7 @@ public:
                 [](ProcessController::OomController*){})
         }
         , mirConfig{
-            QSharedPointer<QtMirTestConfiguration> (new QtMirTestConfiguration)
+            QSharedPointer<FakeMirServerConfiguration> (new FakeMirServerConfiguration)
         }
         , taskController{
               QSharedPointer<TaskController> (
@@ -141,7 +144,7 @@ public:
         applicationManager.authorizeSession(procId, authed);
         EXPECT_EQ(authed, true);
 
-        auto appSession = std::make_shared<MockSession>(appId.toStdString(), procId);
+        auto appSession = std::make_shared<mir::scene::MockSession>(appId.toStdString(), procId);
         sessionManager.onSessionStarting(appSession);
         return application;
         return nullptr;
@@ -152,7 +155,7 @@ public:
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<QtMirTestConfiguration> mirConfig;
+    QSharedPointer<FakeMirServerConfiguration> mirConfig;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
     SessionManager sessionManager;

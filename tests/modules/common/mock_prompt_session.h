@@ -21,11 +21,14 @@
 #include <mir/scene/prompt_session.h>
 #include <gmock/gmock.h>
 
-namespace testing
-{
-struct MockPromptSession : public mir::scene::PromptSession
+namespace mir {
+namespace scene {
+
+struct MockPromptSession : public PromptSession
 {
 };
-}
+
+} // namespace scene
+} // namespace mir
 
 #endif // MOCK_MIR_PROMPT_SESSION_H

@@ -236,7 +236,7 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                               QPointer<Session> session,
+                               SessionInterface* session,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
@@ -334,7 +334,7 @@ void MirSurfaceItem::release()
     deleteLater();
 }
 
-Session* MirSurfaceItem::session() const
+SessionInterface* MirSurfaceItem::session() const
 {
     return m_session.data();
 }
@@ -710,15 +710,15 @@ void MirSurfaceItem::scheduleTextureUpdate()
     m_frameDropperTimer.start();
 }
 
-void MirSurfaceItem::setSession(Session *session)
+void MirSurfaceItem::setSession(SessionInterface *session)
 {
     m_session = session;
 }
 
-void MirSurfaceItem::onSessionStateChanged(Session::State state)
+void MirSurfaceItem::onSessionStateChanged(SessionInterface::State state)
 {
     switch (state) {
-        case Session::State::Running:
+        case SessionInterface::State::Running:
             syncSurfaceSizeWithItemSize();
             break;
         default:

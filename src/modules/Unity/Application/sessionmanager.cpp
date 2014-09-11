@@ -103,11 +103,11 @@ SessionManager::~SessionManager()
     qCDebug(QTMIR_SESSIONS) << "SessionManager::~SessionManager - this=" << this;
 }
 
-Session *SessionManager::findSession(const mir::scene::Session* session) const
+SessionInterface *SessionManager::findSession(const mir::scene::Session* session) const
 {
     if (!session) return nullptr;
 
-    for (Session* child : list()) {
+    for (SessionInterface* child : list()) {
         if (child->session().get() == session)
             return child;
     }
@@ -139,7 +139,7 @@ void SessionManager::onSessionStopping(std::shared_ptr<mir::scene::Session> cons
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onSessionStopping - sessionName=" << session->name().c_str();
 
-    Session* qmlSession = findSession(session.get());
+    SessionInterface* qmlSession = findSession(session.get());
     if (!qmlSession) return;
 
     remove(qmlSession);
@@ -153,7 +153,7 @@ void SessionManager::onPromptSessionStarting(const std::shared_ptr<ms::PromptSes
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptSessionStarting - promptSession=" << promptSession.get();
 
     std::shared_ptr<mir::scene::Session> appSession = m_mirConfig->the_prompt_session_manager()->application_for(promptSession);
-    Session *qmlAppSession = findSession(appSession.get());
+    SessionInterface *qmlAppSession = findSession(appSession.get());
     if (qmlAppSession) {
         m_mirPromptToSessionHash[promptSession.get()] = qmlAppSession;
         qmlAppSession->appendPromptSession(promptSession);
@@ -166,7 +166,7 @@ void SessionManager::onPromptSessionStopping(const std::shared_ptr<ms::PromptSes
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptSessionStopping - promptSession=" << promptSession.get();
 
-    for (Session *qmlSession : this->list()) {
+    for (SessionInterface *qmlSession : this->list()) {
         qmlSession->removePromptSession(promptSession);
     }
     m_mirPromptToSessionHash.remove(promptSession.get());
@@ -177,13 +177,13 @@ void SessionManager::onPromptProviderAdded(const mir::scene::PromptSession *prom
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderAdded - promptSession=" << promptSession << " promptProvider=" << promptProvider.get();
 
-    Session* qmlAppSession = m_mirPromptToSessionHash.value(promptSession, nullptr);
+    SessionInterface* qmlAppSession = m_mirPromptToSessionHash.value(promptSession, nullptr);
     if (!qmlAppSession) {
         qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderAdded - could not find session item for app session";
         return;
     }
 
-    Session* qmlPromptProvider = findSession(promptProvider.get());
+    SessionInterface* qmlPromptProvider = findSession(promptProvider.get());
     if (!qmlPromptProvider) {
         qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderAdded - could not find session item for provider session";
         return;
@@ -197,7 +197,7 @@ void SessionManager::onPromptProviderRemoved(const mir::scene::PromptSession *pr
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderRemoved - promptSession=" << promptSession << " promptProvider=" << promptProvider.get();
 
-    Session* qmlPromptProvider = findSession(promptProvider.get());
+    SessionInterface* qmlPromptProvider = findSession(promptProvider.get());
     if (!qmlPromptProvider) {
         qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptProviderAdded - could not find session item for provider session";
         return;
