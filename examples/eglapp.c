@@ -144,17 +144,6 @@ static const MirDisplayOutput *find_active_output(
     return output;
 }
 
-static void detect_hangup(MirConnection* connection, MirLifecycleState state, void* context)
-{
-    (void)connection;
-    (void)context;
-    if (state == mir_lifecycle_connection_lost)
-    {
-        printf("Server hung up. Exiting...\n");
-        running = 0;
-    }
-}
-
 mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                                 unsigned int *width, unsigned int *height)
 {
@@ -396,8 +385,6 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     signal(SIGINT, shutdown);
     signal(SIGTERM, shutdown);
     signal(SIGHUP, shutdown);
-
-    mir_connection_set_lifecycle_event_callback(connection, &detect_hangup, NULL);
 
     *width = surfaceparm.width;
     *height = surfaceparm.height;
