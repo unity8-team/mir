@@ -122,6 +122,12 @@ public:
 
     void setSession(SessionInterface *app);
 
+    // to allow easy touch event injection from tests
+    bool processTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates);
+
 Q_SIGNALS:
     void typeChanged();
     void stateChanged();
@@ -167,14 +173,17 @@ private:
     void setAttribute(const MirSurfaceAttrib, const int);
     void setSurfaceValid(const bool);
 
-    bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
+    bool hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints);
     void syncSurfaceSizeWithItemSize();
 
     bool clientIsRunning() const;
 
     QString appId() const;
     void endCurrentTouchSequence(ulong timestamp);
-    void validateAndDeliverTouchEvent(QTouchEvent *event);
+    void validateAndDeliverTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates);
 
     QMutex m_mutex;
 

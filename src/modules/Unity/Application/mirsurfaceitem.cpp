@@ -531,49 +531,67 @@ void MirSurfaceItem::endCurrentTouchSequence(ulong timestamp)
     }
 }
 
-void MirSurfaceItem::validateAndDeliverTouchEvent(QTouchEvent *event)
+void MirSurfaceItem::validateAndDeliverTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates)
 {
     MirEvent mirEvent;
 
-    if (event->type() == QEvent::TouchBegin && m_lastTouchEvent && m_lastTouchEvent->type != QEvent::TouchEnd) {
+    if (eventType == QEvent::TouchBegin && m_lastTouchEvent && m_lastTouchEvent->type != QEvent::TouchEnd) {
         qCWarning(QTMIR_SURFACES) << qPrintable(QString("MirSurfaceItem(%1) - Got a QEvent::TouchBegin while "
             "there's still an active/unfinished touch sequence.").arg(appId()));
         // Qt forgot to end the last touch sequence. Let's do it ourselves.
-        endCurrentTouchSequence(event->timestamp());
+        endCurrentTouchSequence(timestamp);
     }
 
-    if (fillInMirEvent(mirEvent, event->touchPoints(), event->touchPointStates(), event->timestamp())) {
+    if (fillInMirEvent(mirEvent, touchPoints, touchPointStates, timestamp)) {
         m_surface->consume(mirEvent);
     }
 
     if (!m_lastTouchEvent) {
         m_lastTouchEvent = new TouchEvent;
     }
-    *m_lastTouchEvent = *event;
+    m_lastTouchEvent->type = eventType;
+    m_lastTouchEvent->timestamp = timestamp;
+    m_lastTouchEvent->touchPoints = touchPoints;
+    m_lastTouchEvent->touchPointStates = touchPointStates;
 }
 
 void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
-    if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
+    bool accepted = processTouchEvent(event->type(),
+            event->timestamp(),
+            event->touchPoints(),
+            event->touchPointStates());
+    event->setAccepted(accepted);
+}
+
+bool MirSurfaceItem::processTouchEvent(
+        int eventType,
+        ulong timestamp,
+        const QList<QTouchEvent::TouchPoint> &touchPoints,
+        Qt::TouchPointStates touchPointStates)
+{
+    bool accepted = true;
+    if (type() == InputMethod && eventType == QEvent::TouchBegin) {
         // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
-        if (hasTouchInsideUbuntuKeyboard(event)) {
-            validateAndDeliverTouchEvent(event);
+        if (hasTouchInsideUbuntuKeyboard(touchPoints)) {
+            validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
         } else {
-            event->ignore();
+            accepted = false;
         }
 
     } else {
-        qDebug() << qPrintable(QString("MirSurfaceItem(%1)").arg(appId()))
-            << qPrintable(touchEventToString(event));
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        validateAndDeliverTouchEvent(event);
+        validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
     }
+    return accepted;
 }
 
-bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(QTouchEvent *event)
+bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints)
 {
-    const QList<QTouchEvent::TouchPoint> &touchPoints = event->touchPoints();
     for (int i = 0; i < touchPoints.count(); ++i) {
         QPoint pos = touchPoints.at(i).pos().toPoint();
         if (pos.x() >= m_ubuntuKeyboardInfo->x()
