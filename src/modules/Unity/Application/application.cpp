@@ -135,7 +135,8 @@ QUrl Application::splashImage() const
 
 QColor Application::colorFromString(const QString &colorString, const char *colorName) const
 {
-    // NB: A color that is not fully opaque means "Color not set. Use a default color".
+    // NB: If a colour which is not fully opaque is specified in the desktop file, it will
+    //     be ignored and the default colour will be used instead.
     QColor color;
 
     if (colorString.isEmpty()) {
