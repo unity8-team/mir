@@ -79,7 +79,6 @@ void mclr::MirProtobufRpcChannel::notify_disconnected()
     {
         lifecycle_control->call_lifecycle_event_handler(mir_lifecycle_connection_lost);
     }
-    pending_calls.force_completion();
 }
 
 
