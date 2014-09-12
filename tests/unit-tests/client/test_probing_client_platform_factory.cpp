@@ -120,7 +120,8 @@ TEST(ProbingClientPlatformFactory, IgnoresNonClientPlatformModules)
     using namespace testing;
 
     auto modules = all_available_modules();
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/libmirserver.so"));
+    // NOTE: For minimum fuss, load something that has minimal side-effects...
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
     modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-dummy.so"));
 
     mir::client::ProbingClientPlatformFactory factory{modules};
