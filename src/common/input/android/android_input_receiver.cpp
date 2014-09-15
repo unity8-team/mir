@@ -90,7 +90,16 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    if (input_consumer->consume(&event_factory, true, frame_time,
+    nsecs_t resampling_frame_time = frame_time;
+
+    // Estimate some recent physical frame time (~10ms ago)
+    nsecs_t pessimistic_frame_time = android_clock(SYSTEM_TIME_MONOTONIC) -
+                                     10000000LL;
+    
+    if (pessimistic_frame_time > resampling_frame_time)
+        resampling_frame_time = -1;
+
+    if (input_consumer->consume(&event_factory, true, resampling_frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {
