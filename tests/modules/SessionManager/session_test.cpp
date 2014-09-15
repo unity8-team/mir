@@ -22,6 +22,8 @@
 #include "stub_scene_surface.h"
 
 using namespace qtmir;
+using mir::scene::MockSession;
+
 
 namespace ms = mir::scene;
 namespace mtd = mir::test::doubles;
@@ -32,9 +34,9 @@ public:
     SessionTests()
     {}
 
-    QList<Session*> listChildSessions(Session* session) {
-        QList<Session*> sessions;
-        session->foreachChildSession([&sessions](Session* session) {
+    QList<SessionInterface*> listChildSessions(Session* session) {
+        QList<SessionInterface*> sessions;
+        session->foreachChildSession([&sessions](SessionInterface* session) {
             sessions << session;
         });
         return sessions;
@@ -151,17 +153,14 @@ TEST_F(SessionTests, DeleteChildSessionRemovesFromApplication)
 
     // delete surfaces
     delete session2;
-    EXPECT_EQ(session2->parentSession(), nullptr);
     EXPECT_THAT(listChildSessions(&session), ElementsAre(session1, session3));
 
     // delete surfaces
     delete session3;
-    EXPECT_EQ(session3->parentSession(), nullptr);
     EXPECT_THAT(listChildSessions(&session), ElementsAre(session1));
 
     // delete surfaces
     delete session1;
-    EXPECT_EQ(session1->parentSession(), nullptr);
     EXPECT_THAT(listChildSessions(&session), IsEmpty());
 }
 

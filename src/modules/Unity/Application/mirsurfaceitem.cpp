@@ -87,7 +87,10 @@ bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
     return true;
 }
 
-bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
+bool fillInMirEvent(MirEvent &mirEvent,
+                    const QList<QTouchEvent::TouchPoint> &qtTouchPoints,
+                    Qt::TouchPointStates qtTouchPointStates,
+                    ulong qtTimestamp)
 {
     mirEvent.type = mir_event_type_motion;
 
@@ -99,14 +102,14 @@ bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
     // NB: it's assumed that touch points are pressed and released
     // one at a time.
 
-    if (qtEvent->touchPointStates().testFlag(Qt::TouchPointPressed)) {
-        if (qtEvent->touchPoints().count() > 1) {
+    if (qtTouchPointStates.testFlag(Qt::TouchPointPressed)) {
+        if (qtTouchPoints.count() > 1) {
             mirEvent.motion.action = mir_motion_action_pointer_down;
         } else {
             mirEvent.motion.action = mir_motion_action_down;
         }
-    } else if (qtEvent->touchPointStates().testFlag(Qt::TouchPointReleased)) {
-        if (qtEvent->touchPoints().count() > 1) {
+    } else if (qtTouchPointStates.testFlag(Qt::TouchPointReleased)) {
+        if (qtTouchPoints.count() > 1) {
             mirEvent.motion.action = mir_motion_action_pointer_up;
         } else {
             mirEvent.motion.action = mir_motion_action_up;
@@ -138,18 +141,17 @@ bool fillInMirEvent(MirEvent &mirEvent, QTouchEvent *qtEvent)
 
     // Note: QtEventFeeder scales the event time down, scale it back up - precision is
     // lost but the time difference should still be accurate to milliseconds
-    mirEvent.motion.event_time = static_cast<nsecs_t>(qtEvent->timestamp()) * 1000000;
+    mirEvent.motion.event_time = static_cast<nsecs_t>(qtTimestamp) * 1000000;
 
-    mirEvent.motion.pointer_count = qtEvent->touchPoints().count();
+    mirEvent.motion.pointer_count = qtTouchPoints.count();
 
-    auto touchPoints = qtEvent->touchPoints();
-    for (int i = 0; i < touchPoints.count(); ++i) {
-        auto touchPoint = touchPoints.at(i);
+    for (int i = 0; i < qtTouchPoints.count(); ++i) {
+        auto touchPoint = qtTouchPoints.at(i);
         auto &pointer = mirEvent.motion.pointer_coordinates[i];
 
         // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
         // When multiple touch points are transmitted with a MirEvent
-        // and one of them (only one is allowed) indicates a pressed
+        // and one of them (only one is allowed) indicates a presse
         // state change the index is encoded in the second byte of the
         // action value.
         const int mir_motion_event_pointer_index_shift = 8;
@@ -234,7 +236,7 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
 UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                               QPointer<Session> session,
+                               SessionInterface* session,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
@@ -242,6 +244,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     , m_firstFrameDrawn(false)
     , m_live(true)
     , m_textureProvider(nullptr)
+    , m_lastTouchEvent(nullptr)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
 
@@ -316,6 +319,8 @@ MirSurfaceItem::~MirSurfaceItem()
     m_surface->remove_observer(m_surfaceObserver);
     if (m_textureProvider)
         m_textureProvider->deleteLater();
+
+    delete m_lastTouchEvent;
 }
 
 // For QML to destroy this surface
@@ -329,7 +334,7 @@ void MirSurfaceItem::release()
     deleteLater();
 }
 
-Session* MirSurfaceItem::session() const
+SessionInterface* MirSurfaceItem::session() const
 {
     return m_session.data();
 }
@@ -478,31 +483,115 @@ void MirSurfaceItem::keyReleaseEvent(QKeyEvent *qtEvent)
     }
 }
 
-void MirSurfaceItem::touchEvent(QTouchEvent *event)
+QString MirSurfaceItem::appId() const
+{
+    QString appId;
+    if (session() && session()->application()) {
+        appId = session()->application()->appId();
+    } else {
+        appId.append("-");
+    }
+    return appId;
+}
+
+void MirSurfaceItem::endCurrentTouchSequence(ulong timestamp)
 {
     MirEvent mirEvent;
-    if (type() == InputMethod && event->type() == QEvent::TouchBegin) {
-        // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
-        if (hasTouchInsideUbuntuKeyboard(event)) {
-            if (fillInMirEvent(mirEvent, event)) {
-                m_surface->consume(mirEvent);
-            }
+
+    Q_ASSERT(m_lastTouchEvent);
+    Q_ASSERT(m_lastTouchEvent->type != QEvent::TouchEnd);
+    Q_ASSERT(m_lastTouchEvent->touchPoints.count() > 0);
+
+    TouchEvent touchEvent = *m_lastTouchEvent;
+    touchEvent.timestamp = timestamp;
+
+    // Remove all already released touch points
+    int i = 0;
+    while (i < touchEvent.touchPoints.count()) {
+        if (touchEvent.touchPoints[i].state() == Qt::TouchPointReleased) {
+            touchEvent.touchPoints.removeAt(i);
         } else {
-            event->ignore();
+            ++i;
+        }
+    }
+
+    // And release the others one by one as Mir expects one press/release per event
+    while (touchEvent.touchPoints.count() > 0) {
+        touchEvent.touchPoints[0].setState(Qt::TouchPointReleased);
+
+        touchEvent.updateTouchPointStatesAndType();
+
+        if (fillInMirEvent(mirEvent, touchEvent.touchPoints,
+                           touchEvent.touchPointStates, touchEvent.timestamp)) {
+            m_surface->consume(mirEvent);
+        }
+        *m_lastTouchEvent = touchEvent;
+
+        touchEvent.touchPoints.removeAt(0);
+    }
+}
+
+void MirSurfaceItem::validateAndDeliverTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates)
+{
+    MirEvent mirEvent;
+
+    if (eventType == QEvent::TouchBegin && m_lastTouchEvent && m_lastTouchEvent->type != QEvent::TouchEnd) {
+        qCWarning(QTMIR_SURFACES) << qPrintable(QString("MirSurfaceItem(%1) - Got a QEvent::TouchBegin while "
+            "there's still an active/unfinished touch sequence.").arg(appId()));
+        // Qt forgot to end the last touch sequence. Let's do it ourselves.
+        endCurrentTouchSequence(timestamp);
+    }
+
+    if (fillInMirEvent(mirEvent, touchPoints, touchPointStates, timestamp)) {
+        m_surface->consume(mirEvent);
+    }
+
+    if (!m_lastTouchEvent) {
+        m_lastTouchEvent = new TouchEvent;
+    }
+    m_lastTouchEvent->type = eventType;
+    m_lastTouchEvent->timestamp = timestamp;
+    m_lastTouchEvent->touchPoints = touchPoints;
+    m_lastTouchEvent->touchPointStates = touchPointStates;
+}
+
+void MirSurfaceItem::touchEvent(QTouchEvent *event)
+{
+    bool accepted = processTouchEvent(event->type(),
+            event->timestamp(),
+            event->touchPoints(),
+            event->touchPointStates());
+    event->setAccepted(accepted);
+}
+
+bool MirSurfaceItem::processTouchEvent(
+        int eventType,
+        ulong timestamp,
+        const QList<QTouchEvent::TouchPoint> &touchPoints,
+        Qt::TouchPointStates touchPointStates)
+{
+    bool accepted = true;
+    if (type() == InputMethod && eventType == QEvent::TouchBegin) {
+        // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
+        if (hasTouchInsideUbuntuKeyboard(touchPoints)) {
+            validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
+        } else {
+            accepted = false;
         }
 
     } else {
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        if (fillInMirEvent(mirEvent, event)) {
-            m_surface->consume(mirEvent);
-        }
+        validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
     }
+    return accepted;
 }
 
-bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(QTouchEvent *event)
+bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints)
 {
-    const QList<QTouchEvent::TouchPoint> &touchPoints = event->touchPoints();
     for (int i = 0; i < touchPoints.count(); ++i) {
         QPoint pos = touchPoints.at(i).pos().toPoint();
         if (pos.x() >= m_ubuntuKeyboardInfo->x()
@@ -639,15 +728,15 @@ void MirSurfaceItem::scheduleTextureUpdate()
     m_frameDropperTimer.start();
 }
 
-void MirSurfaceItem::setSession(Session *session)
+void MirSurfaceItem::setSession(SessionInterface *session)
 {
     m_session = session;
 }
 
-void MirSurfaceItem::onSessionStateChanged(Session::State state)
+void MirSurfaceItem::onSessionStateChanged(SessionInterface::State state)
 {
     switch (state) {
-        case Session::State::Running:
+        case SessionInterface::State::Running:
             syncSurfaceSizeWithItemSize();
             break;
         default:
@@ -674,6 +763,22 @@ bool MirSurfaceItem::clientIsRunning() const
             (m_session->state() == Session::State::Running
              || m_session->state() == Session::State::Starting))
         || !m_session;
+}
+
+void MirSurfaceItem::TouchEvent::updateTouchPointStatesAndType()
+{
+    touchPointStates = 0;
+    for (int i = 0; i < touchPoints.count(); ++i) {
+        touchPointStates |= touchPoints.at(i).state();
+    }
+
+    if (touchPointStates == Qt::TouchPointReleased) {
+        type = QEvent::TouchEnd;
+    } else if (touchPointStates == Qt::TouchPointPressed) {
+        type = QEvent::TouchBegin;
+    } else {
+        type = QEvent::TouchUpdate;
+    }
 }
 
 } // namespace qtmir

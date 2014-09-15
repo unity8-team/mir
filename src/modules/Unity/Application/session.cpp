@@ -34,13 +34,15 @@
 
 namespace ms = mir::scene;
 
+using unity::shell::application::ApplicationInfoInterface;
+
 namespace qtmir
 {
 
 Session::Session(const std::shared_ptr<ms::Session>& session,
                  const std::shared_ptr<ms::PromptSessionManager>& promptSessionManager,
                  QObject *parent)
-    : QObject(parent)
+    : SessionInterface(parent)
     , m_session(session)
     , m_application(nullptr)
     , m_surface(nullptr)
@@ -72,8 +74,8 @@ Session::~Session()
     qCDebug(QTMIR_SESSIONS) << "Session::~Session() " << name();
     stopPromptSessions();
 
-    QList<Session*> children(m_children->list());
-    for (Session* child : children) {
+    QList<SessionInterface*> children(m_children->list());
+    for (SessionInterface* child : children) {
         delete child;
     }
     if (m_parentSession) {
@@ -112,7 +114,7 @@ std::shared_ptr<ms::Session> Session::session() const
     return m_session;
 }
 
-Application* Session::application() const
+ApplicationInfoInterface* Session::application() const
 {
     return m_application;
 }
@@ -127,7 +129,7 @@ MirSurfaceItem* Session::surface() const
     }
 }
 
-Session* Session::parentSession() const
+SessionInterface* Session::parentSession() const
 {
     return m_parentSession;
 }
@@ -147,12 +149,12 @@ bool Session::live() const
     return m_live;
 }
 
-void Session::setApplication(Application* application)
+void Session::setApplication(ApplicationInfoInterface* application)
 {
     if (m_application == application)
         return;
 
-    m_application = application;
+    m_application = static_cast<Application*>(application);
     Q_EMIT applicationChanged(application);
 }
 
@@ -251,7 +253,7 @@ void Session::setState(State state)
         m_state = state;
         Q_EMIT stateChanged(state);
 
-        foreachChildSession([state](Session* session) {
+        foreachChildSession([state](SessionInterface* session) {
             session->setState(state);
         });
     }
@@ -275,35 +277,35 @@ void Session::setParentSession(Session* session)
     Q_EMIT parentSessionChanged(session);
 }
 
-void Session::addChildSession(Session* session)
+void Session::addChildSession(SessionInterface* session)
 {
     insertChildSession(m_children->rowCount(), session);
 }
 
-void Session::insertChildSession(uint index, Session* session)
+void Session::insertChildSession(uint index, SessionInterface* session)
 {
     qCDebug(QTMIR_SESSIONS) << "Session::insertChildSession - " << session->name() << " to " << name() << " @  " << index;
 
-    session->setParentSession(this);
+    static_cast<Session*>(session)->setParentSession(this);
     m_children->insert(index, session);
 
     session->setState(state());
 }
 
-void Session::removeChildSession(Session* session)
+void Session::removeChildSession(SessionInterface* session)
 {
     qCDebug(QTMIR_SESSIONS) << "Session::removeChildSession - " << session->name() << " from " << name();
 
     if (m_children->contains(session)) {
         m_children->remove(session);
-        session->setParentSession(nullptr);
+        static_cast<Session*>(session)->setParentSession(nullptr);
     }
 }
 
-void Session::foreachChildSession(std::function<void(Session* session)> f) const
+void Session::foreachChildSession(std::function<void(SessionInterface* session)> f) const
 {
-    QList<Session*> children(m_children->list());
-    for (Session* child : children) {
+    QList<SessionInterface*> children(m_children->list());
+    for (SessionInterface* child : children) {
         f(child);
     }
 }
@@ -331,9 +333,9 @@ void Session::removePromptSession(const std::shared_ptr<ms::PromptSession>& prom
 
 void Session::stopPromptSessions()
 {
-    QList<Session*> children(m_children->list());
-    for (Session* child : children) {
-        child->stopPromptSessions();
+    QList<SessionInterface*> children(m_children->list());
+    for (SessionInterface* child : children) {
+        static_cast<Session*>(child)->stopPromptSessions();
     }
 
     QList<std::shared_ptr<ms::PromptSession>> copy(m_promptSessions);

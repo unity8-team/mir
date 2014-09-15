@@ -99,21 +99,21 @@ MirSurfaceManager::~MirSurfaceManager()
     m_mirSurfaceToItemHash.clear();
 }
 
-void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *session,
+void MirSurfaceManager::onSessionCreatedSurface(const mir::scene::Session *mirSession,
                                                 const std::shared_ptr<mir::scene::Surface> &surface)
 {
-    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::onSessionCreatedSurface - session=" << session
+    qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::onSessionCreatedSurface - mirSession=" << mirSession
                             << "surface=" << surface.get() << "surface.name=" << surface->name().c_str();
 
-    Session* sessionItem = m_sessionManager->findSession(session);
-    auto qmlSurface = new MirSurfaceItem(surface, sessionItem);
+    SessionInterface* session = m_sessionManager->findSession(mirSession);
+    auto qmlSurface = new MirSurfaceItem(surface, session);
     {
         QMutexLocker lock(&m_mutex);
         m_mirSurfaceToItemHash.insert(surface.get(), qmlSurface);
     }
 
-    if (sessionItem)
-        sessionItem->setSurface(qmlSurface);
+    if (session)
+        session->setSurface(qmlSurface);
 
     // Only notify QML of surface creation once it has drawn its first frame.
     connect(qmlSurface, &MirSurfaceItem::firstFrameDrawn, this, [&](MirSurfaceItem *item) {

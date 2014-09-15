@@ -15,59 +15,51 @@
  *
  */
 
-#ifndef MOCK_MIR_SCENE_SESSION_H
-#define MOCK_MIR_SCENE_SESSION_H
+#ifndef MOCK_QTMIR_SESSION_H
+#define MOCK_QTMIR_SESSION_H
 
-#include <mir/scene/session.h>
-#include <mir/graphics/display_configuration.h>
-#include <mir/scene/surface_creation_parameters.h>
+#include <session_interface.h>
 #include <gmock/gmock.h>
 
-#include <string>
+namespace qtmir {
 
-namespace testing
-{
-struct MockSession : public mir::scene::Session
-{
-    MockSession() {}
-    MockSession(std::string const& sessionName, pid_t processId) 
-        : m_sessionName(sessionName), m_sessionId(processId)
-    {}
+class MockSession : public SessionInterface {
+public:
+    MockSession() : SessionInterface(0) {}
 
-    std::string name() const override
-    {
-        return m_sessionName;
-    }
+    MOCK_METHOD0(release, void());
 
-    pid_t process_id() const override
-    {
-        return m_sessionId;
-    }
+    MOCK_CONST_METHOD0(name, QString());
+    MOCK_CONST_METHOD0(application, unity::shell::application::ApplicationInfoInterface*());
+    MOCK_CONST_METHOD0(surface, MirSurfaceItem*());
+    MOCK_CONST_METHOD0(parentSession, SessionInterface*());
+    MOCK_CONST_METHOD0(state, State());
+    MOCK_CONST_METHOD0(fullscreen, bool());
+    MOCK_CONST_METHOD0(live, bool());
 
-    typedef mir::frontend::SurfaceId SurfaceId;
+    MOCK_METHOD1(setApplication, void(unity::shell::application::ApplicationInfoInterface* item));
+    MOCK_METHOD1(setSurface, void(MirSurfaceItem* surface));
+    MOCK_METHOD1(setState, void(State state));
 
-    MOCK_METHOD0(force_requests_to_complete, void());
+    MOCK_METHOD1(addChildSession, void(SessionInterface* session));
+    MOCK_METHOD2(insertChildSession, void(uint index, SessionInterface* session));
+    MOCK_METHOD1(removeChildSession, void(SessionInterface* session));
+    MOCK_CONST_METHOD1(foreachChildSession, void(std::function<void(SessionInterface* session)> f));
 
-    MOCK_CONST_METHOD0(default_surface, std::shared_ptr<mir::scene::Surface>());
-    MOCK_CONST_METHOD1(get_surface, std::shared_ptr<mir::frontend::Surface>(SurfaceId));
+    MOCK_CONST_METHOD0(session, std::shared_ptr<mir::scene::Session>());
 
-    MOCK_METHOD1(take_snapshot, void(mir::scene::SnapshotCallback const&));
-    MOCK_METHOD1(set_lifecycle_state, void(MirLifecycleState));
-    MOCK_METHOD1(create_surface, SurfaceId(mir::scene::SurfaceCreationParameters const&));
-    MOCK_METHOD1(destroy_surface, void (SurfaceId));
+    MOCK_CONST_METHOD0(activePromptSession, std::shared_ptr<mir::scene::PromptSession>());
+    MOCK_CONST_METHOD1(foreachPromptSession, void(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f));
 
-    MOCK_METHOD0(hide, void());
-    MOCK_METHOD0(show, void());
-    MOCK_METHOD1(send_display_config, void(mir::graphics::DisplayConfiguration const&));
-    MOCK_METHOD3(configure_surface, int(SurfaceId, MirSurfaceAttrib, int));
+    MOCK_CONST_METHOD0(childSessions, SessionModel*());
 
-    void start_prompt_session() override {};
-    void stop_prompt_session() override {};
-
-private:
-    std::string m_sessionName;
-    pid_t m_sessionId;
+protected:
+    MOCK_METHOD1(setFullscreen, void(bool fullscreen));
+    MOCK_METHOD1(setLive, void(const bool));
+    MOCK_METHOD1(appendPromptSession, void(const std::shared_ptr<mir::scene::PromptSession>& session));
+    MOCK_METHOD1(removePromptSession, void(const std::shared_ptr<mir::scene::PromptSession>& session));
 };
-}
 
-#endif // MOCK_MIR_SCENE_SESSION_H
+} // namespace qtmir
+
+#endif // MOCK_QTMIR_SESSION_H

@@ -23,15 +23,18 @@
 
 #include <string>
 
-namespace testing
-{
-class MockFocusController : public mir::shell::FocusController
+namespace mir {
+namespace shell {
+
+class MockFocusController : public FocusController
 {
 public:
     MOCK_METHOD0(focus_next, void());
-    MOCK_CONST_METHOD0(focussed_application, std::weak_ptr<mir::scene::Session>());
-    MOCK_METHOD1(set_focus_to, void(std::shared_ptr<mir::scene::Session>const&));
+    MOCK_CONST_METHOD0(focussed_application, std::weak_ptr<scene::Session>());
+    MOCK_METHOD1(set_focus_to, void(std::shared_ptr<scene::Session>const&));
 };
-}
+
+} // namespace shell
+} // namespace mir
 
 #endif // MOCK_MIR_SHELL_FOCUS_CONTROLLER_H_

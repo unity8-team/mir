@@ -32,7 +32,7 @@
 #include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
-#include "session.h"
+#include "session_interface.h"
 #include "ubuntukeyboardinfo.h"
 
 namespace qtmir {
@@ -78,7 +78,7 @@ class MirSurfaceItem : public QQuickItem
 
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
-                            QPointer<Session> session,
+                            SessionInterface* session,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -107,7 +107,7 @@ public:
     State state() const;
     QString name() const;
     bool live() const;
-    Session *session() const;
+    SessionInterface *session() const;
 
     Q_INVOKABLE void release();
 
@@ -120,7 +120,13 @@ public:
 
     bool isFirstFrameDrawn() const { return m_firstFrameDrawn; }
 
-    void setSession(Session *app);
+    void setSession(SessionInterface *app);
+
+    // to allow easy touch event injection from tests
+    bool processTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates);
 
 Q_SIGNALS:
     void typeChanged();
@@ -130,7 +136,7 @@ Q_SIGNALS:
     void firstFrameDrawn(MirSurfaceItem *item);
 
 protected Q_SLOTS:
-    void onSessionStateChanged(Session::State state);
+    void onSessionStateChanged(SessionInterface::State state);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -167,15 +173,22 @@ private:
     void setAttribute(const MirSurfaceAttrib, const int);
     void setSurfaceValid(const bool);
 
-    bool hasTouchInsideUbuntuKeyboard(QTouchEvent *event);
+    bool hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints);
     void syncSurfaceSizeWithItemSize();
 
     bool clientIsRunning() const;
 
+    QString appId() const;
+    void endCurrentTouchSequence(ulong timestamp);
+    void validateAndDeliverTouchEvent(int eventType,
+            ulong timestamp,
+            const QList<QTouchEvent::TouchPoint> &touchPoints,
+            Qt::TouchPointStates touchPointStates);
+
     QMutex m_mutex;
 
     std::shared_ptr<mir::scene::Surface> m_surface;
-    QPointer<Session> m_session;
+    QPointer<SessionInterface> m_session;
     bool m_firstFrameDrawn;
     bool m_live;
 
@@ -188,6 +201,24 @@ private:
     QTimer m_frameDropperTimer;
 
     QTimer m_updateMirSurfaceSizeTimer;
+
+    class TouchEvent {
+    public:
+        TouchEvent &operator= (const QTouchEvent &qtEvent) {
+            type = qtEvent.type();
+            timestamp = qtEvent.timestamp();
+            touchPoints = qtEvent.touchPoints();
+            touchPointStates = qtEvent.touchPointStates();
+            return *this;
+        }
+
+        void updateTouchPointStatesAndType();
+
+        int type;
+        ulong timestamp;
+        QList<QTouchEvent::TouchPoint> touchPoints;
+        Qt::TouchPointStates touchPointStates;
+    } *m_lastTouchEvent;
 
     friend class MirSurfaceManager;
 };

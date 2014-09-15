@@ -22,8 +22,8 @@
 
 namespace qtmir {
 
-class Session;
-typedef ObjectListModel<Session> SessionModel;
+class SessionInterface;
+typedef ObjectListModel<SessionInterface> SessionModel;
 
 } // namespace qtmir
 
