@@ -74,10 +74,10 @@ extern "C"
       */
     typedef enum
     {
-        UA_LOCATION_SERVICE_STATUS_OK = 0, /**< All good, session created. */
-        UA_LOCATION_SERVICE_STATUS_NO_CONNECTION = 1, /**< Could not connect to backend service. */
-        UA_LOCATION_SERVICE_STATUS_NO_ACCESS = 2, /**< Could not connect due to lack of permissions. */
-        UA_LOCATION_SERVICE_STATUS_GENERIC_ERROR = 3 /**< Could not connect, unspecified error. */
+        UA_LOCATION_SERVICE_ERROR_NONE = 0, /**< All good, session created. */
+        UA_LOCATION_SERVICE_ERROR_NO_CONNECTION = 1, /**< Could not connect to backend service. */
+        UA_LOCATION_SERVICE_ERROR_NO_ACCESS = 2, /**< Could not connect due to lack of permissions. */
+        UA_LOCATION_SERVICE_ERROR_GENERIC_ERROR = 3 /**< Could not connect, unspecified error. */
     } UbuntuApplicationLocationServiceError;
 
     typedef UbuntuApplicationLocationServiceError UALocationServiceError;

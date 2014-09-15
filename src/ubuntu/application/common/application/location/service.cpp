@@ -63,6 +63,7 @@ ua_location_service_try_create_session_for_low_accuracy(
     UALocationServiceRequirementsFlags flags,
     UALocationServiceError* status)
 {
+    if (status) *status = UA_LOCATION_SERVICE_ERROR_NONE;
     // Creating the instance might fail for a number of reason and
     // we cannot allow exceptions to propagate to prevent applications
     // from aborting. For that, we catch all exceptions, provide some error
@@ -78,7 +79,7 @@ ua_location_service_try_create_session_for_low_accuracy(
     } catch(...)
     {
         if (status)
-            *status = UA_LOCATION_SERVICE_STATUS_NO_ACCESS;
+            *status = UA_LOCATION_SERVICE_ERROR_NO_ACCESS;
     }
 
     return nullptr;
@@ -116,6 +117,8 @@ ua_location_service_try_create_session_for_high_accuracy(
     UALocationServiceRequirementsFlags,
     UALocationServiceError* status)
 {
+    if (status) *status = UA_LOCATION_SERVICE_ERROR_NONE;
+
     // Creating the instance might fail for a number of reason and
     // we cannot allow exceptions to propagate to prevent applications
     // from aborting. For that, we catch all exceptions, provide some error
@@ -131,7 +134,7 @@ ua_location_service_try_create_session_for_high_accuracy(
     } catch(...)
     {
         if (status)
-            *status = UA_LOCATION_SERVICE_STATUS_NO_ACCESS;
+            *status = UA_LOCATION_SERVICE_ERROR_NO_ACCESS;
     }
 
     return nullptr;
