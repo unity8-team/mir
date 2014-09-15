@@ -69,6 +69,20 @@ extern "C"
     typedef unsigned int UALocationServiceRequirementsFlags;
 
     /**
+      * \brief Possible error codes reported when trying to create a session.
+      * \ingroup location_service
+      */
+    typedef enum
+    {
+        UA_LOCATION_SERVICE_STATUS_OK = 0, /**< All good, session created. */
+        UA_LOCATION_SERVICE_STATUS_NO_CONNECTION = 1, /**< Could not connect to backend service. */
+        UA_LOCATION_SERVICE_STATUS_NO_ACCESS = 2, /**< Could not connect due to lack of permissions. */
+        UA_LOCATION_SERVICE_STATUS_GENERIC_ERROR = 3 /**< Could not connect, unspecified error. */
+    } UbuntuApplicationLocationServiceError;
+
+    typedef UbuntuApplicationLocationServiceError UALocationServiceError;
+
+    /**
      * \brief Creates a new session with the location service for low positional accuracy requirements.
      * \ingroup location_service
      * \returns A new session or NULL if the requirements cannot be
@@ -81,6 +95,20 @@ extern "C"
         UALocationServiceRequirementsFlags flags);
 
     /**
+     * \brief Tries to reate a new session with the location service for low positional accuracy requirements.
+     * \ingroup location_service
+     * \returns A new session or NULL if the requirements cannot be
+     * satisfied or if the app lacks permissions to access the
+     * location service.
+     * \param[in] flags Bitfield describing the application's requirements.
+     * \param[out] status Receives an error description if an issue arises.
+     */
+    UBUNTU_DLL_PUBLIC UALocationServiceSession*
+    ua_location_service_try_create_session_for_low_accuracy(
+        UALocationServiceRequirementsFlags flags,
+        UALocationServiceError* status);
+
+    /**
      * \brief Creates a new session with the location service for high positional accuracy requirements.
      * \ingroup location_service
      * \returns A new session or NULL if the requirements cannot be
@@ -91,6 +119,20 @@ extern "C"
     UBUNTU_DLL_PUBLIC UALocationServiceSession*
     ua_location_service_create_session_for_high_accuracy(
         UALocationServiceRequirementsFlags flags);
+
+    /**
+     * \brief Tries to reate a new session with the location service for high positional accuracy requirements.
+     * \ingroup location_service
+     * \returns A new session or NULL if the requirements cannot be
+     * satisfied or if the app lacks permissions to access the
+     * location service.
+     * \param[in] flags Bitfield describing the application's requirements.
+     * \param[out] status Receives an error description if an issue arises.
+     */
+    UBUNTU_DLL_PUBLIC UALocationServiceSession*
+    ua_location_service_try_create_session_for_high_accuracy(
+        UALocationServiceRequirementsFlags flags,
+        UALocationServiceError* status);
 
     /**
      * \brief Creates a new controller for the location service.
