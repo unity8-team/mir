@@ -160,10 +160,10 @@ QColor Application::colorFromString(const QString &colorString, const char *colo
 bool Application::splashShowHeader() const
 {
     QString showHeader = m_desktopData->splashShowHeader();
-    if (showHeader.toLower() == "false") {
-        return false;
-    } else {
+    if (showHeader.toLower() == "true") {
         return true;
+    } else {
+        return false;
     }
 }
 
