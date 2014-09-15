@@ -56,6 +56,11 @@ void mircva::InputReceiverThread::join()
     thread.join();
 }
 
+void mircva::InputReceiverThread::on_frame()
+{
+    receiver->on_frame();
+}
+
 void mircva::InputReceiverThread::thread_loop()
 {
     while (running)

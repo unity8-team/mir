@@ -80,6 +80,13 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 }
 
+void mircva::InputReceiver::on_frame()
+{
+    static int n = 0;
+    ++n;
+    fprintf(stderr, "FRAME %d\n", n);
+}
+
 bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 {
     droidinput::InputEvent *android_event;

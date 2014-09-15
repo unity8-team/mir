@@ -64,6 +64,8 @@ public:
     virtual ~InputReceiver();
     int fd() const;
 
+    void on_frame();
+
     /// Synchronously receive an event with millisecond timeout. A negative timeout value
     /// is used to request indefinite polling.
     virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);

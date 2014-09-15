@@ -34,6 +34,7 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual void join() = 0;
+    virtual void on_frame() {}
 
 protected:
     InputReceiverThread() = default;

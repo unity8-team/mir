@@ -174,6 +174,8 @@ MirWaitHandle* MirSurface::next_buffer(mir_surface_callback callback, void * con
     auto const id = &surface.id();
     auto const mutable_buffer = surface.mutable_buffer();
     perf_report->end_frame(mutable_buffer->buffer_id());
+    if (input_thread)
+        input_thread->on_frame();
     lock.unlock();
 
     next_buffer_wait_handle.expect_result();
