@@ -82,35 +82,13 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 void mircva::InputReceiver::on_frame()
 {
-    static int n = 0;
-    ++n;
-    fprintf(stderr, "FRAME %d\n", n);
+    frame_time = android_clock(SYSTEM_TIME_MONOTONIC);
 }
 
 bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 {
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
-
-    /*
-     * Enable "Project Butter" input resampling in InputConsumer::consume():
-     *   consumeBatches = true, so as to ensure the "cooked" event rate that
-     *      clients experience is at least the minimum of event_rate_hz
-     *      and the raw device event rate.
-     *   frame_time = A regular interval of 60Hz. This provides a virtual frame
-     *      interval during which InputConsumer will collect raw events,
-     *      resample them and emit a "cooked" event back to us at least every
-     *      60th of a second. "cooked" events are both smoothed and
-     *      extrapolated/predicted into the future (for tool=finger) giving the
-     *      appearance of lower latency. Getting a real frame time from the
-     *      graphics logic (which is messy) does not appear to be necessary to
-     *      gain significant benefit.
-     */
-
-    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
-    int const event_rate_hz = 60;
-    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
-    nsecs_t frame_time = (now / one_frame) * one_frame;
 
     if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)

@@ -91,6 +91,7 @@ private:
     std::shared_ptr<XKBMapper> xkb_mapper;
 
     AndroidClock const android_clock;
+    nsecs_t frame_time = -1;
 
     bool try_next_event(MirEvent &ev);
 };
