@@ -1,8 +1,9 @@
-qtmir-gles (0.4.3+14.10.20140915-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.3+14.10.20140915-0ubuntu1) utopic; urgency=medium
 
+  [ Michael Zanetti ]
   * Sync with upstream
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Mon, 15 Sep 2014 17:08:22 +0200
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Sep 2014 15:14:34 +0000
 
 qtmir-gles (0.4.3+14.10.20140907-0ubuntu1) utopic; urgency=medium
 
