@@ -402,6 +402,35 @@ TEST_F(ApplicationManagerTests,two_session_on_one_application_after_starting)
     EXPECT_EQ(first_session, the_app->session()->session());
 }
 
+TEST_F(ApplicationManagerTests, focused_app_can_rerequest_focus)
+{
+    using namespace ::testing;
+    quint64 a_procId = 5921;
+    const char an_app_id[] = "some_app";
+    QByteArray a_cmd("/usr/bin/app1 --desktop_file_hint=some_app");
+    std::shared_ptr<mir::scene::Surface> aSurface(nullptr);
+
+    ON_CALL(procInfo, command_line(_)).WillByDefault(Return(a_cmd));
+    ON_CALL(appController, appIdHasProcessId(_,_)).WillByDefault(Return(false));
+    
+    bool authed = true;
+
+    std::shared_ptr<mir::scene::Session> a_session = std::make_shared<MockSession>("Oo", a_procId);
+   
+    applicationManager.authorizeSession(a_procId, authed);
+    onSessionStarting(a_session);
+    applicationManager.onSessionCreatedSurface(a_session.get(), aSurface);
+
+    Application * the_app = applicationManager.findApplication(an_app_id);
+    applicationManager.focusApplication(an_app_id);
+
+    EXPECT_EQ(Application::Running, the_app->state());
+    EXPECT_EQ(true, the_app->focused());
+
+    applicationManager.focusApplication(an_app_id);
+    EXPECT_EQ(true, the_app->focused());
+}
+
 TEST_F(ApplicationManagerTests,suspended_suspends_focused_app_and_marks_it_unfocused_in_the_model)
 {
     using namespace ::testing;
