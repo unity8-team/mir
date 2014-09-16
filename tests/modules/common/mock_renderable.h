@@ -21,23 +21,26 @@
 #include <mir/graphics/renderable.h>
 #include <gmock/gmock.h>
 
-namespace testing
-{
-struct MockRenderable : public mir::graphics::Renderable
+namespace mir {
+namespace graphics {
+
+struct MockRenderable : public Renderable
 {
     MockRenderable() {};
 
     MOCK_CONST_METHOD0(id, ID());
-    MOCK_CONST_METHOD0(buffer, std::shared_ptr<mir::graphics::Buffer>());
+    MOCK_CONST_METHOD0(buffer, std::shared_ptr<Buffer>());
     MOCK_CONST_METHOD0(alpha_enabled, bool());
-    MOCK_CONST_METHOD0(screen_position, mir::geometry::Rectangle());
+    MOCK_CONST_METHOD0(screen_position, geometry::Rectangle());
     MOCK_CONST_METHOD0(alpha, float() );
     MOCK_CONST_METHOD0(transformation, glm::mat4());
     MOCK_CONST_METHOD0(visible, bool());
     MOCK_CONST_METHOD0(shaped, bool());
     MOCK_CONST_METHOD0(buffers_ready_for_compositor, int());
 };
-}
+
+} // namespace graphics
+} // namespace mir
 
 #endif // MOCK_MIR_GRAPHICS_RENDERABLE_H
 

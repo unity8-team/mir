@@ -1,3 +1,11 @@
+qtmir (0.4.3+14.10.20140915-0ubuntu1) utopic; urgency=low
+
+  [ Daniel d'Andrada ]
+  * MirSurfaceItem: Ensure all touch sequences sent to Mir surface are
+    properly ended.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Sep 2014 14:50:16 +0000
+
 qtmir (0.4.3+14.10.20140907-0ubuntu1) utopic; urgency=low
 
   [ Daniel d'Andrada ]

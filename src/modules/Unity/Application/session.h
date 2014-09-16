@@ -21,19 +21,15 @@
 #include <memory>
 
 // local
-#include "sessionmodel.h"
+#include "session_interface.h"
 
 // Qt
 #include <QObject>
 #include <QTimer>
 
-// Unity API
-#include <unity/shell/application/ApplicationInfoInterface.h>
 
 namespace mir {
     namespace scene {
-        class Session;
-        class PromptSession;
         class PromptSessionManager;
     }
 }
@@ -41,83 +37,61 @@ namespace mir {
 namespace qtmir {
 
 class Application;
-class MirSurfaceItem;
 
-class Session : public QObject
+class Session : public SessionInterface
 {
     Q_OBJECT
-    Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
-    Q_PROPERTY(Application* application READ application NOTIFY applicationChanged DESIGNABLE false)
-    Q_PROPERTY(Session* parentSession READ parentSession NOTIFY parentSessionChanged DESIGNABLE false)
-    Q_PROPERTY(SessionModel* childSessions READ childSessions DESIGNABLE false CONSTANT)
-    Q_PROPERTY(bool fullscreen READ fullscreen NOTIFY fullscreenChanged)
-    Q_PROPERTY(bool live READ live NOTIFY liveChanged)
-
 public:
     explicit Session(const std::shared_ptr<mir::scene::Session>& session,
                      const std::shared_ptr<mir::scene::PromptSessionManager>& promptSessionManager,
                      QObject *parent = 0);
-    ~Session();
+    virtual ~Session();
 
-    // Session State
-    typedef unity::shell::application::ApplicationInfoInterface::State State;
-
-    Q_INVOKABLE void release();
+    Q_INVOKABLE void release() override;
 
     //getters
-    QString name() const;
-    Application* application() const;
-    MirSurfaceItem* surface() const;
-    Session* parentSession() const;
-    State state() const;
-    bool fullscreen() const;
-    bool live() const;
+    QString name() const override;
+    unity::shell::application::ApplicationInfoInterface* application() const override;
+    MirSurfaceItem* surface() const override;
+    SessionInterface* parentSession() const override;
+    State state() const override;
+    bool fullscreen() const override;
+    bool live() const override;
 
-    void setSession();
-    void setApplication(Application* item);
-    void setSurface(MirSurfaceItem* surface);
-    void setState(State state);
+    void setApplication(unity::shell::application::ApplicationInfoInterface* item) override;
+    void setSurface(MirSurfaceItem* surface) override;
+    void setState(State state) override;
 
-    void addChildSession(Session* session);
-    void insertChildSession(uint index, Session* session);
-    void removeChildSession(Session* session);
-    void foreachChildSession(std::function<void(Session* session)> f) const;
+    void addChildSession(SessionInterface* session) override;
+    void insertChildSession(uint index, SessionInterface* session) override;
+    void removeChildSession(SessionInterface* session) override;
+    void foreachChildSession(std::function<void(SessionInterface* session)> f) const override;
 
-    std::shared_ptr<mir::scene::Session> session() const;
+    std::shared_ptr<mir::scene::Session> session() const override;
 
-    std::shared_ptr<mir::scene::PromptSession> activePromptSession() const;
-    void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const;
+    std::shared_ptr<mir::scene::PromptSession> activePromptSession() const override;
+    void foreachPromptSession(std::function<void(const std::shared_ptr<mir::scene::PromptSession>&)> f) const override;
 
-Q_SIGNALS:
-    void surfaceChanged(MirSurfaceItem*);
-    void parentSessionChanged(Session*);
-    void applicationChanged(Application* application);
-    void aboutToBeDestroyed();
-    void stateChanged(State state);
-    void fullscreenChanged(bool fullscreen);
-    void liveChanged(bool live);
+    SessionModel* childSessions() const override;
 
-    void suspended();
-    void resumed();
+protected:
+    void setFullscreen(bool fullscreen) override;
+    void setLive(const bool) override;
+    void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session) override;
+    void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session) override;
 
 private Q_SLOTS:
     void updateFullscreenProperty();
 
 private:
-    SessionModel* childSessions() const;
     void setParentSession(Session* session);
 
-    void appendPromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
-    void removePromptSession(const std::shared_ptr<mir::scene::PromptSession>& session);
     void stopPromptSessions();
-
-    void setFullscreen(bool fullscreen);
-    void setLive(const bool);
 
     std::shared_ptr<mir::scene::Session> m_session;
     Application* m_application;
     MirSurfaceItem* m_surface;
-    Session* m_parentSession;
+    SessionInterface* m_parentSession;
     SessionModel* m_children;
     bool m_fullscreen;
     State m_state;
@@ -125,8 +99,6 @@ private:
     QTimer* m_suspendTimer;
     QList<std::shared_ptr<mir::scene::PromptSession>> m_promptSessions;
     std::shared_ptr<mir::scene::PromptSessionManager> const m_promptSessionManager;
-
-    friend class SessionManager;
 };
 
 } // namespace qtmir

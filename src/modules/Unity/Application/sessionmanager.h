@@ -59,11 +59,11 @@ public:
 
     static SessionManager* singleton();
 
-    Session *findSession(const mir::scene::Session* session) const;
+    SessionInterface *findSession(const mir::scene::Session* session) const;
 
 Q_SIGNALS:
-    void sessionStarting(Session* session);
-    void sessionStopping(Session* session);
+    void sessionStarting(SessionInterface* session);
+    void sessionStopping(SessionInterface* session);
 
 public Q_SLOTS:
     void onSessionStarting(std::shared_ptr<mir::scene::Session> const& session);
@@ -82,7 +82,7 @@ private:
     static SessionManager *the_session_manager;
 
     QList<Session*> m_sessions;
-    QHash<const mir::scene::PromptSession *, Session *> m_mirPromptToSessionHash;
+    QHash<const mir::scene::PromptSession *, SessionInterface *> m_mirPromptToSessionHash;
 };
 
 } // namespace qtmir

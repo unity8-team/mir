@@ -23,33 +23,36 @@
 
 #include <gmock/gmock.h>
 
-namespace testing
-{
-class MockPromptSessionManager: public mir::scene::PromptSessionManager
+namespace mir {
+namespace scene {
+
+class MockPromptSessionManager: public PromptSessionManager
 {
 public:
-    MOCK_CONST_METHOD2(start_prompt_session_for, std::shared_ptr<mir::scene::PromptSession>(std::shared_ptr<mir::scene::Session> const&,
+    MOCK_CONST_METHOD2(start_prompt_session_for, std::shared_ptr<PromptSession>(std::shared_ptr<mir::scene::Session> const&,
         mir::scene::PromptSessionCreationParameters const&));
 
-    MOCK_CONST_METHOD1(stop_prompt_session, void(std::shared_ptr<mir::scene::PromptSession> const&));
+    MOCK_CONST_METHOD1(stop_prompt_session, void(std::shared_ptr<PromptSession> const&));
 
-    MOCK_CONST_METHOD2(add_prompt_provider, void(std::shared_ptr<mir::scene::PromptSession> const&,
+    MOCK_CONST_METHOD2(add_prompt_provider, void(std::shared_ptr<PromptSession> const&,
         std::shared_ptr<mir::scene::Session> const&));
 
-    MOCK_CONST_METHOD2(add_prompt_provider_by_pid, void(std::shared_ptr<mir::scene::PromptSession> const&,
+    MOCK_CONST_METHOD2(add_prompt_provider_by_pid, void(std::shared_ptr<PromptSession> const&,
         pid_t));
 
-    MOCK_CONST_METHOD1(add_expected_session, void(std::shared_ptr<mir::scene::Session> const&));
+    MOCK_CONST_METHOD1(add_expected_session, void(std::shared_ptr<Session> const&));
 
-    MOCK_CONST_METHOD1(remove_session, void(std::shared_ptr<mir::scene::Session> const&));
+    MOCK_CONST_METHOD1(remove_session, void(std::shared_ptr<Session> const&));
 
-    MOCK_CONST_METHOD1(application_for, std::shared_ptr<mir::scene::Session>(std::shared_ptr<mir::scene::PromptSession> const&));
+    MOCK_CONST_METHOD1(application_for, std::shared_ptr<Session>(std::shared_ptr<PromptSession> const&));
 
-    MOCK_CONST_METHOD1(helper_for, std::shared_ptr<mir::scene::Session>(std::shared_ptr<mir::scene::PromptSession> const&));
+    MOCK_CONST_METHOD1(helper_for, std::shared_ptr<Session>(std::shared_ptr<PromptSession> const&));
 
-    MOCK_CONST_METHOD2(for_each_provider_in, void(std::shared_ptr<mir::scene::PromptSession> const&,
-        std::function<void(std::shared_ptr<mir::scene::Session> const&)> const&));
+    MOCK_CONST_METHOD2(for_each_provider_in, void(std::shared_ptr<PromptSession> const&,
+        std::function<void(std::shared_ptr<Session> const&)> const&));
 };
-} // namespace testing
+
+} // namespace scene
+} // namespace mir
 
 #endif // MOCK_MIR_SCENE_PROMPT_SESSION_MANAGER_H_
