@@ -97,12 +97,22 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
     nsecs_t const millisecond = 1000000LL;
     nsecs_t const now = current_time();
-    nsecs_t const min_frame_time = 10*millisecond;
+    nsecs_t const min_frame_age = 10*millisecond;
     bool consume_batches = true;
-    if (frame_time < now - min_frame_time)
-        frame_time = now;
+    if (frame_time < now - min_frame_age)
+        frame_time = now;  // idle client? Real frame time is unknown.
     else
         consume_batches = false;
+
+    /*
+     * consume_batches lets us defer delivery of any events to the client
+     * until the last frame is at least min_frame_age (10ms) old.
+     * This ensures that the _maximum_ age of any raw input event that
+     * contributes to the final cooked event clients receive is only ~6ms.
+     * Thus clients still have time to act on the input event and make the
+     * next frame deadline, but they're acting on newer information, which
+     * reduces visible latency.
+     */
 
     if (input_consumer->consume(&event_factory, consume_batches, frame_time,
                                 &event_sequence_id, &android_event)
