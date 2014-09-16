@@ -59,6 +59,33 @@ ua_location_service_create_session_for_low_accuracy(
 }
 
 UALocationServiceSession*
+ua_location_service_try_create_session_for_low_accuracy(
+    UALocationServiceRequirementsFlags flags,
+    UALocationServiceError* status)
+{
+    if (status) *status = UA_LOCATION_SERVICE_ERROR_NONE;
+    // Creating the instance might fail for a number of reason and
+    // we cannot allow exceptions to propagate to prevent applications
+    // from aborting. For that, we catch all exceptions, provide some error
+    // information to std::cerr and return a nullptr in case of errors.
+    try
+    {
+        return new UbuntuApplicationLocationServiceSession
+        {
+            // Creating the instance might fail for a number of reasons.
+
+            Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
+        };
+    } catch(...)
+    {
+        if (status)
+            *status = UA_LOCATION_SERVICE_ERROR_NO_ACCESS;
+    }
+
+    return nullptr;
+}
+
+UALocationServiceSession*
 ua_location_service_create_session_for_high_accuracy(
     UALocationServiceRequirementsFlags /*flags*/)
 {
@@ -80,6 +107,34 @@ ua_location_service_create_session_for_high_accuracy(
     } catch(...)
     {
         std::cerr << "ua_location_service_create_session_for_high_accuracy: Error creating instance." << std::endl;
+    }
+
+    return nullptr;
+}
+
+UALocationServiceSession*
+ua_location_service_try_create_session_for_high_accuracy(
+    UALocationServiceRequirementsFlags,
+    UALocationServiceError* status)
+{
+    if (status) *status = UA_LOCATION_SERVICE_ERROR_NONE;
+
+    // Creating the instance might fail for a number of reason and
+    // we cannot allow exceptions to propagate to prevent applications
+    // from aborting. For that, we catch all exceptions, provide some error
+    // information to std::cerr and return a nullptr in case of errors.
+    try
+    {
+        return new UbuntuApplicationLocationServiceSession
+        {
+            // Creating the instance might fail for a number of reasons.
+
+            Instance::instance().get_service()->create_session_for_criteria(cul::Criteria{})
+        };
+    } catch(...)
+    {
+        if (status)
+            *status = UA_LOCATION_SERVICE_ERROR_NO_ACCESS;
     }
 
     return nullptr;

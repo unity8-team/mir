@@ -28,7 +28,7 @@
  */
 
 #define API_VERSION_MAJOR   "2"
-#define API_VERSION_MINOR   "2"
+#define API_VERSION_MINOR   "3"
 #define API_VERSION_PATCH   "0"
 #define SO_SUFFIX ".so." API_VERSION_MAJOR "." API_VERSION_MINOR "." API_VERSION_PATCH
 
