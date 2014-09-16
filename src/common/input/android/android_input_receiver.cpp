@@ -80,9 +80,14 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 }
 
+nsecs_t mircva::InputReceiver::current_time() const
+{
+    return android_clock(SYSTEM_TIME_MONOTONIC);
+}
+
 void mircva::InputReceiver::on_frame()
 {
-    frame_time = android_clock(SYSTEM_TIME_MONOTONIC);
+    frame_time = current_time();
 }
 
 bool mircva::InputReceiver::try_next_event(MirEvent &ev)
@@ -90,16 +95,16 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    nsecs_t resampling_frame_time = frame_time;
+    nsecs_t const millisecond = 1000000LL;
+    nsecs_t const now = current_time();
+    nsecs_t const min_frame_time = 10*millisecond;
+    bool consume_batches = true;
+    if (frame_time < now - min_frame_time)
+        frame_time = now;
+    else
+        consume_batches = false;
 
-    // Estimate some recent physical frame time (~10ms ago)
-    nsecs_t pessimistic_frame_time = android_clock(SYSTEM_TIME_MONOTONIC) -
-                                     10000000LL;
-    
-    if (pessimistic_frame_time > resampling_frame_time)
-        resampling_frame_time = -1;
-
-    if (input_consumer->consume(&event_factory, true, resampling_frame_time,
+    if (input_consumer->consume(&event_factory, consume_batches, frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {

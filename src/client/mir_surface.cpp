@@ -225,8 +225,6 @@ void MirSurface::process_incoming_buffer()
                                            buffer.buffer_id(),
                                            surface_size, surface_pf);
         perf_report->begin_frame(buffer.buffer_id());
-        if (input_thread)
-            input_thread->on_frame();
     }
     catch (const std::runtime_error& err)
     {
@@ -260,6 +258,7 @@ void MirSurface::new_buffer(mir_surface_callback callback, void * context)
 {
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
+        if (input_thread) input_thread->on_frame();
         process_incoming_buffer();
     }
 

@@ -92,6 +92,7 @@ private:
 
     AndroidClock const android_clock;
     nsecs_t frame_time = -1;
+    nsecs_t current_time() const;
 
     bool try_next_event(MirEvent &ev);
 };
