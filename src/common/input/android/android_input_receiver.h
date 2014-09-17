@@ -85,6 +85,7 @@ private:
     droidinput::sp<droidinput::Looper> looper;
 
     bool fd_added;
+    bool already_resampled = false;
 
     std::shared_ptr<XKBMapper> xkb_mapper;
 
