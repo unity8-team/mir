@@ -1,4 +1,3 @@
-# TODO: Bump to 26 required
 MIR_SERVER_25 {
  global:
   extern "C++" {
