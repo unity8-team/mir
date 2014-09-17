@@ -19,7 +19,6 @@
 #include "mir_client_host_connection.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/mir_client_library_drm.h"
-#include "mir/shell/null_host_lifecycle_event_listener.h"
 
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -39,12 +38,6 @@ void drm_auth_magic_callback(int status, void* context)
 void display_config_callback_thunk(MirConnection* /*connection*/, void* context)
 {
     (*static_cast<std::function<void()>*>(context))();
-}
-
-static void nested_lifecycle_event_callback_thunk(MirConnection* /*connection*/, MirLifecycleState state, void *context)
-{
-    msh::HostLifecycleEventListener* listener = static_cast<msh::HostLifecycleEventListener*>(context);
-    listener->lifecycle_event_occurred(state);
 }
 
 class MirClientHostSurface : public mgn::HostSurface
@@ -88,15 +81,10 @@ private:
 
 mgn::MirClientHostConnection::MirClientHostConnection(
     std::string const& host_socket,
-    std::string const& name,
-    std::shared_ptr<msh::HostLifecycleEventListener> host_lifecycle_event_listener)
+    std::string const& name)
     : mir_connection{mir_connect_sync(host_socket.c_str(), name.c_str())},
-      conf_change_callback{[]{}},
-      host_lifecycle_event_listener{host_lifecycle_event_listener}
+      conf_change_callback{[]{}}
 {
-    if (!host_lifecycle_event_listener)
-        host_lifecycle_event_listener = std::make_shared<msh::NullHostLifecycleEventListener>();
-
     if (!mir_connection_is_valid(mir_connection))
     {
         std::string const msg =
@@ -105,11 +93,6 @@ mgn::MirClientHostConnection::MirClientHostConnection(
 
         BOOST_THROW_EXCEPTION(std::runtime_error(msg));
     }
-
-    mir_connection_set_lifecycle_event_callback(
-        mir_connection,
-        nested_lifecycle_event_callback_thunk,
-        std::static_pointer_cast<void>(host_lifecycle_event_listener).get());
 }
 
 mgn::MirClientHostConnection::~MirClientHostConnection()

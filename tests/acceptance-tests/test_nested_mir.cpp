@@ -24,7 +24,6 @@
 #include "mir/run_mir.h"
 #include "mir/shell/focus_controller.h"
 #include "mir/scene/session.h"
-#include "mir/shell/host_lifecycle_event_listener.h"
 
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/stubbed_server_configuration.h"

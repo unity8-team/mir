@@ -617,10 +617,6 @@ MIR_SERVER_25 {
     mir::shell::FocusSetter::FocusSetter*;
     mir::shell::FocusSetter::operator*;
     mir::shell::FocusSetter::set_focus_to*;
-    mir::shell::HostLifecycleEventListener::?HostLifecycleEventListener*;
-    mir::shell::HostLifecycleEventListener::HostLifecycleEventListener*;
-    mir::shell::HostLifecycleEventListener::lifecycle_event_occurred*;
-    mir::shell::HostLifecycleEventListener::operator*;
     mir::shell::InputTargeter::focus_changed*;
     mir::shell::InputTargeter::focus_cleared*;
     mir::shell::InputTargeter::?InputTargeter*;
@@ -847,7 +843,6 @@ MIR_SERVER_25 {
     non-virtual?thunk?to?mir::ServerStatusListener::?ServerStatusListener*;
     non-virtual?thunk?to?mir::shell::DisplayLayout::?DisplayLayout*;
     non-virtual?thunk?to?mir::shell::FocusController::?FocusController*;
-    non-virtual?thunk?to?mir::shell::HostLifecycleEventListener::?HostLifecycleEventListener*;
     non-virtual?thunk?to?mir::shell::InputTargeter::?InputTargeter*;
     non-virtual?thunk?to?mir::shell::SessionCoordinatorWrapper::close_session*;
     non-virtual?thunk?to?mir::shell::SessionCoordinatorWrapper::focus_next*;
@@ -951,7 +946,6 @@ MIR_SERVER_25 {
     typeinfo?for?mir::shell::DisplayLayout;
     typeinfo?for?mir::shell::FocusController;
     typeinfo?for?mir::shell::FocusSetter;
-    typeinfo?for?mir::shell::HostLifecycleEventListener;
     typeinfo?for?mir::shell::InputTargeter;
     typeinfo?for?mir::shell::SessionCoordinatorWrapper;
     typeinfo?for?mir::shell::SurfaceCoordinatorWrapper;
@@ -1049,7 +1043,6 @@ MIR_SERVER_25 {
     vtable?for?mir::shell::DisplayLayout;
     vtable?for?mir::shell::FocusController;
     vtable?for?mir::shell::FocusSetter;
-    vtable?for?mir::shell::HostLifecycleEventListener;
     vtable?for?mir::shell::InputTargeter;
     vtable?for?mir::shell::SessionCoordinatorWrapper;
     vtable?for?mir::shell::SurfaceCoordinatorWrapper;
