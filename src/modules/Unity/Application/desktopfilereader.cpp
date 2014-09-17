@@ -34,7 +34,7 @@ DesktopFileReader* DesktopFileReader::Factory::createInstance(const QString &app
     return new DesktopFileReader(appId, fi);
 }
 
-typedef GObjectScopedPointer<GDesktopAppInfo> GDesktopAppInfoPointer;
+typedef GObjectScopedPointer<GAppInfo> GAppInfoPointer;
 
 struct DesktopFileReaderPrivate
 {
@@ -46,7 +46,7 @@ struct DesktopFileReaderPrivate
     {
         if (!loaded()) return QString();
 
-        return QString::fromUtf8(g_desktop_app_info_get_string(appInfo.data(), key));
+        return QString::fromUtf8(g_desktop_app_info_get_string((GDesktopAppInfo*)appInfo.data(), key));
     }
 
     bool loaded() const
@@ -59,7 +59,7 @@ struct DesktopFileReaderPrivate
 
     QString appId;
     QString file;
-    GDesktopAppInfoPointer appInfo;
+    GAppInfoPointer appInfo; // GAppInfo is actually implemented by GDesktopAppInfo
 };
 
 
@@ -71,7 +71,7 @@ DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desk
 
     d->appId = appId;
     d->file = desktopFile.absoluteFilePath();
-    d->appInfo.reset(g_desktop_app_info_new_from_filename(d->file.toUtf8().constData()));
+    d->appInfo.reset((GAppInfo*) g_desktop_app_info_new_from_filename(d->file.toUtf8().constData()));
 
     if (!d->loaded()) {
         qWarning() << "Desktop file for appId:" << appId << "at:" << d->file << "does not exist, or is not valid";
@@ -102,7 +102,7 @@ QString DesktopFileReader::name() const
     Q_D(const DesktopFileReader);
     if (!d->loaded()) return QString();
 
-    return d->getKey("Name"); //QString::fromUtf8(g_app_info_get_name(d->appInfo.data()));
+    return QString::fromUtf8(g_app_info_get_name(d->appInfo.data()));
 }
 
 QString DesktopFileReader::comment() const
@@ -122,7 +122,7 @@ QString DesktopFileReader::exec() const
     Q_D(const DesktopFileReader);
     if (!d->loaded()) return QString();
 
-    return d->getKey("Exec"); // QString::fromUtf8(g_app_info_get_executable(d->appInfo.data()));
+    return QString::fromUtf8(g_app_info_get_executable(d->appInfo.data()));
 }
 
 QString DesktopFileReader::path() const
