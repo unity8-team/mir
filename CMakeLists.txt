@@ -65,7 +65,7 @@ if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
 endif()
 
 pkg_check_modules(MIRSERVER mirserver REQUIRED)
-pkg_check_modules(MIRCOMMON mircommon REQUIRED)
+#pkg_check_modules(MIRCOMMON mircommon REQUIRED)
 
 # detect if Qt compiled with GL or GLES
 include(CheckCXXSourceCompiles)
