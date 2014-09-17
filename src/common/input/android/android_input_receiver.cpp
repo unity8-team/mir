@@ -95,26 +95,16 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    nsecs_t const millisecond = 1000000LL;
-    nsecs_t const now = current_time();
-    nsecs_t const min_frame_age = 10*millisecond;
-    bool consume_batches = true;
-    if (frame_time < now - min_frame_age)
-        frame_time = now;  // idle client? Real frame time is unknown.
-    else
-        consume_batches = false;
-
     /*
-     * consume_batches lets us defer delivery of any events to the client
-     * until the last frame is at least min_frame_age (10ms) old.
-     * This ensures that the _maximum_ age of any raw input event that
-     * contributes to the final cooked event clients receive is only ~6ms.
-     * Thus clients still have time to act on the input event and make the
-     * next frame deadline, but they're acting on newer information, which
-     * reduces visible latency.
+     * If an event-driven client is idle then its frame_time will be very
+     * old. We need to boost it up to the present so that consume() won't
+     * hold back events from the client indefinitely...
      */
+    nsecs_t const min_frame_time = current_time() - 20000000LL; // 20ms ago
+    if (frame_time < min_frame_time)
+        frame_time = min_frame_time;
 
-    if (input_consumer->consume(&event_factory, consume_batches, frame_time,
+    if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {
