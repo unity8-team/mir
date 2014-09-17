@@ -28,7 +28,7 @@ namespace application
 {
 namespace sensors
 {
-class OrientationEvent : public platform::ReferenceCountedBase
+class OrientationEvent
 {
 public:
     OrientationEvent(uint64_t timestamp, float azimuth, float pitch, float roll)
@@ -37,8 +37,6 @@ public:
           pitch(pitch),
           roll(roll)
     {}
-
-    typedef ubuntu::platform::shared_ptr<OrientationEvent> Ptr;
 
     uint64_t get_timestamp()
     {
@@ -56,13 +54,11 @@ private:
     float roll;
 
 protected:
-    virtual ~OrientationEvent() {}
-
     OrientationEvent(const OrientationEvent&) = delete;
     OrientationEvent& operator=(const OrientationEvent&) = delete;
 };
 
-class AccelerometerEvent : public platform::ReferenceCountedBase
+class AccelerometerEvent
 {
 public:
     AccelerometerEvent(uint64_t timestamp, float x, float y, float z)
@@ -71,8 +67,6 @@ public:
           y(y),
           z(z)
     {}
-
-    typedef ubuntu::platform::shared_ptr<AccelerometerEvent> Ptr;
 
     uint64_t get_timestamp()
     {
@@ -90,20 +84,16 @@ private:
     float z;
 
 protected:
-    virtual ~AccelerometerEvent() {}
-
     AccelerometerEvent(const AccelerometerEvent&) = delete;
     AccelerometerEvent& operator=(const AccelerometerEvent&) = delete;
 };
 
-class ProximityEvent : public platform::ReferenceCountedBase
+class ProximityEvent
 {
 public:
     ProximityEvent(uint64_t timestamp, float distance) : timestamp(timestamp),
                                                          distance(distance)
     {}
-    
-    typedef ubuntu::platform::shared_ptr<ProximityEvent> Ptr;
 
     uint64_t get_timestamp()
     {
@@ -117,20 +107,16 @@ private:
     float distance;
 
 protected:
-    virtual ~ProximityEvent() {}
-
     ProximityEvent(const ProximityEvent&) = delete;
     ProximityEvent& operator=(const ProximityEvent&) = delete;
 };
 
-class LightEvent : public platform::ReferenceCountedBase
+class LightEvent
 {
 public:
     LightEvent(uint64_t timestamp, float light) : timestamp(timestamp),
                                                   light(light)
     {}
-    
-    typedef ubuntu::platform::shared_ptr<LightEvent> Ptr;
 
     uint64_t get_timestamp()
     {
@@ -144,8 +130,6 @@ private:
     float light;
 
 protected:
-    virtual ~LightEvent() {}
-
     LightEvent(const LightEvent&) = delete;
     LightEvent& operator=(const LightEvent&) = delete;
 };
