@@ -32,9 +32,6 @@
 // mir
 #include <mir/options/default_configuration.h>
 
-// Qt
-#include <QDebug>
-
 // egl
 #include <EGL/egl.h>
 
