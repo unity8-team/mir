@@ -38,7 +38,7 @@ b0014e8c4f44f831c9d178f995efb172417aaee4  include/platform/mir/options/configura
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 3c37cc31e8b290b89c311d82f02e07d342766451  include/platform/mir/options/program_option.h
 f4030e400baf8baa9c38e7c6ec6b4a5ad7134aeb  include/server/mir/compositor/compositor.h
-f102d38fd8afd63b636d76005f9b80f3adda0858  include/server/mir/default_server_configuration.h
+d2c13ee99e4edbeaf98c20909ed31f037d35d361  include/server/mir/default_server_configuration.h
 af1ff0714be973ac76d56006a2e5991f68cd1dec  include/server/mir/display_server.h
 65db331f1c0e956eced5c9fc73a2b2122dbc8dc7  include/server/mir/frontend/connection_creator.h
 e6e92642301fc9bb85e1d38087a5dd84e5d30fd7  include/server/mir/frontend/connections.h

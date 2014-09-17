@@ -19,6 +19,7 @@
 #include "mir_client_host_connection.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/mir_client_library_drm.h"
+#include "mir/shell/null_host_lifecycle_event_listener.h"
 
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -88,11 +89,14 @@ private:
 mgn::MirClientHostConnection::MirClientHostConnection(
     std::string const& host_socket,
     std::string const& name,
-    std::shared_ptr<msh::HostLifecycleEventListener> const& host_lifecycle_event_listener)
+    std::shared_ptr<msh::HostLifecycleEventListener> host_lifecycle_event_listener)
     : mir_connection{mir_connect_sync(host_socket.c_str(), name.c_str())},
       conf_change_callback{[]{}},
       host_lifecycle_event_listener{host_lifecycle_event_listener}
 {
+    if (!host_lifecycle_event_listener)
+        host_lifecycle_event_listener = std::make_shared<msh::NullHostLifecycleEventListener>();
+
     if (!mir_connection_is_valid(mir_connection))
     {
         std::string const msg =

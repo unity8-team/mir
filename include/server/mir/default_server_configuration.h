@@ -69,7 +69,6 @@ class InputTargeter;
 class FocusSetter;
 class FocusController;
 class DisplayLayout;
-class HostLifecycleEventListener;
 }
 namespace time
 {
@@ -252,7 +251,6 @@ public:
     virtual std::shared_ptr<shell::DisplayLayout>       the_shell_display_layout();
     virtual std::shared_ptr<scene::PromptSessionListener> the_prompt_session_listener();
     virtual std::shared_ptr<scene::PromptSessionManager>  the_prompt_session_manager();
-    virtual std::shared_ptr<shell::HostLifecycleEventListener> the_host_lifecycle_event_listener();
 
     /** @} */
 
@@ -406,7 +404,6 @@ protected:
     CachedPtr<scene::PromptSessionManager> prompt_session_manager;
     CachedPtr<scene::SessionCoordinator> session_coordinator;
     CachedPtr<EmergencyCleanup> emergency_cleanup;
-    CachedPtr<shell::HostLifecycleEventListener> host_lifecycle_event_listener;
 
 private:
     std::shared_ptr<options::Configuration> const configuration_options;

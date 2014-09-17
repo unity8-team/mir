@@ -183,10 +183,11 @@ auto mir::DefaultServerConfiguration::the_host_connection()
                 options->get<std::string>(options::name_opt) :
                 "nested-mir@:" + server_socket;
 
+            std::shared_ptr<msh::HostLifecycleEventListener> listener;
             return std::make_shared<graphics::nested::MirClientHostConnection>(
                 host_socket,
                 my_name,
-                the_host_lifecycle_event_listener());
+                listener);
         });
 }
 

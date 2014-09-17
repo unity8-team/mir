@@ -1,3 +1,4 @@
+# TODO: Bump to 26 required
 MIR_SERVER_25 {
  global:
   extern "C++" {
@@ -138,7 +139,6 @@ MIR_SERVER_25 {
     mir::DefaultServerConfiguration::the_graphics_native_platform*;
     mir::DefaultServerConfiguration::the_graphics_platform*;
     mir::DefaultServerConfiguration::the_host_connection*;
-    mir::DefaultServerConfiguration::the_host_lifecycle_event_listener*;
     mir::DefaultServerConfiguration::the_input_channel_factory*;
     mir::DefaultServerConfiguration::the_input_configuration*;
     mir::DefaultServerConfiguration::the_input_dispatcher*;
@@ -719,7 +719,6 @@ MIR_SERVER_25 {
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_graphics_native_platform*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_graphics_platform*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_host_connection*;
-    non-virtual?thunk?to?mir::DefaultServerConfiguration::the_host_lifecycle_event_listener*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_input_channel_factory*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_input_configuration*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_input_dispatcher*;

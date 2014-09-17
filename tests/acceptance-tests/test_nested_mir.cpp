@@ -143,19 +143,6 @@ struct NativePlatformAdapter : mg::NativePlatform
     std::shared_ptr<mg::Platform> const adaptee;
 };
 
-struct MockHostLifecycleEventListener : msh::HostLifecycleEventListener
-{
-    MockHostLifecycleEventListener(
-        std::shared_ptr<msh::HostLifecycleEventListener> const& wrapped) :
-        wrapped(wrapped)
-    {
-    }
-
-    MOCK_METHOD1(lifecycle_event_occurred, void (MirLifecycleState));
-
-    std::shared_ptr<msh::HostLifecycleEventListener> const wrapped;
-};
-
 struct NestedServerConfiguration : FakeCommandLine, public mir::DefaultServerConfiguration
 {
     NestedServerConfiguration(
@@ -354,50 +341,3 @@ TEST_F(NestedServer, on_exit_display_objects_should_be_destroyed)
     EXPECT_FALSE(config.my_display.lock()) << "after run_mir() exits the display should be released";
 }
 
-TEST_F(NestedServer, receives_lifecycle_events_from_host)
-{
-    struct MyServerConfiguration : NestedServerConfiguration
-    {
-        using NestedServerConfiguration::NestedServerConfiguration;
-
-        std::shared_ptr<msh::HostLifecycleEventListener> the_host_lifecycle_event_listener() override
-        {
-            return host_lifecycle_event_listener([this]()
-               -> std::shared_ptr<msh::HostLifecycleEventListener>
-               {
-                   return the_mock_host_lifecycle_event_listener();
-               });
-        }
-
-        std::shared_ptr<MockHostLifecycleEventListener> the_mock_host_lifecycle_event_listener()
-        {
-            return mock_host_lifecycle_event_listener([this]
-                {
-                    return std::make_shared<MockHostLifecycleEventListener>(
-                        NestedServerConfiguration::the_host_lifecycle_event_listener());
-                });
-        }
-
-        mir::CachedPtr<MockHostLifecycleEventListener> mock_host_lifecycle_event_listener;
-    };
-
-    MyServerConfiguration nested_config{connection_string, the_graphics_platform()};
-
-    NestedMirRunner nested_mir{nested_config};
-
-    mir::test::WaitCondition events_processed;
-
-    InSequence seq;
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
-        lifecycle_event_occurred(mir_lifecycle_state_resumed)).Times(1);
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
-        lifecycle_event_occurred(mir_lifecycle_state_will_suspend))
-        .WillOnce(WakeUp(&events_processed));
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
-        lifecycle_event_occurred(mir_lifecycle_connection_lost)).Times(AtMost(1));
-
-    trigger_lifecycle_event(mir_lifecycle_state_resumed);
-    trigger_lifecycle_event(mir_lifecycle_state_will_suspend);
-
-    events_processed.wait_for_at_most_seconds(5);
-}

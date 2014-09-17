@@ -17,9 +17,6 @@
  */
 
 #include "mir/default_server_configuration.h"
-#include "null_host_lifecycle_event_listener.h"
-
-
 #include "default_placement_strategy.h"
 #include "default_focus_mechanism.h"
 #include "graphics_display_layout.h"
@@ -61,12 +58,3 @@ mir::DefaultServerConfiguration::the_shell_display_layout()
         });
 }
 
-std::shared_ptr<msh::HostLifecycleEventListener>
-mir::DefaultServerConfiguration::the_host_lifecycle_event_listener()
-{
-    return host_lifecycle_event_listener(
-        []()
-        {
-            return std::make_shared<msh::NullHostLifecycleEventListener>();
-        });
-}

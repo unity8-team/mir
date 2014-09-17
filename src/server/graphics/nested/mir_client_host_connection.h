@@ -38,7 +38,7 @@ namespace nested
 class MirClientHostConnection : public HostConnection
 {
 public:
-    MirClientHostConnection(std::string const& host_socket, std::string const& name, std::shared_ptr<msh::HostLifecycleEventListener> const& host_lifecycle_event_listener);
+    MirClientHostConnection(std::string const& host_socket, std::string const& name, std::shared_ptr<msh::HostLifecycleEventListener> host_lifecycle_event_listener);
     ~MirClientHostConnection();
 
     std::vector<int> platform_fd_items() override;
@@ -54,7 +54,7 @@ public:
 private:
     MirConnection* const mir_connection;
     std::function<void()> conf_change_callback;
-    std::shared_ptr<msh::HostLifecycleEventListener> const host_lifecycle_event_listener;
+    std::shared_ptr<msh::HostLifecycleEventListener> host_lifecycle_event_listener;
 };
 
 }
