@@ -105,4 +105,4 @@ include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)
 
 set(QPA_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/qt5/plugins/platforms")
-install(FILES "${CMAKE_BINARY_DIR}/src/platforms/mirserver/libqpa-mirserver.so" DESTINATION "${QPA_INSTALL_DIR}")
+install(TARGETS qpa-mirserver DESTINATION "${QPA_INSTALL_DIR}")
