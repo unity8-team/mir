@@ -37,6 +37,9 @@ public:
     bool stopApplicationWithAppId(const QString& appId) override;
     bool startApplicationWithAppIdAndArgs(const QString& appId, const QStringList& arguments) override;
 
+    bool pauseApplicationWithAppId(const QString& appId) override;
+    bool resumeApplicationWithAppId(const QString& appId) override;
+
     QFileInfo findDesktopFileForAppId(const QString &appId) const override;
 
 private:
