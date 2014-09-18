@@ -41,7 +41,7 @@ endif
 
 override_dh_auto_build:
 ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
-	dh_auto_build -B$(ANDROID_DIR) -DUSE_OPENGLES=1
+	dh_auto_build -B$(ANDROID_DIR)
 endif
 	dh_auto_build -B$(DESKTOP_DIR)
 
