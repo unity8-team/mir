@@ -228,3 +228,5 @@ QFileInfo ApplicationController::findDesktopFileForAppId(const QString &appId) c
 
 } // namespace upstart
 } // namespace qtmir
+
+//#include "applicationcontroller.moc"

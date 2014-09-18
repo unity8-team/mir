@@ -147,5 +147,4 @@ enable_testing()
 
 # add subdirectories to build
 add_subdirectory(src)
-#add_subdirectory(demos)
-
+add_subdirectory(tests)

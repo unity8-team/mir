@@ -19,7 +19,7 @@
 #include <condition_variable>
 #include <QSignalSpy>
 
-#include <applicationscreenshotprovider.h>
+#include <Unity/Application/applicationscreenshotprovider.h>
 
  #include "mock_surface.h"
  #include "qtmir_test.h"

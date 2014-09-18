@@ -1,0 +1,5 @@
+add_subdirectory(ApplicationManager)
+add_subdirectory(General)
+add_subdirectory(MirSurfaceItem)
+add_subdirectory(SessionManager)
+add_subdirectory(TaskController)
