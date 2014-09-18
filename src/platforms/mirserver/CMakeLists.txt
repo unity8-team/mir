@@ -1,28 +1,17 @@
-#find_package(Qt5Gui)
-#find_package(Qt5PlatformSupport)
-#include_directories(${Qt5Gui_PRIVATE_INCLUDE_DIRS})
-#include_directories(${Qt5PlatformSupport_PRIVATE_INCLUDE_DIRS})
-
-pkg_check_modules(URL_DISPATCHER url-dispatcher-1)
-pkg_check_modules(PROTOBUF protobuf)
-pkg_check_modules(EGL egl)
-pkg_check_modules(GIO gio-2.0)
-pkg_check_modules(LTTNG lttng-ust)
-
+# Qt5PlatformSupport is not available as a cmake module.
 pkg_check_modules(QT5PLATFORM_SUPPORT Qt5PlatformSupport REQUIRED)
 
 find_package(Qt5Gui)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fPIC")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fPIC")
 
-# TODO The private QtPlatformSupport include dirs are not made available via
+# Dirty hack: The private QtPlatformSupport include dirs are not made available via
 # a cmake module or the pkgconfig file (which only exposes the necessary linker flags)
 # So we generate the paths ourselves from the Qt5Gui private dirs!
 set(QT5_SECRET_INCLUDE_DIRS)
 foreach(item ${Qt5Gui_PRIVATE_INCLUDE_DIRS})
-  set(newitem "FOO")
+  set(newitem "")
    string(REGEX REPLACE "QtGui" "QtPlatformSupport" newitem ${item})
-  message("item ${item} newitem ${newitem}")
    list(APPEND QT5_SECRET_INCLUDE_DIRS ${newitem})
 endforeach(item ${Qt5Gui_PRIVATE_INCLUDE_DIRS})
 
@@ -94,8 +83,9 @@ target_link_libraries(
     ${LTTNG_LIBRARIES}
     
     ${QT5PLATFORM_SUPPORT_LDFLAGS}
-    # TODO Qt5Platform support LDFLAGS dont provide much...
-    -lfreetype # TODO ?
+    # TODO Qt5Platform support LDFLAGS dont provide actual required ldflags...
+    # I found these were needed...perhaps there is some way to query qmake/qconfig?
+    -lfreetype 
     ${GIO_LDFLAGS}
 
     -lboost_system

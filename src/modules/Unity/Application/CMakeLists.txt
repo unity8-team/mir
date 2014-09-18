@@ -1,22 +1,4 @@
-# TODO Cflags?
-# export_qmlplugin macro
-include(Plugins)
-
-find_package(Qt5Core)
-find_package(Qt5Gui)
-find_package(Qt5Qml)
-find_package(Qt5Quick)
-
-pkg_check_modules(LTTNG lttng-ust)
-
-#pkg_check_modules(APPLICATION_API REQUIRED unity-shell-application=2)
-
-pkg_check_modules(GLIB glib-2.0 REQUIRED)
-pkg_check_modules(PROCESS_CPP process-cpp REQUIRED)
-pkg_check_modules(UBUNTU_APP_LAUNCH ubuntu-app-launch-2 REQUIRED)
-
 add_definitions(-DQT_PLUGIN)
-
 add_definitions(-DQT_NO_KEYWORDS)
 
 include_directories(
@@ -30,13 +12,12 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/common
 
     ${LTTNG_INCLUDE_DIRS}
-
     ${Qt5Gui_PRIVATE_INCLUDE_DIRS}
     ${Qt5Qml_PRIVATE_INCLUDE_DIRS}
     ${Qt5Quick_PRIVATE_INCLUDE_DIRS}
 )
 
-# We have to remove -pedantic for tracepoints.c
+# We have to remove -pedantic in order to compile tracepoints.c
 string (REPLACE " -pedantic " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 add_definitions(-DBYTE_ORDER=__BYTE_ORDER)
 
@@ -58,17 +39,16 @@ set(QMLMIRPLUGIN_SRC
     session.cpp
     sessionmanager.cpp
     upstart/applicationcontroller.cpp
-        # Dirty hacks.
+# Dirty hacks copied from the .pro file.
     /usr/include/unity/shell/application/ApplicationInfoInterface.h
     /usr/include/unity/shell/application/ApplicationManagerInterface.h
     tracepoints.c
-#    session_interface.moc
 # Hacks to feed the automoc monster
-session_interface.h
-applicationcontroller.h
+    session_interface.h
+    applicationcontroller.h
     )
 
-# TODO: Module?
+# TODO: Should this be module?
 add_library(unityapplicationplugin SHARED
     ${QMLMIRPLUGIN_SRC}
 )
@@ -90,17 +70,11 @@ target_link_libraries(
     ${LTTNG_LDFLAGS}
 
     ${GL_LIBRARIES}
-#    ${CMAKE_BINARY_DIR}/src/platforms/mirserver/libmirserver.so
+
     qpa-mirserver
 )
 
-#target_link_libraries(unityapplicationplugin ${GSETTINGS_QT_LDFLAGS})
-
-#qt5_use_modules(unityapplicationplugin DBus Qml)
-
-# export the qmldir and qmltypes files
-#export_qmlfiles(Unity Unity)
-#export_qmlplugin(Unity 0.1 Unity TARGETS unityapplicationplugin)
+qt5_use_modules(unityapplicationplugin DBus Qml)
 
 # Generate tracepoints.c and .h from tracepoints.tp
 include(UseLttngGenTp)

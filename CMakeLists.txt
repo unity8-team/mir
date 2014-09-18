@@ -67,6 +67,16 @@ endif()
 pkg_check_modules(MIRSERVER mirserver REQUIRED)
 #pkg_check_modules(MIRCOMMON mircommon REQUIRED)
 
+pkg_check_modules(GLIB glib-2.0 REQUIRED)
+pkg_check_modules(PROCESS_CPP process-cpp REQUIRED)
+pkg_check_modules(UBUNTU_APP_LAUNCH ubuntu-app-launch-2 REQUIRED)
+pkg_check_modules(URL_DISPATCHER url-dispatcher-1)
+pkg_check_modules(PROTOBUF protobuf)
+pkg_check_modules(EGL egl)
+pkg_check_modules(GIO gio-2.0)
+pkg_check_modules(LTTNG lttng-ust)
+
+
 # detect if Qt compiled with GL or GLES
 include(CheckCXXSourceCompiles)
 check_cxx_source_compiles("
