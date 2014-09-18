@@ -112,36 +112,13 @@ QFileInfo TaskController::findDesktopFileForAppId(const QString &appId) const
 bool TaskController::suspend(const QString& appId)
 {
     qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << appId;
-    pid_t pid = m_appController->primaryPidForAppId(appId);
-    m_processController->oomController()->ensureProcessLikelyToBeKilled(pid);
-
-    if (pid) {
-        // We do assume that the app was launched by ubuntu-app-launch and with that,
-        // in its own process group. For that, we interpret the pid as pgid and
-        // sigstop the complete process group on suspend.
-        return m_processController->sigStopProcessGroupForPid(pid);
-    } else {
-        return false;
-    }
+    return m_appController->pauseApplicationWithAppId(appId);
 }
 
 bool TaskController::resume(const QString& appId)
 {
     qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << appId;
-    pid_t pid = m_appController->primaryPidForAppId(appId);
-
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
-
-    if (pid) {
-        // We do assume that the app was launched by ubuntu-app-launch and with that,
-        // in its own process group. For that, we interpret the pid as pgid and
-        // sigcont the complete process group on resume.
-        return m_processController->sigContinueProcessGroupForPid(pid);
-        return true;
-    } else {
-        qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - couldn't find PID to resume for appId=" << appId;
-        return false;
-    }
+    return m_appController->resumeApplicationWithAppId(appId);
 }
 
 void TaskController::onApplicationStarted(const QString& id)
