@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2013-2014 Canonical, Ltd.
+/* * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -23,7 +22,6 @@
 
 #include "application.h"
 #include "applicationcontroller.h"
-#include "processcontroller.h"
 
 namespace qtmir
 {
@@ -34,8 +32,7 @@ class TaskController : public QObject
 public:
     TaskController(
             QObject *parent,
-            const QSharedPointer<ApplicationController> &appController,
-            const QSharedPointer<ProcessController> &processController = QSharedPointer<ProcessController>(new ProcessController()));
+            const QSharedPointer<ApplicationController> &appController);
     ~TaskController();
 
     bool start(const QString &appId, const QStringList &args);
@@ -62,7 +59,6 @@ private Q_SLOTS:
 
 private:
     const QSharedPointer<ApplicationController> m_appController;
-    const QSharedPointer<ProcessController> m_processController;
 };
 
 } // namespace qtmir
