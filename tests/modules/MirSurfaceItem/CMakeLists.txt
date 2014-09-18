@@ -26,6 +26,8 @@ target_link_libraries(
   qpa-mirserver
   unityapplicationplugin
 
+  Qt5::Test
+
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_BOTH_LIBRARIES}
 )
