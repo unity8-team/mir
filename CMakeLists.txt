@@ -78,29 +78,29 @@ pkg_check_modules(LTTNG lttng-ust)
 
 
 # detect if Qt compiled with GL or GLES
-include(CheckCXXSourceCompiles)
-check_cxx_source_compiles("
+#include(CheckCXXSourceCompiles)
+#check_cxx_source_compiles("
 #include <QtCore/QtGlobal>
 #if !defined(QT_OPENGL_ES)
 #error \"No OpenGLES\"
 #endif
-int main() {}
-" USE_OPENGLES)
+#int main() {}
+#" USE_OPENGLES)
 
-if (USE_OPENGLES)
-    message(STATUS "Qt5 determined to be compiled with GLES support")
-    find_package(GLESv2 REQUIRED)
-    add_definitions(-DQT_USING_GLES)
-    include_directories (${GLESv2_INCLUDE_DIRS})
-    set (GL_LIBRARIES "${GLESv2_LIBRARIES}")
-
-else()
-    message(STATUS "Qt5 determined to be compiled with OpenGL support")
-    find_package(OpenGL REQUIRED)
-    add_definitions(-DQT_USING_OPENGL)
-    include_directories (${OpenGL_INCLUDE_DIRS})
-    set (GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
-endif()
+#if (USE_OPENGLES)
+#    message(STATUS "Qt5 determined to be compiled with GLES support")
+#    find_package(GLESv2 REQUIRED)
+#    add_definitions(-DQT_USING_GLES)
+#    include_directories (${GLESv2_INCLUDE_DIRS})
+#    set (GL_LIBRARIES "${GLESv2_LIBRARIES}")
+#
+#else()
+#    message(STATUS "Qt5 determined to be compiled with OpenGL support")
+#    find_package(OpenGL REQUIRED)
+#    add_definitions(-DQT_USING_OPENGL)
+#    include_directories (${OpenGL_INCLUDE_DIRS})
+#    set (GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
+#endif()
 
 # Standard install paths
 include(GNUInstallDirs)
