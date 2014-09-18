@@ -108,7 +108,7 @@ QString DesktopFileReader::name() const
 QString DesktopFileReader::comment() const
 {
     Q_D(const DesktopFileReader);
-    return d->getKey("Comment");
+    return QString::fromUtf8(g_app_info_get_description(d->appInfo.data()));
 }
 
 QString DesktopFileReader::icon() const
