@@ -104,5 +104,4 @@ target_link_libraries(
 include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)
 
-set(QPA_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/qt5/plugins/platforms")
-#install(TARGETS qpa-mirserver DESTINATION "${QPA_INSTALL_DIR}")
+install(TARGETS qpa-mirserver LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/qt5/plugins/platforms")

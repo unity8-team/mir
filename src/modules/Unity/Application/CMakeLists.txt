@@ -106,6 +106,6 @@ target_link_libraries(
 include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)
 
-set(QML_MODULE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/qt5/qml")
+set(QML_MODULE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/qt5/qml")
 install(FILES "qmldir" DESTINATION "${QML_MODULE_INSTALL_DIR}/Unity/Application")
-install(FILES "${CMAKE_BINARY_DIR}/src/modules/Unity/Application/libunityapplicationplugin.so" DESTINATION "${QML_MODULE_INSTALL_DIR}/Unity/Application")
+install(TARGETS unityapplicationplugin LIBRARY DESTINATION "${QML_MODULE_INSTALL_DIR}/Unity/Application")
