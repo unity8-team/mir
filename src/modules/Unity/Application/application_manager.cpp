@@ -439,24 +439,30 @@ Application *ApplicationManager::startApplication(const QString &inputAppId, Exe
         return nullptr;
     }
 
-    application = new Application(
-                m_taskController,
-                m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
-                Application::Starting,
-                arguments,
-                this);
+    // The TaskController may synchroneously callback onProcessStarting, so check if application already added
+    application = findApplication(appId);
+    if (application) {
+        application->setArguments(arguments);
+    } else {
+        application = new Application(
+                    m_taskController,
+                    m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
+                    Application::Starting,
+                    arguments,
+                    this);
 
-    if (!application->isValid()) {
-        qWarning() << "Unable to instantiate application with appId" << appId;
-        return nullptr;
+        if (!application->isValid()) {
+            qWarning() << "Unable to instantiate application with appId" << appId;
+            return nullptr;
+        }
+
+        // override stage if necessary
+        if (application->stage() == Application::SideStage && flags.testFlag(ApplicationManager::ForceMainStage)) {
+            application->setStage(Application::MainStage);
+        }
+
+        add(application);
     }
-
-    // override stage if necessary
-    if (application->stage() == Application::SideStage && flags.testFlag(ApplicationManager::ForceMainStage)) {
-        application->setStage(Application::MainStage);
-    }
-
-    add(application);
     return application;
 }
 
