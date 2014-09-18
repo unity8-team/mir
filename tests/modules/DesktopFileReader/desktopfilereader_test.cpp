@@ -21,16 +21,25 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QLocale>
 #include <QtGlobal>
 #include <QString>
 
 using namespace qtmir;
 
+namespace {
+    static void setLocale(const char *locale)
+    {
+        qputenv("LANGUAGE", locale);
+        qputenv("LC_ALL", locale); // set these for GIO
+        QLocale::setDefault(QString(locale)); // set for Qt
+    }
+}
+
 TEST(DesktopFileReader, testReadsDesktopFile)
 {
     using namespace ::testing;
-    qputenv("LANGUAGE", "C");
-    qputenv("LC_ALL", "C");
+    setLocale("C");
 
     QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
@@ -55,8 +64,7 @@ TEST(DesktopFileReader, testReadsDesktopFile)
 TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
 {
     using namespace ::testing;
-    qputenv("LANGUAGE", "de");
-    qputenv("LC_ALL", "de");
+    setLocale("de");
 
     QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
@@ -81,8 +89,7 @@ TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
 TEST(DesktopFileReader, testMissingDesktopFile)
 {
     using namespace ::testing;
-    qputenv("LANGUAGE", "C");
-    qputenv("LC_ALL", "C");
+    setLocale("C");
 
     QFileInfo fileInfo(QDir::currentPath() + "/missing.desktop");
     DesktopFileReader::Factory readerFactory;
@@ -102,4 +109,20 @@ TEST(DesktopFileReader, testMissingDesktopFile)
     EXPECT_EQ(reader->splashImage(), "");
     EXPECT_EQ(reader->splashShowHeader(), "");
     EXPECT_EQ(reader->splashTitle(), "");
+}
+
+TEST(DesktopFileReader, testUTF8Characters)
+{
+    using namespace ::testing;
+    setLocale("zh_CN");
+
+    QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
+    DesktopFileReader::Factory readerFactory;
+    DesktopFileReader *reader = readerFactory.createInstance("calculator", fileInfo);
+
+    EXPECT_EQ(reader->loaded(), true);
+    EXPECT_EQ(reader->appId(), "calculator");
+    EXPECT_EQ(reader->name(), "计算器");
+    EXPECT_EQ(reader->comment(), "Ubuntu 简易计算器");
+    EXPECT_EQ(reader->splashTitle(), "计算器 2.0");
 }
