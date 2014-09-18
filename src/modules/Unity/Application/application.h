@@ -21,7 +21,6 @@
 #include <memory>
 
 //Qt
-#include <QColor>
 #include <QtCore/QtCore>
 #include <QImage>
 #include <QSharedPointer>
@@ -83,12 +82,12 @@ public:
     Stage stage() const override;
     State state() const override;
     bool focused() const override;
-    QString splashTitle() const;
-    QUrl splashImage() const;
-    bool splashShowHeader() const;
-    QColor splashColor() const;
-    QColor splashColorHeader() const;
-    QColor splashColorFooter() const;
+    QString splashTitle() const override;
+    QUrl splashImage() const override;
+    bool splashShowHeader() const override;
+    QColor splashColor() const override;
+    QColor splashColorHeader() const override;
+    QColor splashColorFooter() const override;
 
     void setStage(Stage stage);
     void setState(State state);
