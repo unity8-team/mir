@@ -122,7 +122,7 @@ QString DesktopFileReader::exec() const
     Q_D(const DesktopFileReader);
     if (!d->loaded()) return QString();
 
-    return QString::fromUtf8(g_app_info_get_executable(d->appInfo.data()));
+    return QString::fromUtf8(g_app_info_get_commandline(d->appInfo.data()));
 }
 
 QString DesktopFileReader::path() const
