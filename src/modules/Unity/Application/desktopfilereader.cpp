@@ -109,6 +109,8 @@ QString DesktopFileReader::name() const
 QString DesktopFileReader::comment() const
 {
     Q_D(const DesktopFileReader);
+    if (!d->loaded()) return QString();
+
     return QString::fromUtf8(g_app_info_get_description(d->appInfo.data()));
 }
 
@@ -141,6 +143,8 @@ QString DesktopFileReader::stageHint() const
 QString DesktopFileReader::splashTitle() const
 {
     Q_D(const DesktopFileReader);
+    if (!d->loaded()) return QString();
+
     /* Sadly GDesktopAppInfo only considers Name, GenericName, Comments and Keywords to be keys
      * which can have locale-specific entries. So we need to work to make X-Ubuntu-Splash-Title
      * locale-aware, but generating a locale-correct key name and seeing if that exists. If yes,
