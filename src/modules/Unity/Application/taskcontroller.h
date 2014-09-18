@@ -55,7 +55,6 @@ Q_SIGNALS:
     void requestResume(const QString &appId);
 
 private Q_SLOTS:
-    void onApplicationStarted(const QString &id);
     void onApplicationFocusRequest(const QString &id);
     void onApplicationResumeRequest(const QString &id);
 

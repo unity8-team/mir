@@ -26,8 +26,6 @@
 // Process C++
 #include <core/posix/process.h>
 #include <core/posix/this_process.h>
-#include <core/posix/linux/proc/process/oom_adj.h>
-#include <core/posix/linux/proc/process/oom_score_adj.h>
 
 // STL
 #include <mutex>
@@ -51,11 +49,6 @@ TaskController::TaskController(
             &ApplicationController::applicationAboutToBeStarted,
             this,
             &TaskController::processStarting);
-
-    connect(m_appController.data(),
-            &ApplicationController::applicationStarted,
-            this,
-            &TaskController::onApplicationStarted);
 
     connect(m_appController.data(),
             &ApplicationController::applicationStopped,
@@ -121,16 +114,8 @@ bool TaskController::resume(const QString& appId)
     return m_appController->resumeApplicationWithAppId(appId);
 }
 
-void TaskController::onApplicationStarted(const QString& id)
-{
-    pid_t pid = m_appController->primaryPidForAppId(id);
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
-}
-
 void TaskController::onApplicationFocusRequest(const QString& id)
 {
-    pid_t pid = m_appController->primaryPidForAppId(id);
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
     Q_EMIT requestFocus(id);
 }
 
