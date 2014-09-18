@@ -87,7 +87,7 @@ pkg_check_modules(LTTNG lttng-ust)
 #int main() {}
 #" USE_OPENGLES)
 
-if (USE_OPENGLES)
+if ("${USE_OPENGLES}" STREQUAL 1)
     message(STATUS "Qt5 determined to be compiled with GLES support")
     find_package(GLESv2 REQUIRED)
     add_definitions(-DQT_USING_GLES)
