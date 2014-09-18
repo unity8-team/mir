@@ -2,7 +2,7 @@ qtmir-gles (0.4.3+14.10.20140918-0ubuntu1) UNRELEASED; urgency=medium
 
   * Sync with upstream
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Tue, 17 Sep 2014 11:01:08 +0200
+ -- Michael Zanetti <michael.zanetti@canonical.com>  Tue, 18 Sep 2014 11:01:08 +0200
 
 qtmir-gles (0.4.3+14.10.20140915-0ubuntu1) utopic; urgency=medium
 
