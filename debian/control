@@ -35,7 +35,7 @@ Build-Depends: debhelper (>= 9),
                qtdeclarative5-private-dev,
 # Needed to build qtmir-desktop on armhf
                libgl1-mesa-dev,
-               libglesv2-mesa-dev
+               libgles2-mesa-dev
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/qtmir
 # if you don't have have commit access to this branch but would like to upload
