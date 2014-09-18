@@ -29,8 +29,8 @@ using namespace qtmir;
 TEST(DesktopFileReader, testReadsDesktopFile)
 {
     using namespace ::testing;
-
-    qputenv("LANG", "C");
+    qputenv("LANGUAGE", "C");
+    qputenv("LC_ALL", "C");
 
     QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
@@ -56,6 +56,7 @@ TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
 {
     using namespace ::testing;
     qputenv("LANGUAGE", "de");
+    qputenv("LC_ALL", "de");
 
     QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
@@ -80,6 +81,8 @@ TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
 TEST(DesktopFileReader, testMissingDesktopFile)
 {
     using namespace ::testing;
+    qputenv("LANGUAGE", "C");
+    qputenv("LC_ALL", "C");
 
     QFileInfo fileInfo(QDir::currentPath() + "/missing.desktop");
     DesktopFileReader::Factory readerFactory;
