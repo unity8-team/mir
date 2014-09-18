@@ -41,8 +41,8 @@ public:
     bool start(const QString &appId, const QStringList &args);
     bool stop(const QString &appId);
 
-    bool suspend(Application* app);
-    bool resume(Application* app);
+    bool suspend(const Application* app);
+    bool resume(const Application* app);
 
     bool appIdHasProcessId(const QString &appId, const quint64 pid) const;
     QFileInfo findDesktopFileForAppId(const QString &appId) const;

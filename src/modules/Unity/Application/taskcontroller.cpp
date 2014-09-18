@@ -109,7 +109,7 @@ QFileInfo TaskController::findDesktopFileForAppId(const QString &appId) const
     return m_appController->findDesktopFileForAppId(appId);
 }
 
-bool TaskController::suspend(Application* app)
+bool TaskController::suspend(const Application* app)
 {
     qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << app->appId();
     pid_t pid = m_appController->primaryPidForAppId(app->appId());
@@ -128,7 +128,7 @@ bool TaskController::suspend(Application* app)
     }
 }
 
-bool TaskController::resume(Application* app)
+bool TaskController::resume(const Application* app)
 {
     qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << app->appId();
     pid_t pid = m_appController->primaryPidForAppId(app->appId());

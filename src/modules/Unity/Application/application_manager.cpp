@@ -196,6 +196,7 @@ ApplicationManager::ApplicationManager(
     , m_desktopFileReaderFactory(desktopFileReaderFactory)
     , m_procInfo(procInfo)
     , m_suspended(false)
+    , m_dashActive(false)
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::ApplicationManager (this=%p)" << this;
     setObjectName("qtmir::ApplicationManager");
@@ -320,6 +321,35 @@ void ApplicationManager::setSuspended(bool suspended)
     }
 }
 
+bool ApplicationManager::dashActive() const
+{
+    return m_dashActive;
+}
+
+void ApplicationManager::setDashActive(bool dashActive)
+{
+    if (m_dashActive == dashActive) {
+        return;
+    }
+
+    m_dashActive = dashActive;
+    Q_EMIT dashActiveChanged();
+
+    Application *dashApp = findApplication("unity8-dash");
+    if (!dashApp) {
+        qWarning() << "Dash doesn't seem to be running... Ignoring.";
+        return;
+    }
+
+    if (m_dashActive && dashApp->state() != Application::Running) {
+         resumeApplication(dashApp);
+    } else if (!m_dashActive && dashApp->state() == Application::Running
+            && m_mainStageApplication != dashApp
+            && m_sideStageApplication != dashApp) {
+        suspendApplication(dashApp);
+    }
+}
+
 bool ApplicationManager::suspendApplication(Application *application)
 {
     if (application == nullptr)
@@ -329,6 +359,10 @@ bool ApplicationManager::suspendApplication(Application *application)
     // Present in exceptions list, return.
     if (!m_lifecycleExceptions.filter(application->appId().section('_',0,0)).empty())
         return false;
+
+    if (m_dashActive && application->appId() == "unity8-dash") {
+        return false;
+    }
 
     if (application->state() == Application::Running)
         application->setState(Application::Suspended);
