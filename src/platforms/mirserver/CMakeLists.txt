@@ -4,6 +4,7 @@ pkg_check_modules(QT5PLATFORM_SUPPORT Qt5PlatformSupport REQUIRED)
 find_package(Qt5Gui)
 
 # Hacks for the QPA privates monster.
+pkg_check_modules(FONTCONFIG fontconfig REQUIRED)
 add_definitions(-DQ_FONTCONFIGDATABASE)
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fPIC")
@@ -90,6 +91,7 @@ target_link_libraries(
     # I found these were needed...perhaps there is some way to query qmake/qconfig?
     -lfreetype 
     ${GIO_LDFLAGS}
+    ${FONTCONFIG_LDFLAGS}
 
     -lboost_system
 )
