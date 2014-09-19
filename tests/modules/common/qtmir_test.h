@@ -32,8 +32,6 @@
 
 #include "mock_application_controller.h"
 #include "mock_desktop_file_reader.h"
-#include "mock_oom_controller.h"
-#include "mock_process_controller.h"
 #include "mock_proc_info.h"
 #include "mock_mir_session.h"
 #include "mock_focus_controller.h"
@@ -80,12 +78,7 @@ class QtMirTest : public ::testing::Test
 {
 public:
     QtMirTest()
-        : processController{
-            QSharedPointer<ProcessController::OomController> (
-                &oomController,
-                [](ProcessController::OomController*){})
-        }
-        , mirConfig{
+        : mirConfig{
             QSharedPointer<FakeMirServerConfiguration> (new FakeMirServerConfiguration)
         }
         , taskController{
@@ -94,10 +87,7 @@ public:
                       nullptr,
                       QSharedPointer<ApplicationController>(
                           &appController,
-                          [](ApplicationController*){}),
-                      QSharedPointer<ProcessController>(
-                          &processController,
-                          [](ProcessController*){})
+                          [](ApplicationController*){})
                   )
               )
         }
@@ -150,8 +140,6 @@ public:
         return nullptr;
     }
 
-    testing::NiceMock<testing::MockOomController> oomController;
-    testing::NiceMock<testing::MockProcessController> processController;
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;

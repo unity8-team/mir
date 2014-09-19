@@ -34,6 +34,8 @@ struct MockApplicationController : public qtmir::ApplicationController
 
     MOCK_METHOD1(stopApplicationWithAppId, bool(const QString&));
     MOCK_METHOD2(startApplicationWithAppIdAndArgs, bool(const QString&, const QStringList&));
+    MOCK_METHOD1(pauseApplicationWithAppId, bool(const QString&));
+    MOCK_METHOD1(resumeApplicationWithAppId, bool(const QString&));
 
     MockApplicationController()
     {
@@ -57,6 +59,14 @@ struct MockApplicationController : public qtmir::ApplicationController
         ON_CALL(*this, startApplicationWithAppIdAndArgs(_, _))
                 .WillByDefault(
                     Invoke(this, &MockApplicationController::doStartApplicationWithAppIdAndArgs));
+
+        ON_CALL(*this, pauseApplicationWithAppId(_))
+                .WillByDefault(
+                    Invoke(this, &MockApplicationController::doPauseApplicationWithAppId));
+
+        ON_CALL(*this, resumeApplicationWithAppId(_))
+                .WillByDefault(
+                    Invoke(this, &MockApplicationController::doResumeApplicationWithAppId));
     }
 
     pid_t doPrimaryPidForAppId(const QString& appId)
@@ -106,6 +116,20 @@ struct MockApplicationController : public qtmir::ApplicationController
             children.insert(appId, child);
             return true;
         }
+
+        return false;
+    }
+
+    bool doPauseApplicationWithAppId(const QString& appId)
+    {
+        (void) appId;
+
+        return false;
+    }
+
+    bool doResumeApplicationWithAppId(const QString& appId)
+    {
+        (void) appId;
 
         return false;
     }

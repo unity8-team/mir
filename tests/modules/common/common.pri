@@ -7,7 +7,6 @@ HEADERS += ../common/mock_application_controller.h \
     ../common/mock_desktop_file_reader.h \
     ../common/mock_focus_controller.h \
     ../common/mock_mir_session.h \
-    ../common/mock_oom_controller.h \
     ../common/mock_process_controller.h \
     ../common/mock_proc_info.h \
     ../common/mock_prompt_session.h \
