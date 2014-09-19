@@ -3,6 +3,9 @@ pkg_check_modules(QT5PLATFORM_SUPPORT Qt5PlatformSupport REQUIRED)
 
 find_package(Qt5Gui)
 
+# Hacks for the QPA privates monster.
+add_definitions(-DQ_FONTCONFIGDATABASE)
+
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fPIC")
 
 # Dirty hack: The private QtPlatformSupport include dirs are not made available via
