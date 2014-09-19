@@ -203,8 +203,10 @@ TEST(ServerPlatformProbe, IgnoresNonPlatformModules)
     auto modules = available_platforms();
     add_dummy_platform(modules);
 
+    // NOTE: We want to load something that doesn't link with libmirplatform,
+    // due to protobuf throwing a screaming hissy fit if it gets loaded twice.
     modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() +
-                                                           "/libmirclient.so"));
+                                                           "/client-platform-dummy.so"));
 
 
     auto module = mir::graphics::module_for_device(modules);
