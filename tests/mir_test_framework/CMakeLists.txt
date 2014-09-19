@@ -69,7 +69,7 @@ target_link_libraries(
   mirclientplatformstub
 
   mir-test-framework
-  ${UMOCKDEV_LIBRARIES}
+  ${UMOCKDEV_LDFLAGS} ${UMOCKDEV_LIBRARIES}
 )
 
 set_target_properties(
