@@ -1,3 +1,19 @@
+qtmir (0.4.3+14.10.20140918.3-0ubuntu1) utopic; urgency=low
+
+  [ Gerry Boland ]
+  * TaskController may call processStarted synchronously, so check for
+    that in startApplication before adding (LP: #1371047)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 18 Sep 2014 16:57:48 +0000
+
+qtmir (0.4.3+14.10.20140918.1-0ubuntu1) utopic; urgency=low
+
+  [ Gerry Boland ]
+  * Fix unstable test - be more careful about synchronizing the Qt image
+    provider and Mir snapshot threads
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 18 Sep 2014 09:38:52 +0000
+
 qtmir (0.4.3+14.10.20140915-0ubuntu1) utopic; urgency=low
 
   [ Daniel d'Andrada ]
