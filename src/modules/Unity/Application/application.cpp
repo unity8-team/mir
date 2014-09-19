@@ -162,6 +162,11 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
+void Application::setArguments(const QStringList arguments)
+{
+    m_arguments = arguments;
+}
+
 void Application::setSession(Session *newSession)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << newSession;
@@ -183,9 +188,9 @@ void Application::setSession(Session *newSession)
         m_session->setApplication(this);
         m_session->setState(state());
 
-        connect(m_session, &Session::suspended, this, &Application::onSessionSuspended);
-        connect(m_session, &Session::resumed, this, &Application::onSessionResumed);
-        connect(m_session, &Session::fullscreenChanged, this, &Application::fullscreenChanged);
+        connect(m_session, &SessionInterface::suspended, this, &Application::onSessionSuspended);
+        connect(m_session, &SessionInterface::resumed, this, &Application::onSessionResumed);
+        connect(m_session, &SessionInterface::fullscreenChanged, this, &Application::fullscreenChanged);
 
         if (oldFullscreen != fullscreen())
             Q_EMIT fullscreenChanged(fullscreen());

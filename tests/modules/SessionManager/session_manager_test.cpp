@@ -24,6 +24,7 @@
  #include "qtmir_test.h"
 
 using namespace qtmir;
+using mir::scene::MockSession;
 
 namespace ms = mir::scene;
 
@@ -33,7 +34,7 @@ public:
     SessionManagerTests()
     {}
 
-    QList<std::shared_ptr<ms::PromptSession>> listPromptSessions(Session* session) {
+    QList<std::shared_ptr<ms::PromptSession>> listPromptSessions(SessionInterface* session) {
         QList<std::shared_ptr<ms::PromptSession>> promptSessions;
         session->foreachPromptSession([&promptSessions](const std::shared_ptr<ms::PromptSession>& promptSession) {
             promptSessions << promptSession;
@@ -41,9 +42,9 @@ public:
         return promptSessions;
     }
 
-    QList<Session*> listChildSessions(Session* session) {
-        QList<Session*> sessions;
-        session->foreachChildSession([&sessions](Session* session) {
+    QList<SessionInterface*> listChildSessions(SessionInterface* session) {
+        QList<SessionInterface*> sessions;
+        session->foreachChildSession([&sessions](SessionInterface* session) {
             sessions << session;
         });
         return sessions;
@@ -56,10 +57,10 @@ TEST_F(SessionManagerTests, sessionTracksPromptSession)
 
     std::shared_ptr<ms::Session> mirAppSession = std::make_shared<MockSession>("mirAppSession", __LINE__);
     sessionManager.onSessionStarting(mirAppSession);
-    Session* qtmirAppSession = sessionManager.findSession(mirAppSession.get());
+    SessionInterface* qtmirAppSession = sessionManager.findSession(mirAppSession.get());
     EXPECT_TRUE(qtmirAppSession != nullptr);
 
-    auto promptSession = std::make_shared<MockPromptSession>();
+    auto promptSession = std::make_shared<ms::MockPromptSession>();
     ON_CALL(*mirConfig->the_mock_prompt_session_manager(), application_for(_)).WillByDefault(Return(mirAppSession));
 
     sessionManager.onPromptSessionStarting(promptSession);
@@ -80,18 +81,18 @@ TEST_F(SessionManagerTests, TestPromptSession)
 
     std::shared_ptr<ms::Session> mirAppSession = std::make_shared<MockSession>("mirAppSession", __LINE__);
     sessionManager.onSessionStarting(mirAppSession);
-    Session* qtmirAppSession = sessionManager.findSession(mirAppSession.get());
+    SessionInterface* qtmirAppSession = sessionManager.findSession(mirAppSession.get());
     EXPECT_TRUE(qtmirAppSession != nullptr);
 
     EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), application_for(_)).WillRepeatedly(Return(mirAppSession));
     EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), helper_for(_)).WillRepeatedly(Return(nullptr));
 
-    std::shared_ptr<ms::PromptSession> mirPromptSession = std::make_shared<MockPromptSession>();
+    std::shared_ptr<ms::PromptSession> mirPromptSession = std::make_shared<ms::MockPromptSession>();
 
     // prompt provider session
     std::shared_ptr<ms::Session> mirProviderSession = std::make_shared<MockSession>("mirProviderSession", __LINE__);
     sessionManager.onSessionStarting(mirProviderSession);
-    Session* qtmirProviderSession = sessionManager.findSession(mirProviderSession.get());
+    SessionInterface* qtmirProviderSession = sessionManager.findSession(mirProviderSession.get());
 
     EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), for_each_provider_in(mirPromptSession,_)).WillRepeatedly(WithArgs<1>(Invoke(
         [&](std::function<void(std::shared_ptr<ms::Session> const& prompt_provider)> const& f) {

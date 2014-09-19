@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = ApplicationManager General SessionManager TaskController
+SUBDIRS = ApplicationManager General MirSurfaceItem SessionManager TaskController

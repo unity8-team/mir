@@ -115,6 +115,7 @@ private Q_SLOTS:
 private:
     QString longAppId() const;
     void setPid(pid_t pid);
+    void setArguments(const QStringList arguments);
     void setFocused(bool focus);
     void setSession(Session *session);
 
