@@ -117,7 +117,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_ui_set_clipboard_content@Base 0.18.1daily13.06.21
  ua_ui_window_destroy@Base 0.18.1daily13.06.21
  ua_ui_window_get_native_type@Base 0.18.1daily13.06.21
- ua_ui_window_get_orientation@Base 0replaceme
+ ua_ui_window_get_orientation@Base 2.4.0+14.10.20140922.1
  ua_ui_window_get_size@Base 2.0.0+14.10.20140612
  ua_ui_window_hide@Base 0.18.1daily13.06.21
  ua_ui_window_is_focused@Base 2.2.0+14.10.20140728
