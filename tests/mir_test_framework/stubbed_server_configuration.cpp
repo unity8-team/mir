@@ -21,6 +21,7 @@
 
 #include "mir/options/default_configuration.h"
 #include "mir/graphics/buffer_ipc_packer.h"
+#include "mir/graphics/buffer_writer.h"
 #include "mir/graphics/cursor.h"
 #include "mir/input/input_channel.h"
 #include "mir/input/input_manager.h"
@@ -43,6 +44,7 @@
 #include "src/server/input/null_input_dispatcher.h"
 #include "src/server/input/null_input_targeter.h"
 
+#include <system_error>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
@@ -72,7 +74,7 @@ public:
         if (fd < 0)
             BOOST_THROW_EXCEPTION(
                 boost::enable_error_info(
-                    std::runtime_error("Failed to open dummy fd")) << boost::errinfo_errno(errno));
+                    std::system_error(errno, std::system_category(), "Failed to open dummy fd")));
     }
 
     std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override
@@ -178,6 +180,18 @@ public:
         std::shared_ptr<mg::GLConfig> const&) override
     {
         return std::make_shared<mtd::StubDisplay>(display_rects);
+    }
+    
+    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
+    {
+        struct NullWriter : mg::BufferWriter 
+        {
+            void write(mg::Buffer& /* buffer */, 
+                unsigned char const* /* data */, size_t /* size */) override
+            {
+            }
+        };
+        return std::make_shared<NullWriter>();
     }
     
     std::vector<geom::Rectangle> const display_rects;
