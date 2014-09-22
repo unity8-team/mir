@@ -67,8 +67,15 @@ public:
 }
 
 mclr::StreamSocketTransport::StreamSocketTransport(int fd)
-    : socket_fd{fd}
+    : socket_fd{fd},
+      epoll_fd{epoll_create1(EPOLL_CLOEXEC)}
 {
+    if (epoll_fd < 0)
+    {
+        BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                 std::system_category(),
+                                                 "Failed to create epoll monitor for IO"}));
+    }
     init();
 }
 
@@ -86,6 +93,7 @@ mclr::StreamSocketTransport::~StreamSocketTransport()
         io_service_thread.join();
     }
     close(shutdown_fd);
+    close(epoll_fd);
 }
 
 void mclr::StreamSocketTransport::register_observer(std::shared_ptr<Observer> const& observer)
@@ -285,7 +293,7 @@ void mclr::StreamSocketTransport::send_data(const std::vector<uint8_t>& buffer)
 
 int mclr::StreamSocketTransport::watch_fd() const
 {
-    return epoll_create(EPOLL_CLOEXEC);
+    return epoll_fd;
 }
 
 void mclr::StreamSocketTransport::init()
@@ -309,8 +317,6 @@ void mclr::StreamSocketTransport::init()
                     std::runtime_error("Failed to block signals on IO thread")) << boost::errinfo_errno(error));
 
         mir::set_thread_name("Client IO loop");
-
-        int epoll_fd = epoll_create1(0);
 
         epoll_event event;
         // Make valgrind happy, harder
@@ -392,7 +398,6 @@ void mclr::StreamSocketTransport::init()
         }
         ::close(shutdown_fd);
         ::close(socket_fd);
-        ::close(epoll_fd);
     });
 }
 

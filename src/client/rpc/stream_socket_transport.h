@@ -54,6 +54,7 @@ private:
 
     std::thread io_service_thread;
     int const socket_fd;
+    int const epoll_fd;
     int shutdown_fd;
 
     std::mutex observer_mutex;
