@@ -76,16 +76,7 @@ pkg_check_modules(GIO gio-2.0)
 pkg_check_modules(LTTNG lttng-ust)
 
 
-# detect if Qt compiled with GL or GLES
-#include(CheckCXXSourceCompiles)
-#check_cxx_source_compiles("
-#include <QtCore/QtGlobal>
-#if !defined(QT_OPENGL_ES)
-#error \"No OpenGLES\"
-#endif
-#int main() {}
-#" USE_OPENGLES)
-
+# We expect this to be set via debian/rules for GLES builds
 if ("${USE_OPENGLES}" STREQUAL 1)
     message(STATUS "Qt5 determined to be compiled with GLES support")
     find_package(GLESv2 REQUIRED)
@@ -147,7 +138,7 @@ endif()
 
 
 # Mir uses boost, which does not like Qt defining macros named "signals" and "slots"
-#add_definitions(-DQT_NO_KEYWORDS)
+add_definitions(-DQT_NO_KEYWORDS)
 
 # Tests
 include(CTest)
