@@ -82,6 +82,12 @@ public:
     Stage stage() const override;
     State state() const override;
     bool focused() const override;
+    QString splashTitle() const override;
+    QUrl splashImage() const override;
+    bool splashShowHeader() const override;
+    QColor splashColor() const override;
+    QColor splashColorHeader() const override;
+    QColor splashColorFooter() const override;
 
     void setStage(Stage stage);
     void setState(State state);
@@ -119,6 +125,7 @@ private:
     void setArguments(const QStringList arguments);
     void setFocused(bool focus);
     void setSession(Session *session);
+    QColor colorFromString(const QString &colorString, const char *colorName) const;
 
     QSharedPointer<TaskController> m_taskController;
     DesktopFileReader* m_desktopData;
