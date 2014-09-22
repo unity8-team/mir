@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -13,7 +13,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Authors: Gerry Boland <gerry.boland@canonical.com>
+ *          Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 
 #include "mirserverintegration.h"
@@ -47,6 +48,7 @@
 #include <csignal>
 
 // local
+#include "clipboard.h"
 #include "display.h"
 #include "displaywindow.h"
 #include "miropenglcontext.h"
@@ -56,6 +58,7 @@
 #include "ubuntutheme.h"
 
 namespace mg = mir::graphics;
+using qtmir::Clipboard;
 
 MirServerIntegration::MirServerIntegration()
     : m_accessibility(new QPlatformAccessibility())
@@ -67,6 +70,7 @@ MirServerIntegration::MirServerIntegration()
     , m_display(nullptr)
     , m_mirServer(nullptr)
     , m_nativeInterface(nullptr)
+    , m_clipboard(new Clipboard)
 {
     // Start Mir server only once Qt has initialized its event dispatcher, see initialize()
 
@@ -174,6 +178,8 @@ void MirServerIntegration::initialize()
         qDebug() << "Signal caught by Mir, stopping Mir server..";
         QCoreApplication::quit();
     });
+
+    m_clipboard->setupDBusService();
 }
 
 QPlatformAccessibility *MirServerIntegration::accessibility() const
@@ -205,4 +211,9 @@ QPlatformServices *MirServerIntegration::services() const
 QPlatformNativeInterface *MirServerIntegration::nativeInterface() const
 {
     return m_nativeInterface;
+}
+
+QPlatformClipboard *MirServerIntegration::clipboard() const
+{
+    return m_clipboard.data();
 }

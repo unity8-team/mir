@@ -25,6 +25,7 @@ LIBS += -lboost_system
 
 SOURCES += \
     ../../common/debughelpers.cpp \
+    clipboard.cpp \
     focussetter.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
@@ -49,6 +50,7 @@ SOURCES += \
 
 HEADERS += \
     ../../common/debughelpers.h \
+    clipboard.h \
     focussetter.h \
     qteventfeeder.h \
     plugin.h \
