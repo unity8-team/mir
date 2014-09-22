@@ -285,7 +285,7 @@ void mclr::StreamSocketTransport::send_data(const std::vector<uint8_t>& buffer)
 
 int mclr::StreamSocketTransport::watch_fd() const
 {
-    return 65;
+    return epoll_create(EPOLL_CLOEXEC);
 }
 
 void mclr::StreamSocketTransport::init()
