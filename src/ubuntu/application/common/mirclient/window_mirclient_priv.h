@@ -59,6 +59,8 @@ public:
     void show();
     void request_fullscreen();
 
+    void set_state(const UApplicationUiWindowState);
+
     void get_size(uint32_t *width, uint32_t *height);
 
     void process_event(const WindowEvent &ev);
@@ -76,7 +78,6 @@ protected:
     Window& operator=(Window const&) = delete;
 
 private:
-    void set_state(const UApplicationUiWindowState);
 
     Instance& instance;
 

@@ -25,6 +25,7 @@
 #include <ubuntu/status.h>
 #include <ubuntu/application/instance.h>
 #include <ubuntu/application/ui/window_properties.h>
+#include <ubuntu/application/ui/window_state.h>
 
 #include <EGL/egl.h>
 
@@ -77,6 +78,7 @@ extern "C" {
     ua_ui_window_show(
     	UAUiWindow *window);
 
+    // Deprecated. Prefer ua_ui_window_set_state.
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_fullscreen(
         UAUiWindow *window);
@@ -88,6 +90,9 @@ extern "C" {
     UBUNTU_DLL_PUBLIC int
     ua_ui_window_is_focused(
         UAUiWindow *window);
+    
+    UBUNTU_DLL_PUBLIC void
+    ua_ui_window_request_state(UAUiWindow *window, UApplicationUiWindowState state);
 
 #ifdef __cplusplus
 }

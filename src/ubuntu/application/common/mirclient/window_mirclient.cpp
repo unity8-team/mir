@@ -156,9 +156,34 @@ UApplicationUiWindowState uamc::Window::state() const
     return static_cast<UApplicationUiWindowState>(mir_surface_get_state(surface.get()));
 }
 
+namespace
+{
+MirSurfaceState u_state_to_mir_state(UApplicationUiWindowState state)
+{
+    switch (state)
+    {
+    case U_UNKNOWN_STATE:
+        // TODO: Logging?
+    case U_RESTORED_STATE:
+        return mir_surface_state_restored;
+    case U_MINIMIZED_STATE:
+        return mir_surface_state_minimized;
+    case U_MAXIMIZED_STATE:
+        return mir_surface_state_maximized;
+    case U_VERTMAXIMIZED_STATE:
+        return mir_surface_state_vertmaximized;
+    case U_FULLSCREEN_STATE:
+        return mir_surface_state_fullscreen;
+    default:
+// TODO: How do we report errors in this context?
+        return mir_surface_state_restored;
+    }
+}
+}
+
 void uamc::Window::set_state(const UApplicationUiWindowState state)
 {
-    mir_surface_set_state(surface.get(), static_cast<MirSurfaceState>(state));
+    mir_surface_set_state(surface.get(), u_state_to_mir_state(state));
 }
 
 void uamc::Window::get_size(uint32_t *width, uint32_t *height)
