@@ -147,7 +147,7 @@ QString DesktopFileReader::splashTitle() const
 
     /* Sadly GDesktopAppInfo only considers Name, GenericName, Comments and Keywords to be keys
      * which can have locale-specific entries. So we need to work to make X-Ubuntu-Splash-Title
-     * locale-aware, buy generating a locale-correct key name and seeing if that exists. If yes,
+     * locale-aware, by generating a locale-correct key name and seeing if that exists. If yes,
      * get the value and return it. Else fallback to the non-localized value.
      */
     GDesktopAppInfo *info = (GDesktopAppInfo*)d->appInfo.data();
@@ -156,7 +156,7 @@ QString DesktopFileReader::splashTitle() const
 
     QString keyTemplate("X-Ubuntu-Splash-Title[%1]");
     for (QString locale: locales) {
-        // Desktop files use local specifiers with underscore separaters but Qt uses hyphens
+        // Desktop files use local specifiers with underscore separators but Qt uses hyphens
         locale = locale.replace('-', '_');
         const char* key = keyTemplate.arg(locale).toUtf8().constData();
         if (g_desktop_app_info_has_key(info, key)) {
