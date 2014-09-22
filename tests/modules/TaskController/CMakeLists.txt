@@ -26,3 +26,5 @@ target_link_libraries(
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_BOTH_LIBRARIES}
 )
+
+add_test(TaskController, taskcontroller_test)

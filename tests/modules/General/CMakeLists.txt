@@ -28,3 +28,5 @@ target_link_libraries(
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_BOTH_LIBRARIES}
 )
+
+add_test(General general_test)
