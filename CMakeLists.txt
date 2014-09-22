@@ -65,7 +65,6 @@ if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
 endif()
 
 pkg_check_modules(MIRSERVER mirserver REQUIRED)
-#pkg_check_modules(MIRCOMMON mircommon REQUIRED)
 
 pkg_check_modules(GLIB glib-2.0 REQUIRED)
 pkg_check_modules(PROCESS_CPP process-cpp REQUIRED)
