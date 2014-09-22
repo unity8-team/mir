@@ -67,7 +67,6 @@ struct DesktopFileReaderPrivate
 DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desktopFile)
     : d_ptr(new DesktopFileReaderPrivate(this))
 {
-    qCDebug(QTMIR_APPLICATIONS) << "DesktopFileReader::DesktopFileReader - this=" << this << "appId=" << appId;
     Q_D(DesktopFileReader);
 
     d->appId = appId;
@@ -82,7 +81,6 @@ DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desk
 DesktopFileReader::~DesktopFileReader()
 {
     Q_D(const DesktopFileReader);
-    qCDebug(QTMIR_APPLICATIONS) << "DesktopFileReader::~DesktopFileReader - this=" << this << "appId=" << d->appId;
     delete d_ptr;
 }
 
