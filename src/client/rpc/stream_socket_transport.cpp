@@ -66,7 +66,7 @@ public:
 };
 }
 
-mclr::StreamSocketTransport::StreamSocketTransport(int fd)
+mclr::StreamSocketTransport::StreamSocketTransport(Fd const& fd)
     : socket_fd{fd},
       epoll_fd{epoll_create1(EPOLL_CLOEXEC)}
 {
@@ -92,8 +92,6 @@ mclr::StreamSocketTransport::~StreamSocketTransport()
     {
         io_service_thread.join();
     }
-    close(shutdown_fd);
-    close(epoll_fd);
 }
 
 void mclr::StreamSocketTransport::register_observer(std::shared_ptr<Observer> const& observer)
@@ -291,7 +289,7 @@ void mclr::StreamSocketTransport::send_data(const std::vector<uint8_t>& buffer)
     }
 }
 
-int mclr::StreamSocketTransport::watch_fd() const
+mir::Fd mclr::StreamSocketTransport::watch_fd() const
 {
     return epoll_fd;
 }
@@ -308,9 +306,9 @@ void mclr::StreamSocketTransport::init()
     // EPIPE behaviour; we don't want SIGPIPE when the IO loop terminates.
     int socket_fds[2];
     socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds);
-    this->shutdown_fd = socket_fds[1];
+    this->shutdown_fd = mir::Fd{socket_fds[1]};
 
-    auto shutdown_fd = socket_fds[0];
+    auto shutdown_fd = mir::Fd{socket_fds[0]};
     io_service_thread = std::thread([this, shutdown_fd]
     {
         // Our IO threads must not receive any signals
@@ -402,12 +400,10 @@ void mclr::StreamSocketTransport::init()
                 shutdown_requested = true;
             }
         }
-        ::close(shutdown_fd);
-        ::close(socket_fd);
     });
 }
 
-int mclr::StreamSocketTransport::open_socket(std::string const& path)
+mir::Fd mclr::StreamSocketTransport::open_socket(std::string const& path)
 {
     struct sockaddr_un socket_address;
     // Appease the almighty valgrind
@@ -417,7 +413,7 @@ int mclr::StreamSocketTransport::open_socket(std::string const& path)
     // Must be memcpy rather than strcpy, as abstract socket paths start with '\0'
     memcpy(socket_address.sun_path, path.data(), path.size());
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    mir::Fd fd{socket(AF_UNIX, SOCK_STREAM, 0)};
     if (connect(fd, reinterpret_cast<sockaddr*>(&socket_address), sizeof(socket_address)) < 0)
     {
         BOOST_THROW_EXCEPTION(

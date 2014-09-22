@@ -18,6 +18,7 @@
 
 #include "src/client/rpc/stream_transport.h"
 #include "src/client/rpc/stream_socket_transport.h"
+#include "mir/fd.h"
 
 #include "mir_test/auto_unblock_thread.h"
 #include "mir_test/signal.h"
@@ -65,9 +66,9 @@ public:
             throw std::system_error(errno, std::system_category());
         }
 
-        test_fd = socket_fds[0];
-        transport_fd = socket_fds[1];
-        transport = std::make_shared<TransportMechanism>(socket_fds[1]);
+        test_fd = mir::Fd{socket_fds[0]};
+        transport_fd = mir::Fd{socket_fds[1]};
+        transport = std::make_shared<TransportMechanism>(transport_fd);
     }
 
     virtual ~StreamTransportTest()
@@ -76,8 +77,8 @@ public:
         close(test_fd);
     }
 
-    int transport_fd;
-    int test_fd;
+    mir::Fd transport_fd;
+    mir::Fd test_fd;
     std::shared_ptr<TransportMechanism> transport;
 };
 
