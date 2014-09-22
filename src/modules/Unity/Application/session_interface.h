@@ -38,7 +38,6 @@ namespace qtmir {
 class MirSurfaceItem;
 
 class SessionInterface : public QObject {
-public:
     Q_OBJECT
     Q_PROPERTY(MirSurfaceItem* surface READ surface NOTIFY surfaceChanged)
     Q_PROPERTY(unity::shell::application::ApplicationInfoInterface* application READ application NOTIFY applicationChanged DESIGNABLE false)
@@ -102,5 +101,6 @@ protected:
 };
 
 } // namespace qtmir
+
 
 #endif // SESSION_INTERFACE_H

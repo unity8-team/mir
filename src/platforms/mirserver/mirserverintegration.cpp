@@ -18,10 +18,9 @@
 
 #include "mirserverintegration.h"
 
-// TODO: What to do about this?
-#include <5.3.0/QtPlatformSupport/private/qgenericunixfontdatabase_p.h>
-#include <5.3.0/QtPlatformSupport/private/qgenericunixeventdispatcher_p.h>
-#include <5.3.0/QtPlatformSupport/private/qgenericunixservices_p.h>
+#include <QtPlatformSupport/private/qgenericunixfontdatabase_p.h>
+#include <QtPlatformSupport/private/qgenericunixeventdispatcher_p.h>
+#include <QtPlatformSupport/private/qgenericunixservices_p.h>
 
 #include <qpa/qplatformwindow.h>
 #include <qpa/qplatformaccessibility.h>
