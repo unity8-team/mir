@@ -74,7 +74,8 @@ DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desk
     d->appInfo.reset((GAppInfo*) g_desktop_app_info_new_from_filename(d->file.toUtf8().constData()));
 
     if (!d->loaded()) {
-        qWarning() << "Desktop file for appId:" << appId << "at:" << d->file << "does not exist, or is not valid";
+        qCWarning(QTMIR_APPLICATIONS) << "Desktop file for appId:" << appId << "at:" << d->file
+                                      << "does not exist, or is not valid";
     }
 }
 
