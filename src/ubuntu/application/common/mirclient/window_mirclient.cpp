@@ -169,6 +169,19 @@ void uamc::Window::get_size(uint32_t *width, uint32_t *height)
     *height = parameters.height;
 }
 
+UApplicationUiWindowOrientation uamc::Window::orientation() const
+{
+    UApplicationUiWindowOrientation ubuntu_orientation;
+    MirOrientation mir_orientation = mir_surface_get_orientation(surface.get());
+
+    if (uaum::orientation_to_ubuntu_orientation(mir_orientation, ubuntu_orientation)) {
+        return ubuntu_orientation;
+    } else {
+        printf("Unknown MirOrientation!\n");
+        return U_ORIENTATION_NORMAL;
+    }
+}
+
 void uamc::Window::hide()
 {
     state_before_hiding = state();

@@ -85,6 +85,13 @@ uaum::event_to_ubuntu_event(MirEvent const* mir_event, WindowEvent& ubuntu_ev)
         } else {
             return false;
         }
+    case mir_event_type_orientation:
+        ubuntu_ev.surface.type = ORIENTATION_WEVENT_TYPE;
+        if (orientation_to_ubuntu_orientation(mir_event->orientation.direction, ubuntu_ev.orientation.direction)) {
+            return true;
+        } else {
+            return false;
+        }
     default:
         return false;
     }
@@ -139,6 +146,27 @@ uaum::event_to_ubuntu_deprecated_event(MirEvent const* mir_event, Event& ubuntu_
             ubuntu_ev.details.motion.pointer_coordinates[i].pressure = mir_event->motion.pointer_coordinates[i].pressure;
             ubuntu_ev.details.motion.pointer_coordinates[i].orientation = mir_event->motion.pointer_coordinates[i].orientation;
         }
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool uaum::orientation_to_ubuntu_orientation(MirOrientation const mir_orient,
+                                             UApplicationUiWindowOrientation& ubuntu_orient)
+{
+    switch (mir_orient) {
+    case mir_orientation_normal:
+        ubuntu_orient = U_ORIENTATION_NORMAL;
+        return true;
+    case mir_orientation_left:
+        ubuntu_orient = U_ORIENTATION_LEFT;
+        return true;
+    case mir_orientation_inverted:
+        ubuntu_orient = U_ORIENTATION_INVERTED;
+        return true;
+    case mir_orientation_right:
+        ubuntu_orient = U_ORIENTATION_RIGHT;
         return true;
     default:
         return false;
