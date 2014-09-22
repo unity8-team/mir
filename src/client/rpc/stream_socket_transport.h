@@ -45,6 +45,7 @@ public:
     void send_data(const std::vector<uint8_t> &buffer) override;
 
     int watch_fd() const override;
+    bool dispatch() override;
 
 private:
     void init();
