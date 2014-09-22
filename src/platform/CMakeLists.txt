@@ -1,9 +1,9 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
-  ${PROJECT_SOURCE_DIR}/include.private/platform
+  ${PROJECT_SOURCE_DIR}/src/include/platform
 )
 
-set(MIRPLATFORM_ABI 2)
+set(MIRPLATFORM_ABI 3)
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
