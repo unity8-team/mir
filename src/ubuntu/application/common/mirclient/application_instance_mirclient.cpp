@@ -22,10 +22,8 @@ namespace uamc = ubuntu::application::mir::client;
 
 uamc::Instance::Instance()
     : con(nullptr),
-      ref_count(1),
-      rpc_waiting_reply(false)
+      ref_count(1)
 {
-    
 }
 
 UApplicationInstance* uamc::Instance::as_u_application_instance()

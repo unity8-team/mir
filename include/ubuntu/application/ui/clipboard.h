@@ -26,6 +26,9 @@
 extern "C" {
 #endif
 
+    /*
+        FIXME: See ua_ui_get_clipboard_content
+    */
     UBUNTU_DLL_PUBLIC void
     ua_ui_set_clipboard_content(
         void* data,
@@ -36,6 +39,11 @@ extern "C" {
         Caller is expected to not attempt to modify or delete it.
         It's also not guaranteed to remain valid after any other call is made
         to the Ubuntu Application API.
+
+        FIXME:
+        This API is bad as the user has no idea what kind of data the clipboard
+        contains. It should provide a mapping between mime types (as plain ascii strings)
+        and their respective data so the user is able to interpret the contents properly.
     */
     UBUNTU_DLL_PUBLIC void
     ua_ui_get_clipboard_content(
