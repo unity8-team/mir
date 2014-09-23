@@ -171,7 +171,7 @@ void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_reques
     }
 }
 
-void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_requested, std::vector<int>& fds)
+void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_requested, std::vector<mir::Fd>& fds)
 {
     if (bytes_requested == 0)
     {
@@ -246,8 +246,14 @@ void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_reques
             int const* const data = reinterpret_cast<int const*>CMSG_DATA(cmsg);
             ptrdiff_t const header_size = reinterpret_cast<char const*>(data) - reinterpret_cast<char const*>(cmsg);
             int const nfds = (cmsg->cmsg_len - header_size) / sizeof(int);
+
+            // We can't properly pass mir::Fds through google::protobuf::Message,
+            // which is where these get shoved.
+            //
+            // When we have our own RPC generator plugin and aren't using deprecated
+            // Protobuf features this can go away.
             for (int i = 0; i < nfds; i++)
-                fds[fds_read + i] = data[i];
+                fds[fds_read + i] = mir::Fd{mir::IntOwnedFd{data[i]}};
 
             fds_read += nfds;
         }
