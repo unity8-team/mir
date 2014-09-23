@@ -59,9 +59,9 @@ protected:
     WindowManager& operator=(const WindowManager&) = delete;
 
 private:
-    std::shared_ptr<shell::FocusController> focus_controller;
-    std::shared_ptr<graphics::Display> display;
-    std::shared_ptr<compositor::Compositor> compositor;
+    std::weak_ptr<shell::FocusController> weak_focus_controller;
+    std::weak_ptr<graphics::Display> weak_display;
+    std::weak_ptr<compositor::Compositor> weak_compositor;
 
     geometry::Point click;
     geometry::Point old_pos;

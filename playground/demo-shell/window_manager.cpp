@@ -49,17 +49,17 @@ me::WindowManager::WindowManager()
 
 void me::WindowManager::set_focus_controller(std::shared_ptr<msh::FocusController> const& controller)
 {
-    focus_controller = controller;
+    weak_focus_controller = controller;
 }
 
 void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
 {
-    display = dpy;
+    weak_display = dpy;
 }
 
 void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
-    compositor = cptor;
+    weak_compositor = cptor;
 }
 
 namespace
@@ -118,9 +118,9 @@ bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
     static bool display_off = false;
-    assert(focus_controller);
-    assert(display);
-    assert(compositor);
+    auto const focus_controller = weak_focus_controller.lock();
+    auto const display = weak_display.lock();
+    auto const compositor = weak_compositor.lock();
 
     bool handled = false;
     static int const ANDROID_KEYCODE_POWER = 26;
