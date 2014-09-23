@@ -22,6 +22,9 @@ include_directories(
 # TODO: Aim to remove
 include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
 
+# Umockdev uses glib, which uses the deprecated "register" allocation specifier
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
+
 set(
   UNIT_TEST_SOURCES
 
@@ -65,6 +68,8 @@ add_executable(mir_unit_tests
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
+
+mir_precompiled_header(mir_unit_tests ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.hpp)
 
 add_dependencies(mir_unit_tests GMock)
 
@@ -115,9 +120,6 @@ target_link_libraries(mir_unit_tests
   ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
-
-# Umockdev uses glib, which uses the deprecated "register" allocation specifier
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
 
 CMAKE_DEPENDENT_OPTION(
   MIR_RUN_UNIT_TESTS
