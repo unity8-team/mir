@@ -188,7 +188,10 @@ bool fillInMirEvent(MirEvent &mirEvent,
         pointer.orientation = 0.;
         pointer.vscroll = 0.;
         pointer.hscroll = 0.;
-        pointer.tool_type = mir_motion_tool_type_unknown;
+        if (touchPoint.flags() & QTouchEvent::TouchPoint::Pen)
+            pointer.tool_type = mir_motion_tool_type_stylus;
+        else
+            pointer.tool_type = mir_motion_tool_type_finger;
     }
 
     return true;
