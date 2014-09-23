@@ -34,6 +34,11 @@ public:
     void setContents(QByteArray contents);
     const QByteArray &contents() const { return m_contents; }
 
+    static const int maxContentsSize = 4 * 1024 * 1024;  // 4 Mb
+
+    // To make it testable
+    static bool skipDBusRegistration;
+
 Q_SIGNALS:
     Q_SCRIPTABLE void ContentsChanged(const QByteArray &contents);
     void contentsChangedRemotely();
@@ -44,6 +49,7 @@ public Q_SLOTS:
 
 private:
     void performDBusRegistration();
+    bool setContentsHelper(QByteArray newContents);
 
     // Contains a serialized QMimeData
     // Serialization and deserialization is done by the QPlatformClipboard

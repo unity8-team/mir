@@ -46,7 +46,6 @@ Q_LOGGING_CATEGORY(QTMIR_CLIPBOARD, "qtmir.clipboard")
 namespace {
 
 const int maxFormatsCount = 16;
-const int maxBufferSize = 4 * 1024 * 1024;  // 4 Mb
 
 }
 
@@ -61,9 +60,6 @@ QByteArray serializeMimeData(QMimeData *mimeData)
 
     for (int i = 0; i < formatCount; i++)
         bufferSize += formats[i].size() + mimeData->data(formats[i]).size();
-    // FIXME(loicm) Implement max buffer size limitation.
-    // FIXME(loicm) Remove ASSERT before release.
-    Q_ASSERT(bufferSize <= maxBufferSize);
 
     // Serialize data.
     QByteArray serializedMimeData(bufferSize, 0 /* char to fill with */);
@@ -125,28 +121,45 @@ QMimeData *deserializeMimeData(const QByteArray &serializedMimeData)
 
 /************************************ DBusClipboard *****************************************/
 
+bool DBusClipboard::skipDBusRegistration = false;
+
 DBusClipboard::DBusClipboard(QObject *parent)
     : QObject(parent)
 {
-    performDBusRegistration();
+    if (!skipDBusRegistration) {
+        performDBusRegistration();
+    }
 }
 
 void DBusClipboard::setContents(QByteArray newContents)
 {
-    if (newContents != m_contents) {
-        m_contents = std::move(newContents);
-        Q_EMIT ContentsChanged(m_contents);
-    }
+    setContentsHelper(std::move(newContents));
 }
 
 void DBusClipboard::SetContents(QByteArray newContents)
 {
     qCDebug(QTMIR_CLIPBOARD, "D-Bus SetContents - %d bytes", newContents.size());
 
+    if (setContentsHelper(std::move(newContents))) {
+        Q_EMIT contentsChangedRemotely();
+    }
+}
+
+bool DBusClipboard::setContentsHelper(QByteArray newContents)
+{
+    if (newContents.size() > maxContentsSize) {
+        qCWarning(QTMIR_CLIPBOARD, "D-Bus clipboard refused the new contents (%d bytes) as they're"
+                " bigger than the maximum allowed size of %d bytes.",
+                newContents.size(), maxContentsSize);
+        return false;
+    }
+
     if (newContents != m_contents) {
         m_contents = std::move(newContents);
         Q_EMIT ContentsChanged(m_contents);
-        Q_EMIT contentsChangedRemotely();
+        return true;
+    } else {
+        return false;
     }
 }
 

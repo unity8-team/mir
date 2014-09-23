@@ -19,6 +19,7 @@
 
 #include <clipboard.h>
 
+#include <QLoggingCategory>
 #include <QMimeData>
 
 using namespace qtmir;
@@ -45,4 +46,31 @@ TEST(ClipboardTest, MimeDataSerialization)
 
     delete mimeData;
     delete deserializedMimeData;
+}
+
+TEST(ClipboardTest, RefuseContentsThatAreTooBig)
+{
+    QLoggingCategory::setFilterRules(QStringLiteral("*=false"));
+    DBusClipboard::skipDBusRegistration = true;
+    DBusClipboard *dbusClipboard = new DBusClipboard;
+
+    // Was getting a "warning: overflow in implicit constant conversion [-Woverflow]"
+    // when I used that constant directly in the QByteArray constructors below. Don't
+    // understand why so here's the workaround for it.
+    int maxContentsSize = DBusClipboard::maxContentsSize;
+
+    QByteArray reasonableContents(maxContentsSize * 0.9, 'R');
+    QByteArray tooBigContents(maxContentsSize * 1.2, 'B');
+
+    dbusClipboard->SetContents(reasonableContents);
+
+    ASSERT_EQ(dbusClipboard->contents(), reasonableContents);
+
+    dbusClipboard->SetContents(tooBigContents);
+
+    // tooBigContents were refused. So it stays with the previously
+    // set contents
+    ASSERT_EQ(dbusClipboard->contents(), reasonableContents);
+
+    delete dbusClipboard;
 }
