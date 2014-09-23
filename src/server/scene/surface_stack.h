@@ -24,7 +24,7 @@
 #include "mir/compositor/scene.h"
 #include "mir/scene/depth_id.h"
 #include "mir/scene/observer.h"
-#include "mir/input/scene.h"
+#include "mir/input/input_targets.h"
 
 #include "mir/basic_observers.h"
 
@@ -36,10 +36,6 @@
 
 namespace mir
 {
-namespace graphics
-{
-class Renderable;
-}
 /// Management of Surface objects. Includes the model (SurfaceStack and Surface
 /// classes) and controller (SurfaceController) elements of an MVC design.
 namespace scene
@@ -56,7 +52,6 @@ public:
    void surface_added(Surface* surface) override;
    void surface_removed(Surface* surface) override;
    void surfaces_reordered() override;
-   void scene_changed() override;
    void surface_exists(Surface* surface) override;
    void end_observation();
 
@@ -64,7 +59,7 @@ public:
    using BasicObservers<Observer>::remove;
 };
 
-class SurfaceStack : public compositor::Scene, public input::Scene, public SurfaceStackModel
+class SurfaceStack : public compositor::Scene, public input::InputTargets, public SurfaceStackModel
 {
 public:
     explicit SurfaceStack(
@@ -76,7 +71,7 @@ public:
     void register_compositor(compositor::CompositorID id) override;
     void unregister_compositor(compositor::CompositorID id) override;
 
-    // From Scene
+    // From InputTargets
     void for_each(std::function<void(std::shared_ptr<input::Surface> const&)> const& callback);
 
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) override;
@@ -90,12 +85,6 @@ public:
     
     void add_observer(std::shared_ptr<Observer> const& observer) override;
     void remove_observer(std::weak_ptr<Observer> const& observer) override;
-    
-    // Intended for input overlays, as described in mir::input::Scene documentation.
-    void add_input_visualization(std::shared_ptr<graphics::Renderable> const& overlay);
-    void remove_input_visualization(std::weak_ptr<graphics::Renderable> const& overlay);
-    
-    void emit_scene_changed() override;
 
 private:
     SurfaceStack(const SurfaceStack&) = delete;
@@ -112,8 +101,6 @@ private:
     std::map<DepthId, Layer> layers_by_depth;
     std::map<Surface*,std::shared_ptr<RenderingTracker>> rendering_trackers;
     std::set<compositor::CompositorID> registered_compositors;
-    
-    std::vector<std::shared_ptr<graphics::Renderable>> overlays;
 
     Observers observers;
 };

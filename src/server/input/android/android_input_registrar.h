@@ -73,7 +73,6 @@ private:
         void surface_added(scene::Surface* surface) override;
         void surface_removed(scene::Surface* surface) override;
         void surface_exists(scene::Surface* surface) override;
-        void scene_changed() override;
 
         SurfaceCallback add, remove;
     };

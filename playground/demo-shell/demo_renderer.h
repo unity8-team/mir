@@ -21,8 +21,6 @@
 
 #include "mir/compositor/gl_renderer.h"
 
-#include <unordered_set>
-
 namespace mir
 {
 namespace examples
@@ -39,9 +37,7 @@ public:
         float const shadow_radius);
     ~DemoRenderer();
 
-    void begin() const override { GLRenderer::begin(); }
-    void begin(std::unordered_set<graphics::Renderable::ID> renderables_not_to_decorate) const;
-    
+    void begin() const override;
     void tessellate(
         std::vector<graphics::GLPrimitive>& primitives,
         graphics::Renderable const& renderable) const override;
@@ -63,8 +59,6 @@ private:
     float const corner_radius;
     GLuint shadow_corner_tex;
     GLuint titlebar_corner_tex;
-    
-    mutable std::unordered_set<graphics::Renderable::ID> decoration_skip_list;
 };
 
 } // namespace examples

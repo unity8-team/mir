@@ -33,12 +33,6 @@ struct StubTouchVisualizer : public input::TouchVisualizer
     void visualize_touches(std::vector<Spot> const&) override
     {
     }
-    void enable() override
-    {
-    }
-    void disable() override
-    {
-    }
 };
 
 }

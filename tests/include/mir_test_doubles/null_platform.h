@@ -35,7 +35,7 @@ class NullPlatform : public graphics::Platform
     std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator(
             const std::shared_ptr<graphics::BufferInitializer>& /*buffer_initializer*/)
     {
-        return nullptr;
+        return std::shared_ptr<graphics::GraphicBufferAllocator>();
     }
 
     std::shared_ptr<graphics::Display> create_display(
@@ -53,12 +53,7 @@ class NullPlatform : public graphics::Platform
 
     std::shared_ptr<graphics::InternalClient> create_internal_client()
     {
-        return nullptr;
-    }
-    
-    std::shared_ptr<graphics::BufferWriter> make_buffer_writer()
-    {
-        return nullptr;
+        return std::shared_ptr<graphics::InternalClient>();
     }
 
     void fill_buffer_package(

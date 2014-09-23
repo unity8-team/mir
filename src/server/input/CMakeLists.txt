@@ -16,7 +16,6 @@ set(
   default_configuration.cpp
   xcursor_loader.cpp
   builtin_cursor_images.cpp
-  touchspot_controller.cpp
 )
 
 add_subdirectory(android)

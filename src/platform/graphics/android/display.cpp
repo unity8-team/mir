@@ -103,7 +103,7 @@ void mga::Display::resume()
 
 auto mga::Display::create_hardware_cursor(std::shared_ptr<mg::CursorImage> const& /* initial_image */) -> std::shared_ptr<Cursor>
 {
-    return nullptr;
+    return std::shared_ptr<Cursor>();
 }
 
 std::unique_ptr<mg::GLContext> mga::Display::create_gl_context()

@@ -24,7 +24,6 @@
 #include "display.h"
 #include "internal_client.h"
 #include "output_builder.h"
-#include "buffer_writer.h"
 #include "hwc_loggers.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/android/native_buffer.h"
@@ -154,11 +153,14 @@ std::shared_ptr<mg::InternalClient> mga::Platform::create_internal_client()
     return std::make_shared<mga::InternalClient>();
 }
 
+<<<<<<< TREE
 std::shared_ptr<mg::BufferWriter> mga::Platform::make_buffer_writer()
 {
     return std::make_shared<mga::BufferWriter>();
 }
 
+=======
+>>>>>>> MERGE-SOURCE
 extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
