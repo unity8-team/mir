@@ -264,13 +264,15 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
     char s[2];
     int keyCode = translateKeysym(xk_sym, s, sizeof(s));
     QString text = QString::fromLatin1(s);
+    
+    bool is_auto_rep = event.repeat_count > 0;
 
     QPlatformInputContext* context = QGuiApplicationPrivate::platformIntegration()->inputContext();
     if (context) {
         // TODO: consider event.repeat_count
         QKeyEvent qKeyEvent(keyType, keyCode, modifiers,
                             event.scan_code, event.key_code, event.modifiers,
-                            text);
+                            text, is_auto_rep);
         qKeyEvent.setTimestamp(timestamp);
         if (context->filterEvent(&qKeyEvent)) {
             // key event filtered out by input context
@@ -279,7 +281,7 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
     }
 
     mQtWindowSystem->handleExtendedKeyEvent(timestamp, keyType, keyCode, modifiers,
-            event.scan_code, event.key_code, event.modifiers, text);
+            event.scan_code, event.key_code, event.modifiers, text, is_auto_rep);
 }
 
 void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
