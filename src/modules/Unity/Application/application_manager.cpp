@@ -493,7 +493,15 @@ void ApplicationManager::onProcessStarting(const QString &appId)
         Q_EMIT focusRequested(appId);
     }
     else {
-        qWarning() << "ApplicationManager::onProcessStarting application already found with appId" << appId;
+        // url-dispatcher can relaunch apps which have been OOM-killed - AppMan must accept the newly spawned
+        // application and focus it immediately (as user expects app to still be running).
+        if (application->state() == Application::Stopped) {
+            qCDebug(QTMIR_APPLICATIONS) << "Stopped application appId=" << appId << "is being resumed externally";
+            application->setState(Application::Starting);
+            Q_EMIT focusRequested(appId);
+        } else {
+            qWarning() << "ApplicationManager::onProcessStarting application already found with appId" << appId;
+        }
     }
 }
 
