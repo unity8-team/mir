@@ -500,7 +500,8 @@ void ApplicationManager::onProcessStarting(const QString &appId)
             application->setState(Application::Starting);
             Q_EMIT focusRequested(appId);
         } else {
-            qWarning() << "ApplicationManager::onProcessStarting application already found with appId" << appId;
+            qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onProcessStarting application already found with appId"
+                                        << appId;
         }
     }
 }
