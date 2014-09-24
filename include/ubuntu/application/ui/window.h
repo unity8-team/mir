@@ -92,7 +92,8 @@ extern "C" {
         UAUiWindow *window);
     
     UBUNTU_DLL_PUBLIC void
-    ua_ui_window_request_state(UAUiWindow *window, UApplicationUiWindowState state);
+    ua_ui_window_request_state(
+        UAUiWindow *window, UApplicationUiWindowState state);
 
 #ifdef __cplusplus
 }
