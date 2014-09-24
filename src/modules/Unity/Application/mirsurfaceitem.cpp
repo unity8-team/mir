@@ -72,9 +72,10 @@ bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
     mirEvent.key.key_code = qtEvent->nativeVirtualKey();
     mirEvent.key.scan_code = qtEvent->nativeScanCode();
 
-    // TODO: Investigate how to pass it from mir to qt in the first place.
-    //       Then implement the reverse here.
-    mirEvent.key.repeat_count = 0;
+    // TODO: It's not the best that we lose the actual repeat count from
+    // the original mir event (pre QtEventFeeder)...of course it will
+    // not matter for Qt clients...so this is an improvement for now.
+    mirEvent.key.repeat_count = qtEvent->isAutoRepeat() ? 1 : 0;
 
     // Don't care
     mirEvent.key.down_time = 0;
