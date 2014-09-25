@@ -232,20 +232,24 @@ TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
 
 TEST_F(GLRenderer, disables_blending_on_renderables_that_have_blending_disabled)
 {
+    EXPECT_CALL(*renderable, shaped())
+        .WillRepeatedly(Return(true));
     EXPECT_CALL(*renderable, alpha_enabled())
         .WillOnce(Return(true))
         .WillOnce(Return(false))
         .WillOnce(Return(true));
 
-    
-    InSequence seq;
-    EXPECT_CALL(mock_gl, glEnable(GL_BLEND));
-    EXPECT_CALL(mock_gl, glDisable(GL_BLEND));
-    EXPECT_CALL(mock_gl, glEnable(GL_BLEND));
+    testing::Sequence seq;
+    EXPECT_CALL(mock_gl, glEnable(GL_BLEND))
+        .InSequence(seq);
+    EXPECT_CALL(mock_gl, glDisable(GL_BLEND))
+        .InSequence(seq);
+    EXPECT_CALL(mock_gl, glEnable(GL_BLEND))
+        .InSequence(seq);
 
     mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, mc::DestinationAlpha::opaque);
     renderer.begin();
-    renderer.render(renderable_list);
+    renderer.render({renderable, renderable, renderable});
     renderer.end();
 }
 

@@ -122,7 +122,7 @@ void mc::GLRenderer::render(mg::Renderable const& renderable) const
 
     glUseProgram(*program);
 
-    if (renderable.shaped() || renderable.alpha() < 1.0f)
+    if (renderable.alpha_enabled() && (renderable.shaped() || renderable.alpha() < 1.0f))
     {
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
