@@ -48,6 +48,9 @@ public:
      */
     virtual std::shared_ptr<Buffer> buffer() const = 0;
 
+    /*
+     * If true, disable all alpha blending on this renderable.
+     */
     virtual bool alpha_enabled() const = 0;
     virtual geometry::Rectangle screen_position() const = 0;
 
