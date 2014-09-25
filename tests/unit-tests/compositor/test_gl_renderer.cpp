@@ -142,6 +142,7 @@ public:
         EXPECT_CALL(*renderable, id()).WillRepeatedly(Return(&renderable));
         EXPECT_CALL(*renderable, buffer()).WillRepeatedly(Return(mock_buffer));
         EXPECT_CALL(*renderable, shaped()).WillRepeatedly(Return(false));
+        EXPECT_CALL(*renderable, alpha_enabled()).WillRepeatedly(Return(true));
         EXPECT_CALL(*renderable, alpha()).WillRepeatedly(Return(1.0f));
         EXPECT_CALL(*renderable, transformation()).WillRepeatedly(Return(trans));
         EXPECT_CALL(*renderable, screen_position())
@@ -222,6 +223,25 @@ TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
     EXPECT_CALL(*renderable, shaped())
         .WillOnce(Return(false));
     EXPECT_CALL(mock_gl, glDisable(GL_BLEND));
+
+    mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, mc::DestinationAlpha::opaque);
+    renderer.begin();
+    renderer.render(renderable_list);
+    renderer.end();
+}
+
+TEST_F(GLRenderer, disables_blending_on_renderables_that_have_blending_disabled)
+{
+    EXPECT_CALL(*renderable, alpha_enabled())
+        .WillOnce(Return(true))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+
+    
+    InSequence seq;
+    EXPECT_CALL(mock_gl, glEnable(GL_BLEND));
+    EXPECT_CALL(mock_gl, glDisable(GL_BLEND));
+    EXPECT_CALL(mock_gl, glEnable(GL_BLEND));
 
     mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, mc::DestinationAlpha::opaque);
     renderer.begin();
