@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include "mir/fd.h"
+#include "dispatchable.h"
 
 namespace mir
 {
@@ -64,7 +65,7 @@ namespace rpc
  *       from different threads. Multiple threads calling the same
  *       function need synchronisation.
  */
-class StreamTransport
+class StreamTransport : public Dispatchable
 {
 public:
     /**
@@ -142,18 +143,6 @@ public:
      *         of buffer to the server.
      */
     virtual void send_data(std::vector<uint8_t> const& buffer) = 0;
-
-    /**
-     * \brief Get a poll()able file descriptor
-     * \return A file descriptor usable with poll() or equivalent function calls that
-     *         becomes readable when there are dispatchable events
-     */
-    virtual Fd watch_fd() const = 0;
-
-    /**
-     * \brief Dispatch one pending event
-     */
-    virtual void dispatch() = 0;
 };
 
 }

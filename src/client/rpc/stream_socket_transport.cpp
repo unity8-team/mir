@@ -22,7 +22,6 @@
 
 #include <system_error>
 
-#include <signal.h>
 #include <errno.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
