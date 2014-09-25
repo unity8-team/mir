@@ -8,14 +8,12 @@ include_directories(
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 add_definitions( -DANDROID )
 
-add_library(
-  mirplatformgraphicsandroidobjects OBJECT
-
-  android_platform.cpp
+add_library(mirplatformgraphicsandroidobjects OBJECT
+  platform.cpp
   android_buffer_allocator.cpp
   buffer.cpp
-  android_display.cpp
-  android_display_configuration.cpp
+  display.cpp
+  display_configuration.cpp
   display_buffer.cpp
   output_builder.cpp
   hwc_layerlist.cpp
@@ -37,7 +35,7 @@ add_library(
   device_quirks.cpp
   real_hwc_wrapper.cpp
   hwc_fallback_gl_renderer.cpp
-  android_buffer_writer.cpp
+  buffer_writer.cpp
 )
 
 add_library(mirplatformgraphicsandroid SHARED
