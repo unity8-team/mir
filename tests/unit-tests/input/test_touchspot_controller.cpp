@@ -141,6 +141,22 @@ TEST_F(TestTouchspotController, touches_result_in_renderables_in_stack)
     scene->expect_spots_centered_at({{0, 0}});
 }
 
+//LP: #1373698
+TEST_F(TestTouchspotController, renderable_has_alpha_enabled)
+{
+    using namespace ::testing;
+    
+    EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
+        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
+    mi::TouchspotController controller(allocator, writer, scene);
+    controller.enable();
+    
+    controller.visualize_touches({ {{0,0}, 1} });
+
+    EXPECT_THAT(scene->overlays.size(), Eq(1));
+    EXPECT_TRUE(scene->overlays[0]->alpha_enabled());
+}
+
 TEST_F(TestTouchspotController, spots_move)
 {
     using namespace ::testing;
