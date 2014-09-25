@@ -676,6 +676,49 @@ TEST_F(ApplicationManagerTests,appDoesNotStartWhenUsingBadDesktopFileHintFile)
 }
 
 /*
+ * Test that if TaskController synchronously calls back processStarted, that ApplicationManager
+ * does not add the app to the model twice.
+ */
+TEST_F(ApplicationManagerTests,synchronousProcessStartedCallDoesNotDuplicateEntryInModel)
+{
+    using namespace ::testing;
+    const QString appId("testAppId");
+    const QString name("Test App");
+
+    // Set up Mocks & signal watcher
+    auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
+    ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
+    ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
+    ON_CALL(*mockDesktopFileReader, name()).WillByDefault(Return(name));
+
+    ON_CALL(desktopFileReaderFactory, createInstance(appId, _)).WillByDefault(Return(mockDesktopFileReader));
+
+    ON_CALL(appController, startApplicationWithAppIdAndArgs(appId, _))
+        .WillByDefault(Invoke(
+                        [&](const QString &appId, Unused) {
+                            applicationManager.onProcessStarting(appId);
+                            return true;
+                        }
+                      ));
+
+    // start the application
+    Application *theApp = applicationManager.startApplication(appId, ApplicationManager::NoFlag);
+
+    // check application data
+    EXPECT_EQ(theApp->state(), Application::Starting);
+    EXPECT_EQ(theApp->appId(), appId);
+    EXPECT_EQ(theApp->name(), name);
+    EXPECT_EQ(theApp->canBeResumed(), true);
+
+    // check only once instance in the model
+    EXPECT_EQ(applicationManager.count(), 1);
+
+    // check application in list of apps
+    Application *theAppAgain = applicationManager.findApplication(appId);
+    EXPECT_EQ(theAppAgain, theApp);
+}
+
+/*
  * Test that the child sessions of a webapp process are accepted
  */
 TEST_F(ApplicationManagerTests,webAppSecondarySessionsAccepted)
