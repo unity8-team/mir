@@ -1,6 +1,3 @@
-add_definitions(-DQT_PLUGIN)
-add_definitions(-DQT_NO_KEYWORDS)
-
 include_directories(
     ${GLIB_INCLUDE_DIRS}
     ${MIRCOMMON_INCLUDE_DIRS}
@@ -39,17 +36,17 @@ set(QMLMIRPLUGIN_SRC
     session.cpp
     sessionmanager.cpp
     upstart/applicationcontroller.cpp
-# Dirty hacks copied from the .pro file.
+    tracepoints.c
+# We need to run moc on these headers
     /usr/include/unity/shell/application/ApplicationInfoInterface.h
     /usr/include/unity/shell/application/ApplicationManagerInterface.h
-    tracepoints.c
-# Hacks to feed the automoc monster
+# Feed the automoc monster
     session_interface.h
     applicationcontroller.h
     )
 
 # TODO: Should this be module?
-add_library(unityapplicationplugin SHARED
+add_library(unityapplicationplugin MODULE
     ${QMLMIRPLUGIN_SRC}
 )
 
