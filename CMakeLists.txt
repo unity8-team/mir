@@ -50,11 +50,11 @@ add_custom_target(cppcheck COMMAND cppcheck --enable=all -q --error-exitcode=2
                                        ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tests)
 
 include(FindPkgConfig)
-find_package(Qt5Core 5.2 REQUIRED)
-find_package(Qt5DBus 5.2 REQUIRED)
-find_package(Qt5Gui 5.2 REQUIRED)
-find_package(Qt5Qml 5.2 REQUIRED)
-find_package(Qt5Quick 5.2 REQUIRED)
+find_package(Qt5Core 5.3 REQUIRED)
+find_package(Qt5DBus 5.3 REQUIRED)
+find_package(Qt5Gui 5.3 REQUIRED)
+find_package(Qt5Qml 5.3 REQUIRED)
+find_package(Qt5Quick 5.3 REQUIRED)
 
 find_package(Threads REQUIRED)
 find_package(Boost 1.50 COMPONENTS system REQUIRED)
