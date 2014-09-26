@@ -45,8 +45,7 @@ set(QMLMIRPLUGIN_SRC
     applicationcontroller.h
     )
 
-# TODO: Should this be module?
-add_library(unityapplicationplugin MODULE
+add_library(unityapplicationplugin SHARED
     ${QMLMIRPLUGIN_SRC}
 )
 

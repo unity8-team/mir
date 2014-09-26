@@ -277,4 +277,3 @@ Session* Application::session() const
 
 } // namespace qtmir
 
-#include "application.moc"

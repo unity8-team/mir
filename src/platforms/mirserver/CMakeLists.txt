@@ -67,7 +67,7 @@ set(MIRSERVER_QPA_PLUGIN_SRC
     tracepoints.c
     )
 
-add_library(qpa-mirserver MODULE
+add_library(qpa-mirserver SHARED
     ${MIRSERVER_QPA_PLUGIN_SRC}
 )
 
