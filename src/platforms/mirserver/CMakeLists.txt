@@ -35,6 +35,8 @@ include_directories(
 
 # We have to remove -pedantic for tracepoints.c
 string (REPLACE " -pedantic " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+# Needed to compile tracepoints in C99 mode.
+add_definitions(-DBYTE_ORDER=__BYTE_ORDER)
 
 set(MIRSERVER_QPA_PLUGIN_SRC
     connectioncreator.cpp
