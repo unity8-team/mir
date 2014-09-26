@@ -48,6 +48,12 @@ public:
     virtual QString exec() const { return entries_[kExecIndex]; }
     virtual QString path() const { return entries_[kPathIndex]; }
     virtual QString stageHint() const { return entries_[kStageHintIndex]; }
+    virtual QString splashTitle() const { return entries_[kSplashTitleIndex]; }
+    virtual QString splashImage() const { return entries_[kSplashImageIndex]; }
+    virtual QString splashShowHeader() const { return entries_[kSplashShowHeaderIndex]; }
+    virtual QString splashColor() const { return entries_[kSplashColorIndex]; }
+    virtual QString splashColorHeader() const { return entries_[kSplashColorHeaderIndex]; }
+    virtual QString splashColorFooter() const { return entries_[kSplashColorFooterIndex]; }
     virtual bool loaded() const { return loaded_; }
 
 protected:
@@ -62,7 +68,13 @@ private:
     kExecIndex = 3,
     kPathIndex = 4,
     kStageHintIndex = 5,
-    kNumberOfEntries = 6;
+    kSplashTitleIndex = 6,
+    kSplashImageIndex = 7,
+    kSplashShowHeaderIndex = 8,
+    kSplashColorIndex = 9,
+    kSplashColorHeaderIndex = 10,
+    kSplashColorFooterIndex = 11,
+    kNumberOfEntries = 12;
 
     virtual bool loadDesktopFile(QString desktopFile);
 

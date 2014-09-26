@@ -80,6 +80,17 @@ MirServerIntegration::MirServerIntegration()
     }
     argv[args.size()] = '\0';
 
+    // For access to sensors, qtmir uses qtubuntu-sensors. qtubuntu-sensors reads the
+    // UBUNTU_PLATFORM_API_BACKEND variable to decide if to load a valid sensor backend or not.
+    // For it to function we need to ensure a valid backend has been specified
+    if (qEnvironmentVariableIsEmpty("UBUNTU_PLATFORM_API_BACKEND")) {
+        if (qgetenv("DESKTOP_SESSION").contains("mir")) {
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "desktop_mirserver");
+        } else {
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "touch_mirserver");
+        }
+    }
+
     m_mirConfig = QSharedPointer<MirServerConfiguration>(
                       new MirServerConfiguration(args.length(), const_cast<const char**>(argv)));
 
