@@ -73,7 +73,7 @@ void SessionListener::surface_created(ms::Session& session, std::shared_ptr<ms::
 
 void SessionListener::destroying_surface(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)
 {
-//    tracepoint(qtmirserver, surfaceDestroyed);
+    tracepoint(qtmirserver, surfaceDestroyed);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::destroying_surface - this=" << this << "session=" << &session
                                    << "surface=" << surface.get();
     Q_EMIT sessionDestroyingSurface(&session, surface);

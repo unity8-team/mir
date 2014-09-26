@@ -16,8 +16,7 @@
 
 #include "sessionauthorizer.h"
 #include "logging.h"
-#include "tracepoints.h" 
-// generated from tracepoints.tp
+#include "tracepoints.h" // generated from tracepoints.tp
 
 // mir
 #include <mir/frontend/session_credentials.h>
