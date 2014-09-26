@@ -1,3 +1,11 @@
+platform-api (2.4.0+14.10.20140926-0ubuntu1) utopic; urgency=low
+
+  [ Alberto Aguirre ]
+  * Fix memory leak on sensor event notifications (LP: #1206146) (LP:
+    #1206146)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 26 Sep 2014 16:42:04 +0000
+
 platform-api (2.4.0+14.10.20140922.1-0ubuntu1) utopic; urgency=medium
 
   [ Gerry Boland ]
