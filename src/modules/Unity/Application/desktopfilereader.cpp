@@ -73,12 +73,21 @@ bool DesktopFileReader::loadDesktopFile(QString desktopFile)
         { "Icon=", sizeof("Icon=") - 1, 1 << DesktopFileReader::kIconIndex },
         { "Exec=", sizeof("Exec=") - 1, 1 << DesktopFileReader::kExecIndex },
         { "Path=", sizeof("Path=") - 1, 1 << DesktopFileReader::kPathIndex },
-        { "X-Ubuntu-StageHint=", sizeof("X-Ubuntu-StageHint=") - 1, 1 << DesktopFileReader::kStageHintIndex }
+        { "X-Ubuntu-StageHint=", sizeof("X-Ubuntu-StageHint=") - 1, 1 << DesktopFileReader::kStageHintIndex },
+        { "X-Ubuntu-Splash-Title=", sizeof("X-Ubuntu-Splash-Title=") - 1, 1 << DesktopFileReader::kSplashTitleIndex },
+        { "X-Ubuntu-Splash-Image=", sizeof("X-Ubuntu-Splash-Image=") - 1, 1 << DesktopFileReader::kSplashImageIndex },
+        { "X-Ubuntu-Splash-Show-Header=", sizeof("X-Ubuntu-Splash-Show-Header=") - 1, 1 << DesktopFileReader::kSplashShowHeaderIndex },
+        { "X-Ubuntu-Splash-Color=", sizeof("X-Ubuntu-Splash-Color=") - 1, 1 << DesktopFileReader::kSplashColorIndex },
+        { "X-Ubuntu-Splash-Color-Header=", sizeof("X-Ubuntu-Splash-Color-Header=") - 1, 1 << DesktopFileReader::kSplashColorHeaderIndex },
+        { "X-Ubuntu-Splash-Color-Footer=", sizeof("X-Ubuntu-Splash-Color-Footer=") - 1, 1 << DesktopFileReader::kSplashColorFooterIndex }
     };
     const unsigned int kAllEntriesMask =
             (1 << DesktopFileReader::kNameIndex) | (1 << DesktopFileReader::kCommentIndex)
             | (1 << DesktopFileReader::kIconIndex) | (1 << DesktopFileReader::kExecIndex)
-            | (1 << DesktopFileReader::kPathIndex) | (1 << DesktopFileReader::kStageHintIndex);
+            | (1 << DesktopFileReader::kPathIndex) | (1 << DesktopFileReader::kStageHintIndex)
+            | (1 << DesktopFileReader::kSplashTitleIndex) | (1 << DesktopFileReader::kSplashImageIndex)
+            | (1 << DesktopFileReader::kSplashShowHeaderIndex) | (1 << DesktopFileReader::kSplashColorIndex)
+            | (1 << DesktopFileReader::kSplashColorHeaderIndex) | (1 << DesktopFileReader::kSplashColorFooterIndex);
     const unsigned int kMandatoryEntriesMask =
             (1 << DesktopFileReader::kNameIndex) | (1 << DesktopFileReader::kIconIndex)
             | (1 << DesktopFileReader::kExecIndex);

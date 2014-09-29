@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QTimer>
 #include <qpa/qplatformscreen.h>
+
 #include "mir/graphics/display_configuration.h"
 
 class QOrientationSensor;
@@ -42,6 +43,14 @@ public:
     Qt::ScreenOrientation nativeOrientation() const override { return m_nativeOrientation; }
     Qt::ScreenOrientation orientation() const override { return m_currentOrientation; }
 
+    void toggleSensors(const bool enable) const;
+
+    // QObject methods.
+    void customEvent(QEvent* event) override;
+
+public Q_SLOTS:
+   void onOrientationReadingChanged();
+
 private:
     void readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const&);
 
@@ -53,6 +62,7 @@ private:
 
     Qt::ScreenOrientation m_nativeOrientation;
     Qt::ScreenOrientation m_currentOrientation;
+    QOrientationSensor *m_orientationSensor;
 };
 
 #endif // SCREEN_H
