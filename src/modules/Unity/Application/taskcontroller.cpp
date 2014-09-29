@@ -23,10 +23,6 @@
 // Qt
 #include <QStringList>
 
-// Process C++
-#include <core/posix/process.h>
-#include <core/posix/this_process.h>
-
 // STL
 #include <mutex>
 
