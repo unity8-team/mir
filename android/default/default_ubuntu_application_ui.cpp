@@ -452,3 +452,14 @@ ua_ui_window_get_native_type(
     auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
     return p->value->to_native_window_type();
 }
+
+UApplicationUiWindowOrientation
+ua_ui_window_get_orientation(
+    UAUiWindow *window)
+{
+    ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
+    (void*) window;
+    // Orientation flag not available with android, return default
+    return U_ORIENTATION_NORMAL;
+}
+

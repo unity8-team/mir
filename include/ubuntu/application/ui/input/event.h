@@ -20,6 +20,7 @@
 #define UBUNTU_APPLICATION_UI_INPUT_EVENT_H_
 
 #include <ubuntu/visibility.h>
+#include <ubuntu/application/ui/window_orientation.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -120,7 +121,8 @@ typedef enum
     KEY_WEVENT_TYPE, ///< Event originates from a keyboard.
     MOTION_WEVENT_TYPE, ///< Event originates from something moving, e.g., a wheel, a mouse, a finger on a touchpad.
     RESIZE_WEVENT_TYPE, ///< Surface has been resized
-    SURFACE_WEVENT_TYPE //< A surface attribute has changed its value
+    SURFACE_WEVENT_TYPE, ///< A surface attribute has changed its value
+    ORIENTATION_WEVENT_TYPE, ///< The device orientation changed
 } WindowEventType;
 
 /** Information describing an event originating from a keyboard key. */
@@ -197,6 +199,14 @@ typedef struct
     int32_t height; ///< The new surface height.
 } ResizeEvent;
 
+/** Information describing a surface orientation change event. */
+typedef struct
+{
+    WindowEventType type;
+
+    UApplicationUiWindowOrientation direction; ///< The new surface orientation
+} OrientationEvent;
+
 typedef union
 {
     WindowEventType type;
@@ -204,6 +214,7 @@ typedef union
     MotionEvent motion;
     SurfaceEvent surface;
     ResizeEvent resize;
+    OrientationEvent orientation;
 } WindowEvent;
 
 #ifdef __cplusplus

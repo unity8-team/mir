@@ -33,21 +33,6 @@
 
 namespace
 {
-template<typename T>
-struct Holder
-{
-    Holder(const T&value = T()) : value(value)
-    {
-    }
-
-    T value;
-};
-
-template<typename T>
-Holder<T>* make_holder(const T& value)
-{
-    return new Holder<T>(value);
-}
 
 enum sensor_value_t { MIN_DELAY, MIN_VALUE, MAX_VALUE, RESOLUTION };
 template<ubuntu::application::sensors::SensorType sensor_type>
@@ -56,7 +41,8 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
     SensorListener() : on_accelerometer_event(NULL),
                        on_proximity_event(NULL),
                        on_light_event(NULL),
-                       on_orientation_event(NULL)
+                       on_orientation_event(NULL),
+                       context(nullptr)
     {
     }
 
@@ -69,16 +55,15 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
                 if (!on_orientation_event)
                     return;
 
-                ubuntu::application::sensors::OrientationEvent::Ptr ev(
-                    new ubuntu::application::sensors::OrientationEvent(
+                ubuntu::application::sensors::OrientationEvent ev(
                         reading->timestamp,
                         reading->vector[0],
                         reading->vector[1],
-                        reading->vector[2])
+                        reading->vector[2]
                         );
 
                 on_orientation_event(
-                    make_holder(ev), this->context
+                    &ev, this->context
                     );
 
                 break;
@@ -88,16 +73,15 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
                 if (!on_accelerometer_event)
                     return;
 
-                ubuntu::application::sensors::AccelerometerEvent::Ptr ev(
-                    new ubuntu::application::sensors::AccelerometerEvent(
+                ubuntu::application::sensors::AccelerometerEvent ev(
                         reading->timestamp,
                         reading->acceleration[0],
                         reading->acceleration[1],
-                        reading->acceleration[2])
+                        reading->acceleration[2]
                         );
 
                 on_accelerometer_event(
-                    make_holder(ev), this->context
+                    &ev, this->context
                     );
 
                 break;
@@ -107,14 +91,13 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
                 if (!on_proximity_event)
                     return;
 
-                ubuntu::application::sensors::ProximityEvent::Ptr ev(
-                    new ubuntu::application::sensors::ProximityEvent(
+                ubuntu::application::sensors::ProximityEvent ev(
                         static_cast<uint64_t>(reading->timestamp),
-                        reading->distance)
+                        reading->distance
                     );
 
                 on_proximity_event(
-                    make_holder(ev), this->context
+                    &ev, this->context
                     );
 
                 break;
@@ -124,14 +107,13 @@ struct SensorListener : public ubuntu::application::sensors::SensorListener
                 if (!on_light_event)
                     return;
 
-                ubuntu::application::sensors::LightEvent::Ptr ev(
-                    new ubuntu::application::sensors::LightEvent(
+                ubuntu::application::sensors::LightEvent ev(
                         reading->timestamp,
-                        reading->light)
+                        reading->light
                     );
 
                 on_light_event(
-                    make_holder(ev), this->context
+                    &ev, this->context
                     );
 
                 break;
@@ -309,18 +291,18 @@ uint64_t
 uas_proximity_event_get_timestamp(
     UASProximityEvent* event)
 {
-    auto ev = static_cast<Holder<ubuntu::application::sensors::ProximityEvent::Ptr>*>(event);
+    auto ev = static_cast<ubuntu::application::sensors::ProximityEvent*>(event);
 
-    return ev->value->get_timestamp();
+    return ev->get_timestamp();
 }
 
 UASProximityDistance
 uas_proximity_event_get_distance(
     UASProximityEvent* event)
 {
-    auto ev = static_cast<Holder<ubuntu::application::sensors::ProximityEvent::Ptr>*>(event);
+    auto ev = static_cast<ubuntu::application::sensors::ProximityEvent*>(event);
 
-    if (ev->value->get_distance() == proximity->max_value())
+    if (ev->get_distance() == proximity->max_value())
         return U_PROXIMITY_FAR;
 
     return U_PROXIMITY_NEAR;
@@ -469,8 +451,8 @@ uint64_t
 uas_light_event_get_timestamp(
     UASLightEvent* event)
 {
-    auto ev = static_cast<Holder<ubuntu::application::sensors::LightEvent::Ptr>*>(event);
-    return ev->value->get_timestamp();
+    auto ev = static_cast<ubuntu::application::sensors::LightEvent*>(event);
+    return ev->get_timestamp();
 }
 
 UStatus
@@ -481,8 +463,8 @@ uas_light_event_get_light(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
 
-    auto ev = static_cast<Holder<ubuntu::application::sensors::LightEvent::Ptr>*>(event);
-    *value = ev->value->get_light();
+    auto ev = static_cast<ubuntu::application::sensors::LightEvent*>(event);
+    *value = ev->get_light();
 
     return U_STATUS_SUCCESS;
 }
@@ -629,8 +611,8 @@ uint64_t
 uas_accelerometer_event_get_timestamp(
     UASAccelerometerEvent* event)
 {
-    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    return ev->value->get_timestamp();
+    auto ev = static_cast<ubuntu::application::sensors::AccelerometerEvent*>(event);
+    return ev->get_timestamp();
 }
 
 UStatus
@@ -641,8 +623,8 @@ uas_accelerometer_event_get_acceleration_x(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
     
-    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    *value = ev->value->get_x();
+    auto ev = static_cast<ubuntu::application::sensors::AccelerometerEvent*>(event);
+    *value = ev->get_x();
 
     return U_STATUS_SUCCESS;
 }
@@ -655,8 +637,8 @@ uas_accelerometer_event_get_acceleration_y(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
 
-    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    *value = ev->value->get_y();
+    auto ev = static_cast<ubuntu::application::sensors::AccelerometerEvent*>(event);
+    *value = ev->get_y();
 
     return U_STATUS_SUCCESS;
 }
@@ -669,8 +651,8 @@ uas_accelerometer_event_get_acceleration_z(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
 
-    auto ev = static_cast<Holder<ubuntu::application::sensors::AccelerometerEvent::Ptr>*>(event);
-    *value = ev->value->get_z();
+    auto ev = static_cast<ubuntu::application::sensors::AccelerometerEvent*>(event);
+    *value = ev->get_z();
 
     return U_STATUS_SUCCESS;
 }
@@ -817,8 +799,8 @@ uint64_t
 uas_orientation_event_get_timestamp(
     UASOrientationEvent* event)
 {
-    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
-    return ev->value->get_timestamp();
+    auto ev = static_cast<ubuntu::application::sensors::OrientationEvent*>(event);
+    return ev->get_timestamp();
 }
 
 UStatus
@@ -828,9 +810,9 @@ uas_orientation_event_get_azimuth(
 {
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
-    
-    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
-    *value = ev->value->get_azimuth();
+
+    auto ev = static_cast<ubuntu::application::sensors::OrientationEvent*>(event);
+    *value = ev->get_azimuth();
 
     return U_STATUS_SUCCESS;
 }
@@ -843,8 +825,8 @@ uas_orientation_event_get_pitch(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
 
-    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
-    *value = ev->value->get_pitch();
+    auto ev = static_cast<ubuntu::application::sensors::OrientationEvent*>(event);
+    *value = ev->get_pitch();
 
     return U_STATUS_SUCCESS;
 }
@@ -857,8 +839,8 @@ uas_orientation_event_get_roll(
     if (event == NULL || value == NULL)
         return U_STATUS_ERROR;
 
-    auto ev = static_cast<Holder<ubuntu::application::sensors::OrientationEvent::Ptr>*>(event);
-    *value = ev->value->get_roll();
+    auto ev = static_cast<ubuntu::application::sensors::OrientationEvent*>(event);
+    *value = ev->get_roll();
 
     return U_STATUS_SUCCESS;
 }

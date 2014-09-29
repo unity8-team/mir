@@ -252,6 +252,11 @@ int ua_ui_window_is_focused(UAUiWindow *window)
     return 0;
 }
 
+UApplicationUiWindowOrientation ua_ui_window_get_orientation(UAUiWindow*)
+{
+    return U_ORIENTATION_NORMAL;
+}
+
 UStatus ua_ui_window_show(UAUiWindow*)
 {
     return U_STATUS_ERROR;

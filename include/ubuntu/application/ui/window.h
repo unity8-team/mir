@@ -26,6 +26,7 @@
 #include <ubuntu/application/instance.h>
 #include <ubuntu/application/ui/window_properties.h>
 #include <ubuntu/application/ui/window_state.h>
+#include <ubuntu/application/ui/window_orientation.h>
 
 #include <EGL/egl.h>
 
@@ -94,6 +95,10 @@ extern "C" {
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_state(
         UAUiWindow *window, UApplicationUiWindowState state);
+
+    UBUNTU_DLL_PUBLIC UApplicationUiWindowOrientation
+    ua_ui_window_get_orientation(
+        UAUiWindow *window);
 
 #ifdef __cplusplus
 }

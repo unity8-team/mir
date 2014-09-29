@@ -57,6 +57,8 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_location_service_session_stop_position_updates@Base 0.18.3+13.10.20130807
  ua_location_service_session_stop_velocity_updates@Base 0.18.3+13.10.20130807
  ua_location_service_session_unref@Base 0.18.3+13.10.20130807
+ ua_location_service_try_create_session_for_high_accuracy@Base 2.4.0
+ ua_location_service_try_create_session_for_low_accuracy@Base 2.4.0
  ua_location_velocity_update_get_timestamp@Base 0.18.3+13.10.20130807
  ua_location_velocity_update_get_velocity_in_meters_per_second@Base 0.18.3+13.10.20130807
  ua_location_velocity_update_ref@Base 0.18.3+13.10.20130807
@@ -115,6 +117,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_ui_set_clipboard_content@Base 0.18.1daily13.06.21
  ua_ui_window_destroy@Base 0.18.1daily13.06.21
  ua_ui_window_get_native_type@Base 0.18.1daily13.06.21
+ ua_ui_window_get_orientation@Base 2.4.0+14.10.20140922.1
  ua_ui_window_get_size@Base 2.0.0+14.10.20140612
  ua_ui_window_hide@Base 0.18.1daily13.06.21
  ua_ui_window_is_focused@Base 2.2.0+14.10.20140728

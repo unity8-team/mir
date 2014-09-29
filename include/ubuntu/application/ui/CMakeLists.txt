@@ -12,6 +12,7 @@ set(
   session.h
   stage.h
   window.h
+  window_orientation.h
   window_parent.h
   window_properties.h
   window_state.h

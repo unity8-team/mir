@@ -20,6 +20,7 @@
 #define UBUNTU_EVENT_HELPERS_MIR_COMMON_H_
 
 #include <ubuntu/application/ui/input/event.h>
+#include <ubuntu/application/ui/window_orientation.h>
 #include <mir_toolkit/event.h>
 
 namespace ubuntu
@@ -32,6 +33,9 @@ namespace mir
 {
 bool event_to_ubuntu_event(MirEvent const* mir_event, WindowEvent& ubuntu_ev);
 bool event_to_ubuntu_deprecated_event(MirEvent const* mir_event, Event& ubuntu_ev);
+
+bool orientation_to_ubuntu_orientation(MirOrientation const mir_orient,
+                                       UApplicationUiWindowOrientation& ubuntu_orient);
 }
 }
 }
