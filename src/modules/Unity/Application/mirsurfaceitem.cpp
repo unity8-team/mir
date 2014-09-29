@@ -190,7 +190,7 @@ bool fillInMirEvent(MirEvent &mirEvent,
         pointer.orientation = 0.;
         pointer.vscroll = 0.;
         pointer.hscroll = 0.;
-        
+
         // TODO: Mir supports a wider set of tool types (finger, stylus, mouse, eraser, unknown).
         // so just because we are not TouchPoint::Pen does not mean we are motion_tool_type_finger...
         // however this is the best we can do with the QtEventFeeder approach.
