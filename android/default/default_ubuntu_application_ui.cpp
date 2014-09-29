@@ -449,8 +449,8 @@ ua_ui_window_get_orientation(
     UAUiWindow *window)
 {
     ALOGI("%s():%d", __PRETTY_FUNCTION__, __LINE__);
-
-    auto p = static_cast<Holder<ubuntu::application::ui::Surface::Ptr>*>(window);
-    return p->value->get_orientation();
+    (void*) window;
+    // Orientation flag not available with android, return default
+    return U_ORIENTATION_NORMAL;
 }
 
