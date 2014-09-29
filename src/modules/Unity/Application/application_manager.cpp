@@ -337,7 +337,7 @@ void ApplicationManager::setForceDashActive(bool forceDashActive)
 
     Application *dashApp = findApplication("unity8-dash");
     if (!dashApp) {
-        qWarning() << "Dash doesn't seem to be running... Ignoring.";
+        qCWarning(QTMIR_APPLICATIONS) << "Dash doesn't seem to be running... Ignoring.";
         return;
     }
 

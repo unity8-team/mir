@@ -533,6 +533,61 @@ TEST_F(ApplicationManagerTests,focus_change_suspends_starting_app_when_it_gets_r
     EXPECT_EQ(Application::Suspended, app1->state());
 }
 
+TEST_F(ApplicationManagerTests,forceDashActive_activates_dash_while_not_focused)
+{
+    using namespace ::testing;
+    quint64 first_procId = 5921;
+    quint64 second_procId = 5922;
+    std::shared_ptr<mir::scene::Surface> aSurface(nullptr);
+    QByteArray first_cmdLine( "/usr/bin/app1 --desktop_file_hint=unity8-dash");
+    QByteArray second_cmdLine( "/usr/bin/app2--desktop_file_hint=app2");
+
+    EXPECT_CALL(procInfo,command_line(first_procId))
+        .Times(1)
+        .WillOnce(Return(first_cmdLine));
+
+    ON_CALL(appController,appIdHasProcessId(_,_)).WillByDefault(Return(false));
+
+    EXPECT_CALL(procInfo,command_line(second_procId))
+        .Times(1)
+        .WillOnce(Return(second_cmdLine));
+
+    bool authed = true;
+
+    std::shared_ptr<mir::scene::Session> first_session = std::make_shared<MockSession>("Oo", first_procId);
+    std::shared_ptr<mir::scene::Session> second_session = std::make_shared<MockSession>("oO", second_procId);
+    applicationManager.authorizeSession(first_procId, authed);
+    applicationManager.authorizeSession(second_procId, authed);
+    onSessionStarting(first_session);
+
+    Application * dashApp = applicationManager.findApplication("unity8-dash");
+    applicationManager.onSessionCreatedSurface(first_session.get(), aSurface);
+    applicationManager.focusApplication("unity8-dash");
+
+    // Dash app should be ready now...
+    EXPECT_EQ(Application::Running, dashApp->state());
+
+    // Launch second app
+    onSessionStarting(second_session);
+    applicationManager.onSessionCreatedSurface(second_session.get(), aSurface);
+    applicationManager.focusApplication("app2");
+    EXPECT_EQ(applicationManager.focusedApplicationId(), "app2");
+
+    // Make sure the dash is suspended
+    EXPECT_EQ(dashApp->state(), Application::Suspended);
+
+    // Now set the dashactive flag
+    applicationManager.setForceDashActive(true);
+
+    // And make sure the dash is woken up but not focused
+    EXPECT_EQ(applicationManager.focusedApplicationId(), "app2");
+    EXPECT_EQ(dashApp->state(), Application::Running);
+
+    // Unset the dashactive flag
+    applicationManager.setForceDashActive(false);
+    EXPECT_EQ(dashApp->state(), Application::Suspended);
+}
+
 TEST_F(ApplicationManagerTests,requestFocusApplication)
 {
     using namespace ::testing;
