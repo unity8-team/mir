@@ -55,6 +55,7 @@ find_package(Qt5DBus 5.3 REQUIRED)
 find_package(Qt5Gui 5.3 REQUIRED)
 find_package(Qt5Qml 5.3 REQUIRED)
 find_package(Qt5Quick 5.3 REQUIRED)
+find_package(Qt5Sensors 5.3 REQUIRED)
 
 find_package(Threads REQUIRED)
 find_package(Boost 1.50 COMPONENTS system REQUIRED)

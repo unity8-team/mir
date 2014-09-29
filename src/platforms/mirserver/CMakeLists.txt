@@ -77,6 +77,7 @@ target_link_libraries(
     Qt5::Core
     Qt5::Quick
     Qt5::DBus
+    Qt5::Sensors
 
     ${MIRSERVER_LDFLAGS}
     ${URL_DISPATCHER_LDFLAGS}
