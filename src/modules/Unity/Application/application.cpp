@@ -112,6 +112,81 @@ QUrl Application::icon() const
     }
 }
 
+QString Application::splashTitle() const
+{
+    return m_desktopData->splashTitle();
+}
+
+QUrl Application::splashImage() const
+{
+    if (m_desktopData->splashImage().isEmpty()) {
+        return QUrl();
+    } else {
+        QFileInfo imageFileInfo(m_desktopData->path(), m_desktopData->splashImage());
+        if (imageFileInfo.exists()) {
+            return QUrl::fromLocalFile(imageFileInfo.canonicalFilePath());
+        } else {
+            qCWarning(QTMIR_APPLICATIONS)
+                << QString("Application(%1).splashImage file does not exist: \"%2\". Ignoring it.")
+                    .arg(appId()).arg(imageFileInfo.absoluteFilePath());
+
+            return QUrl();
+        }
+    }
+}
+
+QColor Application::colorFromString(const QString &colorString, const char *colorName) const
+{
+    // NB: If a colour which is not fully opaque is specified in the desktop file, it will
+    //     be ignored and the default colour will be used instead.
+    QColor color;
+
+    if (colorString.isEmpty()) {
+        color.setRgba(qRgba(0, 0, 0, 0));
+    } else {
+        color.setNamedColor(colorString);
+
+        if (color.isValid()) {
+            // Force a fully opaque color.
+            color.setAlpha(255);
+        } else {
+            color.setRgba(qRgba(0, 0, 0, 0));
+            qCWarning(QTMIR_APPLICATIONS) << QString("Invalid %1: \"%2\"")
+                .arg(colorName).arg(colorString);
+        }
+    }
+
+    return color;
+}
+
+bool Application::splashShowHeader() const
+{
+    QString showHeader = m_desktopData->splashShowHeader();
+    if (showHeader.toLower() == "true") {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+QColor Application::splashColor() const
+{
+    QString colorStr = m_desktopData->splashColor();
+    return colorFromString(colorStr, "splashColor");
+}
+
+QColor Application::splashColorHeader() const
+{
+    QString colorStr = m_desktopData->splashColorHeader();
+    return colorFromString(colorStr, "splashColorHeader");
+}
+
+QColor Application::splashColorFooter() const
+{
+    QString colorStr = m_desktopData->splashColorFooter();
+    return colorFromString(colorStr, "splashColorFooter");
+}
+
 QString Application::exec() const
 {
     return m_desktopData->exec();
@@ -160,6 +235,11 @@ pid_t Application::pid() const
 void Application::setPid(pid_t pid)
 {
     m_pid = pid;
+}
+
+void Application::setArguments(const QStringList arguments)
+{
+    m_arguments = arguments;
 }
 
 void Application::setSession(Session *newSession)

@@ -21,7 +21,7 @@ Build-Depends: debhelper (>= 9),
                libubuntu-app-launch2-dev,
                libubuntu-application-api-dev (>= 2.1.0),
                libudev-dev,
-               libunity-api-dev (>= 7.89),
+               libunity-api-dev (>= 7.91),
                liburl-dispatcher1-dev,
                libxkbcommon-dev,
                libxrender-dev,
@@ -96,7 +96,7 @@ Replaces: libunity-mir1,
 Conflicts: libunity-mir1,
            libqtmir,
 Provides: unity-application-impl,
-          unity-application-impl-3,
+          unity-application-impl-4,
 Description: Qt plugin for Unity specific Mir APIs
  QtMir provides Qt/QML bindings for Mir features that are exposed through the
  qtmir-desktop or qtmir-android QPA plugin such as Application management
