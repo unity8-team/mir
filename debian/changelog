@@ -1,3 +1,14 @@
+mir (0.7.4-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release 0.7.4 (https://launchpad.net/mir/+milestone/0.7.4)
+    - Bug fixes
+      . Fix jerky/stuttering event delivery that could happen inside
+        nested servers sometimes (LP: #1372300)
+    - Enhancement
+      . Reduced touch input lag slightly for 60Hz displays.
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Thu, 25 Sep 2014 16:18:10 +0800
+
 mir (0.7.3+14.10.20140918.1-0ubuntu1) utopic; urgency=medium
 
   [ Andreas Pokorny ]
