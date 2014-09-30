@@ -25,6 +25,11 @@ namespace mia = mir::input::android;
 
 void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEvent &mir_event)
 {
+    mia::Lexicon::translate(android_event, mir_event, -1);
+}
+
+void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEvent &mir_event, int historical_pointer_index)
+{
     switch(android_event->getType())
     {
         case AINPUT_EVENT_TYPE_KEY:
@@ -64,7 +69,12 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
             mir_event.motion.pointer_count = mev->getPointerCount();
             for(unsigned int i = 0; i < mev->getPointerCount(); i++)
             {
-                    mir_event.motion.pointer_coordinates[i].id = mev->getPointerId(i);
+                mir_event.motion.pointer_coordinates[i].id = mev->getPointerId(i);
+                mir_event.motion.pointer_coordinates[i].tool_type =
+                    static_cast<MirMotionToolType>(mev->getToolType(i));
+
+                if (historical_pointer_index == -1)
+                {
                     mir_event.motion.pointer_coordinates[i].x = mev->getX(i);
                     mir_event.motion.pointer_coordinates[i].raw_x = mev->getRawX(i);
                     mir_event.motion.pointer_coordinates[i].y = mev->getY(i);
@@ -81,8 +91,27 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
                     mir_event.motion.pointer_coordinates[i].hscroll =
                            mev->getRawAxisValue(AMOTION_EVENT_AXIS_HSCROLL, i);
 
-                    mir_event.motion.pointer_coordinates[i].tool_type =
-                           static_cast<MirMotionToolType>(mev->getToolType(i));
+                }
+                else
+                {
+                    auto const& hpi = historical_pointer_index;
+
+                    mir_event.motion.pointer_coordinates[i].x = mev->getHistoricalX(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].raw_x = mev->getHistoricalRawX(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].y = mev->getHistoricalY(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].raw_y = mev->getHistoricalRawY(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].touch_major = mev->getHistoricalTouchMajor(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].touch_minor = mev->getHistoricalTouchMinor(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].size = mev->getHistoricalSize(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].pressure = mev->getHistoricalPressure(i, hpi);
+                    mir_event.motion.pointer_coordinates[i].orientation = mev->getHistoricalOrientation(i, hpi);
+
+                    mir_event.motion.pointer_coordinates[i].vscroll =
+                           mev->getHistoricalRawAxisValue(AMOTION_EVENT_AXIS_VSCROLL, i, hpi);
+
+                    mir_event.motion.pointer_coordinates[i].hscroll =
+                           mev->getHistoricalRawAxisValue(AMOTION_EVENT_AXIS_HSCROLL, i, hpi);
+                }
             }
             break;
         }

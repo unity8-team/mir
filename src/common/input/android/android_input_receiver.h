@@ -89,6 +89,10 @@ private:
     std::shared_ptr<XKBMapper> xkb_mapper;
 
     AndroidClock const android_clock;
+    
+    // TODO: At least comment...
+    droidinput::InputEvent *event_with_remaining_samples;
+    int historical_index;
 
     bool try_next_event(MirEvent &ev);
 };

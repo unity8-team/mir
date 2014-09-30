@@ -42,8 +42,8 @@ class Lexicon
 {
 public:
     static void translate(const droidinput::InputEvent *android_event, MirEvent &mir_event);
+    static void translate(const droidinput::InputEvent* android_event, MirEvent &mir_event, int historical_pointer_index);
 };
-
 }
 }
 }

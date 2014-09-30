@@ -25,6 +25,8 @@
 #include <androidfw/InputTransport.h>
 #include <utils/Looper.h>
 
+#include <assert.h>
+
 namespace mircv = mir::input::receiver;
 namespace mircva = mircv::android;
 
@@ -52,7 +54,9 @@ mircva::InputReceiver::InputReceiver(int fd,
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    event_with_remaining_samples(nullptr),
+    historical_index(-1)
 {
 }
 
@@ -82,6 +86,28 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 {
+    if (event_with_remaining_samples)
+    {
+        auto android_mev = dynamic_cast<droidinput::MotionEvent*>(event_with_remaining_samples);
+        assert(android_mev);
+        assert(historical_index >= 0);
+
+        if (static_cast<unsigned>(historical_index) < android_mev->getHistorySize())
+        {
+            mia::Lexicon::translate(event_with_remaining_samples, ev, historical_index);
+            historical_index++;
+            // No need to do input mapping.
+            // TODO: Report?
+            return true;
+        }
+        else
+        {
+            mia::Lexicon::translate(event_with_remaining_samples, ev);
+            report->received_event(ev);
+            event_with_remaining_samples = nullptr;
+            return true;
+        }
+    }
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
@@ -117,15 +143,26 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {
-        mia::Lexicon::translate(android_event, ev);
-
-        map_key_event(xkb_mapper, ev);
+        auto mev= dynamic_cast<droidinput::MotionEvent*>(android_event);
 
         input_consumer->sendFinishedSignal(event_sequence_id, true);
 
-        report->received_event(ev);
+        if (mev && (mev->getHistorySize() > 0))
+        {
+            event_with_remaining_samples = android_event;
+            historical_index = 0;
+            return try_next_event(ev);
+        }
+        else
+        {
+            mia::Lexicon::translate(android_event, ev);
+            map_key_event(xkb_mapper, ev);
+            report->received_event(ev);
+            input_consumer->sendFinishedSignal(event_sequence_id, true);
+            return true;
+        }
 
-        return true;
+
     }
    return false;
 }
@@ -159,7 +196,7 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
     auto result = looper->pollOnce(reduced_timeout.count());
     if (result == ALOOPER_POLL_WAKE)
         return false;
-    if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
+   if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
        return false;
 
     return try_next_event(ev);
