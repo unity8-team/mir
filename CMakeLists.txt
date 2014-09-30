@@ -104,7 +104,7 @@ _populate_Gui_plugin_properties("Gui" "PLATFORMS" "platforms")
 get_target_property(Qt5Gui_QPA_Plugin_Path Qt5::Gui IMPORTED_LOCATION_PLATFORMS)
 
 # Determine install path for QML module
-execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=plugindir_suffix unity-shell-api OUTPUT_VARIABLE QTMIR_INSTALL_QML OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=plugindir_suffix unity-shell-api OUTPUT_VARIABLE SHELL_INSTALL_QML OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(SHELL_INSTALL_QML STREQUAL "")
     message(FATAL_ERROR "Could not determine plugin installation dir.")
 endif()
