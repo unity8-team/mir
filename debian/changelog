@@ -1,6 +1,11 @@
 platform-api (2.5.0+14.10.20140929-0ubuntu1) UNRELEASED; urgency=medium
 
+  [ Robert Carr ]
   * Bump minor version due to new symbols (ua_ui_window_request_state).
+
+  [ Ubuntu daily release ]
+  * debian/libubuntu-application-api2.symbols: auto-update to released
+    version
 
  -- Robert Carr <robert.carr@canonical.com>  Mon, 29 Sep 2014 13:56:21 -0700
 
