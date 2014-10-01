@@ -1816,6 +1816,60 @@ TEST_F(ApplicationManagerTests,unexpectedStopOfBackgroundWebapp)
 }
 
 /*
+ * Test for when a background application that has been OOM killed is relaunched by upstart.
+ * AppMan will have the application in the app lists, in a Stopped state. Upstart will notify of
+ * the app launching (like any normal app). Need to set the old Application instance to Starting
+ * state and emit focusRequested to shell - authorizeSession will then associate new process with
+ * the Application as normal.
+ */
+TEST_F(ApplicationManagerTests,stoppedBackgroundAppRelaunchedByUpstart)
+{
+    using namespace ::testing;
+    const QString appId("testAppId");
+    quint64 procId = 5551;
+
+    // Set up Mocks & signal watcher
+    auto mockDesktopFileReader = new NiceMock<MockDesktopFileReader>(appId, QFileInfo());
+    ON_CALL(*mockDesktopFileReader, loaded()).WillByDefault(Return(true));
+    ON_CALL(*mockDesktopFileReader, appId()).WillByDefault(Return(appId));
+
+    ON_CALL(desktopFileReaderFactory, createInstance(appId, _)).WillByDefault(Return(mockDesktopFileReader));
+
+    EXPECT_CALL(appController, startApplicationWithAppIdAndArgs(appId, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+    applicationManager.startApplication(appId, ApplicationManager::NoFlag);
+    applicationManager.onProcessStarting(appId);
+    std::shared_ptr<mir::scene::Session> session = std::make_shared<MockSession>("", procId);
+    bool authed = true;
+    applicationManager.authorizeSession(procId, authed);
+    onSessionStarting(session);
+
+    // App creates surface, focuses it, puts it in background, then is OOM killed.
+    std::shared_ptr<mir::scene::Surface> surface(nullptr);
+    applicationManager.onSessionCreatedSurface(session.get(), surface);
+    applicationManager.focusApplication(appId);
+    applicationManager.unfocusCurrentApplication();
+
+    onSessionStopping(session);
+    applicationManager.onProcessFailed(appId, false);
+    applicationManager.onProcessStopped(appId);
+
+    Application *app = applicationManager.findApplication(appId);
+    EXPECT_EQ(app->state(), Application::Stopped);
+
+    QSignalSpy focusRequestSpy(&applicationManager, SIGNAL(focusRequested(const QString &)));
+
+    // Upstart re-launches app
+    applicationManager.onProcessStarting(appId);
+
+    EXPECT_EQ(app->state(), Application::Starting);
+    EXPECT_EQ(focusRequestSpy.count(), 1);
+    EXPECT_EQ(applicationManager.count(), 1);
+}
+
+/*
  * Test that screenshotting callback works cross thread.
  */
 TEST_F(ApplicationManagerTests, threadedScreenshot)
