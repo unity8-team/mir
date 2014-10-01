@@ -41,7 +41,9 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    event_with_remaining_samples(nullptr),
+    historical_index(-1)
 {
 }
 
@@ -96,8 +98,8 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
         {
             mia::Lexicon::translate(event_with_remaining_samples, ev, historical_index);
             historical_index++;
-            // No need to do input mapping.
-            // TODO: Report?
+            // No need to do xkb mapping because we are a motion event.
+            report->received_event(ev);
             return true;
         }
         else
@@ -134,12 +136,12 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
      * as the display refresh rate.
      */
 
-//    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
-/*    int const event_rate_hz = 55;
+    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
+    int const event_rate_hz = 55;
     nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
-    nsecs_t frame_time = (now / one_frame) * one_frame;*/
+    nsecs_t frame_time = (now / one_frame) * one_frame;
 
-    if (input_consumer->consume(&event_factory, true, -1,
+    if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {

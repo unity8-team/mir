@@ -96,6 +96,8 @@ void mia::Lexicon::translate(const droidinput::InputEvent *android_event, MirEve
                 {
                     auto const& hpi = historical_pointer_index;
 
+                    mir_event.motion.event_time = mev->getHistoricalEventTime(hpi);
+
                     mir_event.motion.pointer_coordinates[i].x = mev->getHistoricalX(i, hpi);
                     mir_event.motion.pointer_coordinates[i].raw_x = mev->getHistoricalRawX(i, hpi);
                     mir_event.motion.pointer_coordinates[i].y = mev->getHistoricalY(i, hpi);
