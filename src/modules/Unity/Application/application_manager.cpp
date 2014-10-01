@@ -358,8 +358,6 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
     }
 
     resumeApplication(application);
-    if (application == m_focusedApplication)
-        return true;
 
     // set state of previously focused app to suspended
     if (m_focusedApplication) {
