@@ -24,8 +24,8 @@ PKGCONFIG += mirserver protobuf egl xkbcommon url-dispatcher-1
 LIBS += -lboost_system
 
 SOURCES += \
-    connectioncreator.cpp \
     ../../common/debughelpers.cpp \
+    clipboard.cpp \
     focussetter.cpp \
     qteventfeeder.cpp \
     plugin.cpp \
@@ -34,7 +34,6 @@ SOURCES += \
     sessionlistener.cpp \
     surfaceconfigurator.cpp \
     promptsessionlistener.cpp \
-    messageprocessor.cpp \
     mirplacementstrategy.cpp \
     mirserverconfiguration.cpp \
     mirserverstatuslistener.cpp \
@@ -47,12 +46,11 @@ SOURCES += \
     qtcompositor.cpp \
     services.cpp \
     ubuntutheme.cpp \
-    unityprotobufservice.cpp \
-    unityrpc.cpp
+
 
 HEADERS += \
-    connectioncreator.h \
     ../../common/debughelpers.h \
+    clipboard.h \
     focussetter.h \
     qteventfeeder.h \
     plugin.h \
@@ -62,7 +60,6 @@ HEADERS += \
     promptsessionlistener.h \
     surfaceconfigurator.h \
     logging.h \
-    messageprocessor.h \
     mirglconfig.h \
     mirplacementstrategy.h \
     mirserverconfiguration.h \
@@ -76,8 +73,7 @@ HEADERS += \
     qtcompositor.h \
     services.h \
     ubuntutheme.h \
-    unityprotobufservice.h \
-    unityrpc.h
+
 
 LTTNG_TP_FILES += tracepoints.tp
 
