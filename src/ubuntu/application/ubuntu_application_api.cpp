@@ -122,6 +122,7 @@ IMPLEMENT_FUNCTION1(UStatus, ua_ui_window_show, UAUiWindow*);
 IMPLEMENT_VOID_FUNCTION1(ua_ui_window_request_fullscreen, UAUiWindow*);
 IMPLEMENT_FUNCTION1(EGLNativeWindowType, ua_ui_window_get_native_type, UAUiWindow*);
 IMPLEMENT_FUNCTION1(UApplicationUiWindowOrientation, ua_ui_window_get_orientation, UAUiWindow*);
+IMPLEMENT_FUNCTION2(void, ua_ui_window_request_state, UAUiWindow*, UApplicationUiWindowState);
 
 // Ubuntu Application Sensors
 

@@ -266,6 +266,10 @@ void ua_ui_window_request_fullscreen(UAUiWindow*)
 {
 }
 
+void ua_ui_window_request_state(UAUiWindow *, UApplicationUiWindowState)
+{
+}
+
 EGLNativeWindowType ua_ui_window_get_native_type(UAUiWindow*)
 {
     return NULL;

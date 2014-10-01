@@ -435,6 +435,15 @@ ua_ui_window_request_fullscreen(
     session->toggle_fullscreen_for_surface(p->value);
 }
 
+void
+ua_ui_window_request_state(
+    UAUiWindow *window, UApplicationUiWindowState state)
+{
+    ALOGI("ua_ui_window_request_state unimplemented %s:%d", __PRETTY_FUNCTION__, __LINE__);
+    (void) window;
+    (void) state;
+}
+
 EGLNativeWindowType
 ua_ui_window_get_native_type(
     UAUiWindow *window)

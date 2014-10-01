@@ -132,6 +132,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_ui_window_properties_set_role@Base 0.18.1daily13.06.21
  ua_ui_window_properties_set_titlen@Base 0.18.1daily13.06.21
  ua_ui_window_request_fullscreen@Base 0.18.1daily13.06.21
+ ua_ui_window_request_state@Base 0replaceme
  ua_ui_window_resize@Base 0.18.1daily13.06.21
  ua_ui_window_show@Base 0.18.1daily13.06.21
  ua_url_dispatcher_session@Base 0.18.3+13.10.20130823-0ubuntu1
