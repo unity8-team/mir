@@ -4,6 +4,8 @@ mir (0.7.4-0ubuntu1) UNRELEASED; urgency=medium
     - Bug fixes
       . Fix jerky/stuttering event delivery that could happen inside
         nested servers sometimes (LP: #1372300)
+      . Nested server crashes with SIGSEGV on shutdown in eglDestroyContext()
+        (LP: #1372276)
     - Enhancement
       . Reduced touch input lag slightly for 60Hz displays.
 
