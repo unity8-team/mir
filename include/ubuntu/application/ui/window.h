@@ -79,7 +79,7 @@ extern "C" {
     ua_ui_window_show(
     	UAUiWindow *window);
 
-    // Deprecated. Prefer ua_ui_window_set_state.
+    // Deprecated. Prefer ua_ui_window_request_state.
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_fullscreen(
         UAUiWindow *window);
