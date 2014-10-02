@@ -39,7 +39,6 @@ string (REPLACE " -pedantic " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 add_definitions(-DBYTE_ORDER=__BYTE_ORDER)
 
 set(MIRSERVER_QPA_PLUGIN_SRC
-    connectioncreator.cpp
     ../../common/debughelpers.cpp
     focussetter.cpp
     qteventfeeder.cpp
@@ -49,7 +48,6 @@ set(MIRSERVER_QPA_PLUGIN_SRC
     sessionlistener.cpp
     surfaceconfigurator.cpp
     promptsessionlistener.cpp
-    messageprocessor.cpp
     mirplacementstrategy.cpp
     mirserverconfiguration.cpp
     mirserverstatuslistener.cpp
@@ -62,8 +60,7 @@ set(MIRSERVER_QPA_PLUGIN_SRC
     qtcompositor.cpp
     services.cpp
     ubuntutheme.cpp
-    unityprotobufservice.cpp
-    unityrpc.cpp
+    clipboard.cpp
     tracepoints.c
     )
 

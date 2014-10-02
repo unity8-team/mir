@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical, Ltd.
+ * Copyright (C) 2013-2014 Canonical, Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 3, as published by
@@ -13,7 +13,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Author: Gerry Boland <gerry.boland@canonical.com>
+ * Authors: Gerry Boland <gerry.boland@canonical.com>
+ *          Daniel d'Andrada <daniel.dandrada@canonical.com>
  */
 
 #ifndef MIRSERVERINTEGRATION_H
@@ -28,6 +29,10 @@
 class Display;
 class NativeInterface;
 class QMirServer;
+
+namespace qtmir {
+    class Clipboard;
+}
 
 class MirServerIntegration : public QPlatformIntegration
 {
@@ -48,6 +53,8 @@ public:
     QAbstractEventDispatcher *createEventDispatcher() const override;
     void initialize() override;
 #endif
+
+    QPlatformClipboard *clipboard() const override;
 
     QPlatformInputContext* inputContext() const override { return m_inputContext; }
 
@@ -74,6 +81,7 @@ private:
     QMirServer *m_mirServer;
     NativeInterface *m_nativeInterface;
     QPlatformInputContext* m_inputContext;
+    QScopedPointer<qtmir::Clipboard> m_clipboard;
 };
 
 #endif // MIRSERVERINTEGRATION_H
