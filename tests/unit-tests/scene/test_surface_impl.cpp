@@ -405,7 +405,7 @@ TEST_F(Surface, take_input_focus)
     surf.take_input_focus(mt::fake_shared(targeter));
 }
 
-TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
+TEST_F(Surface, snapshot_uses_compositor_buffer)
 {
     auto stub_buffer_stream = std::make_shared<mtd::StubBufferStream>();
 
@@ -420,13 +420,6 @@ TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
         std::shared_ptr<mg::CursorImage>(),
         report);
 
-    mg::Buffer* buf_ptr{nullptr};
-
-    surf.with_most_recent_buffer_do(
-        [&](mg::Buffer& buffer)
-        {
-            buf_ptr = &buffer;
-        });
-
-    EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(), buf_ptr);
+    EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(),
+              surf.snapshot_buffer().get());
 }

@@ -97,7 +97,8 @@ public:
     int client_input_fd() const override { return fd;}
     int configure(MirSurfaceAttrib, int) override { return 0; }
     int query(MirSurfaceAttrib) override { return 0; }
-    void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override {}
+    std::shared_ptr<graphics::Buffer> snapshot_buffer() const override
+        { return {}; }
 };
 
 }
