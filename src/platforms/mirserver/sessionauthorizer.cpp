@@ -50,7 +50,8 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
             QThread::usleep(10000);
         }
         if (!isSignalConnected(mm)) {
-            qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::connection_is_allowed - Gave up waiting for signal listeners";
+            qCDebug(QTMIR_MIR_MESSAGES) <<
+                "SessionAuthorizer::connection_is_allowed - Gave up waiting for signal listeners";
         }
         m_connectionChecked = true;
     }
