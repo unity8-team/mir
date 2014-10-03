@@ -56,7 +56,7 @@ public:
 
     // Plain snapshots do not consume buffers (only observe), and so do not
     // affect the client frame rate.
-    virtual std::shared_ptr<graphics::Buffer> snapshot_buffer() const
+    virtual std::shared_ptr<graphics::Buffer> snapshot() const
         { return {}; } // TODO
 
     // Compositor snapshots consume buffers (per compositor_id), thereby

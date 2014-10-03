@@ -421,5 +421,5 @@ TEST_F(Surface, snapshot_uses_compositor_buffer)
         report);
 
     EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(),
-              surf.snapshot_buffer().get());
+              surf.snapshot().get());
 }

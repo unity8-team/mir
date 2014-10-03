@@ -108,7 +108,7 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
 {
     if (auto surface = default_surface())
-        snapshot_strategy->take_snapshot_of(surface->snapshot_buffer(), snapshot_taken);
+        snapshot_strategy->take_snapshot_of(surface->snapshot(), snapshot_taken);
     else
         snapshot_taken(Snapshot());
 }

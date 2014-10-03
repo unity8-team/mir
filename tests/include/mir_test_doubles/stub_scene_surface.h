@@ -97,7 +97,7 @@ public:
     int client_input_fd() const override { return fd;}
     int configure(MirSurfaceAttrib, int) override { return 0; }
     int query(MirSurfaceAttrib) override { return 0; }
-    std::shared_ptr<graphics::Buffer> snapshot_buffer() const override
+    std::shared_ptr<graphics::Buffer> snapshot() const override
         { return {}; }
 };
 

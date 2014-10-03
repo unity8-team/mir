@@ -100,7 +100,7 @@ public:
 
     MirPixelFormat pixel_format() const;
 
-    std::shared_ptr<graphics::Buffer> snapshot_buffer() const override;
+    std::shared_ptr<graphics::Buffer> snapshot() const override;
     void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete);
     void force_requests_to_complete();
 

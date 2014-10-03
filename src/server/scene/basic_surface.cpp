@@ -225,7 +225,7 @@ void ms::BasicSurface::allow_framedropping(bool allow)
     surface_buffer_stream->allow_framedropping(allow);
 }
 
-std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
+std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot() const
 {
     return surface_buffer_stream->lock_snapshot_buffer();
 }

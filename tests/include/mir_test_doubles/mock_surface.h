@@ -67,7 +67,7 @@ struct MockSurface : public scene::BasicSurface
     MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::SurfaceObserver> const&));
     MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::SurfaceObserver> const&));
 
-    MOCK_CONST_METHOD0(snapshot_buffer, std::shared_ptr<graphics::Buffer>());
+    MOCK_CONST_METHOD0(snapshot, std::shared_ptr<graphics::Buffer>());
 };
 
 }

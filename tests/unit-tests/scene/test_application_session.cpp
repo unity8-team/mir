@@ -275,7 +275,7 @@ TEST(ApplicationSession, takes_snapshot_of_default_surface)
 
     auto stub_buffer = std::make_shared<mtd::StubBuffer>();
 
-    EXPECT_CALL(*default_surface, snapshot_buffer())
+    EXPECT_CALL(*default_surface, snapshot())
         .WillOnce(Return(stub_buffer));
     EXPECT_CALL(*snapshot_strategy,
                 take_snapshot_of(Ref(stub_buffer), _));
