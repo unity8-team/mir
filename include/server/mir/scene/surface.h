@@ -54,13 +54,13 @@ public:
     /// Size of the surface including window frame (if any)
     virtual geometry::Size size() const = 0;
 
-    // Plain snapshots do not consume buffers (only observe), and so do not
-    // affect the client frame rate.
-    virtual std::shared_ptr<graphics::Buffer> snapshot() const
-        { return {}; } // TODO
+    // Snapshots do not consume buffers (only observe)
+    virtual std::shared_ptr<graphics::Buffer> snapshot() const = 0;
 
-    // Compositor snapshots consume buffers (per compositor_id), thereby
-    // dictating the client frame rate.
+    // Compositors consume buffers, thereby dictating the client frame rate
+    // TODO: Maybe remove confusing word "snapshot" here, or even consider
+    //       if we can merge snapshotting into this function by careful use of
+    //       compositor_id.
     virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const = 0;
 
     virtual float alpha() const = 0; //only used in examples/
