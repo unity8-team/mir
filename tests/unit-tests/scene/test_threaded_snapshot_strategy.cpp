@@ -109,14 +109,17 @@ TEST_F(ThreadedSnapshotStrategyTest, names_snapshot_thread)
 
     mt::WaitCondition snapshot_taken;
 
+    std::string thread_name;
+
     strategy.take_snapshot_of(
         mt::fake_shared(buffer),
         [&](ms::Snapshot const&)
         {
+            thread_name = mt::current_thread_name();
             snapshot_taken.wake_up_everyone();
         });
 
     snapshot_taken.wait_for_at_most_seconds(5);
 
-    //EXPECT_THAT(buffer_access.thread_name, Eq("Mir/Snapshot"));
+    EXPECT_THAT(thread_name, Eq("Mir/Snapshot"));
 }
