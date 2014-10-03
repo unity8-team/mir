@@ -28,6 +28,7 @@
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_prompt_session.h"
+#include "mir_test_doubles/stub_buffer.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -267,14 +268,17 @@ TEST(ApplicationSession, takes_snapshot_of_default_surface)
     mtd::MockSurfaceCoordinator surface_coordinator;
     mtd::NullEventSink sender;
     auto const default_surface = make_mock_surface();
-    auto const buffer = default_surface->snapshot_buffer();
     auto const snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
 
     EXPECT_CALL(surface_coordinator, add_surface(_,_))
         .WillOnce(Return(default_surface));
 
+    auto stub_buffer = std::make_shared<mtd::StubBuffer>();
+
+    EXPECT_CALL(*default_surface, snapshot_buffer())
+        .WillOnce(Return(stub_buffer));
     EXPECT_CALL(*snapshot_strategy,
-                take_snapshot_of(buffer, _));
+                take_snapshot_of(Ref(stub_buffer), _));
 
     ms::ApplicationSession app_session(
         mt::fake_shared(surface_coordinator),
