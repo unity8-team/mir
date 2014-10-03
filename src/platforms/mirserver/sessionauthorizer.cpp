@@ -43,6 +43,7 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
     bool authorized = true;
 
     if (!m_connectionChecked) {
+        // Wait until the ApplicationManager is ready to receive requestAuthorizationForSession signals
         const QMetaObject *mo = metaObject();
         QMetaMethod mm = mo->method(mo->indexOfSignal("requestAuthorizationForSession(quint64,bool&)"));
         for (int i = 0; i < 100 && !isSignalConnected(mm); ++i) {
