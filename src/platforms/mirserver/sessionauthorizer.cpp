@@ -43,7 +43,6 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
     bool authorized = true;
 
     if (!m_connectionChecked) {
-        m_connectionChecked = true;
         // Wait until the ApplicationManager is ready to receive requestAuthorizationForSession signals
         const QMetaObject *mo = metaObject();
         QMetaMethod mm = mo->method(mo->indexOfSignal("requestAuthorizationForSession(quint64,bool&)"));
@@ -54,6 +53,7 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
             qCDebug(QTMIR_MIR_MESSAGES) <<
                 "SessionAuthorizer::connection_is_allowed - Gave up waiting for signal listeners";
         }
+        m_connectionChecked = true;
     }
 
     Q_EMIT requestAuthorizationForSession(creds.pid(), authorized); // needs to block until authorized value returned
