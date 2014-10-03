@@ -100,7 +100,7 @@ public:
 
     MirPixelFormat pixel_format() const;
 
-    std::shared_ptr<graphics::Buffer> snapshot_buffer() const;
+    std::shared_ptr<graphics::Buffer> snapshot_buffer() const override;
     void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete);
     void force_requests_to_complete();
 
@@ -127,9 +127,6 @@ public:
     bool visible() const;
     
     std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const;
-
-    void with_most_recent_buffer_do(
-        std::function<void(graphics::Buffer&)> const& exec) override;
 
     MirSurfaceType type() const override;
     MirSurfaceState state() const override;

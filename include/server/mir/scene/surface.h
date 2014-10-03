@@ -21,7 +21,6 @@
 
 #include "mir/graphics/renderable.h"
 #include "mir/input/surface.h"
-#include "mir/scene/surface_buffer_access.h"
 #include "mir/frontend/surface.h"
 
 #include <vector>
@@ -39,8 +38,7 @@ class SurfaceObserver;
 
 class Surface :
     public input::Surface,
-    public frontend::Surface,
-    public SurfaceBufferAccess
+    public frontend::Surface
 {
 public:
     // resolve ambiguous member function names
@@ -56,6 +54,13 @@ public:
     /// Size of the surface including window frame (if any)
     virtual geometry::Size size() const = 0;
 
+    // Plain snapshots do not consume buffers (only observe), and so do not
+    // affect the client frame rate.
+    virtual std::shared_ptr<graphics::Buffer> snapshot_buffer() const
+        { return {}; } // TODO
+
+    // Compositor snapshots consume buffers (per compositor_id), thereby
+    // dictating the client frame rate.
     virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const = 0;
 
     virtual float alpha() const = 0; //only used in examples/
