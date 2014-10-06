@@ -12,7 +12,7 @@ CONFIG   += link_pkgconfig plugin debug no_keywords # keywords clash with Proces
 QMAKE_CXXFLAGS = -std=c++11 -Werror -Wall
 QMAKE_LFLAGS = -std=c++11 -Wl,-no-undefined
 
-PKGCONFIG += mirserver glib-2.0 process-cpp ubuntu-app-launch-2
+PKGCONFIG += mirserver glib-2.0 ubuntu-app-launch-2
 
 INCLUDEPATH += ../../../platforms/mirserver ../../../common
 LIBS += -L../../../platforms/mirserver -lqpa-mirserver
