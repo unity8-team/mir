@@ -207,7 +207,7 @@ bool ApplicationController::pauseApplicationWithAppId(const QString& appId)
 {
     auto result = ubuntu_app_launch_pause_application(toLongAppIdIfPossible(appId).toLatin1().constData());
     if (!result)
-        qDebug() << "ApplicationController::pauseApplication FAILED to stop appId=" << appId;
+        qDebug() << "ApplicationController::pauseApplication FAILED to pause appId=" << appId;
 
     return result;
 }
@@ -216,7 +216,7 @@ bool ApplicationController::resumeApplicationWithAppId(const QString& appId)
 {
     auto result = ubuntu_app_launch_resume_application(toLongAppIdIfPossible(appId).toLatin1().constData());
     if (!result)
-        qDebug() << "ApplicationController::resumeApplication FAILED to stop appId=" << appId;
+        qDebug() << "ApplicationController::resumeApplication FAILED to resume appId=" << appId;
 
     return result;
 }
