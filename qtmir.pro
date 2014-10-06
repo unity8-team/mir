@@ -1,3 +1,7 @@
 TEMPLATE = subdirs
-SUBDIRS = src tests
-tests.depends = src
+SUBDIRS = src
+
+!no_tests {
+    SUBDIRS += tests
+    tests.depends = src
+}

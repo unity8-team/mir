@@ -16,6 +16,10 @@
  */
 
 #include <Unity/Application/taskcontroller.h>
+#include <Unity/Application/desktopfilereader.h>
+#include <Unity/Application/application.h>
+
+#include "mock_desktop_file_reader.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
