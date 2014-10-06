@@ -48,7 +48,7 @@ TEST(DesktopFileReader, testReadsDesktopFile)
     EXPECT_EQ(reader->loaded(), true);
     EXPECT_EQ(reader->appId(), "calculator");
     EXPECT_EQ(reader->name(), "Calculator");
-    EXPECT_EQ(reader->exec(), "aa-exec-click -p com.ubuntu.calculator_calculator_1.3.329 -- qmlscene -qt5 ubuntu-calculator-app.qml");
+    EXPECT_EQ(reader->exec(), "yes -p com.ubuntu.calculator_calculator_1.3.329 -- qmlscene -qt5 ubuntu-calculator-app.qml");
     EXPECT_EQ(reader->icon(), "/usr/share/click/preinstalled/.click/users/@all/com.ubuntu.calculator/calculator-app@30.png");
     EXPECT_EQ(reader->path(), "/usr/share/click/preinstalled/.click/users/@all/com.ubuntu.calculator");
     EXPECT_EQ(reader->comment(), "A simple calculator for Ubuntu.");
@@ -73,7 +73,7 @@ TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
     EXPECT_EQ(reader->loaded(), true);
     EXPECT_EQ(reader->appId(), "calculator");
     EXPECT_EQ(reader->name(), "Taschenrechner");
-    EXPECT_EQ(reader->exec(), "aa-exec-click -p com.ubuntu.calculator_calculator_1.3.329 -- qmlscene -qt5 ubuntu-calculator-app.qml");
+    EXPECT_EQ(reader->exec(), "yes -p com.ubuntu.calculator_calculator_1.3.329 -- qmlscene -qt5 ubuntu-calculator-app.qml");
     EXPECT_EQ(reader->icon(), "/usr/share/click/preinstalled/.click/users/@all/com.ubuntu.calculator/calculator-app@30.png");
     EXPECT_EQ(reader->path(), "/usr/share/click/preinstalled/.click/users/@all/com.ubuntu.calculator");
     EXPECT_EQ(reader->comment(), "Ein einfach Tachenrechner für Ubuntu.");
