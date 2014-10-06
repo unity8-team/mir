@@ -81,7 +81,6 @@ DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desk
 
 DesktopFileReader::~DesktopFileReader()
 {
-    Q_D(const DesktopFileReader);
     delete d_ptr;
 }
 
