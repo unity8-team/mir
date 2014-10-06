@@ -95,14 +95,14 @@ struct MockApplicationController : public qtmir::ApplicationController
 
     bool doStopApplicationWithAppId(const QString& appId)
     {
-        (void) appId;
+        Q_UNUSED(appId);
 
         return false;
     }
 
     bool doStartApplicationWithAppIdAndArgs(const QString& appId, const QStringList& args)
     {
-        (void) args;
+        Q_UNUSED(args);
 
         auto child = core::posix::fork([]()
         {
@@ -122,14 +122,14 @@ struct MockApplicationController : public qtmir::ApplicationController
 
     bool doPauseApplicationWithAppId(const QString& appId)
     {
-        (void) appId;
+        Q_UNUSED(appId);
 
         return false;
     }
 
     bool doResumeApplicationWithAppId(const QString& appId)
     {
-        (void) appId;
+        Q_UNUSED(appId);
 
         return false;
     }
