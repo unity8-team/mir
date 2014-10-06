@@ -277,8 +277,7 @@ TEST(ApplicationSession, takes_snapshot_of_default_surface)
 
     EXPECT_CALL(*default_surface, snapshot())
         .WillOnce(Return(stub_buffer));
-    EXPECT_CALL(*snapshot_strategy,
-                take_snapshot_of(Ref(stub_buffer), _));
+    EXPECT_CALL(*snapshot_strategy, take_snapshot_of(_, _));
 
     ms::ApplicationSession app_session(
         mt::fake_shared(surface_coordinator),
