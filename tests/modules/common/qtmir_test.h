@@ -20,8 +20,6 @@
 
 #include <gtest/gtest.h>
 
-#include <core/posix/linux/proc/process/oom_score_adj.h>
-
 #include <Unity/Application/application_manager.h>
 #include <Unity/Application/applicationcontroller.h>
 #include <Unity/Application/mirsurfacemanager.h>

@@ -17,9 +17,6 @@
 
 #include <Unity/Application/taskcontroller.h>
 
-#include <core/posix/fork.h>
-#include <core/posix/linux/proc/process/oom_score_adj.h>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
