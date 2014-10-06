@@ -91,6 +91,8 @@ public:
     QString focusedApplicationId() const override;
     bool suspended() const override;
     void setSuspended(bool suspended) override;
+    bool forceDashActive() const override;
+    void setForceDashActive(bool forceDashActive) override;
     Q_INVOKABLE qtmir::Application* get(int index) const override;
     Q_INVOKABLE qtmir::Application* findApplication(const QString &appId) const override;
     Q_INVOKABLE bool requestFocusApplication(const QString &appId) override;
@@ -161,6 +163,7 @@ private:
     static ApplicationManager* the_application_manager;
     QList<pid_t> m_hiddenPIDs;
     bool m_suspended;
+    bool m_forceDashActive;
 
     friend class Application;
     friend class DBusWindowStack;

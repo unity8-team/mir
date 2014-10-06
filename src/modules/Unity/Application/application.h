@@ -105,7 +105,7 @@ public:
     Stages supportedStages() const;
     SupportedOrientations supportedOrientations() const;
 
-    bool containsProcess(pid_t pid) const;
+    pid_t pid() const;
 
 Q_SIGNALS:
     void fullscreenChanged(bool fullscreen);
@@ -120,7 +120,6 @@ private Q_SLOTS:
 
 private:
     QString longAppId() const;
-    pid_t pid() const;
     void setPid(pid_t pid);
     void setArguments(const QStringList arguments);
     void setFocused(bool focus);
