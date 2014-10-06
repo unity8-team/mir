@@ -35,7 +35,7 @@ namespace scene
 
 struct WorkItem
 {
-    std::shared_ptr<graphics::Buffer> const buffer;
+    std::shared_ptr<graphics::Buffer> buffer;
     ms::SnapshotCallback const snapshot_taken;
 };
 
@@ -64,21 +64,15 @@ public:
 
                 lock.unlock();
 
-                take_snapshot(wi);
+                pixels->fill_from(*wi.buffer);
+                wi.buffer.reset(); // No need to hold it any longer
+                wi.snapshot_taken(ms::Snapshot{pixels->size(),
+                                               pixels->stride(),
+                                               pixels->as_argb_8888()});
 
                 lock.lock();
             }
         }
-    }
-
-    void take_snapshot(WorkItem const& wi)
-    {
-        pixels->fill_from(*wi.buffer);
-
-        wi.snapshot_taken(
-            ms::Snapshot{pixels->size(),
-                     pixels->stride(),
-                     pixels->as_argb_8888()});
     }
 
     void schedule_snapshot(WorkItem const& wi)
