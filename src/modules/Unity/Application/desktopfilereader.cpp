@@ -74,8 +74,14 @@ DesktopFileReader::DesktopFileReader(const QString &appId, const QFileInfo &desk
     d->appInfo.reset((GAppInfo*) g_desktop_app_info_new_from_filename(d->file.toUtf8().constData()));
 
     if (!d->loaded()) {
-        qCWarning(QTMIR_APPLICATIONS) << "Desktop file for appId:" << appId << "at:" << d->file
-                                      << "does not exist, or is not valid";
+        if (desktopFile.exists()) {
+            qCWarning(QTMIR_APPLICATIONS) << "Desktop file for appId:" << appId << "at:" << d->file
+                                          << "does not exist";
+        } else {
+            qCWarning(QTMIR_APPLICATIONS) << "Desktop file for appId:" << appId << "at:" << d->file
+                                      << "is not valid - check its syntax, and that the binary specified"
+                                      << "by the Exec line is installed!";
+        }
     }
 }
 
