@@ -18,6 +18,9 @@
 #include "logging.h"
 #include "tracepoints.h" // generated from tracepoints.tp
 
+#include <QMetaMethod>
+#include <QThread>
+
 // mir
 #include <mir/frontend/session_credentials.h>
 
@@ -25,6 +28,7 @@ using mir::frontend::SessionCredentials;
 
 SessionAuthorizer::SessionAuthorizer(QObject *parent)
     : QObject(parent)
+    , m_connectionChecked(false)
 {
 }
 
@@ -37,6 +41,20 @@ bool SessionAuthorizer::connection_is_allowed(SessionCredentials const& creds)
     tracepoint(qtmirserver, sessionAuthorizeStart);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionAuthorizer::connection_is_allowed - this=" << this << "pid=" << creds.pid();
     bool authorized = true;
+
+    if (!m_connectionChecked) {
+        // Wait until the ApplicationManager is ready to receive requestAuthorizationForSession signals
+        const QMetaObject *mo = metaObject();
+        QMetaMethod mm = mo->method(mo->indexOfSignal("requestAuthorizationForSession(quint64,bool&)"));
+        for (int i = 0; i < 100 && !isSignalConnected(mm); ++i) {
+            QThread::usleep(10000);
+        }
+        if (!isSignalConnected(mm)) {
+            qCDebug(QTMIR_MIR_MESSAGES) <<
+                "SessionAuthorizer::connection_is_allowed - Gave up waiting for signal listeners";
+        }
+        m_connectionChecked = true;
+    }
 
     Q_EMIT requestAuthorizationForSession(creds.pid(), authorized); // needs to block until authorized value returned
     tracepoint(qtmirserver, sessionAuthorizeEnd);
