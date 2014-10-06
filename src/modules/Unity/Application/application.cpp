@@ -237,6 +237,11 @@ void Application::setPid(pid_t pid)
     m_pid = pid;
 }
 
+void Application::setArguments(const QStringList arguments)
+{
+    m_arguments = arguments;
+}
+
 void Application::setSession(Session *newSession)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setSession - appId=" << appId() << "session=" << newSession;

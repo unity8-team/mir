@@ -122,6 +122,7 @@ private:
     QString longAppId() const;
     pid_t pid() const;
     void setPid(pid_t pid);
+    void setArguments(const QStringList arguments);
     void setFocused(bool focus);
     void setSession(Session *session);
     QColor colorFromString(const QString &colorString, const char *colorName) const;

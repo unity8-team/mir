@@ -358,8 +358,6 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
     }
 
     resumeApplication(application);
-    if (application == m_focusedApplication)
-        return true;
 
     // set state of previously focused app to suspended
     if (m_focusedApplication) {
@@ -439,24 +437,30 @@ Application *ApplicationManager::startApplication(const QString &inputAppId, Exe
         return nullptr;
     }
 
-    application = new Application(
-                m_taskController,
-                m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
-                Application::Starting,
-                arguments,
-                this);
+    // The TaskController may synchroneously callback onProcessStarting, so check if application already added
+    application = findApplication(appId);
+    if (application) {
+        application->setArguments(arguments);
+    } else {
+        application = new Application(
+                    m_taskController,
+                    m_desktopFileReaderFactory->createInstance(appId, m_taskController->findDesktopFileForAppId(appId)),
+                    Application::Starting,
+                    arguments,
+                    this);
 
-    if (!application->isValid()) {
-        qWarning() << "Unable to instantiate application with appId" << appId;
-        return nullptr;
+        if (!application->isValid()) {
+            qWarning() << "Unable to instantiate application with appId" << appId;
+            return nullptr;
+        }
+
+        // override stage if necessary
+        if (application->stage() == Application::SideStage && flags.testFlag(ApplicationManager::ForceMainStage)) {
+            application->setStage(Application::MainStage);
+        }
+
+        add(application);
     }
-
-    // override stage if necessary
-    if (application->stage() == Application::SideStage && flags.testFlag(ApplicationManager::ForceMainStage)) {
-        application->setStage(Application::MainStage);
-    }
-
-    add(application);
     return application;
 }
 
@@ -487,7 +491,16 @@ void ApplicationManager::onProcessStarting(const QString &appId)
         Q_EMIT focusRequested(appId);
     }
     else {
-        qWarning() << "ApplicationManager::onProcessStarting application already found with appId" << appId;
+        // url-dispatcher can relaunch apps which have been OOM-killed - AppMan must accept the newly spawned
+        // application and focus it immediately (as user expects app to still be running).
+        if (application->state() == Application::Stopped) {
+            qCDebug(QTMIR_APPLICATIONS) << "Stopped application appId=" << appId << "is being resumed externally";
+            application->setState(Application::Starting);
+            Q_EMIT focusRequested(appId);
+        } else {
+            qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onProcessStarting application already found with appId"
+                                        << appId;
+        }
     }
 }
 
