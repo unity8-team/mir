@@ -24,6 +24,7 @@
 #include "session.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
+#include "ubuntukeyboardinfo.h"
 
 // common
 #include <debughelpers.h>
@@ -242,8 +243,6 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
     QMetaObject::invokeMethod(m_listener, "surfaceDamaged");
 }
 
-UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
-
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                                SessionInterface* session,
                                QQuickItem *parent)
@@ -274,10 +273,6 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     // fetch surface geometry
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
-
-    if (!m_ubuntuKeyboardInfo) {
-        m_ubuntuKeyboardInfo = new UbuntuKeyboardInfo;
-    }
 
     // Ensure C++ (MirSurfaceManager) retains ownership of this object
     // TODO: Investigate if having the Javascript engine have ownership of this object
@@ -647,13 +642,16 @@ bool MirSurfaceItem::processTouchEvent(
 
 bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints)
 {
-    for (int i = 0; i < touchPoints.count(); ++i) {
-        QPoint pos = touchPoints.at(i).pos().toPoint();
-        if (pos.x() >= m_ubuntuKeyboardInfo->x()
-                && pos.x() <= (m_ubuntuKeyboardInfo->x() + m_ubuntuKeyboardInfo->width())
-                && pos.y() >= m_ubuntuKeyboardInfo->y()
-                && pos.y() <= (m_ubuntuKeyboardInfo->y() + m_ubuntuKeyboardInfo->height())) {
-            return true;
+    UbuntuKeyboardInfo *ubuntuKeyboardInfo = UbuntuKeyboardInfo::instance();
+    if (ubuntuKeyboardInfo) {
+        for (int i = 0; i < touchPoints.count(); ++i) {
+            QPoint pos = touchPoints.at(i).pos().toPoint();
+            if (pos.x() >= ubuntuKeyboardInfo->x()
+                    && pos.x() <= (ubuntuKeyboardInfo->x() + ubuntuKeyboardInfo->width())
+                    && pos.y() >= ubuntuKeyboardInfo->y()
+                    && pos.y() <= (ubuntuKeyboardInfo->y() + ubuntuKeyboardInfo->height())) {
+                return true;
+            }
         }
     }
     return false;

@@ -34,6 +34,9 @@ class UbuntuKeyboardInfo : public QObject {
 public:
     UbuntuKeyboardInfo(QObject *parent = 0);
     virtual ~UbuntuKeyboardInfo();
+
+    static UbuntuKeyboardInfo* instance();
+
     qreal x() const { return m_lastX; }
     qreal y() const { return m_lastY; }
     qreal width() const { return m_lastWidth; }
@@ -75,6 +78,8 @@ private:
 
     // Path to the socket file created by ubuntu-keyboard
     QString m_socketFilePath;
+
+    static UbuntuKeyboardInfo* m_instance;
 };
 
 } // namespace qtmir
