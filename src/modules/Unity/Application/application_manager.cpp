@@ -196,6 +196,7 @@ ApplicationManager::ApplicationManager(
     , m_desktopFileReaderFactory(desktopFileReaderFactory)
     , m_procInfo(procInfo)
     , m_suspended(false)
+    , m_forceDashActive(false)
 {
     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::ApplicationManager (this=%p)" << this;
     setObjectName("qtmir::ApplicationManager");
@@ -320,6 +321,35 @@ void ApplicationManager::setSuspended(bool suspended)
     }
 }
 
+bool ApplicationManager::forceDashActive() const
+{
+    return m_forceDashActive;
+}
+
+void ApplicationManager::setForceDashActive(bool forceDashActive)
+{
+    if (m_forceDashActive == forceDashActive) {
+        return;
+    }
+
+    m_forceDashActive = forceDashActive;
+    Q_EMIT forceDashActiveChanged();
+
+    Application *dashApp = findApplication("unity8-dash");
+    if (!dashApp) {
+        qCWarning(QTMIR_APPLICATIONS) << "Dash doesn't seem to be running... Ignoring.";
+        return;
+    }
+
+    if (m_forceDashActive && dashApp->state() != Application::Running) {
+         resumeApplication(dashApp);
+    } else if (!m_forceDashActive && dashApp->state() == Application::Running
+            && m_mainStageApplication != dashApp
+            && m_sideStageApplication != dashApp) {
+        suspendApplication(dashApp);
+    }
+}
+
 bool ApplicationManager::suspendApplication(Application *application)
 {
     if (application == nullptr)
@@ -329,6 +359,10 @@ bool ApplicationManager::suspendApplication(Application *application)
     // Present in exceptions list, return.
     if (!m_lifecycleExceptions.filter(application->appId().section('_',0,0)).empty())
         return false;
+
+    if (m_forceDashActive && application->appId() == "unity8-dash") {
+        return false;
+    }
 
     if (application->state() == Application::Running)
         application->setState(Application::Suspended);
@@ -368,10 +402,14 @@ bool ApplicationManager::focusApplication(const QString &inputAppId)
 
     if (application->stage() == Application::MainStage) {
         m_mainStageApplication = application;
-        resumeApplication(m_sideStageApplication); // in case unfocusCurrentApplication() was last called
     } else {
         m_sideStageApplication = application;
-        resumeApplication(m_mainStageApplication); // in case unfocusCurrentApplication() was last called
+    }
+
+    if (!m_suspended) {
+        resumeApplication(application); // in case unfocusCurrentApplication() was last called
+    } else {
+        suspendApplication(application); // Make sure we also have this one suspended if everything is suspended
     }
 
     m_focusedApplication = application;
@@ -808,6 +846,9 @@ void ApplicationManager::onSessionCreatedSurface(ms::Session const* session,
     if (application && application->state() == Application::Starting) {
         m_dbusWindowStack->WindowCreated(0, application->appId());
         application->setState(Application::Running);
+        if ((application != m_mainStageApplication && application != m_sideStageApplication) || m_suspended) {
+            suspendApplication(application);
+        }
     }
 }
 
