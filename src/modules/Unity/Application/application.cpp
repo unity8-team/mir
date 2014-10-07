@@ -325,13 +325,13 @@ void Application::setFocused(bool focused)
 void Application::onSessionSuspended()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionSuspended - appId=" << appId();
-    m_taskController->suspend(this);
+    m_taskController->suspend(longAppId());
 }
 
 void Application::onSessionResumed()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionResumed - appId=" << appId();
-    m_taskController->resume(this);
+    m_taskController->resume(longAppId());
 }
 
 void Application::respawn()
