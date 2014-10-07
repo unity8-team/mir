@@ -34,10 +34,7 @@ Build-Depends: debhelper (>= 9),
                qtbase5-dev,
                qtbase5-private-dev,
                qtdeclarative5-dev,
-               qtdeclarative5-private-dev,
-# We need opengl headers to build qtmir-desktop on armhf
-               libgl1-mesa-dev,
-               libgles2-mesa-dev
+               qtdeclarative5-private-dev
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/qtmir
 # if you don't have have commit access to this branch but would like to upload
