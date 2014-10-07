@@ -89,13 +89,15 @@ void mfd::pack_protobuf_display_configuration(mp::DisplayConfiguration& protobuf
         });
 }
 
-mfd::ProtobufBufferPacker::ProtobufBufferPacker(protobuf::Buffer* response)
-    : buffer_response(response)
+mfd::ProtobufBufferPacker::ProtobufBufferPacker(protobuf::Buffer* response) :
+    fds_(response->fd().begin(), response->fd().end()),
+    buffer_response(response)
 {
 }
 
-void mfd::ProtobufBufferPacker::pack_fd(int fd)
+void mfd::ProtobufBufferPacker::pack_fd(Fd const& fd)
 {
+    fds_.emplace_back(fd);
     buffer_response->add_fd(fd);
 }
 
@@ -120,3 +122,12 @@ void mfd::ProtobufBufferPacker::pack_size(geometry::Size const& size)
     buffer_response->set_height(size.height.as_int());
 }
 
+std::vector<mir::Fd> mfd::ProtobufBufferPacker::fds()
+{
+    return fds_;
+}
+
+std::vector<int> mfd::ProtobufBufferPacker::data()
+{
+    return {buffer_response->data().begin(), buffer_response->data().end()};
+}

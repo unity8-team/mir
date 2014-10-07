@@ -1,20 +1,30 @@
 include(CMakeDependentOption)
 
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/client
+)
 
 set(
   INTEGRATION_TESTS_SRCS
   test_surface_stack_with_compositor.cpp
+  test_client_surface_swap_buffers.cpp
   test_surfaceloop.cpp
+  test_stale_frames.cpp
   test_error_reporting.cpp
+  test_exchange_buffer.cpp
   test_display_info.cpp
   test_display_server_main_loop_events.cpp
   test_surface_first_frame_sync.cpp
   test_swapinterval.cpp
   test_server_client_types.cpp
+  test_server_shutdown.cpp
   test_session_manager.cpp
   test_session.cpp
   session_management.cpp
+  surface_composition.cpp
 )
 
 add_subdirectory(client/)
@@ -43,7 +53,17 @@ endif()
 link_directories(${LIBRARY_OUTPUT_PATH})
 add_executable(
   mir_integration_tests
-  ${INTEGRATION_TESTS_SRCS})
+  ${INTEGRATION_TESTS_SRCS}
+  ${MIR_SERVER_OBJECTS}
+  $<TARGET_OBJECTS:mirclientobjects>
+  ${MIR_PLATFORM_OBJECTS}
+  ${MIR_COMMON_OBJECTS}
+)
+
+mir_precompiled_header(mir_integration_tests ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.hpp)
+
+add_dependencies(mir_integration_tests GMock)
+
 uses_android_input(mir_integration_tests)
 
 target_link_libraries(
@@ -53,11 +73,10 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
 
-  mirserver
-  mirplatformgraphics
-  mirclient
   mirdraw
   mirtestdraw
+  mirclientrpc
+  mirclientlttngstatic
 
   3rd_party
 
@@ -67,7 +86,19 @@ target_link_libraries(
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  ${MIR_PLATFORM_REFERENCES}
+  ${MIR_COMMON_REFERENCES}
+  ${MIR_SERVER_REFERENCES}
 )
+
+if (MIR_TEST_PLATFORM STREQUAL "android")
+target_link_libraries(mir_integration_tests
+  mirsharedandroid
+  ${ANDROID_PROPERTIES_LDFLAGS}
+)
+endif()
 
 CMAKE_DEPENDENT_OPTION(
   MIR_RUN_INTEGRATION_TESTS

@@ -43,12 +43,12 @@ void mcl::lttng::RpcReport::invocation_succeeded(
 
 void mcl::lttng::RpcReport::invocation_failed(
     mir::protobuf::wire::Invocation const& /*invocation*/,
-    boost::system::error_code const& /*error*/)
+    std::exception const& /*ex*/)
 {
 }
 
 void mcl::lttng::RpcReport::header_receipt_failed(
-    boost::system::error_code const& /*error*/)
+    std::exception const& /*ex*/)
 {
 }
 
@@ -94,10 +94,15 @@ void mcl::lttng::RpcReport::result_processing_failed(
 
 void mcl::lttng::RpcReport::file_descriptors_received(
     google::protobuf::Message const& /*response*/,
-    std::vector<int32_t> const& fds)
+    std::vector<Fd> const& fds)
 {
+    std::unique_ptr<int[]> handles{new int[fds.size()]};
+    for (unsigned i = 0 ; i < fds.size() ; ++i)
+    {
+        handles[i] = fds[i];
+    }
     mir_tracepoint(mir_client_rpc, file_descriptors_received,
-                   fds.data(), fds.size());
+                   handles.get(), fds.size());
 }
 
 void mcl::lttng::RpcReport::connection_failure(std::exception const& /*ex*/)

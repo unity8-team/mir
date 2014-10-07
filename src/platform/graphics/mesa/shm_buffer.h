@@ -49,6 +49,8 @@ public:
     BindResult gl_bind_to_texture() override;
     bool can_bypass() const;
 
+    void write(unsigned char const* data, size_t size);
+
 private:
     ShmBuffer(ShmBuffer const&) = delete;
     ShmBuffer& operator=(ShmBuffer const&) = delete;

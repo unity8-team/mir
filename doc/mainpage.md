@@ -83,4 +83,7 @@ Working on Mir code
 
  - \ref md_README  "Mir Read me"
  - \ref md_HACKING "Mir hacking guide"
+ - \subpage android_new_device_bringup "New android device bringup" 
  - \ref component_reports
+ - \ref dso_versioning_guide
+ - \ref abi_compatibility_tools

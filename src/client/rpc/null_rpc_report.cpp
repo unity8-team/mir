@@ -32,12 +32,12 @@ void mclr::NullRpcReport::invocation_succeeded(
 
 void mclr::NullRpcReport::invocation_failed(
     mir::protobuf::wire::Invocation const& /*invocation*/,
-    boost::system::error_code const& /*error*/)
+    std::exception const& /*error*/)
 {
 }
 
 void mclr::NullRpcReport::header_receipt_failed(
-    boost::system::error_code const& /*error*/)
+    std::exception const& /*error*/)
 {
 }
 
@@ -81,7 +81,7 @@ void mclr::NullRpcReport::result_processing_failed(
 
 void mclr::NullRpcReport::file_descriptors_received(
     google::protobuf::Message const& /*response*/,
-    std::vector<int32_t> const& /*fds*/)
+    std::vector<mir::Fd> const& /*fds*/)
 {
 }
 

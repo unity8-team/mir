@@ -111,7 +111,7 @@ void mga::HWCFallbackGLRenderer::render(
 
     for(auto const& renderable : renderlist)
     {
-        if (renderable->alpha_enabled())
+        if (renderable->shaped())  // TODO: support alpha() in future
             glEnable(GL_BLEND);
         else
             glDisable(GL_BLEND);
@@ -124,7 +124,7 @@ void mga::HWCFallbackGLRenderer::render(
                               &primitive.vertices[0].texcoord);
 
         texture_cache->load(*renderable)->bind();
-        glDrawArrays(primitive.type, 0, primitive.vertices.size());
+        glDrawArrays(primitive.type, 0, primitive.nvertices);
     }
 
     glDisableVertexAttribArray(texcoord_attr);

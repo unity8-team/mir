@@ -67,6 +67,8 @@ public:
      * nbuffers-1 as it might be less.
      */
     virtual int buffers_free_for_client() const = 0;
+    virtual void drop_old_buffers() = 0;
+    virtual void drop_client_requests() = 0;
 
 protected:
     BufferBundle() = default;

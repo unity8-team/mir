@@ -21,10 +21,9 @@
 
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
+#include "mir_test_framework/using_stub_client_platform.h"
 
 #include "src/client/client_buffer.h"
-
-#include "mir/frontend/connector.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -51,13 +50,15 @@
 namespace mf = mir::frontend;
 namespace mc = mir::compositor;
 namespace mcl = mir::client;
+namespace mtf = mir_test_framework;
 
 namespace
 {
 struct ClientLibrary : mir_test_framework::InProcessServer
 {
-    mir_test_framework::StubbedServerConfiguration server_configuration;
+    mtf::StubbedServerConfiguration server_configuration;
     mir::DefaultServerConfiguration& server_config() override { return server_configuration; }
+    mtf::UsingStubClientPlatform using_stub_client_platform;
 
     std::set<MirSurface*> surfaces;
     MirConnection* connection = nullptr;
@@ -610,7 +611,7 @@ TEST_F(ClientLibrary, connect_errors_handled)
 
     if (std::strcmp("connect: No such file or directory", error) &&
         std::strcmp("Can't find MIR server", error) &&
-        std::strcmp("Failed to connect to server socket", error))
+        !std::strstr(error, "Failed to connect to server socket"))
     {
         FAIL() << error;
     }
