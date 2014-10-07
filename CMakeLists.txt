@@ -89,7 +89,6 @@ else()
     pkg_check_modules(GL gl)
     add_definitions(-DQT_USING_OPENGL)
     include_directories (${GL_INCLUDE_DIRS})
-    set (GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
 endif()
 
 # Standard install paths
