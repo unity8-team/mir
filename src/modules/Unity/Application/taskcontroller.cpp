@@ -98,14 +98,14 @@ QFileInfo TaskController::findDesktopFileForAppId(const QString &appId) const
 
 bool TaskController::suspend(const Application* app)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << appId;
-    return m_appController->pauseApplicationWithAppId(appId);
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << app->longAppId();
+    return m_appController->pauseApplicationWithAppId(app->longAppId());
 }
 
 bool TaskController::resume(const Application* app)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << appId;
-    return m_appController->resumeApplicationWithAppId(appId);
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << app->longAppId();
+    return m_appController->resumeApplicationWithAppId(app->longAppId());
 }
 
 void TaskController::onApplicationFocusRequest(const QString& id)
