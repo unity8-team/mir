@@ -35,16 +35,15 @@ geom::Point interpolated_touch_at_time(geom::Point touch_start, geom::Point touc
                                        std::chrono::high_resolution_clock::time_point touch_end_time,
                                        std::chrono::high_resolution_clock::time_point interpolated_touch_time)
 {
-    // Again we have casting issues...
     assert(interpolated_touch_time > touch_start_time);
-    double alpha = (interpolated_touch_time - touch_start_time) / (touch_end_time - touch_start_time);
+    // TODO: This is a little suspect
+    double alpha = (interpolated_touch_time.time_since_epoch().count() - touch_start_time.time_since_epoch().count()) / static_cast<double>((touch_end_time.time_since_epoch().count() - touch_start_time.time_since_epoch().count()));
     
     auto ix = touch_start.x.as_int() + (touch_end.x.as_int()-touch_start.x.as_int())*alpha;
     auto iy = touch_start.y.as_int() + (touch_end.y.as_int()-touch_start.y.as_int())*alpha;
     return {ix, iy};
 }
 
-// TODO: Average ends up not measuring smoothness, what if we have a high absolute value?
 double compute_average_frame_offset(std::vector<TouchMeasuringClient::TestResults::TouchSample> const& results,
                                     geom::Point touch_start_point, geom::Point touch_end_point,
                                     std::chrono::high_resolution_clock::time_point touch_start_time,
@@ -95,8 +94,20 @@ double compute_frame_uniformity(std::vector<TouchMeasuringClient::TestResults::T
 // Main is inside a test to work around mtf issues
 TEST(FrameUniformity, average_frame_offset)
 {
-    FrameUniformityTest t;
+    geom::Size const screen_size{1024, 1024};
+    geom::Point const touch_start{0, 0};
+    geom::Point const touch_end{1024, 1024};
+    std::chrono::milliseconds touch_duration{1000};
+
+    FrameUniformityTest t({screen_size, touch_start, touch_end, touch_duration});
     t.run_test();
+  
+    auto touch_timings = t.server_timings();
+    auto touch_start_time = std::get<0>(touch_timings);
+    auto touch_end_time = std::get<1>(touch_timings);
+    auto results = t.client_results();
     
-    // TODO: Measure results
+    auto uniformity = compute_frame_uniformity(results, touch_start, touch_end,
+                                               touch_start_time, touch_end_time);
+    printf("Frame Uniformity: %f \n", uniformity);
 }

@@ -31,6 +31,9 @@ class TouchProducingServer : public mir_test_framework::FakeEventHubServerConfig
 {
 public:
     TouchProducingServer(mir::geometry::Rectangle screen_dimensions, mir::geometry::Point touch_start, mir::geometry::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration, mir_test_framework::CrossProcessSync &client_ready);
+    
+    std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>
+        touch_timings();
 
     ~TouchProducingServer();    
 private:
@@ -42,6 +45,9 @@ private:
     mir_test_framework::CrossProcessSync server_done;
     
     std::thread input_injection_thread;
+    
+    std::chrono::high_resolution_clock::time_point touch_start_time;
+    std::chrono::high_resolution_clock::time_point touch_end_time;
     
     void synthesize_event_at(mir::geometry::Point const& point);
     void thread_function();

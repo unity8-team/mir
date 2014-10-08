@@ -18,11 +18,11 @@
 
 #include "frame_uniformity_test.h"
 
-FrameUniformityTest::FrameUniformityTest()
-    : server_configuration({{0, 0}, {1024, 1024}},
-                           {0, 0},
-                           {1024, 1024},
-                           std::chrono::seconds(1), // TODO: Duration,
+FrameUniformityTest::FrameUniformityTest(FrameUniformityTestParameters const& parameters)
+    : server_configuration({{0, 0}, parameters.screen_size},
+                           parameters.touch_start,
+                           parameters.touch_end,
+                           parameters.touch_duration,
                            client_ready_fence),
       client(client_ready_fence, client_done_fence)
 {
@@ -62,4 +62,9 @@ void FrameUniformityTest::run_test()
 std::vector<TouchMeasuringClient::TestResults::TouchSample> FrameUniformityTest::client_results()
 {
     return client.touch_samples();
+}
+
+std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> FrameUniformityTest::server_timings()
+{
+    return server_configuration.touch_timings();
 }

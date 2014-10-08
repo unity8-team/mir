@@ -50,13 +50,16 @@ void TouchProducingServer::synthesize_event_at(geom::Point const& point)
 void TouchProducingServer::thread_function()
 {
     // TODO: Hack
-    std::chrono::milliseconds const pause_between_events{1};
+    std::chrono::milliseconds const pause_between_events{10};
 
     client_ready.wait_for_signal_ready_for();
     
     auto start = std::chrono::high_resolution_clock::now();
     auto end = start + touch_duration;
     auto now = start;
+
+    // TODO: Tighten touch start and end times?
+    touch_start_time = start;
     while (now < start)
     {
         std::this_thread::sleep_for(pause_between_events);
@@ -69,4 +72,11 @@ void TouchProducingServer::thread_function()
             touch_start.y.as_int()+(touch_end.y.as_int()-touch_start.y.as_int())*alpha};
         synthesize_event_at(point);
     }
+    touch_end_time = std::chrono::high_resolution_clock::now();
+}
+
+std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>
+TouchProducingServer::touch_timings()
+{
+    return std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>{touch_start_time, touch_end_time};
 }

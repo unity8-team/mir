@@ -100,6 +100,7 @@ void collect_input_and_frame_timing(MirSurface *surface, std::chrono::high_resol
     auto now = []() { return std::chrono::high_resolution_clock::now(); };
 
     // TODO: End time should be relative to first input event
+    // TODO: Actually expect that we see the touch end location...
     auto end_time = now() + duration;
     while (now() < end_time)
     {

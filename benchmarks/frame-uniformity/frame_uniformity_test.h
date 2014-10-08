@@ -22,13 +22,27 @@
 #include "touch_producing_server.h"
 #include "touch_measuring_client.h"
 
+#include "mir/geometry/size.h"
+#include "mir/geometry/point.h"
+
 #include "mir_test_framework/server_runner.h"
 #include "mir_test_framework/cross_process_sync.h"
+
+#include <chrono>
+
+struct FrameUniformityTestParameters
+{
+    mir::geometry::Size screen_size;
+    mir::geometry::Point touch_start;
+    mir::geometry::Point touch_end;
+    // TODO: Deeper?
+    std::chrono::milliseconds touch_duration;
+};
 
 class FrameUniformityTest : public mir_test_framework::ServerRunner
 {
 public:
-    FrameUniformityTest();
+    FrameUniformityTest(FrameUniformityTestParameters const& parameters);
     ~FrameUniformityTest();
     
     mir::DefaultServerConfiguration& server_config() override;
@@ -36,6 +50,7 @@ public:
     void run_test();
     
     std::vector<TouchMeasuringClient::TestResults::TouchSample> client_results();
+    std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> server_timings();        
 
 private:
     mir_test_framework::CrossProcessSync client_ready_fence;
