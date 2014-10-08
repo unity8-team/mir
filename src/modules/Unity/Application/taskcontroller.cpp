@@ -109,10 +109,13 @@ QFileInfo TaskController::findDesktopFileForAppId(const QString &appId) const
     return m_appController->findDesktopFileForAppId(appId);
 }
 
-bool TaskController::suspend(const QString& appId)
+bool TaskController::suspend(const Application* app)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << appId;
-    pid_t pid = m_appController->primaryPidForAppId(appId);
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << app->appId();
+    pid_t pid = m_appController->primaryPidForAppId(app->appId());
+    if (pid == 0) {
+        pid = app->pid();
+    }
     m_processController->oomController()->ensureProcessLikelyToBeKilled(pid);
 
     if (pid) {
@@ -125,10 +128,13 @@ bool TaskController::suspend(const QString& appId)
     }
 }
 
-bool TaskController::resume(const QString& appId)
+bool TaskController::resume(const Application* app)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << appId;
-    pid_t pid = m_appController->primaryPidForAppId(appId);
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << app->appId();
+    pid_t pid = m_appController->primaryPidForAppId(app->appId());
+    if (pid == 0) {
+        pid = app->pid();
+    }
 
     m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
 
@@ -139,7 +145,7 @@ bool TaskController::resume(const QString& appId)
         return m_processController->sigContinueProcessGroupForPid(pid);
         return true;
     } else {
-        qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - couldn't find PID to resume for appId=" << appId;
+        qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - couldn't find PID to resume for appId=" << app->appId();
         return false;
     }
 }
