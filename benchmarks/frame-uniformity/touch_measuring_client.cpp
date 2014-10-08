@@ -43,11 +43,11 @@ void TouchMeasuringClient::TestResults::record_frame_time(std::chrono::high_reso
 void TouchMeasuringClient::TestResults::record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
     MirMotionPointer const& coordinates)
 {
-    samples_being_prepared.push_back(PointerSample{coordinates.x, coordinates.y, time, {}});
+    samples_being_prepared.push_back(TouchSample{coordinates.x, coordinates.y, time, {}});
 }
 
 // TODO: Use rvalue optimization
-std::vector<TouchMeasuringClient::TestResults::PointerSample> TouchMeasuringClient::TestResults::results()
+std::vector<TouchMeasuringClient::TestResults::TouchSample> TouchMeasuringClient::TestResults::results()
 {
     return completed_samples;
 }
@@ -134,3 +134,7 @@ void TouchMeasuringClient::run()
     client_done.signal_ready();
 }
 
+std::vector<TouchMeasuringClient::TestResults::TouchSample> TouchMeasuringClient::touch_samples()
+{
+    return results->results();
+}

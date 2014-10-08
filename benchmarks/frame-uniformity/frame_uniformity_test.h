@@ -34,6 +34,8 @@ public:
     mir::DefaultServerConfiguration& server_config() override;
     
     void run_test();
+    
+    std::vector<TouchMeasuringClient::TestResults::TouchSample> client_results();
 
 private:
     mir_test_framework::CrossProcessSync client_ready_fence;

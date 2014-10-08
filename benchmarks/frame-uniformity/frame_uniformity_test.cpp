@@ -58,3 +58,8 @@ void FrameUniformityTest::run_test()
     if (server_thread.joinable())
         server_thread.join();
 }
+
+std::vector<TouchMeasuringClient::TestResults::TouchSample> FrameUniformityTest::client_results()
+{
+    return client.touch_samples();
+}

@@ -39,23 +39,25 @@ public:
         TestResults() = default;
         ~TestResults() = default;
 
-        struct PointerSample
+        struct TouchSample
         {
             float x,y;
             std::chrono::high_resolution_clock::time_point event_time;
             std::chrono::high_resolution_clock::time_point frame_time;
         };
-        std::vector<PointerSample> results();
+        std::vector<TouchSample> results();
         
         void record_frame_time(std::chrono::high_resolution_clock::time_point time);
         void record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
                                         MirMotionPointer const& coordinates);
     private:
-        std::vector<PointerSample> samples_being_prepared;
-        std::vector<PointerSample> completed_samples;
+        std::vector<TouchSample> samples_being_prepared;
+        std::vector<TouchSample> completed_samples;
     };
     
     void run();
+    
+    std::vector<TestResults::TouchSample> touch_samples();
 
 private:
     mir_test_framework::CrossProcessSync client_ready;
