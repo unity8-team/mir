@@ -274,6 +274,10 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
 
+    if (!UbuntuKeyboardInfo::instance()) {
+        new UbuntuKeyboardInfo;
+    }
+
     // Ensure C++ (MirSurfaceManager) retains ownership of this object
     // TODO: Investigate if having the Javascript engine have ownership of this object
     // might create a less error-prone API design (concern: QML forgets to call "release()"
@@ -643,15 +647,14 @@ bool MirSurfaceItem::processTouchEvent(
 bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints)
 {
     UbuntuKeyboardInfo *ubuntuKeyboardInfo = UbuntuKeyboardInfo::instance();
-    if (ubuntuKeyboardInfo) {
-        for (int i = 0; i < touchPoints.count(); ++i) {
-            QPoint pos = touchPoints.at(i).pos().toPoint();
-            if (pos.x() >= ubuntuKeyboardInfo->x()
-                    && pos.x() <= (ubuntuKeyboardInfo->x() + ubuntuKeyboardInfo->width())
-                    && pos.y() >= ubuntuKeyboardInfo->y()
-                    && pos.y() <= (ubuntuKeyboardInfo->y() + ubuntuKeyboardInfo->height())) {
-                return true;
-            }
+
+    for (int i = 0; i < touchPoints.count(); ++i) {
+        QPoint pos = touchPoints.at(i).pos().toPoint();
+        if (pos.x() >= ubuntuKeyboardInfo->x()
+                && pos.x() <= (ubuntuKeyboardInfo->x() + ubuntuKeyboardInfo->width())
+                && pos.y() >= ubuntuKeyboardInfo->y()
+                && pos.y() <= (ubuntuKeyboardInfo->y() + ubuntuKeyboardInfo->height())) {
+            return true;
         }
     }
     return false;
