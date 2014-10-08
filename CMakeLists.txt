@@ -84,6 +84,17 @@ if ("${USE_OPENGLES}" STREQUAL 1)
     add_definitions(-DQT_USING_GLES)
     include_directories (${GLESv2_INCLUDE_DIRS})
     set (GL_LIBRARIES "${GLESv2_LIBRARIES}")
+# Because qt/gl and qt/gles are not parallel installable we have a difficulty
+# building qtmir-desktop on armhf. We would like to link against opengl and bind the
+# opengl API but Qt is already linked against the ES APIs. So in this setup we link against OpenGLES
+# to accomodate Qt but bind the OpenGL API anyway. This is technically broken though
+# I suspect Mesa may allow it ~racarr.
+elseif("${USE_OPENGL_BUT_LINK_AGAINST_OPENGLES}")
+    message(STATUS "Linking against OpenGL ES but binding OpenGL API")
+    pkg_check_modules(GLESv2 glesv2)
+    add_definitions(-DQT_USING_GL)
+    include_directories (${GLESv2_INCLUDE_DIRS})
+    set (GL_LIBRARIES "${GLESv2_LIBRARIES}")
 else()
     message(STATUS "Qt5 determined to be compiled with OpenGL support")
     pkg_check_modules(GL gl)

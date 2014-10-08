@@ -36,8 +36,11 @@ endif
 override_dh_auto_configure:
 ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
 	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(FLAGS) $(CURDIR) -DCMAKE_INSTALL_PREFIX=$(TMP1_DIR)/usr/ -DUSE_OPENGLES=1
-endif
+# See comment in CMakeLists.txt
+	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- $(FLAGS) $(CURDIR) -DCMAKE_INSTALL_PREFIX=$(TMP1_DIR)/usr/ -DUSE_OPENGL_BUT_LINK_AGAINST_OPENGLES=1
+else
 	mkdir -p $(DESKTOP_DIR) && dh_auto_configure -B$(DESKTOP_DIR) -- $(FLAGS) "-DCMAKE_CXX_FLAGS=-DQTMIR_USE_OPENGL" $(CURDIR) -DCMAKE_INSTALL_PREFIX=$(TMP2_DIR)/usr/
+endif
 
 override_dh_auto_build:
 ifeq ($(DEB_HOST_ARCH),$(USES_GLES2))
