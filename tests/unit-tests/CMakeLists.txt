@@ -10,15 +10,19 @@ if (MIR_BUILD_PLATFORM_MESA)
   add_definitions(-DMIR_BUILD_PLATFORM_MESA)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
-
 include_directories(
+  ${CMAKE_SOURCE_DIR}
+
   ${ANDROID_HEADERS_INCLUDE_DIRS}
   ${DRM_INCLUDE_DIRS}
   ${GBM_INCLUDE_DIRS}
   ${UMOCKDEV_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}
+
+  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/client
 )
+
 # TODO: Aim to remove
 include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
 

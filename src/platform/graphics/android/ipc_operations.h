@@ -16,32 +16,25 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_FD_SOCKET_TRANSMISSION_H_
-#define MIR_FD_SOCKET_TRANSMISSION_H_
-#include "mir/fd.h"
-#include <vector>
-#include <system_error>
-#include <stdexcept>
+#ifndef MIR_GRAPHICS_ANDROID_IPC_OPERATIONS_H_
+#define MIR_GRAPHICS_ANDROID_IPC_OPERATIONS_H_
+
+#include "mir/graphics/platform_ipc_operations.h"
 
 namespace mir
 {
-struct socket_error : std::system_error
+namespace graphics
 {
-    socket_error(std::string const& message);
-};
-
-struct socket_disconnected_error : std::system_error
+namespace android
 {
-    socket_disconnected_error(std::string const& message);
-};
-
-struct fd_reception_error : std::runtime_error
+class IpcOperations : public PlatformIpcOperations
 {
-    fd_reception_error(std::string const& message);
+public:
+    void pack_buffer(BufferIpcMessage&, Buffer const&, BufferIpcMsgType) const override;
+    void unpack_buffer(BufferIpcMessage&, Buffer const&) const override;
+    std::shared_ptr<PlatformIPCPackage> connection_ipc_package() override;
 };
-
-bool socket_error_is_transient(int error_code);
-void send_fds(mir::Fd const& socket, std::vector<mir::Fd> const& fd);
-void receive_data(mir::Fd const& socket, void* buffer, size_t bytes_requested, std::vector<mir::Fd>& fds);
 }
-#endif /* MIR_FD_SOCKET_TRANSMISSION_H_ */
+}
+}
+#endif /* MIR_GRAPHICS_ANDROID_IPC_OPERATIONS_H_ */
