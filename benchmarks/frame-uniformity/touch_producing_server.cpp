@@ -27,8 +27,7 @@ namespace mi = mir::input;
 namespace mia = mi::android;
 namespace mis = mi::synthesis;
 namespace geom = mir::geometry;
-
-namespace mt = mir::test
+namespace mt = mir::test;
 
 namespace mtf = mir_test_framework;
 
