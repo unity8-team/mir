@@ -34,3 +34,5 @@ target_link_libraries(frame_uniformity_test_client
   ${GMOCK_MAIN_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
+
+uses_android_input(frame_uniformity_test_client)

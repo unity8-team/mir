@@ -37,6 +37,8 @@ public:
 
     ~TouchProducingServer();    
 private:
+    mir::geometry::Rectangle const screen_dimensions;
+
     mir::geometry::Point const touch_start;
     mir::geometry::Point const touch_end;
     std::chrono::high_resolution_clock::duration const touch_duration;

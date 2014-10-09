@@ -36,7 +36,7 @@ geom::Point interpolated_touch_at_time(geom::Point touch_start, geom::Point touc
                                        std::chrono::high_resolution_clock::time_point interpolated_touch_time)
 {
     assert(interpolated_touch_time > touch_start_time);
-    // TODO: This is a little suspect
+    // std::chrono is a beautiful api
     double alpha = (interpolated_touch_time.time_since_epoch().count() - touch_start_time.time_since_epoch().count()) / static_cast<double>((touch_end_time.time_since_epoch().count() - touch_start_time.time_since_epoch().count()));
     
     auto ix = touch_start.x.as_int() + (touch_end.x.as_int()-touch_start.x.as_int())*alpha;

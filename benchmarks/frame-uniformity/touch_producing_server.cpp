@@ -18,15 +18,23 @@
 
 #include "touch_producing_server.h"
 
+#include "mir_test/event_factory.h"
+#include "mir_test/fake_event_hub.h"
+
 #include <functional>
 
+namespace mi = mir::input;
+namespace mia = mi::android;
+namespace mis = mi::synthesis;
 namespace geom = mir::geometry;
+
 namespace mtf = mir_test_framework;
 
 TouchProducingServer::TouchProducingServer(geom::Rectangle screen_dimensions, geom::Point touch_start,
     geom::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration,
     mtf::CrossProcessSync &client_ready)
     : FakeEventHubServerConfiguration({screen_dimensions}),
+      screen_dimensions(screen_dimensions),
       touch_start(touch_start),
       touch_end(touch_end),
       touch_duration(touch_duration),
@@ -41,15 +49,26 @@ TouchProducingServer::~TouchProducingServer()
         input_injection_thread.join();
 }
 
+// This logic limits us to supporting screens at 0,0
 void TouchProducingServer::synthesize_event_at(geom::Point const& point)
 {
-    // TODO
-    (void) point;
+    auto const minimum_touch = mia::FakeEventHub::TouchScreenMinAxisValue;
+    auto const maximum_touch = mia::FakeEventHub::TouchScreenMaxAxisValue;
+    auto const display_width = screen_dimensions.size.width.as_int();
+    auto const display_height = screen_dimensions.size.height.as_int();
+    
+    auto px_frac = point.x.as_int() / static_cast<double>(display_width);
+    auto py_frac = point.y.as_int() / static_cast<double>(display_height);
+    auto const abs_touch_x = minimum_touch + (maximum_touch-minimum_touch) * px_frac;
+    auto const abs_touch_y = minimum_touch + (maximum_touch-minimum_touch) * py_frac;
+    
+    fake_event_hub->synthesize_event(
+        mis::a_touch_event().at_position({abs_touch_x, abs_touch_y}));                                      
 }
 
 void TouchProducingServer::thread_function()
 {
-    // TODO: Hack
+    // We could make the touch sampling rate customizable
     std::chrono::milliseconds const pause_between_events{10};
 
     client_ready.wait_for_signal_ready_for();
@@ -58,7 +77,7 @@ void TouchProducingServer::thread_function()
     auto end = start + touch_duration;
     auto now = start;
 
-    // TODO: Tighten touch start and end times?
+    // We could tighten the touch start and end times further.
     touch_start_time = start;
     while (now < start)
     {
