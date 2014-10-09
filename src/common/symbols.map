@@ -1,4 +1,4 @@
-MIR_COMMON_2 {
+MIR_COMMON_3 {
  global:
   extern "C++" {
 # The following symbols come from running a script over the generated docs. Vis:
@@ -923,21 +923,7 @@ MIR_COMMON_2 {
     vtable?for?mir::logging::DumbConsoleLogger;
     vtable?for?mir::time::HighResolutionClock;
     vtable?for?mir::time::Clock;
-  };
- local: *;
-};
-
-MIR_COMMON_2.1 {
- global:
-  extern "C++" {
     mir::send_fds*;
-  };
- local: *;
-};
-
-MIR_COMMON_2.2 {
- global:
-  extern "C++" {
     mir::fd_reception_error::fd_reception_error*;
     mir::receive_data*;
     mir::socket_error::socket_error*;
