@@ -38,7 +38,7 @@ template<DimensionTag Tag>
 class IntWrapper
 {
 public:
-    typedef int ValueType;
+    typedef int_fast32_t ValueType;
 
     IntWrapper() : value(0) {}
     template<typename AnyInteger>
