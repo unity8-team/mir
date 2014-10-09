@@ -109,6 +109,8 @@ TEST(FrameUniformity, average_frame_offset)
     auto touch_end_time = std::get<1>(touch_timings);
     auto results = t.client_results();
     
+    printf("Samples: %d \n", (int)results.size());
+    
     auto uniformity = compute_frame_uniformity(results, touch_start, touch_end,
                                                touch_start_time, touch_end_time);
     printf("Frame Uniformity: %f \n", uniformity);
