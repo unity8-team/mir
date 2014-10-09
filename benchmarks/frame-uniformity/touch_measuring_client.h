@@ -27,6 +27,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <mutex>
 
 class TouchMeasuringClient
 {
@@ -53,6 +54,8 @@ public:
         void record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
                                         MirMotionPointer const& coordinates);
     private:
+        std::mutex guard;
+
         std::vector<TouchSample> samples_being_prepared;
         std::vector<TouchSample> completed_samples;
     };

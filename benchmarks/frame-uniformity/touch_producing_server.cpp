@@ -53,6 +53,7 @@ TouchProducingServer::~TouchProducingServer()
 // This logic limits us to supporting screens at 0,0
 void TouchProducingServer::synthesize_event_at(geom::Point const& point)
 {
+    printf("Injecting at: %d %d \n", point.x.as_int(), point.y.as_int());
     auto const minimum_touch = mia::FakeEventHub::TouchScreenMinAxisValue;
     auto const maximum_touch = mia::FakeEventHub::TouchScreenMaxAxisValue;
     auto const display_width = screen_dimensions.size.width.as_int();
