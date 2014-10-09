@@ -26,12 +26,14 @@
 #include <chrono>
 #include <memory>
 #include <vector>
+#include <string>
 
 class TouchMeasuringClient
 {
 public:
     TouchMeasuringClient(mir_test_framework::CrossProcessSync &client_ready,
-        mir_test_framework::CrossProcessSync &client_done);
+        mir_test_framework::CrossProcessSync &client_done, 
+        std::chrono::high_resolution_clock::duration const& touch_duration);
     
     class TestResults 
     {
@@ -55,13 +57,15 @@ public:
         std::vector<TouchSample> completed_samples;
     };
     
-    void run();
+    void run(std::string const& connect_string);
     
     std::vector<TestResults::TouchSample> touch_samples();
 
 private:
     mir_test_framework::CrossProcessSync client_ready;
     mir_test_framework::CrossProcessSync client_done;
+    
+    std::chrono::high_resolution_clock::duration const touch_duration;
     
     std::shared_ptr<TestResults> results;
 };

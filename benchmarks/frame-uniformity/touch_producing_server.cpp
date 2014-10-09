@@ -66,8 +66,7 @@ void TouchProducingServer::thread_function()
 
         now = std::chrono::high_resolution_clock::now();
         
-        // TODO: Will this work?
-        double alpha = (now-start) / (end-start);
+        double alpha = (now.time_since_epoch().count()-start.time_since_epoch().count()) / static_cast<double>(end.time_since_epoch().count()-start.time_since_epoch().count());
         auto point = geom::Point{touch_start.x.as_int()+(touch_end.x.as_int()-touch_start.x.as_int())*alpha,
             touch_start.y.as_int()+(touch_end.y.as_int()-touch_start.y.as_int())*alpha};
         synthesize_event_at(point);

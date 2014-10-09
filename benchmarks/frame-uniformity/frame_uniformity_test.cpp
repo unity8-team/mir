@@ -24,7 +24,7 @@ FrameUniformityTest::FrameUniformityTest(FrameUniformityTestParameters const& pa
                            parameters.touch_end,
                            parameters.touch_duration,
                            client_ready_fence),
-      client(client_ready_fence, client_done_fence)
+      client(client_ready_fence, client_done_fence, parameters.touch_duration)
 {
 }
 
@@ -46,7 +46,7 @@ void FrameUniformityTest::run_test()
     
     std::thread client_thread([&]()
     {
-        client.run();
+        client.run(new_connection());
     });
 
     client_done_fence.wait_for_signal_ready();

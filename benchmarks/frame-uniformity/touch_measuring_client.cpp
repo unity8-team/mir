@@ -74,7 +74,6 @@ MirSurface *create_surface(MirConnection *connection)
 
 void input_callback(MirSurface * /* surface */, MirEvent const* event, void* context)
 {
-    // TODO: Memory safety.
     auto results = static_cast<TouchMeasuringClient::TestResults*>(context);
     
     if (event->type != mir_event_type_motion)
@@ -87,20 +86,21 @@ void input_callback(MirSurface * /* surface */, MirEvent const* event, void* con
     {
         return;
     }
-    // TODO: Support multiple coords
-    
+
+    // We could support multitouch
     results->record_pointer_coordinates(std::chrono::high_resolution_clock::now(), mev.pointer_coordinates[0]);
 }
 
-void collect_input_and_frame_timing(MirSurface *surface, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchMeasuringClient::TestResults> results)
+void collect_input_and_frame_timing(MirSurface *surface, mtf::CrossProcessSync &client_ready, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchMeasuringClient::TestResults> results)
 {
     MirEventDelegate event_handler = { input_callback, results.get() };
     mir_surface_set_event_handler(surface, &event_handler);
+    
+    client_ready.signal_ready();
 
     auto now = []() { return std::chrono::high_resolution_clock::now(); };
 
-    // TODO: End time should be relative to first input event
-    // TODO: Actually expect that we see the touch end location...
+    // May be better if end time were relative to the first input event
     auto end_time = now() + duration;
     while (now() < end_time)
     {
@@ -112,22 +112,22 @@ void collect_input_and_frame_timing(MirSurface *surface, std::chrono::high_resol
 }
 
 TouchMeasuringClient::TouchMeasuringClient(mtf::CrossProcessSync &client_ready,
-    mtf::CrossProcessSync &client_done)
+    mtf::CrossProcessSync &client_done, std::chrono::high_resolution_clock::duration const& touch_duration)
     : client_ready(client_ready),
       client_done(client_done),
+      touch_duration(touch_duration),
       results(std::make_shared<TouchMeasuringClient::TestResults>())
 {
 }
 
-void TouchMeasuringClient::run()
+void TouchMeasuringClient::run(std::string const& connect_string)
 {
-    auto connection = mir_connect_sync(NULL, "frame-uniformity-test");
+    auto connection = mir_connect_sync(connect_string.c_str(), "frame-uniformity-test");
     assert(mir_connection_is_valid(connection));
     
     auto surface = create_surface(connection);
 
-    std::chrono::seconds const test_duration{2};
-    collect_input_and_frame_timing(surface, test_duration, results);
+    collect_input_and_frame_timing(surface, client_ready, touch_duration, results);
     
     mir_surface_release_sync(surface);
     mir_connection_release(connection);
