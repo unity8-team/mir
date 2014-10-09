@@ -55,6 +55,9 @@ double compute_average_frame_offset(std::vector<TouchMeasuringClient::TestResult
     {
        auto expected_point = interpolated_touch_at_time(touch_start_point, touch_end_point, touch_start_time,
                                                         touch_end_time, sample.frame_time);
+       printf("Averaging point: %d \n", count);
+       printf("Expected: %d %d \n", expected_point.x.as_int(), expected_point.y.as_int());
+       printf("Actual: %d %d \n", sample.x, sample.y);
        auto dx = sample.x - expected_point.x.as_int();
        auto dy = sample.y - expected_point.y.as_int();
        auto distance = sqrt(dx*dx+dy*dy);
