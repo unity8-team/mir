@@ -39,10 +39,7 @@ mir::DefaultServerConfiguration& FrameUniformityTest::server_config()
 
 void FrameUniformityTest::run_test()
 {
-    std::thread server_thread([&]()
-    {
-        start_server();
-    });
+    start_server();
     
     std::thread client_thread([&]()
     {
@@ -54,9 +51,6 @@ void FrameUniformityTest::run_test()
         client_thread.join();
 
     stop_server();
-
-    if (server_thread.joinable())
-        server_thread.join();
 }
 
 std::vector<TouchMeasuringClient::TestResults::TouchSample> FrameUniformityTest::client_results()
