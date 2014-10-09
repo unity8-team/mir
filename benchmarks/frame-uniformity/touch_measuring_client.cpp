@@ -43,6 +43,7 @@ void TouchMeasuringClient::TestResults::record_frame_time(std::chrono::high_reso
 void TouchMeasuringClient::TestResults::record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
     MirMotionPointer const& coordinates)
 {
+    printf("Recording coords: coordinates.x: %d coordinates.y: %d \n", coordinates.x, coordinates.y);
     samples_being_prepared.push_back(TouchSample{coordinates.x, coordinates.y, time, {}});
 }
 
