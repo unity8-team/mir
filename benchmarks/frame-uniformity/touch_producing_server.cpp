@@ -53,7 +53,6 @@ TouchProducingServer::~TouchProducingServer()
 // This logic limits us to supporting screens at 0,0
 void TouchProducingServer::synthesize_event_at(geom::Point const& point)
 {
-    printf("Injecting at: %d %d \n", point.x.as_int(), point.y.as_int());
     auto const minimum_touch = mia::FakeEventHub::TouchScreenMinAxisValue;
     auto const maximum_touch = mia::FakeEventHub::TouchScreenMaxAxisValue;
     auto const display_width = screen_dimensions.size.width.as_int();
@@ -86,13 +85,13 @@ void TouchProducingServer::thread_function()
         std::this_thread::sleep_for(pause_between_events);
 
         now = std::chrono::high_resolution_clock::now();
+        touch_end_time = now;
         
         double alpha = (now.time_since_epoch().count()-start.time_since_epoch().count()) / static_cast<double>(end.time_since_epoch().count()-start.time_since_epoch().count());
         auto point = geom::Point{touch_start.x.as_int()+(touch_end.x.as_int()-touch_start.x.as_int())*alpha,
             touch_start.y.as_int()+(touch_end.y.as_int()-touch_start.y.as_int())*alpha};
         synthesize_event_at(point);
     }
-    touch_end_time = std::chrono::high_resolution_clock::now();
 }
 
 std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>

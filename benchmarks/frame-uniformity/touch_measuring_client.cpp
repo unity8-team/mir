@@ -33,10 +33,10 @@ namespace mt = mir::test;
 void TouchMeasuringClient::TestResults::record_frame_time(std::chrono::high_resolution_clock::time_point time)
 {
     std::unique_lock<std::mutex> lg(guard);
-    for (auto &sample: samples_being_prepared)
+    for (auto& sample: samples_being_prepared)
     {
         sample.frame_time = time;
-        completed_samples.push_back(std::move(sample));
+        completed_samples.push_back(sample);
     }
     samples_being_prepared.clear();
 }
@@ -45,7 +45,6 @@ void TouchMeasuringClient::TestResults::record_pointer_coordinates(std::chrono::
     MirMotionPointer const& coordinates)
 {
     std::unique_lock<std::mutex> lg(guard);
-    printf("Recording coords: coordinates.x: %d coordinates.y: %d \n", coordinates.x, coordinates.y);
     samples_being_prepared.push_back(TouchSample{coordinates.x, coordinates.y, time, {}});
 }
 

@@ -55,9 +55,6 @@ double compute_average_frame_offset(std::vector<TouchMeasuringClient::TestResult
     {
        auto expected_point = interpolated_touch_at_time(touch_start_point, touch_end_point, touch_start_time,
                                                         touch_end_time, sample.frame_time);
-       printf("Averaging point: %d \n", count);
-       printf("Expected: %d %d \n", expected_point.x.as_int(), expected_point.y.as_int());
-       printf("Actual: %d %d \n", sample.x, sample.y);
        auto dx = sample.x - expected_point.x.as_int();
        auto dy = sample.y - expected_point.y.as_int();
        auto distance = sqrt(dx*dx+dy*dy);
@@ -75,8 +72,8 @@ double compute_frame_uniformity(std::vector<TouchMeasuringClient::TestResults::T
     auto average_pixel_offset = compute_average_frame_offset(results, touch_start_point, touch_end_point,
         touch_start_time, touch_end_time);
     
-    printf("Average pixel offset: %f \n", average_pixel_offset);
-
+    printf("Average pixel lag: %f \n", average_pixel_offset);
+    
     double sum = 0;
     int count = 0;
     for (auto const& sample : results)
@@ -102,7 +99,7 @@ TEST(FrameUniformity, average_frame_offset)
     geom::Size const screen_size{1024, 1024};
     geom::Point const touch_start{0, 0};
     geom::Point const touch_end{1024, 1024};
-    std::chrono::milliseconds touch_duration{1000};
+    std::chrono::milliseconds touch_duration{2000};
 
     FrameUniformityTest t({screen_size, touch_start, touch_end, touch_duration});
     t.run_test();
@@ -111,9 +108,7 @@ TEST(FrameUniformity, average_frame_offset)
     auto touch_start_time = std::get<0>(touch_timings);
     auto touch_end_time = std::get<1>(touch_timings);
     auto results = t.client_results();
-    
-    printf("Samples: %d \n", (int)results.size());
-    
+    printf("Samples: %d \n", results.size());
     auto uniformity = compute_frame_uniformity(results, touch_start, touch_end,
                                                touch_start_time, touch_end_time);
     printf("Frame Uniformity: %f \n", uniformity);
