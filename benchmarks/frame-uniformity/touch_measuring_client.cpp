@@ -61,7 +61,7 @@ MirSurface *create_surface(MirConnection *connection)
     unsigned int valid_formats;
     mir_connection_get_available_surface_formats(connection, &pixel_format, 1, &valid_formats);
     MirSurfaceParameters const surface_params = { "frame-uniformity-test",
-        0, 0, /* Allow the server to choose a size for us */
+        1024, 1024, /* TODO: Fix */
         pixel_format,
         mir_buffer_usage_hardware, 
         mir_display_output_id_invalid};
