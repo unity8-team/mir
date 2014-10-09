@@ -20,7 +20,7 @@
 #define TOUCH_PRODUCING_SERVER_H_
 
 #include "mir_test_framework/fake_event_hub_server_configuration.h"
-#include "mir_test_framework/cross_process_sync.h"
+#include "mir_test/barrier.h"
 
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/point.h"
@@ -30,7 +30,7 @@
 class TouchProducingServer : public mir_test_framework::FakeEventHubServerConfiguration
 {
 public:
-    TouchProducingServer(mir::geometry::Rectangle screen_dimensions, mir::geometry::Point touch_start, mir::geometry::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration, mir_test_framework::CrossProcessSync &client_ready);
+    TouchProducingServer(mir::geometry::Rectangle screen_dimensions, mir::geometry::Point touch_start, mir::geometry::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration, mir::test::Barrier &client_ready);
     
     std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>
         touch_timings();
@@ -43,8 +43,7 @@ private:
     mir::geometry::Point const touch_end;
     std::chrono::high_resolution_clock::duration const touch_duration;
 
-    mir_test_framework::CrossProcessSync client_ready;
-    mir_test_framework::CrossProcessSync server_done;
+    mir::test::Barrier &client_ready;
     
     std::thread input_injection_thread;
     

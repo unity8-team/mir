@@ -28,7 +28,7 @@
 
 #include <assert.h>
 
-namespace mtf = mir_test_framework;
+namespace mt = mir::test;
 
 void TouchMeasuringClient::TestResults::record_frame_time(std::chrono::high_resolution_clock::time_point time)
 {
@@ -91,12 +91,12 @@ void input_callback(MirSurface * /* surface */, MirEvent const* event, void* con
     results->record_pointer_coordinates(std::chrono::high_resolution_clock::now(), mev.pointer_coordinates[0]);
 }
 
-void collect_input_and_frame_timing(MirSurface *surface, mtf::CrossProcessSync &client_ready, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchMeasuringClient::TestResults> results)
+void collect_input_and_frame_timing(MirSurface *surface, mt::Barrier &client_ready, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchMeasuringClient::TestResults> results)
 {
     MirEventDelegate event_handler = { input_callback, results.get() };
     mir_surface_set_event_handler(surface, &event_handler);
     
-    client_ready.signal_ready();
+    client_ready.ready();
 
     auto now = []() { return std::chrono::high_resolution_clock::now(); };
 
@@ -111,8 +111,8 @@ void collect_input_and_frame_timing(MirSurface *surface, mtf::CrossProcessSync &
 
 }
 
-TouchMeasuringClient::TouchMeasuringClient(mtf::CrossProcessSync &client_ready,
-    mtf::CrossProcessSync &client_done, std::chrono::high_resolution_clock::duration const& touch_duration)
+TouchMeasuringClient::TouchMeasuringClient(mt::Barrier &client_ready,
+    mt::Barrier &client_done, std::chrono::high_resolution_clock::duration const& touch_duration)
     : client_ready(client_ready),
       client_done(client_done),
       touch_duration(touch_duration),
@@ -132,7 +132,7 @@ void TouchMeasuringClient::run(std::string const& connect_string)
     mir_surface_release_sync(surface);
     mir_connection_release(connection);
 
-    client_done.signal_ready();
+    client_done.ready();
 }
 
 std::vector<TouchMeasuringClient::TestResults::TouchSample> TouchMeasuringClient::touch_samples()

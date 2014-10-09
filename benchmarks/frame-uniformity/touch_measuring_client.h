@@ -21,7 +21,7 @@
 
 #include <mir_toolkit/mir_client_library.h>
 
-#include "mir_test_framework/cross_process_sync.h"
+#include "mir_test/barrier.h"
 
 #include <chrono>
 #include <memory>
@@ -31,8 +31,8 @@
 class TouchMeasuringClient
 {
 public:
-    TouchMeasuringClient(mir_test_framework::CrossProcessSync &client_ready,
-        mir_test_framework::CrossProcessSync &client_done, 
+    TouchMeasuringClient(mir::test::Barrier &client_ready,
+        mir::test::Barrier &client_done, 
         std::chrono::high_resolution_clock::duration const& touch_duration);
     
     class TestResults 
@@ -62,8 +62,8 @@ public:
     std::vector<TestResults::TouchSample> touch_samples();
 
 private:
-    mir_test_framework::CrossProcessSync client_ready;
-    mir_test_framework::CrossProcessSync client_done;
+    mir::test::Barrier &client_ready;
+    mir::test::Barrier &client_done;
     
     std::chrono::high_resolution_clock::duration const touch_duration;
     

@@ -25,8 +25,9 @@
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
 
+#include "mir_test/barrier.h"
+
 #include "mir_test_framework/server_runner.h"
-#include "mir_test_framework/cross_process_sync.h"
 
 #include <chrono>
 
@@ -50,11 +51,11 @@ public:
     void run_test();
     
     std::vector<TouchMeasuringClient::TestResults::TouchSample> client_results();
-    std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> server_timings();        
+    std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> server_timings();
 
 private:
-    mir_test_framework::CrossProcessSync client_ready_fence;
-    mir_test_framework::CrossProcessSync client_done_fence;
+    mir::test::Barrier client_ready_fence;
+    mir::test::Barrier client_done_fence;
     TouchProducingServer server_configuration;
     TouchMeasuringClient client;
 };

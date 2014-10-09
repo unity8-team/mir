@@ -19,7 +19,9 @@
 #include "frame_uniformity_test.h"
 
 FrameUniformityTest::FrameUniformityTest(FrameUniformityTestParameters const& parameters)
-    : server_configuration({{0, 0}, parameters.screen_size},
+    : client_ready_fence{2},
+      client_done_fence{2},
+      server_configuration({{0, 0}, parameters.screen_size},
                            parameters.touch_start,
                            parameters.touch_end,
                            parameters.touch_duration,
@@ -46,7 +48,8 @@ void FrameUniformityTest::run_test()
         client.run(new_connection());
     });
 
-    client_done_fence.wait_for_signal_ready();
+    // TODO: Client done fence necessary?
+    client_done_fence.ready();
     if (client_thread.joinable())
         client_thread.join();
 

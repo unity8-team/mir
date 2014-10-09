@@ -28,11 +28,13 @@ namespace mia = mi::android;
 namespace mis = mi::synthesis;
 namespace geom = mir::geometry;
 
+namespace mt = mir::test;
+
 namespace mtf = mir_test_framework;
 
 TouchProducingServer::TouchProducingServer(geom::Rectangle screen_dimensions, geom::Point touch_start,
     geom::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration,
-    mtf::CrossProcessSync &client_ready)
+    mt::Barrier &client_ready)
     : FakeEventHubServerConfiguration({screen_dimensions}),
       screen_dimensions(screen_dimensions),
       touch_start(touch_start),
@@ -71,7 +73,7 @@ void TouchProducingServer::thread_function()
     // We could make the touch sampling rate customizable
     std::chrono::milliseconds const pause_between_events{10};
 
-    client_ready.wait_for_signal_ready_for();
+    client_ready.ready();
     
     auto start = std::chrono::high_resolution_clock::now();
     auto end = start + touch_duration;
