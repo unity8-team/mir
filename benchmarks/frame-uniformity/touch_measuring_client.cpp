@@ -120,10 +120,23 @@ TouchMeasuringClient::TouchMeasuringClient(mt::Barrier &client_ready,
 {
 }
 
+namespace
+{
+void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
+{
+}
+}
+
 void TouchMeasuringClient::run(std::string const& connect_string)
 {
     auto connection = mir_connect_sync(connect_string.c_str(), "frame-uniformity-test");
     assert(mir_connection_is_valid(connection));
+    
+    /*
+     * Set a null callback to avoid killing the process
+     * (default callback raises SIGHUP).
+     */
+    mir_connection_set_lifecycle_event_callback(connection, null_lifecycle_callback, nullptr);
     
     auto surface = create_surface(connection);
 
