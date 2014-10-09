@@ -71,6 +71,8 @@ double compute_frame_uniformity(std::vector<TouchMeasuringClient::TestResults::T
 {
     auto average_pixel_offset = compute_average_frame_offset(results, touch_start_point, touch_end_point,
         touch_start_time, touch_end_time);
+    
+    printf("Average pixel offset: %f \n", average_pixel_offset);
 
     double sum = 0;
     int count = 0;
