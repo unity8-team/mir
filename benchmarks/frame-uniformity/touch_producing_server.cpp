@@ -28,7 +28,7 @@ namespace mia = mi::android;
 namespace mis = mi::synthesis;
 namespace geom = mir::geometry;
 
-namespace mt = mir::test;
+namespace mt = mir::test
 
 namespace mtf = mir_test_framework;
 
@@ -81,7 +81,7 @@ void TouchProducingServer::thread_function()
 
     // We could tighten the touch start and end times further.
     touch_start_time = start;
-    while (now < start)
+    while (now < end)
     {
         std::this_thread::sleep_for(pause_between_events);
 
