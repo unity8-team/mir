@@ -157,9 +157,20 @@ public:
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        if (num_frames > frames_scheduled)
+        /*
+         * What's the minimum number of frames required to guarantee all
+         * surfaces are flushed? It's the buffer queue depth (3). Might be
+         * nicer in future to actually query this information from the
+         * surfaces during the render (have composite() return a result).
+         */
+        int const max_buffers = 3;
+        if (frames_scheduled < max_buffers)
         {
-            frames_scheduled = num_frames;
+            frames_scheduled += num_frames;
+
+            if (frames_scheduled > max_buffers)
+                frames_scheduled = max_buffers;
+
             run_cv.notify_one();
         }
     }
