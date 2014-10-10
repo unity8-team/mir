@@ -28,6 +28,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 float mir_eglapp_background_opacity = 1.0f;
+int mir_eglapp_swap_interval = 1;
 
 static const char appname[] = "egldemo";
 
@@ -169,7 +170,6 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     EGLint neglconfigs;
     EGLContext eglctx;
     EGLBoolean ok;
-    EGLint swapinterval = 1;
     char *mir_socket = NULL;
     char const* cursor_name = mir_default_cursor_name;
 
@@ -206,7 +206,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                     }
                     break;
                 case 'n':
-                    swapinterval = 0;
+                    mir_eglapp_swap_interval = 0;
                     break;
                 case 'o':
                     {
@@ -394,7 +394,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     *height = surfaceparm.height;
 
     printf("Surface %d DPI\n", mir_surface_get_dpi(surface));
-    eglSwapInterval(egldisplay, swapinterval);
+    eglSwapInterval(egldisplay, mir_eglapp_swap_interval);
 
     running = 1;
 

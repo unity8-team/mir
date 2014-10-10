@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
 {
     unsigned int width = 0, height = 0;
 
+    mir_eglapp_swap_interval = 0;
+
     printf("=== Wacky colour frame scheduling demo ===\n"
            "You should see alternating red/blue colours.\n"
            "If you see green then you've got a compositor bug.\n"
@@ -47,7 +49,7 @@ int main(int argc, char *argv[])
         mir_eglapp_swap_buffers();
 
         /*
-         * We race the compositor here.
+         * We race the compositor here (swap interval zero)
          * It may show our green screen for one frame, but even if it does
          * it should be replaced with the blue screen (below) immediately,
          * and stay blue for a full second, as that is most definitely
