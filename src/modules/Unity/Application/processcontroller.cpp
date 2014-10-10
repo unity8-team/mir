@@ -115,6 +115,43 @@ void ProcessController::OomController::ensureProcessLikelyToBeKilled(pid_t pid)
 }
 
 /*!
+ * \brief ProcessController::OomController::ensureProcessLessLikelyToBeKilled
+ * \param pid
+ * Set the process OOM-killer score so that, in a low memory situation, the process
+ * is _more_ likely to be killed than the foreground application, but less likely
+ * than the background applications
+ */
+void ProcessController::OomController::ensureProcessLessLikelyToBeKilled(pid_t pid)
+{
+    // Set it to 50% of the total available range.
+    static const float defaultPercentage = 0.5;
+
+    core::posix::Process process(pid);
+
+    try {
+        plpp::OomScoreAdj shellScore;
+        core::posix::this_process::instance() >> shellScore;
+
+        plpp::OomScoreAdj processScore
+        {
+            static_cast<int>((plpp::OomScoreAdj::max_value() - shellScore.value) * defaultPercentage) + shellScore.value
+        };
+
+        process << processScore;
+    } catch(...) {
+        // Accessing OomScoreAdj resulted in an exception being thrown.
+        // Trying with the deprecated OomAdj now as a last resort.
+        try
+        {
+            process << plpp::OomAdj{plpp::OomAdj::max_value()};
+        } catch(...)
+        {
+            qDebug() << "ensureProcessIsLessLikelyToBeKilled failed for pid=" << pid;
+        }
+    }
+}
+
+/*!
  * \brief ProcessController::OomController::ensureProcessUnlikelyToBeKilled
  * \param pid
  * Set the process OOM-killer weighting so that the process is _less_ likely to be killed

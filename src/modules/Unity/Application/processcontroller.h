@@ -38,6 +38,7 @@ public:
         OomController& operator=(const OomController&) = delete;
 
         virtual void ensureProcessLikelyToBeKilled(pid_t);
+        virtual void ensureProcessLessLikelyToBeKilled(pid_t);
         virtual void ensureProcessUnlikelyToBeKilled(pid_t);
     };
 
