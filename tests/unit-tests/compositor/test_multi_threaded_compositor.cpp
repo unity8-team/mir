@@ -478,6 +478,56 @@ TEST(MultiThreadedCompositor, composites_only_on_demand)
     compositor.stop();
 }
 
+TEST(MultiThreadedCompositor, schedules_enough_frames)
+{   // Regression test for LP: #1379610
+    using namespace testing;
+
+    unsigned int const nbuffers = 3;
+
+    auto display = std::make_shared<StubDisplay>(nbuffers);
+    auto scene = std::make_shared<StubScene>();
+    auto factory = std::make_shared<RecordingDisplayBufferCompositorFactory>();
+    mc::MultiThreadedCompositor compositor{display, scene, factory,
+                                           null_report, true};
+
+    EXPECT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 0, 0));
+
+    compositor.start();
+
+    int const max_retries = 100;
+    int retry = 0;
+    while (retry < max_retries &&
+           !factory->check_record_count_for_each_buffer(nbuffers, 1))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        ++retry;
+    }
+
+    ASSERT_LT(retry, max_retries);
+
+    // Now we have the initial frame wait a bit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // ... and make sure the number is still only 1
+    ASSERT_TRUE(factory->check_record_count_for_each_buffer(nbuffers, 1, 1));
+
+    // Trigger TWO new surface changes
+    scene->emit_change_event();  // schedule_compositing(1)
+    scene->emit_change_event();  // schedule_compositing(1) again
+
+    // Display buffers should be forced to render another 2, so that's 3
+    retry = 0;
+    while (retry < max_retries &&
+           !factory->check_record_count_for_each_buffer(nbuffers, 3))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        ++retry;
+    }
+
+    ASSERT_LT(retry, max_retries);
+
+    compositor.stop();
+}
+
 TEST(MultiThreadedCompositor, when_no_initial_composite_is_needed_there_is_none)
 {
     using namespace testing;
