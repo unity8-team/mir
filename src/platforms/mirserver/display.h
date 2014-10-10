@@ -34,9 +34,13 @@ public:
 
     QList<QPlatformScreen *> screens() const { return m_screens; }
 
+private Q_SLOTS:
+    void onDisplayPowerStateChanged(int, int);
+
 private:
     QList<QPlatformScreen *> m_screens;
     const QSharedPointer<mir::DefaultServerConfiguration> m_mirConfig;
+    void register_with_dbus();
 };
 
 #endif // DISPLAY_H

@@ -22,6 +22,9 @@
 
 #include <mir/graphics/display_configuration.h>
 #include <QDebug>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusError>
 
 namespace mg = mir::graphics;
 
@@ -30,6 +33,7 @@ namespace mg = mir::graphics;
 Display::Display(const QSharedPointer<mir::DefaultServerConfiguration> &config, QObject *parent)
   : QObject(parent)
   , m_mirConfig(config)
+  , unityScreen(nullptr)
 {
     std::shared_ptr<mir::graphics::DisplayConfiguration> displayConfig = m_mirConfig->the_display()->configuration();
 
@@ -39,6 +43,32 @@ Display::Display(const QSharedPointer<mir::DefaultServerConfiguration> &config, 
             m_screens.push_back(screen);
         }
     });
+    register_with_dbus();
+}
+
+void Display::register_with_dbus()
+{
+    QDBusInterface *unityScreen = new QDBusInterface
+    (
+        "com.canonical.Unity.Screen",
+        "/com/canonical/Unity/Screen",
+        "com.canonical.Unity.Screen",
+        QDBusConnection::systemBus(), this
+    );
+
+    unityScreen->connection().connect
+    (
+        "com.canonical.Unity.Screen",
+        "/com/canonical/Unity/Screen",
+        "com.canonical.Unity.Screen",
+        "DisplayPowerStateChange", this,
+        SLOT(onDisplayPowerStateChanged(int, int))
+    );
+}
+
+void Display::onDisplayPowerStateChanged(int status, int reason)
+{
+    qDebug() << "JOSH onDisplayPowerStateChanged" << status << reason;
 }
 
 Display::~Display()
