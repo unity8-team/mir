@@ -109,6 +109,7 @@ const QEvent::Type OrientationReadingEvent::m_type =
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     : QObject(nullptr)
     , m_orientationSensor(new QOrientationSensor(this))
+	, unityScreen(nullptr)
 {
     readMirDisplayConfiguration(screen);
 
@@ -125,6 +126,24 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     QObject::connect(m_orientationSensor, &QOrientationSensor::readingChanged,
                      this, &Screen::onOrientationReadingChanged);
     m_orientationSensor->start();
+
+	unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
+                                     "/com/canonical/Unity/Screen",
+                                     "com.canonical.Unity.Screen",
+                                     QDBusConnection::systemBus(), this);
+
+    unityScreen->connection().connect("com.canonical.Unity.Screen",
+                                      "/com/canonical/Unity/Screen",
+                                      "com.canonical.Unity.Screen",
+                                      "DisplayPowerStateChange",
+                                      this,
+                                      SLOT(onDisplayPowerStateChanged(int, int)));
+}
+
+void Screen::onDisplayPowerStateChanged(int status, int reason)
+{
+    Q_UNUSED(reason);    
+    toggleSensors(status);
 }
 
 void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutput const &screen)
@@ -147,7 +166,6 @@ void Screen::readMirDisplayConfiguration(mir::graphics::DisplayConfigurationOutp
     m_refreshRate = mode.vrefresh_hz;
 }
 
-// FIXME: nothing is using this method yet, but we should turn off sensors when display is off.
 void Screen::toggleSensors(const bool enable) const
 {
     qCDebug(QTMIR_SENSOR_MESSAGES) << "Screen::toggleSensors - enable=" << enable;
