@@ -20,6 +20,12 @@ add_executable(mir_demo_client_eglflash
 target_link_libraries(mir_demo_client_eglflash
   eglapp
 )
+add_executable(mir_demo_client_wacky
+  wacky.c
+)
+target_link_libraries(mir_demo_client_wacky
+  eglapp
+)
 add_executable(mir_demo_client_egltriangle
   egltriangle.c
 )

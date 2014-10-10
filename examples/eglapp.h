@@ -28,6 +28,7 @@ struct MirConnection;
 struct MirSurface;
 
 extern float mir_eglapp_background_opacity;
+extern int mir_eglapp_swap_interval;
 
 mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                                 unsigned int *width, unsigned int *height);
