@@ -157,15 +157,12 @@ public:
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
-        /*
-         * What's the minimum number of frames required to guarantee all
-         * surfaces are flushed? It's the buffer queue depth (3). Might be
-         * nicer in future to actually query this information from the
-         * surfaces during the render (have composite() return a result).
-         */
         int const max_buffers = 3;
         if (frames_scheduled < max_buffers)
         {
+            // Always add! Think what happens otherwise if it's just a single
+            // triple-buffered surface calling schedule_compositing(1) each
+            // time it has a new buffer (LP: #1379610)
             frames_scheduled += num_frames;
 
             if (frames_scheduled > max_buffers)
