@@ -43,6 +43,8 @@
 // Qt
 #include <QGuiApplication>
 #include <QDebug>
+#include <QByteArray>
+#include <QDir>
 
 // std
 #include <csignal>
@@ -607,7 +609,8 @@ void ApplicationManager::onProcessFailed(const QString &appId, const bool during
 
         // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
         QByteArray path(qgetenv("HOME") + QByteArray("/.cache/QML/Apps/") + application->appId());
-        QDir dir(QLatin1String(path));
+        QDir dir;
+        dir.setPath(path.data());
         QStringList files = dir.entryList();
         for (int i = 0; i < files.size(); i++)
             dir.remove(files.at(i));
