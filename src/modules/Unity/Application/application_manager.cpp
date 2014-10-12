@@ -604,6 +604,14 @@ void ApplicationManager::onProcessFailed(const QString &appId, const bool during
         }
         remove(application);
         m_dbusWindowStack->WindowDestroyed(0, application->appId());
+
+        // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
+        QByteArray path(qgetenv("HOME") + QByteArray("/.cache/QML/Apps/") + application->appId());
+        QDir dir(QLatin1String(path));
+        QStringList files = dir.entryList();
+        for (int i = 0; i < files.size(); i++)
+            dir.remove(files.at(i));
+
         delete application;
     } else {
         // We need to set flags on the Application to say the app can be resumed, and thus should not be removed
