@@ -826,7 +826,7 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
             remove(application);
            
             // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
-            QString path(qgetenv("HOME") + QStringLiteral("/.cache/QML/Apps/"));
+            QString path(QDir::homePath() + QStringLiteral("/.cache/QML/Apps/"));
             QDir dir(path);
             QStringList apps = dir.entryList();
             for (int i = 0; i < apps.size(); i++) {
