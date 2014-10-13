@@ -23,12 +23,8 @@
 
 #include <memory>
 #include <string>
-#include <condition_variable>
-#include <mutex>
 
 #include <mir_toolkit/mir_client_library.h>
-
-#include <unityrpc.pb.h>
 
 namespace ubuntu
 {
@@ -43,26 +39,15 @@ class Instance
 public:
     Instance();
     ~Instance() = default;
-    
+
     UApplicationInstance* as_u_application_instance();
     static Instance* from_u_application_instance(UApplicationInstance* u_instance);
-    
+
     void ref();
     void unref();
-    
+
     MirConnection* connection() const;
     bool connect(std::string const& application_name);
-
-    // Variables used for direct protobuf manipulation. Needed for calling unity8 functions
-    // through the mir_socket.
-    unity::protobuf::Clip rpc_clip;
-    unity::protobuf::Void rpc_void;
-    std::condition_variable rpc_condition_variable;
-    std::mutex rpc_mutex;
-    bool rpc_waiting_reply;
-    // ensure one clipboard operation (copy or paste) at a time.
-    std::mutex clipboard_api_mutex;
-    std::string clip;
 
 protected:
     Instance(Instance const&) = delete;

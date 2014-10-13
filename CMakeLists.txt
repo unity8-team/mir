@@ -61,11 +61,6 @@ find_package(PkgConfig)
 pkg_check_modules(MIRSERVER REQUIRED mirserver)
 pkg_check_modules(MIRCLIENT REQUIRED mirclient)
 
-find_package(Protobuf REQUIRED)
-if(PROTOBUF_PROTOC_EXECUTABLE STREQUAL "PROTOBUF_PROTOC_EXECUTABLE-NOTFOUND")
-  message(SEND_ERROR "protoc executable not found! Missing protobuf-compiler package?")
-endif()
-
 # Try to find hybris, and disable hybris from build if not found
 find_library(Hybris
   NAMES hybris-common
