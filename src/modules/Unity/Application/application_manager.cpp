@@ -607,14 +607,6 @@ void ApplicationManager::onProcessFailed(const QString &appId, const bool during
         remove(application);
         m_dbusWindowStack->WindowDestroyed(0, application->appId());
 
-        // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
-        QByteArray path(qgetenv("HOME") + QByteArray("/.cache/QML/Apps/") + application->appId());
-        QDir dir;
-        dir.setPath(path.data());
-        QStringList files = dir.entryList();
-        for (int i = 0; i < files.size(); i++)
-            dir.remove(files.at(i));
-
         delete application;
     } else {
         // We need to set flags on the Application to say the app can be resumed, and thus should not be removed
@@ -832,6 +824,23 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
                 || application->state() == Application::Running) {
             m_dbusWindowStack->WindowDestroyed(0, application->appId());
             remove(application);
+           
+            // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
+            QString path(qgetenv("HOME") + QStringLiteral("/.cache/QML/Apps/"));
+            QDir dir(path);
+            QStringList apps = dir.entryList();
+            for (int i = 0; i < apps.size(); i++) {
+                if (apps.at(i).contains(application->appId())) {
+                    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping appId=" << apps.at(i) << " Wiping QML Cache";
+                    QString tmp(path + apps.at(i));
+                    QDir cacheDir(tmp);
+                    QStringList files = cacheDir.entryList();
+                    for (int j = 0; j < files.size(); j++)
+                        cacheDir.remove(files.at(j));
+                    break;
+                }
+            }
+
             delete application;
 
             if (application == m_focusedApplication) {
