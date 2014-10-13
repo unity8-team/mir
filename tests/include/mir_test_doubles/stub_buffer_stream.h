@@ -79,8 +79,6 @@ public:
     {
     }
 
-    int buffers_ready_for_compositor() const override { return 1; }
-
     void drop_old_buffers() override {}
     void drop_client_requests() override {}
 

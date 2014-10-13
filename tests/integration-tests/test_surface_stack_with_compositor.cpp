@@ -209,8 +209,6 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
     int const nbuffers = 3;
 
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
-        .WillByDefault(Return(nbuffers));
 
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),
@@ -231,8 +229,6 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
     int const nbuffers = 3;
 
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
-        .WillByDefault(Return(nbuffers));
 
     stub_surface->resize(geom::Size{10,10});
     stub_surface->move_to(geom::Point{0,0});
@@ -253,8 +249,6 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
 TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
-        .WillByDefault(Return(0));
 
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),
@@ -313,8 +307,6 @@ TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
 
 TEST_F(SurfaceStackCompositor, buffer_updates_trigger_composition)
 {
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
-        .WillByDefault(testing::Return(1));
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
     stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
 

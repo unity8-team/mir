@@ -217,7 +217,7 @@ void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(m
             first_frame_posted = true;
         }
 
-        observers.frame_posted(surface_buffer_stream->buffers_ready_for_compositor());
+        observers.frame_posted(1);
     }
 
     surface_buffer_stream->acquire_client_buffer(complete);
@@ -638,9 +638,6 @@ public:
     {
     }
  
-    int buffers_ready_for_compositor() const override
-    { return underlying_buffer_stream->buffers_ready_for_compositor(); }
-
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         if (!compositor_buffer)

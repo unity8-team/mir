@@ -121,7 +121,6 @@ MIRPLATFORM_3 {
     mir::graphics::Platform::Platform*;
     mir::graphics::Renderable::alpha*;
     mir::graphics::Renderable::buffer*;
-    mir::graphics::Renderable::buffers_ready_for_compositor*;
     mir::graphics::Renderable::id*;
     mir::graphics::Renderable::operator*;
     mir::graphics::Renderable::?Renderable*;

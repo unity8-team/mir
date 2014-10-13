@@ -382,17 +382,6 @@ void mc::BufferQueue::resize(geometry::Size const& new_size)
     the_properties.size = new_size;
 }
 
-int mc::BufferQueue::buffers_ready_for_compositor() const
-{
-    std::lock_guard<decltype(guard)> lock(guard);
-
-    /*TODO: this api also needs to know the caller user id
-     * as the number of buffers that are truly ready
-     * vary depending on concurrent compositors.
-     */
-    return ready_to_composite_queue.size();
-}
-
 int mc::BufferQueue::buffers_free_for_client() const
 {
     std::lock_guard<decltype(guard)> lock(guard);
