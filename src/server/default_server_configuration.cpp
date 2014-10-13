@@ -84,8 +84,6 @@ struct CachedVoidPtr
 struct mir::DefaultServerConfiguration::PrivateImplementation
 {
     std::unordered_map<std::type_info const*,std::shared_ptr<CachedVoidPtr>,hash_type_info> cached_objects;
-
-    // store constructors separately forward to real constructor
 };
 
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
