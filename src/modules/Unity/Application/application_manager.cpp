@@ -832,11 +832,8 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
             for (int i = 0; i < apps.size(); i++) {
                 if (apps.at(i).contains(application->appId())) {
                     qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping appId=" << apps.at(i) << " Wiping QML Cache";
-                    QString tmp(path + apps.at(i));
-                    QDir cacheDir(tmp);
-                    QStringList files = cacheDir.entryList();
-                    for (int j = 0; j < files.size(); j++)
-                        cacheDir.remove(files.at(j));
+                    dir.cd(apps.at(i));
+                    dir.removeRecursively();
                     break;
                 }
             }
