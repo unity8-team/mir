@@ -156,7 +156,11 @@ class DefaultServerConfiguration : public virtual ServerConfiguration
 public:
     DefaultServerConfiguration(int argc, char const* argv[]);
     explicit DefaultServerConfiguration(std::shared_ptr<options::Configuration> const& configuration_options);
+    ~DefaultServerConfiguration();
 
+    void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name) override;
+    void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, char const* base_interface, char const* interface_name) override;
+    std::shared_ptr<void> get(char const* interface_name) override;
     /** @name DisplayServer dependencies
      * dependencies of DisplayServer on the rest of the Mir
      *  @{ */
@@ -412,6 +416,8 @@ protected:
     CachedPtr<shell::HostLifecycleEventListener> host_lifecycle_event_listener;
 
 private:
+    struct PrivateImplementation;
+    std::unique_ptr<PrivateImplementation> pimpl;
     std::shared_ptr<options::Configuration> const configuration_options;
     std::shared_ptr<input::EventFilter> const default_filter;
 

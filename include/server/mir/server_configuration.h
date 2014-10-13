@@ -57,8 +57,77 @@ class EmergencyCleanup;
 class ServerConfiguration
 {
 public:
-    // TODO most of these interfaces are wider DisplayServer needs...
-    // TODO ...some or all of them need narrowing
+
+    /*!
+     * \name Interface registra
+     * \{
+     */
+    template<typename Interface>
+    inline std::shared_ptr<Interface> the()
+    {
+        return std::static_pointer_cast<Interface>(get(Interface::interface_name));
+    }
+
+    template<typename T,typename WrappedInterface>
+    inline void wrap(std::function<std::shared_ptr<T>(std::shared_ptr<WrappedInterface> const&)> const& constructor)
+    {
+        wrap_existing_interface(
+            [constructor](std::shared_ptr<void> wrapped_object)
+            {
+                return constructor(std::static_pointer_cast<WrappedInterface>(wrapped_object));
+            },
+            WrappedInterface::interface_name,
+            WrappedInterface::interface_name);
+    }
+
+    template<typename ImplementationType, typename InterfaceType>
+    inline void provide(std::function<std::shared_ptr<ImplementationType>()> const& constructor)
+    {
+        store_constructor(
+            [constructor]()
+            {
+                return std::static_pointer_cast<InterfaceType>(constructor());
+            },
+            InterfaceType::interface_name);
+    }
+
+    template<typename T>
+    struct identity {typedef T type; };
+
+    template<typename ImplementationType,typename FirstInterface, typename... InterfaceTs>
+    inline void provide_multiple(std::function<std::shared_ptr<ImplementationType>()> const& constructor)
+    {
+        (void)constructor;
+        store_constructor(
+            [constructor]()
+            {
+               return std::static_pointer_cast<FirstInterface>(constructor());
+            },
+            FirstInterface::interface_name
+            );
+        unroll_wrapping_constructors<ImplementationType,FirstInterface>(identity<InterfaceTs>()...);
+    }
+    /*!
+     * \}
+     */
+    /*!
+     * \brief Registers a constructor function that provides an implementation
+     * of the interface specified by \a interface_name.
+     */
+    virtual void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name) = 0;
+
+    /*!
+     * \brief Registers a wrapping constructor to provide an implementation of \a interface_name.
+     * It receives the base interface \a base_interface as a parameter.
+     *
+     * Note: \a base_interface may also be identical to \a interface_name
+     */
+    virtual void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, char const* base_interface, char const* interface_name) = 0;
+
+    /*!
+     * \brief Query the ServerConfiguration for a specified interface.
+     */
+    virtual std::shared_ptr<void> get(char const* interface_name) = 0;
     virtual std::shared_ptr<frontend::Connector> the_connector() = 0;
     virtual std::shared_ptr<frontend::Connector> the_prompt_connector() = 0;
     virtual std::shared_ptr<graphics::Display> the_display() = 0;
@@ -71,8 +140,40 @@ public:
     virtual std::shared_ptr<graphics::Platform>  the_graphics_platform() = 0;
     virtual std::shared_ptr<input::InputConfiguration> the_input_configuration() = 0;
     virtual std::shared_ptr<EmergencyCleanup> the_emergency_cleanup() = 0;
+
     virtual auto the_fatal_error_strategy() -> void (*)(char const* reason, ...) = 0;
 
+private:
+
+    template<typename Implementation, typename StoredBaseInterface, typename NextInterface>
+    void unroll_wrapping_constructors(identity<NextInterface>)
+    {
+        wrap_existing_interface(
+            [](std::shared_ptr<void> instance_of_base_interface)
+            {
+                // The system either stores type erased weak references to the destination interfaces
+                // or creates them but immediately casts away the Implementation type
+                // hence we need to cast back to the Implementation
+                // to know the right offset of NextInterface
+                return std::static_pointer_cast<NextInterface>(
+                    std::static_pointer_cast<Implementation>(
+                        std::static_pointer_cast<StoredBaseInterface>(
+                            instance_of_base_interface
+                            )
+                    )
+                );
+            },
+            StoredBaseInterface::interface_name,
+            NextInterface::interface_name
+            );
+    }
+
+    template<typename Implementation, typename StoredBaseInterface, typename NextInterface, typename... RemainingInterfaceTs>
+    void unroll_wrapping_constructors(identity<NextInterface>, identity<RemainingInterfaceTs>...)
+    {
+        unroll_wrapping_constructors<Implementation, StoredBaseInterface>(identity<NextInterface>());
+        unroll_wrapping_constructors<Implementation, StoredBaseInterface>(identity<RemainingInterfaceTs>()...);
+    }
 protected:
     ServerConfiguration() = default;
     virtual ~ServerConfiguration() = default;

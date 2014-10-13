@@ -27,8 +27,11 @@ MIR_SERVER_26 {
     mir::compositor::Scene::unregister_compositor*;
     mir::DefaultServerConfiguration::clock*;
     mir::DefaultServerConfiguration::DefaultServerConfiguration*;
+    mir::DefaultServerConfiguration::?DefaultServerConfiguration*;
+    mir::DefaultServerConfiguration::get*;
     mir::DefaultServerConfiguration::is_key_repeat_enabled*;
     mir::DefaultServerConfiguration::new_ipc_factory*;
+    mir::DefaultServerConfiguration::store_constructor*;
     mir::DefaultServerConfiguration::the_android_input_dispatcher*;
     mir::DefaultServerConfiguration::the_buffer_allocator*;
     mir::DefaultServerConfiguration::the_buffer_initializer*;
@@ -109,6 +112,7 @@ MIR_SERVER_26 {
     mir::DefaultServerConfiguration::the_surface_factory*;
     mir::DefaultServerConfiguration::the_surface_stack_model*;
     mir::DefaultServerConfiguration::the_touch_visualizer*;
+    mir::DefaultServerConfiguration::wrap_existing_interface*;
     mir::DefaultServerConfiguration::wrap_session_coordinator*;
     mir::DefaultServerConfiguration::wrap_surface_coordinator*;
     mir::DisplayServer::?DisplayServer*;
@@ -396,6 +400,8 @@ MIR_SERVER_26 {
     mir::ServerConfiguration::operator*;
     mir::ServerConfiguration::?ServerConfiguration*;
     mir::ServerConfiguration::ServerConfiguration*;
+    mir::ServerConfiguration::get*;
+    mir::ServerConfiguration::store_constructor*;
     mir::ServerConfiguration::the_compositor*;
     mir::ServerConfiguration::the_connector*;
     mir::ServerConfiguration::the_display*;
@@ -409,6 +415,7 @@ MIR_SERVER_26 {
     mir::ServerConfiguration::the_main_loop*;
     mir::ServerConfiguration::the_prompt_connector*;
     mir::ServerConfiguration::the_server_status_listener*;
+    mir::ServerConfiguration::wrap_existing_interface*;
     mir::ServerStatusListener::operator*;
     mir::ServerStatusListener::paused*;
     mir::ServerStatusListener::resumed*;
@@ -468,8 +475,10 @@ MIR_SERVER_26 {
     mir::time::Timer::?Timer*;
     mir::time::Timer::Timer*;
     non-virtual?thunk?to?mir::compositor::SceneElement::?SceneElement*;
+    non-virtual?thunk?to?mir::DefaultServerConfiguration::get*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::is_key_repeat_enabled*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::new_ipc_factory*;
+    non-virtual?thunk?to?mir::DefaultServerConfiguration::store_constructor*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_android_input_dispatcher*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_buffer_allocator*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_buffer_initializer*;
@@ -547,6 +556,7 @@ MIR_SERVER_26 {
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_surface_factory*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_surface_stack_model*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_touch_visualizer*;
+    non-virtual?thunk?to?mir::DefaultServerConfiguration::wrap_existing_interface*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::wrap_session_coordinator*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::wrap_surface_coordinator*;
     non-virtual?thunk?to?mir::frontend::ConnectionCreator::?ConnectionCreator*;

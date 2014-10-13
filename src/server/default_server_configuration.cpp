@@ -41,6 +41,8 @@
 #include "mir/scene/null_prompt_session_listener.h"
 #include "default_emergency_cleanup.h"
 
+#include <unordered_map>
+
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
@@ -50,15 +52,78 @@ namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mi = mir::input;
 
+namespace
+{
+
+struct CachedVoidPtr
+{
+    std::function<std::shared_ptr<void>()> creator;
+    std::weak_ptr<void> cache;
+    CachedVoidPtr(std::function<std::shared_ptr<void>()> creator)
+        : creator(creator)
+    {}
+    std::shared_ptr<void> operator()()
+    {
+        auto cached_object = cache.lock();
+        if (cached_object)
+            return cached_object;
+        cache = cached_object = creator();
+        return cached_object;
+    }
+};
+
+}
+
+struct mir::DefaultServerConfiguration::PrivateImplementation
+{
+    std::unordered_map<char const*,std::shared_ptr<CachedVoidPtr>> cached_objects;
+
+    // store constructors separately forward to real constructor
+};
+
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
         DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
 {
 }
 
 mir::DefaultServerConfiguration::DefaultServerConfiguration(std::shared_ptr<mo::Configuration> const& configuration_options) :
+    pimpl(new PrivateImplementation),
     configuration_options(configuration_options),
     default_filter(std::make_shared<mi::VTFilter>())
 {
+}
+
+mir::DefaultServerConfiguration::~DefaultServerConfiguration()
+{}
+
+
+void mir::DefaultServerConfiguration::store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name)
+{
+    pimpl->cached_objects[interface_name] = std::make_shared<CachedVoidPtr>(constructor);
+}
+
+void mir::DefaultServerConfiguration::wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& cast_function, char const* base_interface, char const* interface_name)
+{
+    auto it = pimpl->cached_objects.find( base_interface );
+    if (it == pimpl->cached_objects.end())
+        throw std::logic_error("base interface does not exist");
+
+    auto base_cache = it->second;
+    store_constructor(
+        [base_cache,cast_function]
+        {
+            return cast_function((*base_cache)());
+        },
+        interface_name
+        );
+}
+
+std::shared_ptr<void> mir::DefaultServerConfiguration::get(char const* interface_name)
+{
+    auto it = pimpl->cached_objects.find( interface_name );
+    if (it == pimpl->cached_objects.end())
+        throw std::logic_error("interface does not exist");
+    return (*it->second)();
 }
 
 auto mir::DefaultServerConfiguration::the_options() const
