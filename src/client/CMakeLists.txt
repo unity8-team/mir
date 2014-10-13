@@ -17,7 +17,7 @@ include_directories(
 )
 
 set(MIRCLIENT_ABI 8)
-set(CLIENT_PLATFORM_VERSION "MIR_CLIENTPLATFORM_1")
+set(CLIENT_PLATFORM_VERSION "MIR_CLIENT_PLATFORM_2")
 set(symbol_map ${CMAKE_SOURCE_DIR}/src/client/symbols.map)
 
 set(MIR_CLIENT_PLATFORM_PATH
