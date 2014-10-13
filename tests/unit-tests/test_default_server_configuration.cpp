@@ -23,11 +23,9 @@
 
 namespace
 {
-
 class ExampleInterface
 {
 public:
-    constexpr static char const interface_name[] = "ExampleInterface";
     virtual void do_something() = 0;
     virtual ~ExampleInterface() = default;
 };
@@ -35,21 +33,17 @@ public:
 class ExampleInterfaceMock : public ::testing::NiceMock<ExampleInterface>
 {
 public:
-    MOCK_METHOD0(Die, void());
+    MOCK_METHOD0(die, void());
     virtual void do_something() {}
-    virtual ~ExampleInterfaceMock() { Die(); }
+    virtual ~ExampleInterfaceMock() { die(); }
 };
 
 class AnotherExampleInterface
 {
 public:
-    constexpr static char const interface_name[] = "AnotherExampleInterface";
     virtual void do_something_different() = 0;
     virtual ~AnotherExampleInterface() = default;
 };
-
-constexpr char const ExampleInterface::interface_name[];
-constexpr char const AnotherExampleInterface::interface_name[];
 
 class ExampleImplementation : public ExampleInterface
 {
@@ -158,7 +152,7 @@ TEST_F(DefaultServerConfigurationTest, destructor_is_called)
 
     {
         auto example_mock = std::dynamic_pointer_cast<ExampleInterfaceMock>(conf.the<ExampleInterface>());
-        EXPECT_CALL(*example_mock, Die());
+        EXPECT_CALL(*example_mock, die());
     }
 }
 
