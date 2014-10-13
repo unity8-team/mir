@@ -606,7 +606,6 @@ void ApplicationManager::onProcessFailed(const QString &appId, const bool during
         }
         remove(application);
         m_dbusWindowStack->WindowDestroyed(0, application->appId());
-
         delete application;
     } else {
         // We need to set flags on the Application to say the app can be resumed, and thus should not be removed
