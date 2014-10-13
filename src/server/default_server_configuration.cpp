@@ -55,6 +55,13 @@ namespace mi = mir::input;
 namespace
 {
 
+struct hash_type_info
+{
+    int operator()(std::type_info const* info) const noexcept
+    {
+        return info->hash_code();
+    }
+};
 struct CachedVoidPtr
 {
     std::function<std::shared_ptr<void>()> creator;
@@ -76,7 +83,7 @@ struct CachedVoidPtr
 
 struct mir::DefaultServerConfiguration::PrivateImplementation
 {
-    std::unordered_map<char const*,std::shared_ptr<CachedVoidPtr>> cached_objects;
+    std::unordered_map<std::type_info const*,std::shared_ptr<CachedVoidPtr>,hash_type_info> cached_objects;
 
     // store constructors separately forward to real constructor
 };
@@ -97,14 +104,14 @@ mir::DefaultServerConfiguration::~DefaultServerConfiguration()
 {}
 
 
-void mir::DefaultServerConfiguration::store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name)
+void mir::DefaultServerConfiguration::store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, std::type_info const& interface)
 {
-    pimpl->cached_objects[interface_name] = std::make_shared<CachedVoidPtr>(constructor);
+    pimpl->cached_objects[&interface] = std::make_shared<CachedVoidPtr>(constructor);
 }
 
-void mir::DefaultServerConfiguration::wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& cast_function, char const* base_interface, char const* interface_name)
+void mir::DefaultServerConfiguration::wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& cast_function, std::type_info const& base_interface, std::type_info const& interface)
 {
-    auto it = pimpl->cached_objects.find( base_interface );
+    auto it = pimpl->cached_objects.find(&base_interface);
     if (it == pimpl->cached_objects.end())
         throw std::logic_error("base interface does not exist");
 
@@ -114,13 +121,13 @@ void mir::DefaultServerConfiguration::wrap_existing_interface(std::function<std:
         {
             return cast_function((*base_cache)());
         },
-        interface_name
+        interface
         );
 }
 
-std::shared_ptr<void> mir::DefaultServerConfiguration::get(char const* interface_name)
+std::shared_ptr<void> mir::DefaultServerConfiguration::get(std::type_info const& interface)
 {
-    auto it = pimpl->cached_objects.find( interface_name );
+    auto it = pimpl->cached_objects.find(&interface);
     if (it == pimpl->cached_objects.end())
         throw std::logic_error("interface does not exist");
     return (*it->second)();

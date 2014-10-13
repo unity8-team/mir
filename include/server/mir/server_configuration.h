@@ -19,6 +19,7 @@
 #define MIR_SERVER_CONFIGURATION_H_
 
 #include <memory>
+#include <typeinfo>
 
 namespace mir
 {
@@ -59,13 +60,13 @@ class ServerConfiguration
 public:
 
     /*!
-     * \name Interface registra
+     * \name Interface registration and query methods
      * \{
      */
     template<typename Interface>
     inline std::shared_ptr<Interface> the()
     {
-        return std::static_pointer_cast<Interface>(get(Interface::interface_name));
+        return std::static_pointer_cast<Interface>(get(typeid(Interface)));
     }
 
     template<typename T,typename WrappedInterface>
@@ -76,8 +77,8 @@ public:
             {
                 return constructor(std::static_pointer_cast<WrappedInterface>(wrapped_object));
             },
-            WrappedInterface::interface_name,
-            WrappedInterface::interface_name);
+            typeid(WrappedInterface),
+            typeid(WrappedInterface));
     }
 
     template<typename ImplementationType, typename InterfaceType>
@@ -88,7 +89,7 @@ public:
             {
                 return std::static_pointer_cast<InterfaceType>(constructor());
             },
-            InterfaceType::interface_name);
+            typeid(InterfaceType));
     }
 
     template<typename T>
@@ -103,7 +104,7 @@ public:
             {
                return std::static_pointer_cast<FirstInterface>(constructor());
             },
-            FirstInterface::interface_name
+            typeid(FirstInterface)
             );
         unroll_wrapping_constructors<ImplementationType,FirstInterface>(identity<InterfaceTs>()...);
     }
@@ -114,7 +115,7 @@ public:
      * \brief Registers a constructor function that provides an implementation
      * of the interface specified by \a interface_name.
      */
-    virtual void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name) = 0;
+    virtual void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, std::type_info const& interface) = 0;
 
     /*!
      * \brief Registers a wrapping constructor to provide an implementation of \a interface_name.
@@ -122,12 +123,12 @@ public:
      *
      * Note: \a base_interface may also be identical to \a interface_name
      */
-    virtual void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, char const* base_interface, char const* interface_name) = 0;
+    virtual void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, std::type_info const& base_interface, std::type_info const& interface) = 0;
 
     /*!
      * \brief Query the ServerConfiguration for a specified interface.
      */
-    virtual std::shared_ptr<void> get(char const* interface_name) = 0;
+    virtual std::shared_ptr<void> get(std::type_info const& interface) = 0;
     virtual std::shared_ptr<frontend::Connector> the_connector() = 0;
     virtual std::shared_ptr<frontend::Connector> the_prompt_connector() = 0;
     virtual std::shared_ptr<graphics::Display> the_display() = 0;
@@ -163,8 +164,8 @@ private:
                     )
                 );
             },
-            StoredBaseInterface::interface_name,
-            NextInterface::interface_name
+            typeid(StoredBaseInterface),
+            typeid(NextInterface)
             );
     }
 

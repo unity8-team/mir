@@ -158,9 +158,9 @@ public:
     explicit DefaultServerConfiguration(std::shared_ptr<options::Configuration> const& configuration_options);
     ~DefaultServerConfiguration();
 
-    void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, char const* interface_name) override;
-    void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, char const* base_interface, char const* interface_name) override;
-    std::shared_ptr<void> get(char const* interface_name) override;
+    void store_constructor(std::function<std::shared_ptr<void>()> const&& constructor, std::type_info const& interface) override;
+    void wrap_existing_interface(std::function<std::shared_ptr<void>(std::shared_ptr<void>)> const&& constructor, std::type_info const& base_interface, std::type_info const& interface) override;
+    std::shared_ptr<void> get(std::type_info const& interface) override;
     /** @name DisplayServer dependencies
      * dependencies of DisplayServer on the rest of the Mir
      *  @{ */
