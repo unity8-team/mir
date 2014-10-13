@@ -206,7 +206,7 @@ TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a
 //test associated with lp:1290306, 1293896, 1294048, 1294051, 1294053
 TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
-    int const nbuffers = 3;
+    int const nframes = 3;
 
     using namespace testing;
 
@@ -218,15 +218,17 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
     mt_compositor.start();
 
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
-    stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
 
-    EXPECT_TRUE(stub_primary_db.has_posted_at_least(nbuffers, timeout));
-    EXPECT_TRUE(stub_secondary_db.has_posted_at_least(nbuffers, timeout));
+    for (int f = 0; f < nframes; ++f)
+        stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
+
+    EXPECT_TRUE(stub_primary_db.has_posted_at_least(nframes, timeout));
+    EXPECT_TRUE(stub_secondary_db.has_posted_at_least(nframes, timeout));
 }
 
 TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
-    int const nbuffers = 3;
+    int const nframes = 3;
 
     using namespace testing;
 
@@ -240,10 +242,12 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
     mt_compositor.start();
 
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
-    stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
 
-    EXPECT_TRUE(stub_primary_db.has_posted_at_least(nbuffers, timeout));
-    EXPECT_TRUE(stub_secondary_db.has_posted_at_least(nbuffers, timeout));
+    for (int f = 0; f < nframes; ++f)
+        stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
+
+    EXPECT_TRUE(stub_primary_db.has_posted_at_least(nframes, timeout));
+    EXPECT_TRUE(stub_secondary_db.has_posted_at_least(nframes, timeout));
 }
 
 TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
