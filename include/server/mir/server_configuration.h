@@ -57,11 +57,19 @@ class EmergencyCleanup;
 
 class ServerConfiguration
 {
+    template<typename T>
+    struct identity {typedef T type; };
 public:
 
     /*!
      * \name Interface registration and query methods
      * \{
+     */
+    /*!
+     * \brief Query for an implementation of a mir interface.
+     *
+     * If a cached instance is still present it will be returned, otherwise a new one is
+     * constructed. An exception is thrown if the interface is unknown.
      */
     template<typename Interface>
     inline std::shared_ptr<Interface> the()
@@ -69,8 +77,14 @@ public:
         return std::static_pointer_cast<Interface>(get(typeid(Interface)));
     }
 
-    template<typename T,typename WrappedInterface>
-    inline void wrap(std::function<std::shared_ptr<T>(std::shared_ptr<WrappedInterface> const&)> const& constructor)
+    /*!
+     * \brief Wrap an existing implementation of an interface \a WrappedInterface by constructing another.
+     *
+     * The function \a constructor will be used as needed to create an instance of \a WrappedType
+     */
+    template <typename WrappingType, typename WrappedInterface>
+    inline void wrap(
+        std::function<std::shared_ptr<WrappingType>(std::shared_ptr<WrappedInterface> const&)> const& constructor)
     {
         wrap_existing_interface(
             [constructor](std::shared_ptr<void> wrapped_object)
@@ -80,7 +94,12 @@ public:
             typeid(WrappedInterface),
             typeid(WrappedInterface));
     }
-
+    /*!
+     * \brief Provide an implementation (\a ImplementationType) of an interface \a InterfaceType through a
+     * construction function.
+     *
+     * The function \a constructor will be used as needed to create an instance of \a ImplementationType
+     */
     template<typename ImplementationType, typename InterfaceType>
     inline void provide(std::function<std::shared_ptr<ImplementationType>()> const& constructor)
     {
@@ -92,13 +111,15 @@ public:
             typeid(InterfaceType));
     }
 
-    template<typename T>
-    struct identity {typedef T type; };
-
-    template<typename ImplementationType,typename FirstInterface, typename... InterfaceTs>
+    /*!
+     * \brief Register a construction function for a type that implements several mir interfaces at once.
+     *
+     * The first template parameter \a ImplementationType is the type that implements the interfaces
+     * listed in all further parameters.
+     */
+    template<typename ImplementationType, typename FirstInterface, typename... InterfaceTs>
     inline void provide_multiple(std::function<std::shared_ptr<ImplementationType>()> const& constructor)
     {
-        (void)constructor;
         store_constructor(
             [constructor]()
             {
@@ -111,6 +132,21 @@ public:
     /*!
      * \}
      */
+    virtual std::shared_ptr<frontend::Connector> the_connector() = 0;
+    virtual std::shared_ptr<frontend::Connector> the_prompt_connector() = 0;
+    virtual std::shared_ptr<graphics::Display> the_display() = 0;
+    virtual std::shared_ptr<compositor::Compositor> the_compositor() = 0;
+    virtual std::shared_ptr<input::InputManager> the_input_manager() = 0;
+    virtual std::shared_ptr<input::InputDispatcher> the_input_dispatcher() = 0;
+    virtual std::shared_ptr<MainLoop> the_main_loop() = 0;
+    virtual std::shared_ptr<ServerStatusListener> the_server_status_listener() = 0;
+    virtual std::shared_ptr<DisplayChanger> the_display_changer() = 0;
+    virtual std::shared_ptr<graphics::Platform>  the_graphics_platform() = 0;
+    virtual std::shared_ptr<input::InputConfiguration> the_input_configuration() = 0;
+    virtual std::shared_ptr<EmergencyCleanup> the_emergency_cleanup() = 0;
+    virtual auto the_fatal_error_strategy() -> void (*)(char const* reason, ...) = 0;
+
+private:
     /*!
      * \brief Registers a constructor function that provides an implementation
      * of the interface specified by \a interface_name.
@@ -129,22 +165,6 @@ public:
      * \brief Query the ServerConfiguration for a specified interface.
      */
     virtual std::shared_ptr<void> get(std::type_info const& interface) = 0;
-    virtual std::shared_ptr<frontend::Connector> the_connector() = 0;
-    virtual std::shared_ptr<frontend::Connector> the_prompt_connector() = 0;
-    virtual std::shared_ptr<graphics::Display> the_display() = 0;
-    virtual std::shared_ptr<compositor::Compositor> the_compositor() = 0;
-    virtual std::shared_ptr<input::InputManager> the_input_manager() = 0;
-    virtual std::shared_ptr<input::InputDispatcher> the_input_dispatcher() = 0;
-    virtual std::shared_ptr<MainLoop> the_main_loop() = 0;
-    virtual std::shared_ptr<ServerStatusListener> the_server_status_listener() = 0;
-    virtual std::shared_ptr<DisplayChanger> the_display_changer() = 0;
-    virtual std::shared_ptr<graphics::Platform>  the_graphics_platform() = 0;
-    virtual std::shared_ptr<input::InputConfiguration> the_input_configuration() = 0;
-    virtual std::shared_ptr<EmergencyCleanup> the_emergency_cleanup() = 0;
-
-    virtual auto the_fatal_error_strategy() -> void (*)(char const* reason, ...) = 0;
-
-private:
 
     template<typename Implementation, typename StoredBaseInterface, typename NextInterface>
     void unroll_wrapping_constructors(identity<NextInterface>)
