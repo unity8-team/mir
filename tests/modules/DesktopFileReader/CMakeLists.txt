@@ -1,6 +1,8 @@
 find_package(Qt5Gui)
 find_package(Qt5Test)
 
+add_definitions(-DTEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
 set(
   DESKTOP_FILE_READER_TEST_SOURCES
   desktopfilereader_test.cpp
