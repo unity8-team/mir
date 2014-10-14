@@ -26,6 +26,7 @@ namespace testing
 struct MockOomController : public qtmir::ProcessController::OomController
 {
     MOCK_METHOD1(ensureProcessLikelyToBeKilled, void(pid_t));
+    MOCK_METHOD1(ensureProcessLessLikelyToBeKilled, void(pid_t));
     MOCK_METHOD1(ensureProcessUnlikelyToBeKilled, void(pid_t));
 };
 }

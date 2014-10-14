@@ -18,20 +18,21 @@
 #define DESKTOPFILEREADER_H
 
 #include <QString>
-#include <QVector>
 #include <QFileInfo>
 
 namespace qtmir
 {
 
+class DesktopFileReaderPrivate;
 class DesktopFileReader {
 public:
     class Factory
     {
     public:
-        Factory();
+        Factory() = default;
+        virtual ~Factory() = default;
+
         Factory(const Factory&) = delete;
-        virtual ~Factory();
 
         Factory& operator=(const Factory&) = delete;
 
@@ -40,48 +41,31 @@ public:
 
     virtual ~DesktopFileReader();
 
-    virtual QString file() const { return file_; }
-    virtual QString appId() const { return appId_; }
-    virtual QString name() const { return entries_[kNameIndex]; }
-    virtual QString comment() const { return entries_[kCommentIndex]; }
-    virtual QString icon() const { return entries_[kIconIndex]; }
-    virtual QString exec() const { return entries_[kExecIndex]; }
-    virtual QString path() const { return entries_[kPathIndex]; }
-    virtual QString stageHint() const { return entries_[kStageHintIndex]; }
-    virtual QString splashTitle() const { return entries_[kSplashTitleIndex]; }
-    virtual QString splashImage() const { return entries_[kSplashImageIndex]; }
-    virtual QString splashShowHeader() const { return entries_[kSplashShowHeaderIndex]; }
-    virtual QString splashColor() const { return entries_[kSplashColorIndex]; }
-    virtual QString splashColorHeader() const { return entries_[kSplashColorHeaderIndex]; }
-    virtual QString splashColorFooter() const { return entries_[kSplashColorFooterIndex]; }
-    virtual bool loaded() const { return loaded_; }
+    virtual QString file() const;
+    virtual QString appId() const;
+    virtual QString name() const;
+    virtual QString comment() const;
+    virtual QString icon() const;
+    virtual QString exec() const;
+    virtual QString path() const;
+    virtual QString stageHint() const;
+    virtual QString splashTitle() const;
+    virtual QString splashImage() const;
+    virtual QString splashShowHeader() const;
+    virtual QString splashColor() const;
+    virtual QString splashColorHeader() const;
+    virtual QString splashColorFooter() const;
+    virtual bool loaded() const;
 
 protected:
-    friend class DesktopFileReaderFactory;
-
     DesktopFileReader(const QString &appId, const QFileInfo &desktopFile);
 
+    DesktopFileReaderPrivate * const d_ptr;
+
+    friend class DesktopFileReaderFactory;
+
 private:
-    static const int kNameIndex = 0,
-    kCommentIndex = 1,
-    kIconIndex = 2,
-    kExecIndex = 3,
-    kPathIndex = 4,
-    kStageHintIndex = 5,
-    kSplashTitleIndex = 6,
-    kSplashImageIndex = 7,
-    kSplashShowHeaderIndex = 8,
-    kSplashColorIndex = 9,
-    kSplashColorHeaderIndex = 10,
-    kSplashColorFooterIndex = 11,
-    kNumberOfEntries = 12;
-
-    virtual bool loadDesktopFile(QString desktopFile);
-
-    QString appId_;
-    QString file_;
-    QVector<QString> entries_;
-    bool loaded_;
+    Q_DECLARE_PRIVATE(DesktopFileReader)
 };
 
 } // namespace qtmir

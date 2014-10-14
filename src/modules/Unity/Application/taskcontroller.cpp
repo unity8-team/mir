@@ -116,7 +116,14 @@ bool TaskController::suspend(const Application* app)
     if (pid == 0) {
         pid = app->pid();
     }
-    m_processController->oomController()->ensureProcessLikelyToBeKilled(pid);
+
+    // FIXME This harcodes the unity8-dash name, we should consider a different approach,
+    // some privileged way to define which apps should be less likely to be killed.
+    if (app->appId() == "unity8-dash") {
+        m_processController->oomController()->ensureProcessLessLikelyToBeKilled(pid);
+    } else {
+        m_processController->oomController()->ensureProcessLikelyToBeKilled(pid);
+    }
 
     if (pid) {
         // We do assume that the app was launched by ubuntu-app-launch and with that,

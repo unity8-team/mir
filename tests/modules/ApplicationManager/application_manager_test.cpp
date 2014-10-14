@@ -60,11 +60,47 @@ TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsI
     EXPECT_CALL(processController, sigContinueProcessGroupForPid(_)).Times(1);
     EXPECT_CALL(oomController, ensureProcessUnlikelyToBeKilled(_)).Times(1);
     EXPECT_CALL(oomController, ensureProcessLikelyToBeKilled(_)).Times(1);
+    EXPECT_CALL(oomController, ensureProcessLessLikelyToBeKilled(_)).Times(0);
 
     auto application = applicationManager.startApplication(
                 appId,
                 ApplicationManager::NoFlag,
                 QStringList());
+
+    // FIXME - this is doesn't really excerise the actualt behaviour since suspend/resume should be
+    // controlled by state changes. Requires using suspend timer.
+    QMetaObject::invokeMethod(application, "onSessionSuspended");
+    QMetaObject::invokeMethod(application, "onSessionResumed");
+}
+
+TEST_F(ApplicationManagerTests, SuspendingAndResumingDashResultsInOomScoreAdjustment)
+{
+    using namespace ::testing;
+
+    quint64 procId = 5921;
+    std::shared_ptr<mir::scene::Surface> aSurface(nullptr);
+    QByteArray cmdLine( "/usr/bin/app1 --desktop_file_hint=unity8-dash");
+
+    EXPECT_CALL(procInfo,command_line(procId))
+        .Times(1)
+        .WillOnce(Return(cmdLine));
+
+    ON_CALL(appController,appIdHasProcessId(_,_)).WillByDefault(Return(false));
+
+    EXPECT_CALL(processController, sigStopProcessGroupForPid(_)).Times(1);
+    EXPECT_CALL(processController, sigContinueProcessGroupForPid(_)).Times(1);
+    EXPECT_CALL(oomController, ensureProcessUnlikelyToBeKilled(_)).Times(1);
+    EXPECT_CALL(oomController, ensureProcessLikelyToBeKilled(_)).Times(0);
+    EXPECT_CALL(oomController, ensureProcessLessLikelyToBeKilled(_)).Times(1);
+
+    bool authed = true;
+
+    std::shared_ptr<mir::scene::Session> session = std::make_shared<MockSession>("Oo", procId);
+    applicationManager.authorizeSession(procId, authed);
+    onSessionStarting(session);
+
+    auto application = applicationManager.findApplication("unity8-dash");
+    applicationManager.onSessionCreatedSurface(session.get(), aSurface);
 
     // FIXME - this is doesn't really excerise the actualt behaviour since suspend/resume should be
     // controlled by state changes. Requires using suspend timer.

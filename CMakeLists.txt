@@ -74,6 +74,7 @@ pkg_check_modules(URL_DISPATCHER url-dispatcher-1)
 pkg_check_modules(PROTOBUF protobuf)
 pkg_check_modules(EGL egl)
 pkg_check_modules(GIO gio-2.0)
+pkg_check_modules(GIO_UNIX gio-unix-2.0)
 pkg_check_modules(LTTNG lttng-ust)
 
 

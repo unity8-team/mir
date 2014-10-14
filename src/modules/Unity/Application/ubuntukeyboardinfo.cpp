@@ -26,12 +26,24 @@ namespace {
     const char gServerName[] = "ubuntu-keyboard-info";
 }
 
+UbuntuKeyboardInfo* UbuntuKeyboardInfo::m_instance = nullptr;
+
+UbuntuKeyboardInfo* UbuntuKeyboardInfo::instance()
+{
+    return m_instance;
+}
+
 UbuntuKeyboardInfo::UbuntuKeyboardInfo(QObject *parent)
     : QObject(parent),
     m_consecutiveAttempts(0),
     m_lastWidth(0),
     m_lastHeight(0)
 {
+    if (m_instance) {
+        qFatal("Cannot have more than one instance of UbuntuKeyboardInfo simultaneously.");
+    }
+    m_instance = this;
+
     connect(&m_socket, &QLocalSocket::stateChanged, this, &UbuntuKeyboardInfo::onSocketStateChanged);
     connect(&m_socket, &QIODevice::readyRead,
             this, &UbuntuKeyboardInfo::readAllBytesFromSocket);
@@ -55,6 +67,9 @@ UbuntuKeyboardInfo::~UbuntuKeyboardInfo()
     // Make sure we don't get onSocketStateChanged() called during
     // destruction.
     m_socket.disconnect(this);
+
+    Q_ASSERT(m_instance);
+    m_instance = nullptr;
 }
 
 void UbuntuKeyboardInfo::tryConnectingToServer()
