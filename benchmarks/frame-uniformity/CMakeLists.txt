@@ -10,6 +10,7 @@ add_executable(frame_uniformity_test_client
   touch_measuring_client.cpp
   touch_producing_server.cpp
   frame_uniformity_test.cpp
+  touch_samples.cpp
   main.cpp
 )
 
