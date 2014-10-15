@@ -114,20 +114,20 @@ struct DevAlarmHardwareAlarm : public HardwareAlarm
             switch(behavior)
             {
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE:
-                    type = ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP_MASK;
+                    type = ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP;
                     break;
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_KEEP_DEVICE_ASLEEP:
-                    type = ANDROID_ALARM_ELAPSED_REALTIME_MASK;
+                    type = ANDROID_ALARM_ELAPSED_REALTIME;
                     break;
             }
         else if (time_reference == U_HARDWARE_ALARM_TIME_REFERENCE_RTC)
             switch(behavior)
             {
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_WAKEUP_DEVICE:
-                    type = ANDROID_ALARM_RTC_WAKEUP_MASK;
+                    type = ANDROID_ALARM_RTC_WAKEUP;
                     break;
                 case U_HARDWARE_ALARM_SLEEP_BEHAVIOR_KEEP_DEVICE_ASLEEP:
-                    type = ANDROID_ALARM_RTC_MASK;
+                    type = ANDROID_ALARM_RTC;
                     break;
             }
 
