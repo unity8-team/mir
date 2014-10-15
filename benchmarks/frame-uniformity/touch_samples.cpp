@@ -30,9 +30,24 @@ void TouchSamples::record_frame_time(std::chrono::high_resolution_clock::time_po
 }
     
 void TouchSamples::record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
-    MirMotionPointer const& coordinates)
+    MirEvent const& event)
 {
     std::unique_lock<std::mutex> lg(guard);
+
+    if (event.type != mir_event_type_motion)
+        return;
+    
+    auto const& mev = event.motion;
+    if (mev.action != mir_motion_action_down &&
+        mev.action != mir_motion_action_up &&
+        mev.action != mir_motion_action_move)
+    {
+        return;
+    }
+    // We could support multitouch, etc...
+    auto const& coordinates = mev.pointer_coordinates[0];
+
+    // TODO: Record both event time and reception time
     samples_being_prepared.push_back(Sample{coordinates.x, coordinates.y, time, {}});
 }
 

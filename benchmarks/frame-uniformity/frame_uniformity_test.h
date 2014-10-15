@@ -21,6 +21,7 @@
 
 #include "touch_producing_server.h"
 #include "touch_measuring_client.h"
+#include "touch_samples.h"
 
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
@@ -50,7 +51,7 @@ public:
     
     void run_test();
     
-    std::vector<TouchMeasuringClient::TestResults::TouchSample> client_results();
+    std::shared_ptr<TouchSamples> client_results();
     std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> server_timings();
 
 private:

@@ -45,8 +45,8 @@ public:
     std::vector<Sample> get();
         
     void record_frame_time(std::chrono::high_resolution_clock::time_point time);
-    void record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
-                                    MirMotionPointer const& coordinates);
+    void record_pointer_coordinates(std::chrono::high_resolution_clock::time_point reception_time,
+                                    MirEvent const& ev);
 private:
     std::mutex guard;
 

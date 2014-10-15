@@ -19,9 +19,11 @@
 #ifndef TOUCH_MEASURING_CLIENT_H_
 #define TOUCH_MEASURING_CLIENT_H_
 
-#include <mir_toolkit/mir_client_library.h>
+#include "touch_samples.h"
 
 #include "mir_test/barrier.h"
+
+#include "mir_toolkit/mir_client_library.h"
 
 #include <chrono>
 #include <memory>
@@ -36,33 +38,9 @@ public:
         mir::test::Barrier &client_done, 
         std::chrono::high_resolution_clock::duration const& touch_duration);
     
-    class TestResults 
-    {
-    public:
-        TestResults() = default;
-        ~TestResults() = default;
-
-        struct TouchSample
-        {
-            float x,y;
-            std::chrono::high_resolution_clock::time_point event_time;
-            std::chrono::high_resolution_clock::time_point frame_time;
-        };
-        std::vector<TouchSample> results();
-        
-        void record_frame_time(std::chrono::high_resolution_clock::time_point time);
-        void record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
-                                        MirMotionPointer const& coordinates);
-    private:
-        std::mutex guard;
-
-        std::vector<TouchSample> samples_being_prepared;
-        std::vector<TouchSample> completed_samples;
-    };
-    
     void run(std::string const& connect_string);
     
-    std::vector<TestResults::TouchSample> touch_samples();
+    std::shared_ptr<TouchSamples> results();
 
 private:
     mir::test::Barrier &client_ready;
@@ -70,7 +48,7 @@ private:
     
     std::chrono::high_resolution_clock::duration const touch_duration;
     
-    std::shared_ptr<TestResults> results;
+    std::shared_ptr<TouchSamples> results_;
 };
 
 #endif // TOUCH_MEASURING_CLIENT_H_

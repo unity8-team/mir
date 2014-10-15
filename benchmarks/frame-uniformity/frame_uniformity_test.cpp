@@ -56,9 +56,9 @@ void FrameUniformityTest::run_test()
     stop_server();
 }
 
-std::vector<TouchMeasuringClient::TestResults::TouchSample> FrameUniformityTest::client_results()
+std::shared_ptr<TouchSamples> FrameUniformityTest::client_results()
 {
-    return client.touch_samples();
+    return client.results();
 }
 
 std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point> FrameUniformityTest::server_timings()

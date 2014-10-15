@@ -44,7 +44,7 @@ geom::Point interpolated_touch_at_time(geom::Point touch_start, geom::Point touc
     return {ix, iy};
 }
 
-double compute_average_frame_offset(std::vector<TouchMeasuringClient::TestResults::TouchSample> const& results,
+double compute_average_frame_offset(std::vector<TouchSamples::Sample> const& results,
                                     geom::Point touch_start_point, geom::Point touch_end_point,
                                     std::chrono::high_resolution_clock::time_point touch_start_time,
                                     std::chrono::high_resolution_clock::time_point touch_end_time)
@@ -64,10 +64,10 @@ double compute_average_frame_offset(std::vector<TouchMeasuringClient::TestResult
     return sum / count;
 }
 
-double compute_frame_uniformity(std::vector<TouchMeasuringClient::TestResults::TouchSample> const& results,
-                                              geom::Point touch_start_point, geom::Point touch_end_point,
-                                              std::chrono::high_resolution_clock::time_point touch_start_time,
-                                              std::chrono::high_resolution_clock::time_point touch_end_time)
+double compute_frame_uniformity(std::vector<TouchSamples::Sample> const& results,
+    geom::Point touch_start_point, geom::Point touch_end_point,
+    std::chrono::high_resolution_clock::time_point touch_start_time,
+    std::chrono::high_resolution_clock::time_point touch_end_time)
 {
     auto average_pixel_offset = compute_average_frame_offset(results, touch_start_point, touch_end_point,
         touch_start_time, touch_end_time);
@@ -107,9 +107,9 @@ TEST(FrameUniformity, average_frame_offset)
     auto touch_timings = t.server_timings();
     auto touch_start_time = std::get<0>(touch_timings);
     auto touch_end_time = std::get<1>(touch_timings);
-    auto results = t.client_results();
-    printf("Samples: %d \n", results.size());
-    auto uniformity = compute_frame_uniformity(results, touch_start, touch_end,
+    auto samples = t.client_results()->get();
+    printf("Samples: %d \n", samples.size());
+    auto uniformity = compute_frame_uniformity(samples, touch_start, touch_end,
                                                touch_start_time, touch_end_time);
     printf("Frame Uniformity: %f \n", uniformity);
 }

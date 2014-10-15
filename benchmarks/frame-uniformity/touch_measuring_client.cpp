@@ -30,30 +30,6 @@
 
 namespace mt = mir::test;
 
-void TouchMeasuringClient::TestResults::record_frame_time(std::chrono::high_resolution_clock::time_point time)
-{
-    std::unique_lock<std::mutex> lg(guard);
-    for (auto& sample: samples_being_prepared)
-    {
-        sample.frame_time = time;
-        completed_samples.push_back(sample);
-    }
-    samples_being_prepared.clear();
-}
-    
-void TouchMeasuringClient::TestResults::record_pointer_coordinates(std::chrono::high_resolution_clock::time_point time,
-    MirMotionPointer const& coordinates)
-{
-    std::unique_lock<std::mutex> lg(guard);
-    samples_being_prepared.push_back(TouchSample{coordinates.x, coordinates.y, time, {}});
-}
-
-// TODO: Use rvalue optimization
-std::vector<TouchMeasuringClient::TestResults::TouchSample> TouchMeasuringClient::TestResults::results()
-{
-    return completed_samples;
-}
-
 namespace
 {
 
@@ -76,24 +52,12 @@ MirSurface *create_surface(MirConnection *connection)
 
 void input_callback(MirSurface * /* surface */, MirEvent const* event, void* context)
 {
-    auto results = static_cast<TouchMeasuringClient::TestResults*>(context);
+    auto results = static_cast<TouchSamples*>(context);
     
-    if (event->type != mir_event_type_motion)
-        return;
-    
-    auto const& mev = event->motion;
-    if (mev.action != mir_motion_action_down &&
-        mev.action != mir_motion_action_up &&
-        mev.action != mir_motion_action_move)
-    {
-        return;
-    }
-
-    // We could support multitouch
-    results->record_pointer_coordinates(std::chrono::high_resolution_clock::now(), mev.pointer_coordinates[0]);
+    results->record_pointer_coordinates(std::chrono::high_resolution_clock::now(), *event);
 }
 
-void collect_input_and_frame_timing(MirSurface *surface, mt::Barrier &client_ready, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchMeasuringClient::TestResults> results)
+void collect_input_and_frame_timing(MirSurface *surface, mt::Barrier &client_ready, std::chrono::high_resolution_clock::duration duration, std::shared_ptr<TouchSamples> const& results)
 {
     MirEventDelegate event_handler = { input_callback, results.get() };
     mir_surface_set_event_handler(surface, &event_handler);
@@ -118,7 +82,7 @@ TouchMeasuringClient::TouchMeasuringClient(mt::Barrier &client_ready,
     : client_ready(client_ready),
       client_done(client_done),
       touch_duration(touch_duration),
-      results(std::make_shared<TouchMeasuringClient::TestResults>())
+      results_(std::make_shared<TouchSamples>())
 {
 }
 
@@ -142,7 +106,7 @@ void TouchMeasuringClient::run(std::string const& connect_string)
     
     auto surface = create_surface(connection);
 
-    collect_input_and_frame_timing(surface, client_ready, touch_duration, results);
+    collect_input_and_frame_timing(surface, client_ready, touch_duration, results_);
     
     mir_surface_release_sync(surface);
     mir_connection_release(connection);
@@ -150,7 +114,7 @@ void TouchMeasuringClient::run(std::string const& connect_string)
     client_done.ready();
 }
 
-std::vector<TouchMeasuringClient::TestResults::TouchSample> TouchMeasuringClient::touch_samples()
+std::shared_ptr<TouchSamples> TouchMeasuringClient::results()
 {
-    return results->results();
+    return results_;
 }

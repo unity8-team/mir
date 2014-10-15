@@ -4,12 +4,16 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/tests/include/
+
+  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}
 )
 
 add_executable(frame_uniformity_test_client
   touch_measuring_client.cpp
   touch_producing_server.cpp
   frame_uniformity_test.cpp
+  vsync_simulating_graphics_platform.cpp
   touch_samples.cpp
   main.cpp
 )
