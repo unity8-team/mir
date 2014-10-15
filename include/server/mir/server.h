@@ -74,29 +74,33 @@ public:
 
 /** @name Configuration options
  *  @{ */
-    /// Add user configuration option(s) to Mir's option handling.
-    /// These will be resolved during initialisation from the command line,
-    /// environment variables, a config file or the supplied default.
-    void add_configuration_option(
-        std::string const& option,
-        std::string const& description,
-        int default_value);
+
+    /// Helper class to facilitate adding multiple options
+    class ChainAddConfigurationOption;
 
     /// Add user configuration option(s) to Mir's option handling.
     /// These will be resolved during initialisation from the command line,
     /// environment variables, a config file or the supplied default.
-    void add_configuration_option(
+    auto add_configuration_option(
         std::string const& option,
         std::string const& description,
-        std::string const& default_value);
+        int default_value) -> ChainAddConfigurationOption;
 
     /// Add user configuration option(s) to Mir's option handling.
     /// These will be resolved during initialisation from the command line,
     /// environment variables, a config file or the supplied default.
-    void add_configuration_option(
+    auto add_configuration_option(
         std::string const& option,
         std::string const& description,
-        OptionType type);
+        std::string const& default_value) -> ChainAddConfigurationOption;
+
+    /// Add user configuration option(s) to Mir's option handling.
+    /// These will be resolved during initialisation from the command line,
+    /// environment variables, a config file or the supplied default.
+    auto add_configuration_option(
+        std::string const& option,
+        std::string const& description,
+        OptionType type) -> ChainAddConfigurationOption;
 
     /// Set a handler for any command line options Mir does not recognise.
     /// This will be invoked if any unrecognised options are found during initialisation.
@@ -212,6 +216,42 @@ private:
     struct ServerConfiguration;
     struct Self;
     std::shared_ptr<Self> const self;
+};
+
+class Server::ChainAddConfigurationOption
+{
+public:
+    // Yes, I know a single forwarding template would cover all three cases.
+    // but this can give clearer error messages.
+    auto operator()(
+        std::string const& option,
+        std::string const& description,
+        int default_value) const -> ChainAddConfigurationOption
+    {
+        return server.add_configuration_option(option, description, default_value);
+    }
+
+    auto operator()(
+        std::string const& option,
+        std::string const& description,
+        std::string const& default_value) const -> ChainAddConfigurationOption
+    {
+        return server.add_configuration_option(option, description, default_value);
+    }
+
+    auto operator()(
+        std::string const& option,
+        std::string const& description,
+        OptionType type) const -> ChainAddConfigurationOption
+    {
+        return server.add_configuration_option(option, description, type);
+    }
+
+private:
+    friend class ::mir::Server;
+    ChainAddConfigurationOption(Server& server) : server(server) {}
+
+    Server& server;
 };
 }
 #endif /* SERVER_H_ */
