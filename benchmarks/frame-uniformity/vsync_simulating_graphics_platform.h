@@ -22,11 +22,13 @@
 #include "mir/graphics/platform.h"
 #include "mir/geometry/rectangle.h"
 
+#include "mir_test_doubles/null_platform.h"
+
 // TODO: Simulate screen geometry and vsync
-class VsyncSimulatingPlatform : public mir::graphics::Platform
+class VsyncSimulatingPlatform : public mir::test::doubles::NullPlatform
 {
 public:
-    VsyncSimulatingPlatform() = default;
+    VsyncSimulatingPlatform(mir::geometry::Size const& output_size, int vsync_rate_in_hz);
     ~VsyncSimulatingPlatform() = default;
     
     std::shared_ptr<mir::graphics::GraphicBufferAllocator> create_buffer_allocator(
@@ -40,8 +42,9 @@ public:
     
     std::shared_ptr<mir::graphics::PlatformIpcOperations> make_ipc_operations() const;
     std::shared_ptr<mir::graphics::InternalClient> create_internal_client();
+
 private:
-    int stuff_will_go_here;
+    std::shared_ptr<mir::graphics::Display> display;
 };
 
 #endif // VSYNC_SIMULATING_GRAPHICS_PLATFORM_H_

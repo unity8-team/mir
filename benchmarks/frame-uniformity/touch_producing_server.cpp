@@ -17,6 +17,7 @@
  */
 
 #include "touch_producing_server.h"
+#include "vsync_simulating_graphics_platform.h"
 
 #include "mir_test/event_factory.h"
 #include "mir_test/fake_event_hub.h"
@@ -25,6 +26,7 @@
 
 namespace mi = mir::input;
 namespace mia = mi::android;
+namespace mg = mir::graphics;
 namespace mis = mi::synthesis;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
@@ -48,6 +50,17 @@ TouchProducingServer::~TouchProducingServer()
 {
     if (input_injection_thread.joinable())
         input_injection_thread.join();
+}
+
+std::shared_ptr<mg::Platform> TouchProducingServer::the_graphics_platform()
+{
+    // TODO: Fix
+    int const refresh_rate_in_hz = 60;
+
+    if (!graphics_platform)
+        graphics_platform = std::make_shared<VsyncSimulatingPlatform>(screen_dimensions.size, refresh_rate_in_hz);
+    
+    return graphics_platform;
 }
 
 // This logic limits us to supporting screens at 0,0

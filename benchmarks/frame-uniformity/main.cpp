@@ -84,6 +84,8 @@ double compute_frame_uniformity(std::vector<TouchSamples::Sample> const& results
        auto dx = sample.x - expected_point.x.as_int();
        auto dy = sample.y - expected_point.y.as_int();
        auto distance = sqrt(dx*dx+dy*dy);
+       
+//       printf("Distance:%f \n", distance);
 
        sum += (distance-average_pixel_offset)*(distance-average_pixel_offset);
        count += 1;
@@ -99,7 +101,7 @@ TEST(FrameUniformity, average_frame_offset)
     geom::Size const screen_size{1024, 1024};
     geom::Point const touch_start{0, 0};
     geom::Point const touch_end{1024, 1024};
-    std::chrono::milliseconds touch_duration{2000};
+    std::chrono::milliseconds touch_duration{500};
 
     FrameUniformityTest t({screen_size, touch_start, touch_end, touch_duration});
     t.run_test();

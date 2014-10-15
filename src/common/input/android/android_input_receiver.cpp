@@ -110,7 +110,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
     nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
     int const event_rate_hz = 55;
-    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
+    nsecs_t const one_frame = 1000000000ULL / (double)event_rate_hz;
     nsecs_t frame_time = (now / one_frame) * one_frame;
 
     if (input_consumer->consume(&event_factory, true, frame_time,
@@ -140,7 +140,7 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         looper->addFd(fd(), fd(), ALOOPER_EVENT_INPUT, nullptr, nullptr);
         fd_added = true;
     }
-
+    
     auto reduced_timeout = timeout;
     if (input_consumer->hasDeferredEvent())
     {

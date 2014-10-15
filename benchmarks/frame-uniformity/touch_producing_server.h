@@ -34,6 +34,8 @@ public:
     
     std::tuple<std::chrono::high_resolution_clock::time_point,std::chrono::high_resolution_clock::time_point>
         touch_timings();
+    
+    std::shared_ptr<mir::graphics::Platform> the_graphics_platform() override;
 
     ~TouchProducingServer();    
 private:
@@ -49,6 +51,8 @@ private:
     
     std::chrono::high_resolution_clock::time_point touch_start_time;
     std::chrono::high_resolution_clock::time_point touch_end_time;
+    
+    std::shared_ptr<mir::graphics::Platform> graphics_platform;
     
     void synthesize_event_at(mir::geometry::Point const& point);
     void thread_function();
