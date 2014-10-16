@@ -41,7 +41,6 @@ Display::Display(const QSharedPointer<mir::DefaultServerConfiguration> &config, 
     });
 }
 
-
 Display::~Display()
 {
     for (auto screen : m_screens)

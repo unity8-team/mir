@@ -104,7 +104,7 @@ public:
 const QEvent::Type OrientationReadingEvent::m_type =
         static_cast<QEvent::Type>(QEvent::registerEventType());
 
-
+bool Screen::skipDBusRegistration = false;
 
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     : QObject(nullptr)
@@ -127,22 +127,29 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
                      this, &Screen::onOrientationReadingChanged);
     m_orientationSensor->start();
 
-	unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
-                                     "/com/canonical/Unity/Screen",
-                                     "com.canonical.Unity.Screen",
-                                     QDBusConnection::systemBus(), this);
+    if(!skipDBusRegistration) {
+	    unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
+                                        "/com/canonical/Unity/Screen",
+                                        "com.canonical.Unity.Screen",
+                                        QDBusConnection::systemBus(), this);
 
-    unityScreen->connection().connect("com.canonical.Unity.Screen",
-                                      "/com/canonical/Unity/Screen",
-                                      "com.canonical.Unity.Screen",
-                                      "DisplayPowerStateChange",
-                                      this,
-                                      SLOT(onDisplayPowerStateChanged(int, int)));
+        unityScreen->connection().connect("com.canonical.Unity.Screen",
+                                          "/com/canonical/Unity/Screen",
+                                          "com.canonical.Unity.Screen",
+                                          "DisplayPowerStateChange",
+                                          this,
+                                          SLOT(onDisplayPowerStateChanged(int, int)));
+    }
+}
+
+bool Screen::orientationSensorEnabled()
+{
+    return m_orientationSensor->isActive();
 }
 
 void Screen::onDisplayPowerStateChanged(int status, int reason)
 {
-    Q_UNUSED(reason);    
+    Q_UNUSED(reason);
     toggleSensors(status);
 }
 

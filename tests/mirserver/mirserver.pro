@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = QtEventFeeder Clipboard
+SUBDIRS = QtEventFeeder Clipboard Screen

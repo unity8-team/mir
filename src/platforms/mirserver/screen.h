@@ -49,6 +49,10 @@ public:
     // QObject methods.
     void customEvent(QEvent* event) override;
 
+	// To make it testable
+    static bool skipDBusRegistration;
+    bool orientationSensorEnabled();
+
 public Q_SLOTS:
    void onDisplayPowerStateChanged(int, int);
    void onOrientationReadingChanged();
