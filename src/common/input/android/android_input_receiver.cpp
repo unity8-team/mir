@@ -80,7 +80,7 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 }
 
-bool mircva::InputReceiver::try_next_event(MirEvent &ev)
+bool mircva::InputReceiver::try_next_event(MirEvent &ev, nsecs_t frame_time)
 {
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
@@ -101,17 +101,17 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
      *
      * Note event_rate_hz is only 55Hz. This allows rendering to catch up and
      * overtake the event rate every ~12th frame (200ms) on a 60Hz display.
-     * Thus on every 12th+1 frame, there will be zero buffer lag in responding
+     * Thus on every 12th+1 frame, theres will be zero buffer lag in responding
      * to the cooked input event we have given the client.
      * This phase control is useful as it eliminates the one frame of lag you
      * would otherwise never catch up to if the event rate was exactly the same
      * as the display refresh rate.
      */
 
-    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
-    int const event_rate_hz = 55;
-    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
-    nsecs_t frame_time = (now / one_frame) * one_frame;
+//    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
+//    int const event_rate_hz = 55;
+//    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
+//    nsecs_t frame_time = (now / one_frame) * one_frame;
 
     if (input_consumer->consume(&event_factory, true, frame_time,
                                 &event_sequence_id, &android_event)
@@ -132,7 +132,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
 // TODO: We use a droidinput::Looper here for polling functionality but it might be nice to integrate
 // with the existing client io_service ~racarr ~tvoss
-bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev)
+bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev, nsecs_t frame_time)
 {
     if (!fd_added)
     {
@@ -165,7 +165,7 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
     if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
        return false;
 
-    return try_next_event(ev);
+    return try_next_event(ev, frame_time);
 }
 
 void mircva::InputReceiver::wake()
