@@ -25,7 +25,7 @@ add_library(
 
 set_target_properties(
   mirclientplatformmesa PROPERTIES
-  OUTPUT_NAME client-platform-mesa
+  OUTPUT_NAME mesa
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )

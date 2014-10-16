@@ -23,7 +23,7 @@ add_library(
 
 set_target_properties(
   mirclientplatformandroid PROPERTIES
-  OUTPUT_NAME client-platform-android
+  OUTPUT_NAME android
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )

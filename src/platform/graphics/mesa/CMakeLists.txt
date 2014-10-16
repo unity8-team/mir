@@ -59,7 +59,7 @@ set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 set_target_properties(
   mirplatformgraphicsmesa PROPERTIES
-  OUTPUT_NAME platform-graphics-mesa
+  OUTPUT_NAME graphics-mesa
   PREFIX ""
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
