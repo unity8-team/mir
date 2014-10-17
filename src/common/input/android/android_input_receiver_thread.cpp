@@ -29,6 +29,7 @@ mircva::InputReceiverThread::InputReceiverThread(std::shared_ptr<mircva::InputRe
     handler(event_handling_callback),
     running(false)
 {
+    last_frame_time = std::chrono::high_resolution_clock::now();
 }
 
 mircva::InputReceiverThread::~InputReceiverThread()
@@ -67,6 +68,10 @@ void mircva::InputReceiverThread::thread_loop()
 //        (void)frame_time_ns;
         while(running && receiver->next_event(ev, frame_time_ns))
             handler(&ev);
+
+        // TODO: Hack
+        last_frame_time = std::chrono::high_resolution_clock::now();
+
         frame_cv.wait_for(lg, std::chrono::milliseconds(32));
     }
 }
