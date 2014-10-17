@@ -66,8 +66,10 @@ public:
 
     /// Synchronously receive an event with millisecond timeout. A negative timeout value
     /// is used to request indefinite polling.
-    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);
-    virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev); }
+    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev, nsecs_t frame_time);
+    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev) { return next_event(timeout, ev, -1); }
+    virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev, -1); }
+    virtual bool next_event(MirEvent &ev, nsecs_t frame_time) { return next_event(std::chrono::milliseconds(-1), ev, frame_time); }
 
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
@@ -90,7 +92,7 @@ private:
 
     AndroidClock const android_clock;
 
-    bool try_next_event(MirEvent &ev);
+    bool try_next_event(MirEvent &ev, nsecs_t frame_time);
 };
 
 }

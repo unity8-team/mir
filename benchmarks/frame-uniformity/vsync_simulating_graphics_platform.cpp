@@ -111,8 +111,7 @@ VsyncSimulatingPlatform::VsyncSimulatingPlatform(geom::Size const& output_size, 
 {
 }
 
-std::shared_ptr<mg::GraphicBufferAllocator> VsyncSimulatingPlatform::create_buffer_allocator(
-    std::shared_ptr<mg::BufferInitializer> const&)
+std::shared_ptr<mg::GraphicBufferAllocator> VsyncSimulatingPlatform::create_buffer_allocator()
 {
     return std::make_shared<mtd::StubBufferAllocator>();
 }
