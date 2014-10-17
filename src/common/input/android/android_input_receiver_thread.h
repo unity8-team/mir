@@ -66,7 +66,7 @@ private:
     std::atomic<bool> running;
     std::thread thread;
     
-    std::mutex frame_time_mutex;
+    std::recursive_mutex frame_time_mutex;
     std::chrono::high_resolution_clock::time_point last_frame_time;
     std::condition_variable frame_cv;
 };

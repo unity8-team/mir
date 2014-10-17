@@ -61,7 +61,7 @@ void mircva::InputReceiverThread::thread_loop()
 {
     while (running)
     {
-        std::unique_lock<std::mutex> lg(frame_time_mutex);
+        std::unique_lock<std::recursive_mutex> lg(frame_time_mutex);
         MirEvent ev;
         nsecs_t frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(last_frame_time.time_since_epoch()).count();
         // TODO: Pass time to receiver
@@ -83,7 +83,7 @@ void mircva::InputReceiverThread::notify_of_frame_start(std::chrono::high_resolu
 {
     (void) frame_time;
     {
-        std::lock_guard<std::mutex> lg(frame_time_mutex);
+        std::lock_guard<std::recursive_mutex> lg(frame_time_mutex);
         last_frame_time = frame_time;
     }
   frame_cv.notify_all();
