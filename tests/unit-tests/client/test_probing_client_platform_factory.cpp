@@ -35,10 +35,10 @@ all_available_modules()
 {
     std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
 #ifdef MIR_BUILD_PLATFORM_MESA
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-mesa.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/mesa.so"));
 #endif
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-android.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/android.so"));
 #endif
     return modules;
 }

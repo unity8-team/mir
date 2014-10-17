@@ -25,7 +25,7 @@ using namespace testing;
 
 TEST(SymbolsRequiredByMesa, are_exported_by_client_platform_mesa)
 {
-    auto const handle = dlopen("client-platform-mesa.so", RTLD_LAZY);
+    auto const handle = dlopen("mesa.so", RTLD_LAZY);
     ASSERT_THAT(handle, NotNull());
 
     auto const sym = dlsym(handle, "mir_client_mesa_egl_native_display_is_valid");
@@ -36,7 +36,7 @@ TEST(SymbolsRequiredByMesa, are_exported_by_client_platform_mesa)
 
 TEST(SymbolsRequiredByMesa, are_exported_by_libmirplatformgraphics)
 {
-    auto const handle = dlopen("platform-graphics-mesa.so", RTLD_LAZY);
+    auto const handle = dlopen("graphics-mesa.so", RTLD_LAZY);
     ASSERT_THAT(handle, NotNull());
 
     auto const sym = dlsym(handle, "mir_server_mesa_egl_native_display_is_valid");
