@@ -43,14 +43,14 @@ static const nsecs_t NANOS_PER_MS = 1000000;
 
 // Latency added during resampling.  A few milliseconds doesn't hurt much but
 // reduces the impact of mispredicted touch positions.
-static const nsecs_t RESAMPLE_LATENCY = 5 * NANOS_PER_MS;
+static const nsecs_t RESAMPLE_LATENCY = 0 * NANOS_PER_MS;
 
 // Minimum time difference between consecutive samples before attempting to resample.
 static const nsecs_t RESAMPLE_MIN_DELTA = 2 * NANOS_PER_MS;
 
 // Maximum time to predict forward from the last known state, to avoid predicting too
 // far into the future.  This time is further bounded by 50% of the last time delta.
-static const nsecs_t RESAMPLE_MAX_PREDICTION = 8 * NANOS_PER_MS;
+static const nsecs_t RESAMPLE_MAX_PREDICTION = 16 * NANOS_PER_MS;
 
 template<typename T>
 inline static T min(const T& a, const T& b) {
@@ -725,7 +725,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
 #endif
             return;
         }
-        nsecs_t maxPredict = current->eventTime + min(delta / 2, RESAMPLE_MAX_PREDICTION);
+        nsecs_t maxPredict = current->eventTime + min(delta, RESAMPLE_MAX_PREDICTION);
         if (sampleTime > maxPredict) {
 #if DEBUG_RESAMPLING
             ALOGD("Sample time is too far in the future, adjusting prediction "
