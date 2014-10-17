@@ -66,11 +66,14 @@ void mircva::InputReceiverThread::thread_loop()
         nsecs_t frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(last_frame_time.time_since_epoch()).count();
         // TODO: Pass time to receiver
 //        (void)frame_time_ns;
+        if (std::chrono::high_resolution_clock::now() - last_frame_time > std::chrono::milliseconds(32))
+            frame_time_ns = -1;
+
         while(running && receiver->next_event(ev, frame_time_ns))
             handler(&ev);
 
         // TODO: Hack
-        last_frame_time = std::chrono::high_resolution_clock::now();
+//        last_frame_time = std::chrono::high_resolution_clock::now();
 
         frame_cv.wait_for(lg, std::chrono::milliseconds(32));
     }
