@@ -24,6 +24,7 @@
 #include "session.h"
 #include "mirsurfaceitem.h"
 #include "logging.h"
+#include "ubuntukeyboardinfo.h"
 
 // common
 #include <debughelpers.h>
@@ -74,9 +75,10 @@ bool fillInMirEvent(MirEvent &mirEvent, QKeyEvent *qtEvent)
     mirEvent.key.key_code = qtEvent->nativeVirtualKey();
     mirEvent.key.scan_code = qtEvent->nativeScanCode();
 
-    // TODO: Investigate how to pass it from mir to qt in the first place.
-    //       Then implement the reverse here.
-    mirEvent.key.repeat_count = 0;
+    // TODO: It's not the best that we lose the actual repeat count from
+    // the original mir event (pre QtEventFeeder)...of course it will
+    // not matter for Qt clients...so this is an improvement for now.
+    mirEvent.key.repeat_count = qtEvent->isAutoRepeat() ? 1 : 0;
 
     // Don't care
     mirEvent.key.down_time = 0;
@@ -242,8 +244,6 @@ void MirSurfaceObserver::frame_posted(int frames_available) {
     QMetaObject::invokeMethod(m_listener, "surfaceDamaged");
 }
 
-UbuntuKeyboardInfo *MirSurfaceItem::m_ubuntuKeyboardInfo = nullptr;
-
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                                SessionInterface* session,
                                QQuickItem *parent)
@@ -275,8 +275,8 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     setImplicitSize(static_cast<qreal>(m_surface->size().width.as_float()),
                     static_cast<qreal>(m_surface->size().height.as_float()));
 
-    if (!m_ubuntuKeyboardInfo) {
-        m_ubuntuKeyboardInfo = new UbuntuKeyboardInfo;
+    if (!UbuntuKeyboardInfo::instance()) {
+        new UbuntuKeyboardInfo;
     }
 
     // Ensure C++ (MirSurfaceManager) retains ownership of this object
@@ -647,12 +647,14 @@ bool MirSurfaceItem::processTouchEvent(
 
 bool MirSurfaceItem::hasTouchInsideUbuntuKeyboard(const QList<QTouchEvent::TouchPoint> &touchPoints)
 {
+    UbuntuKeyboardInfo *ubuntuKeyboardInfo = UbuntuKeyboardInfo::instance();
+
     for (int i = 0; i < touchPoints.count(); ++i) {
         QPoint pos = touchPoints.at(i).pos().toPoint();
-        if (pos.x() >= m_ubuntuKeyboardInfo->x()
-                && pos.x() <= (m_ubuntuKeyboardInfo->x() + m_ubuntuKeyboardInfo->width())
-                && pos.y() >= m_ubuntuKeyboardInfo->y()
-                && pos.y() <= (m_ubuntuKeyboardInfo->y() + m_ubuntuKeyboardInfo->height())) {
+        if (pos.x() >= ubuntuKeyboardInfo->x()
+                && pos.x() <= (ubuntuKeyboardInfo->x() + ubuntuKeyboardInfo->width())
+                && pos.y() >= ubuntuKeyboardInfo->y()
+                && pos.y() <= (ubuntuKeyboardInfo->y() + ubuntuKeyboardInfo->height())) {
             return true;
         }
     }
