@@ -1,5 +1,5 @@
 CONFIG += no_keywords # keywords clash with ProcessC++
-PKGCONFIG += ubuntu-app-launch-2
+PKGCONFIG += ubuntu-app-launch-2 process-cpp
 
 QT += quick
 
