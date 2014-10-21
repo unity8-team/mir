@@ -1,5 +1,6 @@
 #include "probing_client_platform_factory.h"
 
+#include <boost/exception/all.hpp>
 #include <stdexcept>
 
 namespace mcl = mir::client;
@@ -9,7 +10,8 @@ mcl::ProbingClientPlatformFactory::ProbingClientPlatformFactory(std::vector<std:
 {
     if (modules.empty())
     {
-        throw std::runtime_error{"Attempted to create a ClientPlatformFactory with no platform modules"};
+        BOOST_THROW_EXCEPTION(
+            std::runtime_error{"Attempted to create a ClientPlatformFactory with no platform modules"});
     }
 }
 
@@ -32,5 +34,5 @@ mcl::ProbingClientPlatformFactory::create_client_platform(mcl::ClientContext* co
             // We were handled a SharedLibrary that's not a client platform module?
         }
     }
-    throw std::runtime_error{"No appropriate client platform module found"};
+    BOOST_THROW_EXCEPTION(std::runtime_error{"No appropriate client platform module found"});
 }
