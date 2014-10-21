@@ -7,8 +7,11 @@ set(MIRPLATFORM_ABI 4)
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
-# This needs to change whenever the much smaller ABI between the platform
+# This needs to change whenever the ABI between the platform
 # modules and the server changes in an incompatible way.
+# This ABI is much smaller than the full libmirplatform ABI.
+#
+# TODO: Add an extra driver-ABI check target.
 set(SERVER_PLATFORM_VERSION "MIR_GRAPHICS_PLATFORM_1")
 set(SERVER_PLATFORM_VERSION ${SERVER_PLATFORM_VERSION} PARENT_SCOPE)
 
