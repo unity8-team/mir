@@ -197,10 +197,6 @@ extern "C" mg::PlatformPriority probe_platform()
 
     err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &hw_module);
 
-    // TODO: Yo! kdub! Is this totally insane?
-    // It *looks* like the hw_module_t is global, so we don't leak by
-    // not doing anything with it?
-
     return err < 0 ? mg::PlatformPriority::unsupported : mg::PlatformPriority::best;
 }
 
