@@ -260,6 +260,9 @@ void MirSurface::new_buffer(mir_surface_callback callback, void * context)
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
         process_incoming_buffer();
+        
+        if (input_thread)
+            input_thread->notify_of_frame_start(std::chrono::high_resolution_clock::now());
     }
 
     callback(this, context);

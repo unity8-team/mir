@@ -288,6 +288,7 @@ struct MockInputReceiverThread : public mircv::InputReceiverThread
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
     MOCK_METHOD0(join, void());
+    MOCK_METHOD1(notify_of_frame_start, void(std::chrono::high_resolution_clock::time_point));
 };
 
 class TestConnectionConfiguration : public mcl::DefaultConnectionConfiguration

@@ -27,6 +27,8 @@
 #include <memory>
 #include <atomic>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 namespace mir
 {
@@ -49,6 +51,8 @@ public:
     void start();
     void stop();
     void join();
+    
+    void notify_of_frame_start(std::chrono::high_resolution_clock::time_point frame_time);
 
 protected:
     InputReceiverThread(const InputReceiverThread&) = delete;
@@ -61,6 +65,10 @@ private:
     void thread_loop();
     std::atomic<bool> running;
     std::thread thread;
+    
+    std::mutex frame_time_mutex;
+    std::chrono::high_resolution_clock::time_point last_frame_time;
+    std::condition_variable frame_cv;
 };
 
 }

@@ -29,6 +29,7 @@ mircva::InputReceiverThread::InputReceiverThread(std::shared_ptr<mircva::InputRe
     handler(event_handling_callback),
     running(false)
 {
+    last_frame_time = std::chrono::high_resolution_clock::now();
 }
 
 mircva::InputReceiverThread::~InputReceiverThread()
@@ -60,9 +61,34 @@ void mircva::InputReceiverThread::thread_loop()
 {
     while (running)
     {
+        std::unique_lock<std::mutex> lg(frame_time_mutex);
         MirEvent ev;
-        while(running && receiver->next_event(ev))
+        nsecs_t frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(last_frame_time.time_since_epoch()).count();
+        // TODO: Pass time to receiver
+//        (void)frame_time_ns;
+        if (std::chrono::high_resolution_clock::now() - last_frame_time > std::chrono::milliseconds(32))
+            frame_time_ns = -1;
+
+        while(running && receiver->next_event(ev, frame_time_ns))
+            {
+                lg.unlock();
             handler(&ev);
-        std::this_thread::yield(); // yield() is needed to ensure reasonable runtime under valgrind
+            lg.lock();
+            }
+
+        // TODO: Hack
+//        last_frame_time = std::chrono::high_resolution_clock::now();
+
+        frame_cv.wait_for(lg, std::chrono::milliseconds(32));
     }
+}
+
+void mircva::InputReceiverThread::notify_of_frame_start(std::chrono::high_resolution_clock::time_point frame_time)
+{
+    (void) frame_time;
+    {
+        std::lock_guard<std::mutex> lg(frame_time_mutex);
+        last_frame_time = frame_time;
+    }
+  frame_cv.notify_all();
 }
