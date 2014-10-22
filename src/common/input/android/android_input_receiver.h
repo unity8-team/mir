@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <chrono>
+#include <mutex>
 
 namespace droidinput = android;
 
@@ -66,13 +67,12 @@ public:
 
     /// Synchronously receive an event with millisecond timeout. A negative timeout value
     /// is used to request indefinite polling.
-    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev, nsecs_t frame_time);
-    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev) { return next_event(timeout, ev, -1); }
-    virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev, -1); }
-    virtual bool next_event(MirEvent &ev, nsecs_t frame_time) { return next_event(std::chrono::milliseconds(-1), ev, frame_time); }
+    virtual bool next_event(std::chrono::milliseconds const& timeout, MirEvent &ev);
+    virtual bool next_event(MirEvent &ev) { return next_event(std::chrono::milliseconds(-1), ev); }
 
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
+    virtual void update_frame_time(nsecs_t frame_time);
 
 protected:
     InputReceiver(const InputReceiver&) = delete;
@@ -92,7 +92,11 @@ private:
 
     AndroidClock const android_clock;
 
-    bool try_next_event(MirEvent &ev, nsecs_t frame_time);
+    bool try_next_event(MirEvent &ev);
+
+    std::mutex frame_time_mutex;
+    nsecs_t frame_time;
+    nsecs_t last_frame_time;
 };
 
 }

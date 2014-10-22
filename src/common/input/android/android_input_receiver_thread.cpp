@@ -61,9 +61,9 @@ void mircva::InputReceiverThread::thread_loop()
 {
     while (running)
     {
-        std::unique_lock<std::mutex> lg(frame_time_mutex);
+  //      std::unique_lock<std::mutex> lg(frame_time_mutex);
         MirEvent ev;
-        nsecs_t frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(last_frame_time.time_since_epoch()).count();
+//        nsecs_t frame_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(last_frame_time.time_since_epoch()).count();
         // TODO: Pass time to receiver
 //        (void)frame_time_ns;
 
@@ -71,13 +71,11 @@ void mircva::InputReceiverThread::thread_loop()
 //        if (std::chrono::high_resolution_clock::now() - last_frame_time > std::chrono::milliseconds(32))
   //          frame_time_ns = -1;
 
-        while(running && receiver->next_event(ev, frame_time_ns))
+        while(running && receiver->next_event(ev))
             {
-                lg.unlock();
-                handler(&ev);
-                lg.lock();
+                    handler(&ev);
             }
-        frame_cv.wait_for(lg, std::chrono::milliseconds(16));
+//        frame_cv.wait_for(lg, std::chrono::milliseconds(16));
         // TODO: Hack
 //        last_frame_time = std::chrono::high_resolution_clock::now();
 
@@ -90,6 +88,7 @@ void mircva::InputReceiverThread::notify_of_frame_start(std::chrono::high_resolu
     {
         std::lock_guard<std::mutex> lg(frame_time_mutex);
         last_frame_time = frame_time;
+        receiver->update_frame_time(std::chrono::duration_cast<std::chrono::nanoseconds>(frame_time.time_since_epoch()).count());
     }
-  frame_cv.notify_all();
+//  frame_cv.notify_all();
 }

@@ -110,7 +110,7 @@ TEST(FrameUniformity, average_frame_offset)
     geom::Size const screen_size{1024, 1024};
     geom::Point const touch_start_point{0, 0};
     geom::Point const touch_end_point{1024, 1024};
-    std::chrono::milliseconds touch_duration{1000};
+    std::chrono::milliseconds touch_duration{500};
     
     int const run_count = 1;
     double average_lag = 0, average_uniformity = 0;

@@ -25,6 +25,8 @@
 #include <androidfw/InputTransport.h>
 #include <utils/Looper.h>
 
+#include <mutex>
+
 namespace mircv = mir::input::receiver;
 namespace mircva = mircv::android;
 
@@ -39,7 +41,9 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    frame_time(-1),
+    last_frame_time(0)
 {
 }
 
@@ -52,7 +56,9 @@ mircva::InputReceiver::InputReceiver(int fd,
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    frame_time(-1),
+    last_frame_time(0)
 {
 }
 
@@ -80,7 +86,7 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 }
 
-bool mircva::InputReceiver::try_next_event(MirEvent &ev, nsecs_t frame_time)
+bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 {
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
@@ -108,12 +114,21 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev, nsecs_t frame_time)
      * as the display refresh rate.
      */
 
-//    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
+    //    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
 //    int const event_rate_hz = 55;
 //    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
 // frame_time = (now / one_frame) * one_frame;
 
-    if (input_consumer->consume(&event_factory, true, frame_time,
+    std::unique_lock<std::mutex> lg(frame_time_mutex);
+    
+    bool consume_batches = false;
+    if (frame_time != last_frame_time)
+    {
+        last_frame_time = frame_time;
+        consume_batches = true;
+    }
+
+    if (input_consumer->consume(&event_factory, consume_batches, frame_time,
                                 &event_sequence_id, &android_event)
         == droidinput::OK)
     {
@@ -132,7 +147,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev, nsecs_t frame_time)
 
 // TODO: We use a droidinput::Looper here for polling functionality but it might be nice to integrate
 // with the existing client io_service ~racarr ~tvoss
-bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev, nsecs_t frame_time)
+bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout, MirEvent &ev)
 {
     // TODO: Hack
     if (!fd_added)
@@ -161,15 +176,28 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
     }
 
     auto result = looper->pollOnce(reduced_timeout.count());
-    if (result == ALOOPER_POLL_WAKE)
-        return false;
-    if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
-       return false;
+    // TODO: Need to update frame time at this point rather 
+    // than pass in
+    (void) result;
+    // TODO: Fix wake hack ~racarr
+//    if (result == ALOOPER_POLL_WAKE)
+  //      return false;
+//    if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
+//       return false;
 
-    return try_next_event(ev, frame_time);
+    return try_next_event(ev);
 }
 
 void mircva::InputReceiver::wake()
 {
     looper->wake();
+}
+
+void mircva::InputReceiver::update_frame_time(nsecs_t new_frame_time)
+{
+    {
+    std::lock_guard<std::mutex> lg(frame_time_mutex);
+    frame_time = new_frame_time;
+    }
+    wake();
 }
