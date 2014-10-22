@@ -128,6 +128,7 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     m_orientationSensor->start();
 
     if(!skipDBusRegistration) {
+        // FIXME This is a unity8 specific dbus call and shouldn't be in qtmir
         unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
                                          "/com/canonical/Unity/Screen",
                                          "com.canonical.Unity.Screen",
