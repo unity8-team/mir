@@ -70,7 +70,7 @@ private:
     Qt::ScreenOrientation m_currentOrientation;
     QOrientationSensor *m_orientationSensor;
 
-    QDBusInterface *unityScreen;
+    QDBusInterface *m_unityScreen;
 };
 
 #endif // SCREEN_H
