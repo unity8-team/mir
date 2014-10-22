@@ -109,7 +109,7 @@ bool Screen::skipDBusRegistration = false;
 Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     : QObject(nullptr)
     , m_orientationSensor(new QOrientationSensor(this))
-	, unityScreen(nullptr)
+    , unityScreen(nullptr)
 {
     readMirDisplayConfiguration(screen);
 
@@ -129,9 +129,9 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
 
     if(!skipDBusRegistration) {
 	    unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
-                                        "/com/canonical/Unity/Screen",
-                                        "com.canonical.Unity.Screen",
-                                        QDBusConnection::systemBus(), this);
+                                         "/com/canonical/Unity/Screen",
+                                         "com.canonical.Unity.Screen",
+                                         QDBusConnection::systemBus(), this);
 
         unityScreen->connection().connect("com.canonical.Unity.Screen",
                                           "/com/canonical/Unity/Screen",

@@ -49,7 +49,7 @@ public:
     // QObject methods.
     void customEvent(QEvent* event) override;
 
-	// To make it testable
+    // To make it testable
     static bool skipDBusRegistration;
     bool orientationSensorEnabled();
 
