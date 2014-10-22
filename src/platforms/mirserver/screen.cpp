@@ -128,7 +128,7 @@ Screen::Screen(mir::graphics::DisplayConfigurationOutput const &screen)
     m_orientationSensor->start();
 
     if(!skipDBusRegistration) {
-	    unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
+        unityScreen = new QDBusInterface("com.canonical.Unity.Screen",
                                          "/com/canonical/Unity/Screen",
                                          "com.canonical.Unity.Screen",
                                          QDBusConnection::systemBus(), this);
