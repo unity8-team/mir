@@ -131,11 +131,11 @@ TEST_F(AndroidInterpreter, gets_native_handle_from_returned_buffer)
     EXPECT_EQ(buffer.get(), returned_buffer);
 }
 
-TEST_F(AndroidInterpreter, updates_fence_and_advances_surface_on_buffer_return)
+TEST_F(AndroidInterpreter, updates_fence_and_advances_surface_on_buffer_plus_fence_return)
 {
     using namespace testing;
     int fake_fence{45};
-    auto buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
+    auto buffer = std::make_shared<NiceMock<mtd::MockAndroidNativeBuffer>>();
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
 
     EXPECT_CALL(*mock_client_buffer, native_buffer_handle())
