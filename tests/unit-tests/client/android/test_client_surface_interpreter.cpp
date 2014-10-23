@@ -131,18 +131,25 @@ TEST_F(AndroidInterpreter, gets_native_handle_from_returned_buffer)
     EXPECT_EQ(buffer.get(), returned_buffer);
 }
 
-TEST_F(AndroidInterpreter, advances_surface_on_buffer_return)
+TEST_F(AndroidInterpreter, updates_fence_and_advances_surface_on_buffer_return)
 {
     using namespace testing;
-    ANativeWindowBuffer buffer;
-
+    int fake_fence{45};
+    auto buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
+
+    EXPECT_CALL(*mock_client_buffer, native_buffer_handle())
+        .Times(1)
+        .WillOnce(Return(buffer));
+    EXPECT_CALL(*buffer, update_usage(fake_fence, mga::BufferAccess::write))
+        .Times(1);
+    EXPECT_CALL(mock_surface, get_current_buffer())
+        .Times(1)
+        .WillOnce(Return(mock_client_buffer));
+
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
 
-    EXPECT_CALL(mock_surface, request_and_wait_for_next_buffer())
-        .Times(1);
-
-    interpreter.driver_returns_buffer(&buffer, -1);
+    interpreter.driver_returns_buffer(buffer->anwb(), fake_fence);
 }
 
 /* format is an int that is set by the driver. these are not the HAL_PIXEL_FORMATS in android */
