@@ -131,7 +131,7 @@ set (MIR_CLIENT_MODULE "client-platform-dummy.so")
 if (MIR_TEST_PLATFORM STREQUAL "android")
   # Android platform integration tests have Android-specific tests
   # requiring a real platform
-  set (MIR_CLIENT_MODULE "client-platform-android.so")
+  set (MIR_CLIENT_MODULE "client-modules/android.so")
 endif()
 
 if (MIR_RUN_INTEGRATION_TESTS)
