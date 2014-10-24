@@ -175,6 +175,14 @@ MirWaitHandle* MirSurface::next_buffer(mir_surface_callback callback, void * con
     //TODO: we have extract the per-message information from the buffer
     *buffer_request.mutable_id() = surface.id();
     buffer_request.mutable_buffer()->set_buffer_id(surface.buffer().buffer_id());
+    MirNativeBuffer update_msg;
+    auto client_buffer = buffer_depository->current_buffer();
+    client_buffer->fill_update_msg(update_msg);
+    for(auto i=0; i < update_msg.data_items; i++)
+        buffer_request.mutable_buffer()->add_data(update_msg.fd[i]);
+    for(auto i=0; i < update_msg.fd_items; i++)
+        buffer_request.mutable_buffer()->add_fd(update_msg.fd[i]);
+
     perf_report->end_frame(surface.buffer().buffer_id());
     lock.unlock();
 
@@ -260,6 +268,10 @@ void MirSurface::new_buffer(mir_surface_callback callback, void * context)
 {
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
+        for(auto fd : buffer_request.buffer().fd())
+            ::close(fd);
+        buffer_request.mutable_buffer()->clear_fd();
+        buffer_request.mutable_buffer()->clear_data();
         process_incoming_buffer();
     }
 
