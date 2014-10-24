@@ -50,8 +50,17 @@ void mga::IpcOperations::pack_buffer(BufferIpcMessage& msg, Buffer const& buffer
     }
 }
 
-void mga::IpcOperations::unpack_buffer(BufferIpcMessage&, Buffer const&) const
+void mga::IpcOperations::unpack_buffer(BufferIpcMessage& msg, Buffer const& buffer) const
 {
+    auto const& fds = msg.fds();
+    auto const& data = msg.data();
+    auto native_buffer = buffer.native_buffer_handle();
+    if ((data.size() >= 1) && (fds.size() >= 1) &&
+        (data[0] == static_cast<int>(mga::BufferFlag::fenced)))
+    {
+        int fence = fds[0];
+        native_buffer->update_usage(fence, mga::BufferAccess::write);
+    }
 }
 
 std::shared_ptr<mg::PlatformIPCPackage> mga::IpcOperations::connection_ipc_package()
