@@ -31,6 +31,7 @@
 #include "mir/input/input_platform.h"
 #include "mir/input/input_receiver_thread.h"
 
+#include "mir_test_doubles/fd_matcher.h"
 #include "mir_test/test_protobuf_server.h"
 #include "mir_test/stub_server_tool.h"
 #include "mir_test/gmock_fixes.h"
@@ -49,7 +50,7 @@ namespace mircv = mir::input::receiver;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
-
+namespace mtd = mir::test::doubles;
 namespace
 {
 
@@ -758,4 +759,105 @@ TEST_F(MirClientSurfaceTest, configure_wait_handle_really_blocks)
     configure_wait_handle->wait_for_pending(pause_time);
 
     EXPECT_GE(std::chrono::steady_clock::now(), expected_end);
+}
+
+struct FdGeneratingBuffer : public mcl::ClientBuffer
+{
+    FdGeneratingBuffer(mir::Fd fd) :
+        fd{std::move(fd)}
+    {
+    }
+    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write()
+    {
+        return std::shared_ptr<mcl::MemoryRegion>();
+    }
+    geom::Size size() const { return size_; }
+    geom::Stride stride() const { return geom::Stride{0};}
+    MirPixelFormat pixel_format() const { return pf_; }
+    uint32_t age() const { return 0; }
+    void increment_age() {}
+    void mark_as_submitted() {}
+    std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const
+    {
+        return std::shared_ptr<mg::NativeBuffer>();
+    }
+    void update_from(MirBufferPackage const&) {}
+    void fill_update_msg(MirBufferPackage& package)
+    {
+        package.data_items = 0;
+        package.fd_items = 1;
+        package.fd[0] = dup(fd);
+    }
+private:
+    mir::Fd const fd;
+    geom::Size size_;
+    MirPixelFormat pf_;
+};
+
+struct StubFdBufferFactory : public mcl::ClientBufferFactory
+{
+    StubFdBufferFactory(mir::Fd fd) :
+        fd{std::move(fd)}
+    {
+    }
+    
+    std::shared_ptr<mcl::ClientBuffer> create_buffer(
+        std::shared_ptr<MirBufferPackage> const&,
+        geom::Size, MirPixelFormat)
+    {
+        return std::make_shared<FdGeneratingBuffer>(fd);
+    }
+    mir::Fd const fd;
+};
+
+struct ExchangeMonitoringRpcServer : mir::protobuf::DisplayServer::Stub
+{
+    ExchangeMonitoringRpcServer(::google::protobuf::RpcChannel* fake_channel) :
+        mir::protobuf::DisplayServer::Stub{fake_channel}
+    {
+    }
+
+    virtual void exchange_buffer(
+        ::google::protobuf::RpcController*,
+        const ::mir::protobuf::BufferRequest* request,
+        ::mir::protobuf::Buffer*,
+        ::google::protobuf::Closure* closure) override
+    {
+        last_exchange_buffer_request = *request;
+        last_exchange_buffer_closure = closure;
+    }
+
+    void complete_exchange_buffer()
+    {
+        if (last_exchange_buffer_closure)
+            last_exchange_buffer_closure->Run();
+    }
+    ::mir::protobuf::BufferRequest last_exchange_buffer_request;
+    ::google::protobuf::Closure* last_exchange_buffer_closure;
+};
+
+TEST_F(MirClientSurfaceTest, sends_fd_that_the_buffer_provides_and_closes_after_call_completes)
+{
+    using namespace testing;
+    mir::Fd fd{fileno(tmpfile())};
+    auto stub_fd_buffer_factory = std::make_shared<StubFdBufferFactory>(fd);
+
+    mir::protobuf::ConnectParameters connect_parameters;
+    connect_parameters.set_application_name("test");
+
+    TestConnectionConfiguration conf;
+    connection = std::make_shared<MirConnection>(conf);
+    MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
+                                                     null_connected_callback, 0);
+    wait_handle->wait_for_all();
+    ExchangeMonitoringRpcServer server(conf.the_rpc_channel().get());
+    auto const surface = create_and_wait_for_surface_with(server, stub_fd_buffer_factory);
+
+    auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    auto& buffer_request = server.last_exchange_buffer_request.buffer(); 
+    ASSERT_THAT(buffer_request.fd().size(), (Eq(1)));
+    EXPECT_THAT(buffer_request.fd(0), mtd::RawFdIsValid());
+    server.complete_exchange_buffer();
+    buffer_wait_handle->wait_for_all();
+    EXPECT_THAT(buffer_request.fd(0), Not(mtd::RawFdIsValid()));
 }
