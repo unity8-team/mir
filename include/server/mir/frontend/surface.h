@@ -57,6 +57,9 @@ public:
 
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) = 0;
 
+    virtual std::weak_ptr<Surface> parent() const = 0;
+    virtual void set_parent(std::weak_ptr<Surface> const&) = 0;
+
     /**
      *  swap_buffers_blocking() is a convenience wrapper around swap_buffers()
      *  it forces the current thread to block until complete() is called.

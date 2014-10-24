@@ -35,6 +35,7 @@
 #include <algorithm>
 
 namespace mc = mir::compositor;
+namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
@@ -167,13 +168,13 @@ std::string ms::BasicSurface::name() const
     return surface_name;
 }
 
-void ms::BasicSurface::set_parent(std::weak_ptr<Surface> const& p)
+void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p)
 {
     std::unique_lock<std::mutex> lk(guard);
     pparent = p;
 }
 
-std::weak_ptr<ms::Surface> ms::BasicSurface::parent() const
+std::weak_ptr<mf::Surface> ms::BasicSurface::parent() const
 {
     std::unique_lock<std::mutex> lk(guard);
     return pparent;
