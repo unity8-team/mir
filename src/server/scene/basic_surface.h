@@ -147,6 +147,9 @@ public:
 
     int dpi() const;
 
+    void set_parent(std::weak_ptr<Surface> const& parent); //override?
+    std::weak_ptr<Surface> parent() const;  // override?
+
 private:
     bool visible(std::unique_lock<std::mutex>&) const;
     MirSurfaceType set_type(MirSurfaceType t);  // Use configure() to make public changes
@@ -173,7 +176,7 @@ private:
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
-    std::weak_ptr<Surface> parent;
+    std::weak_ptr<Surface> pparent;
 
     void initialize_attributes();
     int attrib_values[mir_surface_attribs];

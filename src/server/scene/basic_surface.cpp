@@ -141,7 +141,7 @@ void ms::BasicSurface::initialize_attributes()
     attrib_values[mir_surface_attrib_focus] = mir_surface_unfocused;
     attrib_values[mir_surface_attrib_dpi] = 0;
     attrib_values[mir_surface_attrib_visibility] = mir_surface_visibility_exposed;
-    attrib_values[mir_surface_attrib_parent] = 0; // Unused. See 'parent'
+    attrib_values[mir_surface_attrib_parent] = 0; // Unused. See 'pparent'
 }
 
 void ms::BasicSurface::force_requests_to_complete()
@@ -167,10 +167,22 @@ std::string ms::BasicSurface::name() const
     return surface_name;
 }
 
+void ms::BasicSurface::set_parent(std::weak_ptr<Surface> const& p)
+{
+    std::unique_lock<std::mutex> lk(guard);
+    pparent = p;
+}
+
+std::weak_ptr<ms::Surface> ms::BasicSurface::parent() const
+{
+    std::unique_lock<std::mutex> lk(guard);
+    return pparent;
+}
+
 /* TODO
 void ms::BasicSurface::move_relative(geometry::Point const& parent_coord)
 {
-   // TODO: Move relative to parent.screen_position().top_left()
+   // TODO: move_to(parent.screen_position().top_left() + parent_coord);
 }
 */
 
