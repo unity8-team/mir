@@ -27,6 +27,8 @@
 #include "mir_test_doubles/mock_buffer_ipc_message.h"
 #include "mir_test_doubles/mock_display_report.h"
 #include "mir_test_doubles/stub_display_builder.h"
+#include "mir_test_doubles/mock_android_native_buffer.h"
+#include "mir_test_doubles/stub_android_native_buffer.h"
 #include "mir_test_doubles/fd_matcher.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
@@ -63,7 +65,7 @@ protected:
             native_buffer_handle->data[i] = i;
         }
 
-        native_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
+        native_buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
         mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
 
         ON_CALL(*native_buffer, handle())
