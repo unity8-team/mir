@@ -21,11 +21,14 @@
 
 #include "mir/server.h"
 
+#include "mir_test_framework/executable_path.h"
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace ms = mir::scene;
 namespace msh = mir::shell;
+namespace mtf = mir_test_framework;
 
 using namespace testing;
 
@@ -75,7 +78,8 @@ private:
 
 struct AcceptanceTest : Test
 {
-    AcceptanceTest() : platform("MIR_SERVER_PLATFORM_GRAPHICS_LIB", "libmirplatformstub.so") {}
+    AcceptanceTest() : platform("MIR_SERVER_PLATFORM_GRAPHICS_LIB",
+                                (mtf::library_path() + "/platform-graphics-dummy.so").c_str()) {}
 
     TemporaryEnvironmentValue platform;
 };

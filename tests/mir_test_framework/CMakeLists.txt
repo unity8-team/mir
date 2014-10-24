@@ -26,6 +26,7 @@ set(
   process.cpp
   using_stub_client_platform.cpp
   stub_client_platform_factory.cpp
+  stub_server_platform_factory.cpp
   udev_environment.cpp
   declarative_placement_strategy.cpp
   fake_event_hub_server_configuration.cpp
@@ -50,7 +51,6 @@ uses_android_input(mir-test-framework)
 target_link_libraries(
   mir-test-framework
 
-  mirplatformstub
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
@@ -89,6 +89,13 @@ add_library(
   mirplatformgraphicsstub MODULE
 
   platform_graphics_dummy.cpp
+  stubbed_graphics_platform.cpp
+)
+
+target_link_libraries(
+  mirplatformgraphicsstub
+
+  mir-test-framework
 )
 
 set_target_properties(
@@ -111,19 +118,3 @@ add_custom_command(TARGET mir-test-framework POST_BUILD
 )
 
 string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
-
-add_library(
-  mirplatformstub SHARED
-  stubbed_graphics_platform.cpp
-)
-
-target_link_libraries(mirplatformstub 
-  mir-test-doubles
-)
-
-set_target_properties(mirplatformstub
-  PROPERTIES
-  LINK_FLAGS "-Wl,--exclude-libs=ALL"
-)
-
-install(TARGETS mirplatformstub LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

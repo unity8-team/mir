@@ -185,13 +185,18 @@ std::shared_ptr<mg::BufferWriter> mtf::StubGraphicPlatform::make_buffer_writer()
     return std::make_shared<NullWriter>();
 }
 
+extern "C" std::shared_ptr<mg::Platform> create_stub_platform(std::vector<geom::Rectangle> const& display_rects)
+{
+    return std::make_shared<mtf::StubGraphicPlatform>(display_rects);
+}
+
 extern "C" std::shared_ptr<mg::Platform> create_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mg::DisplayReport> const& /*report*/)
 {
     static std::vector<geom::Rectangle> const display_rects{geom::Rectangle{{0,0},{1600,1600}}};
-    return std::make_shared<mtf::StubGraphicPlatform>(display_rects);
+    return create_stub_platform(display_rects);
 }
 
 extern "C" void add_platform_options(
