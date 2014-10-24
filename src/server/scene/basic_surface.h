@@ -173,6 +173,7 @@ private:
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
+    std::weak_ptr<Surface> parent;
 
     void initialize_attributes();
     int attrib_values[mir_surface_attribs];

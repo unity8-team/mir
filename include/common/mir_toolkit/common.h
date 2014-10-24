@@ -42,6 +42,7 @@ typedef enum MirSurfaceAttrib
     mir_surface_attrib_focus,
     mir_surface_attrib_dpi,
     mir_surface_attrib_visibility,
+    mir_surface_attrib_parent,
     /* Must be last */
     mir_surface_attribs
 } MirSurfaceAttrib;
