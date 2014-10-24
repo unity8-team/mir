@@ -228,10 +228,11 @@ void mircva::InputReceiver::update_frame_time(nsecs_t new_frame_time)
     std::lock_guard<std::mutex> lg(frame_time_mutex);
 
 static const double NANOS_PER_MS = 1000000;
-        frame_time = new_frame_time;
-
      if ((new_frame_time - frame_time) / NANOS_PER_MS < 10)
          return;
+
+        frame_time = new_frame_time;
+
 
 
     }
