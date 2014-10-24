@@ -97,6 +97,8 @@ private:
     std::mutex frame_time_mutex;
     nsecs_t frame_time;
     nsecs_t last_frame_time;
+    
+    bool consume_batches_next;
 };
 
 }

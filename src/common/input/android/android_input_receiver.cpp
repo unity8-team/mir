@@ -43,7 +43,8 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
     android_clock(clock),
     frame_time(-1),
-    last_frame_time(0)
+    last_frame_time(0),
+    consume_batches_next(false)
 {
 }
 
@@ -58,7 +59,8 @@ mircva::InputReceiver::InputReceiver(int fd,
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
     android_clock(clock),
     frame_time(-1),
-    last_frame_time(0)
+    last_frame_time(0),
+    consume_batches_next(false)
 {
 }
 
@@ -118,18 +120,35 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 //    int const event_rate_hz = 55;
 //    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
 // frame_time = (now / one_frame) * one_frame;
+    
+    // TODO: Make use of hasPendingBatch
 
     std::unique_lock<std::mutex> lg(frame_time_mutex);
     
-    bool consume_batches = false;
     if (frame_time != last_frame_time)
     {
-        last_frame_time = frame_time;
-        consume_batches = true;
+
+        
+        {
+            last_frame_time = frame_time;
+            consume_batches_next = true;
+        }
+    }
+    else
+    {
+        consume_batches_next = false;
     }
 
-    if (input_consumer->consume(&event_factory, consume_batches, frame_time,
-                                &event_sequence_id, &android_event)
+//    printf("Frame time: %ud \n", (int) frame_time);
+    if (input_consumer->hasDeferredEvent())
+    {
+//        consume_batches = true;
+    }
+    bool success = false;
+    droidinput::status_t status;
+do {
+    if ((status = input_consumer->consume(&event_factory, consume_batches_next, consume_batches_next ? frame_time : -1,
+                                &event_sequence_id, &android_event))
         == droidinput::OK)
     {
         mia::Lexicon::translate(android_event, ev);
@@ -140,9 +159,15 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
         report->received_event(ev);
 
-        return true;
+        success |= true;
     }
-   return false;
+    if (consume_batches_next == true)
+        consume_batches_next = false; /*
+    if (input_consumer->hasPendingBatch())
+        consume_batches_next = true;*/
+
+} while (/*input_consumer->hasDeferredEvent() ||*/ status != droidinput::WOULD_BLOCK);
+ return success;
 }
 
 // TODO: We use a droidinput::Looper here for polling functionality but it might be nice to integrate
@@ -158,22 +183,22 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
     }
     
     auto reduced_timeout = timeout;
-    if (input_consumer->hasDeferredEvent())
-    {
+  //  if (input_consumer->hasDeferredEvent())
+//    {
         // consume() didn't finish last time. Retry it immediately.
-        reduced_timeout = std::chrono::milliseconds::zero();
-    }
-    else if (input_consumer->hasPendingBatch())
-    {
+//        reduced_timeout = std::chrono::milliseconds::zero();
+//    }
+//    else if (input_consumer->hasPendingBatch())
+//    {
         // When in constant motion we will usually "hasPendingBatch".
         // But the batch won't get flushed until the next frame interval,
         // so be sure to use a non-zero sleep time to avoid spinning the CPU
         // for the whole interval...
 
         // During tests with mocked clocks we may already have zero...
-        if (reduced_timeout != std::chrono::milliseconds::zero())
-            reduced_timeout = std::chrono::milliseconds(1);
-    }
+//        if (reduced_timeout != std::chrono::milliseconds::zero())
+//            reduced_timeout = std::chrono::milliseconds(1);
+//    }
 
     auto result = looper->pollOnce(reduced_timeout.count());
     // TODO: Need to update frame time at this point rather 
@@ -185,6 +210,10 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
 //    if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
 //       return false;
 
+//    do 
+//    {
+//        success |= try_next_event(ev);
+//    } while (input_consumer->hasDeferredEvent());
     return try_next_event(ev);
 }
 
@@ -197,7 +226,13 @@ void mircva::InputReceiver::update_frame_time(nsecs_t new_frame_time)
 {
     {
     std::lock_guard<std::mutex> lg(frame_time_mutex);
-    frame_time = new_frame_time;
+
+static const double NANOS_PER_MS = 1000000;
+     if ((new_frame_time - frame_time) / NANOS_PER_MS < 8)
+         return;
+
+        frame_time = new_frame_time;
+
     }
     wake();
 }

@@ -94,6 +94,7 @@ Results compute_frame_uniformity(std::vector<TouchSamples::Sample> const& result
     {
         auto distance = pixel_lag_for_sample_at_time(touch_start_point, touch_end_point, touch_start_time, 
             touch_end_time, sample);
+        printf("Distance: %f \n", distance);
         sum += (distance-average_pixel_offset)*(distance-average_pixel_offset);
         count += 1;
     }
@@ -110,7 +111,7 @@ TEST(FrameUniformity, average_frame_offset)
     geom::Size const screen_size{1024, 1024};
     geom::Point const touch_start_point{0, 0};
     geom::Point const touch_end_point{1024, 1024};
-    std::chrono::milliseconds touch_duration{500};
+    std::chrono::milliseconds touch_duration{1000};
     
     int const run_count = 1;
     double average_lag = 0, average_uniformity = 0;

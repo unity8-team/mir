@@ -17,7 +17,7 @@
 #define DEBUG_TRANSPORT_ACTIONS 0
 
 // Log debug messages about touch event resampling
-#define DEBUG_RESAMPLING 0
+#define DEBUG_RESAMPLING 1
 
 #include <androidfw/InputTransport.h>
 #include <cutils/log.h>
@@ -101,7 +101,7 @@ size_t InputMessage::size() const {
 InputChannel::InputChannel(const String8& name, int fd) :
         mName(name), mFd(fd) {
 #if DEBUG_CHANNEL_LIFECYCLE
-    ALOGD("Input channel constructed: name='%s', fd=%d",
+    printf("Input channel constructed: name='%s', fd=%d",
         c_str(mName), fd);
 #endif
 
@@ -112,7 +112,7 @@ InputChannel::InputChannel(const String8& name, int fd) :
 
 InputChannel::~InputChannel() {
 #if DEBUG_CHANNEL_LIFECYCLE
-    ALOGD("Input channel destroyed: name='%s', fd=%d",
+    printf("Input channel destroyed: name='%s', fd=%d",
         c_str(mName), mFd);
 #endif
 }
@@ -150,7 +150,7 @@ status_t InputChannel::sendMessage(const InputMessage* msg) {
     if (nWrite < 0) {
         int error = errno;
 #if DEBUG_CHANNEL_MESSAGES
-        ALOGD("channel '%s' ~ error sending message of type %d, errno=%d", c_str(mName),
+        printf("channel '%s' ~ error sending message of type %d, errno=%d", c_str(mName),
                 msg->header.type, error);
 #endif
         if (error == EAGAIN || error == EWOULDBLOCK) {
@@ -164,14 +164,14 @@ status_t InputChannel::sendMessage(const InputMessage* msg) {
 
     if (size_t(nWrite) != msgLength) {
 #if DEBUG_CHANNEL_MESSAGES
-        ALOGD("channel '%s' ~ error sending message type %d, send was incomplete",
+        printf("channel '%s' ~ error sending message type %d, send was incomplete",
             c_str(mName), msg->header.type);
 #endif
         return DEAD_OBJECT;
     }
 
 #if DEBUG_CHANNEL_MESSAGES
-    ALOGD("channel '%s' ~ sent message of type %d", c_str(mName), msg->header.type);
+    printf("channel '%s' ~ sent message of type %d", c_str(mName), msg->header.type);
 #endif
     return OK;
 }
@@ -185,7 +185,7 @@ status_t InputChannel::receiveMessage(InputMessage* msg) {
     if (nRead < 0) {
         int error = errno;
 #if DEBUG_CHANNEL_MESSAGES
-        ALOGD("channel '%s' ~ receive message failed, errno=%d", c_str(mName), errno);
+        printf("channel '%s' ~ receive message failed, errno=%d", c_str(mName), errno);
 #endif
         if (error == EAGAIN || error == EWOULDBLOCK) {
             return WOULD_BLOCK;
@@ -198,20 +198,20 @@ status_t InputChannel::receiveMessage(InputMessage* msg) {
 
     if (nRead == 0) { // check for EOF
 #if DEBUG_CHANNEL_MESSAGES
-        ALOGD("channel '%s' ~ receive message failed because peer was closed", c_str(mName));
+        printf("channel '%s' ~ receive message failed because peer was closed", c_str(mName));
 #endif
         return DEAD_OBJECT;
     }
 
     if (!msg->isValid(nRead)) {
 #if DEBUG_CHANNEL_MESSAGES
-        ALOGD("channel '%s' ~ received invalid message", c_str(mName));
+        printf("channel '%s' ~ received invalid message", c_str(mName));
 #endif
         return BAD_VALUE;
     }
 
 #if DEBUG_CHANNEL_MESSAGES
-    ALOGD("channel '%s' ~ received message of type %d", c_str(mName), msg->header.type);
+    printf("channel '%s' ~ received message of type %d", c_str(mName), msg->header.type);
 #endif
     return OK;
 }
@@ -239,7 +239,7 @@ status_t InputPublisher::publishKeyEvent(
         nsecs_t downTime,
         nsecs_t eventTime) {
 #if DEBUG_TRANSPORT_ACTIONS
-    ALOGD("channel '%s' publisher ~ publishKeyEvent: seq=%u, deviceId=%d, source=0x%x, "
+    printf("channel '%s' publisher ~ publishKeyEvent: seq=%u, deviceId=%d, source=0x%x, "
             "action=0x%x, flags=0x%x, keyCode=%d, scanCode=%d, metaState=0x%x, repeatCount=%d,"
             "downTime=%lld, eventTime=%lld",
             c_str(mChannel->getName()), seq,
@@ -287,7 +287,7 @@ status_t InputPublisher::publishMotionEvent(
         const PointerProperties* pointerProperties,
         const PointerCoords* pointerCoords) {
 #if DEBUG_TRANSPORT_ACTIONS
-    ALOGD("channel '%s' publisher ~ publishMotionEvent: seq=%u, deviceId=%d, source=0x%x, "
+    printf("channel '%s' publisher ~ publishMotionEvent: seq=%u, deviceId=%d, source=0x%x, "
             "action=0x%x, flags=0x%x, edgeFlags=0x%x, metaState=0x%x, buttonState=0x%x, "
             "xOffset=%f, yOffset=%f, "
             "xPrecision=%f, yPrecision=%f, downTime=%lld, eventTime=%lld, "
@@ -334,7 +334,7 @@ status_t InputPublisher::publishMotionEvent(
 
 status_t InputPublisher::receiveFinishedSignal(uint32_t* outSeq, bool* outHandled) {
 #if DEBUG_TRANSPORT_ACTIONS
-    ALOGD("channel '%s' publisher ~ receiveFinishedSignal",
+    printf("channel '%s' publisher ~ receiveFinishedSignal",
         c_str(mChannel->getName()));
 #endif
 
@@ -373,7 +373,7 @@ bool InputConsumer::isTouchResamplingEnabled() {
             return false;
         }
         if (strcmp("1", value)) {
-            ALOGD("Unrecognized property value for 'debug.inputconsumer.resample'.  "
+            printf("Unrecognized property value for 'debug.inputconsumer.resample'.  "
                     "Use '1' or '0'.");
         }
     }
@@ -383,7 +383,7 @@ bool InputConsumer::isTouchResamplingEnabled() {
 status_t InputConsumer::consume(InputEventFactoryInterface* factory,
         bool consumeBatches, nsecs_t frameTime, uint32_t* outSeq, InputEvent** outEvent) {
 #if DEBUG_TRANSPORT_ACTIONS
-    ALOGD("channel '%s' consumer ~ consume: consumeBatches=%s, frameTime=%lld",
+    printf("channel '%s' consumer ~ consume: consumeBatches=%s, frameTime=%lld",
         c_str(mChannel->getName()), consumeBatches ? "true" : "false", frameTime);
 #endif
 
@@ -406,7 +406,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
                     result = consumeBatch(factory, frameTime, outSeq, outEvent);
                     if (*outEvent) {
 #if DEBUG_TRANSPORT_ACTIONS
-                        ALOGD("channel '%s' consumer ~ consumed batch event, seq=%u",
+                        printf("channel '%s' consumer ~ consumed batch event, seq=%u",
                             c_str(mChannel->getName()), *outSeq);
 #endif
                         break;
@@ -425,7 +425,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
             *outSeq = mMsg.body.key.seq;
             *outEvent = keyEvent;
 #if DEBUG_TRANSPORT_ACTIONS
-            ALOGD("channel '%s' consumer ~ consumed key event, seq=%u",
+            printf("channel '%s' consumer ~ consumed key event, seq=%u",
                 c_str(mChannel->getName()), *outSeq);
 #endif
             break;
@@ -438,7 +438,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
                 if (canAddSample(batch, &mMsg)) {
                     batch.samples.push(mMsg);
 #if DEBUG_TRANSPORT_ACTIONS
-                    ALOGD("channel '%s' consumer ~ appended to batch event",
+                    printf("channel '%s' consumer ~ appended to batch event",
                         c_str(mChannel->getName()));
 #endif
                     break;
@@ -453,7 +453,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
                         return result;
                     }
 #if DEBUG_TRANSPORT_ACTIONS
-                    ALOGD("channel '%s' consumer ~ consumed batch event and "
+                    printf("channel '%s' consumer ~ consumed batch event and "
                             "deferred current event, seq=%u",
                             c_str(mChannel->getName()), *outSeq);
 #endif
@@ -468,7 +468,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
                 Batch& batch = mBatches.editTop();
                 batch.samples.push(mMsg);
 #if DEBUG_TRANSPORT_ACTIONS
-                ALOGD("channel '%s' consumer ~ started batch event",
+                printf("channel '%s' consumer ~ started batch event",
                     c_str(mChannel->getName()));
 #endif
                 break;
@@ -482,7 +482,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
             *outSeq = mMsg.body.motion.seq;
             *outEvent = motionEvent;
 #if DEBUG_TRANSPORT_ACTIONS
-            ALOGD("channel '%s' consumer ~ consumed motion event, seq=%u",
+            printf("channel '%s' consumer ~ consumed motion event, seq=%u",
                 c_str(mChannel->getName()), *outSeq);
 #endif
             break;
@@ -648,7 +648,7 @@ void InputConsumer::rewriteMessage(const TouchState& state, InputMessage* msg) {
             PointerCoords& msgCoords = msg->body.motion.pointers[i].coords;
             const PointerCoords& resampleCoords = state.lastResample.getPointerById(id);
 #if DEBUG_RESAMPLING
-            ALOGD("[%d] - rewrite (%0.3f, %0.3f), old (%0.3f, %0.3f)", id,
+            printf("[%d] - rewrite (%0.3f, %0.3f), old (%0.3f, %0.3f)\n", id,
                     resampleCoords.getAxisValue(AMOTION_EVENT_AXIS_X),
                     resampleCoords.getAxisValue(AMOTION_EVENT_AXIS_Y),
                     msgCoords.getAxisValue(AMOTION_EVENT_AXIS_X),
@@ -671,7 +671,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
     ssize_t index = findTouchState(event->getDeviceId(), event->getSource());
     if (index < 0) {
 #if DEBUG_RESAMPLING
-        ALOGD("Not resampled, no touch state for device.");
+        printf("Not resampled, no touch state for device.\n");
 #endif
         return;
     }
@@ -679,7 +679,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
     TouchState& touchState = mTouchStates.editItemAt(index);
     if (touchState.historySize < 1) {
 #if DEBUG_RESAMPLING
-        ALOGD("Not resampled, no history for device.");
+        printf("Not resampled, no history for device.\n");
 #endif
         return;
     }
@@ -691,7 +691,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         uint32_t id = event->getPointerId(i);
         if (!current->ids.contains(id)) {
 #if DEBUG_RESAMPLING
-            ALOGD("Not resampled, missing id %d", id);
+            printf("Not resampled, missing id %d\n", id);
 #endif
             return;
         }
@@ -709,7 +709,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         nsecs_t delta = future.eventTime - current->eventTime;
         if (delta < RESAMPLE_MIN_DELTA) {
 #if DEBUG_RESAMPLING
-            ALOGD("Not resampled, delta time is %lld ns.", delta);
+            printf("Not resampled, delta time is %lld ns.\n", delta);
 #endif
             return;
         }
@@ -721,15 +721,15 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         nsecs_t delta = current->eventTime - other->eventTime;
         if (delta < RESAMPLE_MIN_DELTA) {
 #if DEBUG_RESAMPLING
-            ALOGD("Not resampled, delta time is %lld ns.", delta);
+            printf("Not resampled, delta time is %lld ns.\n", delta);
 #endif
             return;
         }
         nsecs_t maxPredict = current->eventTime + min(delta / 2, RESAMPLE_MAX_PREDICTION);
         if (sampleTime > maxPredict) {
 #if DEBUG_RESAMPLING
-            ALOGD("Sample time is too far in the future, adjusting prediction "
-                    "from %lld to %lld ns.",
+            printf("Sample time is too far in the future, adjusting prediction "
+                    "from %lld to %lld ns.\n",
                     sampleTime - current->eventTime, maxPredict - current->eventTime);
 #endif
             sampleTime = maxPredict;
@@ -737,7 +737,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         alpha = float(current->eventTime - sampleTime) / delta;
     } else {
 #if DEBUG_RESAMPLING
-        ALOGD("Not resampled, insufficient data.");
+        printf("Not resampled, insufficient data.\n");
 #endif
         return;
     }
@@ -760,8 +760,8 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
             resampledCoords.setAxisValue(AMOTION_EVENT_AXIS_Y,
                     lerp(currentCoords.getY(), otherCoords.getY(), alpha));
 #if DEBUG_RESAMPLING
-            ALOGD("[%d] - out (%0.3f, %0.3f), cur (%0.3f, %0.3f), "
-                    "other (%0.3f, %0.3f), alpha %0.3f",
+            printf("[%d] - out (%0.3f, %0.3f), cur (%0.3f, %0.3f), "
+                    "other (%0.3f, %0.3f), alpha %0.3f\n",
                     id, resampledCoords.getX(), resampledCoords.getY(),
                     currentCoords.getX(), currentCoords.getY(),
                     otherCoords.getX(), otherCoords.getY(),
@@ -770,7 +770,7 @@ void InputConsumer::resampleTouchState(nsecs_t sampleTime, MotionEvent* event,
         } else {
             resampledCoords.copyFrom(currentCoords);
 #if DEBUG_RESAMPLING
-            ALOGD("[%d] - out (%0.3f, %0.3f), cur (%0.3f, %0.3f)",
+            printf("[%d] - out (%0.3f, %0.3f), cur (%0.3f, %0.3f)\n",
                     id, resampledCoords.getX(), resampledCoords.getY(),
                     currentCoords.getX(), currentCoords.getY());
 #endif
@@ -787,7 +787,7 @@ bool InputConsumer::shouldResampleTool(int32_t toolType) {
 
 status_t InputConsumer::sendFinishedSignal(uint32_t seq, bool handled) {
 #if DEBUG_TRANSPORT_ACTIONS
-    ALOGD("channel '%s' consumer ~ sendFinishedSignal: seq=%u, handled=%s",
+    printf("channel '%s' consumer ~ sendFinishedSignal: seq=%u, handled=%s",
         c_str(mChannel->getName()), seq, handled ? "true" : "false");
 #endif
 
