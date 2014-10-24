@@ -539,10 +539,28 @@ TEST_F(MirClientSurfaceTest, next_buffer_wait_handle_really_blocks)
 {
     using namespace testing;
 
-    FakeRpcChannel fake_channel;
-    mir::protobuf::DisplayServer::Stub unresponsive_server{&fake_channel};
+    struct UnresponsiveExchangeServer : public mir::protobuf::DisplayServer::Stub
+    {
+        UnresponsiveExchangeServer(::google::protobuf::RpcChannel* fake_channel) :
+            mir::protobuf::DisplayServer::Stub{fake_channel}
+        {
+        }
 
-    auto const surface = create_surface_with(unresponsive_server, stub_buffer_factory);
+        void exchange_buffer(
+            ::google::protobuf::RpcController*,
+            const ::mir::protobuf::BufferRequest*,
+            ::mir::protobuf::Buffer*,
+            ::google::protobuf::Closure*)  override
+        {
+        }
+    };
+
+    TestConnectionConfiguration conf;
+    connection = std::make_shared<MirConnection>(conf);
+    connection->connect("MirClientSurfaceTest", null_connected_callback, 0)->wait_for_all();
+    UnresponsiveExchangeServer unresponsive_server{conf.the_rpc_channel().get()};
+
+    auto const surface = create_and_wait_for_surface_with(unresponsive_server, stub_buffer_factory);
 
     auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
 
