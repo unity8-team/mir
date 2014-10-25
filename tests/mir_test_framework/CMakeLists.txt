@@ -10,6 +10,9 @@ include_directories(
     ${ANDROID_HEADERS_INCLUDE_DIRS}
 )
 
+add_definitions(-DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}/")
+add_definitions(-DMIR_SERVER_PLATFORM_PLUGIN_PATH="${MIR_SERVER_PLATFORM_PLUGIN_PATH}")
+
 set(
   TEST_FRAMEWORK_SRCS
 
@@ -30,6 +33,7 @@ set(
   udev_environment.cpp
   declarative_placement_strategy.cpp
   fake_event_hub_server_configuration.cpp
+  platform_loader_helpers.cpp
 )
 
 list(APPEND TEST_FRAMEWORK_SRCS
