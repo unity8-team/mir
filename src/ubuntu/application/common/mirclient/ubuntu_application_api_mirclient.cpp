@@ -34,7 +34,6 @@
 #include <ubuntu/application/sensors/light.h>
 
 #include <mir_toolkit/mir_client_library.h>
-#include <mir/client/private.h>
 
 #include <stdlib.h>
 #include <assert.h>
