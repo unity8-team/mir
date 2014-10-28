@@ -21,6 +21,7 @@
 #include "mir/frontend/message_processor_report.h"
 #include "mir/frontend/protobuf_message_sender.h"
 #include "mir/frontend/template_protobuf_message_processor.h"
+#include "mir/frontend/unsupported_feature_exception.h"
 
 #include "mir_protobuf_wire.pb.h"
 
@@ -32,7 +33,7 @@ template<class Response>
 std::vector<mir::Fd> extract_fds_from(Response* response)
 {
     std::vector<mir::Fd> fd;
-    for(auto i = 0; i < response->fd().size(); ++i)
+    for (auto i = 0; i < response->fd().size(); ++i)
         fd.emplace_back(mir::Fd(dup(response->fd().data()[i])));
     response->clear_fd();
     response->set_fds_on_side_channel(fd.size());
@@ -111,6 +112,24 @@ void invoke(
         self->send_response(invocation_id, result_message);
     }
 }
+
+// A partial-specialisation to handle error cases.
+template<class Self, class ServerX, class ParameterMessage, class ResultMessage>
+void invoke(
+    Self* self,
+    std::string* error,
+    void (ServerX::*/*function*/)(
+        ::google::protobuf::RpcController* controller,
+        const ParameterMessage* request,
+        ResultMessage* response,
+        ::google::protobuf::Closure* done),
+        Invocation const& invocation)
+{
+    ResultMessage result_message;
+    result_message.set_error(error->c_str());
+    self->send_response(invocation.id(), &result_message);
+}
+
 }
 }
 }
@@ -165,7 +184,7 @@ bool mfd::ProtobufMessageProcessor::dispatch(
         {
             auto request = parse_parameter<mir::protobuf::BufferRequest>(invocation);
             request.mutable_buffer()->clear_fd();
-            for(auto& fd : side_channel_fds)
+            for (auto& fd : side_channel_fds)
                 request.mutable_buffer()->add_fd(fd);
             invoke(this, display_server.get(), &DisplayServer::exchange_buffer, invocation.id(), &request);
         }
@@ -217,6 +236,24 @@ bool mfd::ProtobufMessageProcessor::dispatch(
         {
             invoke(this, display_server.get(), &DisplayServer::disconnect, invocation);
             result = false;
+        }
+        else if ("translate_surface_to_screen" == invocation.method_name())
+        {
+            try
+            {
+                auto debug_interface = dynamic_cast<mir::protobuf::Debug*>(display_server.get());
+                invoke(this, debug_interface, &mir::protobuf::Debug::translate_surface_to_screen, invocation);
+            }
+            catch (mir::frontend::unsupported_feature const&)
+            {
+                std::string message{"Server does not support the client debugging interface"};
+                invoke(this,
+                       &message,
+                       &mir::protobuf::Debug::translate_surface_to_screen,
+                       invocation);
+                std::runtime_error err{"Client attempted to use unavailable debug interface"};
+                report->exception_handled(display_server.get(), invocation.id(), err);
+            }
         }
         else
         {
