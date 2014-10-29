@@ -74,7 +74,8 @@ mf::SessionMediator::SessionMediator(
     std::shared_ptr<MessageResourceCache> const& resource_cache,
     std::shared_ptr<Screencast> const& screencast,
     ConnectionContext const& connection_context,
-    std::shared_ptr<mi::CursorImages> const& cursor_images) :
+    std::shared_ptr<mi::CursorImages> const& cursor_images,
+    std::shared_ptr<mf::VsyncProvider> const& vsync_provider) :
     client_pid_(0),
     shell(shell),
     graphics_platform(graphics_platform),
@@ -87,7 +88,7 @@ mf::SessionMediator::SessionMediator(
     screencast(screencast),
     connection_context(connection_context),
     cursor_images(cursor_images),
-    vsync_provider(graphics_platform->make_vsync_provider()),
+    vsync_provider(vsync_provider),
     surface_tracker{static_cast<size_t>(client_buffer_cache_size)}
 {
 }
@@ -652,6 +653,9 @@ void mf::SessionMediator::pack_protobuf_buffer(
     mg::BufferIpcMsgType buffer_msg_type)
 {
     protobuf_buffer.set_buffer_id(graphics_buffer->id().as_value());
+
+    // Fix screen detection
+    protobuf_buffer.set_vsync_time(vsync_provider->last_vsync_for(mg::DisplayConfigurationOutputId{0}).count());
 
     mfd::ProtobufBufferPacker packer{&protobuf_buffer};
     ipc_operations->pack_buffer(packer, *graphics_buffer, buffer_msg_type);

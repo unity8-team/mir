@@ -23,6 +23,7 @@
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/stub_display_buffer.h"
+#include "mir_test_doubles/stub_vsync_provider.h"
 
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/basic_client_server_fixture.h"
@@ -184,6 +185,10 @@ struct BufferCounterConfig : mtf::StubbedServerConfiguration
         std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
         {
             return std::make_shared<StubGraphicBufferAllocator>();
+        }
+        std::shared_ptr<mf::VsyncProvider> make_vsync_provider() override
+        {
+            return std::make_shared<mtd::StubVsyncProvider>();
         }
 
         std::shared_ptr<mg::Display> create_display(

@@ -24,6 +24,7 @@
 
 #include "mir/frontend/protobuf_connection_creator.h"
 #include "mir/frontend/session_authorizer.h"
+#include "mir/graphics/platform.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
 
@@ -139,7 +140,7 @@ mir::DefaultServerConfiguration::the_vsync_provider()
     return vsync_provider(
         [&]()
         {
-            return std::shared_ptr<mf::VsyncProvider>();
+            return the_graphics_platform()->make_vsync_provider();
         });
 }
 
@@ -155,5 +156,6 @@ mir::DefaultServerConfiguration::new_ipc_factory(
         the_buffer_allocator(),
         the_screencast(),
         session_authorizer,
-        the_cursor_images());
+        the_cursor_images(),
+        the_vsync_provider());
 }

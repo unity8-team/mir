@@ -77,7 +77,8 @@ public:
         std::shared_ptr<MessageResourceCache> const& resource_cache,
         std::shared_ptr<Screencast> const& screencast,
         ConnectionContext const& connection_context,
-        std::shared_ptr<input::CursorImages> const& cursor_images);
+        std::shared_ptr<input::CursorImages> const& cursor_images,
+        std::shared_ptr<VsyncProvider> const& vsync_provider);
 
     ~SessionMediator() noexcept;
 

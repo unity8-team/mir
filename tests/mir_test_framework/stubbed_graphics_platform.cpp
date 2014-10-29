@@ -23,6 +23,7 @@
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_display.h"
+#include "mir_test_doubles/stub_vsync_provider.h"
 
 #ifdef ANDROID
 #include "mir_test_doubles/stub_android_native_buffer.h"
@@ -37,6 +38,7 @@
 #include <boost/throw_exception.hpp>
 
 namespace geom = mir::geometry;
+namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 namespace mo = mir::options;
 namespace mtd = mir::test::doubles;
@@ -183,6 +185,11 @@ std::shared_ptr<mg::BufferWriter> mtf::StubGraphicPlatform::make_buffer_writer()
         }
     };
     return std::make_shared<NullWriter>();
+}
+
+std::shared_ptr<mf::VsyncProvider> mtf::StubGraphicPlatform::make_vsync_provider()
+{
+    return std::make_shared<mtd::StubVsyncProvider>();
 }
 
 extern "C" std::shared_ptr<mg::Platform> create_platform(

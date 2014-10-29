@@ -36,6 +36,7 @@
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test_doubles/mock_session.h"
 #include "mir_test_doubles/stub_shell.h"
+#include "mir_test_doubles/stub_vsync_provider.h"
 #include "mir_test_doubles/null_screencast.h"
 
 #include <gtest/gtest.h>
@@ -74,7 +75,8 @@ struct SessionMediatorMesaTest : public ::testing::Test
           mediator{shell, mock_platform, display_changer,
                    surface_pixel_formats, report,
                    std::make_shared<mtd::NullEventSink>(),
-                   resource_cache, std::make_shared<mtd::NullScreencast>(), nullptr, nullptr},
+                   resource_cache, std::make_shared<mtd::NullScreencast>(), nullptr, nullptr,
+                   std::make_shared<mtd::StubVsyncProvider>()},
           null_callback{google::protobuf::NewPermanentCallback(google::protobuf::DoNothing)}
     {
     }
