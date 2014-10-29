@@ -14,6 +14,7 @@ add_library(mirplatformgraphicsandroidobjects OBJECT
   buffer.cpp
   display.cpp
   display_configuration.cpp
+  display_configuration_utilities.cpp
   display_buffer.cpp
   output_builder.cpp
   hwc_layerlist.cpp

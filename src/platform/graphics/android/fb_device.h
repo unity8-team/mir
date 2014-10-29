@@ -42,6 +42,7 @@ public:
         SwappingGLContext const& context,
         RenderableList const& list,
         RenderableListCompositor const& list_compositor);
+    DisplayConfigurationOutput get_output_configuration(DisplayConfigurationOutputId id) const override;
 
 private:
     std::shared_ptr<framebuffer_device_t> const fb_device;

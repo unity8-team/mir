@@ -34,8 +34,8 @@ namespace doubles
 class MockFBHalDevice : public framebuffer_device_t
 {
 public:
-    MockFBHalDevice(unsigned int const width, unsigned int const height,
-                    int const pf, int const numfbs)
+    MockFBHalDevice(unsigned int const width, unsigned int const height, int const pf,
+                    float const xdpi, float const ydpi, float const fps, int const numfbs)
         : framebuffer_device_t({
             hw_device_t(),
             0,
@@ -43,9 +43,9 @@ public:
             height,
             0,
             pf,
-            0.0f,
-            0.0f,
-            0.0f,
+            xdpi,
+            ydpi,
+            fps,
             0,
             1,
             numfbs,
@@ -57,6 +57,12 @@ public:
         post = hook_post;
         setSwapInterval = hook_setSwapInterval;
         enableScreen = hook_enableScreen;
+    }
+
+    MockFBHalDevice(unsigned int const width, unsigned int const height,
+                    int const pf, int const numfbs)
+        : MockFBHalDevice(width, height, pf, 1.0f, 1.0f, 2.0f, numfbs)
+    {
     }
 
     MockFBHalDevice()

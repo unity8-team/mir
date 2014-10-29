@@ -47,10 +47,14 @@ struct FBDevice : public ::testing::Test
 
         width = 413;
         height = 516;
+        dpi_x = 96.0f;
+        dpi_y = 96.0f;
+        fps = 120.0f;
         fbnum = 4;
         format = HAL_PIXEL_FORMAT_RGBA_8888;
 
-        fb_hal_mock = std::make_shared<NiceMock<mtd::MockFBHalDevice>>(width, height, format, fbnum);
+        fb_hal_mock = std::make_shared<NiceMock<mtd::MockFBHalDevice>>(width, height, format,
+                                                                       dpi_x, dpi_y, fps, fbnum);
         mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
         native_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
         ON_CALL(*mock_buffer, native_buffer_handle())
@@ -60,6 +64,7 @@ struct FBDevice : public ::testing::Test
     }
 
     unsigned int width, height, format, fbnum;
+    float dpi_x, dpi_y, fps;
     std::shared_ptr<mtd::MockFBHalDevice> fb_hal_mock;
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
     std::shared_ptr<mir::graphics::NativeBuffer> native_buffer;
@@ -139,4 +144,44 @@ TEST_F(FBDevice, can_screen_on_off)
     fbdev.mode(mir_power_mode_suspend);
     fbdev.mode(mir_power_mode_off);
     fbdev.mode(mir_power_mode_on);
+}
+
+TEST_F(FBDevice, throws_on_wrong_display_id)
+{
+    mga::FBDevice fbdev(fb_hal_mock);
+    EXPECT_THROW(
+        {fbdev.get_output_configuration(mg::DisplayConfigurationOutputId{HWC_DISPLAY_VIRTUAL});},
+        std::runtime_error);
+    EXPECT_THROW(
+        {fbdev.get_output_configuration(mg::DisplayConfigurationOutputId{HWC_DISPLAY_EXTERNAL});},
+        std::runtime_error);
+    EXPECT_NO_THROW(
+        {fbdev.get_output_configuration(mg::DisplayConfigurationOutputId{HWC_DISPLAY_PRIMARY});});
+}
+
+TEST_F(FBDevice, display_output_configuration_matches)
+{
+    using namespace testing;
+    mga::FBDevice fbdev(fb_hal_mock);
+    EXPECT_THAT(
+        fbdev.get_output_configuration(mg::DisplayConfigurationOutputId{HWC_DISPLAY_PRIMARY}),
+        Eq(
+            mg::DisplayConfigurationOutput
+            {
+                mg::DisplayConfigurationOutputId{HWC_DISPLAY_PRIMARY},
+                mg::DisplayConfigurationCardId{0},
+                mg::DisplayConfigurationOutputType::lvds,
+                {mir_pixel_format_argb_8888},
+                {{{413, 516}, 120.0f}},
+                0,
+                {109, 136},
+                true,
+                true,
+                {0, 0},
+                0,
+                mir_pixel_format_abgr_8888,
+                mir_power_mode_on,
+                mir_orientation_normal
+            }
+          ));
 }

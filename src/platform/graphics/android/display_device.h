@@ -20,6 +20,7 @@
 #define MIR_GRAPHICS_ANDROID_DISPLAY_SUPPORT_PROVIDER_H_
 
 #include "mir/graphics/renderable.h"
+#include "mir/graphics/display_configuration.h"
 #include "mir_toolkit/common.h"
 #include <EGL/egl.h>
 
@@ -50,6 +51,7 @@ public:
         RenderableList const& list,
         RenderableListCompositor const& list_compositor) = 0;
     virtual bool apply_orientation(MirOrientation orientation) const = 0;
+    virtual DisplayConfigurationOutput get_output_configuration(DisplayConfigurationOutputId id) const = 0;
 
 protected:
     DisplayDevice() = default;

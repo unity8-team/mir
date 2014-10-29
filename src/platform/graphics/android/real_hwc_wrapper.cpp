@@ -111,3 +111,48 @@ void mga::RealHwcWrapper::display_off() const
     }
     logger->log_display_off();
 }
+
+std::vector<uint32_t> mga::RealHwcWrapper::get_display_configs(DisplayConfigurationOutputId id) const
+{
+    const int num_configs_to_query = 10;
+    uint32_t query_results[num_configs_to_query];
+    size_t configs_received = num_configs_to_query;
+
+    if (auto rc = hwc_device->getDisplayConfigs(hwc_device.get(), id.as_value(), query_results, &configs_received))
+    {
+        std::stringstream ss;
+        ss << "error querying display configs for display " << id.as_value() << ". rc = " << std::hex << rc;
+        BOOST_THROW_EXCEPTION(std::runtime_error(ss.str()));
+    }
+
+    return {query_results, query_results + configs_received};
+}
+
+mga::HwcWrapper::Attributes mga::RealHwcWrapper::get_display_config_attributes(DisplayConfigurationOutputId id, uint32_t config) const
+{
+    /* note: some drivers (qcom msm8960) choke if this is not the same size array
+       as the one surfaceflinger submits */
+    static uint32_t const display_attribute_request[] =
+    {
+        HWC_DISPLAY_WIDTH,
+        HWC_DISPLAY_HEIGHT,
+        HWC_DISPLAY_VSYNC_PERIOD,
+        HWC_DISPLAY_DPI_X,
+        HWC_DISPLAY_DPI_Y,
+        HWC_DISPLAY_NO_ATTRIBUTE,
+    };
+    int32_t size_values[sizeof(display_attribute_request) / sizeof (display_attribute_request[0])] = {};
+
+    if (auto rc = hwc_device->getDisplayAttributes(hwc_device.get(), id.as_value(), config,
+                                                   display_attribute_request, size_values))
+    {
+        std::stringstream ss;
+        ss << "error querying attributes configs for display " << id.as_value() << ". rc = " << std::hex << rc;
+        BOOST_THROW_EXCEPTION(std::runtime_error(ss.str()));
+    }
+
+    //HWC_DISPLAY_VSYNC_PERIOD is specified in nanoseconds
+    double refresh_rate_hz = (size_values[2] > 0 ) ? 1000000000.0/size_values[2] : 0.0;
+    return {{size_values[0], size_values[1]}, uint32_t(size_values[3]), uint32_t(size_values[4]), refresh_rate_hz};
+ }
+

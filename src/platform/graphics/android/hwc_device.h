@@ -50,6 +50,7 @@ public:
         SwappingGLContext const& context,
         RenderableList const& list,
         RenderableListCompositor const& list_compositor);
+    DisplayConfigurationOutput get_output_configuration(DisplayConfigurationOutputId id) const override;
 
 private:
     bool buffer_is_onscreen(Buffer const&) const;

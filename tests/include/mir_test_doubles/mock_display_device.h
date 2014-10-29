@@ -42,6 +42,7 @@ public:
         graphics::RenderableList const&,
         graphics::android::RenderableListCompositor const&));
     MOCK_CONST_METHOD1(apply_orientation, bool(MirOrientation));
+    MOCK_CONST_METHOD1(get_output_configuration, graphics::DisplayConfigurationOutput(graphics::DisplayConfigurationOutputId));
 };
 }
 }

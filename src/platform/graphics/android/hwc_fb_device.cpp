@@ -21,6 +21,7 @@
 #include "hwc_vsync_coordinator.h"
 #include "framebuffer_bundle.h"
 #include "android_format_conversion-inl.h"
+#include "display_configuration_utilities.h"
 #include "hwc_wrapper.h"
 #include "hwc_fallback_gl_renderer.h"
 #include "mir/graphics/buffer.h"
@@ -87,4 +88,12 @@ bool mga::HwcFbDevice::post_overlays(
     RenderableListCompositor const&)
 {
     return false;
+}
+
+mg::DisplayConfigurationOutput mga::HwcFbDevice::get_output_configuration(mg::DisplayConfigurationOutputId id) const
+{
+    if (id.as_value() != HWC_DISPLAY_PRIMARY)
+        BOOST_THROW_EXCEPTION(std::runtime_error("only primary display supported"));
+
+    return mga::create_output_configuration_from_fb(*fb_device);
 }

@@ -36,7 +36,8 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-namespace mga=mir::graphics::android;
+namespace mg=mir::graphics;
+namespace mga=mg::android;
 namespace mtd=mir::test::doubles;
 namespace geom=mir::geometry;
 
@@ -65,27 +66,89 @@ std::shared_ptr<mga::HWCCommonDevice> make_hwc_device<mga::HwcDevice>(
     return std::make_shared<mga::HwcDevice>(hwc_device, coordinator, file_ops);
 }
 
-template<typename T>
-class HWCCommon : public ::testing::Test
+class HWCCommonFixture : public ::testing::Test
 {
 protected:
-    virtual void SetUp()
+    void setup_display_config()
+    {
+        ON_CALL(*this->mock_device, get_display_configs(primary))
+            .WillByDefault(testing::Return(std::vector<uint32_t>{0}));
+
+        ON_CALL(*this->mock_device, get_display_configs(external))
+            .WillByDefault(testing::Return(std::vector<uint32_t>{1}));
+
+        ON_CALL(*this->mock_device, get_display_config_attributes(primary, 0))
+            .WillByDefault(testing::Return(
+                    mga::HwcWrapper::Attributes{
+                        geom::Size{280,190},
+                        320,  // dpi x
+                        320,  // dpi y
+                        60    // hz
+                        }));
+
+        ON_CALL(*this->mock_device, get_display_config_attributes(external, 1))
+            .WillByDefault(testing::Return(
+                    mga::HwcWrapper::Attributes{
+                        geom::Size{1920,1200},
+                        120,  // dpi x
+                        120,  // dpi y
+                        60    // hz
+                        }));
+    }
+    void setup_egl_configs()
     {
         using namespace testing;
+        ON_CALL(mock_egl,eglChooseConfig(_,_,_,_,_))
+            .WillByDefault(
+                Invoke([](EGLDisplay, EGLint const *, EGLConfig * configs, EGLint config_size, EGLint * num_config)
+                       {
+                          if (config_size >= 3)
+                             configs[1] = EGLConfig(42);
+                          if (config_size >= 2)
+                             configs[1] = EGLConfig(13);
+                          if (config_size >= 1)
+                             configs[0] = EGLConfig(21);
+                          *num_config = std::min(3,config_size);
+                          return EGL_TRUE;
+                       })
+                );
 
-        mock_fbdev = std::make_shared<mtd::MockFBHalDevice>();
-        mock_device = std::make_shared<testing::NiceMock<mtd::MockHWCDeviceWrapper>>();
-        mock_vsync = std::make_shared<testing::NiceMock<mtd::MockVsyncCoordinator>>();
+        ON_CALL(mock_egl,eglGetConfigAttrib(_,_,_,_))
+            .WillByDefault(
+                Invoke([](EGLDisplay, EGLConfig config, EGLint attribute, EGLint * value) -> EGLBoolean
+                       {
+                          if (!value) return EGL_FALSE;
+                          if (attribute!=EGL_NATIVE_VISUAL_ID) return EGL_FALSE;
+
+                          if (config == EGLConfig(42))
+                              *value = 0; // place holder for format that cannot be converted to mir format
+                          if (config == EGLConfig(13))
+                              *value = HAL_PIXEL_FORMAT_RGBA_8888;
+                          if (config == EGLConfig(21))
+                              *value = HAL_PIXEL_FORMAT_RGBX_8888;
+                          return EGL_TRUE;
+                       })
+                );
     }
-
     testing::NiceMock<mtd::MockEGL> mock_egl;
-    std::shared_ptr<mtd::MockVsyncCoordinator> mock_vsync;
-    std::shared_ptr<mtd::MockHWCDeviceWrapper> mock_device;
-    std::shared_ptr<mtd::MockFBHalDevice> mock_fbdev;
+    std::shared_ptr<mtd::MockVsyncCoordinator> mock_vsync = std::make_shared<testing::NiceMock<mtd::MockVsyncCoordinator>>();
+    std::shared_ptr<mtd::MockHWCDeviceWrapper> mock_device = std::make_shared<testing::NiceMock<mtd::MockHWCDeviceWrapper>>();
+    std::shared_ptr<mtd::MockFBHalDevice> mock_fbdev = std::make_shared<mtd::MockFBHalDevice>(900, 600, HAL_PIXEL_FORMAT_RGBX_8888,
+                                                                                             400.0f, 400.0f, 67.6f, 1);
+
+    mg::DisplayConfigurationOutputId primary{HWC_DISPLAY_PRIMARY};
+    mg::DisplayConfigurationOutputId external{HWC_DISPLAY_EXTERNAL};
+    mg::DisplayConfigurationOutputId virtual_output{HWC_DISPLAY_VIRTUAL};
 };
+
+template<typename T>
+using HWCCommon = HWCCommonFixture;
 
 typedef ::testing::Types<mga::HwcFbDevice, mga::HwcDevice> HWCDeviceTestTypes;
 TYPED_TEST_CASE(HWCCommon, HWCDeviceTestTypes);
+
+using PostHWC10Tests = HWCCommonFixture;
+using HWC10Tests = HWCCommonFixture;
 
 TYPED_TEST(HWCCommon, test_proc_registration)
 {
@@ -227,4 +290,175 @@ TYPED_TEST(HWCCommon, first_vsync_failure_is_not_fatal) //lp:1345533
     EXPECT_NO_THROW({
         auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
     });
+}
+
+TEST_F(HWC10Tests, throws_on_non_primary_display_output_configurations)
+{
+    using namespace testing;
+    auto device = make_hwc_device<mga::HwcFbDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THROW({
+        device->get_output_configuration(this->external);
+    }, std::runtime_error);
+    EXPECT_THROW({
+        device->get_output_configuration(this->virtual_output);
+    }, std::runtime_error);
+}
+
+TEST_F(PostHWC10Tests, throws_on_virtual_display_output_configurations)
+{
+    using namespace testing;
+    this->setup_display_config();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THROW({device->get_output_configuration(this->virtual_output);}, std::runtime_error);
+    EXPECT_NO_THROW({device->get_output_configuration(this->external);});
+    EXPECT_NO_THROW({device->get_output_configuration(this->primary);});
+}
+
+TEST_F(PostHWC10Tests, queries_hwc_device_for_configs)
+{
+    using namespace testing;
+    this->setup_display_config();
+
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_CALL(*this->mock_device, get_display_configs(this->primary));
+
+    device->get_output_configuration(this->primary);
+}
+
+TEST_F(PostHWC10Tests, throws_on_no_available_hwc_configurations)
+{
+    using namespace testing;
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    ON_CALL(*this->mock_device, get_display_configs(_))
+        .WillByDefault(Return(std::vector<uint32_t>{}));
+    EXPECT_THROW({
+        device->get_output_configuration(this->primary);
+        }, std::runtime_error);
+}
+
+TEST_F(PostHWC10Tests, queries_display_config_attributes)
+{
+    using namespace testing;
+    this->setup_display_config();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_CALL(*this->mock_device, get_display_config_attributes(this->primary, 0));
+
+    device->get_output_configuration(this->primary);
+}
+
+TEST_F(PostHWC10Tests, display_configuration_matches_expectations)
+{
+    using namespace testing;
+    this->setup_display_config();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THAT(
+        device->get_output_configuration(this->primary),
+        Eq(
+            mg::DisplayConfigurationOutput
+            {
+                this->primary,
+                mg::DisplayConfigurationCardId{0},
+                mg::DisplayConfigurationOutputType::lvds,
+                {mir_pixel_format_abgr_8888},
+                {{{280, 190}, 60}},
+                0,
+                {22, 15},
+                true,
+                true,
+                {0, 0},
+                0,
+                mir_pixel_format_abgr_8888,
+                mir_power_mode_on,
+                mir_orientation_normal
+            }
+            ));
+}
+
+TEST_F(PostHWC10Tests, display_configuration_matches_expectations_on_external_display)
+{
+    using namespace testing;
+    this->setup_display_config();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THAT(
+        device->get_output_configuration(this->external),
+        Eq(
+            mg::DisplayConfigurationOutput
+            {
+                this->external,
+                mg::DisplayConfigurationCardId{0},
+                mg::DisplayConfigurationOutputType::hdmia,
+                {mir_pixel_format_abgr_8888},
+                {{{1920, 1200}, 60}},
+                0,
+                {406, 254},
+                true,
+                true,
+                {0, 0},
+                0,
+                mir_pixel_format_abgr_8888,
+                mir_power_mode_on,
+                mir_orientation_normal
+            }
+            ));
+}
+
+TEST_F(PostHWC10Tests, queries_egl_configuration)
+{
+    using namespace testing;
+    this->setup_display_config();
+    this->setup_egl_configs();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_CALL(mock_egl,eglChooseConfig(_,_,_,_,_)).Times(1);
+    EXPECT_CALL(mock_egl,eglGetConfigAttrib(_,_,EGL_NATIVE_VISUAL_ID,_)).Times(3);
+
+    device->get_output_configuration(this->primary);
+}
+
+TEST_F(PostHWC10Tests, converts_egl_configs_to_mir_pixel_formats)
+{
+    using namespace testing;
+    this->setup_display_config();
+    this->setup_egl_configs();
+    auto device = make_hwc_device<mga::HwcDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THAT(
+        device->get_output_configuration(this->primary).pixel_formats,
+        Eq(std::vector<MirPixelFormat>({mir_pixel_format_abgr_8888, mir_pixel_format_xbgr_8888}))
+          );
+}
+
+TEST_F(HWC10Tests, display_configuration_matches_expectations)
+{
+    using namespace testing;
+    auto device = make_hwc_device<mga::HwcFbDevice>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+
+    EXPECT_THAT(
+        device->get_output_configuration(this->primary),
+        Eq(
+            mg::DisplayConfigurationOutput
+            {
+                this->primary,
+                mg::DisplayConfigurationCardId{0},
+                mg::DisplayConfigurationOutputType::lvds,
+                {mir_pixel_format_xbgr_8888},
+                {{{900, 600}, 67.6f}},
+                0,
+                {57, 38},
+                true,
+                true,
+                {0, 0},
+                0,
+                mir_pixel_format_xbgr_8888,
+                mir_power_mode_on,
+                mir_orientation_normal
+            })
+          );
 }

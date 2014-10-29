@@ -19,6 +19,9 @@
 #ifndef MIR_GRAPHICS_ANDROID_HWC_WRAPPER_H_
 #define MIR_GRAPHICS_ANDROID_HWC_WRAPPER_H_
 
+#include "mir/graphics/display_configuration.h"
+#include "mir/geometry/size.h"
+
 #include <hardware/hwcomposer.h>
 #include <memory>
 
@@ -41,6 +44,16 @@ public:
     virtual void vsync_signal_off() const = 0;
     virtual void display_on() const = 0;
     virtual void display_off() const = 0;
+
+    virtual std::vector<uint32_t> get_display_configs(DisplayConfigurationOutputId id) const = 0;
+    struct Attributes
+    {
+        geometry::Size size;
+        uint32_t dpi_x;
+        uint32_t dpi_y;
+        double refresh_rate_hz;
+    };
+    virtual Attributes get_display_config_attributes(DisplayConfigurationOutputId id, uint32_t config) const = 0;
 
 protected:
     HwcWrapper() = default;

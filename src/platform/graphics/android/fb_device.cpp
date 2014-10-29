@@ -16,14 +16,18 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "fb_device.h"
+#include "swapping_gl_context.h"
+#include "framebuffer_bundle.h"
+#include "buffer.h"
+#include "display_configuration_utilities.h"
+
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/graphics/android/sync_fence.h"
-#include "swapping_gl_context.h"
-#include "android_format_conversion-inl.h"
-#include "fb_device.h"
-#include "framebuffer_bundle.h"
-#include "buffer.h"
+
+// usage of HWC_DISPLAY_PRIMARY to identify output attached to framebuffer:
+#include "hardware/hwcomposer_defs.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -79,4 +83,13 @@ void mga::FBDevice::mode(MirPowerMode mode)
     {
         fb_device->enableScreen(fb_device.get(), enable);
     }
+}
+
+
+mg::DisplayConfigurationOutput mga::FBDevice::get_output_configuration(mg::DisplayConfigurationOutputId id) const
+{
+    if (id.as_value() != HWC_DISPLAY_PRIMARY)
+        BOOST_THROW_EXCEPTION(std::runtime_error("only primary display supported"));
+
+    return mga::create_output_configuration_from_fb(*fb_device);
 }
