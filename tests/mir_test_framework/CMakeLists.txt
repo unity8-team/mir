@@ -83,7 +83,8 @@ target_link_libraries(
 
 set_target_properties(
   mirclientplatformstub PROPERTIES;
-  OUTPUT_NAME client-platform-dummy
+  OUTPUT_NAME stub
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/client-modules
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
@@ -104,7 +105,8 @@ target_link_libraries(
 
 set_target_properties(
   mirplatformgraphicsstub PROPERTIES;
-  OUTPUT_NAME platform-graphics-dummy
+  OUTPUT_NAME graphics-stub
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/server-modules
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${server_symbol_map}"
 )
@@ -122,3 +124,6 @@ add_custom_command(TARGET mir-test-framework POST_BUILD
 )
 
 string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
+
+install(TARGETS mirplatformgraphicsstub LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})
+install(TARGETS mirclientplatformstub LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})

@@ -63,8 +63,8 @@ std::string find_library_in_paths(std::string const& library_name,
 
 std::string mtf::client_platform_stub_path()
 {
-    return find_library_in_paths("client-platform-dummy.so",
-                                 {mtf::library_path(), MIR_CLIENT_PLATFORM_PATH});
+    return find_library_in_paths("stub.so",
+                                 {mtf::library_path() + "/client-modules", MIR_CLIENT_PLATFORM_PATH});
 }
 
 std::string mtf::client_platform_mesa_path()
@@ -81,8 +81,8 @@ std::string mtf::client_platform_android_path()
 
 std::string mtf::server_platform_stub_path()
 {
-    return find_library_in_paths("platform-graphics-dummy.so",
-                                 {mtf::library_path(), MIR_SERVER_PLATFORM_PLUGIN_PATH});
+    return find_library_in_paths("graphics-stub.so",
+                                 {mtf::library_path() + "/server-modules", MIR_SERVER_PLATFORM_PLUGIN_PATH});
 }
 
 std::string mtf::server_platform_mesa_path()
