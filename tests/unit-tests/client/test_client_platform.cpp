@@ -20,7 +20,7 @@
 #include "src/client/mir_client_surface.h"
 #include "mir_test_doubles/mock_client_context.h"
 #include "mir_test_doubles/mock_client_surface.h"
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/mock_android_hw.h"
@@ -44,13 +44,13 @@ struct ClientPlatformTraits
     ClientPlatformTraits(std::string const& library,
                          std::function<void(MirPlatformPackage&)> populator,
                          MirPlatformType type)
-        : platform_library_name{library},
+        : platform_library_path{library},
           populate_package_for{populator},
           platform_type{type}
     {
     }
 
-    std::string const platform_library_name;
+    std::string const platform_library_path;
     std::function<void(MirPlatformPackage&)> const populate_package_for;
     MirPlatformType const platform_type;
 };
@@ -58,7 +58,7 @@ struct ClientPlatformTraits
 struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits const*>
 {
     ClientPlatformTest()
-        : platform_library{mtf::library_path() + "/" + GetParam()->platform_library_name},
+        : platform_library{GetParam()->platform_library_path},
           create_client_platform{platform_library.load_function<mcl::CreateClientPlatform>("create_client_platform")},
           probe{platform_library.load_function<mcl::ClientPlatformProbe>("is_appropriate_module")}
     {
@@ -77,7 +77,7 @@ struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits
 };
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-ClientPlatformTraits const android_platform{"/client-modules/android.so",
+ClientPlatformTraits const android_platform{mtf::client_platform_android_path(),
                                             [](MirPlatformPackage& pkg)
                                             {
                                                 ::memset(&pkg, 0, sizeof(pkg));
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_CASE_P(Android,
 #endif
 
 #ifdef MIR_BUILD_PLATFORM_MESA
-ClientPlatformTraits const mesa_platform{"/client-modules/mesa.so",
+ClientPlatformTraits const mesa_platform{mtf::client_platform_mesa_path(),
                                          [](MirPlatformPackage& pkg)
                                          {
                                              ::memset(&pkg, 0, sizeof(pkg));

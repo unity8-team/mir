@@ -21,7 +21,7 @@
 
 #include "mir/geometry/rectangle.h"
 
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 #include "mir_test_framework/stub_server_platform_factory.h"
 
 #include <vector>
@@ -40,7 +40,7 @@ void ensure_platform_library()
 {
     if (!platform_lib)
     {
-        platform_lib = new mir::SharedLibrary{mtf::library_path() + "/platform-graphics-dummy.so"};
+        platform_lib = new mir::SharedLibrary{mtf::server_platform_stub_path()};
     }
 }
 }

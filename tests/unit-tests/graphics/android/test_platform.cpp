@@ -29,7 +29,7 @@
 #include "mir_test_doubles/fd_matcher.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 #include "mir/shared_library.h"
 #include <system/window.h>
 #include <gtest/gtest.h>
@@ -164,7 +164,7 @@ TEST(AndroidGraphicsPlatform, probe_returns_unsupported_when_no_hwaccess)
 
     ON_CALL(hwaccess, hw_get_module(_,_)).WillByDefault(Return(-1));
 
-    mir::SharedLibrary platform_lib{mtf::library_path() + "/server-modules/graphics-android.so"};
+    mir::SharedLibrary platform_lib{mtf::server_platform_android_path()};
     auto probe = platform_lib.load_function<mg::PlatformProbe>("probe_platform");
     EXPECT_EQ(mg::PlatformPriority::unsupported, probe());
 }
@@ -173,7 +173,7 @@ TEST(AndroidGraphicsPlatform, probe_returns_best_when_hwaccess_succeeds)
 {
     testing::NiceMock<mtd::HardwareAccessMock> hwaccess;
 
-    mir::SharedLibrary platform_lib{mtf::library_path() + "/server-modules/graphics-android.so"};
+    mir::SharedLibrary platform_lib{mtf::server_platform_android_path()};
     auto probe = platform_lib.load_function<mg::PlatformProbe>("probe_platform");
     EXPECT_EQ(mg::PlatformPriority::best, probe());
 }

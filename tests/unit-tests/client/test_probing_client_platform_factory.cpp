@@ -20,7 +20,7 @@
 #include "src/client/probing_client_platform_factory.h"
 
 #include "mir_test_doubles/mock_client_context.h"
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -35,10 +35,10 @@ all_available_modules()
 {
     std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
 #ifdef MIR_BUILD_PLATFORM_MESA
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-modules/mesa.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform_mesa_path()));
 #endif
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-modules/android.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform_android_path()));
 #endif
     return modules;
 }
@@ -121,8 +121,8 @@ TEST(ProbingClientPlatformFactory, IgnoresNonClientPlatformModules)
 
     auto modules = all_available_modules();
     // NOTE: For minimum fuss, load something that has minimal side-effects...
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/client-platform-dummy.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::server_platform_stub_path()));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform_stub_path()));
 
     mir::client::ProbingClientPlatformFactory factory{modules};
 

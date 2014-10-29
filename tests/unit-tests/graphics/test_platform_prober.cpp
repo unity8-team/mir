@@ -33,7 +33,7 @@
 #endif
 
 #include "mir_test_framework/udev_environment.h"
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 
 namespace mtf = mir_test_framework;
 namespace mtd = mir::test::doubles;
@@ -45,17 +45,17 @@ std::vector<std::shared_ptr<mir::SharedLibrary>> available_platforms()
     std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
 
 #ifdef MIR_BUILD_PLATFORM_MESA
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/server-modules/graphics-mesa.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::server_platform_mesa_path()));
 #endif
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/server-modules/graphics-android.so"));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::server_platform_android_path()));
 #endif
     return modules;
 }
 
 void add_dummy_platform(std::vector<std::shared_ptr<mir::SharedLibrary>>& modules)
 {
-    modules.insert(modules.begin(), std::make_shared<mir::SharedLibrary>(mtf::library_path() + "/platform-graphics-dummy.so"));
+    modules.insert(modules.begin(), std::make_shared<mir::SharedLibrary>(mtf::server_platform_stub_path()));
 }
 
 std::shared_ptr<void> ensure_android_probing_fails()
@@ -205,9 +205,7 @@ TEST(ServerPlatformProbe, IgnoresNonPlatformModules)
 
     // NOTE: We want to load something that doesn't link with libmirplatform,
     // due to protobuf throwing a screaming hissy fit if it gets loaded twice.
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::library_path() +
-                                                           "/client-platform-dummy.so"));
-
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform_stub_path()));
 
     auto module = mir::graphics::module_for_device(modules);
     EXPECT_NE(nullptr, module);

@@ -21,7 +21,7 @@
 
 #include "mir/server.h"
 
-#include "mir_test_framework/executable_path.h"
+#include "mir_test_framework/platform_loader_helpers.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -78,8 +78,7 @@ private:
 
 struct AcceptanceTest : Test
 {
-    AcceptanceTest() : platform("MIR_SERVER_PLATFORM_GRAPHICS_LIB",
-                                (mtf::library_path() + "/platform-graphics-dummy.so").c_str()) {}
+    AcceptanceTest() : platform("MIR_SERVER_PLATFORM_GRAPHICS_LIB", mtf::server_platform_stub_path().c_str()) {}
 
     TemporaryEnvironmentValue platform;
 };
