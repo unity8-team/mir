@@ -56,7 +56,7 @@ std::string find_library_in_paths(std::string const& library_name,
     {
         failure_msg += path + "\n";
     }
-    throw new std::runtime_error{failure_msg};
+    throw std::runtime_error{failure_msg};
 }
 
 }
