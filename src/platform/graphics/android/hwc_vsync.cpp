@@ -17,10 +17,17 @@
  */
 
 #include "hwc_vsync.h"
-namespace mga=mir::graphics::android;
+
+#include <boost/throw_exception.hpp>
+
+#include <stdexcept>
+
+namespace mg = mir::graphics;
+namespace mga = mg::android;
 
 mga::HWCVsync::HWCVsync()
-    : vsync_occurred(false)
+    : vsync_occurred(false),
+      last_vsync(std::chrono::nanoseconds::zero())
 {
 }
 
@@ -34,9 +41,24 @@ void mga::HWCVsync::wait_for_vsync()
     }
 }
 
-void mga::HWCVsync::notify_vsync()
+void mga::HWCVsync::notify_vsync(std::chrono::nanoseconds time)
 {
     std::unique_lock<std::mutex> lk(vsync_wait_mutex);
+
     vsync_occurred = true;
+    last_vsync = time;
+
     vsync_trigger.notify_all();
+}
+
+std::chrono::nanoseconds mga::HWCVsync::last_vsync_for(mg::DisplayConfigurationOutputId output)
+{
+    if (output != mg::DisplayConfigurationOutputId{0})
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error(
+            "HWCVsync got non zero output ID but multi-monitor is not yet supported"));
+    }
+    
+    std::unique_lock<std::mutex> lk(vsync_wait_mutex);
+    return last_vsync;
 }

@@ -195,14 +195,16 @@ TYPED_TEST(HWCCommon, callback_calls_hwcvsync)
         .WillOnce(SaveArg<0>(&callbacks));
 
     auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
+    
+    int64_t const fake_vsync_timestamp = 17;
 
-    EXPECT_CALL(*this->mock_vsync, notify_vsync())
+    EXPECT_CALL(*this->mock_vsync, notify_vsync(std::chrono::nanoseconds(fake_vsync_timestamp)))
         .Times(1);
     ASSERT_THAT(callbacks, Ne(nullptr));
-    callbacks->hooks.vsync(&callbacks->hooks, 0, 0);
+    callbacks->hooks.vsync(&callbacks->hooks, 0, fake_vsync_timestamp);
 
     callbacks->self = nullptr;
-    callbacks->hooks.vsync(&callbacks->hooks, 0, 0);
+    callbacks->hooks.vsync(&callbacks->hooks, 0, fake_vsync_timestamp);
 }
 
 TYPED_TEST(HWCCommon, set_orientation)

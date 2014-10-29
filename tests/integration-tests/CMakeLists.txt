@@ -31,6 +31,7 @@ set(
   test_server_shutdown.cpp
   test_session_manager.cpp
   test_session.cpp
+  test_vsync_to_client.cpp
   session_management.cpp
   surface_composition.cpp
   ${GENERATED_PROTOBUF_SRCS}

@@ -19,6 +19,10 @@
 #ifndef MIR_GRAPHICS_ANDROID_HWC_VSYNC_COORDINATOR_H_
 #define MIR_GRAPHICS_ANDROID_HWC_VSYNC_COORDINATOR_H_
 
+#include "mir/frontend/vsync_provider.h"
+
+#include <chrono>
+
 namespace mir
 {
 namespace graphics
@@ -26,13 +30,14 @@ namespace graphics
 namespace android
 {
 
-class HWCVsyncCoordinator
+class HWCVsyncCoordinator : public frontend::VsyncProvider
 {
 public:
     virtual ~HWCVsyncCoordinator() = default;
 
     virtual void wait_for_vsync() = 0;
-    virtual void notify_vsync() = 0;
+    virtual void notify_vsync(std::chrono::nanoseconds time) = 0;
+    virtual std::chrono::nanoseconds last_vsync_for(DisplayConfigurationOutputId id) = 0;
 
 protected:
     HWCVsyncCoordinator() = default;

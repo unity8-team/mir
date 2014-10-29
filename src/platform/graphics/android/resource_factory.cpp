@@ -39,6 +39,11 @@
 namespace mg = mir::graphics;
 namespace mga=mir::graphics::android;
 
+mga::ResourceFactory::ResourceFactory(std::shared_ptr<HWCVsyncCoordinator> const& vsync_coordinator)
+    : vsync_coordinator(vsync_coordinator)
+{
+}
+
 std::shared_ptr<framebuffer_device_t> mga::ResourceFactory::create_fb_native_device() const
 {
     hw_module_t const* module;
@@ -92,15 +97,13 @@ std::shared_ptr<mga::DisplayDevice> mga::ResourceFactory::create_fb_device(
 std::shared_ptr<mga::DisplayDevice> mga::ResourceFactory::create_hwc_device(
     std::shared_ptr<HwcWrapper> const& wrapper) const
 {
-    auto syncer = std::make_shared<mga::HWCVsync>();
     auto file_ops = std::make_shared<mga::RealSyncFileOps>();
-    return std::make_shared<mga::HwcDevice>(wrapper, syncer, file_ops);
+    return std::make_shared<mga::HwcDevice>(wrapper, vsync_coordinator, file_ops);
 }
 
 std::shared_ptr<mga::DisplayDevice> mga::ResourceFactory::create_hwc_fb_device(
     std::shared_ptr<HwcWrapper> const& wrapper,
     std::shared_ptr<framebuffer_device_t> const& fb_native_device) const
 {
-    auto syncer = std::make_shared<mga::HWCVsync>();
-    return std::make_shared<mga::HwcFbDevice>(wrapper, fb_native_device, syncer);
+    return std::make_shared<mga::HwcFbDevice>(wrapper, fb_native_device, vsync_coordinator);
 }

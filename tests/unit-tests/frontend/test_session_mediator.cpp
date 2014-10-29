@@ -42,6 +42,7 @@
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/stub_session.h"
 #include "mir_test_doubles/stub_display_configuration.h"
+#include "mir_test_doubles/stub_vsync_provider.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/null_screencast.h"
 #include "mir_test/display_config_matchers.h"
@@ -213,6 +214,8 @@ class MockPlatform : public mg::Platform
             .WillByDefault(Return(std::shared_ptr<mg::GraphicBufferAllocator>()));
         ON_CALL(*this, create_display(_,_,_))
             .WillByDefault(Return(std::make_shared<mtd::NullDisplay>()));
+        ON_CALL(*this, make_vsync_provider())
+            .WillByDefault(Return(std::make_shared<mtd::StubVsyncProvider>()));
         ON_CALL(*this, connection_ipc_package())
             .WillByDefault(Return(std::make_shared<mg::PlatformIPCPackage>()));
         ON_CALL(*this, make_ipc_operations())
@@ -230,6 +233,7 @@ class MockPlatform : public mg::Platform
     MOCK_CONST_METHOD0(make_ipc_operations, std::shared_ptr<mg::PlatformIpcOperations>());
     MOCK_CONST_METHOD0(egl_native_display, EGLNativeDisplayType());
     MOCK_METHOD0(make_buffer_writer, std::shared_ptr<mg::BufferWriter>());
+    MOCK_METHOD0(make_vsync_provider, std::shared_ptr<mf::VsyncProvider>());
 };
 
 struct StubScreencast : mtd::NullScreencast

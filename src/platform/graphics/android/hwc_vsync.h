@@ -19,9 +19,13 @@
 #ifndef MIR_GRAPHICS_ANDROID_HWC_VSYNC_H_
 #define MIR_GRAPHICS_ANDROID_HWC_VSYNC_H_
 
+#include "mir/frontend/vsync_provider.h"
+
 #include "hwc_vsync_coordinator.h"
+
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 
 namespace mir
 {
@@ -36,11 +40,16 @@ public:
     HWCVsync();
 
     void wait_for_vsync();
-    void notify_vsync();
+    void notify_vsync(std::chrono::nanoseconds time);
+    
+    std::chrono::nanoseconds last_vsync_for(graphics::DisplayConfigurationOutputId output) override;    
+
 private:
     std::mutex vsync_wait_mutex;
     std::condition_variable vsync_trigger;
+
     bool vsync_occurred;
+    std::chrono::nanoseconds last_vsync;
 };
 
 }

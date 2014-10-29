@@ -21,6 +21,7 @@
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/options/program_option.h"
 #include "src/platform/graphics/android/platform.h"
+#include "src/platform/graphics/android/hwc_vsync_coordinator.h"
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/mock_android_hw.h"
 #include "mir_test_doubles/mock_buffer_ipc_message.h"
@@ -39,6 +40,19 @@ namespace mtd=mir::test::doubles;
 namespace mr=mir::report;
 namespace geom=mir::geometry;
 namespace mo=mir::options;
+
+namespace
+{
+struct StubHWCVsyncCoordinator : public mga::HWCVsyncCoordinator
+{
+    void wait_for_vsync() override {}
+    void notify_vsync(std::chrono::nanoseconds) override {}
+    std::chrono::nanoseconds last_vsync_for(mg::DisplayConfigurationOutputId) override
+    {
+        return std::chrono::nanoseconds::zero();
+    }
+};
+}
 
 class PlatformBufferIPCPackaging : public ::testing::Test
 {
@@ -89,7 +103,8 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc)
 {
     using namespace ::testing;
 
-    mga::Platform platform(stub_display_builder, stub_display_report);
+    mga::Platform platform(stub_display_builder, std::make_shared<StubHWCVsyncCoordinator>(),
+        stub_display_report);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
@@ -125,7 +140,8 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ip
 {
     using namespace ::testing;
 
-    mga::Platform platform(stub_display_builder, stub_display_report);
+    mga::Platform platform(stub_display_builder, std::make_shared<StubHWCVsyncCoordinator>(),
+        stub_display_report);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     EXPECT_CALL(mock_ipc_msg, pack_fd(_))
@@ -149,6 +165,7 @@ TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)
 {
     mga::Platform platform(
         std::make_shared<mtd::StubDisplayBuilder>(),
+        std::make_shared<StubHWCVsyncCoordinator>(),
         mr::null_display_report());
 
     EXPECT_EQ(EGL_DEFAULT_DISPLAY, platform.egl_native_display());

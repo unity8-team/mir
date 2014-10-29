@@ -41,6 +41,7 @@
 #include "mir/frontend/event_sink.h"
 #include "mir/frontend/screencast.h"
 #include "mir/frontend/prompt_session.h"
+#include "mir/frontend/vsync_provider.h"
 #include "mir/scene/prompt_session_creation_parameters.h"
 #include "mir/fd.h"
 
@@ -86,6 +87,7 @@ mf::SessionMediator::SessionMediator(
     screencast(screencast),
     connection_context(connection_context),
     cursor_images(cursor_images),
+    vsync_provider(graphics_platform->make_vsync_provider()),
     surface_tracker{static_cast<size_t>(client_buffer_cache_size)}
 {
 }

@@ -94,6 +94,7 @@ MIR_SERVER_27 {
     mir::DefaultServerConfiguration::the_scene*;
     mir::DefaultServerConfiguration::the_scene_report*;
     mir::DefaultServerConfiguration::the_screencast*;
+    mir::DefaultServerConfiguration::the_vsync_provider*;
     mir::DefaultServerConfiguration::the_server_action_queue*;
     mir::DefaultServerConfiguration::the_server_status_listener*;
     mir::DefaultServerConfiguration::the_session_authorizer*;
@@ -549,6 +550,7 @@ MIR_SERVER_27 {
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_scene*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_scene_report*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_screencast*;
+    non-virtual?thunk?to?mir::DefaultServerConfiguration::the_vsync_provider*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_server_action_queue*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_server_status_listener*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_session_authorizer*;

@@ -330,6 +330,11 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface* surface, MirCursorConfig
     return result;
 }
 
+int64_t mir_surface_get_last_display_time(MirSurface *surface)
+{
+    return surface->get_last_display_time().count();
+}
+
 /* Debug functions */
 
 uint32_t mir_debug_surface_current_buffer_id(MirSurface* surface)

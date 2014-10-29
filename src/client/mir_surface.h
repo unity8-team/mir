@@ -98,10 +98,12 @@ public:
     void set_event_handler(MirEventDelegate const* delegate);
     void handle_event(MirEvent const& e);
 
+    std::chrono::nanoseconds get_last_display_time() const;
+
     /* mir::client::ClientSurface */
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
-
+    
     static bool is_valid(MirSurface* query);
 private:
     mutable std::mutex mutex; // Protects all members of *this
@@ -130,6 +132,8 @@ private:
     std::shared_ptr<mir::client::MemoryRegion> secured_region;
     std::shared_ptr<mir::client::ClientBufferDepository> buffer_depository;
     std::shared_ptr<mir::input::receiver::InputPlatform> const input_platform;
+    
+    std::chrono::nanoseconds last_display_time;
 
     std::shared_ptr<EGLNativeWindowType> accelerated_window;
 

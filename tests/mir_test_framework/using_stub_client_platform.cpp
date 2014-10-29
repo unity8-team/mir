@@ -21,6 +21,8 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "src/client/mir_connection_api.h"
 
+#include <functional>
+
 namespace mtf = mir_test_framework;
 namespace mcl = mir::client;
 
@@ -36,6 +38,17 @@ class StubMirConnectionAPI : public mcl::MirConnectionAPI
 public:
     StubMirConnectionAPI(mcl::MirConnectionAPI* prev_api)
         : prev_api{prev_api}
+    {
+        create_configuration = [&](std::string const& socket)
+        {
+            return std::unique_ptr<mcl::ConnectionConfiguration>(new mtf::StubConnectionConfiguration{socket});
+        };
+    }
+    
+    StubMirConnectionAPI(mcl::MirConnectionAPI* prev_api,
+        std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)> const& create_configuration)
+        : prev_api{prev_api},
+          create_configuration{create_configuration}
     {
     }
 
@@ -58,12 +71,12 @@ public:
 
     std::unique_ptr<mcl::ConnectionConfiguration> configuration(std::string const& socket) override
     {
-        return std::unique_ptr<mcl::ConnectionConfiguration>{
-            new mtf::StubConnectionConfiguration{socket}};
+        return create_configuration(socket);
     }
-
+    
 private:
     mcl::MirConnectionAPI* const prev_api;
+    std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)> create_configuration;
 };
 
 }
@@ -73,6 +86,13 @@ mtf::UsingStubClientPlatform::UsingStubClientPlatform()
       stub_api{new StubMirConnectionAPI{prev_api}}
 {
     mir_connection_api_impl = stub_api.get();
+}
+
+mtf::UsingStubClientPlatform::UsingStubClientPlatform(std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)>
+     const& create_connection_configuration)
+    : prev_api{mir_connection_api_impl},
+      stub_api{new StubMirConnectionAPI{prev_api, create_connection_configuration}}
+{
 }
 
 mtf::UsingStubClientPlatform::~UsingStubClientPlatform()

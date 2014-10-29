@@ -60,6 +60,7 @@ class EventSink;
 class DisplayChanger;
 class Screencast;
 class PromptSession;
+class VsyncProvider;
 
 // SessionMediator relays requests from the client process into the server.
 class SessionMediator : public detail::DisplayServer
@@ -193,6 +194,7 @@ private:
     std::shared_ptr<Screencast> const screencast;
     ConnectionContext const connection_context;
     std::shared_ptr<input::CursorImages> const cursor_images;
+    std::shared_ptr<frontend::VsyncProvider> const vsync_provider;
 
     SurfaceTracker surface_tracker;
 

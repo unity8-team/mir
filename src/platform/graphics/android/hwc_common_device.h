@@ -26,6 +26,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <chrono>
 
 namespace mir
 {
@@ -48,7 +49,7 @@ class HWCCommonDevice : public DisplayDevice
 public:
     virtual ~HWCCommonDevice() noexcept;
 
-    void notify_vsync();
+    void notify_vsync(std::chrono::nanoseconds timestamp);
     void mode(MirPowerMode mode);
     bool apply_orientation(MirOrientation orientation) const;
 

@@ -24,6 +24,7 @@
 
 namespace mg = mir::graphics;
 namespace mgn = mir::graphics::nested;
+namespace mf = mir::frontend;
 
 namespace
 {
@@ -125,6 +126,12 @@ private:
 std::shared_ptr<mg::PlatformIpcOperations> mgn::NestedPlatform::make_ipc_operations() const
 {
     return std::make_shared<BufferPacker>(native_platform);
+}
+
+std::shared_ptr<mf::VsyncProvider> mgn::NestedPlatform::make_vsync_provider()
+{
+    return nullptr;
+    // TODO: Impl
 }
 
 EGLNativeDisplayType mgn::NestedPlatform::egl_native_display() const

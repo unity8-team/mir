@@ -39,6 +39,8 @@ message Buffer {
   optional uint32 flags = 6;
   optional int32  width = 7;
   optional int32  height = 8;
+  
+  optional int64  vsync_time = 9;
 
   optional string error = 127;
 }

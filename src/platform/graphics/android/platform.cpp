@@ -26,6 +26,7 @@
 #include "output_builder.h"
 #include "buffer_writer.h"
 #include "hwc_loggers.h"
+#include "hwc_vsync.h"
 #include "ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/buffer_ipc_message.h"
@@ -82,8 +83,10 @@ mga::OverlayOptimization should_use_overlay_optimization(mo::Option const& optio
 
 mga::Platform::Platform(
     std::shared_ptr<mga::DisplayBuilder> const& display_builder,
+    std::shared_ptr<mga::HWCVsyncCoordinator> const& vsync_coordinator,
     std::shared_ptr<mg::DisplayReport> const& display_report)
     : display_builder(display_builder),
+      vsync_coordinator(vsync_coordinator),
       display_report(display_report),
       ipc_operations(std::make_shared<mga::IpcOperations>())
 {
@@ -156,6 +159,11 @@ std::shared_ptr<mg::BufferWriter> mga::Platform::make_buffer_writer()
     return std::make_shared<mga::BufferWriter>();
 }
 
+std::shared_ptr<mf::VsyncProvider> mga::Platform::make_vsync_provider()
+{
+    return vsync_coordinator;
+}
+
 extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
@@ -164,18 +172,22 @@ extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
     auto logger = make_logger(*options);
     auto overlay_option = should_use_overlay_optimization(*options);
     logger->log_overlay_optimization(overlay_option);
-    auto display_resource_factory = std::make_shared<mga::ResourceFactory>();
+
+    auto vsync_coordinator = std::make_shared<mga::HWCVsync>();
+
+    auto display_resource_factory = std::make_shared<mga::ResourceFactory>(vsync_coordinator);
     auto fb_allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>();
     auto display_builder = std::make_shared<mga::OutputBuilder>(
         fb_allocator, display_resource_factory, display_report, overlay_option, logger);
-    return std::make_shared<mga::Platform>(display_builder, display_report);
+    return std::make_shared<mga::Platform>(display_builder, vsync_coordinator, display_report);
 }
 
 extern "C" std::shared_ptr<mg::NativePlatform> create_native_platform(std::shared_ptr<mg::DisplayReport> const& display_report)
 {
     //TODO: remove nullptr parameter once platform classes are sorted.
-    //      mg::NativePlatform cannot create a display anyways, so it doesnt need a  display builder
-    return std::make_shared<mga::Platform>(nullptr, display_report);
+    //      mg::NativePlatform cannot create a display anyways, so it doesnt need a  display builder or
+    //      a vsync provider.
+    return std::make_shared<mga::Platform>(nullptr, nullptr, display_report);
 }
 
 extern "C" void add_platform_options(

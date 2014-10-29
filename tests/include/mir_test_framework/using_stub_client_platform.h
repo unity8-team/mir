@@ -19,6 +19,8 @@
 #ifndef MIR_TEST_FRAMEWORK_USING_STUB_CLIENT_PLATFORM_H_
 #define MIR_TEST_FRAMEWORK_USING_STUB_CLIENT_PLATFORM_H_
 
+#include "src/client/connection_configuration.h"
+
 #include <memory>
 
 namespace mir
@@ -36,6 +38,8 @@ class UsingStubClientPlatform
 {
 public:
     UsingStubClientPlatform();
+    UsingStubClientPlatform(std::function<std::unique_ptr<mir::client::ConnectionConfiguration>(std::string const&)>
+        const& create_connection_configuration);
     ~UsingStubClientPlatform();
 
 private:

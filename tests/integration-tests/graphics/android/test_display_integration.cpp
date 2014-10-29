@@ -22,6 +22,7 @@
 #include "src/platform/graphics/android/resource_factory.h"
 #include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
 #include "src/platform/graphics/android/output_builder.h"
+#include "src/platform/graphics/android/hwc_vsync.h"
 #include "src/server/graphics/program_factory.h"
 #include "src/server/report/null_report_factory.h"
 
@@ -60,7 +61,7 @@ protected:
            per process (repeated framebuffer_{open,close}() doesn't seem to work). once we
            figure out why, we can remove fb_device in the test fixture */
         auto logger = std::make_shared<mga::NullHwcLogger>();
-        auto display_resource_factory = std::make_shared<mga::ResourceFactory>();
+        auto display_resource_factory = std::make_shared<mga::ResourceFactory>(std::make_shared<mga::HWCVsync>());
         auto null_display_report = mir::report::null_display_report();
         auto stub_gl_config = std::make_shared<mtd::StubGLConfig>();
         auto display_buffer_factory = std::make_shared<mga::OutputBuilder>(

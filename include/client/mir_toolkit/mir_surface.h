@@ -287,6 +287,15 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface *surface, MirCursorConfig
  */
 MirOrientation mir_surface_get_orientation(MirSurface *surface);
 
+/**
+ * Returns the last time a buffer from the surface was displayed on screen.
+ * During periods of contiuous rendering may be used as a vsync interval.
+ * If possible this time will be sampled on the server side from hardware
+ * vsync timings.
+ * TODO: Finsih documentation ~racarr
+ */
+int64_t mir_surface_get_last_display_time(MirSurface *surface);
+
 #ifdef __cplusplus
 }
 /**@}*/

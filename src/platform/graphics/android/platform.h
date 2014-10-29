@@ -33,12 +33,14 @@ namespace android
 class GraphicBufferAllocator;
 class FramebufferFactory;
 class DisplayBuilder;
+class HWCVsyncCoordinator;
 
 class Platform : public graphics::Platform, public NativePlatform
 {
 public:
     Platform(
         std::shared_ptr<DisplayBuilder> const& display_builder,
+        std::shared_ptr<HWCVsyncCoordinator> const& vsync_coordinator,
         std::shared_ptr<DisplayReport> const& display_report);
 
     /* From Platform */
@@ -52,6 +54,8 @@ public:
     std::shared_ptr<PlatformIPCPackage> connection_ipc_package();
     std::shared_ptr<InternalClient> create_internal_client();
     std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
+    std::shared_ptr<frontend::VsyncProvider> make_vsync_provider() override;
+
     void fill_buffer_package(
         BufferIpcMessage* packer, graphics::Buffer const* buffer, BufferIpcMsgType msg_type) const;
     EGLNativeDisplayType egl_native_display() const;
@@ -64,7 +68,9 @@ private:
     std::shared_ptr<GraphicBufferAllocator> create_mga_buffer_allocator();
 
     std::shared_ptr<DisplayBuilder> const display_builder;
+    std::shared_ptr<HWCVsyncCoordinator> const vsync_coordinator;
     std::shared_ptr<DisplayReport> const display_report;
+
     std::shared_ptr<PlatformIpcOperations> const ipc_operations;
     DeviceQuirks quirks{PropertiesOps{}};
 };

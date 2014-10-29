@@ -54,7 +54,8 @@ MirSurface::MirSurface(
     : server(server),
       connection(allocating_connection),
       buffer_depository(std::make_shared<mcl::ClientBufferDepository>(factory, mir::frontend::client_buffer_cache_size)),
-      input_platform(input_platform)
+      input_platform(input_platform),
+      last_display_time(std::chrono::nanoseconds::zero())
 {
     const char* report_target = getenv("MIR_CLIENT_PERF_REPORT");
     if (report_target && !strcmp(report_target, "log"))
@@ -212,6 +213,12 @@ void MirSurface::process_incoming_buffer()
     {
         surface.set_width(buffer.width());
         surface.set_height(buffer.height());
+    }
+
+    if (buffer.has_vsync_time())
+    {
+        last_display_time = std::chrono::nanoseconds(buffer.vsync_time());
+        // TODO: Notify input thread ~racarr
     }
 
     auto surface_size = geom::Size{surface.width(), surface.height()};
@@ -493,4 +500,11 @@ void MirSurface::request_and_wait_for_configure(MirSurfaceAttrib a, int value)
 MirOrientation MirSurface::get_orientation() const
 {
     return orientation;
+}
+
+std::chrono::nanoseconds MirSurface::get_last_display_time() const
+{
+    std::lock_guard<decltype(mutex)> lock(mutex);
+
+    return last_display_time;
 }

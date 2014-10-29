@@ -32,12 +32,12 @@ static void invalidate_hook(const struct hwc_procs* /*procs*/)
 {
 }
 
-static void vsync_hook(const struct hwc_procs* procs, int /*disp*/, int64_t /*timestamp*/)
+static void vsync_hook(const struct hwc_procs* procs, int /*disp*/, int64_t timestamp)
 {
     auto self = reinterpret_cast<mga::HWCCallbacks const*>(procs)->self.load();
     if (!self)
         return;
-    self->notify_vsync();
+    self->notify_vsync(std::chrono::nanoseconds(timestamp));
 }
 
 static void hotplug_hook(const struct hwc_procs* /*procs*/, int /*disp*/, int /*connected*/)
@@ -84,9 +84,9 @@ mga::HWCCommonDevice::~HWCCommonDevice() noexcept
     callbacks->self = nullptr;
 }
 
-void mga::HWCCommonDevice::notify_vsync()
+void mga::HWCCommonDevice::notify_vsync(std::chrono::nanoseconds timestamp)
 {
-    coordinator->notify_vsync();
+    coordinator->notify_vsync(timestamp);
 }
 
 void mga::HWCCommonDevice::mode(MirPowerMode mode_request)

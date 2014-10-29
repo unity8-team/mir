@@ -66,6 +66,7 @@ class SessionAuthorizer;
 class EventSink;
 class DisplayChanger;
 class Screencast;
+class VsyncProvider;
 }
 
 namespace shell
@@ -233,6 +234,7 @@ public:
     virtual std::shared_ptr<frontend::EventSink>              the_global_event_sink();
     virtual std::shared_ptr<frontend::DisplayChanger>         the_frontend_display_changer();
     virtual std::shared_ptr<frontend::Screencast>             the_screencast();
+    virtual std::shared_ptr<frontend::VsyncProvider>          the_vsync_provider();
     /** @name frontend configuration - internal dependencies
      * internal dependencies of frontend
      *  @{ */
@@ -388,6 +390,7 @@ protected:
     CachedPtr<frontend::ConnectionCreator> connection_creator;
     CachedPtr<frontend::ConnectionCreator> prompt_connection_creator;
     CachedPtr<frontend::Screencast> screencast;
+    CachedPtr<frontend::VsyncProvider> vsync_provider;
     CachedPtr<compositor::RendererFactory> renderer_factory;
     CachedPtr<compositor::BufferStreamFactory> buffer_stream_factory;
     CachedPtr<compositor::FrameDroppingPolicyFactory> frame_dropping_policy_factory;

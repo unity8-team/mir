@@ -133,6 +133,16 @@ mir::DefaultServerConfiguration::the_prompt_connector()
         });
 }
 
+std::shared_ptr<mf::VsyncProvider>
+mir::DefaultServerConfiguration::the_vsync_provider()
+{
+    return vsync_provider(
+        [&]()
+        {
+            return std::shared_ptr<mf::VsyncProvider>();
+        });
+}
+
 std::shared_ptr<mir::frontend::ProtobufIpcFactory>
 mir::DefaultServerConfiguration::new_ipc_factory(
     std::shared_ptr<mf::SessionAuthorizer> const& session_authorizer)

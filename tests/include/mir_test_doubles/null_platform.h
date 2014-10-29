@@ -60,6 +60,11 @@ class NullPlatform : public graphics::Platform
     {
         return nullptr;
     }
+    
+    std::shared_ptr<frontend::VsyncProvider> make_vsync_provider() override
+    {
+        return nullptr;
+    }
 
     std::shared_ptr<graphics::PlatformIpcOperations> make_ipc_operations() const override
     {

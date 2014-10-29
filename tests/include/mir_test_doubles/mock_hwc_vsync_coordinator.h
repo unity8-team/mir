@@ -34,7 +34,9 @@ struct MockVsyncCoordinator : public graphics::android::HWCVsyncCoordinator
 {
     ~MockVsyncCoordinator() noexcept {}
     MOCK_METHOD0(wait_for_vsync, void());
-    MOCK_METHOD0(notify_vsync, void());
+    MOCK_METHOD1(notify_vsync, void(std::chrono::nanoseconds));
+    
+    MOCK_METHOD1(last_vsync_for, std::chrono::nanoseconds(graphics::DisplayConfigurationOutputId));
 };
 
 
