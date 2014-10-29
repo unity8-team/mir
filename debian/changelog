@@ -1,8 +1,8 @@
-qtmir-gles (0.4.4+14.10.20141023-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+14.10.20141029-0ubuntu1) UNRELEASED; urgency=medium
 
   * Sync with upstream
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Thu, 23 Oct 2014 14:27:55 -0400
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 29 Oct 2014 15:24:14 +0100
 
 qtmir-gles (0.4.4+14.10.20141013-0ubuntu1) utopic; urgency=medium
 
