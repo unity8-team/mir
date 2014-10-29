@@ -81,7 +81,7 @@ std::string mtf::client_platform_android_path()
 
 std::string mtf::server_platform_stub_path()
 {
-    return find_library_in_paths("graphics-platform-dummy.so",
+    return find_library_in_paths("platform-graphics-dummy.so",
                                  {mtf::library_path(), MIR_SERVER_PLATFORM_PLUGIN_PATH});
 }
 
