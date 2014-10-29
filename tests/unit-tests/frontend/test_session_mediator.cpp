@@ -263,7 +263,7 @@ struct SessionMediator : public ::testing::Test
             shell, graphics_platform, graphics_changer,
             surface_pixel_formats, report,
             std::make_shared<mtd::NullEventSink>(),
-            resource_cache, stub_screencast, &connector, nullptr, std::make_shared<mtd::StubVsyncProvider>()}
+            resource_cache, stub_screencast, &connector, nullptr, std::make_shared<mtd::StubVsyncProvider>(), nullptr}
     {
         using namespace ::testing;
 
@@ -321,7 +321,7 @@ TEST_F(SessionMediator, connect_calls_connect_handler)
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
         resource_cache, stub_screencast, context, nullptr,
-        std::make_shared<mtd::StubVsyncProvider>()
+        std::make_shared<mtd::StubVsyncProvider>(), nullptr
     };
 
     EXPECT_THAT(connects_handled_count, Eq(0));
@@ -428,8 +428,9 @@ TEST_F(SessionMediator, connect_packs_display_configuration)
         std::make_shared<mtd::NullEventSink>(),
         resource_cache, std::make_shared<mtd::NullScreencast>(),
         nullptr, nullptr,
-        std::make_shared<mtd::StubVsyncProvider>()
+        std::make_shared<mtd::StubVsyncProvider>(), nullptr
     );
+
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     EXPECT_THAT(connection.display_configuration(), mt::DisplayConfigMatches(std::cref(config)));
@@ -486,24 +487,18 @@ TEST_F(SessionMediator, session_only_sends_mininum_information_for_buffers)
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer2), mg::BufferIpcMsgType::full_msg))
         .InSequence(seq);
     //swap1
-    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer2)))
-        .InSequence(seq);
     EXPECT_CALL(*surface, swap_buffers(&buffer2, _))
         .InSequence(seq)
         .WillOnce(InvokeArgument<1>(&buffer1));
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer1), mg::BufferIpcMsgType::full_msg))
         .InSequence(seq);
     //swap2
-    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer1)))
-        .InSequence(seq);
     EXPECT_CALL(*surface, swap_buffers(&buffer1, _))
         .InSequence(seq)
         .WillOnce(InvokeArgument<1>(&buffer2));
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer2), mg::BufferIpcMsgType::update_msg))
         .InSequence(seq);
     //swap3
-    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer2)))
-        .InSequence(seq);
     EXPECT_CALL(*surface, swap_buffers(&buffer2, _))
         .InSequence(seq)
         .WillOnce(InvokeArgument<1>(&buffer1));
@@ -638,7 +633,7 @@ TEST_F(SessionMediator, display_config_request)
         std::make_shared<mtd::NullEventSink>(), resource_cache,
         std::make_shared<mtd::NullScreencast>(),
         nullptr, nullptr,
-        std::make_shared<mtd::StubVsyncProvider>(),
+        std::make_shared<mtd::StubVsyncProvider>(), nullptr
     };
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
@@ -774,12 +769,18 @@ TEST_F(SessionMediator, session_exchange_buffer_sends_minimum_information)
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer2), mg::BufferIpcMsgType::full_msg))
         .InSequence(seq);
     //swap1
+    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer2)))
+        .InSequence(seq);
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer1), mg::BufferIpcMsgType::full_msg))
         .InSequence(seq);
     //swap2
+    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer1)))
+        .InSequence(seq);
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer2), mg::BufferIpcMsgType::update_msg))
         .InSequence(seq);
     //swap3
+    EXPECT_CALL(mock_ipc_operations, unpack_buffer(_, Ref(buffer2)))
+        .InSequence(seq);
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_, Ref(buffer1), mg::BufferIpcMsgType::update_msg))
         .InSequence(seq);
 
@@ -887,7 +888,7 @@ TEST_F(SessionMediator, buffer_fd_resources_are_put_in_resource_cache)
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
         mt::fake_shared(mock_cache), stub_screencast, nullptr, nullptr,
-        std::make_shared<mtd::StubVsyncProvider>()
+        std::make_shared<mtd::StubVsyncProvider>(), nullptr
     };
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
