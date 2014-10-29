@@ -103,6 +103,7 @@ target_link_libraries(
   mirplatformgraphicsstub
 
   mir-test-framework
+  ${UMOCKDEV_LDFLAGS} ${UMOCKDEV_LIBRARIES}
 )
 
 set_target_properties(
