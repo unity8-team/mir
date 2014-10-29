@@ -49,6 +49,8 @@ public:
     void start();
     void stop();
     void join();
+    
+    void notify_of_frame_time(std::chrono::nanoseconds frame_time) override;
 
 protected:
     InputReceiverThread(const InputReceiverThread&) = delete;

@@ -19,6 +19,8 @@
 #ifndef MIR_INPUT_RECEIVER_RECEIVER_THREAD_H_
 #define MIR_INPUT_RECEIVER_RECEIVER_THREAD_H_
 
+#include <chrono>
+
 namespace mir
 {
 namespace input
@@ -34,6 +36,8 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual void join() = 0;
+    
+    virtual void notify_of_frame_time(std::chrono::nanoseconds frame_time) = 0;
 
 protected:
     InputReceiverThread() = default;

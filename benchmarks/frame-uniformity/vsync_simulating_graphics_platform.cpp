@@ -21,17 +21,23 @@
 #include "mir/graphics/buffer_writer.h"
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
+#include "mir/frontend/vsync_provider.h"
+
+#include "mir_test/fake_shared.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_display.h"
 
 #include <chrono>
 #include <functional>
+#include <mutex>
 
+namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
 
-namespace mtd = mir::test::doubles;
+namespace mt = mir::test;
+namespace mtd = mt::doubles;
 
 namespace
 {
@@ -43,7 +49,7 @@ struct StubBufferWriter : public mg::BufferWriter
     }
 };
 
-class StubIpcOps : public mg::PlatformIpcOperations
+struct StubIpcOps : public mg::PlatformIpcOperations
 {
     void pack_buffer(
         mg::BufferIpcMessage&,
@@ -63,6 +69,25 @@ class StubIpcOps : public mg::PlatformIpcOperations
     }
 };
 
+struct StubVsyncProvider : public mf::VsyncProvider
+{
+    std::chrono::nanoseconds last_vsync_for(mg::DisplayConfigurationOutputId /* output */)
+    {
+        std::unique_lock<std::mutex> lg(last_vsync_guard);
+
+        return last_vsync;
+    }
+
+    void notify_of_vsync(std::chrono::nanoseconds vsync)
+    {
+        std::unique_lock<std::mutex> lg(last_vsync_guard);
+
+        last_vsync = vsync;
+    }
+    std::mutex last_vsync_guard;
+    std::chrono::nanoseconds last_vsync;
+};
+
 struct StubDisplayBuffer : mtd::StubDisplayBuffer
 {
     StubDisplayBuffer(geom::Size output_size, int vsync_rate_in_hz)
@@ -79,13 +104,16 @@ struct StubDisplayBuffer : mtd::StubDisplayBuffer
         
         if (now < next_sync)
             std::this_thread::sleep_for(next_sync - now);
-        
-        last_sync = now;
+
+        // TODO: Tighten?
+        last_sync = std::chrono::high_resolution_clock::now();
+        vsync_provider.notify_of_vsync(last_sync.time_since_epoch());
     }
     
     double const vsync_rate_in_hz;
 
     std::chrono::high_resolution_clock::time_point last_sync;
+    StubVsyncProvider vsync_provider;
 };
 
 struct StubDisplay : public mtd::StubDisplay
@@ -137,4 +165,10 @@ std::shared_ptr<mg::PlatformIpcOperations> VsyncSimulatingPlatform::make_ipc_ope
 std::shared_ptr<mg::InternalClient> VsyncSimulatingPlatform::create_internal_client()
 {
     return nullptr;
+}
+
+std::shared_ptr<mf::VsyncProvider> VsyncSimulatingPlatform::make_vsync_provider()
+{
+    auto stub_display = std::dynamic_pointer_cast<StubDisplay>(display);
+    return mt::fake_shared(stub_display->buffer.vsync_provider);
 }

@@ -43,8 +43,7 @@ namespace
 // Client mocks and configuration
 struct MockInputReceiverThread : public mircv::InputReceiverThread
 {
-    // TODO: Make ovverride
-    MOCK_METHOD1(notify_of_vsync, void(std::chrono::nanoseconds));
+    MOCK_METHOD1(notify_of_frame_time, void(std::chrono::nanoseconds));
     // Stub of uninteresting methods
     void start() override {}
     void stop() override {}
@@ -153,9 +152,9 @@ TEST_F(VsyncProviderTest, client_input_thread_receives_information_from_server_v
     {
         InSequence seq;
         // The fake vsync provider just uses increments for each vsync request.
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_vsync(std::chrono::nanoseconds(0)));
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_vsync(std::chrono::nanoseconds(1)));
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_vsync(std::chrono::nanoseconds(2)));
+        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(0)));
+        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(1)));
+        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(2)));
     }
 
     mtf::UsingStubClientPlatform using_stub_client_platform([&](std::string const& socket_file) {

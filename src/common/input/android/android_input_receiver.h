@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <chrono>
+#include <mutex>
 
 namespace droidinput = android;
 
@@ -71,6 +72,8 @@ public:
 
     /// May be used from any thread to wake an InputReceiver blocked in next_event
     virtual void wake();
+    
+    virtual void notify_of_frame_time(std::chrono::nanoseconds frame_time);
 
 protected:
     InputReceiver(const InputReceiver&) = delete;
@@ -89,6 +92,10 @@ private:
     std::shared_ptr<XKBMapper> xkb_mapper;
 
     AndroidClock const android_clock;
+    
+    std::mutex frame_time_guard;
+    int64_t frame_time;
+    int64_t last_frame_time;
 
     bool try_next_event(MirEvent &ev);
 };

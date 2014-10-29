@@ -39,7 +39,9 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    frame_time(-1),
+    last_frame_time(-1)
 {
 }
 
@@ -52,7 +54,9 @@ mircva::InputReceiver::InputReceiver(int fd,
     looper(new droidinput::Looper(true)),
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
-    android_clock(clock)
+    android_clock(clock),
+    frame_time(-1),
+    last_frame_time(-1)
 {
 }
 
@@ -85,49 +89,38 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    /*
-     * Enable "Project Butter" input resampling in InputConsumer::consume():
-     *   consumeBatches = true, so as to ensure the "cooked" event rate that
-     *      clients experience is at least the minimum of event_rate_hz
-     *      and the raw device event rate.
-     *   frame_time = A regular interval. This provides a virtual frame
-     *      interval during which InputConsumer will collect raw events,
-     *      resample them and emit a "cooked" event back to us at roughly every
-     *      60th of a second. "cooked" events are both smoothed and
-     *      extrapolated/predicted into the future (for tool=finger) giving the
-     *      appearance of lower latency. Getting a real frame time from the
-     *      graphics logic (which is messy) does not appear to be necessary to
-     *      gain significant benefit.
-     *
-     * Note event_rate_hz is only 55Hz. This allows rendering to catch up and
-     * overtake the event rate every ~12th frame (200ms) on a 60Hz display.
-     * Thus on every 12th+1 frame, there will be zero buffer lag in responding
-     * to the cooked input event we have given the client.
-     * This phase control is useful as it eliminates the one frame of lag you
-     * would otherwise never catch up to if the event rate was exactly the same
-     * as the display refresh rate.
-     */
-
-    nsecs_t const now = android_clock(SYSTEM_TIME_MONOTONIC);
-    int const event_rate_hz = 55;
-    nsecs_t const one_frame = 1000000000ULL / event_rate_hz;
-    nsecs_t frame_time = (now / one_frame) * one_frame;
-
-    if (input_consumer->consume(&event_factory, true, frame_time,
-                                &event_sequence_id, &android_event)
-        == droidinput::OK)
+    std::lock_guard<std::mutex> lg(frame_time_guard);
+    bool consume_batches_next = false;
+    if (frame_time != last_frame_time)
     {
-        mia::Lexicon::translate(android_event, ev);
-
-        map_key_event(xkb_mapper, ev);
-
-        input_consumer->sendFinishedSignal(event_sequence_id, true);
-
-        report->received_event(ev);
-
-        return true;
+        consume_batches_next = true;
+        last_frame_time = frame_time;
     }
-   return false;
+
+    droidinput::status_t status;
+    bool result = false;
+    // TODO: Frame time or -1?
+    do {
+        if ((status = input_consumer->consume(&event_factory, consume_batches_next, frame_time,
+                &event_sequence_id, &android_event))
+            == droidinput::OK)
+        {
+            mia::Lexicon::translate(android_event, ev);
+    
+            map_key_event(xkb_mapper, ev);
+    
+            input_consumer->sendFinishedSignal(event_sequence_id, true);
+    
+            report->received_event(ev);
+    
+            result = true;
+        }
+        /* TODO: Batch toggling? */
+        if (consume_batches_next == true)
+            consume_batches_next = false;
+    } while (input_consumer->hasDeferredEvent() || status != droidinput::WOULD_BLOCK);
+
+    return result;
 }
 
 // TODO: We use a droidinput::Looper here for polling functionality but it might be nice to integrate
@@ -141,27 +134,12 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         fd_added = true;
     }
 
-    auto reduced_timeout = timeout;
-    if (input_consumer->hasDeferredEvent())
-    {
-        // consume() didn't finish last time. Retry it immediately.
-        reduced_timeout = std::chrono::milliseconds::zero();
-    }
-    else if (input_consumer->hasPendingBatch())
-    {
-        // When in constant motion we will usually "hasPendingBatch".
-        // But the batch won't get flushed until the next frame interval,
-        // so be sure to use a non-zero sleep time to avoid spinning the CPU
-        // for the whole interval...
-
-        // During tests with mocked clocks we may already have zero...
-        if (reduced_timeout != std::chrono::milliseconds::zero())
-            reduced_timeout = std::chrono::milliseconds(1);
-    }
-
+    auto reduced_timeout = timeout; // Lol
     auto result = looper->pollOnce(reduced_timeout.count());
-    if (result == ALOOPER_POLL_WAKE)
-        return false;
+// TODO: This may break shutdown and we need to use a different wake method for time available
+/*    if (result == ALOOPER_POLL_WAKE)
+        return false; */
+
     if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
        return false;
 
@@ -171,4 +149,13 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
 void mircva::InputReceiver::wake()
 {
     looper->wake();
+}
+
+void mircva::InputReceiver::notify_of_frame_time(std::chrono::nanoseconds new_frame_time)
+{
+    {
+        std::lock_guard<std::mutex> lg(frame_time_guard);
+        frame_time = new_frame_time.count();
+    }
+    wake();
 }

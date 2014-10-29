@@ -239,7 +239,11 @@ void MirSurface::process_incoming_buffer()
     if (buffer.has_vsync_time())
     {
         last_display_time = std::chrono::nanoseconds(buffer.vsync_time());
-        // TODO: Notify input thread ~racarr
+        // TODO: Hacks ~racarr
+        if (input_thread)
+        {
+            input_thread->notify_of_frame_time(last_display_time);
+        }
     }
 
     auto surface_size = geom::Size{surface.width(), surface.height()};

@@ -66,3 +66,8 @@ void mircva::InputReceiverThread::thread_loop()
         std::this_thread::yield(); // yield() is needed to ensure reasonable runtime under valgrind
     }
 }
+
+void mircva::InputReceiverThread::notify_of_frame_time(std::chrono::nanoseconds frame_time)
+{
+    receiver->notify_of_frame_time(frame_time);
+}
