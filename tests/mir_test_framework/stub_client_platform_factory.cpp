@@ -89,6 +89,10 @@ private:
 #ifndef ANDROID
     std::shared_ptr<mir::graphics::NativeBuffer> native;
 #endif
+
+    virtual void fill_update_msg(MirBufferPackage& /*message*/) override
+    {
+    }
 };
 
 struct StubClientBufferFactory : public mcl::ClientBufferFactory
