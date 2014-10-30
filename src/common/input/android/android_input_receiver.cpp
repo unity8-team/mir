@@ -96,10 +96,7 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
         consume_batches_next = true;
         last_frame_time = frame_time;
     }
-    if (input_consumer->hasPendingBatch())
-        consume_batches_next = true;
-    if (std::chrono::high_resolution_clock::now().time_since_epoch() - std::chrono::nanoseconds(last_frame_time) > std::chrono::milliseconds(16))
-        consume_batches_next = true;
+    consume_batches_next = true;
 
     droidinput::status_t status;
     bool result = false;
