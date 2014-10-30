@@ -35,6 +35,7 @@ public:
     virtual ~Clock() = default;
 
     virtual Timestamp sample() const = 0;
+    virtual Duration timeout_until(Timestamp) const { return Duration{0}; }
 
 protected:
     Clock() = default;

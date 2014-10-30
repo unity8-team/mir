@@ -22,3 +22,12 @@ mir::time::Timestamp mir::time::HighResolutionClock::sample() const
 {
     return clock.now();
 }
+
+mir::time::Duration mir::time::HighResolutionClock::timeout_until(Timestamp t) const
+{
+    auto const now = clock.now();
+    if (t <= now)
+        return Duration{0};
+    else
+        return t - now;
+}

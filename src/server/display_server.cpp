@@ -32,6 +32,7 @@
 #include "mir/input/input_dispatcher.h"
 
 #include <stdexcept>
+#include <signal.h>
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;

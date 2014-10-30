@@ -32,6 +32,10 @@ class MockClock : public mir::time::Clock
 {
 public:
     MOCK_CONST_METHOD0(sample, mir::time::Timestamp());
+    mir::time::Duration timeout_until(mir::time::Timestamp) const override
+    { 
+        return mir::time::Duration{0};
+    }
 
     ~MockClock() noexcept(true) {}
 };

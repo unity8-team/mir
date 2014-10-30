@@ -37,6 +37,10 @@ public:
     {
         return now;
     }
+    time::Duration timeout_until(time::Timestamp) const override
+    {
+        return time::Duration{0};
+    }
 private:
     time::Timestamp now;
 };

@@ -21,6 +21,7 @@
 #include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
 #include "mir/asio_main_loop.h"
+#include "mir/glib_main_loop.h"
 #include "mir/default_server_status_listener.h"
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
@@ -166,7 +167,7 @@ std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
     return main_loop(
         [this]()
         {
-            return std::make_shared<mir::AsioMainLoop>(the_clock());
+            return std::make_shared<mir::GLibMainLoop>(the_clock());
         });
 }
 
