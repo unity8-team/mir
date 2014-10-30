@@ -96,8 +96,8 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
         consume_batches_next = true;
         last_frame_time = frame_time;
     }
-//    if (input_consumer->hasPendingBatch())
-//        consume_batches_next = true;
+    if (input_consumer->hasPendingBatch())
+        consume_batches_next = true;
     if (std::chrono::high_resolution_clock::now().time_since_epoch() - std::chrono::nanoseconds(last_frame_time) > std::chrono::milliseconds(16))
         consume_batches_next = true;
 
@@ -137,8 +137,12 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         looper->addFd(fd(), fd(), ALOOPER_EVENT_INPUT, nullptr, nullptr);
         fd_added = true;
     }
-
+    
     auto reduced_timeout = timeout; // Lol
+    
+    if (input_consumer->hasPendingBatch())
+        reduced_timeout = std::chrono::milliseconds(1);
+
     auto result = looper->pollOnce(reduced_timeout.count());
 // TODO: This may break shutdown and we need to use a different wake method for time available
 /*    if (result == ALOOPER_POLL_WAKE)
