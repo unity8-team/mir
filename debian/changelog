@@ -1,3 +1,11 @@
+qtmir (0.4.4+15.04.20141030.1-0ubuntu1) vivid; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Clean up QML Compilation cache if application fails to start
+    correctly.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 Oct 2014 11:55:27 +0000
+
 qtmir (0.4.4+14.10.20141013-0ubuntu1) utopic; urgency=medium
 
   [ Daniel d'Andrada ]
