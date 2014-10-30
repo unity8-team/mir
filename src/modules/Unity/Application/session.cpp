@@ -223,7 +223,6 @@ void Session::setState(State state)
         {
         case Session::State::Suspended:
             if (m_state == Session::State::Running) {
-                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
