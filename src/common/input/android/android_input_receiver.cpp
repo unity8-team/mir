@@ -116,9 +116,6 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     
             result = true;
         }
-        /* TODO: Batch toggling? */
-        if (consume_batches_next == true)
-            consume_batches_next = false;
     } while (input_consumer->hasDeferredEvent() || status != droidinput::WOULD_BLOCK);
 
     return result;
