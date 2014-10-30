@@ -1,3 +1,14 @@
+qtmir (0.4.4+15.04.20141030.2-0ubuntu1) vivid; urgency=low
+
+  [ Ted Gould ]
+  * Use UAL pause/resume functions for stopping/continuing all tasks in
+    the cgroup (LP: #1379786)
+
+  [ Timo Jyrinki ]
+  * Add libmtdev-dev build dependency (LP: #1379152) (LP: #1379152)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 Oct 2014 21:48:30 +0000
+
 qtmir (0.4.4+15.04.20141030.1-0ubuntu1) vivid; urgency=low
 
   [ Ricardo Mendoza ]
