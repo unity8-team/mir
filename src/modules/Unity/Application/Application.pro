@@ -36,7 +36,6 @@ SOURCES += application_manager.cpp \
     ubuntukeyboardinfo.cpp \
     mirsurfaceitem.cpp \
     mirbuffersgtexture.cpp \
-    processcontroller.cpp \
     proc_info.cpp \
     session.cpp \
     sessionmanager.cpp \
@@ -60,7 +59,6 @@ HEADERS += application_manager.h \
     mirsurfaceitemmodel.h \
     mirbuffersgtexture.h \
     objectlistmodel.h \
-    processcontroller.h \
     proc_info.h \
     session.h \
     session_interface.h \
