@@ -77,6 +77,11 @@ public:
     {
         mir_surface_set_event_handler(mir_surface, handler);
     }
+    
+    std::chrono::nanoseconds last_display_time() override
+    {
+        return std::chrono::nanoseconds(mir_surface_get_last_display_time(mir_surface));
+    }
 
 private:
     MirSurface* const mir_surface;

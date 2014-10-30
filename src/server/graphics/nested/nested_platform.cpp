@@ -17,6 +17,7 @@
  */
 
 #include "nested_platform.h"
+#include "nested_vsync_provider.h"
 #include "host_connection.h"
 #include "mir/graphics/nested_context.h"
 
@@ -66,7 +67,9 @@ mgn::NestedPlatform::NestedPlatform(
 native_platform{native_platform},
 dispatcher{dispatcher},
 display_report{display_report},
-connection{connection}
+connection{connection},
+// TODO: Next ~racarr. Pass to display
+vsync_provider{std::make_shared<mgn::VsyncProvider>()}
 {
     native_platform->initialize(std::make_shared<MirConnectionNestedContext>(connection));
 }
@@ -91,7 +94,7 @@ std::shared_ptr<mg::Display> mgn::NestedPlatform::create_display(
     std::shared_ptr<mg::GLConfig> const& gl_config)
 {
     return std::make_shared<mgn::NestedDisplay>(
-        shared_from_this(), connection, dispatcher, display_report, conf_policy, gl_config);
+        shared_from_this(), connection, dispatcher, display_report, conf_policy, gl_config, vsync_provider);
 }
 
 std::shared_ptr<mg::InternalClient> mgn::NestedPlatform::create_internal_client()
@@ -130,8 +133,7 @@ std::shared_ptr<mg::PlatformIpcOperations> mgn::NestedPlatform::make_ipc_operati
 
 std::shared_ptr<mf::VsyncProvider> mgn::NestedPlatform::make_vsync_provider()
 {
-    return nullptr;
-    // TODO: Impl
+    return vsync_provider;
 }
 
 EGLNativeDisplayType mgn::NestedPlatform::egl_native_display() const

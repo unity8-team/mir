@@ -48,6 +48,7 @@ class Platform;
 
 namespace nested
 {
+class VsyncProvider;
 namespace detail
 {
 
@@ -101,7 +102,8 @@ public:
         std::shared_ptr<input::InputDispatcher> const& dispatcher,
         std::shared_ptr<DisplayReport> const& display_report,
         std::shared_ptr<DisplayConfigurationPolicy> const& conf_policy,
-        std::shared_ptr<GLConfig> const& gl_config);
+        std::shared_ptr<GLConfig> const& gl_config,
+        std::shared_ptr<VsyncProvider> const& vsync_provider);
 
     ~NestedDisplay() noexcept;
 
@@ -131,6 +133,7 @@ private:
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     std::shared_ptr<DisplayReport> const display_report;
     detail::EGLDisplayHandle egl_display;
+    std::shared_ptr<VsyncProvider> const vsync_provider;
 
     std::mutex outputs_mutex;
     std::unordered_map<DisplayConfigurationOutputId, std::shared_ptr<detail::NestedOutput>> outputs;

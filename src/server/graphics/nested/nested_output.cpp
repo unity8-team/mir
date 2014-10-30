@@ -18,6 +18,8 @@
 
 #include "nested_output.h"
 #include "host_connection.h"
+#include "nested_vsync_provider.h"
+
 #include "mir/input/input_dispatcher.h"
 #include "mir/graphics/pixel_format_utils.h"
 
@@ -33,7 +35,9 @@ mgn::detail::NestedOutput::NestedOutput(
     std::shared_ptr<HostSurface> const& host_surface,
     geometry::Rectangle const& area,
     std::shared_ptr<input::InputDispatcher> const& dispatcher,
-    MirPixelFormat preferred_format) :
+    MirPixelFormat preferred_format,
+    std::shared_ptr<mgn::VsyncProvider> const& vsync_provider,
+    mg::DisplayConfigurationOutputId id) :
     uses_alpha_{mg::contains_alpha(preferred_format)},
     egl_display(egl_display),
     host_surface{host_surface},
@@ -41,7 +45,9 @@ mgn::detail::NestedOutput::NestedOutput(
     egl_context{egl_display, eglCreateContext(egl_display, egl_config, egl_display.egl_context(), nested_egl_context_attribs)},
     area{area.top_left, area.size},
     dispatcher{dispatcher},
-    egl_surface{egl_display, host_surface->egl_native_window(), egl_config}
+    egl_surface{egl_display, host_surface->egl_native_window(), egl_config},
+    vsync_provider(vsync_provider),
+    id(id)
 {
     MirEventDelegate ed = {event_thunk, this};
     host_surface->set_event_handler(&ed);
@@ -66,6 +72,7 @@ void mgn::detail::NestedOutput::release_current()
 void mgn::detail::NestedOutput::post_update()
 {
     eglSwapBuffers(egl_display, egl_surface);
+    vsync_provider->notify_of_vsync(id, host_surface->last_display_time());
 }
 
 bool mgn::detail::NestedOutput::post_renderables_if_optimizable(RenderableList const&)

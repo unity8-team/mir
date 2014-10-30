@@ -19,6 +19,7 @@
 
 #include "src/server/graphics/nested/nested_output.h"
 #include "src/server/graphics/nested/host_connection.h"
+#include "src/server/graphics/nested/nested_vsync_provider.h"
 #include "src/server/input/null_input_dispatcher.h"
 
 #include "mir_test_doubles/mock_egl.h"
@@ -29,8 +30,9 @@
 #include <gmock/gmock.h>
 
 namespace geom = mir::geometry;
-namespace mgn = mir::graphics::nested;
-namespace mgnd = mir::graphics::nested::detail;
+namespace mg = mir::graphics;
+namespace mgn = mg::nested;
+namespace mgnd = mgn::detail;
 namespace mi = mir::input;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -40,6 +42,7 @@ class NullHostSurface : public mgn::HostSurface
 public:
     EGLNativeWindowType egl_native_window() override { return {}; }
     void set_event_handler(MirEventDelegate const*) override {}
+    std::chrono::nanoseconds last_display_time() override { return std::chrono::nanoseconds::min(); }
 };
 
 struct NestedDisplayBufferTest : testing::Test
@@ -55,6 +58,8 @@ struct NestedDisplayBufferTest : testing::Test
     mi::NullInputDispatcher null_input_dispatcher;
     mgnd::EGLDisplayHandle egl_disp_handle;
     geom::Rectangle const default_rect;
+    mgn::VsyncProvider vsync_provider;
+    mg::DisplayConfigurationOutputId id;
 };
 
 TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_alpha)
@@ -64,7 +69,9 @@ TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_a
         mt::fake_shared(null_host_surface),
         default_rect,
         mt::fake_shared(null_input_dispatcher),
-        mir_pixel_format_abgr_8888};
+        mir_pixel_format_abgr_8888,
+        mt::fake_shared(vsync_provider),
+        id};
 
     EXPECT_TRUE(db.uses_alpha());
 }
@@ -76,7 +83,9 @@ TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alph
         mt::fake_shared(null_host_surface),
         default_rect,
         mt::fake_shared(null_input_dispatcher),
-        mir_pixel_format_xbgr_8888};
+        mir_pixel_format_xbgr_8888,
+        mt::fake_shared(vsync_provider),
+        id};
 
     EXPECT_FALSE(db.uses_alpha());
 }

@@ -30,6 +30,7 @@ namespace graphics
 {
 namespace nested
 {
+class VsyncProvider;
 
 class NestedPlatform : public Platform,
                        public std::enable_shared_from_this<NestedPlatform>
@@ -59,6 +60,7 @@ private:
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     std::shared_ptr<DisplayReport> const display_report;
     std::shared_ptr<HostConnection> const connection;
+    std::shared_ptr<VsyncProvider> const vsync_provider;
 };
 
 }

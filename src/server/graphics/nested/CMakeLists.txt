@@ -9,6 +9,7 @@ add_library(
   nested_display_configuration.cpp
   nested_output.cpp
   nested_platform.cpp
+  nested_vsync_provider.cpp
   mir_client_host_connection.cpp
 )
 

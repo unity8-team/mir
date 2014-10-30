@@ -55,6 +55,7 @@ public:
         public:
             EGLNativeWindowType egl_native_window() override { return {}; }
             void set_event_handler(MirEventDelegate const*) override {}
+            std::chrono::nanoseconds last_display_time() override { return std::chrono::nanoseconds::min(); }
         };
 
         return std::make_shared<NullHostSurface>();

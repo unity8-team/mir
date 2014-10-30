@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <functional>
+#include <chrono>
 
 #include <EGL/egl.h>
 
@@ -43,6 +44,8 @@ public:
 
     virtual EGLNativeWindowType egl_native_window() = 0;
     virtual void set_event_handler(MirEventDelegate const* handler) = 0;
+    
+    virtual std::chrono::nanoseconds last_display_time() = 0;
 
 protected:
     HostSurface() = default;

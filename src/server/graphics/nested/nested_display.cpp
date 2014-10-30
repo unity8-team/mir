@@ -19,6 +19,7 @@
 #include "nested_display.h"
 #include "nested_display_configuration.h"
 #include "nested_output.h"
+#include "nested_vsync_provider.h"
 #include "host_connection.h"
 
 #include "mir/geometry/rectangle.h"
@@ -125,12 +126,14 @@ mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<input::InputDispatcher> const& dispatcher,
     std::shared_ptr<mg::DisplayReport> const& display_report,
     std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy,
-    std::shared_ptr<mg::GLConfig> const& gl_config) :
+    std::shared_ptr<mg::GLConfig> const& gl_config,
+    std::shared_ptr<mgn::VsyncProvider> const& vsync_provider) :
     platform{platform},
     connection{connection},
     dispatcher{dispatcher},
     display_report{display_report},
     egl_display{connection->egl_native_display(), gl_config},
+    vsync_provider(vsync_provider),
     outputs{}
 {
     std::shared_ptr<DisplayConfiguration> conf(configuration());
@@ -211,7 +214,7 @@ void mgn::NestedDisplay::create_surfaces(mg::DisplayConfiguration const& configu
                             host_surface,
                             area,
                             dispatcher,
-                            output.current_format);
+                            output.current_format, vsync_provider, output.id);
                         have_output_for_group = true;
                     }
                 });

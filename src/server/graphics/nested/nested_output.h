@@ -21,6 +21,8 @@
 
 #include "nested_display.h"
 
+#include "mir/graphics/display_configuration.h"
+
 namespace mir
 {
 namespace graphics
@@ -28,6 +30,7 @@ namespace graphics
 namespace nested
 {
 class HostSurface;
+class VsyncProvider;
 
 namespace detail
 {
@@ -40,7 +43,9 @@ public:
         std::shared_ptr<HostSurface> const& host_surface,
         geometry::Rectangle const& area,
         std::shared_ptr<input::InputDispatcher> const& input_dispatcher,
-        MirPixelFormat preferred_format);
+        MirPixelFormat preferred_format,
+        std::shared_ptr<VsyncProvider> const& vsync_provider,
+        DisplayConfigurationOutputId id);
 
     ~NestedOutput() noexcept;
 
@@ -64,6 +69,9 @@ private:
     geometry::Rectangle const area;
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     EGLSurfaceHandle const egl_surface;
+    
+    std::shared_ptr<VsyncProvider> const vsync_provider;
+    DisplayConfigurationOutputId id;
 
     static void event_thunk(MirSurface* surface, MirEvent const* event, void* context);
     void mir_event(MirEvent const& event);
