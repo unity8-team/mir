@@ -9,6 +9,7 @@
 #include <atomic>
 #include <future>
 #include "mir/thread_safe_list.h"
+#include <glib-unix.h>
 
 #define ALFDEBUG if (false)
 
@@ -30,95 +31,6 @@ public:
 
 protected:
     GSource* gsource;
-};
-
-class SignalMainLoopSource : public MainLoopSource
-{
-public:
-    SignalMainLoopSource(GSource* gsource)
-        : MainLoopSource{gsource}
-    {
-        ALFDEBUG std::cerr << this << " SignalSource create " << std::endl;
-        sigemptyset(&sig_mask);
-        sig_fd = mir::Fd{signalfd(-1, &sig_mask, SFD_CLOEXEC)};
-        if (sig_fd < 0)
-            BOOST_THROW_EXCEPTION(std::runtime_error("Signal fd failed"));
-        fd_tag = g_source_add_unix_fd(gsource, sig_fd, G_IO_IN);
-        if (fd_tag == nullptr)
-            BOOST_THROW_EXCEPTION(std::runtime_error("g source fd failed"));
-    }
-
-    ~SignalMainLoopSource()
-    {
-        ALFDEBUG std::cerr << "Destroying SignalSource " << std::endl;
-        sigprocmask(SIG_UNBLOCK, &sig_mask, nullptr);
-    }
-
-    void add_handler(std::vector<int> const& sigs, std::function<void(int)> const& handler)
-    {
-        ALFDEBUG std::cerr << this << " SignalSource add handler for " ;
-        for (auto sig: sigs)
-        {
-            sigaddset(&sig_mask, sig);
-            ALFDEBUG std::cerr << sig << " ";
-        }
-        ALFDEBUG std::cerr << std::endl;
-
-        sigprocmask(SIG_BLOCK, &sig_mask, nullptr);
-
-        handlers.add({sigs, handler});
-        signalfd(sig_fd, &sig_mask, SFD_CLOEXEC);
-
-    }
-
-    gboolean prepare(gint* timeout) override
-    {
-        auto const ready = (g_source_query_unix_fd(gsource, fd_tag) == G_IO_IN);
-        *timeout = -1;
-        ALFDEBUG std::cerr << this << " SignalSource prepare " << ready << std::endl;
-        return ready;
-    }
-
-    gboolean check() override
-    {
-        ALFDEBUG std::cerr << this << " SignalSource check " << 
-            g_source_query_unix_fd(gsource, fd_tag) << std::endl;
-        return (g_source_query_unix_fd(gsource, fd_tag) == G_IO_IN);
-    }
-
-    gboolean dispatch() override
-    {
-        ALFDEBUG std::cerr << this << " SignalSource dispatch " << std::endl;
-        if (g_source_query_unix_fd(gsource, fd_tag) == G_IO_IN)
-        {
-            signalfd_siginfo ssi;
-            if (read(sig_fd, &ssi, sizeof(ssi)) == sizeof(ssi))
-            {
-                handlers.for_each(
-                    [&] (HandlerElement const& element)
-                    {
-                        ALFDEBUG std::cerr << this << " SignalSource calling handler sig " << ssi.ssi_signo << std::endl;
-                        if (std::find(element.sigs.begin(), element.sigs.end(), ssi.ssi_signo) != element.sigs.end())
-                            element.handler(ssi.ssi_signo);
-                    });
-            }
-        }
-
-        return TRUE;
-    }
-
-private:
-    struct HandlerElement
-    {
-        operator bool() const { return !!handler; }
-        std::vector<int> sigs;
-        std::function<void(int)> handler;
-    };
-
-    sigset_t sig_mask;
-    Handlers<HandlerElement> handlers;
-    mir::Fd sig_fd;
-    gpointer fd_tag;
 };
 
 class FdMainLoopSource : public MainLoopSource
@@ -216,6 +128,11 @@ public:
         handlers.add({handler});
     }
 
+    void clear_handlers()
+    {
+        handlers.clear();
+    }
+
     gboolean prepare(gint* timeout) override
     {
         auto const now = clock->sample();
@@ -253,6 +170,8 @@ public:
 private:
     struct HandlerElement
     {
+        HandlerElement() = default;
+        HandlerElement(std::function<void(void)> const& handler) : handler{handler} {}
         operator bool() const { return !!handler; }
         std::function<void(void)> handler;
     };
@@ -358,30 +277,77 @@ GSourceFuncs gsource_funcs {
 
 }
 
-struct mir::detail::SignalGSource : MainLoopGSource
+class mir::detail::SignalDispatch
 {
-    SignalMainLoopSource* signal_source()
+public:
+    SignalDispatch(GMainContext* main_context)
+        : main_context{main_context}
     {
-        return static_cast<SignalMainLoopSource*>(source);
     }
+
+    void add_handler(std::vector<int> const& sigs, std::function<void(int)> const& handler)
+    {
+        for (auto sig : sigs)
+            ensure_handle_signal(sig);
+        handlers.add({sigs, handler});
+    }
+
+    void ensure_handle_signal(int sig)
+    {
+        std::lock_guard<std::mutex> lock{handled_signals_mutex};
+
+        if (handled_signals.find(sig) != handled_signals.end())
+            return;
+
+        auto const gsource = g_unix_signal_source_new(sig);
+        auto sc = new SignalContext{this, sig};
+        g_source_set_callback(
+            gsource,
+            reinterpret_cast<GSourceFunc>(static_dispatch), sc,
+            reinterpret_cast<GDestroyNotify>(destroy_sc));
+        g_source_attach(gsource, main_context);
+        g_source_unref(gsource);
+    }
+
+    void dispatch(int sig)
+    {
+        handlers.for_each(
+            [&] (HandlerElement const& element)
+            {
+                ALFDEBUG std::cerr << this << " SignalDispatch calling handler sig " << sig << std::endl;
+                if (std::find(element.sigs.begin(), element.sigs.end(), sig) != element.sigs.end())
+                    element.handler(sig);
+            });
+    }
+
+private:
+    struct SignalContext
+    {
+        mir::detail::SignalDispatch* sd;
+        int sig;
+    };
+
+    static void destroy_sc(SignalContext* d) { delete d; }
+
+    struct HandlerElement
+    {
+        operator bool() const { return !!handler; }
+        std::vector<int> sigs;
+        std::function<void(int)> handler;
+    };
+
+    static gboolean static_dispatch(SignalContext* sc)
+    {
+        sc->sd->dispatch(sc->sig);
+        return TRUE;
+    }
+
+
+    GMainContext* const main_context;
+    Handlers<HandlerElement> handlers;
+    std::mutex handled_signals_mutex;
+    std::unordered_set<int> handled_signals;
 };
-
-std::shared_ptr<mir::detail::SignalGSource> make_signal_gsource()
-{
-    auto const gsource = g_source_new(&gsource_funcs, sizeof(mir::detail::SignalGSource));
-    auto const signal_gsource = reinterpret_cast<mir::detail::SignalGSource*>(gsource);
-
-    signal_gsource->source = new SignalMainLoopSource{gsource};
-
-    return {
-        signal_gsource,
-        [] (mir::detail::SignalGSource* s)
-        { 
-            auto const gsource = reinterpret_cast<GSource*>(s);
-            g_source_destroy(gsource);
-            g_source_unref(gsource);
-        }};
-}
 
 struct mir::detail::FdGSource : MainLoopGSource
 {
@@ -429,6 +395,10 @@ std::shared_ptr<mir::detail::TimerGSource> make_timer_gsource(
         timer_gsource,
         [] (mir::detail::TimerGSource* s)
         { 
+            // Clear handlers to ensure that no handlers will be called after this object
+            // has been destroyed (in case we are destroying while the source is being 
+            // dispatched).
+            s->timer_source()->clear_handlers();
             auto const gsource = reinterpret_cast<GSource*>(s);
             g_source_destroy(gsource);
             g_source_unref(gsource);
@@ -526,6 +496,7 @@ mir::GLibMainLoop::GLibMainLoop(
             { 
                 if (ctx) g_main_context_unref(ctx);
             }},
+      signal_dispatch{new detail::SignalDispatch{main_context.get()}},
       before_next_iteration{[]{}}
 {
 }
@@ -593,15 +564,7 @@ void mir::GLibMainLoop::register_signal_handler(
     std::initializer_list<int> signals,
     std::function<void(int)> const& handler)
 {
-    std::lock_guard<std::mutex> lock{signal_gsource_mutex};
-
-    if (!signal_gsource)
-    {
-        signal_gsource = make_signal_gsource();
-        signal_gsource->attach(main_context.get());
-    }
-
-    signal_gsource->signal_source()->add_handler(signals, handler);
+    signal_dispatch->add_handler(signals, handler);
 }
 
 void mir::GLibMainLoop::register_fd_handler(

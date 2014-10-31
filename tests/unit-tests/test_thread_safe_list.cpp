@@ -115,3 +115,45 @@ TEST_F(ThreadSafeListTest,
 
     EXPECT_THAT(elements_seen, Eq(1));
 }
+
+TEST_F(ThreadSafeListTest, removes_all_matching_elements)
+{
+    using namespace testing;
+
+    std::vector<Element> elements_seen;
+
+    list.add(element1);
+    list.add(element2);
+    list.add(element1);
+
+    list.remove_all(element1);
+
+    list.for_each(
+        [&] (Element const& element)
+        {
+            elements_seen.push_back(element);
+        });
+
+    EXPECT_THAT(elements_seen, ElementsAre(element2));
+}
+
+TEST_F(ThreadSafeListTest, clears_all_elements)
+{
+    using namespace testing;
+
+    int elements_seen = 0;
+
+    list.add(element1);
+    list.add(element2);
+    list.add(element1);
+
+    list.clear();
+
+    list.for_each(
+        [&] (Element const&)
+        {
+            ++elements_seen;
+        });
+
+    EXPECT_THAT(elements_seen, Eq(0));
+}

@@ -26,6 +26,24 @@
 
 namespace mir
 {
+
+/*
+ * Requirements for type 'Element'
+ *  - for_each():
+ *    - copy-assignable
+ *  - add()
+ *    - copy-assignable
+ *    - operator bool: returns whether this is a valid element
+ *  - remove(), remove_all():
+ *    - copy-assignable
+ *    - Element{}: default construction should create an invalid element
+ *    - bool operator==: equality between two elements
+ *    - bool operator!=: inequality between two elements
+ *  - clear():
+ *    - copy-assignable
+ *    - Element{}: default construction should create an invalid element
+ */
+
 template<class Element>
 class ThreadSafeList
 {
@@ -33,6 +51,7 @@ public:
     void add(Element const& element);
     void remove(Element const& element);
     unsigned int remove_all(Element const& element);
+    void clear();
     void for_each(std::function<void(Element const& element)> const& f);
 
 private:
@@ -147,6 +166,19 @@ unsigned int ThreadSafeList<Element>::remove_all(Element const& element)
     while ((current_item = current_item->next));
 
     return removed;
+}
+
+template<class Element>
+void ThreadSafeList<Element>::clear()
+{
+    ListItem* current_item = &head;
+
+    do
+    {
+        RecursiveWriteLock lock{current_item->mutex};
+        current_item->element = Element{};
+    }
+    while ((current_item = current_item->next));
 }
 
 }

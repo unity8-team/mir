@@ -19,7 +19,7 @@ class Clock;
 }
 namespace detail
 {
-struct SignalGSource;
+class SignalDispatch;
 struct FdGSource;
 struct TimerGSource;
 struct ServerActionGSource;
@@ -70,8 +70,7 @@ private:
     std::mutex fd_gsources_mutex;
     std::vector<std::shared_ptr<detail::FdGSource>> fd_gsources;
 
-    std::mutex signal_gsource_mutex;
-    std::shared_ptr<detail::SignalGSource> signal_gsource;
+    std::unique_ptr<detail::SignalDispatch> signal_dispatch;
 
     std::mutex before_next_iteration_mutex;
     std::function<void()> before_next_iteration;
