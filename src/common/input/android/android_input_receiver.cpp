@@ -90,19 +90,18 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     uint32_t event_sequence_id;
 
     std::lock_guard<std::mutex> lg(frame_time_guard);
-    bool consume_batches_next = false;
+    bool frame_wake = false;
     if (frame_time != last_frame_time)
     {
-        consume_batches_next = true;
+        frame_wake = true;
         last_frame_time = frame_time;
     }
-    consume_batches_next = true;
 
     droidinput::status_t status;
     bool result = false;
     // TODO: Frame time or -1?
     do {
-        if ((status = input_consumer->consume(&event_factory, consume_batches_next, consume_batches_next ? frame_time : -1,
+        if ((status = input_consumer->consume(&event_factory, true, frame_wake ? frame_time : -1,
                 &event_sequence_id, &android_event))
             == droidinput::OK)
         {
