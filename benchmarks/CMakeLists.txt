@@ -6,9 +6,9 @@ add_custom_target(
 
 if (MIR_ENABLE_TESTS)
   add_subdirectory(android-input)
-  add_subdirectory(frame-uniformity)
 endif ()
 add_subdirectory(cpu)
 add_subdirectory(memory)
+add_subdirectory(frame-uniformity)
 
-add_dependencies(benchmarks cpu_benchmarks memory_benchmarks)
+add_dependencies(benchmarks cpu_benchmarks memory_benchmarks frame_uniformity_test_client)
