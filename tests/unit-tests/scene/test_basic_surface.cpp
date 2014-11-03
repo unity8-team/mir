@@ -528,6 +528,13 @@ AttributeTestParameters const surface_focus_test_parameters{
     -1
 };
 
+AttributeTestParameters const surface_parent_test_parameters{
+    mir_surface_attrib_parent,
+    0,
+    123,
+    0 // No invalid value at the BasicSurface level. Validity checked by session
+};
+
 }
 
 TEST_P(BasicSurfaceAttributeTest, default_value)
@@ -591,9 +598,12 @@ TEST_P(BasicSurfaceAttributeTest, throws_on_invalid_value)
     auto const& attribute = params.attribute;
     auto const& invalid_value = params.an_invalid_value;
     
-    EXPECT_THROW({
+    if (invalid_value != params.default_value)
+    {
+        EXPECT_THROW({
             surface.configure(attribute, invalid_value);
         }, std::logic_error);
+    }
 }
 
 INSTANTIATE_TEST_CASE_P(SurfaceTypeAttributeTest, BasicSurfaceAttributeTest,
@@ -613,6 +623,9 @@ INSTANTIATE_TEST_CASE_P(SurfaceDPIAttributeTest, BasicSurfaceAttributeTest,
 
 INSTANTIATE_TEST_CASE_P(SurfaceFocusAttributeTest, BasicSurfaceAttributeTest,
    ::testing::Values(surface_focus_test_parameters));
+
+INSTANTIATE_TEST_CASE_P(SurfaceParentAttributeTest, BasicSurfaceAttributeTest,
+   ::testing::Values(surface_parent_test_parameters));
 
 TEST_F(BasicSurfaceTest, configure_returns_value_set_by_configurator)
 {

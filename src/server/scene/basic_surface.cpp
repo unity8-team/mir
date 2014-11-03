@@ -174,6 +174,24 @@ void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p)
     weak_parent = p;
 }
 
+int ms::BasicSurface::set_parent_id(int id)
+{
+    /*
+     * We store the parent ID separately to the parent surface pointer.
+     * This seems a bit redundant, but the parent ID integer only has
+     * meaning at higher levels (the session) and this way provides some
+     * nice consistency in that the query() method still works.
+     */
+    std::unique_lock<std::mutex> lk(guard);
+    if (attrib_values[mir_surface_attrib_parent] != id)
+    {
+        attrib_values[mir_surface_attrib_parent] = id;
+        lk.unlock();
+        observers.attrib_changed(mir_surface_attrib_parent, id);
+    }
+    return id;
+}
+
 std::shared_ptr<mf::Surface> ms::BasicSurface::parent() const
 {
     std::unique_lock<std::mutex> lk(guard);
@@ -523,13 +541,7 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
         result = set_visibility(static_cast<MirSurfaceVisibility>(result));
         break;
     case mir_surface_attrib_parent:
-        /*
-         * We store the parent ID separately to the parent surface pointer.
-         * This seems a bit redundant, but the parent ID integer only has
-         * meaning at higher levels (the session) and this way provides some
-         * nice consistency in that the query() method still works.
-         */
-        attrib_values[mir_surface_attrib_parent] = result;
+        result = set_parent_id(result);
         break;
     default:
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface "
