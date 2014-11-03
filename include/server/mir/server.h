@@ -24,8 +24,8 @@
 
 namespace mir
 {
-namespace compositor { class Compositor; }
-namespace frontend { class SessionAuthorizer; }
+namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
+namespace frontend { class SessionAuthorizer; class Session; }
 namespace graphics { class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
 namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; }
 namespace options { class Option; }
@@ -35,11 +35,13 @@ namespace scene
 class PlacementStrategy;
 class SessionListener;
 class PromptSessionListener;
+class PromptSessionManager;
 class SurfaceConfigurator;
 class SessionCoordinator;
 class SurfaceCoordinator;
 }
 
+class Fd;
 class MainLoop;
 class ServerStatusListener;
 
@@ -146,6 +148,10 @@ public:
     /// Sets an override functor for creating the compositor.
     void override_the_compositor(Builder<compositor::Compositor> const& compositor_builder);
 
+    /// Sets an override functor for creating the per-display rendering code.
+    void override_the_display_buffer_compositor_factory(
+        Builder<compositor::DisplayBufferCompositorFactory> const& compositor_builder);
+
     /// Sets an override functor for creating the cursor listener.
     void override_the_cursor_listener(Builder<input::CursorListener> const& cursor_listener_builder);
 
@@ -211,6 +217,9 @@ public:
     /// \return the prompt session listener.
     auto the_prompt_session_listener() const -> std::shared_ptr<scene::PromptSessionListener>;
 
+    /// \return the prompt session manager.
+    auto the_prompt_session_manager() const ->std::shared_ptr<scene::PromptSessionManager>;
+
     /// \return the session authorizer.
     auto the_session_authorizer() const -> std::shared_ptr<frontend::SessionAuthorizer>;
 
@@ -230,6 +239,29 @@ public:
     auto the_surface_coordinator() const -> std::shared_ptr<scene::SurfaceCoordinator>;
 /** @} */
 
+/** @name Client side support
+ * These facilitate use of the server through the client API.
+ * They should be called while the server is running (i.e. run() has been called and
+ * not exited) otherwise they throw a std::logic_error.
+ * @{ */
+    using ConnectHandler = std::function<void(std::shared_ptr<frontend::Session> const& session)>;
+
+    /// Get a file descriptor that can be used to connect a client
+    /// It can be passed to another process, or used directly with mir_connect()
+    /// using the format "fd://%d".
+    auto open_client_socket() -> Fd;
+
+    /// Get a file descriptor that can be used to connect a client
+    /// It can be passed to another process, or used directly with mir_connect()
+    /// using the format "fd://%d".
+    /// \param connect_handler callback to be invoked when the client connects
+    auto open_client_socket(ConnectHandler const& connect_handler) -> Fd;
+
+    /// Get a file descriptor that can be used to connect a prompt provider
+    /// It can be passed to another process, or used directly with mir_connect()
+    /// using the format "fd://%d".
+    auto open_prompt_socket() -> Fd;
+/** @} */
 private:
     void apply_settings() const;
     struct ServerConfiguration;

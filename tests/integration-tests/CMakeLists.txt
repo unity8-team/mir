@@ -21,6 +21,7 @@ set(
   test_protobuf.cpp
   test_surfaceloop.cpp
   test_stale_frames.cpp
+  test_test_framework.cpp
   test_error_reporting.cpp
   test_exchange_buffer.cpp
   test_display_info.cpp
@@ -82,6 +83,7 @@ target_link_libraries(
   mir-test
   mir-test-framework
   mir-test-doubles
+  mirclient-debug-extension
 
   mirdraw
   mirtestdraw

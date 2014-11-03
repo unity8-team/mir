@@ -56,10 +56,6 @@ static mtd::DrawPatternCheckered<2,2> draw_pattern0(pattern0);
 static mtd::DrawPatternCheckered<2,2> draw_pattern1(pattern1);
 static const char socket_file[] = "./test_client_ipc_render_socket";
 
-void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
-{
-}
-
 struct TestClient
 {
     static MirPixelFormat select_format_for_visual_id(int visual_id)
@@ -113,9 +109,6 @@ struct TestClient
         }
 
         mir_surface_release_sync(surface);
-        // Clear the lifecycle callback in order not to get SIGHUP by the
-        // default lifecycle handler during connection teardown
-        mir_connection_set_lifecycle_event_callback(connection, null_lifecycle_callback, nullptr);
         mir_connection_release(connection);
         return 0;
     }
@@ -173,9 +166,6 @@ struct TestClient
         }
 
         mir_surface_release_sync(mir_surface);
-        // Clear the lifecycle callback in order not to get SIGHUP by the
-        // default lifecycle handler during connection teardown
-        mir_connection_set_lifecycle_event_callback(connection, null_lifecycle_callback, nullptr);
         mir_connection_release(connection);
         return 0;
     }
@@ -220,9 +210,10 @@ struct StubServerGenerator : public mt::StubServerTool
 
         response->mutable_buffer()->set_fds_on_side_channel(1);
         native_handle_t const* native_handle = buf->handle();
-        for(auto i=0; i<native_handle->numFds; i++)
+        for (auto i = 0; i < native_handle->numFds; i++)
             response->mutable_buffer()->add_fd(dup(native_handle->data[i]));
-        for(auto i=0; i < native_handle->numInts; i++)
+        response->mutable_buffer()->add_data(static_cast<int>(mga::BufferFlag::unfenced));
+        for (auto i = 0; i < native_handle->numInts; i++)
             response->mutable_buffer()->add_data(native_handle->data[native_handle->numFds+i]);
 
         std::unique_lock<std::mutex> lock(guard);
@@ -252,9 +243,10 @@ struct StubServerGenerator : public mt::StubServerTool
         response->set_width(size.width.as_int());
         response->set_height(size.height.as_int());
 
-        for(auto i=0; i<native_handle->numFds; i++)
+        for (auto i = 0; i < native_handle->numFds; i++)
             response->add_fd(dup(native_handle->data[i]));
-        for(auto i=0; i<native_handle->numInts; i++)
+        response->add_data(static_cast<int>(mga::BufferFlag::unfenced));
+        for (auto i = 0; i < native_handle->numInts; i++)
             response->add_data(native_handle->data[native_handle->numFds+i]);
         done->Run();
     }
