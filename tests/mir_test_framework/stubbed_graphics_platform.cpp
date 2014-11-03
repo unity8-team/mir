@@ -187,11 +187,6 @@ std::shared_ptr<mg::BufferWriter> mtf::StubGraphicPlatform::make_buffer_writer()
     return std::make_shared<NullWriter>();
 }
 
-std::shared_ptr<mf::VsyncProvider> mtf::StubGraphicPlatform::make_vsync_provider()
-{
-    return std::make_shared<mtd::StubVsyncProvider>();
-}
-
 extern "C" std::shared_ptr<mg::Platform> create_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,

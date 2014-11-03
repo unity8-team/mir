@@ -39,8 +39,8 @@
 namespace mg = mir::graphics;
 namespace mga=mir::graphics::android;
 
-mga::ResourceFactory::ResourceFactory(std::shared_ptr<HWCVsyncCoordinator> const& vsync_coordinator)
-    : vsync_coordinator(vsync_coordinator)
+mga::ResourceFactory::ResourceFactory()
+    : vsync_coordinator(std::make_shared<mga::HWCVsync>())
 {
 }
 
@@ -106,4 +106,9 @@ std::shared_ptr<mga::DisplayDevice> mga::ResourceFactory::create_hwc_fb_device(
     std::shared_ptr<framebuffer_device_t> const& fb_native_device) const
 {
     return std::make_shared<mga::HwcFbDevice>(wrapper, fb_native_device, vsync_coordinator);
+}
+
+std::shared_ptr<mga::HWCVsyncCoordinator> mga::ResourceFactory::create_vsync_coordinator() const
+{
+    return vsync_coordinator;
 }

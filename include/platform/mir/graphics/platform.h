@@ -32,7 +32,6 @@ class EmergencyCleanupRegistry;
 namespace frontend
 {
 class Surface;
-class VsyncProvider;
 }
 namespace options
 {
@@ -79,7 +78,6 @@ public:
     virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() = 0;
     
     virtual std::shared_ptr<BufferWriter> make_buffer_writer() = 0;
-    virtual std::shared_ptr<frontend::VsyncProvider> make_vsync_provider() = 0;
 
     /**
      * Creates the display subsystem.

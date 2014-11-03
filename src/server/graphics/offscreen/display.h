@@ -88,6 +88,8 @@ public:
 
     std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image);
     std::unique_ptr<GLContext> create_gl_context();
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider() { return nullptr; } // TODO: ~racarr
 
 private:
     std::shared_ptr<BasicPlatform> const basic_platform;

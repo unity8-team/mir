@@ -84,6 +84,11 @@ struct StubDisplayBuilder : public graphics::android::DisplayBuilder
                 new StubConfigurableDisplayBuffer(geometry::Rectangle{{0,0},sz}));
     }
     
+    std::shared_ptr<graphics::android::HWCVsyncCoordinator> vsync_coordinator() const
+    {
+        return nullptr;
+    }
+
     geometry::Size sz;
 };
 }

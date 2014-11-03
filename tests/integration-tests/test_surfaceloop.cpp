@@ -86,6 +86,12 @@ public:
         f(display_buffer);
     }
 
+    std::shared_ptr<mf::VsyncProvider> vsync_provider() override
+    {
+        return std::make_shared<mtd::StubVsyncProvider>();
+    }
+
+
 private:
     mtd::StubDisplayBuffer display_buffer;
 };
@@ -185,10 +191,6 @@ struct BufferCounterConfig : mtf::StubbedServerConfiguration
         std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
         {
             return std::make_shared<StubGraphicBufferAllocator>();
-        }
-        std::shared_ptr<mf::VsyncProvider> make_vsync_provider() override
-        {
-            return std::make_shared<mtd::StubVsyncProvider>();
         }
 
         std::shared_ptr<mg::Display> create_display(

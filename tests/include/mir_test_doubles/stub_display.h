@@ -22,6 +22,7 @@
 #include "null_display.h"
 #include "stub_display_buffer.h"
 #include "stub_display_configuration.h"
+#include "stub_vsync_provider.h"
 
 #include "mir/geometry/rectangle.h"
 
@@ -55,6 +56,11 @@ public:
         return std::unique_ptr<graphics::DisplayConfiguration>(
             new StubDisplayConfig(output_rects)
         );
+    }
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider() override
+    {
+        return std::make_shared<StubVsyncProvider>();
     }
 
 private:

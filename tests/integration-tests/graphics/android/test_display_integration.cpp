@@ -61,7 +61,7 @@ protected:
            per process (repeated framebuffer_{open,close}() doesn't seem to work). once we
            figure out why, we can remove fb_device in the test fixture */
         auto logger = std::make_shared<mga::NullHwcLogger>();
-        auto display_resource_factory = std::make_shared<mga::ResourceFactory>(std::make_shared<mga::HWCVsync>());
+        auto display_resource_factory = std::make_shared<mga::ResourceFactory>();
         auto null_display_report = mir::report::null_display_report();
         auto stub_gl_config = std::make_shared<mtd::StubGLConfig>();
         auto display_buffer_factory = std::make_shared<mga::OutputBuilder>(

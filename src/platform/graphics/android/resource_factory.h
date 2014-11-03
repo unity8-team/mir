@@ -32,7 +32,7 @@ class HWCVsyncCoordinator;
 class ResourceFactory : public DisplayResourceFactory
 {
 public:
-    ResourceFactory(std::shared_ptr<HWCVsyncCoordinator> const& vsync_coordinator);
+    ResourceFactory();
     //native allocations
     std::shared_ptr<hwc_composer_device_1> create_hwc_native_device() const;
     std::shared_ptr<framebuffer_device_t> create_fb_native_device() const;
@@ -48,6 +48,8 @@ public:
 
     std::shared_ptr<ANativeWindow> create_native_window(
         std::shared_ptr<FramebufferBundle> const& fb_bundle) const;
+    
+    std::shared_ptr<HWCVsyncCoordinator> create_vsync_coordinator() const;
 
 private:
     std::shared_ptr<HWCVsyncCoordinator> const vsync_coordinator;

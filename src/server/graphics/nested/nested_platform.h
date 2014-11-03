@@ -30,7 +30,6 @@ namespace graphics
 {
 namespace nested
 {
-class VsyncProvider;
 
 class NestedPlatform : public Platform,
                        public std::enable_shared_from_this<NestedPlatform>
@@ -51,7 +50,6 @@ public:
     std::shared_ptr<InternalClient> create_internal_client() override;
     std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const override;
     std::shared_ptr<BufferWriter> make_buffer_writer() override;
-    std::shared_ptr<frontend::VsyncProvider> make_vsync_provider() override;
 
     EGLNativeDisplayType egl_native_display() const;
 
@@ -60,7 +58,6 @@ private:
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     std::shared_ptr<DisplayReport> const display_report;
     std::shared_ptr<HostConnection> const connection;
-    std::shared_ptr<VsyncProvider> const vsync_provider;
 };
 
 }

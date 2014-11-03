@@ -67,6 +67,8 @@ public:
 
     std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image);
     std::unique_ptr<graphics::GLContext> create_gl_context();
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider();
 
 private:
     std::shared_ptr<DisplayBuilder> const display_builder;

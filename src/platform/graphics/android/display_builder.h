@@ -31,6 +31,7 @@ class GLProgramFactory;
 namespace android
 {
 class GLContext;
+class HWCVsyncCoordinator;
 
 class DisplayBuilder
 {
@@ -40,6 +41,8 @@ public:
     virtual MirPixelFormat display_format() = 0;
     virtual std::unique_ptr<ConfigurableDisplayBuffer> create_display_buffer(
         GLProgramFactory const& gl_program_factory, GLContext const& gl_context) = 0;
+
+    virtual std::shared_ptr<HWCVsyncCoordinator> vsync_coordinator() const = 0;
 
 protected:
     DisplayBuilder() = default;

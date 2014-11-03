@@ -38,7 +38,6 @@ public:
         std::shared_ptr<mir::graphics::GLConfig> const&) override;
 
     std::shared_ptr<mir::graphics::BufferWriter> make_buffer_writer() override;
-    std::shared_ptr<mir::frontend::VsyncProvider> make_vsync_provider() override;
 
 private:
     std::vector<mir::geometry::Rectangle> const display_rects;

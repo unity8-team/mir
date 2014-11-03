@@ -24,6 +24,10 @@
 
 namespace mir
 {
+namespace frontend
+{
+class VsyncProvider;
+}
 
 namespace graphics
 {
@@ -101,6 +105,11 @@ public:
      * Create a hardware cursor object.
      */
     virtual std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image) = 0;
+    
+    /**
+     * Return a  vsync provider for the display which can provide information about vsync timings per-output.
+     */
+    virtual std::shared_ptr<frontend::VsyncProvider> vsync_provider() = 0;
 
     /**
      * Creates a GLContext object that shares resources with the Display's GL context.

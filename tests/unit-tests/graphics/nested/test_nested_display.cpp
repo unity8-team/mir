@@ -65,7 +65,6 @@ struct NestedDisplay : testing::Test
     mir::report::null::DisplayReport null_display_report;
     mg::DefaultDisplayConfigurationPolicy default_conf_policy;
     mtd::StubGLConfig stub_gl_config;
-    mgn::VsyncProvider vsync_provider;
     std::shared_ptr<mtd::NullPlatform> null_platform{
         std::make_shared<mtd::NullPlatform>()};
 };
@@ -104,8 +103,7 @@ TEST_F(NestedDisplay, respects_gl_config)
         mt::fake_shared(null_input_dispatcher),
         mt::fake_shared(null_display_report),
         mt::fake_shared(default_conf_policy),
-        mt::fake_shared(mock_gl_config),
-        mt::fake_shared(vsync_provider)};
+        mt::fake_shared(mock_gl_config)};
 }
 
 TEST_F(NestedDisplay, does_not_change_host_display_configuration_at_construction)
@@ -123,8 +121,7 @@ TEST_F(NestedDisplay, does_not_change_host_display_configuration_at_construction
         mt::fake_shared(null_input_dispatcher),
         mt::fake_shared(null_display_report),
         mt::fake_shared(default_conf_policy),
-        mt::fake_shared(stub_gl_config),
-        mt::fake_shared(vsync_provider)};
+        mt::fake_shared(stub_gl_config)};
 }
 
 // Regression test for LP: #1372276
@@ -138,8 +135,7 @@ TEST_F(NestedDisplay, keeps_platform_alive)
         mt::fake_shared(null_input_dispatcher),
         mt::fake_shared(null_display_report),
         mt::fake_shared(default_conf_policy),
-        mt::fake_shared(stub_gl_config),
-        mt::fake_shared(vsync_provider)};
+        mt::fake_shared(stub_gl_config)};
 
     std::weak_ptr<mtd::NullPlatform> weak_platform = null_platform;
     null_platform.reset();

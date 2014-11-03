@@ -26,7 +26,7 @@
 
 #include "mir/frontend/protobuf_connection_creator.h"
 #include "mir/frontend/session_authorizer.h"
-#include "mir/graphics/platform.h"
+#include "mir/graphics/display.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
 
@@ -143,7 +143,7 @@ mir::DefaultServerConfiguration::the_vsync_provider()
     return vsync_provider(
         [&]()
         {
-            return the_graphics_platform()->make_vsync_provider();
+            return the_display()->vsync_provider();
         });
 }
 

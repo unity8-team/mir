@@ -128,6 +128,11 @@ struct StubDisplay : public mtd::StubDisplay
     {
         exec(buffer);
     }
+    
+    std::shared_ptr<mf::VsyncProvider> vsync_provider() override
+    {
+        return mt::fake_shared(buffer.vsync_provider);
+    }
 
     StubDisplayBuffer buffer;
 };
@@ -165,10 +170,4 @@ std::shared_ptr<mg::PlatformIpcOperations> VsyncSimulatingPlatform::make_ipc_ope
 std::shared_ptr<mg::InternalClient> VsyncSimulatingPlatform::create_internal_client()
 {
     return nullptr;
-}
-
-std::shared_ptr<mf::VsyncProvider> VsyncSimulatingPlatform::make_vsync_provider()
-{
-    auto stub_display = std::dynamic_pointer_cast<StubDisplay>(display);
-    return mt::fake_shared(stub_display->buffer.vsync_provider);
 }

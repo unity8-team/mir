@@ -102,8 +102,7 @@ public:
         std::shared_ptr<input::InputDispatcher> const& dispatcher,
         std::shared_ptr<DisplayReport> const& display_report,
         std::shared_ptr<DisplayConfigurationPolicy> const& conf_policy,
-        std::shared_ptr<GLConfig> const& gl_config,
-        std::shared_ptr<VsyncProvider> const& vsync_provider);
+        std::shared_ptr<GLConfig> const& gl_config);
 
     ~NestedDisplay() noexcept;
 
@@ -126,6 +125,8 @@ public:
 
     std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image) override;
     std::unique_ptr<graphics::GLContext> create_gl_context() override;
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider() override;
 
 private:
     std::shared_ptr<Platform> const platform;
@@ -133,7 +134,7 @@ private:
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     std::shared_ptr<DisplayReport> const display_report;
     detail::EGLDisplayHandle egl_display;
-    std::shared_ptr<VsyncProvider> const vsync_provider;
+    std::shared_ptr<VsyncProvider> const vsync_provider_;
 
     std::mutex outputs_mutex;
     std::unordered_map<DisplayConfigurationOutputId, std::shared_ptr<detail::NestedOutput>> outputs;

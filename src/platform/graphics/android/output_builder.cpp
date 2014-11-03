@@ -41,6 +41,7 @@ mga::OutputBuilder::OutputBuilder(
     : buffer_allocator(buffer_allocator),
       res_factory(res_factory),
       display_report(display_report),
+      vsync_coordinator_(res_factory->create_vsync_coordinator()),
       force_backup_display(false),
       overlay_optimization(overlay_optimization)
 {
@@ -117,4 +118,9 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> mga::OutputBuilder::create_displ
         gl_context,
         gl_program_factory,
         overlay_optimization));
+}
+
+std::shared_ptr<mga::HWCVsyncCoordinator> mga::OutputBuilder::vsync_coordinator() const
+{
+    return vsync_coordinator_;
 }

@@ -48,6 +48,7 @@ public:
     MOCK_METHOD0(resume, void());
     MOCK_METHOD1(create_hardware_cursor, std::shared_ptr<graphics::Cursor>(std::shared_ptr<graphics::CursorImage> const&));
     MOCK_METHOD0(create_gl_context, std::unique_ptr<graphics::GLContext>());
+    MOCK_METHOD0(vsync_provider, std::shared_ptr<frontend::VsyncProvider>());
 };
 
 }

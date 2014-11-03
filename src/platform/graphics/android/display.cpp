@@ -22,6 +22,7 @@
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/egl_resources.h"
+#include "hwc_vsync.h"
 #include "display.h"
 #include "display_builder.h"
 #include "mir/geometry/rectangle.h"
@@ -30,6 +31,7 @@
 
 namespace mga=mir::graphics::android;
 namespace mg=mir::graphics;
+namespace mf = mir::frontend;
 namespace geom=mir::geometry;
 
 mga::Display::Display(std::shared_ptr<mga::DisplayBuilder> const& display_builder,
@@ -109,4 +111,9 @@ auto mga::Display::create_hardware_cursor(std::shared_ptr<mg::CursorImage> const
 std::unique_ptr<mg::GLContext> mga::Display::create_gl_context()
 {
     return std::unique_ptr<mg::GLContext>{new mga::PbufferGLContext(gl_context)};
+}
+
+std::shared_ptr<mf::VsyncProvider> mga::Display::vsync_provider()
+{
+    return display_builder->vsync_coordinator();
 }

@@ -52,11 +52,13 @@ public:
     std::unique_ptr<ConfigurableDisplayBuffer> create_display_buffer(
         GLProgramFactory const& gl_program_factory,
         GLContext const& gl_context);
+    std::shared_ptr<HWCVsyncCoordinator> vsync_coordinator() const;
 
 private:
     std::shared_ptr<GraphicBufferAllocator> const buffer_allocator;
     std::shared_ptr<DisplayResourceFactory> const res_factory;
     std::shared_ptr<DisplayReport> const display_report;
+    std::shared_ptr<HWCVsyncCoordinator> const vsync_coordinator_;
 
     std::shared_ptr<FramebufferBundle> framebuffers;
     bool force_backup_display;

@@ -66,6 +66,11 @@ class NullDisplay : public graphics::Display
     {
         return std::unique_ptr<NullGLContext>{new NullGLContext()};
     }
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider()
+    {
+        return nullptr;
+    }
 };
 
 }

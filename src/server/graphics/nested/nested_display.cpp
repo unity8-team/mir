@@ -35,6 +35,7 @@
 
 namespace mg = mir::graphics;
 namespace mgn = mir::graphics::nested;
+namespace mf = mir::frontend;
 namespace geom = mir::geometry;
 
 EGLint const mgn::detail::nested_egl_context_attribs[] =
@@ -126,14 +127,13 @@ mgn::NestedDisplay::NestedDisplay(
     std::shared_ptr<input::InputDispatcher> const& dispatcher,
     std::shared_ptr<mg::DisplayReport> const& display_report,
     std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy,
-    std::shared_ptr<mg::GLConfig> const& gl_config,
-    std::shared_ptr<mgn::VsyncProvider> const& vsync_provider) :
+    std::shared_ptr<mg::GLConfig> const& gl_config) :
     platform{platform},
     connection{connection},
     dispatcher{dispatcher},
     display_report{display_report},
     egl_display{connection->egl_native_display(), gl_config},
-    vsync_provider(vsync_provider),
+    vsync_provider_(std::make_shared<mgn::VsyncProvider>()),
     outputs{}
 {
     std::shared_ptr<DisplayConfiguration> conf(configuration());
@@ -214,7 +214,7 @@ void mgn::NestedDisplay::create_surfaces(mg::DisplayConfiguration const& configu
                             host_surface,
                             area,
                             dispatcher,
-                            output.current_format, vsync_provider, output.id);
+                            output.current_format, vsync_provider_, output.id);
                         have_output_for_group = true;
                     }
                 });
@@ -269,4 +269,9 @@ auto mgn::NestedDisplay::create_hardware_cursor(std::shared_ptr<mg::CursorImage>
 std::unique_ptr<mg::GLContext> mgn::NestedDisplay::create_gl_context()
 {
     return std::unique_ptr<mg::GLContext>{new SurfacelessEGLContext(egl_display, EGL_NO_CONTEXT)};
+}
+
+std::shared_ptr<mf::VsyncProvider> mgn::NestedDisplay::vsync_provider()
+{
+    return vsync_provider_;
 }
