@@ -180,10 +180,11 @@ std::weak_ptr<mf::Surface> ms::BasicSurface::parent() const
     return pparent;
 }
 
-/* TODO
-void ms::BasicSurface::move_relative(geometry::Point const& parent_coord)
+/* Coming soon: Parent-relative placement. Something like...
+void ms::BasicSurface::place(geometry::Displacement const& disp)
 {
-   // TODO: move_to(parent.screen_position().top_left() + parent_coord);
+   if (auto p = parent.lock())
+       move_to(p->screen_position().top_left() + disp);
 }
 */
 
@@ -525,8 +526,8 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
         /*
          * We store the parent ID separately to the parent surface pointer.
          * This seems a bit redundant, but the parent ID integer only has
-         * meaning at higher levels (not here) and it does provide some nice
-         * consistency in that the query() method still works this way.
+         * meaning at higher levels (the session) and this way provides some
+         * nice consistency in that the query() method still works.
          */
         attrib_values[mir_surface_attrib_parent] = result;
         break;
