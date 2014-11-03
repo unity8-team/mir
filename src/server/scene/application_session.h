@@ -55,8 +55,6 @@ public:
     frontend::SurfaceId create_surface(SurfaceCreationParameters const& params);
     void destroy_surface(frontend::SurfaceId surface);
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const;
-    /// find_surface may return false if nothing found
-    //  std::shared_ptr<frontend::Surface> find_surface(frontend::SurfaceId surface) const;
 
     void take_snapshot(SnapshotCallback const& snapshot_taken);
     std::shared_ptr<Surface> default_surface() const;
