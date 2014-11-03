@@ -327,6 +327,39 @@ TEST_F(Surface, remembers_alpha)
     EXPECT_FLOAT_EQ(1.0f, surf.alpha());
 }
 
+TEST_F(Surface, remembers_parent_ptr)
+{
+    auto parent = std::make_shared<ms::BasicSurface>(
+        std::string("stub"),
+        geom::Rectangle{{},{}},
+        false,
+        buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
+        null_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report);
+
+    ms::BasicSurface child(
+        std::string("stub"),
+        geom::Rectangle{{},{}},
+        false,
+        buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
+        null_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report);
+
+    EXPECT_FALSE(child.parent());
+    child.set_parent(parent);
+    EXPECT_EQ(parent, child.parent());
+    EXPECT_TRUE(!!child.parent());
+    child.set_parent({});
+    EXPECT_NE(parent, child.parent());
+    EXPECT_FALSE(child.parent());
+}
+
 TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
 {
     using namespace testing;
