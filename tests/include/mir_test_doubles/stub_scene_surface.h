@@ -95,7 +95,7 @@ public:
 
     bool supports_input() const override { return true;}
     int client_input_fd() const override { return fd;}
-    std::weak_ptr<frontend::Surface> parent() const override { return {}; }
+    std::shared_ptr<frontend::Surface> parent() const override { return {}; }
     void set_parent(std::weak_ptr<frontend::Surface> const&) override { }
     int configure(MirSurfaceAttrib, int) override { return 0; }
     int query(MirSurfaceAttrib) override { return 0; }

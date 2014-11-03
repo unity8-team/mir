@@ -171,19 +171,19 @@ std::string ms::BasicSurface::name() const
 void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p)
 {
     std::unique_lock<std::mutex> lk(guard);
-    pparent = p;
+    weak_parent = p;
 }
 
-std::weak_ptr<mf::Surface> ms::BasicSurface::parent() const
+std::shared_ptr<mf::Surface> ms::BasicSurface::parent() const
 {
     std::unique_lock<std::mutex> lk(guard);
-    return pparent;
+    return weak_parent.lock();
 }
 
 /* Coming soon: Parent-relative placement. Something like...
 void ms::BasicSurface::place(geometry::Displacement const& disp)
 {
-   if (auto p = parent.lock())
+   if (auto p = parent())
        move_to(p->screen_position().top_left() + disp);
 }
 */

@@ -148,7 +148,7 @@ public:
     int dpi() const;
 
     void set_parent(std::weak_ptr<frontend::Surface> const& parent) override;
-    std::weak_ptr<frontend::Surface> parent() const override;
+    std::shared_ptr<frontend::Surface> parent() const override;
 
 private:
     bool visible(std::unique_lock<std::mutex>&) const;
@@ -176,7 +176,7 @@ private:
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
-    std::weak_ptr<frontend::Surface> pparent;
+    std::weak_ptr<frontend::Surface> weak_parent;
 
     void initialize_attributes();
     int attrib_values[mir_surface_attribs];
