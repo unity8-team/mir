@@ -117,7 +117,7 @@ bool FakeAlarm::reschedule_in(std::chrono::milliseconds delay)
 bool FakeAlarm::reschedule_for(mir::time::Timestamp timeout)
 {
     // time::Timestamp is on a different clock, so not directly comparable
-    auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(timeout.time_since_epoch() -
+    auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(timeout -
                                                                        clock->now().time_since_epoch());
     return reschedule_in(delay);
 }
