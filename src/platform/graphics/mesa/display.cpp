@@ -24,12 +24,15 @@
 #include "kms_output.h"
 #include "kms_page_flipper.h"
 #include "virtual_terminal.h"
+
 #include "mir/graphics/overlapping_output_grouping.h"
 #include "mir/graphics/event_handler_register.h"
-
 #include "mir/graphics/display_report.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/display_configuration_policy.h"
+
+#include "mir/frontend/vsync_provider.h"
+
 #include "mir/geometry/rectangle.h"
 
 #include <boost/throw_exception.hpp>
@@ -41,6 +44,7 @@
 
 namespace mgm = mir::graphics::mesa;
 namespace mg = mir::graphics;
+namespace mf = mir::frontend;
 namespace geom = mir::geometry;
 
 namespace
@@ -359,4 +363,17 @@ void mgm::Display::clear_connected_unused_outputs()
             kms_output->set_power_mode(conf_output.power_mode);
         }
     });
+}
+
+// TODO: Implement for Mesa
+std::shared_ptr<mf::VsyncProvider> mgm::Display::vsync_provider()
+{
+    struct NullVsyncProvider : public mf::VsyncProvider
+    {
+        std::chrono::nanoseconds last_vsync_for(graphics::DisplayConfigurationOutputId) override
+        {
+            return std::chrono::nanoseconds::zero();
+        }
+    };
+    return std::make_shared<NullVsyncProvider>();
 }

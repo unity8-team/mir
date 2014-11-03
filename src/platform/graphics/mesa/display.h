@@ -81,6 +81,8 @@ public:
 
     std::shared_ptr<graphics::Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image);
     std::unique_ptr<GLContext> create_gl_context();
+    
+    std::shared_ptr<frontend::VsyncProvider> vsync_provider();
 
 private:
     void clear_connected_unused_outputs();

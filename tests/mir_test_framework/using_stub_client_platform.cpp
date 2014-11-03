@@ -85,6 +85,7 @@ mtf::UsingStubClientPlatform::UsingStubClientPlatform(std::function<std::unique_
     : prev_api{mir_connection_api_impl},
       stub_api{new StubMirConnectionAPI{prev_api, create_connection_configuration}}
 {
+    mir_connection_api_impl = stub_api.get();
 }
 
 mtf::UsingStubClientPlatform::~UsingStubClientPlatform()
