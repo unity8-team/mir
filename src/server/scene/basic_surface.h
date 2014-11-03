@@ -147,7 +147,8 @@ public:
 
     int dpi() const;
 
-    void set_parent(std::weak_ptr<frontend::Surface> const& parent) override;
+    void set_parent(std::weak_ptr<frontend::Surface> const& parent,
+                    int id) override;
     std::shared_ptr<frontend::Surface> parent() const override;
 
 private:

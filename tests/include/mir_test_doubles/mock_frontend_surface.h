@@ -64,7 +64,7 @@ struct MockFrontendSurface : public frontend::Surface
     MOCK_CONST_METHOD0(client_input_fd, int());
 
     MOCK_CONST_METHOD0(parent, std::shared_ptr<frontend::Surface>());
-    MOCK_METHOD1(set_parent, void(std::weak_ptr<Surface> const&));
+    MOCK_METHOD2(set_parent, void(std::weak_ptr<Surface> const&,int));
     
     MOCK_METHOD1(set_cursor_image, void(std::shared_ptr<graphics::CursorImage> const&));
 

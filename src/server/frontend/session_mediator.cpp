@@ -360,13 +360,20 @@ void mf::SessionMediator::configure_surface(
         auto const id = frontend::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
         auto const surface = session->get_surface(id);
+        int newvalue = 0;
         if (attrib == mir_surface_attrib_parent)
         {
+            // Parenthood is special. The id<->ptr mapping only exists at
+            // this high level so we need to interpret it here...
             auto const parent_id = frontend::SurfaceId(value);
             auto const parent = session->get_surface(parent_id);
-            surface->set_parent(parent);
+            surface->set_parent(parent, value);
+            newvalue = value;
         }
-        int newvalue = surface->configure(attrib, value);
+        else
+        {
+            newvalue = surface->configure(attrib, value);
+        }
 
         response->set_ivalue(newvalue);
     }

@@ -168,20 +168,19 @@ std::string ms::BasicSurface::name() const
     return surface_name;
 }
 
-void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p)
+void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p, int id)
 {
-    std::unique_lock<std::mutex> lk(guard);
-    weak_parent = p;
+    {
+        std::unique_lock<std::mutex> lk(guard);
+        weak_parent = p;
+    }
+
+    // Set id at the same time to ensure notifications happen
+    set_parent_id(id);
 }
 
 int ms::BasicSurface::set_parent_id(int id)
 {
-    /*
-     * We store the parent ID separately to the parent surface pointer.
-     * This seems a bit redundant, but the parent ID integer only has
-     * meaning at higher levels (the session) and this way provides some
-     * nice consistency in that the query() method still works.
-     */
     std::unique_lock<std::mutex> lk(guard);
     if (attrib_values[mir_surface_attrib_parent] != id)
     {
