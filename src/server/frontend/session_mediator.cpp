@@ -360,14 +360,13 @@ void mf::SessionMediator::configure_surface(
         auto const id = frontend::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
         auto const surface = session->get_surface(id);
-        int newvalue = 0;
         if (attrib == mir_surface_attrib_parent)
         {
             auto const parent_id = frontend::SurfaceId(value);
             auto const parent = session->get_surface(parent_id);
             surface->set_parent(parent);
         }
-        newvalue = surface->configure(attrib, value);
+        int newvalue = surface->configure(attrib, value);
 
         response->set_ivalue(newvalue);
     }
