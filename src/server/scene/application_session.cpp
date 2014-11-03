@@ -105,6 +105,7 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
     return checked_find(id)->second;
 }
 
+#if 0   // Still needed?
 std::shared_ptr<mf::Surface> ms::ApplicationSession::find_surface(mf::SurfaceId id) const
 {
     std::shared_ptr<mf::Surface> result;
@@ -113,6 +114,7 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::find_surface(mf::SurfaceId 
         result = p->second;
     return result;
 }
+#endif
 
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
 {

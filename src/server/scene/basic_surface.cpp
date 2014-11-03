@@ -142,7 +142,7 @@ void ms::BasicSurface::initialize_attributes()
     attrib_values[mir_surface_attrib_focus] = mir_surface_unfocused;
     attrib_values[mir_surface_attrib_dpi] = 0;
     attrib_values[mir_surface_attrib_visibility] = mir_surface_visibility_exposed;
-    attrib_values[mir_surface_attrib_parent] = 0; // Unused. See 'pparent'
+    attrib_values[mir_surface_attrib_parent] = 0;
 }
 
 void ms::BasicSurface::force_requests_to_complete()
@@ -520,6 +520,15 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
         break;
     case mir_surface_attrib_visibility:
         result = set_visibility(static_cast<MirSurfaceVisibility>(result));
+        break;
+    case mir_surface_attrib_parent:
+        /*
+         * We store the parent ID separately to the parent surface pointer.
+         * This seems a bit redundant, but the parent ID integer only has
+         * meaning at higher levels (not here) and it does provide some nice
+         * consistency in that the query() method still works this way.
+         */
+        attrib_values[mir_surface_attrib_parent] = result;
         break;
     default:
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface "

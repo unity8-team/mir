@@ -49,7 +49,7 @@ public:
     virtual SurfaceId create_surface(scene::SurfaceCreationParameters const& params) = 0;
     virtual void destroy_surface(SurfaceId surface) = 0;
     virtual std::shared_ptr<Surface> get_surface(SurfaceId surface) const = 0;
-    virtual std::shared_ptr<Surface> find_surface(SurfaceId surface) const = 0;
+    //virtual std::shared_ptr<Surface> find_surface(SurfaceId surface) const = 0;
 
     virtual std::string name() const = 0;
 

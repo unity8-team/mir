@@ -364,13 +364,10 @@ void mf::SessionMediator::configure_surface(
         if (attrib == mir_surface_attrib_parent)
         {
             auto const parent_id = frontend::SurfaceId(value);
-            auto const parent = session->find_surface(parent_id);
-            newvalue = parent ? value : 0;
+            auto const parent = session->get_surface(parent_id);
+            surface->set_parent(parent);
         }
-        else
-        {
-            newvalue = surface->configure(attrib, value);
-        }
+        newvalue = surface->configure(attrib, value);
 
         response->set_ivalue(newvalue);
     }
