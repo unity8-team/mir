@@ -107,7 +107,8 @@ public:
     virtual std::shared_ptr<Cursor> create_hardware_cursor(std::shared_ptr<CursorImage> const& initial_image) = 0;
     
     /**
-     * Return a  vsync provider for the display which can provide information about vsync timings per-output.
+     * Returns a vsync provider for the display which can provide per-output 
+     * information about vsync timings.
      */
     virtual std::shared_ptr<frontend::VsyncProvider> vsync_provider() = 0;
 

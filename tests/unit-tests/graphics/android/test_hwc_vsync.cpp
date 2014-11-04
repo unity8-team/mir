@@ -44,7 +44,7 @@ TEST_F(HWCVsyncTest, initially_last_vsync_is_zero)
     EXPECT_EQ(std::chrono::nanoseconds::zero(), syncer.last_vsync_for(output_id));
 }
 
-// No multimonitor support on android yet.
+// No multimonitor support on android drivers yet so non zero output ID is invalid.
 TEST_F(HWCVsyncTest, throws_exception_on_non_zero_output_id)
 {
     EXPECT_THROW({
@@ -59,10 +59,10 @@ TEST_F(HWCVsyncTest, takes_time_from_last_vsync_notification)
     EXPECT_EQ(std::chrono::nanoseconds::zero(), syncer.last_vsync_for(output_id));
 
     syncer.notify_vsync(first_time);
-    EXPECT_EQ(first_time, syncer.last_vsync_for(invalid_output_id));
-    EXPECT_EQ(first_time, syncer.last_vsync_for(invalid_output_id));
+    EXPECT_EQ(first_time, syncer.last_vsync_for(output_id));
+    EXPECT_EQ(first_time, syncer.last_vsync_for(output_id));
 
     syncer.notify_vsync(second_time);
-    EXPECT_EQ(second_time, syncer.last_vsync_for(invalid_output_id));
-    EXPECT_EQ(second_time, syncer.last_vsync_for(invalid_output_id));
+    EXPECT_EQ(second_time, syncer.last_vsync_for(output_id));
+    EXPECT_EQ(second_time, syncer.last_vsync_for(output_id));
 }

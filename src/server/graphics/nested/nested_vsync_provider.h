@@ -31,7 +31,6 @@ namespace graphics
 namespace nested
 {
 
-// TODO: Could be in detail namespace
 struct VsyncProvider : public frontend::VsyncProvider
 {
 public:

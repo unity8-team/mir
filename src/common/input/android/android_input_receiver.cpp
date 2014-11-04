@@ -99,7 +99,6 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
     droidinput::status_t status;
     bool result = false;
-    // TODO: Frame time or -1?
     do {
         if ((status = input_consumer->consume(&event_factory, true, frame_wake ? frame_time : -1,
                 &event_sequence_id, &android_event))

@@ -60,7 +60,7 @@ class NullPlatform : public graphics::Platform
     {
         return nullptr;
     }
-    
+
     std::shared_ptr<graphics::PlatformIpcOperations> make_ipc_operations() const override
     {
         return std::make_shared<NullPlatformIpcOperations>();
