@@ -252,7 +252,7 @@ TEST_F(ClientSurfaceEvents, client_receives_parenting_events)
         EXPECT_THAT(last_event.type, Eq(mir_event_type_surface));
         EXPECT_THAT(last_event.surface.id, Eq(surface_id));
         EXPECT_THAT(last_event.surface.attrib, Eq(mir_surface_attrib_parent));
-        EXPECT_THAT(last_event.surface.value, Eq(-1));
+        EXPECT_THAT(last_event.surface.value, Eq(mir_surface_parent_none));
     }
 }
 

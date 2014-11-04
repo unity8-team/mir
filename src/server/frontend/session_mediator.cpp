@@ -366,7 +366,7 @@ void mf::SessionMediator::configure_surface(
             // Parenthood is special. The id<->ptr mapping only exists at
             // this high level so we need to interpret it here...
             std::shared_ptr<frontend::Surface> parent;
-            if (value != -1)  // Don't throw on -1. Just un-parent.
+            if (value != mir_surface_parent_none)
                 parent = session->get_surface(frontend::SurfaceId(value));
             surface->set_parent(parent, value);
             newvalue = value;
