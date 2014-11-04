@@ -224,6 +224,39 @@ TEST_F(ClientSurfaceEvents, surface_receives_state_events)
     }
 }
 
+TEST_F(ClientSurfaceEvents, client_receives_parenting_events)
+{
+    int surface_id = mir_debug_surface_id(surface);
+    int other_surface_id = mir_debug_surface_id(other_surface);
+
+    set_event_filter(mir_event_type_surface);
+
+    {
+        reset_last_event();
+        mir_wait_for(mir_surface_set_parent(surface, other_surface));
+
+        std::lock_guard<decltype(last_event_mutex)> last_event_lock{last_event_mutex};
+        EXPECT_THAT(last_event_surface, Eq(surface));
+        EXPECT_THAT(last_event.type, Eq(mir_event_type_surface));
+        EXPECT_THAT(last_event.surface.id, Eq(surface_id));
+        EXPECT_THAT(last_event.surface.attrib, Eq(mir_surface_attrib_parent));
+        EXPECT_THAT(last_event.surface.value, Eq(other_surface_id));
+    }
+
+    {
+        reset_last_event();
+        mir_wait_for(mir_surface_set_parent(surface, NULL));
+
+        std::lock_guard<decltype(last_event_mutex)> last_event_lock{last_event_mutex};
+        EXPECT_THAT(last_event_surface, Eq(surface));
+        EXPECT_THAT(last_event.type, Eq(mir_event_type_surface));
+        EXPECT_THAT(last_event.surface.id, Eq(surface_id));
+        EXPECT_THAT(last_event.surface.attrib, Eq(mir_surface_attrib_parent));
+        EXPECT_THAT(last_event.surface.value, Eq(-1));
+    }
+}
+
+
 struct OrientationEvents : ClientSurfaceEvents, ::testing::WithParamInterface<MirOrientation> {};
 
 TEST_P(OrientationEvents, surface_receives_orientation_events)
