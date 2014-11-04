@@ -336,7 +336,7 @@ MirWaitHandle* mir_surface_set_parent(MirSurface* surf, MirSurface* parent)
     {
         if (surf)
         {
-            int parent_id = parent ? parent->id() : 0;
+            int parent_id = parent ? parent->id() : -1;
             result = surf->configure(mir_surface_attrib_parent, parent_id);
         }
     }
