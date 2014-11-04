@@ -352,17 +352,17 @@ TEST_F(Surface, remembers_parent)
         report);
 
     EXPECT_FALSE(child.parent());
-    EXPECT_EQ(-1, child.query(mir_surface_attrib_parent));
+    EXPECT_EQ(mir_surface_parent_none, child.query(mir_surface_attrib_parent));
 
     child.set_parent(parent, 123);
     EXPECT_EQ(parent, child.parent());
     EXPECT_EQ(123, child.query(mir_surface_attrib_parent));
     EXPECT_TRUE(!!child.parent());
 
-    child.set_parent({}, 0);
+    child.set_parent({}, 456);
     EXPECT_NE(parent, child.parent());
     EXPECT_FALSE(child.parent());
-    EXPECT_EQ(0, child.query(mir_surface_attrib_parent));
+    EXPECT_EQ(456, child.query(mir_surface_attrib_parent));
 }
 
 TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)

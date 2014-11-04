@@ -8,7 +8,7 @@ e6185b680533c5fdcf1294a4797d5c3dd01d433f  include/client/mir_toolkit/mir_connect
 a77d1b2ae1c15944477512cee129d5746890239d  include/client/mir_toolkit/mir_surface.h
 b141c4d79802ad626d969249c0004744e5c2a525  include/client/mir_toolkit/mir_wait.h
 9907751d046e4aea81881cf19e5df52c7a6a813e  include/common/mir_toolkit/client_types.h
-d6565efce0ffcb6a55b4c928b90a28cd1861a14a  include/common/mir_toolkit/common.h
+5931de6ae2db9c8949f8b8435185c9ec20de396e  include/common/mir_toolkit/common.h
 fce4c1a9e0d037244f7e9e96ea2d8eaab4fc404c  include/common/mir_toolkit/cursors.h
 bdaceadd56e41d2cb708f7c4da97acf84dfc75b7  include/common/mir_toolkit/event.h
 4975998aa1056ed0d39dcc538127453e516ad8e9  include/common/mir_toolkit/mesa/native_display.h
