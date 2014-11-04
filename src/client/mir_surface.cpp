@@ -158,6 +158,12 @@ int MirSurface::id() const
     return surface.id().value();
 }
 
+MirSurface* MirSurface::parent() const noexcept
+{
+    std::lock_guard<decltype(mutex)> lock(mutex);
+    return connection->get_surface(attrib(mir_surface_attrib_parent));
+}
+
 bool MirSurface::is_valid(MirSurface* query)
 {
     std::lock_guard<decltype(handle_mutex)> lock(handle_mutex);
@@ -454,6 +460,7 @@ void MirSurface::on_configured()
         case mir_surface_attrib_focus:
         case mir_surface_attrib_swapinterval:
         case mir_surface_attrib_dpi:
+        case mir_surface_attrib_parent:
             if (configure_result.has_ivalue())
                 attrib_cache[a] = configure_result.ivalue();
             else

@@ -85,6 +85,7 @@ public:
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;
+    MirSurface* parent() const noexcept;
     MirWaitHandle* next_buffer(mir_surface_callback callback, void * context);
     MirWaitHandle* get_create_wait_handle();
 

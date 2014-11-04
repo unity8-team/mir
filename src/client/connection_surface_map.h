@@ -36,6 +36,7 @@ public:
     ~ConnectionSurfaceMap() noexcept;
 
     void with_surface_do(int surface_id, std::function<void(MirSurface*)> exec) const override;
+    MirSurface* find(int surface_id) const noexcept override;
     void insert(int surface_id, MirSurface* surface);
     void erase(int surface_id);
 

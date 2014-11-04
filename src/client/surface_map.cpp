@@ -62,6 +62,18 @@ void mcl::ConnectionSurfaceMap::with_surface_do(
     }
 }
 
+MirSurface* mcl::ConnectionSurfaceMap::find(int surface_id) const noexcept
+{
+    MirSurface* found = nullptr;
+
+    std::lock_guard<std::mutex> lk(guard);
+    auto const it = surfaces.find(surface_id);
+    if (it != surfaces.end())
+        found = it->second;
+
+    return found;
+ }
+
 void mcl::ConnectionSurfaceMap::insert(int surface_id, MirSurface* surface)
 {
     std::lock_guard<std::mutex> lk(guard);

@@ -51,6 +51,11 @@ public:
     void with_surface_do(int /*surface_id*/, std::function<void(MirSurface*)> /*exec*/) const
     {
     }
+
+    MirSurface* find(int) const noexcept
+    {
+        return nullptr;
+    }
 };
 
 class MockStreamTransport : public mclr::StreamTransport

@@ -329,6 +329,29 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface* surface, MirCursorConfig
     return result;
 }
 
+MirWaitHandle* mir_surface_set_parent(MirSurface* surf, MirSurface* parent)
+{
+    MirWaitHandle *result = nullptr;
+    try
+    {
+        if (surf)
+        {
+            int parent_id = parent ? parent->id() : 0;
+            result = surf->configure(mir_surface_attrib_parent, parent_id);
+        }
+    }
+    catch (std::exception const&)
+    {
+    }
+    return result;
+}
+
+MirSurface* mir_surface_get_parent(MirSurface* surf)
+{
+    return surf ? surf->parent() : nullptr;
+}
+
+
 /* Debug functions */
 
 uint32_t mir_debug_surface_current_buffer_id(MirSurface* surface)

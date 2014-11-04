@@ -33,6 +33,7 @@ class SurfaceMap
 public:
     virtual void with_surface_do(
         int surface_id, std::function<void(MirSurface*)> exec) const = 0;
+    virtual MirSurface* find(int surface_id) const noexcept = 0;
 
 protected:
     virtual ~SurfaceMap() = default;

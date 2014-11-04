@@ -136,6 +136,9 @@ public:
     mir::protobuf::DisplayServer& display_server();
     std::shared_ptr<mir::logging::Logger> const& the_logger() const;
 
+    /// Find a surface by id, or return null.
+    MirSurface* get_surface(int id) const noexcept;
+
 private:
     // MUST be first data member so it is destroyed last.
     struct Deregisterer

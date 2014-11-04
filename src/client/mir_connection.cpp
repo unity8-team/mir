@@ -541,3 +541,8 @@ std::shared_ptr<mir::logging::Logger> const& MirConnection::the_logger() const
 {
     return logger;
 }
+
+MirSurface* MirConnection::get_surface(int id) const noexcept
+{
+    return surface_map->find(id);
+}

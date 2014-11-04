@@ -287,6 +287,22 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface *surface, MirCursorConfig
  */
 MirOrientation mir_surface_get_orientation(MirSurface *surface);
 
+/**
+ * Set the parent of a surface.
+ *   \param [in] surface  The child surface that is being parented
+ *   \param [in] parent   The new parent surface
+ *   \return              A wait handle that is signaled when the operation
+ *                        has completed.
+ */
+MirWaitHandle* mir_surface_set_parent(MirSurface* surface, MirSurface* parent);
+
+/**
+ * Get the parent of a surface.
+ *   \param [in] surface  The surface being queried
+ *   \return              The parent surface (or NULL if none).
+ */
+MirSurface* mir_surface_get_parent(MirSurface* surface);
+
 #ifdef __cplusplus
 }
 /**@}*/
