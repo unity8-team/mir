@@ -161,7 +161,7 @@ int MirSurface::id() const
 MirSurface* MirSurface::parent() const noexcept
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    return connection->get_surface(attrib(mir_surface_attrib_parent));
+    return connection->get_surface(attrib_cache[mir_surface_attrib_parent]);
 }
 
 bool MirSurface::is_valid(MirSurface* query)
