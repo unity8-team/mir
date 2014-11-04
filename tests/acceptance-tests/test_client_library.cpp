@@ -331,6 +331,43 @@ TEST_F(ClientLibrary, receives_surface_dpi_value)
     mir_connection_release(connection);
 }
 
+TEST_F(ClientLibrary, surface_parenting)
+{
+    connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+
+    MirSurfaceParameters const request_params =
+    {
+        __PRETTY_FUNCTION__,
+        640, 480,
+        mir_pixel_format_abgr_8888,
+        mir_buffer_usage_hardware,
+        mir_display_output_id_invalid
+    };
+
+    auto parent = mir_connection_create_surface_sync(connection, &request_params);
+    ASSERT_TRUE(parent);
+
+    auto child = mir_connection_create_surface_sync(connection, &request_params);
+    ASSERT_TRUE(child);
+
+    EXPECT_EQ(NULL, mir_surface_get_parent(child));
+
+    mir_wait_for(mir_surface_set_parent(child, parent));
+    EXPECT_EQ(parent, mir_surface_get_parent(child));
+
+    mir_wait_for(mir_surface_set_parent(child, NULL));
+    EXPECT_EQ(NULL, mir_surface_get_parent(child));
+
+    mir_wait_for(mir_surface_set_parent(child, parent));
+    EXPECT_EQ(parent, mir_surface_get_parent(child));
+
+    mir_surface_release_sync(parent);
+    EXPECT_EQ(NULL, mir_surface_get_parent(child));
+    mir_surface_release_sync(child);
+
+    mir_connection_release(connection);
+}
+
 #ifndef ANDROID
 TEST_F(ClientLibrary, surface_scanout_flag_toggles)
 {
