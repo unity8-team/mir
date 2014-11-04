@@ -20,12 +20,14 @@
 #include "display_buffer.h"
 #include "mir/graphics/basic_platform.h"
 #include "mir/graphics/display_configuration_policy.h"
+#include "mir/frontend/vsync_provider.h"
 #include "mir/geometry/size.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 
 namespace mg = mir::graphics;
+namespace mf = mir::frontend;
 namespace mgo = mg::offscreen;
 namespace geom = mir::geometry;
 
@@ -172,4 +174,18 @@ std::unique_ptr<mg::GLContext> mgo::Display::create_gl_context()
 {
     return std::unique_ptr<GLContext>{
         new SurfacelessEGLContext{egl_display, egl_context_shared}};
+}
+
+// Not many examples of needing interactive touch resampling to offscreen outputs
+// so this may never have an implementation...perhaps leaving some code smell.
+std::shared_ptr<mf::VsyncProvider> mgo::Display::vsync_provider()
+{
+    struct NullVsyncProvider : public mf::VsyncProvider
+    {
+        std::chrono::nanoseconds last_vsync_for(graphics::DisplayConfigurationOutputId) override
+        {
+            return std::chrono::nanoseconds::zero();
+        }
+    };
+    return std::make_shared<NullVsyncProvider>();
 }

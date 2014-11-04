@@ -365,7 +365,7 @@ void mgm::Display::clear_connected_unused_outputs()
     });
 }
 
-// TODO: Implement for Mesa
+// TODO: Implement for Mesa to enable touch resampling
 std::shared_ptr<mf::VsyncProvider> mgm::Display::vsync_provider()
 {
     struct NullVsyncProvider : public mf::VsyncProvider
