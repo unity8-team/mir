@@ -355,6 +355,11 @@ TEST_F(ClientLibrary, surface_parenting)
     mir_wait_for(mir_surface_set_parent(child, parent));
     EXPECT_EQ(parent, mir_surface_get_parent(child));
 
+    int foo;
+    auto invalid_surface = reinterpret_cast<MirSurface*>(&foo);
+    mir_wait_for(mir_surface_set_parent(child, invalid_surface));
+    EXPECT_EQ(parent, mir_surface_get_parent(child));
+
     mir_wait_for(mir_surface_set_parent(child, NULL));
     EXPECT_EQ(NULL, mir_surface_get_parent(child));
 
