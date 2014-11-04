@@ -334,6 +334,7 @@ TEST_F(ClientLibrary, receives_surface_dpi_value)
 TEST_F(ClientLibrary, surface_parenting)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    ASSERT_TRUE(mir_connection_is_valid(connection));
 
     MirSurfaceParameters const parm =
     {
@@ -345,10 +346,10 @@ TEST_F(ClientLibrary, surface_parenting)
     };
 
     auto parent = mir_connection_create_surface_sync(connection, &parm);
-    ASSERT_TRUE(parent);
+    ASSERT_TRUE(mir_surface_is_valid(parent));
 
     auto child = mir_connection_create_surface_sync(connection, &parm);
-    ASSERT_TRUE(child);
+    ASSERT_TRUE(mir_surface_is_valid(child));
 
     EXPECT_EQ(NULL, mir_surface_get_parent(child));
 
