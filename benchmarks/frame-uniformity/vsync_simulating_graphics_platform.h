@@ -40,7 +40,7 @@ public:
     
     std::shared_ptr<mir::graphics::PlatformIpcOperations> make_ipc_operations() const;
     std::shared_ptr<mir::graphics::InternalClient> create_internal_client();
-    
+
 private:
     std::shared_ptr<mir::graphics::Display> display;
 };

@@ -105,7 +105,6 @@ struct StubDisplayBuffer : mtd::StubDisplayBuffer
         if (now < next_sync)
             std::this_thread::sleep_for(next_sync - now);
 
-        // TODO: Tighten?
         last_sync = std::chrono::high_resolution_clock::now();
         vsync_provider.notify_of_vsync(last_sync.time_since_epoch());
     }

@@ -138,6 +138,7 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
 
     auto result = looper->pollOnce(reduced_timeout.count());
 // TODO: This may break shutdown and we need to use a different wake method for time available
+//    e.g. bool has_new_frame_time
 /*    if (result == ALOOPER_POLL_WAKE)
         return false; */
 

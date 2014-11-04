@@ -16,8 +16,6 @@
  * Authored By: Robert Carr <robert.carr@canonical.com>
  */
 
-// TODO: Privatize header
-
 #ifndef MIR_FRONTEND_VSYNC_PROVIDER_H_
 #define MIR_FRONTEND_VSYNC_PROVIDER_H_
 
