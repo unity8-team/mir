@@ -142,7 +142,7 @@ void ms::BasicSurface::initialize_attributes()
     attrib_values[mir_surface_attrib_focus] = mir_surface_unfocused;
     attrib_values[mir_surface_attrib_dpi] = 0;
     attrib_values[mir_surface_attrib_visibility] = mir_surface_visibility_exposed;
-    attrib_values[mir_surface_attrib_parent] = -1;
+    attrib_values[mir_surface_attrib_parent] = mir_surface_parent_none;
 }
 
 void ms::BasicSurface::force_requests_to_complete()

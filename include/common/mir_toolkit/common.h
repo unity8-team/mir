@@ -87,6 +87,11 @@ typedef enum MirSurfaceVisibility
     mir_surface_visibility_exposed
 } MirSurfaceVisibility;
 
+enum MirSurfaceParentNone
+{
+    mir_surface_parent_none = -1
+};
+
 typedef enum MirLifecycleState
 {
     mir_lifecycle_state_will_suspend,

@@ -530,9 +530,9 @@ AttributeTestParameters const surface_focus_test_parameters{
 
 AttributeTestParameters const surface_parent_test_parameters{
     mir_surface_attrib_parent,
-    -1,
+    mir_surface_parent_none,
     123,
-    -1 // No invalid value at the BasicSurface level. Validity checked by session
+    mir_surface_parent_none
 };
 
 }
