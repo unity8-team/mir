@@ -335,7 +335,7 @@ TEST_F(ClientLibrary, surface_parenting)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters const request_params =
+    MirSurfaceParameters const parm =
     {
         __PRETTY_FUNCTION__,
         640, 480,
@@ -344,10 +344,10 @@ TEST_F(ClientLibrary, surface_parenting)
         mir_display_output_id_invalid
     };
 
-    auto parent = mir_connection_create_surface_sync(connection, &request_params);
+    auto parent = mir_connection_create_surface_sync(connection, &parm);
     ASSERT_TRUE(parent);
 
-    auto child = mir_connection_create_surface_sync(connection, &request_params);
+    auto child = mir_connection_create_surface_sync(connection, &parm);
     ASSERT_TRUE(child);
 
     EXPECT_EQ(NULL, mir_surface_get_parent(child));
