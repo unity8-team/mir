@@ -92,22 +92,20 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::status_t status;
 
     bool result = false;
-  //  do {
-        if ((status = input_consumer->consume(&event_factory, true, has_new_frame_time ? frame_time : -1,
-                &event_sequence_id, &android_event))
+
+    if ((status = input_consumer->consume(&event_factory, true, has_new_frame_time ? frame_time : -1,
+        &event_sequence_id, &android_event))
             == droidinput::OK)
-        {
-            mia::Lexicon::translate(android_event, ev);
-    
-            map_key_event(xkb_mapper, ev);
-    
-            input_consumer->sendFinishedSignal(event_sequence_id, true);
-    
-            report->received_event(ev);
-    
-            result = true;
-        }
-//    } while (input_consumer->hasDeferredEvent() || status != droidinput::WOULD_BLOCK);
+    {
+        mia::Lexicon::translate(android_event, ev);
+        map_key_event(xkb_mapper, ev);
+
+        input_consumer->sendFinishedSignal(event_sequence_id, true);
+
+        report->received_event(ev);
+
+        result = true;
+    }
     
     has_new_frame_time = false;
 
@@ -125,7 +123,6 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         fd_added = true;
     }
     
-    // TODO: Investigate ~racarr
     auto reduced_timeout = timeout;
     
     if (input_consumer->hasPendingBatch())

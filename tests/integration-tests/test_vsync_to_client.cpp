@@ -212,5 +212,3 @@ TEST_F(VsyncProviderTest, client_input_thread_receives_information_from_server_v
     mir_surface_release_sync(surface);
     mir_connection_release(connection);
 }
-
-// TODO: Make sure to install UsingStubClientPlatform
