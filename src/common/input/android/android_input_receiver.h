@@ -94,8 +94,8 @@ private:
     AndroidClock const android_clock;
     
     std::mutex frame_time_guard;
+    bool has_new_frame_time;
     int64_t frame_time;
-    int64_t last_frame_time;
 
     bool try_next_event(MirEvent &ev);
 };

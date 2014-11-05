@@ -677,8 +677,10 @@ void mf::SessionMediator::pack_protobuf_buffer(
 {
     protobuf_buffer.set_buffer_id(graphics_buffer->id().as_value());
 
-    // Fix screen detection
-    protobuf_buffer.set_vsync_time(vsync_provider->last_vsync_for(mg::DisplayConfigurationOutputId{0}).count());
+    // TODO: ~racarr Enable MM touch resampling
+    auto vsync_time = vsync_provider->last_vsync_for(mg::DisplayConfigurationOutputId{0});
+    if (vsync_time != std::chrono::nanoseconds::zero())
+        protobuf_buffer.set_vsync_time(vsync_time.count());
 
     mfd::ProtobufBufferPacker packer{&protobuf_buffer};
     ipc_operations->pack_buffer(packer, *graphics_buffer, buffer_msg_type);

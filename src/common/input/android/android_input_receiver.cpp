@@ -40,8 +40,8 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
     android_clock(clock),
-    frame_time(-1),
-    last_frame_time(-1)
+    has_new_frame_time(false),
+    frame_time(-1)
 {
 }
 
@@ -55,8 +55,8 @@ mircva::InputReceiver::InputReceiver(int fd,
     fd_added(false),
     xkb_mapper(std::make_shared<mircv::XKBMapper>()),
     android_clock(clock),
-    frame_time(-1),
-    last_frame_time(-1)
+    has_new_frame_time(false),
+    frame_time(-1)
 {
 }
 
@@ -89,18 +89,11 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    std::lock_guard<std::mutex> lg(frame_time_guard);
-    bool frame_wake = false;
-    if (frame_time != last_frame_time)
-    {
-        frame_wake = true;
-        last_frame_time = frame_time;
-    }
-
     droidinput::status_t status;
+
     bool result = false;
-    do {
-        if ((status = input_consumer->consume(&event_factory, true, frame_wake ? frame_time : -1,
+  //  do {
+        if ((status = input_consumer->consume(&event_factory, true, has_new_frame_time ? frame_time : -1,
                 &event_sequence_id, &android_event))
             == droidinput::OK)
         {
@@ -114,7 +107,9 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
     
             result = true;
         }
-    } while (input_consumer->hasDeferredEvent() || status != droidinput::WOULD_BLOCK);
+//    } while (input_consumer->hasDeferredEvent() || status != droidinput::WOULD_BLOCK);
+    
+    has_new_frame_time = false;
 
     return result;
 }
@@ -130,16 +125,21 @@ bool mircva::InputReceiver::next_event(std::chrono::milliseconds const& timeout,
         fd_added = true;
     }
     
-    auto reduced_timeout = timeout; // Lol
+    // TODO: Investigate ~racarr
+    auto reduced_timeout = timeout;
     
     if (input_consumer->hasPendingBatch())
         reduced_timeout = std::chrono::milliseconds(1);
 
-    auto result = looper->pollOnce(reduced_timeout.count());
-// TODO: This may break shutdown and we need to use a different wake method for time available
-//    e.g. bool has_new_frame_time
-/*    if (result == ALOOPER_POLL_WAKE)
-        return false; */
+    int result = 0;
+    if (!input_consumer->hasDeferredEvent())
+        result = looper->pollOnce(reduced_timeout.count());
+
+    std::lock_guard<std::mutex> lg(frame_time_guard);
+
+    // If we are awoken and not by a frame time it is for shutdown.
+    if (result == ALOOPER_POLL_WAKE && has_new_frame_time == false)
+        return false;
 
     if (result == ALOOPER_POLL_ERROR) // TODO: Exception?
        return false;
@@ -156,7 +156,11 @@ void mircva::InputReceiver::notify_of_frame_time(std::chrono::nanoseconds new_fr
 {
     {
         std::lock_guard<std::mutex> lg(frame_time_guard);
-        frame_time = new_frame_time.count();
+        has_new_frame_time = true;
+        if (new_frame_time != std::chrono::nanoseconds::min())
+            frame_time = new_frame_time.count();
+        else
+            frame_time = -1;
     }
     wake();
 }
