@@ -53,6 +53,7 @@ class DefaultMirConnectionAPI : public mcl::MirConnectionAPI
 {
 public:
     MirWaitHandle* connect(
+        mcl::ConnectionConfiguration& configuration,
         char const* socket_file,
         char const* name,
         mir_connected_callback callback,
@@ -72,9 +73,7 @@ public:
                     sock = mir::default_server_socket;
             }
 
-            auto const conf = configuration(sock);
-
-            std::unique_ptr<MirConnection> connection{new MirConnection(*conf)};
+            std::unique_ptr<MirConnection> connection{new MirConnection(configuration)};
             auto const result = connection->connect(name, callback, context);
             connection.release();
             return result;
@@ -132,7 +131,8 @@ MirWaitHandle* mir_connect(
 {
     try
     {
-        return mir_connection_api_impl->connect(socket_file, name, callback, context);
+        return mir_connection_api_impl->connect(*mir_connection_api_impl->configuration(socket_file),
+            socket_file, name, callback, context);
     }
     catch (std::exception const&)
     {

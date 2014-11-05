@@ -36,6 +36,7 @@ public:
     virtual ~MirConnectionAPI() = default;
 
     virtual MirWaitHandle* connect(
+        ConnectionConfiguration& configuration,
         char const* socket_file,
         char const* name,
         mir_connected_callback callback,

@@ -67,7 +67,7 @@ struct InputMockInjectingClientConnectionConfiguration : public mtf::StubConnect
 {
     InputMockInjectingClientConnectionConfiguration(std::string const& socket_file, std::shared_ptr<mircv::InputReceiverThread> const& receiver_thread)
         : StubConnectionConfiguration(socket_file),
-          mock_input_platform(receiver_thread)
+          mock_input_platform(std::make_shared<MockInputThreadInputPlatform>(receiver_thread))
     {
     }
     
@@ -76,20 +76,25 @@ struct InputMockInjectingClientConnectionConfiguration : public mtf::StubConnect
         return input_platform(
         [this]
         {
-            return mt::fake_shared(mock_input_platform);
+            return mock_input_platform;
         });
     }
-    MockInputThreadInputPlatform mock_input_platform;
+    std::shared_ptr<MockInputThreadInputPlatform> const mock_input_platform;
 };
 
 // Server mocks and configuration
 struct StubVsyncProvider : public mf::VsyncProvider
 {
+    StubVsyncProvider()
+        : count(0)
+    {
+    }
+
     std::chrono::nanoseconds last_vsync_for(mg::DisplayConfigurationOutputId) override
     {
-        static int count = 0;
         return std::chrono::nanoseconds(count++);
     }
+    int count;
 };
 
 struct StubVsyncProviderServerConfiguration : mtf::StubbedServerConfiguration
@@ -181,9 +186,9 @@ TEST_F(VsyncProviderTest, client_input_thread_receives_information_from_server_v
     {
         InSequence seq;
         // The fake vsync provider just uses increments for each vsync request.
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(0)));
         EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(1)));
         EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(2)));
+        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(3)));
     }
 
     auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);

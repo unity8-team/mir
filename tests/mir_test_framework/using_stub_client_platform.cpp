@@ -48,12 +48,13 @@ public:
     }
 
     MirWaitHandle* connect(
+        mcl::ConnectionConfiguration &conf,
         char const* socket_file,
         char const* name,
         mir_connected_callback callback,
         void* context) override
     {
-        return prev_api->connect(socket_file, name, callback, context);
+        return prev_api->connect(conf, socket_file, name, callback, context);
     }
 
     void release(MirConnection* connection) override
