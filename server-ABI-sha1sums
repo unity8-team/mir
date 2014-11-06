@@ -59,7 +59,7 @@ a35c5495d8fd28fc0e375b17495fc5caab51b329  include/server/mir/emergency_cleanup.h
 fae0008af826abbc4b4324d49e9c03d43b08765a  include/server/mir/frontend/screencast.h
 b729a7710c37d9f1fba56a6f8e8eae1c2559f57a  include/server/mir/frontend/session_authorizer.h
 34ce482df448fd2fc5f0c4ae5ac8b7fecbd228c9  include/server/mir/frontend/session_credentials.h
-e5ea465ed7e05f0e1d6a837d0d6b3a04c2d7fc19  include/server/mir/frontend/session.h
+1ae5b9c89ead7529b3c20301caf5869c4a52f75f  include/server/mir/frontend/session.h
 d754e5bb057f3018d7228170cf9a0c66d75d8cc2  include/server/mir/frontend/session_mediator_report.h
 68468aa2298c4e2cdc1bbb7cb5f250a914ae16c9  include/server/mir/frontend/shell.h
 d33a31128bcb6908ec769bfdb9897781748d2472  include/server/mir/frontend/surface.h

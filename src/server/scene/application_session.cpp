@@ -105,6 +105,23 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
     return checked_find(id)->second;
 }
 
+int ms::ApplicationSession::configure_surface(mf::SurfaceId id,
+                                              MirSurfaceAttrib attrib,
+                                              int value)
+{
+    auto surface = get_surface(id);
+
+    if (attrib == mir_surface_attrib_parent)
+    {
+        std::shared_ptr<mf::Surface> parent;
+        if (value != mir_surface_parent_none)
+            parent = get_surface(mf::SurfaceId(value));
+        surface->set_parent(parent);
+    }
+
+    return surface->configure(attrib, value);
+}
+
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
 {
     if (auto surface = default_surface())
