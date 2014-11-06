@@ -109,6 +109,52 @@ TEST(ApplicationSession, create_and_destroy_surface)
     session.destroy_surface(surf);
 }
 
+TEST(ApplicationSession, configures_surface)
+{
+    using namespace ::testing;
+
+    auto mock_surface = make_mock_surface();
+    auto mock_parent_surface = make_mock_surface();
+
+    mtd::NullEventSink sender;
+    mtd::MockSurfaceCoordinator surface_coordinator;
+
+    EXPECT_CALL(surface_coordinator, add_surface(_, _))
+        .WillOnce(Return(mock_parent_surface))
+        .WillOnce(Return(mock_surface));
+
+    ms::ApplicationSession session(
+        mt::fake_shared(surface_coordinator),
+        __LINE__,
+        "Foo",
+        std::make_shared<mtd::NullSnapshotStrategy>(),
+        std::make_shared<ms::NullSessionListener>(),
+        mt::fake_shared(sender));
+
+    ms::SurfaceCreationParameters params;
+    auto parent_id = session.create_surface(params);
+    auto child_id = session.create_surface(params);
+
+    EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_type,
+                                         mir_surface_type_dialog))
+        .WillOnce(Return(mir_surface_type_dialog));
+    std::weak_ptr<mf::Surface> parent_that_was_set;
+    EXPECT_CALL(*mock_surface, set_parent(_))
+        .WillOnce(SaveArg<0>(&parent_that_was_set));
+    EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_parent,
+                                         parent_id.as_value()))
+        .WillOnce(Return(parent_id.as_value()));
+
+    session.configure_surface(child_id, mir_surface_attrib_type,
+                              mir_surface_type_dialog);
+    session.configure_surface(child_id, mir_surface_attrib_parent,
+                              parent_id.as_value());
+
+    EXPECT_EQ(mock_parent_surface, parent_that_was_set.lock());
+    session.destroy_surface(child_id);
+    session.destroy_surface(parent_id);
+}
+
 TEST(ApplicationSession, listener_notified_of_surface_destruction_on_session_destruction)
 {
     using namespace ::testing;
