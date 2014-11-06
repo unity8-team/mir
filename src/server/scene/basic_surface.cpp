@@ -168,15 +168,10 @@ std::string ms::BasicSurface::name() const
     return surface_name;
 }
 
-void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p, int id)
+void ms::BasicSurface::set_parent(std::weak_ptr<mf::Surface> const& p)
 {
-    {
-        std::unique_lock<std::mutex> lk(guard);
-        weak_parent = p;
-    }
-
-    // Set id at the same time to ensure notifications happen
-    set_parent_id(id);
+    std::unique_lock<std::mutex> lk(guard);
+    weak_parent = p;
 }
 
 int ms::BasicSurface::set_parent_id(int id)
