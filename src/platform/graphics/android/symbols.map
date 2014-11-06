@@ -6,5 +6,5 @@ MIR_GRAPHICS_PLATFORM_1 {
     probe_platform;
     describe_module;
   local:
-    *
+    *;
 };

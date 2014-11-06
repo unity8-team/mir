@@ -1,3 +1,8 @@
+MESA_SPECIFIC_1 {
+  global:
+    mir_server_mesa_egl_native_display_is_valid;
+};
+
 MIR_GRAPHICS_PLATFORM_1 {
   global:
     add_platform_options;
@@ -6,5 +11,5 @@ MIR_GRAPHICS_PLATFORM_1 {
     probe_platform;
     describe_module;
   local:
-    *
+    *;
 };

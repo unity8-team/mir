@@ -98,6 +98,7 @@ target_link_libraries(
   mirclientrpc
   mirclientlttngstatic
   mircommon
+  mirprotobuf
 
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
