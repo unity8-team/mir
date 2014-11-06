@@ -89,9 +89,9 @@ MirServerIntegration::MirServerIntegration()
     // For it to function we need to ensure a valid backend has been specified
     if (qEnvironmentVariableIsEmpty("UBUNTU_PLATFORM_API_BACKEND")) {
         if (qgetenv("DESKTOP_SESSION").contains("mir")) {
-            qputenv("UBUNTU_PLATFORM_API_BACKEND", "desktop_mirserver");
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "desktop_mirclient");
         } else {
-            qputenv("UBUNTU_PLATFORM_API_BACKEND", "touch_mirserver");
+            qputenv("UBUNTU_PLATFORM_API_BACKEND", "touch_mirclient");
         }
     }
 
