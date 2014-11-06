@@ -109,6 +109,39 @@ TEST(ApplicationSession, create_and_destroy_surface)
     session.destroy_surface(surf);
 }
 
+TEST(ApplicationSession, configures_surface)
+{
+    using namespace ::testing;
+
+    auto mock_surface = make_mock_surface();
+
+    EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_state,
+                                         mir_surface_state_maximized))
+        .WillOnce(Return(mir_surface_state_maximized));
+
+    mtd::NullEventSink sender;
+    mtd::MockSurfaceCoordinator surface_coordinator;
+
+    EXPECT_CALL(surface_coordinator, add_surface(_, _))
+        .WillOnce(Return(mock_surface));
+
+    ms::ApplicationSession session(
+        mt::fake_shared(surface_coordinator),
+        __LINE__,
+        "Foo",
+        std::make_shared<mtd::NullSnapshotStrategy>(),
+        std::make_shared<ms::NullSessionListener>(),
+        mt::fake_shared(sender));
+
+    ms::SurfaceCreationParameters params;
+    auto surf = session.create_surface(params);
+
+    session.configure_surface(mf::SurfaceId(0), mir_surface_attrib_state,
+                              mir_surface_state_maximized);
+
+    session.destroy_surface(surf);
+}
+
 TEST(ApplicationSession, listener_notified_of_surface_destruction_on_session_destruction)
 {
     using namespace ::testing;
