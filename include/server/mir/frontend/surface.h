@@ -53,7 +53,7 @@ public:
     virtual int client_input_fd() const = 0;
 
     virtual std::shared_ptr<Surface> parent() const = 0;
-    virtual void set_parent(std::weak_ptr<Surface> const&, int id) = 0;
+    virtual void set_parent(std::weak_ptr<Surface> const&) = 0;
 
     virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
     virtual int query(MirSurfaceAttrib attrib) = 0;
