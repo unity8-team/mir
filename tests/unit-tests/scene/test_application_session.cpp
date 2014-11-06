@@ -138,8 +138,9 @@ TEST(ApplicationSession, configures_surface)
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_type,
                                          mir_surface_type_dialog))
         .WillOnce(Return(mir_surface_type_dialog));
+    std::weak_ptr<mf::Surface> parent_that_was_set;
     EXPECT_CALL(*mock_surface, set_parent(_))
-        .Times(1);
+        .WillOnce(SaveArg<0>(&parent_that_was_set));
     EXPECT_CALL(*mock_surface, configure(mir_surface_attrib_parent,
                                          parent_id.as_value()))
         .WillOnce(Return(parent_id.as_value()));
@@ -149,6 +150,7 @@ TEST(ApplicationSession, configures_surface)
     session.configure_surface(child_id, mir_surface_attrib_parent,
                               parent_id.as_value());
 
+    EXPECT_EQ(mock_parent_surface, parent_that_was_set.lock());
     session.destroy_surface(child_id);
     session.destroy_surface(parent_id);
 }
