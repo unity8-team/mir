@@ -1,3 +1,15 @@
+qtmir (0.4.4+15.04.20141110-0ubuntu1) vivid; urgency=low
+
+  [ Michael Zanetti ]
+  * Use QSGDefaultImageNode instead of QSGSimpleTexture to gain surface
+    manipulation features such as antialiasing (LP: #1351559)
+
+  [ josharenson ]
+  * Add support for enabling/disabling orientation sensor based on
+    screen power state. (LP: #1375297)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 10 Nov 2014 09:41:58 +0000
+
 qtmir (0.4.4+15.04.20141030.2-0ubuntu1) vivid; urgency=low
 
   [ Ted Gould ]
