@@ -168,27 +168,38 @@ namespace
 void ignore_event(MirSurface*, MirEvent const*, void*)
 {
 }
+struct StubConfiguration : public InputMockInjectingClientConnectionConfiguration
+{
+    StubConfiguration(std::string const& socket_file)
+        : InputMockInjectingClientConnectionConfiguration(socket_file, mock_input_receiver_thread)
+    {
+    }
+    ~StubConfiguration()
+    {
+        mock_input_receiver_thread.reset();
+    }
+
+    static std::shared_ptr<MockInputReceiverThread> mock_input_receiver_thread;
+};
+
+std::shared_ptr<MockInputReceiverThread> StubConfiguration::mock_input_receiver_thread;
 }
 
 TEST_F(VsyncProviderTest, client_input_thread_receives_information_from_server_vsync_provider_on_buffer_swap)
 {
     using namespace ::testing;
-
-
-    MockInputReceiverThread mock_input_receiver_thread;
-    mtf::UsingStubClientPlatform using_stub_client_platform([&](std::string const& socket_file) {
-        return std::unique_ptr<InputMockInjectingClientConnectionConfiguration>(
-            new InputMockInjectingClientConnectionConfiguration(socket_file,
-                mt::fake_shared(mock_input_receiver_thread)));
-    });
+    
+    StubConfiguration::mock_input_receiver_thread = std::make_shared<MockInputReceiverThread>();
+    
+    mtf::UsingClientPlatform<StubConfiguration> using_stub_client_platform;
     MirEventDelegate delegate{ignore_event, NULL};
 
     {
         InSequence seq;
         // The fake vsync provider just uses increments for each vsync request.
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(1)));
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(2)));
-        EXPECT_CALL(mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(3)));
+        EXPECT_CALL(*StubConfiguration::mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(1)));
+        EXPECT_CALL(*StubConfiguration::mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(2)));
+        EXPECT_CALL(*StubConfiguration::mock_input_receiver_thread, notify_of_frame_time(std::chrono::nanoseconds(3)));
     }
 
     auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);

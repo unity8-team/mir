@@ -17,79 +17,27 @@
  */
 
 #include "mir_test_framework/using_stub_client_platform.h"
-#include "mir_test_framework/stub_client_connection_configuration.h"
 #include "mir_toolkit/mir_client_library.h"
-#include "src/client/mir_connection_api.h"
-
-#include <functional>
 
 namespace mtf = mir_test_framework;
 namespace mcl = mir::client;
 
-namespace
-{
-class StubMirConnectionAPI : public mcl::MirConnectionAPI
-{
-public:
-    StubMirConnectionAPI(mcl::MirConnectionAPI* prev_api)
-        : prev_api{prev_api}
-    {
-        create_configuration = [&](std::string const& socket)
-        {
-            return std::unique_ptr<mcl::ConnectionConfiguration>(new mtf::StubConnectionConfiguration{socket});
-        };
-    }
-    
-    StubMirConnectionAPI(mcl::MirConnectionAPI* prev_api,
-        std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)> const& create_configuration)
-        : prev_api{prev_api},
-          create_configuration{create_configuration}
-    {
-    }
-
-    MirWaitHandle* connect(
-        mcl::ConnectionConfiguration &conf,
+MirWaitHandle* mtf::StubMirConnectionAPI::connect(
+        mcl::ConfigurationFactory /*configuration*/,
         char const* socket_file,
         char const* name,
         mir_connected_callback callback,
-        void* context) override
-    {
-        return prev_api->connect(conf, socket_file, name, callback, context);
-    }
-
-    void release(MirConnection* connection) override
-    {
-        return prev_api->release(connection);
-    }
-
-    std::unique_ptr<mcl::ConnectionConfiguration> configuration(std::string const& socket) override
-    {
-        return create_configuration(socket);
-    }
-    
-private:
-    mcl::MirConnectionAPI* const prev_api;
-    std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)> create_configuration;
-};
-
+        void* context)
+{
+    return prev_api->connect(configuration_factory(), socket_file, name, callback, context);
 }
 
-mtf::UsingStubClientPlatform::UsingStubClientPlatform()
-    : prev_api{mir_connection_api_impl},
-      stub_api{new StubMirConnectionAPI{prev_api}}
+void mtf::StubMirConnectionAPI::release(MirConnection* connection)
 {
-    mir_connection_api_impl = stub_api.get();
+    return prev_api->release(connection);
 }
 
-mtf::UsingStubClientPlatform::UsingStubClientPlatform(std::function<std::unique_ptr<mcl::ConnectionConfiguration>(std::string const&)>
-     const& create_connection_configuration)
-    : prev_api{mir_connection_api_impl},
-      stub_api{new StubMirConnectionAPI{prev_api, create_connection_configuration}}
+mcl::ConfigurationFactory mtf::StubMirConnectionAPI::configuration_factory()
 {
-    mir_connection_api_impl = stub_api.get();
-}
-
-mtf::UsingStubClientPlatform::~UsingStubClientPlatform()
-{
-    mir_connection_api_impl = prev_api;
+    return factory;
 }
