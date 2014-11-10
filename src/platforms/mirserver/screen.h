@@ -22,6 +22,7 @@
 
 #include <QObject>
 #include <QTimer>
+#include <QtDBus/QDBusInterface>
 #include <qpa/qplatformscreen.h>
 
 #include "mir/graphics/display_configuration.h"
@@ -48,7 +49,12 @@ public:
     // QObject methods.
     void customEvent(QEvent* event) override;
 
+    // To make it testable
+    static bool skipDBusRegistration;
+    bool orientationSensorEnabled();
+
 public Q_SLOTS:
+   void onDisplayPowerStateChanged(int, int);
    void onOrientationReadingChanged();
 
 private:
@@ -63,6 +69,8 @@ private:
     Qt::ScreenOrientation m_nativeOrientation;
     Qt::ScreenOrientation m_currentOrientation;
     QOrientationSensor *m_orientationSensor;
+
+    QDBusInterface *m_unityScreen;
 };
 
 #endif // SCREEN_H
