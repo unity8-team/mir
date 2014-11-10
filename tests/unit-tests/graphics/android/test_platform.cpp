@@ -52,7 +52,7 @@ protected:
 
         native_buffer_handle->numInts = num_ints;
         native_buffer_handle->numFds = num_fds;
-        for(auto i=0u; i< (num_ints+num_fds); i++)
+        for (auto i = 0u; i < (num_ints+num_fds); i++)
         {
             native_buffer_handle->data[i] = i;
         }
