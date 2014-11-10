@@ -87,17 +87,53 @@ protected:
 };
 
 /* ipc packaging tests */
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc)
+TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_with_fence)
 {
     using namespace ::testing;
+    int fake_fence{333};
+    EXPECT_CALL(*native_buffer, copy_fence())
+        .WillOnce(Return(fake_fence));
+
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
-    for(auto i=0u; i<num_fds; i++)
+    EXPECT_CALL(mock_ipc_msg, pack_data(static_cast<int>(mga::BufferFlag::fenced)));
+    EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(fake_fence)));
+    for (auto i = 0u; i < num_fds; i++)
+        EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(native_buffer_handle->data[offset++])));
+    for (auto i = 0u; i < num_ints; i++)
+        EXPECT_CALL(mock_ipc_msg, pack_data(native_buffer_handle->data[offset++]));
+
+    EXPECT_CALL(*mock_buffer, stride())
+        .WillOnce(Return(stride));
+    EXPECT_CALL(mock_ipc_msg, pack_stride(stride))
+        .Times(1);
+
+    EXPECT_CALL(*mock_buffer, size())
+        .WillOnce(Return(mir::geometry::Size{123, 456}));
+    EXPECT_CALL(mock_ipc_msg, pack_size(_))
+        .Times(1);
+
+    ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
+}
+
+TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_without_fence)
+{
+    using namespace ::testing;
+    EXPECT_CALL(*native_buffer, copy_fence())
+        .WillOnce(Return(-1));
+
+    mtd::MockBufferIpcMessage mock_ipc_msg;
+    int offset = 0;
+    EXPECT_CALL(mock_ipc_msg, pack_data(static_cast<int>(mga::BufferFlag::unfenced)));
+    EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(-1)))
+        .Times(0);
+
+    for (auto i = 0u; i < num_fds; i++)
     {
         EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(native_buffer_handle->data[offset++])))
             .Times(1);
     }
-    for(auto i=0u; i<num_ints; i++)
+    for (auto i = 0u; i < num_ints; i++)
     {
         EXPECT_CALL(mock_ipc_msg, pack_data(native_buffer_handle->data[offset++]))
             .Times(1);
@@ -109,37 +145,35 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc)
         .Times(1);
 
     EXPECT_CALL(*mock_buffer, size())
-        .WillOnce(Return(geom::Size{123, 456}));
+        .WillOnce(Return(mir::geometry::Size{123, 456}));
     EXPECT_CALL(mock_ipc_msg, pack_size(_))
         .Times(1);
 
-    EXPECT_CALL(*native_buffer, ensure_available_for(mga::BufferAccess::write))
-        .Times(1);
-
-    ipc_operations.pack_buffer(
-        mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
+    ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
 TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ipc)
 {
     using namespace ::testing;
 
+    int fake_fence{33};
     mtd::MockBufferIpcMessage mock_ipc_msg;
-    EXPECT_CALL(mock_ipc_msg, pack_fd(_))
-        .Times(0);
-    EXPECT_CALL(mock_ipc_msg, pack_data(_))
-        .Times(0);
-    EXPECT_CALL(mock_ipc_msg, pack_stride(_))
-        .Times(0);
-    EXPECT_CALL(mock_ipc_msg, pack_size(_))
-        .Times(0);
 
-    /* TODO: instead of waiting, pass the fd along */
-    EXPECT_CALL(*native_buffer, ensure_available_for(mga::BufferAccess::write))
-        .Times(1);
+    Sequence seq;
+    EXPECT_CALL(mock_ipc_msg, pack_data(static_cast<int>(mga::BufferFlag::fenced)))
+        .InSequence(seq);
+    EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(fake_fence)))
+        .InSequence(seq);
+    EXPECT_CALL(mock_ipc_msg, pack_data(static_cast<int>(mga::BufferFlag::unfenced)))
+        .InSequence(seq);
 
-    ipc_operations.pack_buffer(
-        mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::update_msg);
+    EXPECT_CALL(*native_buffer, copy_fence())
+        .Times(2)
+        .WillOnce(Return(fake_fence))
+        .WillOnce(Return(-1));
+
+    ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::update_msg);
+    ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::update_msg);
 }
 
 TEST_F(PlatformBufferIPCPackaging, unpacks_fenced_buffer_update)
