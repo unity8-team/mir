@@ -35,6 +35,7 @@ namespace mtd=mir::test::doubles;
 namespace mr=mir::report;
 namespace geom=mir::geometry;
 
+//TODO (kdub): remove the PlatformBufferIPCPackaging test once the platform interface is sorted out
 class PlatformBufferIPCPackaging : public ::testing::Test
 {
 protected:
@@ -58,23 +59,12 @@ protected:
         }
 
         native_buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
-        mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
-
         ON_CALL(*native_buffer, handle())
             .WillByDefault(Return(native_buffer_handle.get()));
-        ON_CALL(*mock_buffer, native_buffer_handle())
-            .WillByDefault(Return(native_buffer));
-        ON_CALL(*mock_buffer, stride())
-            .WillByDefault(Return(stride));
-
-        stub_display_builder = std::make_shared<mtd::StubDisplayBuilder>();
     }
 
     std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
-    std::shared_ptr<mtd::MockBuffer> mock_buffer;
     std::shared_ptr<native_handle_t> native_buffer_handle;
-    std::shared_ptr<mg::DisplayReport> stub_display_report;
-    std::shared_ptr<mtd::StubDisplayBuilder> stub_display_builder;
     geom::Stride stride;
     unsigned int num_ints, num_fds;
 };
@@ -82,10 +72,15 @@ protected:
 TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
 {
     using namespace ::testing;
+    mtd::MockBuffer mock_buffer;
+    ON_CALL(mock_buffer, native_buffer_handle())
+        .WillByDefault(Return(native_buffer));
+    ON_CALL(mock_buffer, stride())
+        .WillByDefault(Return(stride));
+    mga::Platform platform(std::make_shared<mtd::StubDisplayBuilder>(), mr::null_display_report());
+
     EXPECT_CALL(*native_buffer, copy_fence())
         .WillOnce(Return(-1));
-
-    mga::Platform platform(stub_display_builder, stub_display_report);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
@@ -101,17 +96,16 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
             .Times(1);
     }
 
-    EXPECT_CALL(*mock_buffer, stride())
+    EXPECT_CALL(mock_buffer, stride())
         .WillOnce(Return(stride));
     EXPECT_CALL(mock_ipc_msg, pack_stride(stride))
         .Times(1);
-
-    EXPECT_CALL(*mock_buffer, size())
+    EXPECT_CALL(mock_buffer, size())
         .WillOnce(Return(mir::geometry::Size{123, 456}));
     EXPECT_CALL(mock_ipc_msg, pack_size(_))
         .Times(1);
 
-    platform.fill_buffer_package(&mock_ipc_msg, mock_buffer.get(), mg::BufferIpcMsgType::full_msg);
+    platform.fill_buffer_package(&mock_ipc_msg, &mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
 TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)

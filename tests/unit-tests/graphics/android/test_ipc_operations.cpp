@@ -43,7 +43,7 @@ namespace mr=mir::report;
 namespace geom=mir::geometry;
 namespace mo=mir::options;
 
-class PlatformBufferIPCPackaging : public ::testing::Test
+class IpcOperations : public ::testing::Test
 {
 protected:
     virtual void SetUp()
@@ -87,7 +87,7 @@ protected:
 };
 
 /* ipc packaging tests */
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_with_fence)
+TEST_F(IpcOperations, test_ipc_data_packed_correctly_for_full_ipc_with_fence)
 {
     using namespace ::testing;
     int fake_fence{333};
@@ -116,7 +116,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_without_fence)
+TEST_F(IpcOperations, test_ipc_data_packed_correctly_for_full_ipc_without_fence)
 {
     using namespace ::testing;
     EXPECT_CALL(*native_buffer, copy_fence())
@@ -152,7 +152,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ipc)
+TEST_F(IpcOperations, test_ipc_data_packed_correctly_for_partial_ipc)
 {
     using namespace ::testing;
 
@@ -176,7 +176,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ip
     ipc_operations.pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::update_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, unpacks_fenced_buffer_update)
+TEST_F(IpcOperations, unpacks_fenced_buffer_update)
 {
     using namespace ::testing;
     mtd::MockBufferIpcMessage mock_ipc_msg;
@@ -191,7 +191,7 @@ TEST_F(PlatformBufferIPCPackaging, unpacks_fenced_buffer_update)
     ipc_operations.unpack_buffer(mock_ipc_msg, *mock_buffer);
 }
 
-TEST_F(PlatformBufferIPCPackaging, unpacks_unfenced_buffer)
+TEST_F(IpcOperations, unpacks_unfenced_buffer)
 {
     using namespace ::testing;
     mtd::MockBufferIpcMessage mock_ipc_msg;
