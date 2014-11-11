@@ -354,16 +354,3 @@ MirSurface* mir_surface_get_parent(MirSurface* surf)
 {
     return surf ? surf->parent() : nullptr;
 }
-
-
-/* Debug functions */
-
-uint32_t mir_debug_surface_current_buffer_id(MirSurface* surface)
-{
-    return surface->get_current_buffer_id();
-}
-
-int mir_debug_surface_id(MirSurface* surface)
-{
-    return surface->id();
-}
