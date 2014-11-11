@@ -30,6 +30,7 @@
 #include <utility>
 #include <deque>
 #include <set>
+#include <atomic>
 
 namespace mir
 {
@@ -85,6 +86,7 @@ private:
     std::deque<std::pair<void const*,ServerAction>> server_actions;
     std::set<void const*> do_not_process;
     std::shared_ptr<time::Clock> const clock;
+    std::atomic_bool running;
 };
 
 }

@@ -247,7 +247,7 @@ private:
  * to compile.
  */
 mir::AsioMainLoop::AsioMainLoop(std::shared_ptr<time::Clock> const& clock)
-    : work{io}, clock(clock)
+    : work{io}, clock(clock), running(false)
 {
     MirClockTimerTraits::set_clock(clock);
 }
@@ -259,11 +259,23 @@ mir::AsioMainLoop::~AsioMainLoop() noexcept(true)
 void mir::AsioMainLoop::run()
 {
     main_loop_thread = std::this_thread::get_id();
-    io.run();
+    running = true;
+    while (running)
+    {
+        auto begin = std::chrono::high_resolution_clock::now();
+        io.run_one();
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = end - begin;
+        long nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+        fprintf(stderr, "Run %ld.%09ld sec\n",
+            nanosec / 1000000000L,
+            nanosec % 1000000000L);
+    }
 }
 
 void mir::AsioMainLoop::stop()
 {
+    running = false;
     io.stop();
     main_loop_thread.reset();
 }
