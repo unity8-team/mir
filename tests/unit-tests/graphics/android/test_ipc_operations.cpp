@@ -1,4 +1,5 @@
 /*
+
  * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,7 +33,7 @@
 #include "mir_test_doubles/fd_matcher.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
-#include <system/window.h>
+#include "mir_test_doubles/mock_android_alloc_device.h"
 #include <gtest/gtest.h>
 
 namespace mg=mir::graphics;
@@ -43,31 +44,17 @@ namespace mr=mir::report;
 namespace geom=mir::geometry;
 namespace mo=mir::options;
 
-class IpcOperations : public ::testing::Test
+struct IpcOperations : testing::Test
 {
-protected:
-    virtual void SetUp()
+    IpcOperations() :
+        stride{300*4},
+        num_ints{30},
+        num_fds{12},
+        native_buffer{std::make_shared<mtd::MockAndroidNativeBuffer>()},
+        native_buffer_handle{mtd::generate_native_handle(num_ints, num_fds)},
+        mock_buffer{std::make_shared<testing::NiceMock<mtd::MockBuffer>>()}
     {
         using namespace testing;
-
-        stride = geom::Stride(300*4);
-
-        num_ints = 43;
-        num_fds = 55;
-        auto handle_size = sizeof(native_handle_t) + (sizeof(int)*(num_ints + num_fds));
-        auto native_buffer_raw = (native_handle_t*) ::operator new(handle_size);
-        native_buffer_handle = std::shared_ptr<native_handle_t>(native_buffer_raw);
-
-        native_buffer_handle->numInts = num_ints;
-        native_buffer_handle->numFds = num_fds;
-        for(auto i=0u; i< (num_ints+num_fds); i++)
-        {
-            native_buffer_handle->data[i] = i;
-        }
-
-        native_buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
-        mock_buffer = std::make_shared<NiceMock<mtd::MockBuffer>>();
-
         ON_CALL(*native_buffer, handle())
             .WillByDefault(Return(native_buffer_handle.get()));
         ON_CALL(*mock_buffer, native_buffer_handle())
@@ -76,14 +63,14 @@ protected:
             .WillByDefault(Return(stride));
     }
 
-    std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
-    std::shared_ptr<mtd::MockBuffer> mock_buffer;
-    std::shared_ptr<native_handle_t> native_buffer_handle;
-    std::shared_ptr<mg::DisplayReport> stub_display_report;
     geom::Stride stride;
-    unsigned int num_ints, num_fds;
+    size_t num_ints;
+    size_t num_fds;
+    std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
+    std::shared_ptr<native_handle_t> native_buffer_handle;
+    std::shared_ptr<mtd::MockBuffer> mock_buffer;
+    std::shared_ptr<mg::DisplayReport> stub_display_report;
     mga::IpcOperations ipc_operations;
-
 };
 
 /* ipc packaging tests */

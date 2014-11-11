@@ -69,7 +69,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_ret)
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
     .WillOnce(DoAll(
-                  SetArgPointee<5>(mock_alloc_device->buffer_handle),
+                  SetArgPointee<5>(mock_alloc_device->buffer_handle.get()),
                   SetArgPointee<6>(size.width.as_uint32_t()*4),
                   Return(-1)));
 
@@ -83,7 +83,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_stride)
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
     .WillOnce(DoAll(
-                  SetArgPointee<5>(mock_alloc_device->buffer_handle),
+                  SetArgPointee<5>(mock_alloc_device->buffer_handle.get()),
                   SetArgPointee<6>(0),
                   Return(0)));
 
@@ -122,10 +122,10 @@ TEST_F(AdaptorICSTest, resource_type_test_deleter_deletes_correct_handle)
 
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
     .WillOnce(DoAll(
-                  SetArgPointee<5>(mock_alloc_device->buffer_handle),
+                  SetArgPointee<5>(mock_alloc_device->buffer_handle.get()),
                   SetArgPointee<6>(size.width.as_uint32_t()*4),
                   Return(0)));
-    EXPECT_CALL(*mock_alloc_device, free_interface(_,mock_alloc_device->buffer_handle));
+    EXPECT_CALL(*mock_alloc_device, free_interface(_,mock_alloc_device->buffer_handle.get()));
 
     alloc_adaptor->alloc_buffer(size, pf, usage);
 }

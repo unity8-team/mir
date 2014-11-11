@@ -25,6 +25,7 @@
 #include "mir_test_doubles/stub_display_builder.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
 #include "mir_test_doubles/mock_buffer.h"
+#include "mir_test_doubles/mock_android_alloc_device.h"
 #include "mir_test/fake_shared.h"
 #include <gtest/gtest.h>
 
@@ -35,75 +36,39 @@ namespace mtd=mir::test::doubles;
 namespace mr=mir::report;
 namespace geom=mir::geometry;
 
-//TODO (kdub): remove the PlatformBufferIPCPackaging test once the platform interface is sorted out
-class PlatformBufferIPCPackaging : public ::testing::Test
-{
-protected:
-    virtual void SetUp()
-    {
-        using namespace testing;
-
-        stride = geom::Stride(300*4);
-
-        num_ints = 43;
-        num_fds = 55;
-        auto handle_size = sizeof(native_handle_t) + (sizeof(int)*(num_ints + num_fds));
-        auto native_buffer_raw = (native_handle_t*) ::operator new(handle_size);
-        native_buffer_handle = std::shared_ptr<native_handle_t>(native_buffer_raw);
-
-        native_buffer_handle->numInts = num_ints;
-        native_buffer_handle->numFds = num_fds;
-        for (auto i = 0u; i < (num_ints+num_fds); i++)
-        {
-            native_buffer_handle->data[i] = i;
-        }
-
-        native_buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
-        ON_CALL(*native_buffer, handle())
-            .WillByDefault(Return(native_buffer_handle.get()));
-    }
-
-    std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
-    std::shared_ptr<native_handle_t> native_buffer_handle;
-    geom::Stride stride;
-    unsigned int num_ints, num_fds;
-};
-
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
+TEST(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
 {
     using namespace ::testing;
+    unsigned int num_ints{43};
+    unsigned int num_fds{55};
+    int offset = 0;
+    geom::Stride stride{300*4};
+    geom::Size size{123, 456};
     mtd::MockBuffer mock_buffer;
+    mtd::MockBufferIpcMessage mock_ipc_msg;
+
+    auto native_buffer = std::make_shared<mtd::MockAndroidNativeBuffer>();
+    auto native = mtd::generate_native_handle(num_ints, num_fds);
+    ON_CALL(*native_buffer, handle())
+        .WillByDefault(Return(native.get()));
     ON_CALL(mock_buffer, native_buffer_handle())
         .WillByDefault(Return(native_buffer));
     ON_CALL(mock_buffer, stride())
         .WillByDefault(Return(stride));
+    ON_CALL(mock_buffer, size())
+        .WillByDefault(Return(size));
+
     mga::Platform platform(std::make_shared<mtd::StubDisplayBuilder>(), mr::null_display_report());
 
     EXPECT_CALL(*native_buffer, copy_fence())
         .WillOnce(Return(-1));
-
-    mtd::MockBufferIpcMessage mock_ipc_msg;
-    int offset = 0;
-    for (auto i = 0u; i < num_fds; i++)
-    {
-        EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(native_buffer_handle->data[offset++])))
-            .Times(1);
-    }
     EXPECT_CALL(mock_ipc_msg, pack_data(static_cast<int>(mga::BufferFlag::unfenced)));
+    for (auto i = 0u; i < num_fds; i++)
+        EXPECT_CALL(mock_ipc_msg, pack_fd(mtd::RawFdMatcher(native->data[offset++])));
     for (auto i = 0u; i < num_ints; i++)
-    {
-        EXPECT_CALL(mock_ipc_msg, pack_data(native_buffer_handle->data[offset++]))
-            .Times(1);
-    }
-
-    EXPECT_CALL(mock_buffer, stride())
-        .WillOnce(Return(stride));
-    EXPECT_CALL(mock_ipc_msg, pack_stride(stride))
-        .Times(1);
-    EXPECT_CALL(mock_buffer, size())
-        .WillOnce(Return(mir::geometry::Size{123, 456}));
-    EXPECT_CALL(mock_ipc_msg, pack_size(_))
-        .Times(1);
+        EXPECT_CALL(mock_ipc_msg, pack_data(native->data[offset++]));
+    EXPECT_CALL(mock_ipc_msg, pack_stride(stride));
+    EXPECT_CALL(mock_ipc_msg, pack_size(size));
 
     platform.fill_buffer_package(&mock_ipc_msg, &mock_buffer, mg::BufferIpcMsgType::full_msg);
 }

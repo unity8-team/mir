@@ -111,3 +111,14 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     int rc =  global_mock_android_hw->hw_get_module(id, module);
     return rc;
 }
+
+std::shared_ptr<native_handle_t> mtd::generate_native_handle(size_t num_ints, size_t num_fds)
+{
+    auto handle_size = sizeof(native_handle_t) + (sizeof(int)*(num_ints + num_fds));
+    auto native_buffer_handle = std::shared_ptr<native_handle_t>(reinterpret_cast<native_handle_t*>(::operator new(handle_size)));
+    native_buffer_handle->numInts = num_ints;
+    native_buffer_handle->numFds = num_fds;
+    for (auto i = 0u; i < (num_ints+num_fds); i++)
+        native_buffer_handle->data[i] = i;
+    return native_buffer_handle;
+}
