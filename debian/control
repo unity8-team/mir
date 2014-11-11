@@ -13,7 +13,6 @@ Build-Depends: cmake,
 # We rely on C++11 features, and to prevent from ABI breaks
 # in libstdc++ causing us issues, we explicitly select a G++
 # version.
-               g++-4.9,
                libboost-dev,
                libboost-date-time-dev,
                libboost-program-options-dev,
@@ -121,12 +120,26 @@ Description: Display server for Ubuntu - development headers
  .
  Contains header files required for hardware/driver support development.
 
+Package: libmirprotobuf-dev
+Section: libdevel
+Architecture: i386 amd64 armhf arm64
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: libmirprotobuf0 (= ${binary:Version}), 
+         ${misc:Depends},
+Description: Display server for Ubuntu - development headers
+ Mir is a display server running on linux systems, with a focus on efficiency,
+ robust operation and a well-defined driver model.
+ .
+ Contains common library needed by server and client
+
 Package: libmirserver-dev
 Section: libdevel
 Architecture: i386 amd64 armhf arm64
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: libmirserver27 (= ${binary:Version}),
+         libmirprotobuf-dev (= ${binary:Version}),
          libmirplatform-dev (= ${binary:Version}),
          libmircommon-dev (= ${binary:Version}),
          libglm-dev,
@@ -157,6 +170,7 @@ Architecture: i386 amd64 armhf arm64
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: libmirclient8 (= ${binary:Version}),
+         libmirprotobuf-dev (= ${binary:Version}),
          libmircommon-dev (= ${binary:Version}),
          libprotobuf-dev (>= 2.4.1),
          ${misc:Depends},
