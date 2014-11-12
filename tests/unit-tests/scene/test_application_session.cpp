@@ -117,13 +117,11 @@ TEST(ApplicationSession, configures_surface)
     auto mock_parent_surface = make_mock_surface();
 
     mtd::NullEventSink sender;
-    mtd::MockSurfaceCoordinator surface_coordinator;
+    NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
 
     EXPECT_CALL(surface_coordinator, add_surface(_, _))
         .WillOnce(Return(mock_parent_surface))
         .WillOnce(Return(mock_surface));
-    EXPECT_CALL(surface_coordinator, remove_surface(_))
-        .Times(AnyNumber());
 
     ms::ApplicationSession session(
         mt::fake_shared(surface_coordinator),
