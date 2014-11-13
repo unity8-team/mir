@@ -175,12 +175,12 @@ void mf::BasicConnector::start()
             {
                 w = std::move(std::async([this]
                 {
-                    // Ensure threads don't all exit immediately; block until
-                    // one job has run.
+                    // Ensure threads don't all exit immediately creating a
+                    // busy wait. Instead, block until one job has run.
                     io_service.run_one();
 
-                    // Now the thread may die if there's nothing to do, or
-                    // linger while there is work to do...
+                    // Now the thread may die if there's nothing left to do, or
+                    // can linger while there is more work to do...
                     while (io_service.poll() > 0) {};
                 }));
             }
