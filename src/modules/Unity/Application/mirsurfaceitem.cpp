@@ -35,7 +35,7 @@
 #include <QQmlEngine>
 #include <QQuickWindow>
 #include <QScreen>
-#include <QSGSimpleTextureNode>
+#include <private/qsgdefaultimagenode_p.h>
 #include <QSGTextureProvider>
 #include <QTimer>
 
@@ -486,17 +486,28 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
         return 0;
     }
 
-    QSGSimpleTextureNode *node = static_cast<QSGSimpleTextureNode*>(oldNode);
+    QSGDefaultImageNode *node = static_cast<QSGDefaultImageNode*>(oldNode);
     if (!node) {
-        node = new QSGSimpleTextureNode;
+        node = new QSGDefaultImageNode;
         node->setTexture(m_textureProvider->t);
+
+        node->setMipmapFiltering(QSGTexture::None);
+        node->setHorizontalWrapMode(QSGTexture::ClampToEdge);
+        node->setVerticalWrapMode(QSGTexture::ClampToEdge);
+        node->setSubSourceRect(QRectF(0, 0, 1, 1));
     } else {
         if (textureUpdated) {
             node->markDirty(QSGNode::DirtyMaterial);
         }
     }
 
-    node->setRect(0, 0, width(), height());
+    node->setTargetRect(QRectF(0, 0, width(), height()));
+    node->setInnerTargetRect(QRectF(0, 0, width(), height()));
+
+    node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    node->setAntialiasing(antialiasing());
+
+    node->update();
 
     return node;
 }

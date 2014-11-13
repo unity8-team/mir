@@ -23,7 +23,6 @@
 
 #include "application.h"
 #include "applicationcontroller.h"
-#include "processcontroller.h"
 
 namespace qtmir
 {
@@ -34,15 +33,14 @@ class TaskController : public QObject
 public:
     TaskController(
             QObject *parent,
-            const QSharedPointer<ApplicationController> &appController,
-            const QSharedPointer<ProcessController> &processController = QSharedPointer<ProcessController>(new ProcessController()));
+            const QSharedPointer<ApplicationController> &appController);
     ~TaskController();
 
     bool start(const QString &appId, const QStringList &args);
     bool stop(const QString &appId);
 
-    bool suspend(const Application* app);
-    bool resume(const Application* app);
+    bool suspend(const QString &appId);
+    bool resume(const QString &appId);
 
     bool appIdHasProcessId(const QString &appId, const quint64 pid) const;
     QFileInfo findDesktopFileForAppId(const QString &appId) const;
@@ -55,7 +53,6 @@ Q_SIGNALS:
     void requestResume(const QString &appId);
 
 private Q_SLOTS:
-    void onApplicationStarted(const QString &id);
     void onApplicationFocusRequest(const QString &id);
     void onApplicationResumeRequest(const QString &id);
 
@@ -63,7 +60,6 @@ private Q_SLOTS:
 
 private:
     const QSharedPointer<ApplicationController> m_appController;
-    const QSharedPointer<ProcessController> m_processController;
 };
 
 } // namespace qtmir

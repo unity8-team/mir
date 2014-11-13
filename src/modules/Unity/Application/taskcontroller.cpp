@@ -23,12 +23,6 @@
 // Qt
 #include <QStringList>
 
-// Process C++
-#include <core/posix/process.h>
-#include <core/posix/this_process.h>
-#include <core/posix/linux/proc/process/oom_adj.h>
-#include <core/posix/linux/proc/process/oom_score_adj.h>
-
 // STL
 #include <mutex>
 
@@ -41,21 +35,14 @@ namespace qtmir
 
 TaskController::TaskController(
         QObject *parent,
-        const QSharedPointer<ApplicationController> &appController,
-        const QSharedPointer<ProcessController> &processController) :
+        const QSharedPointer<ApplicationController> &appController) :
     QObject(parent),
-    m_appController(appController),
-    m_processController(processController)
+    m_appController(appController)
 {
     connect(m_appController.data(),
             &ApplicationController::applicationAboutToBeStarted,
             this,
             &TaskController::processStarting);
-
-    connect(m_appController.data(),
-            &ApplicationController::applicationStarted,
-            this,
-            &TaskController::onApplicationStarted);
 
     connect(m_appController.data(),
             &ApplicationController::applicationStopped,
@@ -109,64 +96,20 @@ QFileInfo TaskController::findDesktopFileForAppId(const QString &appId) const
     return m_appController->findDesktopFileForAppId(appId);
 }
 
-bool TaskController::suspend(const Application* app)
+bool TaskController::suspend(const QString &appId)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << app->appId();
-    pid_t pid = m_appController->primaryPidForAppId(app->appId());
-    if (pid == 0) {
-        pid = app->pid();
-    }
-
-    // FIXME This harcodes the unity8-dash name, we should consider a different approach,
-    // some privileged way to define which apps should be less likely to be killed.
-    if (app->appId() == "unity8-dash") {
-        m_processController->oomController()->ensureProcessLessLikelyToBeKilled(pid);
-    } else {
-        m_processController->oomController()->ensureProcessLikelyToBeKilled(pid);
-    }
-
-    if (pid) {
-        // We do assume that the app was launched by ubuntu-app-launch and with that,
-        // in its own process group. For that, we interpret the pid as pgid and
-        // sigstop the complete process group on suspend.
-        return m_processController->sigStopProcessGroupForPid(pid);
-    } else {
-        return false;
-    }
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::suspend - appId=" << appId;
+    return m_appController->pauseApplicationWithAppId(appId);
 }
 
-bool TaskController::resume(const Application* app)
+bool TaskController::resume(const QString &appId)
 {
-    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << app->appId();
-    pid_t pid = m_appController->primaryPidForAppId(app->appId());
-    if (pid == 0) {
-        pid = app->pid();
-    }
-
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
-
-    if (pid) {
-        // We do assume that the app was launched by ubuntu-app-launch and with that,
-        // in its own process group. For that, we interpret the pid as pgid and
-        // sigcont the complete process group on resume.
-        return m_processController->sigContinueProcessGroupForPid(pid);
-        return true;
-    } else {
-        qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - couldn't find PID to resume for appId=" << app->appId();
-        return false;
-    }
-}
-
-void TaskController::onApplicationStarted(const QString& id)
-{
-    pid_t pid = m_appController->primaryPidForAppId(id);
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
+    qCDebug(QTMIR_APPLICATIONS) << "TaskController::resume - appId=" << appId;
+    return m_appController->resumeApplicationWithAppId(appId);
 }
 
 void TaskController::onApplicationFocusRequest(const QString& id)
 {
-    pid_t pid = m_appController->primaryPidForAppId(id);
-    m_processController->oomController()->ensureProcessUnlikelyToBeKilled(pid);
     Q_EMIT requestFocus(id);
 }
 
