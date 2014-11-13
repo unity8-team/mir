@@ -158,7 +158,7 @@ TEST_F(ApplicationManagerTests,bug_case_1240400_second_dialer_app_fails_to_autho
     applicationManager.authorizeSession(secondProcId, authed);
     applicationManager.onProcessStarting(dialer_app_id);
 
-    EXPECT_EQ(false,authed);
+    EXPECT_FALSE(authed);
     EXPECT_EQ(app,applicationManager.findApplication(dialer_app_id));
 }
 
@@ -481,7 +481,7 @@ TEST_F(ApplicationManagerTests,suspended_suspends_focused_app_and_marks_it_unfoc
     applicationManager.setSuspended(true);
 
     EXPECT_EQ(Application::Suspended, the_app->state());
-    EXPECT_EQ(false, the_app->focused());
+    EXPECT_FALSE(the_app->focused());
 
     applicationManager.setSuspended(false);
 
@@ -522,7 +522,7 @@ TEST_F(ApplicationManagerTests,suspended_suspends_starting_app_when_it_gets_read
 
     // And given that the AppManager is suspended now, this should go to suspended too
     EXPECT_EQ(Application::Suspended, the_app->state());
-    EXPECT_EQ(false, the_app->focused());
+    EXPECT_FALSE(the_app->focused());
 
     applicationManager.setSuspended(false);
 
