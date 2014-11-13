@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <atomic>
 
 namespace google
 {
@@ -69,7 +70,9 @@ protected:
     std::shared_ptr<ConnectorReport> const report;
 
 private:
-    std::vector<std::thread> io_service_threads;
+    int const nthreads;
+    std::atomic_bool running;
+    std::thread manager;
     std::shared_ptr<ConnectionCreator> const connection_creator;
 };
 

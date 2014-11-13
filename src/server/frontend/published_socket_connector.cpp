@@ -32,6 +32,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <future>
 
 namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
@@ -148,35 +149,47 @@ mf::BasicConnector::BasicConnector(
     std::shared_ptr<ConnectorReport> const& report)
 :   work(io_service),
     report(report),
-    io_service_threads(threads),
+    nthreads(threads),
+    running(false),
     connection_creator{connection_creator}
 {
 }
 
 void mf::BasicConnector::start()
 {
-    auto run_io_service = [this]
+    report->starting_threads(nthreads);
+    running = true;
+    manager = std::thread([this]()
     {
         mir::set_thread_name("Mir/IPC");
-        while (true)
-        try
-        {
-            report->thread_start();
-            io_service.run();
-            report->thread_end();
-            return;
-        }
-        catch (std::exception const& e)
-        {
-            report->error(e);
-        }
-    };
+        report->thread_start();
 
-    report->starting_threads(io_service_threads.size());
-    for (auto& thread : io_service_threads)
-    {
-        thread = std::thread(run_io_service);
-    }
+        // Each worker may represent a thread if busy, or may not. It depends
+        // on whether there's any work left to do...
+        std::vector<std::future<void>> workers;
+        workers.resize(nthreads);
+
+        while (running)
+        {
+            for (auto& w : workers)
+            {
+                w = std::move(std::async([this]
+                {
+                    // Ensure threads don't all exit immediately; block until
+                    // one job has run.
+                    io_service.run_one();
+
+                    // Now the thread may die if there's nothing to do, or
+                    // linger while there is work to do...
+                    while (io_service.poll() > 0) {};
+                }));
+            }
+
+            for (auto& w : workers)
+                w.wait();
+        }
+        report->thread_end();
+    });
 }
 
 void mf::BasicConnector::stop()
@@ -184,16 +197,11 @@ void mf::BasicConnector::stop()
     /* Stop processing new requests */
     io_service.stop();
 
-    report->stopping_threads(io_service_threads.size());
+    report->stopping_threads(nthreads);
 
-    /* Wait for all io processing threads to finish */
-    for (auto& thread : io_service_threads)
-    {
-        if (thread.joinable())
-        {
-            thread.join();
-        }
-    }
+    running = false;
+    if (manager.joinable())
+        manager.join();
 
     /* Prepare for a potential restart */
     io_service.reset();
