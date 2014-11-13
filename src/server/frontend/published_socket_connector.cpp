@@ -164,30 +164,20 @@ void mf::BasicConnector::start()
         mir::set_thread_name("Mir/IPC");
         report->thread_start();
 
-        // Each worker may represent a thread if busy, or may not. It depends
-        // on whether there's any work left to do...
-        std::vector<std::future<void>> workers;
-        workers.resize(nthreads);
+        std::function<void(int)> worker = [this,&worker](int depth){
+            if (io_service.poll_one() && depth < nthreads)
+            {
+                std::thread child([this,&worker,depth]{ worker(depth+1); });
+                child.detach();
+            }
+            io_service.run_one();
+        };
 
         while (running)
         {
-            for (auto& w : workers)
-            {
-                w = std::move(std::async([this]
-                {
-                    // Ensure threads don't all exit immediately creating a
-                    // busy wait. Instead, block until one job has run.
-                    io_service.run_one();
-
-                    // Now the thread may die if there's nothing left to do, or
-                    // can linger while there is more work to do...
-                    while (io_service.poll() > 0) {};
-                }));
-            }
-
-            for (auto& w : workers)
-                w.wait();
+            worker(1);
         }
+
         report->thread_end();
     });
 }
