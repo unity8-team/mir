@@ -26,6 +26,9 @@ namespace scene {
 
 struct MockPromptSession : public PromptSession
 {
+public:
+    MOCK_METHOD1(set_state, void(MirPromptSessionState));
+    MOCK_CONST_METHOD0(state, MirPromptSessionState());
 };
 
 } // namespace scene
