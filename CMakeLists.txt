@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 project(ubuntu-platform-api)
 
 set(UBUNTU_PLATFORM_API_VERSION_MAJOR 2)
-set(UBUNTU_PLATFORM_API_VERSION_MINOR 5)
+set(UBUNTU_PLATFORM_API_VERSION_MINOR 6)
 set(UBUNTU_PLATFORM_API_VERSION_PATCH 0)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
@@ -58,7 +58,6 @@ option(
 )
 
 find_package(PkgConfig)
-pkg_check_modules(MIRSERVER REQUIRED mirserver)
 pkg_check_modules(MIRCLIENT REQUIRED mirclient)
 
 # Try to find hybris, and disable hybris from build if not found
