@@ -20,6 +20,7 @@ set(
 )
 
 add_subdirectory(android)
+add_subdirectory(libinput)
 
 add_library(
   mirinput OBJECT

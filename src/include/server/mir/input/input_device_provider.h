@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
 #ifndef MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
@@ -39,10 +40,16 @@ public:
 	best = 255,
     };
 
+    InputDeviceProvider() = default;
     virtual ~InputDeviceProvider() noexcept {}
 
     virtual Priority probe_device(mir::udev::Device const& device) const = 0;
     virtual std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const = 0;
+
+protected:
+    InputDeviceProvider(InputDeviceProvider const& cp) = delete;
+    InputDeviceProvider& operator=(InputDeviceProvider const& cp) = delete;
+
 };
 
 }
