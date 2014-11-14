@@ -18,6 +18,7 @@
 
 #include "kms_page_flipper.h"
 #include "mir/graphics/display_report.h"
+#include "./debug.h"
 
 #include <limits>
 #include <stdexcept>
@@ -32,14 +33,34 @@ namespace mgm = mir::graphics::mesa;
 namespace
 {
 
-void page_flip_handler(int /*fd*/, unsigned int /*frame*/,
+void page_flip_handler(int /*fd*/, unsigned int seq,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void* data)
 {
+    announce("Page flip done");
+    fprintf(stderr, "Seq #%u\n", seq);
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
     page_flip_data->pending->erase(page_flip_data->crtc_id);
 }
 
+}
+
+void announce(const char *message)
+{
+    static struct timespec prev = {0L, 0L};
+    struct timespec now;
+    
+    clock_gettime(CLOCK_REALTIME, &now);
+    long delta_ns = 1000000000L * (now.tv_sec - prev.tv_sec);
+    delta_ns += now.tv_nsec - prev.tv_nsec;
+
+    fprintf(stderr, "(+%ld.%06ldms)\n",
+        delta_ns / 1000000L, delta_ns % 1000000L);
+
+    fprintf(stderr, "%ld.%09lds: %s\n",
+        now.tv_sec, now.tv_nsec, message);
+
+    prev = now;
 }
 
 mgm::KMSPageFlipper::KMSPageFlipper(int drm_fd)
@@ -51,6 +72,7 @@ mgm::KMSPageFlipper::KMSPageFlipper(int drm_fd)
 
 bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
 {
+    announce("Page flip requested");
     std::unique_lock<std::mutex> lock{pf_mutex};
 
     if (pending_page_flips.find(crtc_id) != pending_page_flips.end())
@@ -64,6 +86,7 @@ bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
 
     if (ret)
         pending_page_flips.erase(crtc_id);
+    announce("Page flip pending");
 
     return (ret == 0);
 }

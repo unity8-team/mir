@@ -16,6 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#include "./debug.h"
 #include "display_buffer.h"
 #include "platform.h"
 #include "kms_output.h"
@@ -218,6 +219,8 @@ void mgm::DisplayBuffer::post_update()
 void mgm::DisplayBuffer::post_update(
     std::shared_ptr<graphics::Buffer> bypass_buf)
 {
+    announce(">>> post_update");
+
     /*
      * If the last frame was composited then we haven't waited for the
      * page flips yet. This is good because it maximizes the time available
@@ -307,8 +310,15 @@ void mgm::DisplayBuffer::post_update(
     }
     else
     {
+        if (outputs.size() == 1)
+        {
+            glFinish();
+            wait_for_page_flip();
+        }
+
         scheduled_bufobj = bufobj;
     }
+    announce("<<< post_update");
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
