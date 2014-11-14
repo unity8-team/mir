@@ -39,8 +39,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-option(MIR_EXPORT_ALL_SYMBOLS "Export all dynamic symbols (required for some profilers)" OFF)
-
 option(use_debflags "Use build flags from dpkg-buildflags." OFF)
 if(use_debflags)
   include (cmake/Debian.cmake)
@@ -61,6 +59,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -std=c++0x -Werror -Wall -fn
 
 if ("${CMAKE_CXX_COMPILER}" MATCHES "clang")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type-c-linkage -Wno-mismatched-tags")
+endif()
+
+option(MIR_EXPORT_ALL_SYMBOLS "Export all dynamic symbols (required for some profilers)" OFF)
+
+if(MIR_EXPORT_ALL_SYMBOLS)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -rdynamic")
 endif()
 
 # Link time optimization allows leaner, cleaner libraries
