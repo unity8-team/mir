@@ -42,12 +42,16 @@ add_library(mirplatformgraphicsandroid SHARED
   $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
 
-set_target_properties(
-  mirplatformgraphicsandroid PROPERTIES
+set_target_properties(mirplatformgraphicsandroid PROPERTIES
   OUTPUT_NAME ${MIR_PLATFORM_DRIVER}
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/android
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
+
+if(NOT MIR_EXPORT_ALL_SYMBOLS)
+  set_target_properties(mirplatformgraphicsandroid PROPERTIES
+    LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  )
+endif()
 
 target_link_libraries(mirplatformgraphicsandroid
   mirplatform

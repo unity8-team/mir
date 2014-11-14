@@ -20,12 +20,16 @@ add_library(
   $<TARGET_OBJECTS:mirclient_platformimpl>
 )
 
-set_target_properties(
-  mirclientplatformandroid PROPERTIES
+set_target_properties(mirclientplatformandroid PROPERTIES
   OUTPUT_NAME ${MIR_CLIENT_DRIVER}
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/android
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
+
+if(NOT MIR_EXPORT_ALL_SYMBOLS)
+  set_target_properties(mirclientplatformandroid PROPERTIES
+    LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  )
+endif()
 
 target_link_libraries(mirclientplatformandroid
   mirclient

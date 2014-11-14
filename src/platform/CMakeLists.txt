@@ -41,12 +41,15 @@ target_link_libraries(mirplatform
   ${MIR_PLATFORM_REFERENCES}
 )
 
-set_target_properties(mirplatform
-  PROPERTIES
+set_target_properties(mirplatform PROPERTIES
   SOVERSION ${MIRPLATFORM_ABI}
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
 
+if(NOT MIR_EXPORT_ALL_SYMBOLS)
+  set_target_properties(mirplatform PROPERTIES
+    LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  )
+endif()
 
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

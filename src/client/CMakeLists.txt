@@ -80,13 +80,15 @@ add_library(
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
-set_target_properties(
-  mirclient
-
-  PROPERTIES
+set_target_properties(mirclient PROPERTIES
   SOVERSION ${MIRCLIENT_ABI}
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
+
+if(NOT MIR_EXPORT_ALL_SYMBOLS)
+  set_target_properties(mirclient PROPERTIES
+    LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+  )
+endif()
 
 target_link_libraries(mirclient
   mirclientrpc

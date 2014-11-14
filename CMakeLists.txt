@@ -39,6 +39,8 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+option(MIR_EXPORT_ALL_SYMBOLS "Export all dynamic symbols (required for some profilers)" OFF)
+
 option(use_debflags "Use build flags from dpkg-buildflags." OFF)
 if(use_debflags)
   include (cmake/Debian.cmake)

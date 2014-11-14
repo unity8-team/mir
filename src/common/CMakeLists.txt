@@ -44,12 +44,15 @@ target_link_libraries(mircommon
 set(MIRCOMMON_ABI 3)
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
-set_target_properties(mircommon
-
-  PROPERTIES
+set_target_properties(mircommon PROPERTIES
   SOVERSION ${MIRCOMMON_ABI}
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
 )
+
+if(NOT MIR_EXPORT_ALL_SYMBOLS)
+    set_target_properties(mircommon PROPERTIES
+      LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
+    )
+endif()
 
 install(TARGETS mircommon LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
