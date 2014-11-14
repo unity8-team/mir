@@ -32,7 +32,6 @@
 
 #include <cstdio>
 #include <fstream>
-#include <future>
 
 namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
@@ -149,37 +148,35 @@ mf::BasicConnector::BasicConnector(
     std::shared_ptr<ConnectorReport> const& report)
 :   work(io_service),
     report(report),
-    nthreads(threads),
-    running(false),
+    io_service_threads(threads),
     connection_creator{connection_creator}
 {
 }
 
 void mf::BasicConnector::start()
 {
-    report->starting_threads(nthreads);
-    running = true;
-    manager = std::thread([this]()
+    auto run_io_service = [this]
     {
         mir::set_thread_name("Mir/IPC");
-        report->thread_start();
-
-        std::function<void(int)> worker = [this,&worker](int depth){
-            if (io_service.poll_one() && depth < nthreads)
-            {
-                std::thread child([this,&worker,depth]{ worker(depth+1); });
-                child.detach();
-            }
-            io_service.run_one();
-        };
-
-        while (running)
+        while (true)
+        try
         {
-            worker(1);
+            report->thread_start();
+            io_service.run();
+            report->thread_end();
+            return;
         }
+        catch (std::exception const& e)
+        {
+            report->error(e);
+        }
+    };
 
-        report->thread_end();
-    });
+    report->starting_threads(io_service_threads.size());
+    for (auto& thread : io_service_threads)
+    {
+        thread = std::thread(run_io_service);
+    }
 }
 
 void mf::BasicConnector::stop()
@@ -187,11 +184,16 @@ void mf::BasicConnector::stop()
     /* Stop processing new requests */
     io_service.stop();
 
-    report->stopping_threads(nthreads);
+    report->stopping_threads(io_service_threads.size());
 
-    running = false;
-    if (manager.joinable())
-        manager.join();
+    /* Wait for all io processing threads to finish */
+    for (auto& thread : io_service_threads)
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
 
     /* Prepare for a potential restart */
     io_service.reset();
