@@ -56,12 +56,6 @@ TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsI
 
     EXPECT_CALL(desktopFileReaderFactory, createInstance(_, _)).Times(1);
 
-    EXPECT_CALL(processController, sigStopProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(processController, sigContinueProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessUnlikelyToBeKilled(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessLikelyToBeKilled(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessLessLikelyToBeKilled(_)).Times(0);
-
     auto application = applicationManager.startApplication(
                 appId,
                 ApplicationManager::NoFlag,
@@ -86,12 +80,6 @@ TEST_F(ApplicationManagerTests, SuspendingAndResumingDashResultsInOomScoreAdjust
         .WillOnce(Return(cmdLine));
 
     ON_CALL(appController,appIdHasProcessId(_,_)).WillByDefault(Return(false));
-
-    EXPECT_CALL(processController, sigStopProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(processController, sigContinueProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessUnlikelyToBeKilled(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessLikelyToBeKilled(_)).Times(0);
-    EXPECT_CALL(oomController, ensureProcessLessLikelyToBeKilled(_)).Times(1);
 
     bool authed = true;
 
@@ -131,12 +119,6 @@ TEST_F(ApplicationManagerTests, DISABLED_FocusingRunningApplicationResultsInOomS
         onSessionStarting( mirSession );
 
         EXPECT_NE(nullptr, application);
-
-        appIds.insert(appId);
-        auto it = appController.children.find(appId);
-        if (it != appController.children.end())
-            EXPECT_CALL(oomController,
-                        ensureProcessUnlikelyToBeKilled(it->pid())).Times(1);
     }
 
     for (auto appId : appIds)

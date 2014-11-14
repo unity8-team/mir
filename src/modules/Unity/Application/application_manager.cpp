@@ -43,6 +43,8 @@
 // Qt
 #include <QGuiApplication>
 #include <QDebug>
+#include <QByteArray>
+#include <QDir>
 
 // std
 #include <csignal>
@@ -821,6 +823,20 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
                 || application->state() == Application::Running) {
             m_dbusWindowStack->WindowDestroyed(0, application->appId());
             remove(application);
+           
+            // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
+            QString path(QDir::homePath() + QStringLiteral("/.cache/QML/Apps/"));
+            QDir dir(path);
+            QStringList apps = dir.entryList();
+            for (int i = 0; i < apps.size(); i++) {
+                if (apps.at(i).contains(application->appId())) {
+                    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping appId=" << apps.at(i) << " Wiping QML Cache";
+                    dir.cd(apps.at(i));
+                    dir.removeRecursively();
+                    break;
+                }
+            }
+
             delete application;
 
             if (application == m_focusedApplication) {

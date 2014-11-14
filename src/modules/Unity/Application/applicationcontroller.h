@@ -48,6 +48,9 @@ public:
     virtual bool stopApplicationWithAppId(const QString &appId) = 0;
     virtual bool startApplicationWithAppIdAndArgs(const QString &appId, const QStringList &arguments) = 0;
 
+    virtual bool pauseApplicationWithAppId(const QString &appId) = 0;
+    virtual bool resumeApplicationWithAppId(const QString &appId) = 0;
+
     virtual QFileInfo findDesktopFileForAppId(const QString &appId) const = 0;
 
 Q_SIGNALS:
