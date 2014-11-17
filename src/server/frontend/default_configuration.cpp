@@ -24,6 +24,7 @@
 
 #include "unsupported_coordinate_translator.h"
 
+#include "mir/graphics/platform.h"
 #include "mir/frontend/protobuf_connection_creator.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/graphics/display.h"
@@ -163,7 +164,7 @@ mir::DefaultServerConfiguration::new_ipc_factory(
     return std::make_shared<mf::DefaultIpcFactory>(
         the_frontend_shell(),
         the_session_mediator_report(),
-        the_graphics_platform(),
+        the_graphics_platform()->make_ipc_operations(),
         the_frontend_display_changer(),
         the_buffer_allocator(),
         the_screencast(),
