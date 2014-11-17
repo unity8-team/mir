@@ -16,7 +16,7 @@
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include <mir/input/input_device_factory.h>
+#include "mir/input/input_device_factory.h"
 
 namespace mi = mir::input;
 
