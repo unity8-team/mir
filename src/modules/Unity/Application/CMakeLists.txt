@@ -34,7 +34,6 @@ set(QMLMIRPLUGIN_SRC
     ubuntukeyboardinfo.cpp
     mirsurfaceitem.cpp
     mirbuffersgtexture.cpp
-    processcontroller.cpp
     proc_info.cpp
     session.cpp
     sessionmanager.cpp
