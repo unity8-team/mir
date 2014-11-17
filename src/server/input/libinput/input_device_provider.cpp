@@ -18,15 +18,9 @@
 
 #include "input_device_provider.h"
 
-#include "mir/fd.h"
-#include "mir/raii.h"
+#include "mir/input/input_device_detection.h"
 
 #include <libinput.h>
-#include <libevdev/libevdev.h>
-
-#include <boost/exception/errinfo_errno.hpp>
-#include <boost/exception/errinfo_file_name.hpp>
-#include <boost/throw_exception.hpp>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -50,58 +44,6 @@ void libinput_close_restricted(int fd, void *user_data)
     (void)user_data;
     ::close(fd);
 }
-
-int get_num_abs_axis(libevdev * evdev, std::initializer_list<int> axis_list)
-{
-    int ret = 0;
-    for (auto const axis : axis_list)
-        if (libevdev_has_event_code( evdev, EV_ABS, axis))
-            ++ret;
-    return ret;
-}
-
-bool has_abs(libevdev* evdev)
-{
-    return 2 == get_num_abs_axis(evdev, {ABS_X, ABS_Y});
-}
-
-bool has_mt(libevdev* evdev)
-{
-    return 2 == get_num_abs_axis(evdev, {ABS_MT_POSITION_X, ABS_MT_POSITION_Y});
-}
-
-bool is_touchpad(libevdev * evdev)
-{
-    return libevdev_has_event_type(evdev, EV_KEY) &&
-        !libevdev_has_property(evdev, INPUT_PROP_DIRECT) &&
-        libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-        !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN) &&
-        (has_abs(evdev) || has_mt(evdev));
-}
-
-bool is_joystick_with_three_axis(libevdev * evdev)
-{
-    return
-        !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-        !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN) &&
-        has_abs(evdev) &&
-        !has_mt(evdev) &&
-        get_num_abs_axis(evdev,
-                         {ABS_X, ABS_Y, ABS_Z,
-                         ABS_RX, ABS_RY, ABS_RZ,
-                         ABS_THROTTLE, ABS_RUDDER, ABS_WHEEL, ABS_GAS, ABS_BRAKE,
-                         ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y, ABS_HAT3X, ABS_HAT3Y,
-                         ABS_TILT_X, ABS_TILT_Y
-                         }) > 2;
-}
-
-bool is_multi_touch_screen(libevdev * evdev)
-{
-    return
-        !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-        !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN) &&
-        has_mt(evdev);
-}
 }
 
 static const libinput_interface open_close_interface =
@@ -119,31 +61,16 @@ mili::InputDeviceProvider::InputDeviceProvider()
 
 mi::InputDeviceProvider::Priority mili::InputDeviceProvider::probe_device(mir::udev::Device const& device) const
 {
-    mir::Fd dev(
-        ::open(device.devpath(), O_RDONLY|O_NONBLOCK)
-        );
+    InputDeviceDetection detector(device.devpath());
 
-    libevdev* evdev = nullptr;
-    int rc = libevdev_new_from_fd(dev, &evdev);
+    const int joystick_axes_exposed_by_libinput = 2;
 
-    if (rc < 0)
-    {
-        BOOST_THROW_EXCEPTION(
-            boost::enable_error_info(
-                std::runtime_error("Failed to probe input device")
-                )
-            << boost::errinfo_errno(-rc)
-            << boost::errinfo_file_name(device.devpath())
-            );
-    }
-
-    auto on_exit = mir::raii::deleter_for(evdev, &libevdev_free);
-
-    if (is_touchpad(evdev))
+    if (detector.has_touchpad())
         return best;
-    else if (is_joystick_with_three_axis(evdev))
+    else if (detector.has_joystick() &&
+             detector.num_joystick_axes() > joystick_axes_exposed_by_libinput)
         return unsupported;
-    else if (is_multi_touch_screen(evdev))
+    else if (detector.has_multi_touch_screen())
         return unsupported;
     else
         return supported;

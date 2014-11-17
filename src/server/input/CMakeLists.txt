@@ -10,6 +10,7 @@ set(
   null_input_channel_factory.cpp
   null_input_dispatcher.cpp
   display_input_region.cpp
+  input_device_detection.cpp
   vt_filter.cpp
   cursor_controller.cpp
   default_configuration.cpp
