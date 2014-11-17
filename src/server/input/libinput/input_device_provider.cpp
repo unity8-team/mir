@@ -20,8 +20,6 @@
 
 #include "mir/input/input_device_detection.h"
 
-#include <libinput.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -31,31 +29,7 @@
 namespace mi = mir::input;
 namespace mili = mi::libinput;
 
-namespace
-{
-int libinput_open_restricted(const char *path, int flags, void *user_data)
-{
-    (void)user_data;
-    return ::open(path, flags);
-}
-
-void libinput_close_restricted(int fd, void *user_data)
-{
-    (void)user_data;
-    ::close(fd);
-}
-}
-
-static const libinput_interface open_close_interface =
-{
-    libinput_open_restricted, libinput_close_restricted
-};
-
 mili::InputDeviceProvider::InputDeviceProvider()
-    : libinput_handle(
-        libinput_path_create_context(&open_close_interface, nullptr),
-        &libinput_destroy
-        )
 {
 }
 

@@ -21,8 +21,6 @@
 
 #include "mir/input/input_device_provider.h"
 
-struct libinput;
-
 namespace mir
 {
 namespace input
@@ -37,9 +35,6 @@ public:
     Priority probe_device(mir::udev::Device const& device) const override;
     std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const override;
     ~InputDeviceProvider();
-
-private:
-    std::unique_ptr<::libinput,void(*)(::libinput*)> libinput_handle;
 };
 
 }
