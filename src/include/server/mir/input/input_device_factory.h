@@ -21,7 +21,6 @@
 
 #include "mir/udev/wrapper.h"
 #include "mir/input/input_device_provider.h"
-#include "mir/input/input_device.h"
 
 #include <memory>
 #include <vector>
