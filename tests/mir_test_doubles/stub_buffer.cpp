@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,30 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alan Griffiths <alan@octopull.co.uk>
+ * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
+#include "mir_test_doubles/stub_buffer.h"
 
-#ifndef MIR_REPORT_EXCEPTION_H_
-#define MIR_REPORT_EXCEPTION_H_
+#ifdef ANDROID
+#include "mir_test_doubles/stub_android_native_buffer.h"
+#else
+#include "mir_test_doubles/stub_gbm_native_buffer.h"
+#endif
 
-#include <iosfwd>
+namespace mtd=mir::test::doubles;
 
-namespace mir
+auto mtd::StubBuffer::create_native_buffer()
+-> std::shared_ptr<graphics::NativeBuffer>
 {
-/**
- *  Call this from a catch block (and only from a catch block)
- *  to write error information to an output stream.
- */
-void report_exception(std::ostream& out);
-
-/**
- *  Call this from a catch block (and only from a catch block)
- *  to write error information to std:cerr.
- */
-void report_exception();
+#ifndef ANDROID
+    return std::make_shared<StubGBMNativeBuffer>(geometry::Size{0,0});
+#else
+    return std::make_shared<StubAndroidNativeBuffer>();
+#endif
 }
-
-
-
-#endif /* MIR_REPORT_EXCEPTION_H_ */

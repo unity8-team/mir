@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,30 +13,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alan Griffiths <alan@octopull.co.uk>
+ * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
+#ifndef MIR_TEST_FRAMEWORK_CONNECTED_CLIENT_HEADLESS_SERVER_H_
+#define MIR_TEST_FRAMEWORK_CONNECTED_CLIENT_HEADLESS_SERVER_H_
 
-#ifndef MIR_REPORT_EXCEPTION_H_
-#define MIR_REPORT_EXCEPTION_H_
+#include "mir_test_framework/headless_in_process_server.h"
 
-#include <iosfwd>
+#include "mir_toolkit/mir_client_library.h"
 
-namespace mir
+namespace mir_test_framework
 {
-/**
- *  Call this from a catch block (and only from a catch block)
- *  to write error information to an output stream.
- */
-void report_exception(std::ostream& out);
+struct ConnectedClientHeadlessServer : HeadlessInProcessServer
+{
+    MirConnection* connection{nullptr};
 
-/**
- *  Call this from a catch block (and only from a catch block)
- *  to write error information to std:cerr.
- */
-void report_exception();
+    void SetUp() override;
+
+    void TearDown() override;
+};
 }
 
-
-
-#endif /* MIR_REPORT_EXCEPTION_H_ */
+#endif /* MIR_TEST_FRAMEWORK_CONNECTED_CLIENT_HEADLESS_SERVER_H_ */
