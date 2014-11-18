@@ -31,10 +31,8 @@ namespace libinput
 class InputDeviceProvider : public input::InputDeviceProvider
 {
 public:
-    InputDeviceProvider();
     Priority probe_device(mir::udev::Device const& device) const override;
     std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const override;
-    ~InputDeviceProvider();
 };
 
 }

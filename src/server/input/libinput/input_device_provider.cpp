@@ -18,7 +18,7 @@
 
 #include "input_device_provider.h"
 
-#include "mir/input/input_device_detection.h"
+#include "../input_device_detection.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,10 +29,6 @@
 namespace mi = mir::input;
 namespace mili = mi::libinput;
 
-mili::InputDeviceProvider::InputDeviceProvider()
-{
-}
-
 mi::InputDeviceProvider::Priority mili::InputDeviceProvider::probe_device(mir::udev::Device const& device) const
 {
     InputDeviceDetection detector(device.devpath());
@@ -41,13 +37,15 @@ mi::InputDeviceProvider::Priority mili::InputDeviceProvider::probe_device(mir::u
 
     if (detector.has_touchpad())
         return best;
-    else if (detector.has_joystick() &&
-             detector.num_joystick_axes() > joystick_axes_exposed_by_libinput)
+
+    if (detector.has_joystick() &&
+        detector.num_joystick_axes() > joystick_axes_exposed_by_libinput)
         return unsupported;
-    else if (detector.has_multi_touch_screen())
+
+    if (detector.has_multi_touch_screen())
         return unsupported;
-    else
-        return supported;
+
+    return supported;
 }
 
 std::shared_ptr<mi::InputDevice> mili::InputDeviceProvider::create_device(mir::udev::Device const& device) const
@@ -56,6 +54,3 @@ std::shared_ptr<mi::InputDevice> mili::InputDeviceProvider::create_device(mir::u
     return std::shared_ptr<mi::InputDevice>();
 }
 
-mili::InputDeviceProvider::~InputDeviceProvider()
-{
-}

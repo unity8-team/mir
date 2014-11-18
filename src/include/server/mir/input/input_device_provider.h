@@ -41,7 +41,7 @@ public:
     };
 
     InputDeviceProvider() = default;
-    virtual ~InputDeviceProvider() noexcept {}
+    virtual ~InputDeviceProvider() = default;
 
     virtual Priority probe_device(mir::udev::Device const& device) const = 0;
     virtual std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const = 0;

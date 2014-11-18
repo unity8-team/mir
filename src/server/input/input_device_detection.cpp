@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "mir/input/input_device_detection.h"
+#include "input_device_detection.h"
 
 #include "mir/fd.h"
 #include "mir/raii.h"
@@ -34,7 +34,7 @@
 namespace mi = mir::input;
 namespace
 {
-int get_num_abs_axes(libevdev * evdev, std::initializer_list<int> axes_list)
+int get_num_abs_axes(libevdev* evdev, std::initializer_list<int> axes_list)
 {
     int ret = 0;
     for (auto const axis : axes_list)
@@ -76,9 +76,9 @@ mi::InputDeviceDetection::InputDeviceDetection(char const* devpath)
 
 bool mi::InputDeviceDetection::has_touchpad() const
 {
-    bool has_keys = libevdev_has_event_type(evdev_ptr.get(), EV_KEY);
-    bool indirect_input = !libevdev_has_property(evdev_ptr.get(), INPUT_PROP_DIRECT);
-    bool finger_but_no_pen =
+    bool const has_keys = libevdev_has_event_type(evdev_ptr.get(), EV_KEY);
+    bool const indirect_input = !libevdev_has_property(evdev_ptr.get(), INPUT_PROP_DIRECT);
+    bool const finger_but_no_pen =
         libevdev_has_event_code(evdev_ptr.get(), EV_KEY, BTN_TOOL_FINGER) &&
         !libevdev_has_event_code(evdev_ptr.get(), EV_KEY, BTN_TOOL_PEN);
 
@@ -98,12 +98,12 @@ bool mi::InputDeviceDetection::has_joystick() const
 int mi::InputDeviceDetection::num_joystick_axes() const
 {
     return get_num_abs_axes(evdev_ptr.get(),
-                         {ABS_X, ABS_Y, ABS_Z,
-                         ABS_RX, ABS_RY, ABS_RZ,
-                         ABS_THROTTLE, ABS_RUDDER, ABS_WHEEL, ABS_GAS, ABS_BRAKE,
-                         ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y, ABS_HAT3X, ABS_HAT3Y,
-                         ABS_TILT_X, ABS_TILT_Y
-                         });
+                            {ABS_X, ABS_Y, ABS_Z,
+                            ABS_RX, ABS_RY, ABS_RZ,
+                            ABS_THROTTLE, ABS_RUDDER, ABS_WHEEL, ABS_GAS, ABS_BRAKE,
+                            ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y, ABS_HAT3X, ABS_HAT3Y,
+                            ABS_TILT_X, ABS_TILT_Y
+                            });
 }
 
 bool mi::InputDeviceDetection::has_multi_touch_screen() const

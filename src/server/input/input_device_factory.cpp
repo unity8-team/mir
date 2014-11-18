@@ -32,12 +32,12 @@ std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(m
 
     for (auto& provider : providers)
     {
-	auto prio = provider->probe_device(device);
-	if (prio > best_prio)
+        auto prio = provider->probe_device(device);
+        if (prio > best_prio)
         {
-	    best_prio = prio;
-	    best_provider = provider.get();
-	}
+            best_prio = prio;
+            best_provider = provider.get();
+        }
     }
 
     if (best_provider != nullptr)
