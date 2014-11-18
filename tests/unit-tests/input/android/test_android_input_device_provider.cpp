@@ -61,11 +61,6 @@ struct MockedDevice
 
 }
 
-std::ostream& operator<<(std::ostream& out, MockedDevice const& dev)
-{
-    return out << dev.recorded_device_sample;
-}
-
 struct AndroidInputDeviceProviderTest : public ::testing::TestWithParam<MockedDevice>
 {
     mia::InputDeviceProvider provider;
