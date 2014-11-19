@@ -152,6 +152,7 @@ mir::DefaultServerConfiguration::new_ipc_factory(
     }
     return std::make_shared<mf::DefaultIpcFactory>(
                 the_frontend_shell(),
+                the_window_manager(),
                 the_session_mediator_report(),
                 the_graphics_platform()->make_ipc_operations(),
                 the_frontend_display_changer(),

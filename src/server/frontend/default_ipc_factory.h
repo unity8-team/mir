@@ -33,6 +33,11 @@ namespace input
 class CursorImages;
 }
 
+namespace shell
+{
+class WindowManager;
+}
+
 namespace scene
 {
 class CoordinateTranslator;
@@ -51,6 +56,7 @@ class DefaultIpcFactory : public ProtobufIpcFactory
 public:
     explicit DefaultIpcFactory(
         std::shared_ptr<Shell> const& shell,
+        std::shared_ptr<shell::WindowManager> const& wm,
         std::shared_ptr<SessionMediatorReport> const& sm_report,
         std::shared_ptr<graphics::PlatformIpcOperations> const& platform_ipc_operations,
         std::shared_ptr<DisplayChanger> const& display_changer,
@@ -80,6 +86,7 @@ public:
 
 private:
     std::shared_ptr<Shell> const shell;
+    std::shared_ptr<shell::WindowManager> const wm;
     std::shared_ptr<Shell> const no_prompt_shell;
     std::shared_ptr<SessionMediatorReport> const sm_report;
     std::shared_ptr<ResourceCache> const cache;

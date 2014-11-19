@@ -19,6 +19,9 @@
 #ifndef MIR_SHELL_WINDOW_MANAGER_H_
 #define MIR_SHELL_WINDOW_MANAGER_H_
 
+#include "mir_toolkit/common.h"
+#include "mir/frontend/surface.h"
+
 namespace mir
 {
 namespace scene
@@ -37,6 +40,9 @@ public:
 
     virtual scene::SurfaceCreationParameters place(scene::Session const&,
                                  scene::SurfaceCreationParameters const&) = 0;
+
+    virtual int configure(frontend::Surface& s, MirSurfaceAttrib a, int v)
+        { return s.configure(a, v); }  // TODO purify
 
 protected:
     WindowManager() = default;

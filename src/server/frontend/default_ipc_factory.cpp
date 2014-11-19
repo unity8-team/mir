@@ -32,6 +32,7 @@ namespace mi = mir::input;
 
 mf::DefaultIpcFactory::DefaultIpcFactory(
     std::shared_ptr<Shell> const& shell,
+    std::shared_ptr<shell::WindowManager> const& wm,
     std::shared_ptr<SessionMediatorReport> const& sm_report,
     std::shared_ptr<mg::PlatformIpcOperations> const& platform_ipc_operations,
     std::shared_ptr<DisplayChanger> const& display_changer,
@@ -41,6 +42,7 @@ mf::DefaultIpcFactory::DefaultIpcFactory(
     std::shared_ptr<mi::CursorImages> const& cursor_images,
     std::shared_ptr<scene::CoordinateTranslator> const& translator) :
     shell(shell),
+    wm(wm),
     no_prompt_shell(std::make_shared<NoPromptShell>(shell)),
     sm_report(sm_report),
     cache(std::make_shared<ResourceCache>()),
@@ -114,6 +116,7 @@ std::shared_ptr<mf::detail::DisplayServer> mf::DefaultIpcFactory::make_mediator(
 {
     return std::make_shared<SessionMediator>(
         shell,
+        wm,
         platform_ipc_operations,
         changer,
         buffer_allocator->supported_pixel_formats(),

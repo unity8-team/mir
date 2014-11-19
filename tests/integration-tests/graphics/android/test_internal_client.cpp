@@ -41,6 +41,7 @@
 #include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
+#include "mir_test_doubles/null_window_manager.h"
 
 #include <EGL/egl.h>
 #include <gtest/gtest.h>
@@ -78,13 +79,6 @@ struct StubInputFactory : public mi::InputChannelFactory
     }
 };
 
-struct NullWindowManager : msh::WindowManager
-{
-    ms::SurfaceCreationParameters place(ms::Session const&, ms::SurfaceCreationParameters const& parameters) override
-    {
-        return parameters;
-    }
-};
 }
 
 TEST_F(AndroidInternalClient, internal_client_creation_and_use)
@@ -105,7 +99,7 @@ TEST_F(AndroidInternalClient, internal_client_creation_and_use)
     auto const surface_configurator = std::make_shared<mtd::NullSurfaceConfigurator>();
     auto surface_allocator = std::make_shared<ms::SurfaceAllocator>(buffer_stream_factory, stub_input_factory, stub_input_sender, surface_configurator, std::shared_ptr<mg::CursorImage>(), scene_report);
     auto ss = std::make_shared<ms::SurfaceStack>(scene_report);
-    auto const wm = std::make_shared<NullWindowManager>();
+    auto const wm = std::make_shared<mtd::NullWindowManager>();
     auto surface_controller = std::make_shared<ms::SurfaceController>(surface_allocator, wm, ss);
     auto surface = surface_controller->add_surface(params, nullptr);
     surface->allow_framedropping(true);
