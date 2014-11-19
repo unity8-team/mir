@@ -25,6 +25,7 @@
 
 namespace mir
 {
+namespace scene { class Surface; }
 namespace shell
 {
 class DisplayLayout;
@@ -36,13 +37,16 @@ public:
             std::shared_ptr<DisplayLayout> const& display_layout);
     virtual ~DefaultWindowManager() {}
 
-    virtual scene::SurfaceCreationParameters place(scene::Session const& session, scene::SurfaceCreationParameters const& request_parameters);
+    virtual scene::SurfaceCreationParameters place(scene::Session const& session, scene::SurfaceCreationParameters const& request_parameters) override;
+    virtual int configure(frontend::Surface&, MirSurfaceAttrib, int) override;
 
 protected:
     DefaultWindowManager(DefaultWindowManager const&) = delete;
     DefaultWindowManager& operator=(DefaultWindowManager const&) = delete;
 
 private:
+    int set_state(scene::Surface& surface, MirSurfaceState desire) const;
+    int set_fullscreen(scene::Surface& surface) const;
     std::shared_ptr<DisplayLayout> const display_layout;
 };
 
