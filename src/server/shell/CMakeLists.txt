@@ -2,7 +2,7 @@ set(
   SHELL_SOURCES
 
   default_focus_mechanism.cpp
-  default_placement_strategy.cpp
+  default_window_manager.cpp
   graphics_display_layout.cpp
   default_configuration.cpp
   session_coordinator_wrapper.cpp

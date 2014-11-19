@@ -16,7 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "default_placement_strategy.h"
+#include "default_window_manager.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
 #include "mir/geometry/rectangle.h"
@@ -29,13 +29,13 @@ namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace geom = mir::geometry;
 
-msh::DefaultPlacementStrategy::DefaultPlacementStrategy(
+msh::DefaultWindowManager::DefaultWindowManager(
     std::shared_ptr<msh::DisplayLayout> const& display_layout)
     : display_layout(display_layout)
 {
 }
 
-ms::SurfaceCreationParameters msh::DefaultPlacementStrategy::place(
+ms::SurfaceCreationParameters msh::DefaultWindowManager::place(
     ms::Session const& /* session */,
     ms::SurfaceCreationParameters const& request_parameters)
 {

@@ -16,10 +16,10 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_SHELL_DEFAULT_PLACEMENT_STRATEGY_H_
-#define MIR_SHELL_DEFAULT_PLACEMENT_STRATEGY_H_
+#ifndef MIR_SHELL_DEFAULT_WINDOW_MANAGER_H_
+#define MIR_SHELL_DEFAULT_WINDOW_MANAGER_H_
 
-#include "mir/scene/placement_strategy.h"
+#include "mir/shell/window_manager.h"
 
 #include <memory>
 
@@ -29,18 +29,18 @@ namespace shell
 {
 class DisplayLayout;
 
-class DefaultPlacementStrategy : public scene::PlacementStrategy
+class DefaultWindowManager : public WindowManager
 {
 public:
-    explicit DefaultPlacementStrategy(
+    explicit DefaultWindowManager(
             std::shared_ptr<DisplayLayout> const& display_layout);
-    virtual ~DefaultPlacementStrategy() {}
+    virtual ~DefaultWindowManager() {}
 
     virtual scene::SurfaceCreationParameters place(scene::Session const& session, scene::SurfaceCreationParameters const& request_parameters);
 
 protected:
-    DefaultPlacementStrategy(DefaultPlacementStrategy const&) = delete;
-    DefaultPlacementStrategy& operator=(DefaultPlacementStrategy const&) = delete;
+    DefaultWindowManager(DefaultWindowManager const&) = delete;
+    DefaultWindowManager& operator=(DefaultWindowManager const&) = delete;
 
 private:
     std::shared_ptr<DisplayLayout> const display_layout;
@@ -49,4 +49,4 @@ private:
 }
 } // namespace mir
 
-#endif // MIR_SHELL_DEFAULT_PLACEMENT_STRATEGY_H_
+#endif // MIR_SHELL_DEFAULT_WINDOW_MANAGER_H_

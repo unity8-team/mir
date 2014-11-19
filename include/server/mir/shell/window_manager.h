@@ -16,29 +16,34 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_SCENE_PLACEMENT_STRATEGY_H_
-#define MIR_SCENE_PLACEMENT_STRATEGY_H_
+#ifndef MIR_SHELL_WINDOW_MANAGER_H_
+#define MIR_SHELL_WINDOW_MANAGER_H_
 
 namespace mir
 {
 namespace scene
 {
-class Session;
-struct SurfaceCreationParameters;
+    class Session;
+    struct SurfaceCreationParameters;
+}
 
-class PlacementStrategy
+namespace shell
+{
+
+class WindowManager
 {
 public:
-    virtual ~PlacementStrategy() = default;
+    virtual ~WindowManager() = default;
 
-    virtual SurfaceCreationParameters place(Session const& session, SurfaceCreationParameters const& request_parameters) = 0;
+    virtual scene::SurfaceCreationParameters place(scene::Session const&,
+                                 scene::SurfaceCreationParameters const&) = 0;
 
 protected:
-    PlacementStrategy() = default;
-    PlacementStrategy(PlacementStrategy const&) = delete;
-    PlacementStrategy& operator=(PlacementStrategy const&) = delete;
+    WindowManager() = default;
+    WindowManager(WindowManager const&) = delete;
+    WindowManager& operator=(WindowManager const&) = delete;
 };
 }
 } // namespace mir
 
-#endif // MIR_SCENE_PLACEMENT_STRATEGY_H_
+#endif // MIR_SHELL_WINDOW_MANAGER_H_

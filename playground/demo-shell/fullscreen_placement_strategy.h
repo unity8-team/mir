@@ -19,7 +19,7 @@
 #ifndef MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
 #define MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
 
-#include "mir/scene/placement_strategy.h"
+#include "mir/shell/window_manager.h"
 
 #include <memory>
 
@@ -32,7 +32,8 @@ class DisplayLayout;
 namespace examples
 {
 
-class FullscreenPlacementStrategy : public scene::PlacementStrategy
+// TODO: Rename when the other "examples::WindowManager" is gone
+class FullscreenPlacementStrategy : public shell::WindowManager
 {
 public:
     FullscreenPlacementStrategy(std::shared_ptr<shell::DisplayLayout> const& display_layout);

@@ -104,15 +104,15 @@ public:
             });
     }
 
-    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
+    std::shared_ptr<msh::WindowManager> the_window_manager() override
     {
-        return shell_placement_strategy(
-            [this]() -> std::shared_ptr<ms::PlacementStrategy>
+        return window_manager(
+            [this]() -> std::shared_ptr<msh::WindowManager>
             {
                 if (the_options()->is_set("fullscreen-surfaces"))
                     return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
                 else
-                    return DefaultServerConfiguration::the_placement_strategy();
+                    return DefaultServerConfiguration::the_window_manager();
             });
     }
 

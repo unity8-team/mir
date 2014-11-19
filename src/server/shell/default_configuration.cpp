@@ -20,7 +20,7 @@
 #include "null_host_lifecycle_event_listener.h"
 
 
-#include "default_placement_strategy.h"
+#include "default_window_manager.h"
 #include "default_focus_mechanism.h"
 #include "graphics_display_layout.h"
 
@@ -28,13 +28,13 @@ namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mf = mir::frontend;
 
-std::shared_ptr<ms::PlacementStrategy>
-mir::DefaultServerConfiguration::the_placement_strategy()
+std::shared_ptr<msh::WindowManager>
+mir::DefaultServerConfiguration::the_window_manager()
 {
-    return shell_placement_strategy(
+    return window_manager(
         [this]
         {
-            return std::make_shared<msh::DefaultPlacementStrategy>(
+            return std::make_shared<msh::DefaultWindowManager>(
                 the_shell_display_layout());
         });
 }

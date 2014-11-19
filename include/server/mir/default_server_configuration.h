@@ -75,6 +75,7 @@ class FocusSetter;
 class FocusController;
 class DisplayLayout;
 class HostLifecycleEventListener;
+class WindowManager;
 }
 namespace time
 {
@@ -87,7 +88,6 @@ class BroadcastingSessionEventSink;
 class BufferStreamFactory;
 class MediatingDisplayChanger;
 class PixelBuffer;
-class PlacementStrategy;
 class SessionContainer;
 class SessionEventSink;
 class SessionEventHandlerRegister;
@@ -251,7 +251,7 @@ public:
      * configurable interfaces for modifying shell
      *  @{ */
     virtual std::shared_ptr<shell::FocusSetter>         the_shell_focus_setter();
-    virtual std::shared_ptr<scene::PlacementStrategy>   the_placement_strategy();
+    virtual std::shared_ptr<shell::WindowManager>       the_window_manager();
     virtual std::shared_ptr<scene::SessionListener>     the_session_listener();
     virtual std::shared_ptr<shell::DisplayLayout>       the_shell_display_layout();
     virtual std::shared_ptr<scene::PromptSessionListener> the_prompt_session_listener();
@@ -403,7 +403,7 @@ protected:
     CachedPtr<scene::SessionContainer>  session_container;
     CachedPtr<scene::SurfaceCoordinator> surface_coordinator;
     CachedPtr<shell::FocusSetter>       shell_focus_setter;
-    CachedPtr<scene::PlacementStrategy> shell_placement_strategy;
+    CachedPtr<shell::WindowManager> window_manager;
     CachedPtr<scene::SessionListener> session_listener;
     CachedPtr<scene::PixelBuffer>       pixel_buffer;
     CachedPtr<scene::SnapshotStrategy>  snapshot_strategy;

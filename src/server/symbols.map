@@ -94,7 +94,7 @@ MIR_SERVER_27 {
     mir::DefaultServerConfiguration::the_message_processor_report*;
     mir::DefaultServerConfiguration::the_options*;
     mir::DefaultServerConfiguration::the_pixel_buffer*;
-    mir::DefaultServerConfiguration::the_placement_strategy*;
+    mir::DefaultServerConfiguration::the_window_manager*;
     mir::DefaultServerConfiguration::the_prompt_connection_creator*;
     mir::DefaultServerConfiguration::the_prompt_connector*;
     mir::DefaultServerConfiguration::the_prompt_session_listener*;
@@ -279,10 +279,10 @@ MIR_SERVER_27 {
     mir::scene::Observer::surface_removed*;
     mir::scene::Observer::surfaces_reordered*;
     mir::scene::operator*;
-    mir::scene::PlacementStrategy::operator*;
-    mir::scene::PlacementStrategy::place*;
-    mir::scene::PlacementStrategy::?PlacementStrategy*;
-    mir::scene::PlacementStrategy::PlacementStrategy*;
+    mir::shell::WindowManager::operator*;
+    mir::shell::WindowManager::place*;
+    mir::shell::WindowManager::?WindowManager*;
+    mir::shell::WindowManager::WindowManager*;
     mir::scene::PromptSessionListener::operator*;
     mir::scene::PromptSessionListener::prompt_provider_added*;
     mir::scene::PromptSessionListener::prompt_provider_removed*;
@@ -414,7 +414,7 @@ MIR_SERVER_27 {
     mir::Server::override_the_gl_config*;
     mir::Server::override_the_input_dispatcher*;
     mir::Server::override_the_logger*;
-    mir::Server::override_the_placement_strategy*;
+    mir::Server::override_the_window_manager*;
     mir::Server::override_the_prompt_session_listener*;
     mir::Server::override_the_prompt_session_manager*;
     mir::Server::override_the_server_status_listener*;
@@ -569,7 +569,7 @@ MIR_SERVER_27 {
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_mediating_display_changer*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_message_processor_report*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_pixel_buffer*;
-    non-virtual?thunk?to?mir::DefaultServerConfiguration::the_placement_strategy*;
+    non-virtual?thunk?to?mir::DefaultServerConfiguration::the_window_manager*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_prompt_connection_creator*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_prompt_connector*;
     non-virtual?thunk?to?mir::DefaultServerConfiguration::the_prompt_session_listener*;
@@ -627,7 +627,7 @@ MIR_SERVER_27 {
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::resized_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::transformation_set_to*;
     non-virtual?thunk?to?mir::scene::Observer::?Observer*;
-    non-virtual?thunk?to?mir::scene::PlacementStrategy::?PlacementStrategy*;
+    non-virtual?thunk?to?mir::shell::WindowManager::?WindowManager*;
     non-virtual?thunk?to?mir::scene::PromptSessionListener::?PromptSessionListener*;
     non-virtual?thunk?to?mir::scene::PromptSessionManager::?PromptSessionManager*;
     non-virtual?thunk?to?mir::scene::SessionListener::?SessionListener*;
@@ -684,7 +684,7 @@ MIR_SERVER_27 {
     typeinfo?for?mir::scene::CoordinateTranslator;
     typeinfo?for?mir::scene::NullSurfaceObserver;
     typeinfo?for?mir::scene::Observer;
-    typeinfo?for?mir::scene::PlacementStrategy;
+    typeinfo?for?mir::shell::WindowManager;
     typeinfo?for?mir::scene::PromptSession;
     typeinfo?for?mir::scene::PromptSessionCreationParameters;
     typeinfo?for?mir::scene::PromptSessionListener;
@@ -744,7 +744,7 @@ MIR_SERVER_27 {
     vtable?for?mir::scene::CoordinateTranslator;
     vtable?for?mir::scene::NullSurfaceObserver;
     vtable?for?mir::scene::Observer;
-    vtable?for?mir::scene::PlacementStrategy;
+    vtable?for?mir::shell::WindowManager;
     vtable?for?mir::scene::PromptSession;
     vtable?for?mir::scene::PromptSessionCreationParameters;
     vtable?for?mir::scene::PromptSessionListener;

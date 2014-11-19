@@ -50,7 +50,7 @@ namespace ml = mir::logging;
     MACRO(gl_config)\
     MACRO(input_dispatcher)\
     MACRO(logger)\
-    MACRO(placement_strategy)\
+    MACRO(window_manager)\
     MACRO(prompt_session_listener)\
     MACRO(prompt_session_manager)\
     MACRO(server_status_listener)\
@@ -192,13 +192,6 @@ struct mir::Server::ServerConfiguration : mir::DefaultServerConfiguration
     }
 
     using mir::DefaultServerConfiguration::the_options;
-
-    // TODO the MIR_SERVER_CONFIG_OVERRIDE macro expects a CachePtr named
-    // TODO "placement_strategy" not "shell_placement_strategy".
-    // Unfortunately, "shell_placement_strategy" is currently part of our
-    // published API and used by qtmir: we cannot just rename it to remove
-    // this ugliness. (Yet.)
-    decltype(shell_placement_strategy)& placement_strategy = shell_placement_strategy;
 
     FOREACH_OVERRIDE(MIR_SERVER_CONFIG_OVERRIDE)
 

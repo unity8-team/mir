@@ -89,7 +89,7 @@ mir::DefaultServerConfiguration::the_surface_coordinator()
             return wrap_surface_coordinator(
                 std::make_shared<ms::SurfaceController>(
                     the_surface_factory(),
-                    the_placement_strategy(),
+                    the_window_manager(),
                     the_surface_stack_model()));
         });
 }
