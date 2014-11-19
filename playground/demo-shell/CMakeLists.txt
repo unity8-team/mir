@@ -2,7 +2,7 @@ add_library(demo-shell STATIC
   demo_compositor.cpp
   demo_renderer.cpp
   fullscreen_placement_strategy.cpp
-  window_manager.cpp
+  event_filter.cpp
 )
 
 add_executable(mir_demo_server_shell

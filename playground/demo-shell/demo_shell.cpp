@@ -18,8 +18,8 @@
 
 /// \example demo_shell.cpp A simple mir shell
 
-#include "demo_compositor.h"
-#include "window_manager.h"
+#include "./demo_compositor.h"
+#include "./event_filter.h"
 #include "fullscreen_placement_strategy.h"
 #include "../server_configuration.h"
 
@@ -153,16 +153,16 @@ private:
 int main(int argc, char const* argv[])
 try
 {
-    auto wm = std::make_shared<me::WindowManager>();
-    me::DemoServerConfiguration config(argc, argv, {wm});
+    auto filter = std::make_shared<me::EventFilter>();
+    me::DemoServerConfiguration config(argc, argv, {filter});
 
-    mir::run_mir(config, [&config, &wm](mir::DisplayServer&)
+    mir::run_mir(config, [&config, &filter](mir::DisplayServer&)
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
-            wm->set_focus_controller(config.the_focus_controller());
-            wm->set_display(config.the_display());
-            wm->set_compositor(config.the_compositor());
+            filter->set_focus_controller(config.the_focus_controller());
+            filter->set_display(config.the_display());
+            filter->set_compositor(config.the_compositor());
         });
     return 0;
 }

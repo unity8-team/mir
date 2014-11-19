@@ -17,7 +17,7 @@
  *              Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#include "window_manager.h"
+#include "./event_filter.h"
 
 #include "mir/shell/focus_controller.h"
 #include "mir/scene/session.h"
@@ -42,22 +42,22 @@ namespace
 const int min_swipe_distance = 100;  // How long must a swipe be to act on?
 }
 
-me::WindowManager::WindowManager()
+me::EventFilter::EventFilter()
     : old_pinch_diam(0.0f), max_fingers(0)
 {
 }
 
-void me::WindowManager::set_focus_controller(std::shared_ptr<msh::FocusController> const& controller)
+void me::EventFilter::set_focus_controller(std::shared_ptr<msh::FocusController> const& controller)
 {
     focus_controller = controller;
 }
 
-void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
+void me::EventFilter::set_display(std::shared_ptr<mg::Display> const& dpy)
 {
     display = dpy;
 }
 
-void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
+void me::EventFilter::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
 }
@@ -114,7 +114,7 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
-bool me::WindowManager::handle(MirEvent const& event)
+bool me::EventFilter::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
     static bool display_off = false;

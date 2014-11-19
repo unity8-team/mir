@@ -16,8 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_EXAMPLES_WINDOW_MANAGER_H_
-#define MIR_EXAMPLES_WINDOW_MANAGER_H_
+#ifndef MIR_EXAMPLES_EVENT_FILTER_H_
+#define MIR_EXAMPLES_EVENT_FILTER_H_
 
 #include "mir/input/event_filter.h"
 #include "mir/geometry/displacement.h"
@@ -42,11 +42,11 @@ class Compositor;
 namespace examples
 {
 
-class WindowManager : public input::EventFilter
+class EventFilter : public input::EventFilter
 {
 public: 
-    WindowManager();
-    ~WindowManager() = default;
+    EventFilter();
+    ~EventFilter() = default;
 
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
@@ -55,8 +55,8 @@ public:
     bool handle(MirEvent const& event) override;
 
 protected:
-    WindowManager(const WindowManager&) = delete;
-    WindowManager& operator=(const WindowManager&) = delete;
+    EventFilter(const EventFilter&) = delete;
+    EventFilter& operator=(const EventFilter&) = delete;
 
 private:
     std::shared_ptr<shell::FocusController> focus_controller;
@@ -74,4 +74,4 @@ private:
 }
 } // namespace mir
 
-#endif // MIR_EXAMPLES_WINDOW_MANAGER_H_
+#endif // MIR_EXAMPLES_EVENT_FILTER_H_
