@@ -1,4 +1,4 @@
-MIR_CLIENT_8 {
+MIR_CLIENT_9 {
  global: mir_*;
   extern "C++" { 
    # used by PrivateProtobuf
