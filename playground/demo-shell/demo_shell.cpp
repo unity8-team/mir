@@ -163,6 +163,7 @@ try
             filter->set_focus_controller(config.the_focus_controller());
             filter->set_display(config.the_display());
             filter->set_compositor(config.the_compositor());
+            filter->set_window_manager(config.the_window_manager());
         });
     return 0;
 }

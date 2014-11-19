@@ -30,6 +30,7 @@ namespace mir
 namespace shell
 {
 class FocusController;
+class WindowManager;
 }
 namespace graphics
 {
@@ -51,6 +52,7 @@ public:
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
+    void set_window_manager(std::shared_ptr<shell::WindowManager> const&);
     
     bool handle(MirEvent const& event) override;
 
@@ -62,6 +64,7 @@ private:
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
+    std::shared_ptr<shell::WindowManager> wm;
 
     geometry::Point click;
     geometry::Point old_pos;
