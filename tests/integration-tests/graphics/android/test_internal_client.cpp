@@ -33,7 +33,7 @@
 #include "src/server/scene/surface_allocator.h"
 #include "mir/scene/surface.h"
 #include "mir/scene/surface_creation_parameters.h"
-#include "mir/scene/placement_strategy.h"
+#include "mir/shell/window_manager.h"
 #include "mir/input/input_channel_factory.h"
 #include "mir/options/program_option.h"
 
@@ -78,7 +78,7 @@ struct StubInputFactory : public mi::InputChannelFactory
     }
 };
 
-struct NullSurfacePlacementStrategy : ms::PlacementStrategy
+struct NullWindowManager : msh::WindowManager
 {
     ms::SurfaceCreationParameters place(ms::Session const&, ms::SurfaceCreationParameters const& parameters) override
     {
@@ -105,8 +105,8 @@ TEST_F(AndroidInternalClient, internal_client_creation_and_use)
     auto const surface_configurator = std::make_shared<mtd::NullSurfaceConfigurator>();
     auto surface_allocator = std::make_shared<ms::SurfaceAllocator>(buffer_stream_factory, stub_input_factory, stub_input_sender, surface_configurator, std::shared_ptr<mg::CursorImage>(), scene_report);
     auto ss = std::make_shared<ms::SurfaceStack>(scene_report);
-    auto const surface_placement = std::make_shared<NullSurfacePlacementStrategy>();
-    auto surface_controller = std::make_shared<ms::SurfaceController>(surface_allocator, surface_placement, ss);
+    auto const wm = std::make_shared<NullWindowManager>();
+    auto surface_controller = std::make_shared<ms::SurfaceController>(surface_allocator, wm, ss);
     auto surface = surface_controller->add_surface(params, nullptr);
     surface->allow_framedropping(true);
     auto mir_surface = as_internal_surface(surface);

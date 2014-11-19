@@ -16,10 +16,10 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_FRAMEWORK_DECLARATIVE_PLACEMENT_STRATEGY_H_
-#define MIR_TEST_FRAMEWORK_DECLARATIVE_PLACEMENT_STRATEGY_H_
+#ifndef MIR_TEST_FRAMEWORK_DECLARATIVE_WINDOW_MANAGER_H_
+#define MIR_TEST_FRAMEWORK_DECLARATIVE_WINDOW_MANAGER_H_
 
-#include "mir/scene/placement_strategy.h"
+#include "mir/shell/window_manager.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/scene/depth_id.h"
 
@@ -32,33 +32,33 @@ namespace mir_test_framework
 typedef std::map<std::string, mir::geometry::Rectangle> SurfaceGeometries;
 typedef std::map<std::string, mir::scene::DepthId> SurfaceDepths;
 
-/// DeclarativePlacementStrategy is a test utility server component for specifying
+/// DeclarativeWindowManager is a test utility server component for specifying
 /// a static list of surface geometries and relative depths. Used, for example,
 /// in input tests where it is necessary to set up scenarios depending on
 /// multiple surfaces geometry and stacking.
-class DeclarativePlacementStrategy : public mir::scene::PlacementStrategy
+class DeclarativeWindowManager : public mir::shell::WindowManager
 {
  public:
     // Placement requests will be passed through to default strategy, and then overriden if the surface appears
     // in the geometry or depth map. This allows for the convenience of leaving some surfaces geometries unspecified
     // and receiving the default behavior.
-    DeclarativePlacementStrategy(std::shared_ptr<mir::scene::PlacementStrategy> const& default_strategy,
+    DeclarativeWindowManager(std::shared_ptr<mir::shell::WindowManager> const& default_wm,
         SurfaceGeometries const& positions_by_name, SurfaceDepths const& depths_by_name);
 
-    virtual ~DeclarativePlacementStrategy() = default;
+    virtual ~DeclarativeWindowManager() = default;
     
     mir::scene::SurfaceCreationParameters place(mir::scene::Session const& session, mir::scene::SurfaceCreationParameters const& request_parameters) override;
 
 protected:
-    DeclarativePlacementStrategy(const DeclarativePlacementStrategy&) = delete;
-    DeclarativePlacementStrategy& operator=(const DeclarativePlacementStrategy&) = delete;
+    DeclarativeWindowManager(const DeclarativeWindowManager&) = delete;
+    DeclarativeWindowManager& operator=(const DeclarativeWindowManager&) = delete;
 
 private:
-    std::shared_ptr<mir::scene::PlacementStrategy> const default_strategy;
+    std::shared_ptr<mir::shell::WindowManager> const default_wm;
 
     SurfaceGeometries const& surface_geometries_by_name;
     SurfaceDepths const& surface_depths_by_name;
 };
 }
 
-#endif // MIR_TEST_FRAMEWORK_DECLARATIVE_PLACEMENT_STRATEGY_H_
+#endif // MIR_TEST_FRAMEWORK_DECLARATIVE_WINDOW_MANAGER_H_

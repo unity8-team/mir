@@ -19,7 +19,7 @@
 #include "mir_test_doubles/mock_display_layout.h"
 #include "mir_test_doubles/stub_scene_session.h"
 
-#include "src/server/shell/default_placement_strategy.h"
+#include "src/server/shell/default_window_manager.h"
 #include "mir/scene/surface_creation_parameters.h"
 
 #include "mir/geometry/rectangle.h"
@@ -35,7 +35,7 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct DefaultPlacementStrategySetup : public testing::Test
+struct DefaultWindowManagerSetup : public testing::Test
 {
     void SetUp()
     {
@@ -48,7 +48,7 @@ struct DefaultPlacementStrategySetup : public testing::Test
 };
 }
 
-TEST_F(DefaultPlacementStrategySetup, parameters_with_output_id_are_placed_in_output)
+TEST_F(DefaultWindowManagerSetup, parameters_with_output_id_are_placed_in_output)
 {
     using namespace ::testing;
 
@@ -61,7 +61,7 @@ TEST_F(DefaultPlacementStrategySetup, parameters_with_output_id_are_placed_in_ou
                 place_in_output(input_params.output_id, rect))
         .Times(1);
 
-    msh::DefaultPlacementStrategy placement_strategy(display_layout);
+    msh::DefaultWindowManager window_manager(display_layout);
 
-    placement_strategy.place(session, input_params);
+    window_manager.place(session, input_params);
 }

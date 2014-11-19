@@ -18,7 +18,7 @@
 
 #include "mir/options/option.h"
 #include "mir/scene/surface_creation_parameters.h"
-#include "mir/scene/placement_strategy.h"
+#include "mir/shell/window_manager.h"
 #include "mir/scene/surface.h"
 #include "src/server/scene/session_container.h"
 #include "mir/shell/surface_coordinator_wrapper.h"
@@ -41,7 +41,7 @@ namespace mtf = mir_test_framework;
 
 namespace
 {
-class SimpleConfigurablePlacementStrategy : public ms::PlacementStrategy
+class SimpleConfigurableWindowManager : public mir::shell::WindowManager
 {
 public:
     ms::SurfaceCreationParameters place(ms::Session const& /*session*/,
@@ -60,18 +60,18 @@ class SurfacePlacingConfiguration : public mtf::StubbedServerConfiguration
 {
 public:
     SurfacePlacingConfiguration()
-        : placement_strategy{std::make_shared<SimpleConfigurablePlacementStrategy>()}
+        : window_manager{std::make_shared<SimpleConfigurableWindowManager>()}
     {
     }
 
-    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
+    std::shared_ptr<mir::shell::WindowManager> the_window_manager() override
     {
-        return placement_strategy;
+        return window_manager;
     }
 
     void set_surface_placement(mir::geometry::Rectangle const& where)
     {
-        placement_strategy->placement = where;
+        window_manager->placement = where;
     }
 
     bool is_debug_server()
@@ -80,7 +80,7 @@ public:
     }
 
 private:
-    std::shared_ptr<SimpleConfigurablePlacementStrategy> placement_strategy;
+    std::shared_ptr<SimpleConfigurableWindowManager> window_manager;
 };
 
 char const* debugenv = "MIR_SERVER_DEBUG";

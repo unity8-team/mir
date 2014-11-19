@@ -30,7 +30,7 @@ set(
   process.cpp
   using_stub_client_platform.cpp
   udev_environment.cpp
-  declarative_placement_strategy.cpp
+  declarative_window_manager.cpp
   fake_event_hub_server_configuration.cpp
 )
 

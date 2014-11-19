@@ -18,25 +18,25 @@
 
 #include "mir/scene/surface_creation_parameters.h"
 
-#include "mir_test_framework/declarative_placement_strategy.h"
+#include "mir_test_framework/declarative_window_manager.h"
 
 namespace ms = mir::scene;
 
 namespace mtf = mir_test_framework;
 
-mtf::DeclarativePlacementStrategy::DeclarativePlacementStrategy(
-    std::shared_ptr<ms::PlacementStrategy> const& default_strategy,
+mtf::DeclarativeWindowManager::DeclarativeWindowManager(
+    std::shared_ptr<mir::shell::WindowManager> const& default_wm,
     SurfaceGeometries const& positions, 
     SurfaceDepths const& depths)
-    : default_strategy(default_strategy),
+    : default_wm(default_wm),
     surface_geometries_by_name(positions),
     surface_depths_by_name(depths)
 {
 }
 
-ms::SurfaceCreationParameters mtf::DeclarativePlacementStrategy::place(ms::Session const& session, ms::SurfaceCreationParameters const& request_parameters)
+ms::SurfaceCreationParameters mtf::DeclarativeWindowManager::place(ms::Session const& session, ms::SurfaceCreationParameters const& request_parameters)
 {
-    auto placed = default_strategy->place(session, request_parameters);
+    auto placed = default_wm->place(session, request_parameters);
 
     auto const& name = request_parameters.name;
     
