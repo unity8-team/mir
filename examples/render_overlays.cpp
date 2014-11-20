@@ -48,30 +48,33 @@ class PixelBufferABGR
 {
 public:
     PixelBufferABGR(geom::Size sz, uint32_t color) :
-        size{sz.width.as_uint32_t() * sz.height.as_uint32_t()},
-        data{new uint32_t[size]}
+        num_pixels{sz.width.as_uint32_t() * sz.height.as_uint32_t()},
+        size_{num_pixels * sizeof (uint32_t)},
+        data_{new uint32_t[num_pixels]}
     {
         fill(color);
     }
 
     void fill(uint32_t color)
     {
-        for(auto i = 0u; i < size; i++)
-            data[i] = color;
+        for(auto i = 0u; i < num_pixels; i++)
+            data_[i] = color;
     }
 
-    unsigned char* pixels()
+    unsigned char* data()
     {
-        return reinterpret_cast<unsigned char*>(data.get());
+        return reinterpret_cast<unsigned char*>(data_.get());
     }
 
-    size_t pixel_size()
+    size_t size()
     {
-        return size * sizeof(uint32_t);
+        return size_;
     }
+
 private:
-    size_t size;
-    std::unique_ptr<uint32_t[]> data;
+    unsigned int const num_pixels;
+    size_t const size_;
+    std::unique_ptr<uint32_t[]> const data_;
 };
 
 class DemoOverlayClient
@@ -98,7 +101,7 @@ public:
         color |= (green_value << 8);
         pixel_buffer.fill(color);
 
-        buffer_writer->write(*back_buffer, pixel_buffer.pixels(), pixel_buffer.pixel_size());
+        buffer_writer->write(*back_buffer, pixel_buffer.data(), pixel_buffer.size());
         std::swap(front_buffer, back_buffer);
     }
 
