@@ -42,7 +42,6 @@
 #include "mir/frontend/screencast.h"
 #include "mir/frontend/prompt_session.h"
 #include "mir/scene/prompt_session_creation_parameters.h"
-#include "mir/shell/window_manager.h"
 #include "mir/fd.h"
 
 #include "mir/geometry/rectangles.h"
@@ -58,7 +57,6 @@
 #include <functional>
 
 namespace ms = mir::scene;
-namespace msh = mir::shell;
 namespace mf = mir::frontend;
 namespace mfd=mir::frontend::detail;
 namespace mg = mir::graphics;
@@ -66,8 +64,7 @@ namespace mi = mir::input;
 namespace geom = mir::geometry;
 
 mf::SessionMediator::SessionMediator(
-    std::shared_ptr<mf::Shell> const& shell,      // } Similar?
-    std::shared_ptr<msh::WindowManager> const& wm,// } Merge in future?
+    std::shared_ptr<mf::Shell> const& shell,
     std::shared_ptr<mg::PlatformIpcOperations> const& ipc_operations,
     std::shared_ptr<mf::DisplayChanger> const& display_changer,
     std::vector<MirPixelFormat> const& surface_pixel_formats,
@@ -80,7 +77,6 @@ mf::SessionMediator::SessionMediator(
     std::shared_ptr<scene::CoordinateTranslator> const& translator) :
     client_pid_(0),
     shell(shell),
-    wm(wm),
     ipc_operations(ipc_operations),
     surface_pixel_formats(surface_pixel_formats),
     display_changer(display_changer),
@@ -363,7 +359,7 @@ void mf::SessionMediator::configure_surface(
         auto const id = mf::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
         auto const surface = session->get_surface(id);
-        int newvalue = wm->configure(*surface, attrib, value);
+        int newvalue = surface->configure(attrib, value);
 
         response->set_ivalue(newvalue);
     }

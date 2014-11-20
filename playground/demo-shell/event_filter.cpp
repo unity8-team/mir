@@ -20,7 +20,6 @@
 #include "./event_filter.h"
 
 #include "mir/shell/focus_controller.h"
-#include "mir/shell/window_manager.h"
 #include "mir/scene/session.h"
 #include "mir/scene/surface.h"
 #include "mir/graphics/display.h"
@@ -61,12 +60,6 @@ void me::EventFilter::set_display(std::shared_ptr<mg::Display> const& dpy)
 void me::EventFilter::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
-}
-
-void me::EventFilter::set_window_manager(
-    std::shared_ptr<msh::WindowManager> const& m)
-{
-    wm = m;
 }
 
 namespace
@@ -138,21 +131,6 @@ bool me::EventFilter::handle(MirEvent const& event)
             event.key.scan_code == KEY_TAB)  // TODO: Use keycode once we support keymapping on the server side
         {
             focus_controller->focus_next();
-            return true;
-        }
-        else if (event.key.modifiers & mir_key_modifier_alt &&
-                 event.key.scan_code == KEY_F)
-        {
-            auto const app = focus_controller->focussed_application().lock();
-            if (app)
-            {
-                // TODO: Support more than just default. The focus controller
-                //       needs to be able to choose a specific surface.
-                auto const surf = app->default_surface();
-                // TODO: Publish "set_fullscreen" instead
-                wm->configure(*surf, mir_surface_attrib_state,
-                              mir_surface_state_fullscreen);
-            }
             return true;
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&

@@ -43,10 +43,7 @@ namespace input
 {
 class CursorImages;
 }
-namespace shell
-{
-class WindowManager;
-}
+
 namespace scene
 {
 class CoordinateTranslator;
@@ -74,7 +71,6 @@ public:
 
     SessionMediator(
         std::shared_ptr<Shell> const& shell,
-        std::shared_ptr<shell::WindowManager> const& wm,
         std::shared_ptr<graphics::PlatformIpcOperations> const& ipc_operations,
         std::shared_ptr<frontend::DisplayChanger> const& display_changer,
         std::vector<MirPixelFormat> const& surface_pixel_formats,
@@ -196,7 +192,6 @@ private:
 
     pid_t client_pid_;
     std::shared_ptr<Shell> const shell;
-    std::shared_ptr<shell::WindowManager> const wm;
     std::shared_ptr<graphics::PlatformIpcOperations> const ipc_operations;
 
     std::vector<MirPixelFormat> const surface_pixel_formats;

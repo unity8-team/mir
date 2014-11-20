@@ -17,7 +17,6 @@
  */
 
 #include "default_window_manager.h"
-#include "mir/scene/surface.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
 #include "mir/geometry/rectangle.h"
@@ -55,60 +54,4 @@ ms::SurfaceCreationParameters msh::DefaultWindowManager::place(
     placed_parameters.size = rect.size;
 
     return placed_parameters;
-}
-
-int msh::DefaultWindowManager::configure(frontend::Surface& surf,
-                                         MirSurfaceAttrib attrib,
-                                         int value)
-{
-    // FIXME: Remove cast by changing ApplicationSession
-    auto& surface = *dynamic_cast<scene::Surface*>(&surf);
-
-    switch (attrib)
-    {
-    case mir_surface_attrib_state:
-        return set_state(surface, static_cast<MirSurfaceState>(value));
-    default:
-        return surf.configure(attrib, value);
-    }
-}
-
-int msh::DefaultWindowManager::set_state(scene::Surface& surface,
-                                         MirSurfaceState desire) const
-{
-    auto type = surface.type();
-
-    switch (desire)
-    {
-    case mir_surface_state_fullscreen:
-        if (type == mir_surface_type_normal)
-            return set_fullscreen(surface);
-        break;
-    default:
-        return surface.configure(mir_surface_attrib_state, desire);
-    }
-
-    // TODO Unsupported combo: Return unchanged or exception?
-    return surface.state();
-}
-
-int msh::DefaultWindowManager::set_fullscreen(scene::Surface& surface) const
-{
-    int old_state = surface.state();
-    int new_state = surface.configure(mir_surface_attrib_state,
-                                      mir_surface_state_fullscreen);
-
-    if (new_state == mir_surface_state_fullscreen)
-    {
-        geometry::Rectangle rect{surface.top_left(), surface.size()};
-        display_layout->size_to_output(rect);
-        surface.resize(rect.size);
-        surface.move_to(rect.top_left);
-    }
-    else
-    {
-        surface.configure(mir_surface_attrib_state, old_state);
-    }
-
-    return new_state;
 }
