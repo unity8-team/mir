@@ -18,8 +18,8 @@
 
 /// \example demo_shell.cpp A simple mir shell
 
-#include "./demo_compositor.h"
-#include "./event_filter.h"
+#include "demo_compositor.h"
+#include "event_filter.h"
 #include "fullscreen_wm.h"
 #include "../server_configuration.h"
 

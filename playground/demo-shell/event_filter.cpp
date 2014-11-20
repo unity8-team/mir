@@ -17,7 +17,7 @@
  *              Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#include "./event_filter.h"
+#include "event_filter.h"
 
 #include "mir/shell/focus_controller.h"
 #include "mir/scene/session.h"
