@@ -31,7 +31,6 @@ class GraphicsRegionFactory
 {
 public:
     GraphicsRegionFactory();
-    ~GraphicsRegionFactory();
     std::shared_ptr<MirGraphicsRegion> graphic_region_from_handle(
         graphics::NativeBuffer& native_buffer);
 
@@ -40,8 +39,8 @@ protected:
     GraphicsRegionFactory& operator=(GraphicsRegionFactory const&) = delete;
 
 private:
-    gralloc_module_t* module;
-    alloc_device_t* alloc_dev;
+    gralloc_module_t const* module;
+    int const usage{GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN};
 };
 }
 }

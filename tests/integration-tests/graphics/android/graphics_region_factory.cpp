@@ -27,16 +27,8 @@ namespace mt = mir::test;
 
 mt::GraphicsRegionFactory::GraphicsRegionFactory()
 {
-    const hw_module_t *hw_module;
-    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &hw_module) != 0)
+    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, reinterpret_cast<hw_module_t const**>(&module)))
         throw std::runtime_error("error, hw module not available!\n");
-    gralloc_open(hw_module, &alloc_dev);
-    module = (gralloc_module_t*) hw_module;
-}
-
-mt::GraphicsRegionFactory::~GraphicsRegionFactory()
-{
-    gralloc_close(alloc_dev);
 }
 
 std::shared_ptr<MirGraphicsRegion> mt::GraphicsRegionFactory::graphic_region_from_handle(
@@ -44,16 +36,11 @@ std::shared_ptr<MirGraphicsRegion> mt::GraphicsRegionFactory::graphic_region_fro
 {
     native_buffer.ensure_available_for(mga::BufferAccess::write);
     auto anwb = native_buffer.anwb();
-    char* vaddr;
-    int usage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-    module->lock(
-        module,
-        anwb->handle, usage,
-        0, 0, anwb->width, anwb->height,
-        reinterpret_cast<void**>(&vaddr));
+    void* vaddr{nullptr};
+    module->lock(module, anwb->handle, usage, 0, 0, anwb->width, anwb->height, &vaddr);
 
     auto* region = new MirGraphicsRegion;
-    region->vaddr = vaddr;
+    region->vaddr = static_cast<char*>(vaddr);
     region->stride = anwb->stride * MIR_BYTES_PER_PIXEL(mir_pixel_format_abgr_8888);
     region->width = anwb->width;
     region->height = anwb->height;
