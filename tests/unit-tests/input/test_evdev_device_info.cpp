@@ -72,6 +72,11 @@ INSTANTIATE_TEST_CASE_P(InputDeviceClassDetection,
                                 "mt-screen-detection", // device also reports available keys..
                                 "/dev/input/event4",
                                 mi::InputDeviceInfo::touchscreen|mi::InputDeviceInfo::keyboard
+                                ),
+                            std::make_tuple(
+                                "joystick-detection",
+                                "/dev/input/event13",
+                                mi::InputDeviceInfo::joystick|mi::InputDeviceInfo::gamepad|mi::InputDeviceInfo::keyboard
                                 )
                             ));
 

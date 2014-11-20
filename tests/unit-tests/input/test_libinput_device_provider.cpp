@@ -67,5 +67,9 @@ INSTANTIATE_TEST_CASE_P(InputDeviceProviderTest,
                             std::make_pair(
                                 mi::InputDeviceInfo::keyboard,
                                 mi::InputDeviceProvider::supported
+                                ),
+                            std::make_pair(
+                                0,
+                                mi::InputDeviceProvider::unsupported
                                 )
                             ));

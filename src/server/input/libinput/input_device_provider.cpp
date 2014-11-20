@@ -45,6 +45,9 @@ mi::InputDeviceProvider::Priority mili::InputDeviceProvider::get_support(mi::Inp
     if (device_classes & mi::InputDeviceInfo::touchpad)
         return best;
 
+    if (device_classes == 0)
+        return unsupported;
+
     return supported;
 }
 

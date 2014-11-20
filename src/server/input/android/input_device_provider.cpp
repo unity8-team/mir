@@ -32,6 +32,9 @@ mi::InputDeviceProvider::Priority mia::InputDeviceProvider::get_support(mi::Inpu
     if (device_classes & InputDeviceInfo::touchpad)
         return unsupported;
 
+    if (device_classes == 0)
+        return unsupported;
+
     return supported;
 }
 
