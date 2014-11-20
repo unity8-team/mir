@@ -1,7 +1,7 @@
 add_library(demo-shell STATIC
   demo_compositor.cpp
   demo_renderer.cpp
-  fullscreen_placement_strategy.cpp
+  fullscreen_wm.cpp
   event_filter.cpp
 )
 

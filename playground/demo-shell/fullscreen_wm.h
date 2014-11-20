@@ -16,8 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
-#define MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
+#ifndef MIR_EXAMPLES_FULLSCREEN_WM_H_
+#define MIR_EXAMPLES_FULLSCREEN_WM_H_
 
 #include "mir/shell/window_manager.h"
 
@@ -33,17 +33,17 @@ namespace examples
 {
 
 // TODO: Rename when the other "examples::WindowManager" is gone
-class FullscreenPlacementStrategy : public shell::WindowManager
+class FullscreenWM : public shell::WindowManager
 {
 public:
-    FullscreenPlacementStrategy(std::shared_ptr<shell::DisplayLayout> const& display_layout);
-    ~FullscreenPlacementStrategy() = default;
+    FullscreenWM(std::shared_ptr<shell::DisplayLayout> const& display_layout);
+    ~FullscreenWM() = default;
     
     scene::SurfaceCreationParameters place(scene::Session const&, scene::SurfaceCreationParameters const& request_parameters);
 
 protected:
-    FullscreenPlacementStrategy(FullscreenPlacementStrategy const&) = delete;
-    FullscreenPlacementStrategy& operator=(FullscreenPlacementStrategy const&) = delete;
+    FullscreenWM(FullscreenWM const&) = delete;
+    FullscreenWM& operator=(FullscreenWM const&) = delete;
 
 private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
@@ -52,4 +52,4 @@ private:
 }
 } // namespace mir
 
-#endif // MIR_EXAMPLES_FULLSCREEN_PLACEMENT_STRATEGY_H_
+#endif // MIR_EXAMPLES_FULLSCREEN_WM_H_

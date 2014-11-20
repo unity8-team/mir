@@ -16,7 +16,7 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "fullscreen_placement_strategy.h"
+#include "fullscreen_wm.h"
 
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
@@ -26,13 +26,13 @@ namespace me = mir::examples;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-me::FullscreenPlacementStrategy::FullscreenPlacementStrategy(
+me::FullscreenWM::FullscreenWM(
     std::shared_ptr<msh::DisplayLayout> const& display_layout)
   : display_layout(display_layout)
 {
 }
 
-ms::SurfaceCreationParameters me::FullscreenPlacementStrategy::place(ms::Session const& /* session */,
+ms::SurfaceCreationParameters me::FullscreenWM::place(ms::Session const& /* session */,
     ms::SurfaceCreationParameters const& request_parameters)
 {
     auto placed_parameters = request_parameters;

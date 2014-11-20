@@ -20,7 +20,7 @@
 
 #include "./demo_compositor.h"
 #include "./event_filter.h"
-#include "fullscreen_placement_strategy.h"
+#include "fullscreen_wm.h"
 #include "../server_configuration.h"
 
 #include "mir/options/default_configuration.h"
@@ -110,7 +110,7 @@ public:
             [this]() -> std::shared_ptr<msh::WindowManager>
             {
                 if (the_options()->is_set("fullscreen-surfaces"))
-                    return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
+                    return std::make_shared<me::FullscreenWM>(the_shell_display_layout());
                 else
                     return DefaultServerConfiguration::the_window_manager();
             });
