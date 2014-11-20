@@ -32,7 +32,6 @@ class DisplayLayout;
 namespace examples
 {
 
-// TODO: Rename when the other "examples::WindowManager" is gone
 class FullscreenWM : public shell::WindowManager
 {
 public:
