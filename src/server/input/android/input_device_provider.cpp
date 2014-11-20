@@ -18,27 +18,25 @@
 
 #include "input_device_provider.h"
 
-#include "../input_device_detection.h"
+#include "../input_device_info.h"
 
 namespace mi = mir::input;
 namespace mia = mi::android;
 
-mi::InputDeviceProvider::Priority mia::InputDeviceProvider::probe_device(mir::udev::Device const& device) const
+mi::InputDeviceProvider::Priority mia::InputDeviceProvider::get_support(mi::InputDeviceInfo const& device) const
 {
-    InputDeviceDetection detector(device.devpath());
-
-    if (detector.has_multi_touch_screen())
+    auto device_classes = device.device_classes();
+    if (device_classes & InputDeviceInfo::touchscreen)
         return best;
 
-    if (detector.has_touchpad())
+    if (device_classes & InputDeviceInfo::touchpad)
         return unsupported;
 
     return supported;
 }
 
-std::shared_ptr<mi::InputDevice> mia::InputDeviceProvider::create_device(mir::udev::Device const& device) const
+std::shared_ptr<mi::InputDevice> mia::InputDeviceProvider::create_device(mi::InputDeviceInfo const& /*device*/) const
 {
-    (void)device;
     return std::shared_ptr<mi::InputDevice>();
 }
 

@@ -16,12 +16,10 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "input_device_detection.h"
+#include "input_device_info.h"
 
 #include "mir/fd.h"
 #include "mir/raii.h"
-
-#include <libevdev/libevdev.h>
 
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/exception/errinfo_file_name.hpp>
@@ -55,11 +53,8 @@ bool has_mt_coordinates(libevdev* evdev)
 }
 
 mi::InputDeviceDetection::InputDeviceDetection(char const* devpath)
-    : input_device(::open(devpath, O_RDONLY|O_NONBLOCK)),
-    evdev_ptr(nullptr, &libevdev_free)
+    : input_device(::open(devpath, O_RDONLY|O_NONBLOCK))
 {
-    libevdev* evdev = nullptr;
-    int rc = libevdev_new_from_fd(input_device, &evdev);
     if (rc < 0)
     {
         BOOST_THROW_EXCEPTION(

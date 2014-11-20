@@ -14,9 +14,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
 #include "mir/input/input_device_factory.h"
+
+#include "evdev_device_info.h"
 
 namespace mi = mir::input;
 
@@ -25,14 +28,14 @@ mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::shared_ptr
 {
 }
 
-std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::udev::Device const& device)
+std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::input::InputDeviceInfo const& info)
 {
-    mi::InputDeviceProvider::Priority best_prio = mi::InputDeviceProvider::unsupported;
-    mi::InputDeviceProvider* best_provider = nullptr;
+    InputDeviceProvider::Priority best_prio = mi::InputDeviceProvider::unsupported;
+    InputDeviceProvider* best_provider = nullptr;
 
     for (auto& provider : providers)
     {
-        auto prio = provider->probe_device(device);
+        auto prio = provider->get_support(info);
         if (prio > best_prio)
         {
             best_prio = prio;
@@ -41,7 +44,7 @@ std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(m
     }
 
     if (best_provider != nullptr)
-	return best_provider->create_device(device);
+	return best_provider->create_device(info);
 
     return std::shared_ptr<mi::InputDevice>();
 }

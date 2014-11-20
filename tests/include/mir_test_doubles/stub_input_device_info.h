@@ -16,33 +16,40 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_DETECTION_H_
-#define MIR_INPUT_INPUT_DEVICE_DETECTION_H_
+#ifndef MIR_TEST_DOUBLES_STUB_INPUT_INPUT_DEVICE_INFO_H_
+#define MIR_TEST_DOUBLES_STUB_INPUT_INPUT_DEVICE_INFO_H_
 
-#include "mir/fd.h"
-
-#include <memory>
-
-struct libevdev;
+#include "src/server/input/input_device_info.h"
 
 namespace mir
 {
-namespace input
+namespace test
+{
+namespace doubles
 {
 
-class InputDeviceDetection
+class StubInputDeviceInfo : public mir::input::InputDeviceInfo
 {
 public:
-    explicit InputDeviceDetection(const char* devpath);
-    bool has_touchpad() const;
-    bool has_multi_touch_screen() const;
-    bool has_joystick() const;
-    int num_joystick_axes() const;
-private:
-    Fd input_device;
-    std::unique_ptr<libevdev, void(*)(libevdev *)> evdev_ptr;
+    explicit StubInputDeviceInfo(uint32_t classes = 0)
+        : input_classes(classes)
+    {}
+    std::string path() const override
+    {
+        return "";
+    }
+    uint32_t device_classes() const override
+    {
+        return input_classes;
+    }
+    mir::input::InputDeviceIdentifier id() const override
+    {
+        return mir::input::InputDeviceIdentifier();
+    }
+    uint32_t input_classes;
 };
 
+}
 }
 }
 

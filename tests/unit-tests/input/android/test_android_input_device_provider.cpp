@@ -17,86 +17,51 @@
  */
 
 #include "src/server/input/android/input_device_provider.h"
-
-#include "mir/udev/wrapper.h"
-
-#include <umockdev.h>
-#include "mir_test_framework/udev_environment.h"
+#include "mir_test_doubles/stub_input_device_info.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace mi = mir::input;
 namespace mia = mi::android;
-namespace mtd = mir_test_framework;
+namespace mtd = mir::test::doubles;
 
-namespace
-{
+using AndroidStack = ::testing::TestWithParam<std::pair<uint32_t, mi::InputDeviceProvider::Priority>>;
 
-struct DeviceStub : public mir::udev::Device
-{
-    char const* node;
-    char const* path;
-    DeviceStub(DeviceStub const& other)
-        : mir::udev::Device(),
-          node(other.node), path(other.path)
-    {}
-    DeviceStub(char const* node, char const* path)
-        : node(node), path(path)
-    {
-    }
-
-    char const* subsystem() const override { return "input"; }
-    char const* devtype() const { return "evdev"; }
-    char const* devpath() const { return path; }
-    char const* devnode() const { return node; }
-};
-
-struct MockedDevice
-{
-    std::string recorded_device_sample;
-    DeviceStub device_info;
-    mi::InputDeviceProvider::Priority expected_priority;
-};
-
-}
-
-struct AndroidInputDeviceProviderTest : public ::testing::TestWithParam<MockedDevice>
-{
-    mia::InputDeviceProvider provider;
-    mtd::UdevEnvironment env;
-};
-
-TEST_P(AndroidInputDeviceProviderTest, device_probing_yields_expected_priority)
+TEST_P(AndroidStack, device_probing_yields_expected_priority)
 {
     using namespace ::testing;
+    mia::InputDeviceProvider provider;
+
     auto const& param = GetParam();
-    env.add_standard_device(param.recorded_device_sample);
-    EXPECT_THAT(provider.probe_device(param.device_info), Eq(param.expected_priority));
+
+    EXPECT_THAT(provider.get_support(
+            mtd::StubInputDeviceInfo(param.first)
+            ), Eq(param.second));
 }
 
-INSTANTIATE_TEST_CASE_P(DeviceTypes,
-                        AndroidInputDeviceProviderTest,
+INSTANTIATE_TEST_CASE_P(InputDeviceProviderTest,
+                        AndroidStack,
                         ::testing::Values(
-                            MockedDevice{
-                                "touchpad-detection",
-                                {"input/event5", "/dev/input/event5"},
+                            std::make_pair(
+                                mi::InputDeviceInfo::touchpad,
                                 mi::InputDeviceProvider::unsupported
-                                },
-                            MockedDevice{
-                                "mt-screen-detection",
-                                {"input/event4", "/dev/input/event4"},
+                                ),
+                            std::make_pair(
+                                mi::InputDeviceInfo::touchscreen,
                                 mi::InputDeviceProvider::best
-                                },
-                            MockedDevice{
-                                "joystick-detection",
-                                {"input/event13", "/dev/input/event13"},
+                                ),
+                            std::make_pair(
+                                mi::InputDeviceInfo::joystick,
                                 mi::InputDeviceProvider::supported
-                                },
-                            MockedDevice{
-                                "keyboard-detection",
-                                {"input/event3", "/dev/input/event3"},
+                                ),
+                            std::make_pair(
+                                mi::InputDeviceInfo::cursor,
                                 mi::InputDeviceProvider::supported
-                                }
-                                ));
+                                ),
+                            std::make_pair(
+                                mi::InputDeviceInfo::keyboard,
+                                mi::InputDeviceProvider::supported
+                                )
+                            ));
 

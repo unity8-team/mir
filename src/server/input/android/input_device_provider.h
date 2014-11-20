@@ -31,8 +31,8 @@ namespace android
 class InputDeviceProvider : public input::InputDeviceProvider
 {
 public:
-    Priority probe_device(mir::udev::Device const& device) const override;
-    std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const override;
+    Priority get_support(input::InputDeviceInfo const& device) const override;
+    std::shared_ptr<InputDevice> create_device(input::InputDeviceInfo const& device) const override;
 };
 
 }

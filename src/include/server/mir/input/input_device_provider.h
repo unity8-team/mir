@@ -20,14 +20,13 @@
 #ifndef MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
 #define MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
 
-#include "mir/udev/wrapper.h"
-
 #include <memory>
 
 namespace mir
 {
 namespace input
 {
+class InputDeviceInfo;
 class InputDevice;
 
 class InputDeviceProvider
@@ -43,8 +42,8 @@ public:
     InputDeviceProvider() = default;
     virtual ~InputDeviceProvider() = default;
 
-    virtual Priority probe_device(mir::udev::Device const& device) const = 0;
-    virtual std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device) const = 0;
+    virtual Priority get_support(InputDeviceInfo const& info) const = 0;
+    virtual std::shared_ptr<InputDevice> create_device(InputDeviceInfo const& device) const = 0;
 
 protected:
     InputDeviceProvider(InputDeviceProvider const& cp) = delete;

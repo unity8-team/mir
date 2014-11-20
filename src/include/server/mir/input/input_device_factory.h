@@ -19,7 +19,6 @@
 #ifndef MIR_INPUT_INPUT_DEVICE_FACTORY_H_
 #define MIR_INPUT_INPUT_DEVICE_FACTORY_H_
 
-#include "mir/udev/wrapper.h"
 #include "mir/input/input_device_provider.h"
 
 #include <memory>
@@ -30,13 +29,14 @@ namespace mir
 {
 namespace input
 {
+class InputDeviceInfo;
 
 class InputDeviceFactory
 {
 public:
     InputDeviceFactory(std::initializer_list<std::shared_ptr<InputDeviceProvider>> providers);
 
-    std::shared_ptr<InputDevice> create_device(mir::udev::Device const& device);
+    std::shared_ptr<InputDevice> create_device(InputDeviceInfo const& info);
 
 private:
     std::vector<std::shared_ptr<InputDeviceProvider>> providers;

@@ -10,7 +10,6 @@ set(
   null_input_channel_factory.cpp
   null_input_dispatcher.cpp
   display_input_region.cpp
-  input_device_detection.cpp
   vt_filter.cpp
   cursor_controller.cpp
   default_configuration.cpp
@@ -18,6 +17,7 @@ set(
   builtin_cursor_images.cpp
   touchspot_controller.cpp
   input_device_factory.cpp
+  evdev_device_info.cpp
 )
 
 add_subdirectory(android)
