@@ -1,4 +1,4 @@
-MIR_SERVER_27 {
+MIR_SERVER_28 {
  global:
   extern "C++" {
 # Symbols not yet picked up by script
