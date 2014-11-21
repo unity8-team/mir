@@ -24,6 +24,7 @@
 #include "gbm_buffer.h"
 #include "mir/fatal.h"
 #include "mir/time/steady_clock.h"
+#include "mir/logging/logger.h"
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
@@ -405,7 +406,7 @@ void mgm::DisplayBuffer::wait_for_page_flip()
          * as a frame skip.
          */
         int average_frame_time = 16; // TODO
-        if (max_delta > 1 && render_ms >= average_frame_time)
+        if (max_delta > 1 && render_ms >= 2*average_frame_time)
             ++skips;
 
         if (now - last_report > std::chrono::seconds(10))
@@ -414,15 +415,12 @@ void mgm::DisplayBuffer::wait_for_page_flip()
             if (skips > 0)
             {
                 skips = 0;
-                fprintf(stderr, "Frame skipping\n");
-            }
-            else
-            {
-                fprintf(stderr, "Fixed\n");
+                mir::logging::log(mir::logging::Severity::warning,
+                                  "BUG - frames are being skipped. "
+                                  "Either your compositor is too slow or "
+                                  "you have a graphics driver bug.");
             }
         }
-        else if (!skips)
-            last_report = now;
 
         page_flips_pending = false;
     }
