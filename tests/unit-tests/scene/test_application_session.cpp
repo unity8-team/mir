@@ -287,8 +287,8 @@ TEST_F(ApplicationSession, takes_snapshot_of_default_surface)
         .WillOnce(Return(snapped));
 
     NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
+
     EXPECT_CALL(surface_coordinator, add_surface(_, _))
-        .Times(1)
         .WillOnce(Return(mock_surface));
 
     auto const snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
