@@ -20,6 +20,8 @@
 
 #include "../input_device_info.h"
 
+#include "mir/input/input_device.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -51,9 +53,9 @@ mi::InputDeviceProvider::Priority mili::InputDeviceProvider::get_support(mi::Inp
     return supported;
 }
 
-std::shared_ptr<mi::InputDevice> mili::InputDeviceProvider::create_device(mi::InputDeviceInfo const& device) const
+std::unique_ptr<mi::InputDevice> mili::InputDeviceProvider::create_device(mi::InputDeviceInfo const& device) const
 {
     (void)device;
-    return std::shared_ptr<mi::InputDevice>();
+    return std::unique_ptr<mi::InputDevice>();
 }
 

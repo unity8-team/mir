@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,30 +13,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
+ * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_ANDROID_INPUT_DEVICE_PROVIDER_H_
-#define MIR_INPUT_ANDROID_INPUT_DEVICE_PROVIDER_H_
-
-#include "../input_device_provider.h"
+#ifndef MIR_INPUT_INPUT_DEVICE_H_
+#define MIR_INPUT_INPUT_DEVICE_H_
 
 namespace mir
 {
 namespace input
 {
-namespace android
-{
 
-class InputDeviceProvider : public input::InputDeviceProvider
+class InputDevice
 {
 public:
-    Priority get_support(input::InputDeviceInfo const& device) const override;
-    std::unique_ptr<InputDevice> create_device(input::InputDeviceInfo const& device) const override;
+    InputDevice() = default;
+    virtual ~InputDevice() = default;
 };
 
 }
-}
-}
+} // namespace mir
 
-#endif // MIR_INPUT_ANDROID_INPUT_DEVICE_PROVIDER_H_
+#endif // MIR_INPUT_INPUT_DEVICE_H_
+
+

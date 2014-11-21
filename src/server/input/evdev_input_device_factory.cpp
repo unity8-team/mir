@@ -17,18 +17,20 @@
  *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "mir/input/input_device_factory.h"
+#include "evdev_input_device_factory.h"
+#include "input_device_info.h"
+#include "input_device_provider.h"
 
-#include "evdev_device_info.h"
+#include "mir/input/input_device.h"
 
 namespace mi = mir::input;
 
-mi::InputDeviceFactory::InputDeviceFactory(std::initializer_list<std::shared_ptr<mi::InputDeviceProvider>> providers)
+mi::EvdevInputDeviceFactory::EvdevInputDeviceFactory(std::initializer_list<std::shared_ptr<mi::InputDeviceProvider>> providers)
     : providers(providers)
 {
 }
 
-std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(mir::input::InputDeviceInfo const& info)
+std::unique_ptr<mi::InputDevice> mi::EvdevInputDeviceFactory::create_device(mi::InputDeviceInfo const& info)
 {
     InputDeviceProvider::Priority best_prio = mi::InputDeviceProvider::unsupported;
     InputDeviceProvider* best_provider = nullptr;
@@ -44,7 +46,8 @@ std::shared_ptr<mi::InputDevice> mir::input::InputDeviceFactory::create_device(m
     }
 
     if (best_provider != nullptr)
-	return best_provider->create_device(info);
+	//return std::forward<std::unique_ptr<InputDevice>>(best_provider->create_device(info));
+	return std::move(best_provider->create_device(info));
 
-    return std::shared_ptr<mi::InputDevice>();
+    return std::unique_ptr<mi::InputDevice>();
 }

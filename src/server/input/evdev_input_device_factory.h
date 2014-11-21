@@ -17,43 +17,36 @@
  *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
-#define MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
+#ifndef MIR_INPUT_EVDEV_INPUT_DEVICE_FACTORY_H_
+#define MIR_INPUT_EVDEV_INPUT_DEVICE_FACTORY_H_
+
+#include "mir/input/input_device_factory.h"
 
 #include <memory>
+#include <vector>
+#include <initializer_list>
 
 namespace mir
 {
 namespace input
 {
 class InputDeviceInfo;
-class InputDevice;
+class InputDeviceProvider;
 
-class InputDeviceProvider
+class EvdevInputDeviceFactory : public InputDeviceFactory
 {
 public:
-    enum Priority
-    {
-	unsupported = 0,
-	supported = 100,
-	best = 255,
-    };
+    EvdevInputDeviceFactory(std::initializer_list<std::shared_ptr<InputDeviceProvider>> providers);
 
-    InputDeviceProvider() = default;
-    virtual ~InputDeviceProvider() = default;
+    std::unique_ptr<InputDevice> create_device(InputDeviceInfo const& info);
 
-    virtual Priority get_support(InputDeviceInfo const& info) const = 0;
-    virtual std::shared_ptr<InputDevice> create_device(InputDeviceInfo const& device) const = 0;
-
-protected:
-    InputDeviceProvider(InputDeviceProvider const& cp) = delete;
-    InputDeviceProvider& operator=(InputDeviceProvider const& cp) = delete;
-
+private:
+    std::vector<std::shared_ptr<InputDeviceProvider>> providers;
 };
 
 }
 } // namespace mir
 
-#endif // MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
+#endif // MIR_INPUT_EVDEV_INPUT_DEVICE_FACTORY_H_
 
 

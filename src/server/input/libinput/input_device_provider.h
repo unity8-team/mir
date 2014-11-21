@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_LIBINPUT_INPUT_DEVICE_PROVIDER_H_
 #define MIR_INPUT_LIBINPUT_INPUT_DEVICE_PROVIDER_H_
 
-#include "mir/input/input_device_provider.h"
+#include "../input_device_provider.h"
 
 namespace mir
 {
@@ -32,7 +32,7 @@ class InputDeviceProvider : public input::InputDeviceProvider
 {
 public:
     Priority get_support(input::InputDeviceInfo const& device) const override;
-    std::shared_ptr<InputDevice> create_device(input::InputDeviceInfo const& device) const override;
+    std::unique_ptr<InputDevice> create_device(input::InputDeviceInfo const& device) const override;
 };
 
 }

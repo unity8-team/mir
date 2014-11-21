@@ -20,6 +20,8 @@
 
 #include "../input_device_info.h"
 
+#include "mir/input/input_device.h"
+
 namespace mi = mir::input;
 namespace mia = mi::android;
 
@@ -38,8 +40,8 @@ mi::InputDeviceProvider::Priority mia::InputDeviceProvider::get_support(mi::Inpu
     return supported;
 }
 
-std::shared_ptr<mi::InputDevice> mia::InputDeviceProvider::create_device(mi::InputDeviceInfo const& /*device*/) const
+std::unique_ptr<mi::InputDevice> mia::InputDeviceProvider::create_device(mi::InputDeviceInfo const& /*device*/) const
 {
-    return std::shared_ptr<mi::InputDevice>();
+    return std::unique_ptr<mi::InputDevice>();
 }
 

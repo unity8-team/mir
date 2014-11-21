@@ -16,8 +16,8 @@ set(
   xcursor_loader.cpp
   builtin_cursor_images.cpp
   touchspot_controller.cpp
-  input_device_factory.cpp
   evdev_device_info.cpp
+  evdev_input_device_factory.cpp
 )
 
 add_subdirectory(android)

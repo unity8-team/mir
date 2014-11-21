@@ -17,8 +17,8 @@
  *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_FACTORY_H_
-#define MIR_INPUT_INPUT_DEVICE_FACTORY_H_
+#ifndef MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
+#define MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
 
 #include <memory>
 
@@ -29,22 +29,31 @@ namespace input
 class InputDeviceInfo;
 class InputDevice;
 
-class InputDeviceFactory
+class InputDeviceProvider
 {
 public:
-    InputDeviceFactory() = default;
-    virtual ~InputDeviceFactory() = default;
+    enum Priority
+    {
+	unsupported = 0,
+	supported = 100,
+	best = 255,
+    };
 
-    virtual std::unique_ptr<InputDevice> create_device(InputDeviceInfo const& info) = 0;
+    InputDeviceProvider() = default;
+    virtual ~InputDeviceProvider() = default;
+
+    virtual Priority get_support(InputDeviceInfo const& info) const = 0;
+    virtual std::unique_ptr<InputDevice> create_device(InputDeviceInfo const& device) const = 0;
 
 protected:
-    InputDeviceFactory(InputDeviceFactory const&) = delete;
-    InputDeviceFactory& operator=(InputDeviceFactory const&) = delete;
+    InputDeviceProvider(InputDeviceProvider const& cp) = delete;
+    InputDeviceProvider& operator=(InputDeviceProvider const& cp) = delete;
+
 };
 
 }
 } // namespace mir
 
-#endif // MIR_INPUT_INPUT_DEVICE_FACTORY_H_
+#endif // MIR_INPUT_INPUT_DEVICE_PROVIDER_H_
 
 
