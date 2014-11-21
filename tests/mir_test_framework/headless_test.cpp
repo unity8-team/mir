@@ -42,6 +42,16 @@ void mtf::HeadlessTest::add_to_environment(char const* key, char const* value)
 
 void mtf::HeadlessTest::start_server()
 {
+#if !defined(ALLOW_CONSOLE_LOGGING_IN_TESTS)
+    const int argc = 2;
+    char const* argv[argc] = {
+        __PRETTY_FUNCTION__,
+        "-s" /* --silent-logger */
+    };
+
+    server.set_command_line(argc, argv);
+#endif
+
     server.add_init_callback([&]
         {
             auto const main_loop = server.the_main_loop();

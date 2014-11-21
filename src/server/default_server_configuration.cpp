@@ -212,6 +212,9 @@ auto mir::DefaultServerConfiguration::the_logger()
     return logger(
         [this]() -> std::shared_ptr<ml::Logger>
         {
-            return std::make_shared<ml::DumbConsoleLogger>();
+            if (the_options()->is_set(options::silent_logger_opt))
+                return std::make_shared<ml::NullLogger>();
+            else
+                return std::make_shared<ml::DumbConsoleLogger>();
         });
 }

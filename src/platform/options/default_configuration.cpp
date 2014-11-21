@@ -43,10 +43,11 @@ char const* const mo::host_socket_opt             = "host-socket";
 char const* const mo::frontend_threads_opt        = "ipc-thread-pool";
 char const* const mo::name_opt                    = "name";
 char const* const mo::offscreen_opt               = "offscreen";
-char const* const mo::touchspots_opt               = "enable-touchspots";
+char const* const mo::touchspots_opt              = "enable-touchspots";
 char const* const mo::fatal_abort_opt             = "on-fatal-error-abort";
 char const* const mo::debug_opt                   = "debug";
 char const* const mo::use_asio_main_loop_opt      = "use-asio-main-loop";
+char const* const mo::silent_logger_opt           = "silent-logger,s";
 
 char const* const mo::off_opt_value = "off";
 char const* const mo::log_opt_value = "log";
@@ -147,7 +148,8 @@ mo::DefaultConfiguration::DefaultConfiguration(
             "in unexpected ways] abort (to get a core dump)")
         (debug_opt, "Enable extra development debugging. "
             "This is only interesting for people doing Mir server or client development.")
-        (use_asio_main_loop_opt, "Use the ASIO main loop implementation");
+        (use_asio_main_loop_opt, "Use the ASIO main loop implementation")
+        (silent_logger_opt, "Send logs to a black hole.");
 
         add_platform_options();
 }

@@ -35,6 +35,12 @@ set(
   fake_event_hub_server_configuration.cpp
 )
 
+option(MIR_ALLOW_CONSOLE_LOGGING_IN_TESTS "Allow logs to stdout during tests" OFF)
+
+if (MIR_ALLOW_CONSOLE_LOGGING_IN_TESTS)
+add_definitions(-DALLOW_CONSOLE_LOGGING_IN_TESTS)
+endif (MIR_ALLOW_CONSOLE_LOGGING_IN_TESTS)
+
 list(APPEND TEST_FRAMEWORK_SRCS
   socket_detect_server.cpp
 )

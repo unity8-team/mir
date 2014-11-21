@@ -52,6 +52,14 @@ protected:
     Logger& operator=(const Logger&) = delete;
 };
 
+class NullLogger : public Logger
+{
+public:
+	void log(Severity,
+             const std::string&,
+             const std::string&) override {}
+};
+
 void log(Severity severity, const std::string& message);
 void log(Severity severity, const std::string& message, const std::string& component);
 void set_logger(std::shared_ptr<Logger> const& new_logger);
