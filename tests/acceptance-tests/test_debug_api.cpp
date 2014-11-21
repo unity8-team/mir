@@ -113,8 +113,8 @@ public:
     };
 
 private:
-    std::shared_ptr<SimpleConfigurablePlacementStrategy> const placement_strategy
-        {std::make_shared<SimpleConfigurablePlacementStrategy>()};
+    std::shared_ptr<SimpleConfigurableWindowManager> const window_manager
+        {std::make_shared<SimpleConfigurableWindowManager>()};
 };
 }
 
