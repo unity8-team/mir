@@ -481,7 +481,7 @@ TEST(MultiThreadedCompositor, composites_only_on_demand)
 }
 
 TEST(MultiThreadedCompositor, schedules_enough_frames)
-{   // Regression test for LP: #1379610
+{   // FIXME?
     using namespace testing;
 
     unsigned int const nbuffers = 3;
