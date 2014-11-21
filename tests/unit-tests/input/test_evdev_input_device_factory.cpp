@@ -43,7 +43,7 @@ public:
 
 }
 
-TEST(EvdevInputDeviceFactoryTest, ProbesAllProviders)
+TEST(EvdevInputDeviceFactory, probes_all_providers)
 {
     using namespace testing;
     auto a = std::make_shared<MockInputDeviceProvider>();
@@ -60,7 +60,7 @@ TEST(EvdevInputDeviceFactoryTest, ProbesAllProviders)
     factory.create_device(stub_dev);
 }
 
-TEST(EvdevInputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
+TEST(EvdevInputDeviceFactory, creates_device_on_supported_provider)
 {
     using namespace testing;
     auto a = std::make_shared<MockInputDeviceProvider>();
@@ -78,7 +78,7 @@ TEST(EvdevInputDeviceFactoryTest, CreatesDeviceOnSupportedProvider)
     factory.create_device(stub_dev);
 }
 
-TEST(EvdevInputDeviceFactoryTest, PrefersCreatingDeviceOnBetterProvider)
+TEST(EvdevInputDeviceFactory, preferes_creating_on_better_provider)
 {
     using namespace testing;
     auto a = std::make_shared<MockInputDeviceProvider>();
