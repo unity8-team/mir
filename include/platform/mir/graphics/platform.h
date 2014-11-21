@@ -20,9 +20,8 @@
 #ifndef MIR_GRAPHICS_PLATFORM_H_
 #define MIR_GRAPHICS_PLATFORM_H_
 
-#include "basic_platform.h"
-
 #include <boost/program_options/options_description.hpp>
+#include <EGL/egl.h>
 #include <memory>
 
 namespace mir
@@ -44,7 +43,6 @@ namespace graphics
 {
 class Buffer;
 class Display;
-class BufferInitializer;
 class InternalClient;
 class DisplayReport;
 class DisplayConfigurationPolicy;
@@ -64,7 +62,7 @@ class BufferWriter;
  * Interface to platform specific support for graphics operations.
  * \ingroup platform_enablement
  */
-class Platform : public BasicPlatform
+class Platform
 {
 public:
     Platform() = default;
@@ -75,12 +73,8 @@ public:
 
     /**
      * Creates the buffer allocator subsystem.
-     *
-     * \param [in] buffer_initializer the object responsible for initializing the buffers
      */
-
-    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<BufferInitializer> const& buffer_initializer) = 0;
+    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() = 0;
     
     virtual std::shared_ptr<BufferWriter> make_buffer_writer() = 0;
 
@@ -102,6 +96,8 @@ public:
      * Creates the in-process client support object.
      */
     virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
+
+    virtual EGLNativeDisplayType egl_native_display() const = 0;
 };
 
 /**
