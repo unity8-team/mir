@@ -55,7 +55,7 @@ protected:
 class NullLogger : public Logger
 {
 public:
-	void log(Severity,
+    void log(Severity,
              const std::string&,
              const std::string&) override {}
 };
