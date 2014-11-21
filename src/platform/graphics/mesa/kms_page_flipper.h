@@ -41,8 +41,8 @@ namespace mesa
 
 struct PageFlipEventData
 {
-    std::unordered_map<uint32_t,PageFlipEventData>* pending;
-    uint32_t crtc_id;
+    bool done;
+    unsigned int seq;
 };
 
 class KMSPageFlipper : public PageFlipper
@@ -50,13 +50,13 @@ class KMSPageFlipper : public PageFlipper
 public:
     KMSPageFlipper(int drm_fd);
 
-    bool schedule_flip(uint32_t crtc_id, uint32_t fb_id);
-    void wait_for_flip(uint32_t crtc_id);
+    bool schedule_flip(uint32_t crtc_id, uint32_t fb_id) override;
+    unsigned int wait_for_flip(uint32_t crtc_id) override;
 
     std::thread::id debug_get_worker_tid();
 
 private:
-    bool page_flip_is_done(uint32_t crtc_id);
+    bool page_flip_is_done(uint32_t crtc_id, unsigned int& seq);
 
     int const drm_fd;
     std::unordered_map<uint32_t,PageFlipEventData> pending_page_flips;

@@ -32,12 +32,13 @@ namespace mgm = mir::graphics::mesa;
 namespace
 {
 
-void page_flip_handler(int /*fd*/, unsigned int /*frame*/,
+void page_flip_handler(int /*fd*/, unsigned int seq,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void* data)
 {
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
-    page_flip_data->pending->erase(page_flip_data->crtc_id);
+    page_flip_data->done = true;
+    page_flip_data->seq = seq;
 }
 
 }
@@ -56,7 +57,7 @@ bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
     if (pending_page_flips.find(crtc_id) != pending_page_flips.end())
         BOOST_THROW_EXCEPTION(std::logic_error("Page flip for crtc_id is already scheduled"));
 
-    pending_page_flips[crtc_id] = PageFlipEventData{&pending_page_flips, crtc_id};
+    pending_page_flips[crtc_id] = PageFlipEventData{false, 0};
 
     auto ret = drmModePageFlip(drm_fd, crtc_id, fb_id,
                                DRM_MODE_PAGE_FLIP_EVENT,
@@ -68,7 +69,7 @@ bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
     return (ret == 0);
 }
 
-void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
+unsigned int mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
 {
     static drmEventContext evctx =
     {
@@ -77,6 +78,7 @@ void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
         page_flip_handler  /* .page_flip_handler */
     };
     static std::thread::id const invalid_tid;
+    unsigned int seq = 0;
 
     {
         std::unique_lock<std::mutex> lock{pf_mutex};
@@ -85,20 +87,21 @@ void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
          * While another thread is the worker (it is controlling the
          * page flip event loop) and our event has not arrived, wait.
          */
-        while (worker_tid != invalid_tid && !page_flip_is_done(crtc_id))
+        while (worker_tid != invalid_tid && !page_flip_is_done(crtc_id, seq))
             pf_cv.wait(lock);
 
         /* If the page flip we are waiting for has arrived we are done. */
-        if (page_flip_is_done(crtc_id))
-            return;
+        bool done = page_flip_is_done(crtc_id, seq);
+        if (done)
+            return seq;
 
         /* ...otherwise we become the worker */
         worker_tid = std::this_thread::get_id();
     }
 
-    /* Only the worker thread reaches this point */
-    bool done{false};
+    bool done = false;
 
+    /* Only the worker thread reaches this point */
     while (!done)
     {
         fd_set fds;
@@ -127,7 +130,7 @@ void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
                         std::runtime_error(msg)) << boost::errinfo_errno(errno));
             }
 
-            done = page_flip_is_done(crtc_id);
+            done = page_flip_is_done(crtc_id, seq);
             /* Give up loop control if we are done */
             if (done)
                 worker_tid = invalid_tid;
@@ -140,6 +143,7 @@ void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
          */
         pf_cv.notify_all();
     }
+    return seq;
 }
 
 std::thread::id mgm::KMSPageFlipper::debug_get_worker_tid()
@@ -150,7 +154,15 @@ std::thread::id mgm::KMSPageFlipper::debug_get_worker_tid()
 }
 
 /* This method should be called with the 'pf_mutex' locked */
-bool mgm::KMSPageFlipper::page_flip_is_done(uint32_t crtc_id)
+bool mgm::KMSPageFlipper::page_flip_is_done(uint32_t crtc_id, unsigned int& seq)
 {
-    return pending_page_flips.find(crtc_id) == pending_page_flips.end();
+    auto i = pending_page_flips.find(crtc_id);
+    if (i == pending_page_flips.end())
+        return true;
+
+    seq = i->second.seq;
+    if (i->second.done)
+        pending_page_flips.erase(i);
+
+    return seq;
 }

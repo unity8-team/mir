@@ -46,7 +46,10 @@ public:
     virtual bool set_crtc(uint32_t fb_id) = 0;
     virtual void clear_crtc() = 0;
     virtual bool schedule_page_flip(uint32_t fb_id) = 0;
-    virtual void wait_for_page_flip() = 0;
+
+    /// wait_for_page_flip
+    /// \returns The number of frames elapsed since the previous flip.
+    virtual unsigned int wait_for_page_flip() = 0;
 
     virtual void set_cursor(gbm_bo* buffer) = 0;
     virtual void move_cursor(geometry::Point destination) = 0;

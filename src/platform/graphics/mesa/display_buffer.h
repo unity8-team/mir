@@ -20,6 +20,8 @@
 #define MIR_GRAPHICS_MESA_DISPLAY_BUFFER_H_
 
 #include "mir/graphics/display_buffer.h"
+#include "mir/time/clock.h"
+#include "mir/time/types.h"
 #include "display_helpers.h"
 
 #include <vector>
@@ -77,6 +79,7 @@ private:
     std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;
+    std::shared_ptr<mir::time::Clock> const clock;
     /* DRM helper from mgm::Platform */
     helpers::DRMHelper& drm;
     std::vector<std::shared_ptr<KMSOutput>> outputs;
@@ -87,6 +90,10 @@ private:
     MirOrientation rotation;
     std::atomic<bool> needs_set_crtc;
     bool page_flips_pending;
+
+    mir::time::Timestamp render_start;
+    mir::time::Timestamp last_report;
+    int skips = 0;
 };
 
 }

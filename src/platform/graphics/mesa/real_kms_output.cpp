@@ -134,7 +134,8 @@ mgm::RealKMSOutput::RealKMSOutput(int drm_fd, uint32_t connector_id,
     : drm_fd{drm_fd}, connector_id{connector_id}, page_flipper{page_flipper},
       connector(), mode_index{0}, current_crtc(), saved_crtc(),
       using_saved_crtc{true}, has_cursor_{false},
-      power_mode(mir_power_mode_on)
+      power_mode(mir_power_mode_on),
+      any_seq(false)
 {
     reset();
 
@@ -252,17 +253,24 @@ bool mgm::RealKMSOutput::schedule_page_flip(uint32_t fb_id)
     return page_flipper->schedule_flip(current_crtc->crtc_id, fb_id);
 }
 
-void mgm::RealKMSOutput::wait_for_page_flip()
+unsigned int mgm::RealKMSOutput::wait_for_page_flip()
 {
     std::unique_lock<std::mutex> lg(power_mutex);
     if (power_mode != mir_power_mode_on)
-        return;
+        return 0;
     if (!current_crtc)
     {
         fatal_error("Output %s has no associated CRTC to wait on",
                    connector_name(connector.get()).c_str());
     }
-    page_flipper->wait_for_flip(current_crtc->crtc_id);
+    auto seq = page_flipper->wait_for_flip(current_crtc->crtc_id);
+    unsigned int delta = 1;
+    if (!any_seq)
+        any_seq = true;
+    else
+        delta = seq - last_seq;
+    last_seq = seq;
+    return delta;
 }
 
 void mgm::RealKMSOutput::set_cursor(gbm_bo* buffer)

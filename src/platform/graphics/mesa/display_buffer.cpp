@@ -23,6 +23,7 @@
 #include "bypass.h"
 #include "gbm_buffer.h"
 #include "mir/fatal.h"
+#include "mir/time/steady_clock.h"
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
@@ -100,6 +101,10 @@ mgm::DisplayBuffer::DisplayBuffer(
       scheduled_bufobj{nullptr},
       platform(platform),
       listener(listener),
+      // Making clock mockable via the constructor chain appears to increase
+      // coupling unacceptably. Maybe instantiate a universal "Clock" per
+      // process that is still mockable...
+      clock(std::make_shared<time::SteadyClock>()),
       drm(*platform->drm),
       outputs(outputs),
       surface_gbm{std::move(surface_gbm_param)},
@@ -107,7 +112,8 @@ mgm::DisplayBuffer::DisplayBuffer(
       area(area),
       rotation(rot),
       needs_set_crtc{false},
-      page_flips_pending{false}
+      page_flips_pending{false},
+      last_report(clock->now())
 {
     uint32_t area_width = area.size.width.as_uint32_t();
     uint32_t area_height = area.size.height.as_uint32_t();
@@ -307,6 +313,7 @@ void mgm::DisplayBuffer::post_update(
     }
     else
     {
+        if (outputs.size() == 1) wait_for_page_flip(); // XXX
         scheduled_bufobj = bufobj;
     }
 }
@@ -373,11 +380,55 @@ void mgm::DisplayBuffer::wait_for_page_flip()
 {
     if (page_flips_pending)
     {
+        unsigned int max_delta = 0;
+
         for (auto& output : outputs)
-            output->wait_for_page_flip();
+        {
+            auto d = output->wait_for_page_flip();
+            if (d > max_delta)
+                max_delta = d;
+        }
+
+        auto now = clock->now();
+        // Render time _rounded_up_ to the nearest frame time, since we had
+        // to include the wait for page flip...
+        auto render_time = now - render_start;
+        int render_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>
+                        (render_time).count();
+
+        /*
+         * We can reliably detect skipped frames (max_delta > 1) but need
+         * to be careful to check that's not just due to being idle.
+         * If the display has been idle then we'll fail the max_delta test,
+         * so we need to check the render time too, to avoid reporting idling
+         * as a frame skip.
+         */
+        int average_frame_time = 16; // TODO
+        if (max_delta > 1 && render_ms >= average_frame_time)
+            ++skips;
+
+        if (now - last_report > std::chrono::seconds(10))
+        {
+            last_report = now;
+            if (skips > 0)
+            {
+                skips = 0;
+                fprintf(stderr, "Frame skipping\n");
+            }
+            else
+            {
+                fprintf(stderr, "Fixed\n");
+            }
+        }
+        else if (!skips)
+            last_report = now;
 
         page_flips_pending = false;
     }
+
+    // Conservative start of GL or overlay/bypass rendering
+    render_start = clock->now();
 }
 
 void mgm::DisplayBuffer::make_current()
@@ -386,6 +437,10 @@ void mgm::DisplayBuffer::make_current()
     {
         fatal_error("Failed to make EGL surface current");
     }
+
+    // More precise start of GL rendering (modulo the time spent idle waiting
+    // for a frame to be scheduled).
+    render_start = clock->now();
 }
 
 void mgm::DisplayBuffer::release_current()
