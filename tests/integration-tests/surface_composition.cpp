@@ -70,7 +70,11 @@ struct SurfaceComposition : Test
     auto create_buffer_bundle() const
     -> std::shared_ptr<mc::BufferBundle>
     {
-        return buffer_queue;
+        return std::make_shared<mc::BufferQueue>(
+            number_of_buffers,
+            allocator,
+            basic_properties,
+            policy_factory);
     }
 
     auto create_input_channel() const
@@ -94,12 +98,6 @@ struct SurfaceComposition : Test
         { geom::Size{3, 4}, mir_pixel_format_abgr_8888, mg::BufferUsage::hardware };
 
     mtd::StubFrameDroppingPolicyFactory policy_factory;
-    std::shared_ptr<mc::BufferQueue> const buffer_queue
-        {std::make_shared<mc::BufferQueue>(
-            number_of_buffers,
-            allocator,
-            basic_properties,
-            policy_factory)};
 };
 }
 
@@ -110,17 +108,23 @@ TEST_F(SurfaceComposition, does_not_send_client_buffers_to_dead_surfaces)
 
     mg::Buffer* old_buffer{nullptr};
 
+    bool called_back = true;
     auto const callback = [&] (mg::Buffer* new_buffer)
         {
             // If surface is dead then callback is not expected
             EXPECT_THAT(surface.get(), NotNull());
             old_buffer = new_buffer;
+            called_back = true;
         };
 
     // Exhaust the buffers to ensure we have a pending swap to complete
-    int max = buffer_queue->buffers_free_for_client();
-    for (int i = 0; i < max; ++i)
+    int i = 0;
+    while (i <= number_of_buffers && called_back)
+    {
+        called_back = false;
         surface->swap_buffers(old_buffer, callback);
+        ++i;
+    }
 
     auto const renderable = surface->compositor_snapshot(this);
 
