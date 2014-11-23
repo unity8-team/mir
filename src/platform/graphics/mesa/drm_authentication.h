@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -13,33 +13,34 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_BASIC_PLATFORM_H_
-#define MIR_GRAPHICS_BASIC_PLATFORM_H_
+#ifndef MIR_GRAPHICS_MESA_DRM_AUTHENTICATION_H_
+#define MIR_GRAPHICS_MESA_DRM_AUTHENTICATION_H_
 
-#include <EGL/egl.h>
+#include <xf86drm.h>
+#include "mir/fd.h"
 
 namespace mir
 {
 namespace graphics
 {
-
-class BasicPlatform
+namespace mesa
+{
+class DRMAuthentication
 {
 public:
-    virtual ~BasicPlatform() = default;
+    DRMAuthentication() = default;
+    virtual ~DRMAuthentication() = default;
+    DRMAuthentication(DRMAuthentication const&) = delete;
+    DRMAuthentication& operator=(DRMAuthentication const&) = delete;
 
-    virtual EGLNativeDisplayType egl_native_display() const = 0;
-
-protected:
-    BasicPlatform() = default;
-    BasicPlatform(BasicPlatform const&) = delete;
-    BasicPlatform& operator=(BasicPlatform const&) = delete;
+    virtual void auth_magic(drm_magic_t magic) = 0;
+    virtual mir::Fd authenticated_fd() = 0;
 };
-
 }
 }
+}
 
-#endif /* MIR_GRAPHICS_BASIC_PLATFORM_H_ */
+#endif /* MIR_GRAPHICS_MESA_DRM_AUTHENTICATION_H_ */

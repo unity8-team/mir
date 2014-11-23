@@ -1,6 +1,7 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
     ${Boost_INCLUDE_DIRS}
@@ -14,6 +15,8 @@ set(
 
   executable_path.cpp
   command_line_server_configuration.cpp
+  connected_client_headless_server.cpp
+  connected_client_with_a_surface.cpp
   cross_process_sync.cpp
   headless_in_process_server.cpp
   headless_test.cpp

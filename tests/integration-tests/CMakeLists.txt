@@ -5,6 +5,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
 )
@@ -26,6 +27,7 @@ set(
   test_exchange_buffer.cpp
   test_display_info.cpp
   test_display_server_main_loop_events.cpp
+  test_macros.cpp
   test_surface_first_frame_sync.cpp
   test_swapinterval.cpp
   test_server_client_types.cpp
@@ -86,7 +88,6 @@ target_link_libraries(
   mirclient-debug-extension
 
   mirdraw
-  mirtestdraw
   mirclientrpc
   mirclientlttngstatic
 
@@ -100,6 +101,7 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  ${LIBHARDWARE_LIBRARIES}
   ${MIR_PLATFORM_REFERENCES}
   ${MIR_COMMON_REFERENCES}
   ${MIR_SERVER_REFERENCES}
