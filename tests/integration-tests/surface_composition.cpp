@@ -118,12 +118,12 @@ TEST_F(SurfaceComposition, does_not_send_client_buffers_to_dead_surfaces)
         };
 
     // Exhaust the buffers to ensure we have a pending swap to complete
-    int i = 0;
-    while (i <= number_of_buffers && called_back)
+    // But also be careful to not pass a formerly released non-null old_buffer
+    // in to swap_buffers...
+    while (called_back)
     {
         called_back = false;
         surface->swap_buffers(old_buffer, callback);
-        ++i;
     }
 
     auto const renderable = surface->compositor_snapshot(this);
