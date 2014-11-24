@@ -42,7 +42,7 @@ using ServerWithoutActiveOutputs = mtf::BasicClientServerFixture<NoOutputsServer
 
 }
 
-TEST_F(ServerWithoutActiveOutputs, creates_valid_client_surface)
+TEST_F(ServerWithoutActiveOutputs, CreatesValidClientSurface)
 {
     using namespace testing;
 

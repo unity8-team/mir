@@ -79,7 +79,7 @@ protected:
 };
 }
 
-TEST_F(AndroidDisplay, display_can_post)
+TEST_F(AndroidDisplay, DisplayCanPost)
 {
     display->for_each_display_buffer([](mg::DisplayBuffer& buffer)
     {
@@ -95,7 +95,7 @@ TEST_F(AndroidDisplay, display_can_post)
     });
 }
 
-TEST_F(AndroidDisplay, display_can_post_overlay)
+TEST_F(AndroidDisplay, DisplayCanPostOverlay)
 {
     display->for_each_display_buffer([](mg::DisplayBuffer& db)
     {

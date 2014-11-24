@@ -77,7 +77,7 @@ struct SurfaceController : testing::Test
 };
 }
 
-TEST_F(SurfaceController, add_and_remove_surface)
+TEST_F(SurfaceController, AddAndRemoveSurface)
 {
     using namespace ::testing;
 
@@ -98,7 +98,7 @@ TEST_F(SurfaceController, add_and_remove_surface)
     controller.remove_surface(actual_surface);
 }
 
-TEST_F(SurfaceController, raise_surface)
+TEST_F(SurfaceController, RaiseSurface)
 {
     using namespace ::testing;
 
@@ -112,7 +112,7 @@ TEST_F(SurfaceController, raise_surface)
     controller.raise(std::weak_ptr<ms::Surface>());
 }
 
-TEST_F(SurfaceController, offers_create_surface_parameters_to_placement_strategy)
+TEST_F(SurfaceController, OffersCreateSurfaceParametersToPlacementStrategy)
 {
     using namespace ::testing;
     EXPECT_CALL(mock_surface, add_observer(_)).Times(AnyNumber());
@@ -130,7 +130,7 @@ TEST_F(SurfaceController, offers_create_surface_parameters_to_placement_strategy
     controller.add_surface(params, &session);
 }
 
-TEST_F(SurfaceController, forwards_create_surface_parameters_from_placement_strategy_to_underlying_factory)
+TEST_F(SurfaceController, ForwardsCreateSurfaceParametersFromPlacementStrategyToUnderlyingFactory)
 {
     using namespace ::testing;
     EXPECT_CALL(mock_surface, add_observer(_)).Times(AnyNumber());

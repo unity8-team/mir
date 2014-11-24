@@ -37,7 +37,7 @@ struct ClientBufferTracker : public testing::Test
     mtd::StubBuffer stub_buffer4;
 };
 
-TEST_F(ClientBufferTracker, just_added_buffer_is_known_by_client)
+TEST_F(ClientBufferTracker, JustAddedBufferIsKnownByClient)
 {
     mf::ClientBufferTracker tracker(3);
     mg::BufferID const id{stub_buffer0.id()};
@@ -47,7 +47,7 @@ TEST_F(ClientBufferTracker, just_added_buffer_is_known_by_client)
     EXPECT_THAT(tracker.buffer_from(id), testing::Eq(&stub_buffer0));
 }
 
-TEST_F(ClientBufferTracker, nullptrs_dont_affect_owned_buffers)
+TEST_F(ClientBufferTracker, NullptrsDontAffectOwnedBuffers)
 {
     mf::ClientBufferTracker tracker(3);
     mg::BufferID const id{stub_buffer0.id()};
@@ -60,7 +60,7 @@ TEST_F(ClientBufferTracker, nullptrs_dont_affect_owned_buffers)
     EXPECT_THAT(tracker.buffer_from(id), testing::Eq(&stub_buffer0));
 }
 
-TEST_F(ClientBufferTracker, dead_buffers_are_still_tracked)
+TEST_F(ClientBufferTracker, DeadBuffersAreStillTracked)
 {
     mf::ClientBufferTracker tracker(3);
     mg::BufferID id{stub_buffer0.id()};
@@ -77,7 +77,7 @@ TEST_F(ClientBufferTracker, dead_buffers_are_still_tracked)
     EXPECT_THAT(tracker.buffer_from(id), testing::Eq(dead_buffer_ptr));
 }
 
-TEST_F(ClientBufferTracker, unadded_buffer_is_unknown_by_client)
+TEST_F(ClientBufferTracker, UnaddedBufferIsUnknownByClient)
 {
     mf::ClientBufferTracker tracker(3);
 
@@ -85,7 +85,7 @@ TEST_F(ClientBufferTracker, unadded_buffer_is_unknown_by_client)
     EXPECT_FALSE(tracker.client_has(stub_buffer1.id()));
 }
 
-TEST_F(ClientBufferTracker, tracks_sequence_of_buffers)
+TEST_F(ClientBufferTracker, TracksSequenceOfBuffers)
 {
     mf::ClientBufferTracker tracker(3);
 
@@ -99,7 +99,7 @@ TEST_F(ClientBufferTracker, tracks_sequence_of_buffers)
     EXPECT_FALSE(tracker.client_has(stub_buffer3.id()));
 }
 
-TEST_F(ClientBufferTracker, old_buffers_expire_from_tracker)
+TEST_F(ClientBufferTracker, OldBuffersExpireFromTracker)
 {
     mf::ClientBufferTracker tracker(3);
 
@@ -121,7 +121,7 @@ TEST_F(ClientBufferTracker, old_buffers_expire_from_tracker)
     EXPECT_TRUE(tracker.client_has(stub_buffer3.id()));
 }
 
-TEST_F(ClientBufferTracker, tracks_correct_number_of_buffers)
+TEST_F(ClientBufferTracker, TracksCorrectNumberOfBuffers)
 {
     std::vector<mtd::StubBuffer> buffers(10);
     for (unsigned int tracker_size = 2; tracker_size < 10; ++tracker_size)
@@ -149,7 +149,7 @@ struct SurfaceTracker : public testing::Test
     size_t const client_cache_size{3};
 };
 
-TEST_F(SurfaceTracker, only_returns_true_if_buffer_already_tracked)
+TEST_F(SurfaceTracker, OnlyReturnsTrueIfBufferAlreadyTracked)
 {
     mf::SurfaceTracker tracker{client_cache_size};
 
@@ -161,7 +161,7 @@ TEST_F(SurfaceTracker, only_returns_true_if_buffer_already_tracked)
     EXPECT_FALSE(tracker.track_buffer(surf_id1, &stub_buffer3));
 }
 
-TEST_F(SurfaceTracker, removals_remove_buffer_instances)
+TEST_F(SurfaceTracker, RemovalsRemoveBufferInstances)
 {
     mf::SurfaceTracker tracker{client_cache_size};
     EXPECT_FALSE(tracker.track_buffer(surf_id0, &stub_buffer0));
@@ -180,7 +180,7 @@ TEST_F(SurfaceTracker, removals_remove_buffer_instances)
     tracker.remove_surface(mf::SurfaceId{33});
 }
 
-TEST_F(SurfaceTracker, last_client_buffer)
+TEST_F(SurfaceTracker, LastClientBuffer)
 {
     mf::SurfaceTracker tracker{client_cache_size};
 
@@ -195,7 +195,7 @@ TEST_F(SurfaceTracker, last_client_buffer)
     EXPECT_EQ(&stub_buffer2, tracker.last_buffer(surf_id1));
 }
 
-TEST_F(SurfaceTracker, buffers_expire_if_they_overrun_cache_size)
+TEST_F(SurfaceTracker, BuffersExpireIfTheyOverrunCacheSize)
 {
     mf::SurfaceTracker tracker{client_cache_size};
 
@@ -216,7 +216,7 @@ TEST_F(SurfaceTracker, buffers_expire_if_they_overrun_cache_size)
     EXPECT_FALSE(tracker.track_buffer(surf_id0, &stub_buffer1));
 }
 
-TEST_F(SurfaceTracker, buffers_only_affect_associated_surfaces)
+TEST_F(SurfaceTracker, BuffersOnlyAffectAssociatedSurfaces)
 {
     mf::SurfaceTracker tracker{client_cache_size};
 
@@ -234,7 +234,7 @@ TEST_F(SurfaceTracker, buffers_only_affect_associated_surfaces)
     EXPECT_EQ(&stub_buffer3, tracker.last_buffer(surf_id1));
 }
 
-TEST_F(SurfaceTracker, can_lookup_a_buffer_from_a_buffer_id)
+TEST_F(SurfaceTracker, CanLookupABufferFromABufferId)
 {
     using namespace testing;
     mf::SurfaceTracker tracker{client_cache_size};

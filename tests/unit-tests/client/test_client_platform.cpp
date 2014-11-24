@@ -45,7 +45,7 @@ struct ClientPlatformTest : public ::testing::Test
 #endif
 };
 
-TEST_F(ClientPlatformTest, platform_name)
+TEST_F(ClientPlatformTest, PlatformName)
 {
     auto platform = factory.create_client_platform(&context);
 #ifdef ANDROID
@@ -56,14 +56,14 @@ TEST_F(ClientPlatformTest, platform_name)
     EXPECT_EQ(type, platform->platform_type());
 }
 
-TEST_F(ClientPlatformTest, platform_creates)
+TEST_F(ClientPlatformTest, PlatformCreates)
 {
     auto platform = factory.create_client_platform(&context);
     auto buffer_factory = platform->create_buffer_factory();
     EXPECT_NE(buffer_factory.get(), (mcl::ClientBufferFactory*) NULL);
 }
 
-TEST_F(ClientPlatformTest, platform_creates_native_window)
+TEST_F(ClientPlatformTest, PlatformCreatesNativeWindow)
 {
     auto platform = factory.create_client_platform(&context);
     auto mock_client_surface = std::make_shared<mtd::MockClientSurface>();
@@ -71,7 +71,7 @@ TEST_F(ClientPlatformTest, platform_creates_native_window)
     EXPECT_NE(*native_window, (EGLNativeWindowType) NULL);
 }
 
-TEST_F(ClientPlatformTest, platform_creates_egl_native_display)
+TEST_F(ClientPlatformTest, PlatformCreatesEglNativeDisplay)
 {
     auto platform = factory.create_client_platform(&context);
     auto native_display = platform->create_egl_native_display();

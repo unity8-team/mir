@@ -92,7 +92,7 @@ public:
     hwc_rect_t region{0,0,0,0};
 };
 
-TEST_F(HWCLayersTest, check_if_layer_needs_gl_render)
+TEST_F(HWCLayersTest, CheckIfLayerNeedsGlRender)
 {
     mga::HWCLayer layer(list, list_index);
 
@@ -109,7 +109,7 @@ TEST_F(HWCLayersTest, check_if_layer_needs_gl_render)
     EXPECT_TRUE(layer.needs_gl_render());
 }
 
-TEST_F(HWCLayersTest, move_layer_positions)
+TEST_F(HWCLayersTest, MoveLayerPositions)
 {
     mga::HWCLayer layer(type, screen_position, false, mock_buffer, list, list_index);
     mga::HWCLayer second_layer(std::move(layer));
@@ -117,7 +117,7 @@ TEST_F(HWCLayersTest, move_layer_positions)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-TEST_F(HWCLayersTest, change_layer_types)
+TEST_F(HWCLayersTest, ChangeLayerTypes)
 {
     expected_layer.compositionType = HWC_FRAMEBUFFER_TARGET;
 
@@ -150,7 +150,7 @@ TEST_F(HWCLayersTest, change_layer_types)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-TEST_F(HWCLayersTest, apply_buffer_updates_to_framebuffer_layer)
+TEST_F(HWCLayersTest, ApplyBufferUpdatesToFramebufferLayer)
 {
     EXPECT_CALL(*native_handle_1, copy_fence())
         .Times(0);
@@ -167,7 +167,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_framebuffer_layer)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-TEST_F(HWCLayersTest, apply_buffer_updates_to_overlay_layers)
+TEST_F(HWCLayersTest, ApplyBufferUpdatesToOverlayLayers)
 {
     int fake_fence = 552;
     hwc_rect_t region = {0,0,buffer_size.width.as_int(), buffer_size.height.as_int()};
@@ -193,7 +193,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_overlay_layers)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-TEST_F(HWCLayersTest, apply_buffer_updates_to_fbtarget)
+TEST_F(HWCLayersTest, ApplyBufferUpdatesToFbtarget)
 {
     int fake_fence = 552;
     hwc_rect_t region = {0,0,buffer_size.width.as_int(), buffer_size.height.as_int()};
@@ -232,7 +232,7 @@ TEST_F(HWCLayersTest, apply_buffer_updates_to_fbtarget)
     EXPECT_THAT(*hwc_layer, MatchesLayer(expected_layer));
 }
 
-TEST_F(HWCLayersTest, buffer_fence_updates)
+TEST_F(HWCLayersTest, BufferFenceUpdates)
 {
     int fake_fence = 552;
     EXPECT_CALL(*native_handle_1, update_usage(fake_fence, mga::BufferAccess::read))
@@ -245,7 +245,7 @@ TEST_F(HWCLayersTest, buffer_fence_updates)
     layer.update_from_releasefence(mock_buffer);
 }
 
-TEST_F(HWCLayersTest, check_layer_defaults_and_alpha)
+TEST_F(HWCLayersTest, CheckLayerDefaultsAndAlpha)
 {
     using namespace testing;
 

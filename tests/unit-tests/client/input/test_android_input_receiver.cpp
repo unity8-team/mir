@@ -146,14 +146,14 @@ std::chrono::milliseconds const AndroidInputReceiverSetup::next_event_timeout(10
 
 }
 
-TEST_F(AndroidInputReceiverSetup, receiever_takes_channel_fd)
+TEST_F(AndroidInputReceiverSetup, ReceieverTakesChannelFd)
 {
     mircva::InputReceiver receiver(client_fd, std::make_shared<mircv::NullInputReceiverReport>());
 
     EXPECT_EQ(client_fd, receiver.fd());
 }
 
-TEST_F(AndroidInputReceiverSetup, receiver_receives_key_events)
+TEST_F(AndroidInputReceiverSetup, ReceiverReceivesKeyEvents)
 {
     mircva::InputReceiver receiver(client_fd, std::make_shared<mircv::NullInputReceiverReport>());
     TestingInputProducer producer(server_fd);
@@ -169,7 +169,7 @@ TEST_F(AndroidInputReceiverSetup, receiver_receives_key_events)
     EXPECT_EQ(producer.testing_key_event_scan_code, ev.key.scan_code);
 }
 
-TEST_F(AndroidInputReceiverSetup, receiver_handles_events)
+TEST_F(AndroidInputReceiverSetup, ReceiverHandlesEvents)
 {
     mircva::InputReceiver receiver(client_fd, std::make_shared<mircv::NullInputReceiverReport>());
     TestingInputProducer producer(server_fd);
@@ -185,7 +185,7 @@ TEST_F(AndroidInputReceiverSetup, receiver_handles_events)
     EXPECT_TRUE (producer.must_receive_handled_signal());
 }
 
-TEST_F(AndroidInputReceiverSetup, receiver_consumes_batched_motion_events)
+TEST_F(AndroidInputReceiverSetup, ReceiverConsumesBatchedMotionEvents)
 {
     mircva::InputReceiver receiver(client_fd, std::make_shared<mircv::NullInputReceiverReport>());
     TestingInputProducer producer(server_fd);
@@ -204,7 +204,7 @@ TEST_F(AndroidInputReceiverSetup, receiver_consumes_batched_motion_events)
     EXPECT_FALSE(receiver.next_event(std::chrono::milliseconds(1), ev)); // Minimal timeout needed for valgrind
 }
 
-TEST_F(AndroidInputReceiverSetup, slow_raw_input_doesnt_cause_frameskipping)
+TEST_F(AndroidInputReceiverSetup, SlowRawInputDoesntCauseFrameskipping)
 {   // Regression test for LP: #1372300
     using namespace testing;
     using namespace std::chrono;
@@ -252,7 +252,7 @@ TEST_F(AndroidInputReceiverSetup, slow_raw_input_doesnt_cause_frameskipping)
     ASSERT_EQ(mir_event_type_motion, ev.type);
 }
 
-TEST_F(AndroidInputReceiverSetup, rendering_does_not_lag_behind_input)
+TEST_F(AndroidInputReceiverSetup, RenderingDoesNotLagBehindInput)
 {
     using namespace testing;
 
@@ -300,7 +300,7 @@ TEST_F(AndroidInputReceiverSetup, rendering_does_not_lag_behind_input)
     EXPECT_THAT(average_lag_milliseconds, Le(1));
 }
 
-TEST_F(AndroidInputReceiverSetup, input_comes_in_phase_with_rendering)
+TEST_F(AndroidInputReceiverSetup, InputComesInPhaseWithRendering)
 {
     using namespace testing;
 

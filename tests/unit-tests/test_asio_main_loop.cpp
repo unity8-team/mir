@@ -123,7 +123,7 @@ private:
 };
 }
 
-TEST_F(AsioMainLoopTest, signal_handled)
+TEST_F(AsioMainLoopTest, SignalHandled)
 {
     int const signum{SIGUSR1};
     int handled_signum{0};
@@ -144,7 +144,7 @@ TEST_F(AsioMainLoopTest, signal_handled)
 }
 
 
-TEST_F(AsioMainLoopTest, multiple_signals_handled)
+TEST_F(AsioMainLoopTest, MultipleSignalsHandled)
 {
     std::vector<int> const signals{SIGUSR1, SIGUSR2};
     size_t const num_signals_to_send{10};
@@ -181,7 +181,7 @@ TEST_F(AsioMainLoopTest, multiple_signals_handled)
         ASSERT_EQ(signals[i % signals.size()], handled_signals[i]) << " index " << i;
 }
 
-TEST_F(AsioMainLoopTest, all_registered_handlers_are_called)
+TEST_F(AsioMainLoopTest, AllRegisteredHandlersAreCalled)
 {
     int const signum{SIGUSR1};
     std::vector<int> handled_signum{0,0,0};
@@ -234,7 +234,7 @@ TEST_F(AsioMainLoopTest, all_registered_handlers_are_called)
     ASSERT_EQ(signum, handled_signum[2]);
 }
 
-TEST_F(AsioMainLoopTest, fd_data_handled)
+TEST_F(AsioMainLoopTest, FdDataHandled)
 {
     mt::Pipe p;
     char const data_to_write{'a'};
@@ -258,7 +258,7 @@ TEST_F(AsioMainLoopTest, fd_data_handled)
     EXPECT_EQ(data_to_write, data_read);
 }
 
-TEST_F(AsioMainLoopTest, multiple_fds_with_single_handler_handled)
+TEST_F(AsioMainLoopTest, MultipleFdsWithSingleHandlerHandled)
 {
     std::vector<mt::Pipe> const pipes(2);
     size_t const num_elems_to_send{10};
@@ -307,7 +307,7 @@ TEST_F(AsioMainLoopTest, multiple_fds_with_single_handler_handled)
     }
 }
 
-TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
+TEST_F(AsioMainLoopTest, MultipleFdHandlersAreCalled)
 {
     std::vector<mt::Pipe> const pipes(3);
     std::vector<int> const elems_to_send{10,11,12};
@@ -380,7 +380,7 @@ TEST_F(AsioMainLoopTest, multiple_fd_handlers_are_called)
     EXPECT_EQ(elems_to_send[2], elems_read[2]);
 }
 
-TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_callbacks)
+TEST_F(AsioMainLoopTest, UnregisterPreventsCallbackAndDoesNotHarmOtherCallbacks)
 {
     mt::Pipe p1, p2;
     char const data_to_write{'a'};
@@ -417,7 +417,7 @@ TEST_F(AsioMainLoopTest, unregister_prevents_callback_and_does_not_harm_other_ca
     EXPECT_EQ(p2.read_fd(), p2_handler_executes);
 }
 
-TEST_F(AsioMainLoopTest, unregister_does_not_close_fds)
+TEST_F(AsioMainLoopTest, UnregisterDoesNotCloseFds)
 {
     mt::Pipe p1, p2;
     char const data_to_write{'b'};
@@ -450,7 +450,7 @@ TEST_F(AsioMainLoopTest, unregister_does_not_close_fds)
     EXPECT_EQ(data_to_write, data_read);
 }
 
-TEST_F(AsioMainLoopAlarmTest, main_loop_runs_until_stop_called)
+TEST_F(AsioMainLoopAlarmTest, MainLoopRunsUntilStopCalled)
 {
     auto mainloop_started = std::make_shared<mt::Signal>();
 
@@ -486,7 +486,7 @@ TEST_F(AsioMainLoopAlarmTest, main_loop_runs_until_stop_called)
     EXPECT_FALSE(timer_fired->wait_for(std::chrono::milliseconds{100}));
 }
 
-TEST_F(AsioMainLoopAlarmTest, alarm_starts_in_pending_state)
+TEST_F(AsioMainLoopAlarmTest, AlarmStartsInPendingState)
 {
     auto alarm = ml.notify_in(delay, [this]() {});
 
@@ -495,7 +495,7 @@ TEST_F(AsioMainLoopAlarmTest, alarm_starts_in_pending_state)
     EXPECT_EQ(mir::time::Alarm::pending, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, alarm_fires_with_correct_delay)
+TEST_F(AsioMainLoopAlarmTest, AlarmFiresWithCorrectDelay)
 {
     UnblockMainLoop unblocker(ml);
 
@@ -508,7 +508,7 @@ TEST_F(AsioMainLoopAlarmTest, alarm_fires_with_correct_delay)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, multiple_alarms_fire)
+TEST_F(AsioMainLoopAlarmTest, MultipleAlarmsFire)
 {
     using namespace testing;
 
@@ -529,7 +529,7 @@ TEST_F(AsioMainLoopAlarmTest, multiple_alarms_fire)
         EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, alarm_changes_to_triggered_state)
+TEST_F(AsioMainLoopAlarmTest, AlarmChangesToTriggeredState)
 {
     auto alarm_fired = std::make_shared<mt::Signal>();
     auto alarm = ml.notify_in(std::chrono::milliseconds{5}, [alarm_fired]()
@@ -545,7 +545,7 @@ TEST_F(AsioMainLoopAlarmTest, alarm_changes_to_triggered_state)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
+TEST_F(AsioMainLoopAlarmTest, CancelledAlarmDoesntFire)
 {
     UnblockMainLoop unblocker(ml);
     auto alarm = ml.notify_in(std::chrono::milliseconds{100},
@@ -560,7 +560,7 @@ TEST_F(AsioMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
     EXPECT_EQ(mir::time::Alarm::cancelled, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, destroyed_alarm_doesnt_fire)
+TEST_F(AsioMainLoopAlarmTest, DestroyedAlarmDoesntFire)
 {
     auto alarm = ml.notify_in(std::chrono::milliseconds{200},
                               [](){ FAIL() << "Alarm handler of destroyed alarm called"; });
@@ -571,7 +571,7 @@ TEST_F(AsioMainLoopAlarmTest, destroyed_alarm_doesnt_fire)
     clock->advance_by(std::chrono::milliseconds{200}, ml);
 }
 
-TEST_F(AsioMainLoopAlarmTest, rescheduled_alarm_fires_again)
+TEST_F(AsioMainLoopAlarmTest, RescheduledAlarmFiresAgain)
 {
     std::atomic<int> call_count{0};
 
@@ -593,7 +593,7 @@ TEST_F(AsioMainLoopAlarmTest, rescheduled_alarm_fires_again)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(AsioMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
+TEST_F(AsioMainLoopAlarmTest, RescheduledAlarmCancelsPreviousScheduling)
 {
     std::atomic<int> call_count{0};
 
@@ -616,7 +616,7 @@ TEST_F(AsioMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
     EXPECT_EQ(1, call_count);
 }
 
-TEST_F(AsioMainLoopAlarmTest, alarm_callback_cannot_deadlock)
+TEST_F(AsioMainLoopAlarmTest, AlarmCallbackCannotDeadlock)
 {   // Regression test for deadlock bug LP: #1339700
     std::timed_mutex m;
     std::atomic_bool failed(false);
@@ -656,7 +656,7 @@ TEST_F(AsioMainLoopAlarmTest, alarm_callback_cannot_deadlock)
     t.join();
 }
 
-TEST_F(AsioMainLoopAlarmTest, alarm_fires_at_correct_time_point)
+TEST_F(AsioMainLoopAlarmTest, AlarmFiresAtCorrectTimePoint)
 {
     mir::time::Timestamp real_soon = clock->now() + std::chrono::milliseconds{120};
 
@@ -671,7 +671,7 @@ TEST_F(AsioMainLoopAlarmTest, alarm_fires_at_correct_time_point)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(AsioMainLoopTest, dispatches_action)
+TEST_F(AsioMainLoopTest, DispatchesAction)
 {
     using namespace testing;
 
@@ -691,7 +691,7 @@ TEST_F(AsioMainLoopTest, dispatches_action)
     EXPECT_THAT(num_actions, Eq(1));
 }
 
-TEST_F(AsioMainLoopTest, dispatches_multiple_actions_in_order)
+TEST_F(AsioMainLoopTest, DispatchesMultipleActionsInOrder)
 {
     using namespace testing;
 
@@ -718,7 +718,7 @@ TEST_F(AsioMainLoopTest, dispatches_multiple_actions_in_order)
         EXPECT_THAT(actions[i], Eq(i)) << "i = " << i;
 }
 
-TEST_F(AsioMainLoopTest, does_not_dispatch_paused_actions)
+TEST_F(AsioMainLoopTest, DoesNotDispatchPausedActions)
 {
     using namespace testing;
 
@@ -769,7 +769,7 @@ TEST_F(AsioMainLoopTest, does_not_dispatch_paused_actions)
     EXPECT_THAT(actions[1], Eq(3));
 }
 
-TEST_F(AsioMainLoopTest, dispatches_resumed_actions)
+TEST_F(AsioMainLoopTest, DispatchesResumedActions)
 {
     using namespace testing;
 
@@ -804,7 +804,7 @@ TEST_F(AsioMainLoopTest, dispatches_resumed_actions)
     EXPECT_THAT(actions[1], Eq(0));
 }
 
-TEST_F(AsioMainLoopTest, handles_enqueue_from_within_action)
+TEST_F(AsioMainLoopTest, HandlesEnqueueFromWithinAction)
 {
     using namespace testing;
 
@@ -840,7 +840,7 @@ TEST_F(AsioMainLoopTest, handles_enqueue_from_within_action)
 }
 
 // More targeted regression test for LP: #1381925
-TEST_F(AsioMainLoopTest, stress_emits_alarm_notification_with_zero_timeout)
+TEST_F(AsioMainLoopTest, StressEmitsAlarmNotificationWithZeroTimeout)
 {
     using namespace ::testing;
 

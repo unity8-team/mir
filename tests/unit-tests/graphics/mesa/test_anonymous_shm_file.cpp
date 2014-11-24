@@ -21,7 +21,7 @@
 
 namespace mgm = mir::graphics::mesa;
 
-TEST(AnonymousShmFile, is_created)
+TEST(AnonymousShmFile, IsCreated)
 {
     size_t const file_size{100};
 
@@ -30,7 +30,7 @@ TEST(AnonymousShmFile, is_created)
     EXPECT_GE(shm_file.fd(), 0);
 }
 
-TEST(AnonymousShmFile, has_correct_size)
+TEST(AnonymousShmFile, HasCorrectSize)
 {
     size_t const file_size{100};
 
@@ -42,7 +42,7 @@ TEST(AnonymousShmFile, has_correct_size)
     EXPECT_EQ(static_cast<off_t>(file_size), stat.st_size);
 }
 
-TEST(AnonymousShmFile, writing_to_base_ptr_writes_to_file)
+TEST(AnonymousShmFile, WritingToBasePtrWritesToFile)
 {
     size_t const file_size{100};
 

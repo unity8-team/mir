@@ -45,7 +45,7 @@ public:
 
 }
 
-TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
+TEST_F(OffscreenDisplayTest, UsesBasicPlatformEglNativeDisplay)
 {
     using namespace ::testing;
     InSequence s;
@@ -59,7 +59,7 @@ TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
         mr::null_display_report()};
 }
 
-TEST_F(OffscreenDisplayTest, orientation_normal)
+TEST_F(OffscreenDisplayTest, OrientationNormal)
 {
     using namespace ::testing;
     mgo::Display display{
@@ -78,7 +78,7 @@ TEST_F(OffscreenDisplayTest, orientation_normal)
     EXPECT_TRUE(count);
 }
 
-TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
+TEST_F(OffscreenDisplayTest, MakesFboCurrentRenderingTarget)
 {
     using namespace ::testing;
 
@@ -109,7 +109,7 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
         });
 }
 
-TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
+TEST_F(OffscreenDisplayTest, RestoresPreviousStateOnFboSetupFailure)
 {
     using namespace ::testing;
 

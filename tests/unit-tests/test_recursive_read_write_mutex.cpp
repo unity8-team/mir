@@ -63,31 +63,31 @@ struct RecursiveReadWriteMutex : public Test
 };
 }
 
-TEST_F(RecursiveReadWriteMutex, can_be_recursively_read_locked)
+TEST_F(RecursiveReadWriteMutex, CanBeRecursivelyReadLocked)
 {
     for (int i = 0; i != recursion_depth; ++i)
         mutex.read_lock();
 }
 
-TEST_F(RecursiveReadWriteMutex, can_be_recursively_write_locked)
+TEST_F(RecursiveReadWriteMutex, CanBeRecursivelyWriteLocked)
 {
     for (int i = 0; i != recursion_depth; ++i)
         mutex.write_lock();
 }
 
-TEST_F(RecursiveReadWriteMutex, can_be_write_locked_on_thread_with_read_lock)
+TEST_F(RecursiveReadWriteMutex, CanBeWriteLockedOnThreadWithReadLock)
 {
     mutex.read_lock();
     mutex.write_lock();
 }
 
-TEST_F(RecursiveReadWriteMutex, can_be_read_locked_on_thread_with_write_lock)
+TEST_F(RecursiveReadWriteMutex, CanBeReadLockedOnThreadWithWriteLock)
 {
     mutex.write_lock();
     mutex.read_lock();
 }
 
-TEST_F(RecursiveReadWriteMutex, can_be_read_locked_on_multiple_threads)
+TEST_F(RecursiveReadWriteMutex, CanBeReadLockedOnMultipleThreads)
 {
     auto const reader_function =
         [&]{
@@ -109,7 +109,7 @@ TEST_F(RecursiveReadWriteMutex, can_be_read_locked_on_multiple_threads)
         threads.push_back(std::thread{reader_function});
 }
 
-TEST_F(RecursiveReadWriteMutex, write_lock_waits_for_read_locks_on_other_threads)
+TEST_F(RecursiveReadWriteMutex, WriteLockWaitsForReadLocksOnOtherThreads)
 {
     auto const reader_function =
         [&]{
@@ -142,7 +142,7 @@ TEST_F(RecursiveReadWriteMutex, write_lock_waits_for_read_locks_on_other_threads
     threads.push_back(std::thread{writer_function});
 }
 
-TEST_F(RecursiveReadWriteMutex, read_lock_waits_for_write_locks_on_other_threads)
+TEST_F(RecursiveReadWriteMutex, ReadLockWaitsForWriteLocksOnOtherThreads)
 {
     auto const reader_function =
         [&]{

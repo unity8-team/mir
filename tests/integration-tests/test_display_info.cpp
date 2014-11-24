@@ -132,7 +132,7 @@ public:
 
 using AvailableSurfaceFormatsTest = BespokeDisplayServerTestFixture;
 
-TEST_F(AvailableSurfaceFormatsTest, surface_pixel_formats_reach_client)
+TEST_F(AvailableSurfaceFormatsTest, SurfacePixelFormatsReachClient)
 {
     struct ServerConfig : TestingServerConfiguration
     {

@@ -27,7 +27,7 @@ namespace mg = mir::graphics;
     EXPECT_EQ(static_cast<mg::DisplayConfigurationOutputType>(mir_display_output_type_##TYPE), \
               mg::DisplayConfigurationOutputType::TYPE)
 
-TEST(ServerClientTypes, display_output_types_match)
+TEST(ServerClientTypes, DisplayOutputTypesMatch)
 {
     EXPECT_DISPLAY_OUTPUT_TYPES_MATCH(unknown);
     EXPECT_DISPLAY_OUTPUT_TYPES_MATCH(vga);

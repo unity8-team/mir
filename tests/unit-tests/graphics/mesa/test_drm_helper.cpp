@@ -54,7 +54,7 @@ protected:
 
 }
 
-TEST_F(DRMHelperTest, closes_drm_fd_on_exec)
+TEST_F(DRMHelperTest, ClosesDrmFdOnExec)
 {   
     using namespace testing;
 

@@ -147,7 +147,7 @@ struct MediatingDisplayChangerTest : public ::testing::Test
 
 }
 
-TEST_F(MediatingDisplayChangerTest, returns_active_configuration_from_display)
+TEST_F(MediatingDisplayChangerTest, ReturnsActiveConfigurationFromDisplay)
 {
     using namespace testing;
 
@@ -155,7 +155,7 @@ TEST_F(MediatingDisplayChangerTest, returns_active_configuration_from_display)
     EXPECT_EQ(mock_display.conf_ptr, returned_conf.get());
 }
 
-TEST_F(MediatingDisplayChangerTest, pauses_system_when_applying_new_configuration_for_focused_session)
+TEST_F(MediatingDisplayChangerTest, PausesSystemWhenApplyingNewConfigurationForFocusedSession)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -175,7 +175,7 @@ TEST_F(MediatingDisplayChangerTest, pauses_system_when_applying_new_configuratio
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, doesnt_apply_config_for_unfocused_session)
+TEST_F(MediatingDisplayChangerTest, DoesntApplyConfigForUnfocusedSession)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -190,7 +190,7 @@ TEST_F(MediatingDisplayChangerTest, doesnt_apply_config_for_unfocused_session)
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_pausing_system)
+TEST_F(MediatingDisplayChangerTest, HandlesHardwareChangeProperlyWhenPausingSystem)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -208,7 +208,7 @@ TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_pausin
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_retaining_system_state)
+TEST_F(MediatingDisplayChangerTest, HandlesHardwareChangeProperlyWhenRetainingSystemState)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -226,7 +226,7 @@ TEST_F(MediatingDisplayChangerTest, handles_hardware_change_properly_when_retain
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, hardware_change_doesnt_apply_base_config_if_per_session_config_is_active)
+TEST_F(MediatingDisplayChangerTest, HardwareChangeDoesntApplyBaseConfigIfPerSessionConfigIsActive)
 {
     using namespace testing;
 
@@ -253,7 +253,7 @@ TEST_F(MediatingDisplayChangerTest, hardware_change_doesnt_apply_base_config_if_
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, notifies_all_sessions_on_hardware_config_change)
+TEST_F(MediatingDisplayChangerTest, NotifiesAllSessionsOnHardwareConfigChange)
 {
     using namespace testing;
     mtd::NullDisplayConfiguration conf;
@@ -272,7 +272,7 @@ TEST_F(MediatingDisplayChangerTest, notifies_all_sessions_on_hardware_config_cha
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, focusing_a_session_with_attached_config_applies_config)
+TEST_F(MediatingDisplayChangerTest, FocusingASessionWithAttachedConfigAppliesConfig)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -291,7 +291,7 @@ TEST_F(MediatingDisplayChangerTest, focusing_a_session_with_attached_config_appl
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, focusing_a_session_without_attached_config_applies_base_config)
+TEST_F(MediatingDisplayChangerTest, FocusingASessionWithoutAttachedConfigAppliesBaseConfig)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -317,7 +317,7 @@ TEST_F(MediatingDisplayChangerTest, focusing_a_session_without_attached_config_a
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, losing_focus_applies_base_config)
+TEST_F(MediatingDisplayChangerTest, LosingFocusAppliesBaseConfig)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -342,7 +342,7 @@ TEST_F(MediatingDisplayChangerTest, losing_focus_applies_base_config)
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, base_config_is_not_applied_if_already_active)
+TEST_F(MediatingDisplayChangerTest, BaseConfigIsNotAppliedIfAlreadyActive)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -363,7 +363,7 @@ TEST_F(MediatingDisplayChangerTest, base_config_is_not_applied_if_already_active
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, hardware_change_invalidates_session_configs)
+TEST_F(MediatingDisplayChangerTest, HardwareChangeInvalidatesSessionConfigs)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -392,7 +392,7 @@ TEST_F(MediatingDisplayChangerTest, hardware_change_invalidates_session_configs)
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, session_stopping_invalidates_session_config)
+TEST_F(MediatingDisplayChangerTest, SessionStoppingInvalidatesSessionConfig)
 {
     using namespace testing;
     auto conf = std::make_shared<mtd::NullDisplayConfiguration>();
@@ -420,7 +420,7 @@ TEST_F(MediatingDisplayChangerTest, session_stopping_invalidates_session_config)
     server_action_queue.flush();
 }
 
-TEST_F(MediatingDisplayChangerTest, uses_server_action_queue_for_configuration_actions)
+TEST_F(MediatingDisplayChangerTest, UsesServerActionQueueForConfigurationActions)
 {
     using namespace testing;
 

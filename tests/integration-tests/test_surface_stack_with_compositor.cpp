@@ -160,7 +160,7 @@ struct SurfaceStackCompositor : public testing::Test
 };
 }
 
-TEST_F(SurfaceStackCompositor, composes_on_start_if_told_to_in_constructor)
+TEST_F(SurfaceStackCompositor, ComposesOnStartIfToldToInConstructor)
 {
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),
@@ -173,7 +173,7 @@ TEST_F(SurfaceStackCompositor, composes_on_start_if_told_to_in_constructor)
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(1, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, does_not_composes_on_start_if_told_not_to_in_constructor)
+TEST_F(SurfaceStackCompositor, DoesNotComposesOnStartIfToldNotToInConstructor)
 {
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),
@@ -186,7 +186,7 @@ TEST_F(SurfaceStackCompositor, does_not_composes_on_start_if_told_not_to_in_cons
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(0, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a_composition)
+TEST_F(SurfaceStackCompositor, AddingASurfaceThatHasBeenSwappedTriggersAComposition)
 {
     mc::MultiThreadedCompositor mt_compositor(
         mt::fake_shared(stub_display),
@@ -203,7 +203,7 @@ TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a
 }
 
 //test associated with lp:1290306, 1293896, 1294048, 1294051, 1294053
-TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_consumed)
+TEST_F(SurfaceStackCompositor, CompositorRunsUntilAllSurfacesBuffersAreConsumed)
 {
     using namespace testing;
     ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
@@ -223,7 +223,7 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(5, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffers_are_consumed)
+TEST_F(SurfaceStackCompositor, BypassedCompositorRunsUntilAllSurfacesBuffersAreConsumed)
 {
     using namespace testing;
     ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
@@ -245,7 +245,7 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(5, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
+TEST_F(SurfaceStackCompositor, AnEmptySceneRetriggers)
 {
     using namespace testing;
     ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
@@ -270,7 +270,7 @@ TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(2, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, moving_a_surface_triggers_composition)
+TEST_F(SurfaceStackCompositor, MovingASurfaceTriggersComposition)
 {
     stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
@@ -288,7 +288,7 @@ TEST_F(SurfaceStackCompositor, moving_a_surface_triggers_composition)
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(1, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
+TEST_F(SurfaceStackCompositor, RemovingASurfaceTriggersComposition)
 {
     stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
@@ -306,7 +306,7 @@ TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
     EXPECT_TRUE(stub_secondary_db.has_posted_at_least(1, timeout));
 }
 
-TEST_F(SurfaceStackCompositor, buffer_updates_trigger_composition)
+TEST_F(SurfaceStackCompositor, BufferUpdatesTriggerComposition)
 {
     ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
         .WillByDefault(testing::Return(1));

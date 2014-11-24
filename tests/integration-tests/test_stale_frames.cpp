@@ -183,7 +183,7 @@ struct StaleFrames : BasicFixture
 
 }
 
-TEST_F(StaleFrames, are_dropped_when_restarting_compositor)
+TEST_F(StaleFrames, AreDroppedWhenRestartingCompositor)
 {
     using namespace testing;
 
@@ -212,7 +212,7 @@ TEST_F(StaleFrames, are_dropped_when_restarting_compositor)
     EXPECT_THAT(stale_buffers, Not(Contains(new_buffers[0])));
 }
 
-TEST_F(StaleFrames, only_fresh_frames_are_used_after_restarting_compositor)
+TEST_F(StaleFrames, OnlyFreshFramesAreUsedAfterRestartingCompositor)
 {
     using namespace testing;
 

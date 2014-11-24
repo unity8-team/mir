@@ -309,7 +309,7 @@ MATCHER_P(SessionWithName, name, "")
 }
 }
 
-TEST_F(PromptSessionClientAPI, can_start_and_stop_a_prompt_session)
+TEST_F(PromptSessionClientAPI, CanStartAndStopAPromptSession)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -328,7 +328,7 @@ TEST_F(PromptSessionClientAPI, can_start_and_stop_a_prompt_session)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, notifies_start_and_stop)
+TEST_F(PromptSessionClientAPI, NotifiesStartAndStop)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -342,7 +342,7 @@ TEST_F(PromptSessionClientAPI, notifies_start_and_stop)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, can_get_fds_for_prompt_providers)
+TEST_F(PromptSessionClientAPI, CanGetFdsForPromptProviders)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -386,7 +386,7 @@ TEST_F(PromptSessionClientAPI,
 // TODO we need a nice way to run this (and similar tests that require a
 // TODO separate client process) in CI. Disabled as we can't be sure the
 // TODO mir_demo_client_basic executable is about.
-TEST_F(PromptSessionClientAPI, DISABLED_client_pid_is_associated_with_session)
+TEST_F(PromptSessionClientAPI, DISABLED_ClientPidIsAssociatedWithSession)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -417,7 +417,7 @@ TEST_F(PromptSessionClientAPI, DISABLED_client_pid_is_associated_with_session)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, notifies_when_server_closes_prompt_session)
+TEST_F(PromptSessionClientAPI, NotifiesWhenServerClosesPromptSession)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -438,7 +438,7 @@ TEST_F(PromptSessionClientAPI, notifies_when_server_closes_prompt_session)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, after_server_closes_prompt_session_api_isnt_broken)
+TEST_F(PromptSessionClientAPI, AfterServerClosesPromptSessionApiIsntBroken)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -455,7 +455,7 @@ TEST_F(PromptSessionClientAPI, after_server_closes_prompt_session_api_isnt_broke
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, server_retrieves_application_session)
+TEST_F(PromptSessionClientAPI, ServerRetrievesApplicationSession)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     capture_server_prompt_session();
@@ -469,7 +469,7 @@ TEST_F(PromptSessionClientAPI, server_retrieves_application_session)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, server_retrieves_helper_session)
+TEST_F(PromptSessionClientAPI, ServerRetrievesHelperSession)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -486,7 +486,7 @@ TEST_F(PromptSessionClientAPI, server_retrieves_helper_session)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, server_retrieves_child_provider_sessions)
+TEST_F(PromptSessionClientAPI, ServerRetrievesChildProviderSessions)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -507,7 +507,7 @@ TEST_F(PromptSessionClientAPI, server_retrieves_child_provider_sessions)
     mir_prompt_session_release_sync(prompt_session);
 }
 
-TEST_F(PromptSessionClientAPI, cannot_start_a_prompt_session_without_authorization)
+TEST_F(PromptSessionClientAPI, CannotStartAPromptSessionWithoutAuthorization)
 {
     EXPECT_CALL(*the_mock_session_authorizer(), prompt_session_is_allowed(_))
         .WillOnce(Return(false));
@@ -570,7 +570,7 @@ TEST_F(PromptSessionClientAPI,
 }
 
 // lp:1377968
-TEST_F(PromptSessionClientAPI, when_application_pid_is_invalid_starting_a_prompt_session_fails)
+TEST_F(PromptSessionClientAPI, WhenApplicationPidIsInvalidStartingAPromptSessionFails)
 {
     connection = mir_connect_sync(new_prompt_connection().c_str(), __PRETTY_FUNCTION__);
 

@@ -22,7 +22,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-TEST(VariableLengthArray, has_correct_size_if_using_builtin)
+TEST(VariableLengthArray, HasCorrectSizeIfUsingBuiltin)
 {
     using namespace testing;
 
@@ -34,7 +34,7 @@ TEST(VariableLengthArray, has_correct_size_if_using_builtin)
     memset(vla.data(), 0x55, vla.size());
 }
 
-TEST(VariableLengthArray, has_correct_size_if_using_heap)
+TEST(VariableLengthArray, HasCorrectSizeIfUsingHeap)
 {
     using namespace testing;
 
@@ -46,7 +46,7 @@ TEST(VariableLengthArray, has_correct_size_if_using_heap)
     memset(vla.data(), 0x55, vla.size());
 }
 
-TEST(VariableLengthArray, resizes_from_builtin_to_heap)
+TEST(VariableLengthArray, ResizesFromBuiltinToHeap)
 {
     using namespace testing;
 
@@ -61,7 +61,7 @@ TEST(VariableLengthArray, resizes_from_builtin_to_heap)
     memset(vla.data(), 0x55, vla.size());
 }
 
-TEST(VariableLengthArray, resizes_from_builtin_to_builtin)
+TEST(VariableLengthArray, ResizesFromBuiltinToBuiltin)
 {
     using namespace testing;
 
@@ -76,7 +76,7 @@ TEST(VariableLengthArray, resizes_from_builtin_to_builtin)
     memset(vla.data(), 0x55, vla.size());
 }
 
-TEST(VariableLengthArray, resizes_from_heap_to_builtin)
+TEST(VariableLengthArray, ResizesFromHeapToBuiltin)
 {
     using namespace testing;
 
@@ -91,7 +91,7 @@ TEST(VariableLengthArray, resizes_from_heap_to_builtin)
     memset(vla.data(), 0x55, vla.size());
 }
 
-TEST(VariableLengthArray, resizes_from_heap_to_heap)
+TEST(VariableLengthArray, ResizesFromHeapToHeap)
 {
     using namespace testing;
 

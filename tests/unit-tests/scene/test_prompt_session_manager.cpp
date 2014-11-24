@@ -120,7 +120,7 @@ struct PromptSessionManager : public testing::Test
 };
 }
 
-TEST_F(PromptSessionManager, notifies_provider_of_start_and_stop)
+TEST_F(PromptSessionManager, NotifiesProviderOfStartAndStop)
 {
     InSequence seq;
     EXPECT_CALL(prompt_session_listener, starting(_)).Times(1);
@@ -134,30 +134,30 @@ TEST_F(PromptSessionManager, notifies_provider_of_start_and_stop)
     Mock::VerifyAndClearExpectations(&prompt_session_listener);
 }
 
-TEST_F(PromptSessionManager, sets_helper_for)
+TEST_F(PromptSessionManager, SetsHelperFor)
 {
     EXPECT_EQ(session_manager.helper_for(prompt_session), helper);
 }
 
-TEST_F(PromptSessionManager, sets_application_for)
+TEST_F(PromptSessionManager, SetsApplicationFor)
 {
     EXPECT_EQ(session_manager.application_for(prompt_session), application_session);
 }
 
-TEST_F(PromptSessionManager, successfully_adds_a_provider)
+TEST_F(PromptSessionManager, SuccessfullyAddsAProvider)
 {
     session_manager.add_prompt_provider(prompt_session, provider_session);
 
     EXPECT_THAT(list_providers_for(prompt_session), ElementsAre(provider_session));
 }
 
-TEST_F(PromptSessionManager, no_exception_when_adding_a_prompt_provider_twice)
+TEST_F(PromptSessionManager, NoExceptionWhenAddingAPromptProviderTwice)
 {
     session_manager.add_prompt_provider(prompt_session, provider_session);
     EXPECT_NO_THROW(session_manager.add_prompt_provider(prompt_session, provider_session));
 }
 
-TEST_F(PromptSessionManager, thows_exception_when_adding_a_prompt_provider_with_stopped_prompt_session)
+TEST_F(PromptSessionManager, ThowsExceptionWhenAddingAPromptProviderWithStoppedPromptSession)
 {
     session_manager.stop_prompt_session(prompt_session);
 
@@ -166,7 +166,7 @@ TEST_F(PromptSessionManager, thows_exception_when_adding_a_prompt_provider_with_
         std::runtime_error);
 }
 
-TEST_F(PromptSessionManager, can_iterate_over_prompt_providers_in_a_prompt_session)
+TEST_F(PromptSessionManager, CanIterateOverPromptProvidersInAPromptSession)
 {
     session_manager.add_prompt_provider(prompt_session, provider_session);
     session_manager.add_prompt_provider(prompt_session, another_prompt_provider);
@@ -182,7 +182,7 @@ TEST_F(PromptSessionManager, can_iterate_over_prompt_providers_in_a_prompt_sessi
             { mock.enumerate(prompt_provider); });
 }
 
-TEST_F(PromptSessionManager, can_fetch_application_during_listener_notifications)
+TEST_F(PromptSessionManager, CanFetchApplicationDuringListenerNotifications)
 {
     ON_CALL(prompt_session_listener, starting(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::application_for));
     ON_CALL(prompt_session_listener, stopping(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::application_for));
@@ -195,7 +195,7 @@ TEST_F(PromptSessionManager, can_fetch_application_during_listener_notifications
     session_manager.stop_prompt_session(prompt_session);
 }
 
-TEST_F(PromptSessionManager, can_fetch_helper_during_listener_notifications)
+TEST_F(PromptSessionManager, CanFetchHelperDuringListenerNotifications)
 {
     ON_CALL(prompt_session_listener, starting(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::helper_for));
     ON_CALL(prompt_session_listener, stopping(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::helper_for));
@@ -208,7 +208,7 @@ TEST_F(PromptSessionManager, can_fetch_helper_during_listener_notifications)
     session_manager.stop_prompt_session(prompt_session);
 }
 
-TEST_F(PromptSessionManager, can_iterating_over_prompt_providers_during_listener_notifications)
+TEST_F(PromptSessionManager, CanIteratingOverPromptProvidersDuringListenerNotifications)
 {
     ON_CALL(prompt_session_listener, starting(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::iterate_providers));
     ON_CALL(prompt_session_listener, stopping(_)).WillByDefault(InvokeWithoutArgs(this, &PromptSessionManager::iterate_providers));

@@ -89,7 +89,7 @@ struct DemoCompositor : testing::Test
 }
 
 // Regression test for https://bugs.launchpad.net/mir/+bug/1359487
-TEST_F(DemoCompositor, sets_surface_visibility)
+TEST_F(DemoCompositor, SetsSurfaceVisibility)
 {
     using namespace testing;
 

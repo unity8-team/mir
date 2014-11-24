@@ -49,7 +49,7 @@ struct StubDisplay : mtd::StubDisplay
 
 }
 
-TEST(GraphicsDisplayLayoutTest, clips_correctly)
+TEST(GraphicsDisplayLayoutTest, ClipsCorrectly)
 {
     auto stub_display = std::make_shared<StubDisplay>();
 
@@ -79,7 +79,7 @@ TEST(GraphicsDisplayLayoutTest, clips_correctly)
     }
 }
 
-TEST(GraphicsDisplayLayoutTest, makes_fullscreen_in_correct_screen)
+TEST(GraphicsDisplayLayoutTest, MakesFullscreenInCorrectScreen)
 {
     auto stub_display = std::make_shared<StubDisplay>();
 
@@ -109,7 +109,7 @@ TEST(GraphicsDisplayLayoutTest, makes_fullscreen_in_correct_screen)
     }
 }
 
-TEST(GraphicsDisplayLayoutTest, place_in_output_places_in_correct_output)
+TEST(GraphicsDisplayLayoutTest, PlaceInOutputPlacesInCorrectOutput)
 {
     auto stub_display = std::make_shared<StubDisplay>();
 
@@ -145,7 +145,7 @@ TEST(GraphicsDisplayLayoutTest, place_in_output_places_in_correct_output)
     }
 }
 
-TEST(GraphicsDisplayLayoutTest, place_in_output_throws_on_non_fullscreen_request)
+TEST(GraphicsDisplayLayoutTest, PlaceInOutputThrowsOnNonFullscreenRequest)
 {
     auto stub_display = std::make_shared<StubDisplay>();
 

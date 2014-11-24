@@ -55,7 +55,7 @@ struct MirBufferFactoryTest : public testing::Test
 
 };
 
-TEST_F(MirBufferFactoryTest, factory_sets_width_and_height)
+TEST_F(MirBufferFactoryTest, FactorySetsWidthAndHeight)
 {
     using namespace testing;
 

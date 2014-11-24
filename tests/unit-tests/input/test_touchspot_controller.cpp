@@ -118,7 +118,7 @@ MATCHER(SoftwareBuffer, "")
 
 }
 
-TEST_F(TestTouchspotController, allocates_software_buffer_for_touchspots)
+TEST_F(TestTouchspotController, AllocatesSoftwareBufferForTouchspots)
 {
     using namespace ::testing;
 
@@ -127,7 +127,7 @@ TEST_F(TestTouchspotController, allocates_software_buffer_for_touchspots)
     mi::TouchspotController controller(allocator, writer, scene);
 }
 
-TEST_F(TestTouchspotController, touches_result_in_renderables_in_stack)
+TEST_F(TestTouchspotController, TouchesResultInRenderablesInStack)
 {
     using namespace ::testing;
     
@@ -141,7 +141,7 @@ TEST_F(TestTouchspotController, touches_result_in_renderables_in_stack)
     scene->expect_spots_centered_at({{0, 0}});
 }
 
-TEST_F(TestTouchspotController, spots_move)
+TEST_F(TestTouchspotController, SpotsMove)
 {
     using namespace ::testing;
     
@@ -156,7 +156,7 @@ TEST_F(TestTouchspotController, spots_move)
     scene->expect_spots_centered_at({{1, 1}});
 }
 
-TEST_F(TestTouchspotController, multiple_spots)
+TEST_F(TestTouchspotController, MultipleSpots)
 {
     using namespace ::testing;
     
@@ -178,7 +178,7 @@ TEST_F(TestTouchspotController, multiple_spots)
 // This leaves some semantics undefined, i,e. if the touchspot controller is enabled/disabled
 // during a gesture do the spots appear/dissapear? I've been unable to develop a strong opinion
 // on this semantic, so I am leaving it unspecified ~racarr
-TEST_F(TestTouchspotController, touches_do_not_result_in_renderables_in_stack_when_disabled)
+TEST_F(TestTouchspotController, TouchesDoNotResultInRenderablesInStackWhenDisabled)
 {
     using namespace ::testing;
     
@@ -220,7 +220,7 @@ struct TestTouchspotControllerSceneUpdates : public TestTouchspotController
 
 }
 
-TEST_F(TestTouchspotControllerSceneUpdates, does_not_emit_damage_if_nothing_happens)
+TEST_F(TestTouchspotControllerSceneUpdates, DoesNotEmitDamageIfNothingHappens)
 {
     EXPECT_CALL(*scene, emit_scene_changed()).Times(0);
 
@@ -234,7 +234,7 @@ TEST_F(TestTouchspotControllerSceneUpdates, does_not_emit_damage_if_nothing_happ
     controller.visualize_touches({});
 }
 
-TEST_F(TestTouchspotControllerSceneUpdates, emits_scene_damage)
+TEST_F(TestTouchspotControllerSceneUpdates, EmitsSceneDamage)
 {
     EXPECT_CALL(*scene, emit_scene_changed()).Times(2);
 

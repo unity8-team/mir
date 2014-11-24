@@ -65,7 +65,7 @@ protected:
 
 }
 
-TEST_F(MesaNativePlatformTest, auth_magic_is_delegated_to_nested_context)
+TEST_F(MesaNativePlatformTest, AuthMagicIsDelegatedToNestedContext)
 {
     using namespace testing;
     mgm::NativePlatform native(mt::fake_shared(mock_nested_context));
@@ -75,7 +75,7 @@ TEST_F(MesaNativePlatformTest, auth_magic_is_delegated_to_nested_context)
     ipc_ops->connection_ipc_package();
 }
 
-TEST_F(MesaNativePlatformTest, sets_gbm_device_during_initialization)
+TEST_F(MesaNativePlatformTest, SetsGbmDeviceDuringInitialization)
 {
     EXPECT_CALL(mock_nested_context, drm_set_gbm_device(mock_gbm.fake_gbm.device));
     mgm::NativePlatform native(mt::fake_shared(mock_nested_context));

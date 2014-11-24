@@ -42,7 +42,7 @@ namespace mf = mir::frontend;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(DefaultFocusMechanism, mechanism_notifies_default_surface_of_focus_changes)
+TEST(DefaultFocusMechanism, MechanismNotifiesDefaultSurfaceOfFocusChanges)
 {
     using namespace ::testing;
 
@@ -69,7 +69,7 @@ TEST(DefaultFocusMechanism, mechanism_notifies_default_surface_of_focus_changes)
     focus_mechanism.set_focus_to(mt::fake_shared(app2));
 }
 
-TEST(DefaultFocusMechanism, sets_input_focus)
+TEST(DefaultFocusMechanism, SetsInputFocus)
 {
     using namespace ::testing;
 
@@ -104,7 +104,7 @@ TEST(DefaultFocusMechanism, sets_input_focus)
     focus_mechanism.set_focus_to(std::shared_ptr<ms::Session>());
 }
 
-TEST(DefaultFocusMechanism, notifies_surface_of_focus_change_after_it_has_taken_the_focus)
+TEST(DefaultFocusMechanism, NotifiesSurfaceOfFocusChangeAfterItHasTakenTheFocus)
 {
     using namespace ::testing;
 

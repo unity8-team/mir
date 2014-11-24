@@ -48,7 +48,7 @@ struct DefaultPlacementStrategySetup : public testing::Test
 };
 }
 
-TEST_F(DefaultPlacementStrategySetup, parameters_with_output_id_are_placed_in_output)
+TEST_F(DefaultPlacementStrategySetup, ParametersWithOutputIdArePlacedInOutput)
 {
     using namespace ::testing;
 

@@ -37,7 +37,7 @@ protected:
     testing::NiceMock<mtd::MockEGL> mock_egl;
 };
 
-TEST_F(EGLExtensionsTest, constructor_throws_if_egl_image_not_supported)
+TEST_F(EGLExtensionsTest, ConstructorThrowsIfEglImageNotSupported)
 {
     using namespace testing;
     typedef mtd::MockEGL::generic_function_pointer_t func_ptr_t;
@@ -52,7 +52,7 @@ TEST_F(EGLExtensionsTest, constructor_throws_if_egl_image_not_supported)
     }, std::runtime_error);
 }
 
-TEST_F(EGLExtensionsTest, constructor_throws_if_gl_oes_egl_image_not_supported)
+TEST_F(EGLExtensionsTest, ConstructorThrowsIfGlOesEglImageNotSupported)
 {
     using namespace testing;
     typedef mtd::MockEGL::generic_function_pointer_t func_ptr_t;
@@ -65,7 +65,7 @@ TEST_F(EGLExtensionsTest, constructor_throws_if_gl_oes_egl_image_not_supported)
     }, std::runtime_error);
 }
 
-TEST_F(EGLExtensionsTest, success_has_sane_function_hooks)
+TEST_F(EGLExtensionsTest, SuccessHasSaneFunctionHooks)
 {
     mg::EGLExtensions extensions;
     EXPECT_NE(nullptr, extensions.eglCreateImageKHR);

@@ -70,7 +70,7 @@ struct SurfaceCreatingClient : public mtf::TestingClientConfiguration
 
 }
 
-TEST_F(BespokeDisplayServerTestFixture, the_shell_surface_configurator_is_notified_of_attribute_changes)
+TEST_F(BespokeDisplayServerTestFixture, TheShellSurfaceConfiguratorIsNotifiedOfAttributeChanges)
 {
     struct ServerConfiguration : TestingServerConfiguration
     {
@@ -111,7 +111,7 @@ TEST_F(BespokeDisplayServerTestFixture, the_shell_surface_configurator_is_notifi
     launch_client_process(client_config);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, the_shell_surface_configurator_may_interfere_with_attribute_changes)
+TEST_F(BespokeDisplayServerTestFixture, TheShellSurfaceConfiguratorMayInterfereWithAttributeChanges)
 {
     struct ServerConfiguration : TestingServerConfiguration
     {

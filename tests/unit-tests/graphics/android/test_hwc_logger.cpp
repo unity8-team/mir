@@ -88,7 +88,7 @@ struct HwcLogger : public ::testing::Test
 };
 }
 
-TEST_F(HwcLogger, log_pre_prepare)
+TEST_F(HwcLogger, LogPrePrepare)
 {
     std::stringstream str;
     str << "before prepare():" << std::endl
@@ -102,7 +102,7 @@ TEST_F(HwcLogger, log_pre_prepare)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_post_prepare)
+TEST_F(HwcLogger, LogPostPrepare)
 {
     std::stringstream str;
     str << "after prepare():" << std::endl 
@@ -116,7 +116,7 @@ TEST_F(HwcLogger, log_post_prepare)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_set)
+TEST_F(HwcLogger, LogSet)
 {
     std::stringstream str;
     str << "set list():" << std::endl
@@ -131,7 +131,7 @@ TEST_F(HwcLogger, log_set)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_optimization)
+TEST_F(HwcLogger, LogOptimization)
 {
     std::stringstream enabled_str;
     std::stringstream disabled_str;
@@ -147,7 +147,7 @@ TEST_F(HwcLogger, log_optimization)
     EXPECT_EQ(disabled_str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_vsync_on)
+TEST_F(HwcLogger, LogVsyncOn)
 {
     std::stringstream str;
     str << "HWC: vsync signal on" << std::endl;
@@ -157,7 +157,7 @@ TEST_F(HwcLogger, log_vsync_on)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_vsync_off)
+TEST_F(HwcLogger, LogVsyncOff)
 {
     std::stringstream str;
     str << "HWC: vsync signal off" << std::endl;
@@ -167,7 +167,7 @@ TEST_F(HwcLogger, log_vsync_off)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_display_off)
+TEST_F(HwcLogger, LogDisplayOff)
 {
     std::stringstream str;
     str << "HWC: display off" << std::endl;
@@ -177,7 +177,7 @@ TEST_F(HwcLogger, log_display_off)
     EXPECT_EQ(str.str(), test_stream.str()); 
 }
 
-TEST_F(HwcLogger, log_display_on)
+TEST_F(HwcLogger, LogDisplayOn)
 {
     std::stringstream str;
     str << "HWC: display on" << std::endl;

@@ -99,7 +99,7 @@ struct ProtobufErrorTestFixture : public ::testing::Test
     std::shared_ptr<mt::TestProtobufClient>  client;
 };
 
-TEST_F(ProtobufErrorTestFixture, connect_exception)
+TEST_F(ProtobufErrorTestFixture, ConnectException)
 {
     client->connect_parameters.set_application_name(__PRETTY_FUNCTION__);
     EXPECT_CALL(*client, connect_done()).Times(1);
@@ -117,7 +117,7 @@ TEST_F(ProtobufErrorTestFixture, connect_exception)
     EXPECT_NE(std::string::npos, result.error().find(stub_services->test_exception_text));
 }
 
-TEST_F(ProtobufErrorTestFixture, create_surface_exception)
+TEST_F(ProtobufErrorTestFixture, CreateSurfaceException)
 {
     EXPECT_CALL(*client, create_surface_done()).Times(1);
 

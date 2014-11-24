@@ -100,7 +100,7 @@ struct ProtobufSurfaceCounter : public ::testing::Test
     std::shared_ptr<mt::TestProtobufServer> stub_server;
 };
 
-TEST_F(ProtobufSurfaceCounter, server_creates_surface_on_create_surface_call)
+TEST_F(ProtobufSurfaceCounter, ServerCreatesSurfaceOnCreateSurfaceCall)
 {
     EXPECT_CALL(*stub_client, create_surface_done()).Times(testing::AtLeast(1));
 
@@ -114,7 +114,7 @@ TEST_F(ProtobufSurfaceCounter, server_creates_surface_on_create_surface_call)
     stub_server_tool->expect_surface_count(1);
 }
 
-TEST_F(ProtobufSurfaceCounter, surface_count_is_zero_after_connection)
+TEST_F(ProtobufSurfaceCounter, SurfaceCountIsZeroAfterConnection)
 {
     using namespace testing;
     EXPECT_CALL(*stub_client, connect_done()).Times(AtLeast(0));

@@ -102,7 +102,7 @@ struct ServerConfigurationOptions : mir_test_framework::HeadlessTest
     }
 };
 
-TEST_F(ServerConfigurationOptions, unknown_command_line_options_are_passed_to_handler)
+TEST_F(ServerConfigurationOptions, UnknownCommandLineOptionsArePassedToHandler)
 {
     const int argc = 10;
     char const* argv[argc] = {
@@ -123,7 +123,7 @@ TEST_F(ServerConfigurationOptions, unknown_command_line_options_are_passed_to_ha
     server.apply_settings();
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_home)
+TEST_F(ServerConfigurationOptions, AreReadFromXdgConfigHome)
 {
     create_config_file_in(fake_xdg_config_home);
 
@@ -135,7 +135,7 @@ TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_home)
     EXPECT_THAT(options->get(test_config_key, not_found), StrEq(fake_xdg_config_home));
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_home_config_file)
+TEST_F(ServerConfigurationOptions, AreReadFromHomeConfigFile)
 {
     mkdir(fake_home, 0700);
     create_config_file_in(fake_home_config);
@@ -151,7 +151,7 @@ TEST_F(ServerConfigurationOptions, are_read_from_home_config_file)
     EXPECT_THAT(options->get(test_config_key, not_found), StrEq(fake_home_config));
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir0_config_file)
+TEST_F(ServerConfigurationOptions, AreReadFromXdgConfigDir0ConfigFile)
 {
     create_config_file_in(fake_xdg_config_dir0);
 
@@ -163,7 +163,7 @@ TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir0_config_file)
     EXPECT_THAT(options->get(test_config_key, not_found), StrEq(fake_xdg_config_dir0));
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir1_config_file)
+TEST_F(ServerConfigurationOptions, AreReadFromXdgConfigDir1ConfigFile)
 {
     create_config_file_in(fake_xdg_config_dir1);
 
@@ -175,7 +175,7 @@ TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir1_config_file)
     EXPECT_THAT(options->get(test_config_key, not_found), StrEq(fake_xdg_config_dir1));
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir0_before_xdg_config_dir1)
+TEST_F(ServerConfigurationOptions, AreReadFromXdgConfigDir0BeforeXdgConfigDir1)
 {
     create_config_file_in(fake_xdg_config_dir0);
     create_config_file_in(fake_xdg_config_dir1);
@@ -188,7 +188,7 @@ TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_dir0_before_xdg_conf
     EXPECT_THAT(options->get(test_config_key, not_found), StrEq(fake_xdg_config_dir0));
 }
 
-TEST_F(ServerConfigurationOptions, are_read_from_xdg_config_home_before_xdg_config_dirs)
+TEST_F(ServerConfigurationOptions, AreReadFromXdgConfigHomeBeforeXdgConfigDirs)
 {
     create_config_file_in(fake_xdg_config_home);
     create_config_file_in(fake_xdg_config_dir0);

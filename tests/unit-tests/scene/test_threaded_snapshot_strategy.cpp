@@ -77,7 +77,7 @@ struct ThreadedSnapshotStrategyTest : testing::Test
 
 }
 
-TEST_F(ThreadedSnapshotStrategyTest, takes_snapshot)
+TEST_F(ThreadedSnapshotStrategyTest, TakesSnapshot)
 {
     using namespace testing;
 
@@ -116,7 +116,7 @@ TEST_F(ThreadedSnapshotStrategyTest, takes_snapshot)
     EXPECT_EQ(pixels, snapshot.pixels);
 }
 
-TEST_F(ThreadedSnapshotStrategyTest, names_snapshot_thread)
+TEST_F(ThreadedSnapshotStrategyTest, NamesSnapshotThread)
 {
     using namespace testing;
 

@@ -41,7 +41,7 @@ struct ScreencastDisplayBufferTest : testing::Test
 
 }
 
-TEST_F(ScreencastDisplayBufferTest, cleans_up_gl_resources)
+TEST_F(ScreencastDisplayBufferTest, CleansUpGlResources)
 {
     using namespace testing;
     GLuint const texture{11};
@@ -65,7 +65,7 @@ TEST_F(ScreencastDisplayBufferTest, cleans_up_gl_resources)
     mc::ScreencastDisplayBuffer db{rect, stub_buffer};
 }
 
-TEST_F(ScreencastDisplayBufferTest, cleans_up_gl_resources_on_construction_failure)
+TEST_F(ScreencastDisplayBufferTest, CleansUpGlResourcesOnConstructionFailure)
 {
     using namespace testing;
     GLuint const texture{11};
@@ -94,7 +94,7 @@ TEST_F(ScreencastDisplayBufferTest, cleans_up_gl_resources_on_construction_failu
     }, std::runtime_error);
 }
 
-TEST_F(ScreencastDisplayBufferTest, sets_render_buffer_size_to_supplied_buffer_size)
+TEST_F(ScreencastDisplayBufferTest, SetsRenderBufferSizeToSuppliedBufferSize)
 {
     using namespace testing;
 
@@ -111,7 +111,7 @@ TEST_F(ScreencastDisplayBufferTest, sets_render_buffer_size_to_supplied_buffer_s
     mc::ScreencastDisplayBuffer db{rect, mock_buffer};
 }
 
-TEST_F(ScreencastDisplayBufferTest, renders_to_supplied_buffer)
+TEST_F(ScreencastDisplayBufferTest, RendersToSuppliedBuffer)
 {
     using namespace testing;
 
@@ -133,7 +133,7 @@ TEST_F(ScreencastDisplayBufferTest, renders_to_supplied_buffer)
     db.make_current();
 }
 
-TEST_F(ScreencastDisplayBufferTest, forces_rendering_to_complete_on_post_update)
+TEST_F(ScreencastDisplayBufferTest, ForcesRenderingToCompleteOnPostUpdate)
 {
     using namespace testing;
 
@@ -148,7 +148,7 @@ TEST_F(ScreencastDisplayBufferTest, forces_rendering_to_complete_on_post_update)
     db.post_update();
 }
 
-TEST_F(ScreencastDisplayBufferTest, rejects_attempt_to_optimize)
+TEST_F(ScreencastDisplayBufferTest, RejectsAttemptToOptimize)
 {
     geom::Rectangle const rect{{100,100}, {800,600}};
     mtd::StubBuffer stub_buffer;
@@ -163,7 +163,7 @@ TEST_F(ScreencastDisplayBufferTest, rejects_attempt_to_optimize)
     EXPECT_FALSE(db.post_renderables_if_optimizable(renderables));
 }
 
-TEST_F(ScreencastDisplayBufferTest, does_not_use_alpha)
+TEST_F(ScreencastDisplayBufferTest, DoesNotUseAlpha)
 {
     geom::Rectangle const rect{{100,100}, {800,600}};
     mtd::StubBuffer stub_buffer;

@@ -39,7 +39,7 @@ struct ThreadSafeListTest : testing::Test
 
 }
 
-TEST_F(ThreadSafeListTest, can_remove_element_while_iterating_same_element)
+TEST_F(ThreadSafeListTest, CanRemoveElementWhileIteratingSameElement)
 {
     using namespace testing;
 
@@ -62,7 +62,7 @@ TEST_F(ThreadSafeListTest, can_remove_element_while_iterating_same_element)
     EXPECT_THAT(elements_seen, Eq(0));
 }
 
-TEST_F(ThreadSafeListTest, can_remove_unused_element_while_iterating_different_element)
+TEST_F(ThreadSafeListTest, CanRemoveUnusedElementWhileIteratingDifferentElement)
 {
     using namespace testing;
 
@@ -116,7 +116,7 @@ TEST_F(ThreadSafeListTest,
     EXPECT_THAT(elements_seen, Eq(1));
 }
 
-TEST_F(ThreadSafeListTest, removes_all_matching_elements)
+TEST_F(ThreadSafeListTest, RemovesAllMatchingElements)
 {
     using namespace testing;
 
@@ -137,7 +137,7 @@ TEST_F(ThreadSafeListTest, removes_all_matching_elements)
     EXPECT_THAT(elements_seen, ElementsAre(element2));
 }
 
-TEST_F(ThreadSafeListTest, clears_all_elements)
+TEST_F(ThreadSafeListTest, ClearsAllElements)
 {
     using namespace testing;
 

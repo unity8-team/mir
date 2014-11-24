@@ -47,14 +47,14 @@ public:
 };
 }
 
-TEST(InternalClient, native_display)
+TEST(InternalClient, NativeDisplay)
 {
     auto surface = std::make_shared<StubInternalSurface>();
     mga::InternalClient client;
     EXPECT_EQ(EGL_DEFAULT_DISPLAY, client.egl_native_display());
 }
 
-TEST(InternalClient, native_window)
+TEST(InternalClient, NativeWindow)
 {
     auto surface = std::make_shared<StubInternalSurface>();
     mga::InternalClient client;

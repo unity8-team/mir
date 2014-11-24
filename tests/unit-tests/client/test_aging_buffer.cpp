@@ -65,7 +65,7 @@ struct MyAgingBuffer : public mcl::AgingBuffer
     }
 };
 
-TEST(MirClientAgingBufferTest, buffer_age_starts_at_zero)
+TEST(MirClientAgingBufferTest, BufferAgeStartsAtZero)
 {
     using namespace testing;
 
@@ -74,7 +74,7 @@ TEST(MirClientAgingBufferTest, buffer_age_starts_at_zero)
     EXPECT_EQ(0u, buffer.age());
 }
 
-TEST(MirClientAgingBufferTest, buffer_age_set_to_one_on_submit)
+TEST(MirClientAgingBufferTest, BufferAgeSetToOneOnSubmit)
 {
     using namespace testing;
 
@@ -84,7 +84,7 @@ TEST(MirClientAgingBufferTest, buffer_age_set_to_one_on_submit)
     EXPECT_EQ(1u, buffer.age());
 }
 
-TEST(MirClientAgingBufferTest, buffer_age_increases_on_increment)
+TEST(MirClientAgingBufferTest, BufferAgeIncreasesOnIncrement)
 {
     using namespace testing;
 
@@ -98,7 +98,7 @@ TEST(MirClientAgingBufferTest, buffer_age_increases_on_increment)
     }
 }
 
-TEST(MirClientAgingBufferTest, incrementing_age_has_no_effect_for_unsubmitted_buffer)
+TEST(MirClientAgingBufferTest, IncrementingAgeHasNoEffectForUnsubmittedBuffer)
 {
     using namespace testing;
 

@@ -102,7 +102,7 @@ ACTION(FillPixelsRGBA)
 
 }
 
-TEST_F(GLPixelBufferTest, returns_empty_if_not_initialized)
+TEST_F(GLPixelBufferTest, ReturnsEmptyIfNotInitialized)
 {
     ms::GLPixelBuffer pixels{std::move(context)};
 
@@ -110,7 +110,7 @@ TEST_F(GLPixelBufferTest, returns_empty_if_not_initialized)
     EXPECT_EQ(geom::Stride(), pixels.stride());
 }
 
-TEST_F(GLPixelBufferTest, returns_data_from_bgra_buffer_texture)
+TEST_F(GLPixelBufferTest, ReturnsDataFromBgraBufferTexture)
 {
     using namespace testing;
     GLuint const tex{10};
@@ -164,7 +164,7 @@ TEST_F(GLPixelBufferTest, returns_data_from_bgra_buffer_texture)
               static_cast<uint32_t const*>(data)[width * height - 1]);
 }
 
-TEST_F(GLPixelBufferTest, returns_data_from_rgba_buffer_texture)
+TEST_F(GLPixelBufferTest, ReturnsDataFromRgbaBufferTexture)
 {
     using namespace testing;
     GLuint const tex{10};

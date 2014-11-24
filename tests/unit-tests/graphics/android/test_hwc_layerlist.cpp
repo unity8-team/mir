@@ -43,7 +43,7 @@ struct LayerListTest : public testing::Test
 };
 }
 
-TEST_F(LayerListTest, list_defaults)
+TEST_F(LayerListTest, ListDefaults)
 {
     mga::LayerList layerlist{{}, 0};
 
@@ -56,7 +56,7 @@ TEST_F(LayerListTest, list_defaults)
     EXPECT_EQ(layerlist.additional_layers_begin(), layerlist.end());
 }
 
-TEST_F(LayerListTest, list_iterators)
+TEST_F(LayerListTest, ListIterators)
 {
     size_t additional_layers = 2;
     mga::LayerList list(renderables, additional_layers);
@@ -75,7 +75,7 @@ TEST_F(LayerListTest, list_iterators)
     EXPECT_EQ(std::distance(list3.begin(), list3.additional_layers_begin()), renderables.size());
 }
 
-TEST_F(LayerListTest, keeps_track_of_needs_commit)
+TEST_F(LayerListTest, KeepsTrackOfNeedsCommit)
 {
     size_t additional_layers = 4;
     mga::LayerList list(renderables, additional_layers);

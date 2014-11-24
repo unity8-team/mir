@@ -52,7 +52,7 @@ struct SurfaceSwapBuffers : mtf::ConnectedClientWithASurface
 };
 }
 
-TEST_F(SurfaceSwapBuffers, does_not_block_when_surface_is_not_composited)
+TEST_F(SurfaceSwapBuffers, DoesNotBlockWhenSurfaceIsNotComposited)
 {
     for (int i = 0; i != 10; ++i)
     {

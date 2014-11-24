@@ -150,7 +150,7 @@ public:
 
 }
 
-TEST_F(OverlappingOutputGroupingTest, ignores_invalid_outputs)
+TEST_F(OverlappingOutputGroupingTest, IgnoresInvalidOutputs)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -164,7 +164,7 @@ TEST_F(OverlappingOutputGroupingTest, ignores_invalid_outputs)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, distinct_outputs)
+TEST_F(OverlappingOutputGroupingTest, DistinctOutputs)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -183,7 +183,7 @@ TEST_F(OverlappingOutputGroupingTest, distinct_outputs)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, rotated_output)
+TEST_F(OverlappingOutputGroupingTest, RotatedOutput)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -198,7 +198,7 @@ TEST_F(OverlappingOutputGroupingTest, rotated_output)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, rotated_outputs)
+TEST_F(OverlappingOutputGroupingTest, RotatedOutputs)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -219,7 +219,7 @@ TEST_F(OverlappingOutputGroupingTest, rotated_outputs)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, rotation_creates_overlap)
+TEST_F(OverlappingOutputGroupingTest, RotationCreatesOverlap)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -236,7 +236,7 @@ TEST_F(OverlappingOutputGroupingTest, rotation_creates_overlap)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, different_orientation_prevents_grouping)
+TEST_F(OverlappingOutputGroupingTest, DifferentOrientationPreventsGrouping)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -253,7 +253,7 @@ TEST_F(OverlappingOutputGroupingTest, different_orientation_prevents_grouping)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, overlapping_outputs)
+TEST_F(OverlappingOutputGroupingTest, OverlappingOutputs)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -280,7 +280,7 @@ TEST_F(OverlappingOutputGroupingTest, overlapping_outputs)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, multiply_overlapping_outputs)
+TEST_F(OverlappingOutputGroupingTest, MultiplyOverlappingOutputs)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {
@@ -304,7 +304,7 @@ TEST_F(OverlappingOutputGroupingTest, multiply_overlapping_outputs)
     check_groupings(info, expected_groups);
 }
 
-TEST_F(OverlappingOutputGroupingTest, ignores_outputs_with_power_mode_not_on)
+TEST_F(OverlappingOutputGroupingTest, IgnoresOutputsWithPowerModeNotOn)
 {
     std::vector<StubDisplayConfiguration::OutputInfo> info
     {

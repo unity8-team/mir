@@ -52,7 +52,7 @@ mg::DisplayConfigurationOutput const tmpl_output
 
 }
 
-TEST(DisplayConfiguration, same_cards_compare_equal)
+TEST(DisplayConfiguration, SameCardsCompareEqual)
 {
     mg::DisplayConfigurationCardId const id{1};
     size_t const max_outputs{3};
@@ -65,7 +65,7 @@ TEST(DisplayConfiguration, same_cards_compare_equal)
     EXPECT_EQ(card2, card1);
 }
 
-TEST(DisplayConfiguration, different_cards_compare_unequal)
+TEST(DisplayConfiguration, DifferentCardsCompareUnequal)
 {
     mg::DisplayConfigurationCardId const id1{1};
     mg::DisplayConfigurationCardId const id2{2};
@@ -84,7 +84,7 @@ TEST(DisplayConfiguration, different_cards_compare_unequal)
     EXPECT_NE(card3, card1);
 }
 
-TEST(DisplayConfiguration, same_modes_compare_equal)
+TEST(DisplayConfiguration, SameModesCompareEqual)
 {
     geom::Size const size{10, 20};
     double const vrefresh{59.9};
@@ -97,7 +97,7 @@ TEST(DisplayConfiguration, same_modes_compare_equal)
     EXPECT_EQ(mode2, mode1);
 }
 
-TEST(DisplayConfiguration, different_modes_compare_unequal)
+TEST(DisplayConfiguration, DifferentModesCompareUnequal)
 {
     geom::Size const size1{10, 20};
     geom::Size const size2{10, 21};
@@ -116,7 +116,7 @@ TEST(DisplayConfiguration, different_modes_compare_unequal)
     EXPECT_NE(mode3, mode1);
 }
 
-TEST(DisplayConfiguration, same_outputs_compare_equal)
+TEST(DisplayConfiguration, SameOutputsCompareEqual)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -126,7 +126,7 @@ TEST(DisplayConfiguration, same_outputs_compare_equal)
     EXPECT_EQ(output2, output1);
 }
 
-TEST(DisplayConfiguration, outputs_with_different_ids_compare_unequal)
+TEST(DisplayConfiguration, OutputsWithDifferentIdsCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -143,7 +143,7 @@ TEST(DisplayConfiguration, outputs_with_different_ids_compare_unequal)
     EXPECT_NE(output3, output1);
 }
 
-TEST(DisplayConfiguration, outupts_with_different_modes_compare_unequal)
+TEST(DisplayConfiguration, OutuptsWithDifferentModesCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -172,7 +172,7 @@ TEST(DisplayConfiguration, outupts_with_different_modes_compare_unequal)
     EXPECT_NE(output3, output1);
 }
 
-TEST(DisplayConfiguration, outputs_with_different_physical_size_compare_unequal)
+TEST(DisplayConfiguration, OutputsWithDifferentPhysicalSizeCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -185,7 +185,7 @@ TEST(DisplayConfiguration, outputs_with_different_physical_size_compare_unequal)
     EXPECT_NE(output2, output1);
 }
 
-TEST(DisplayConfiguration, outputs_with_different_connected_status_compare_unequal)
+TEST(DisplayConfiguration, OutputsWithDifferentConnectedStatusCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -196,7 +196,7 @@ TEST(DisplayConfiguration, outputs_with_different_connected_status_compare_unequ
     EXPECT_NE(output2, output1);
 }
 
-TEST(DisplayConfiguration, outputs_with_different_current_mode_index_compare_unequal)
+TEST(DisplayConfiguration, OutputsWithDifferentCurrentModeIndexCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -207,7 +207,7 @@ TEST(DisplayConfiguration, outputs_with_different_current_mode_index_compare_une
     EXPECT_NE(output2, output1);
 }
 
-TEST(DisplayConfiguration, outputs_with_different_preferred_mode_index_compare_unequal)
+TEST(DisplayConfiguration, OutputsWithDifferentPreferredModeIndexCompareUnequal)
 {
     mg::DisplayConfigurationOutput const output1 = tmpl_output;
     mg::DisplayConfigurationOutput output2 = tmpl_output;
@@ -218,7 +218,7 @@ TEST(DisplayConfiguration, outputs_with_different_preferred_mode_index_compare_u
     EXPECT_NE(output2, output1);
 }
 
-TEST(DisplayConfiguration, output_orientation_affects_equality)
+TEST(DisplayConfiguration, OutputOrientationAffectsEquality)
 {
     mg::DisplayConfigurationOutput a = tmpl_output;
     mg::DisplayConfigurationOutput b = tmpl_output;
@@ -231,7 +231,7 @@ TEST(DisplayConfiguration, output_orientation_affects_equality)
     EXPECT_NE(b, a);
 }
 
-TEST(DisplayConfiguration, output_extents_uses_current_mode)
+TEST(DisplayConfiguration, OutputExtentsUsesCurrentMode)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
 
@@ -241,7 +241,7 @@ TEST(DisplayConfiguration, output_extents_uses_current_mode)
     EXPECT_EQ(out.modes[out.current_mode_index].size, out.extents().size);
 }
 
-TEST(DisplayConfiguration, output_extents_rotates_with_orientation)
+TEST(DisplayConfiguration, OutputExtentsRotatesWithOrientation)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
 
@@ -267,14 +267,14 @@ TEST(DisplayConfiguration, output_extents_rotates_with_orientation)
     EXPECT_EQ(swapped, out.extents());
 }
 
-TEST(DisplayConfiguration, default_valid)
+TEST(DisplayConfiguration, DefaultValid)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
 
     EXPECT_TRUE(out.valid());
 }
 
-TEST(DisplayConfiguration, used_and_disconnected_invalid)
+TEST(DisplayConfiguration, UsedAndDisconnectedInvalid)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
 
@@ -284,7 +284,7 @@ TEST(DisplayConfiguration, used_and_disconnected_invalid)
     EXPECT_FALSE(out.valid());
 }
 
-TEST(DisplayConfiguration, unsupported_format_invalid)
+TEST(DisplayConfiguration, UnsupportedFormatInvalid)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
     out.current_format = mir_pixel_format_xbgr_8888;
@@ -292,7 +292,7 @@ TEST(DisplayConfiguration, unsupported_format_invalid)
     EXPECT_FALSE(out.valid());
 }
 
-TEST(DisplayConfiguration, unsupported_current_mode_invalid)
+TEST(DisplayConfiguration, UnsupportedCurrentModeInvalid)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
     out.current_mode_index = 123;
@@ -300,7 +300,7 @@ TEST(DisplayConfiguration, unsupported_current_mode_invalid)
     EXPECT_FALSE(out.valid());
 }
 
-TEST(DisplayConfiguration, unsupported_preferred_mode_invalid)
+TEST(DisplayConfiguration, UnsupportedPreferredModeInvalid)
 {
     mg::DisplayConfigurationOutput out = tmpl_output;
     out.preferred_mode_index = 456;

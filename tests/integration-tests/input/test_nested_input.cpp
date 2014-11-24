@@ -42,7 +42,7 @@ namespace mia = mi::android;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(NestedInputTest, applies_event_filter_on_relayed_event)
+TEST(NestedInputTest, AppliesEventFilterOnRelayedEvent)
 {
     using namespace testing;
 

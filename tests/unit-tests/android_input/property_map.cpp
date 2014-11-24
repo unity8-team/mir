@@ -60,26 +60,26 @@ struct AndroidInputPropertyMap : public ::testing::Test
 };
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_created)
+TEST_F(AndroidInputPropertyMap, TestMapCreated)
 {
     EXPECT_TRUE(test_map);
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_has_a_string)
+TEST_F(AndroidInputPropertyMap, TestMapHasAString)
 {
     String8 result;
     EXPECT_TRUE(test_map->tryGetProperty(String8("test.string"), result));
     EXPECT_EQ(String8("a_string"), result);
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_has_an_int32_t)
+TEST_F(AndroidInputPropertyMap, TestMapHasAnInt32T)
 {
     int32_t result;
     EXPECT_TRUE(test_map->tryGetProperty(String8("test.int_32"), result));
     EXPECT_EQ(123, result);
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_has_bools_true_and_false)
+TEST_F(AndroidInputPropertyMap, TestMapHasBoolsTrueAndFalse)
 {
     bool result{};
     EXPECT_TRUE(test_map->tryGetProperty(String8("test.bool.true"), result));
@@ -89,38 +89,38 @@ TEST_F(AndroidInputPropertyMap, test_map_has_bools_true_and_false)
     EXPECT_FALSE(result);
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_has_a_float)
+TEST_F(AndroidInputPropertyMap, TestMapHasAFloat)
 {
     float result;
     EXPECT_TRUE(test_map->tryGetProperty(String8("test.float"), result));
     EXPECT_EQ(0.5, result);
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_fails_to_get_unknown_string)
+TEST_F(AndroidInputPropertyMap, TestMapFailsToGetUnknownString)
 {
     String8 result;
     EXPECT_FALSE(test_map->tryGetProperty(String8("unknown"), result));
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_fails_to_get_unknown_bool)
+TEST_F(AndroidInputPropertyMap, TestMapFailsToGetUnknownBool)
 {
     bool result{};
     EXPECT_FALSE(test_map->tryGetProperty(String8("unknown"), result));
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_fails_to_get_unknown_int32_t)
+TEST_F(AndroidInputPropertyMap, TestMapFailsToGetUnknownInt32T)
 {
     int32_t result;
     EXPECT_FALSE(test_map->tryGetProperty(String8("unknown"), result));
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_fails_to_get_unknown_float)
+TEST_F(AndroidInputPropertyMap, TestMapFailsToGetUnknownFloat)
 {
     float result;
     EXPECT_FALSE(test_map->tryGetProperty(String8("unknown"), result));
 }
 
-TEST_F(AndroidInputPropertyMap, test_map_ignores_comment)
+TEST_F(AndroidInputPropertyMap, TestMapIgnoresComment)
 {
     int32_t result;
     EXPECT_FALSE(test_map->tryGetProperty(String8("test.int.ignored"), result));

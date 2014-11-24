@@ -68,7 +68,7 @@ MATCHER_P(ParametersHaveSize, size, "")
 }
 }
 
-TEST_F(InternalNativeSurface, surface_advance_buffer_packaging)
+TEST_F(InternalNativeSurface, SurfaceAdvanceBufferPackaging)
 {
     using namespace ::testing;
 
@@ -104,7 +104,7 @@ TEST_F(InternalNativeSurface, surface_advance_buffer_packaging)
     EXPECT_EQ(test_buffer_package->stride, buffer_package.stride);
 }
 
-TEST_F(InternalNativeSurface, surface_get_parameters)
+TEST_F(InternalNativeSurface, SurfaceGetParameters)
 {
     using namespace ::testing;
 

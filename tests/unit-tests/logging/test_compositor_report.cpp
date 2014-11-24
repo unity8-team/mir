@@ -68,7 +68,7 @@ struct LoggingCompositorReport : ::testing::Test
 
 } // namespace
 
-TEST_F(LoggingCompositorReport, calculates_accurate_stats)
+TEST_F(LoggingCompositorReport, CalculatesAccurateStats)
 {
     /*
      * This test just verifies the important stats; FPS and frame time.
@@ -108,7 +108,7 @@ TEST_F(LoggingCompositorReport, calculates_accurate_stats)
     EXPECT_FLOAT_EQ(10.0f, measured_frame_time);
 }
 
-TEST_F(LoggingCompositorReport, survives_pause_resume)
+TEST_F(LoggingCompositorReport, SurvivesPauseResume)
 {
     const void* const before = "before";
     const void* const after = "after";
@@ -136,7 +136,7 @@ TEST_F(LoggingCompositorReport, survives_pause_resume)
     report.stopped();
 }
 
-TEST_F(LoggingCompositorReport, reports_bypass_only_when_changed)
+TEST_F(LoggingCompositorReport, ReportsBypassOnlyWhenChanged)
 {
     const void* const id = "My Screen";
 

@@ -58,7 +58,7 @@ private:
 
 }
 
-TEST(DisplayInputRegionTest, returns_correct_bounding_rectangle)
+TEST(DisplayInputRegionTest, ReturnsCorrectBoundingRectangle)
 {
     geom::Rectangle const expected_bounding_rect{geom::Point{0,0}, geom::Size{900,700}};
     auto stub_display = std::make_shared<StubDisplay>();
@@ -69,7 +69,7 @@ TEST(DisplayInputRegionTest, returns_correct_bounding_rectangle)
     EXPECT_EQ(expected_bounding_rect, rect);
 }
 
-TEST(DisplayInputRegionTest, confines_point_to_closest_valid_position)
+TEST(DisplayInputRegionTest, ConfinesPointToClosestValidPosition)
 {
     auto stub_display = std::make_shared<StubDisplay>();
 

@@ -75,7 +75,7 @@ struct MesaClientBufferTest : public testing::Test
 
 }
 
-TEST_F(MesaClientBufferTest, width_and_height)
+TEST_F(MesaClientBufferTest, WidthAndHeight)
 {
     using namespace testing;
 
@@ -86,7 +86,7 @@ TEST_F(MesaClientBufferTest, width_and_height)
     EXPECT_EQ(buffer.pixel_format(), pf);
 }
 
-TEST_F(MesaClientBufferTest, buffer_returns_correct_stride)
+TEST_F(MesaClientBufferTest, BufferReturnsCorrectStride)
 {
     using namespace testing;
 
@@ -95,7 +95,7 @@ TEST_F(MesaClientBufferTest, buffer_returns_correct_stride)
     EXPECT_EQ(buffer.stride(), stride);
 }
 
-TEST_F(MesaClientBufferTest, buffer_returns_set_package)
+TEST_F(MesaClientBufferTest, BufferReturnsSetPackage)
 {
     using namespace testing;
 
@@ -111,7 +111,7 @@ TEST_F(MesaClientBufferTest, buffer_returns_set_package)
         EXPECT_EQ(package_return->fd[i], package_copy->fd[i]);
 }
 
-TEST_F(MesaClientBufferTest, secure_for_cpu_write_maps_buffer_fd)
+TEST_F(MesaClientBufferTest, SecureForCpuWriteMapsBufferFd)
 {
     using namespace testing;
     void *map_addr{reinterpret_cast<void*>(0xabcdef)};
@@ -133,7 +133,7 @@ TEST_F(MesaClientBufferTest, secure_for_cpu_write_maps_buffer_fd)
     ASSERT_EQ(pf, mem_region->format);
 }
 
-TEST_F(MesaClientBufferTest, secure_for_cpu_write_throws_on_map_failure)
+TEST_F(MesaClientBufferTest, SecureForCpuWriteThrowsOnMapFailure)
 {
     using namespace testing;
 
@@ -151,7 +151,7 @@ TEST_F(MesaClientBufferTest, secure_for_cpu_write_throws_on_map_failure)
     }, std::runtime_error);
 }
 
-TEST_F(MesaClientBufferTest, buffer_fd_closed_on_buffer_destruction)
+TEST_F(MesaClientBufferTest, BufferFdClosedOnBufferDestruction)
 {
     using namespace testing;
 
@@ -161,7 +161,7 @@ TEST_F(MesaClientBufferTest, buffer_fd_closed_on_buffer_destruction)
     mclg::ClientBuffer buffer(buffer_file_ops, package, size, pf);
 }
 
-TEST_F(MesaClientBufferTest, factory_gets_size_from_package)
+TEST_F(MesaClientBufferTest, FactoryGetsSizeFromPackage)
 {
     using namespace testing;
 
@@ -177,7 +177,7 @@ TEST_F(MesaClientBufferTest, factory_gets_size_from_package)
     EXPECT_NE(unused_size, buf_size);
 }
 
-TEST_F(MesaClientBufferTest, creation_with_invalid_buffer_package_throws)
+TEST_F(MesaClientBufferTest, CreationWithInvalidBufferPackageThrows)
 {
     using namespace testing;
 
@@ -191,7 +191,7 @@ TEST_F(MesaClientBufferTest, creation_with_invalid_buffer_package_throws)
     }, std::runtime_error);
 }
 
-TEST_F(MesaClientBufferTest, packs_empty_update_msg)
+TEST_F(MesaClientBufferTest, PacksEmptyUpdateMsg)
 {
     using namespace testing;
     mclg::ClientBuffer buffer(buffer_file_ops, package, size, pf);

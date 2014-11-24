@@ -46,7 +46,7 @@ MATCHER_P(MirEventTypeIs, type, "")
 
 }
 
-TEST_F(EventDistributorTest, calls_back_when_registered)
+TEST_F(EventDistributorTest, CallsBackWhenRegistered)
 {
     using namespace testing;
 
@@ -61,7 +61,7 @@ TEST_F(EventDistributorTest, calls_back_when_registered)
     event_distributor.handle_event(e);
 }
 
-TEST_F(EventDistributorTest, no_calls_back_after_unregistered)
+TEST_F(EventDistributorTest, NoCallsBackAfterUnregistered)
 {
     using namespace testing;
 
@@ -77,7 +77,7 @@ TEST_F(EventDistributorTest, no_calls_back_after_unregistered)
     event_distributor.handle_event(e);
 }
 
-TEST_F(EventDistributorTest, no_callback_on_callback_deregistration)
+TEST_F(EventDistributorTest, NoCallbackOnCallbackDeregistration)
 {
     using namespace testing;
     int reg_id2;
@@ -98,7 +98,7 @@ TEST_F(EventDistributorTest, no_callback_on_callback_deregistration)
     event_distributor.handle_event(e);
 }
 
-TEST_F(EventDistributorTest, succeeds_with_thread_delete_unregister)
+TEST_F(EventDistributorTest, SucceedsWithThreadDeleteUnregister)
 {
     using namespace testing;
 

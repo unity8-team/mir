@@ -163,7 +163,7 @@ struct SurfaceStack : public ::testing::Test
 
 }
 
-TEST_F(SurfaceStack, owns_surface_from_add_to_remove)
+TEST_F(SurfaceStack, OwnsSurfaceFromAddToRemove)
 {
     using namespace testing;
 
@@ -178,7 +178,7 @@ TEST_F(SurfaceStack, owns_surface_from_add_to_remove)
     EXPECT_THAT(stub_surface1.use_count(), Eq(use_count));
 }
 
-TEST_F(SurfaceStack, stacking_order)
+TEST_F(SurfaceStack, StackingOrder)
 {
     using namespace testing;
 
@@ -194,7 +194,7 @@ TEST_F(SurfaceStack, stacking_order)
             SceneElementFor(stub_surface3)));
 }
 
-TEST_F(SurfaceStack, surfaces_are_emitted_by_layer)
+TEST_F(SurfaceStack, SurfacesAreEmittedByLayer)
 {
     using namespace testing;
 
@@ -211,7 +211,7 @@ TEST_F(SurfaceStack, surfaces_are_emitted_by_layer)
 }
 
 
-TEST_F(SurfaceStack, input_registrar_is_notified_of_input_monitor_scene)
+TEST_F(SurfaceStack, InputRegistrarIsNotifiedOfInputMonitorScene)
 {
     using namespace ::testing;
 
@@ -230,7 +230,7 @@ TEST_F(SurfaceStack, input_registrar_is_notified_of_input_monitor_scene)
     stack.remove_surface(stub_surface1);
 }
 
-TEST_F(SurfaceStack, raise_to_top_alters_render_ordering)
+TEST_F(SurfaceStack, RaiseToTopAltersRenderOrdering)
 {
     using namespace ::testing;
 
@@ -255,7 +255,7 @@ TEST_F(SurfaceStack, raise_to_top_alters_render_ordering)
             SceneElementFor(stub_surface1)));
 }
 
-TEST_F(SurfaceStack, depth_id_trumps_raise)
+TEST_F(SurfaceStack, DepthIdTrumpsRaise)
 {
     using namespace ::testing;
 
@@ -280,7 +280,7 @@ TEST_F(SurfaceStack, depth_id_trumps_raise)
             SceneElementFor(stub_surface3)));
 }
 
-TEST_F(SurfaceStack, raise_throw_behavior)
+TEST_F(SurfaceStack, RaiseThrowBehavior)
 {
     using namespace ::testing;
 
@@ -290,7 +290,7 @@ TEST_F(SurfaceStack, raise_throw_behavior)
     }, std::runtime_error);
 }
 
-TEST_F(SurfaceStack, generate_elementelements)
+TEST_F(SurfaceStack, GenerateElementelements)
 {
     using namespace testing;
 
@@ -328,7 +328,7 @@ TEST_F(SurfaceStack, generate_elementelements)
         stack.remove_surface(surface);
 }
 
-TEST_F(SurfaceStack, scene_observer_notified_of_add_and_remove)
+TEST_F(SurfaceStack, SceneObserverNotifiedOfAddAndRemove)
 {
     using namespace ::testing;
 
@@ -345,7 +345,7 @@ TEST_F(SurfaceStack, scene_observer_notified_of_add_and_remove)
     stack.remove_surface(stub_surface1);
 }
 
-TEST_F(SurfaceStack, multiple_observers)
+TEST_F(SurfaceStack, MultipleObservers)
 {
     using namespace ::testing;
 
@@ -361,7 +361,7 @@ TEST_F(SurfaceStack, multiple_observers)
     stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
 }
 
-TEST_F(SurfaceStack, remove_scene_observer)
+TEST_F(SurfaceStack, RemoveSceneObserver)
 {
     using namespace ::testing;
 
@@ -386,7 +386,7 @@ TEST_F(SurfaceStack, remove_scene_observer)
 // Many clients of the scene observer wish to install surface observers to monitor surface
 // notifications. We offer them a surface_added event for existing surfaces to give them
 // a chance to do this.
-TEST_F(SurfaceStack, scene_observer_informed_of_existing_surfaces)
+TEST_F(SurfaceStack, SceneObserverInformedOfExistingSurfaces)
 {
     using namespace ::testing;
 
@@ -404,7 +404,7 @@ TEST_F(SurfaceStack, scene_observer_informed_of_existing_surfaces)
     stack.add_observer(mt::fake_shared(observer));
 }
 
-TEST_F(SurfaceStack, surfaces_reordered)
+TEST_F(SurfaceStack, SurfacesReordered)
 {
     using namespace ::testing;
 
@@ -422,7 +422,7 @@ TEST_F(SurfaceStack, surfaces_reordered)
     stack.raise(stub_surface1);
 }
 
-TEST_F(SurfaceStack, scene_elements_hold_snapshot_of_positioning_info)
+TEST_F(SurfaceStack, SceneElementsHoldSnapshotOfPositioningInfo)
 {
     size_t num_surfaces{3};
 
@@ -455,7 +455,7 @@ TEST_F(SurfaceStack, scene_elements_hold_snapshot_of_positioning_info)
         EXPECT_THAT(changed_position, testing::Ne(element->renderable()->screen_position().top_left));
 }
 
-TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
+TEST_F(SurfaceStack, GeneratesSceneElementsThatDelayBufferAcquisition)
 {
     using namespace testing;
 
@@ -485,7 +485,7 @@ TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
     elements.front()->renderable()->buffer();
 }
 
-TEST_F(SurfaceStack, generates_scene_elements_that_allow_only_one_buffer_acquisition)
+TEST_F(SurfaceStack, GeneratesSceneElementsThatAllowOnlyOneBufferAcquisition)
 {
     using namespace testing;
 
@@ -534,7 +534,7 @@ struct MockConfigureSurface : public ms::BasicSurface
 };
 }
 
-TEST_F(SurfaceStack, occludes_not_rendered_surface)
+TEST_F(SurfaceStack, OccludesNotRenderedSurface)
 {
     using namespace testing;
 
@@ -561,7 +561,7 @@ TEST_F(SurfaceStack, occludes_not_rendered_surface)
     elements2.back()->occluded();
 }
 
-TEST_F(SurfaceStack, exposes_rendered_surface)
+TEST_F(SurfaceStack, ExposesRenderedSurface)
 {
     using namespace testing;
 
@@ -584,7 +584,7 @@ TEST_F(SurfaceStack, exposes_rendered_surface)
     elements2.back()->rendered();
 }
 
-TEST_F(SurfaceStack, occludes_surface_when_unregistering_all_compositors_that_rendered_it)
+TEST_F(SurfaceStack, OccludesSurfaceWhenUnregisteringAllCompositorsThatRenderedIt)
 {
     using namespace testing;
 
@@ -620,7 +620,7 @@ TEST_F(SurfaceStack, occludes_surface_when_unregistering_all_compositors_that_re
     stack.unregister_compositor(compositor_id3);
 }
 
-TEST_F(SurfaceStack, observer_can_trigger_state_change_within_notification)
+TEST_F(SurfaceStack, ObserverCanTriggerStateChangeWithinNotification)
 {
     using namespace ::testing;
 
@@ -645,7 +645,7 @@ TEST_F(SurfaceStack, observer_can_trigger_state_change_within_notification)
     state_changer();
 }
 
-TEST_F(SurfaceStack, observer_can_remove_itself_within_notification)
+TEST_F(SurfaceStack, ObserverCanRemoveItselfWithinNotification)
 {
     using namespace testing;
 
@@ -675,7 +675,7 @@ TEST_F(SurfaceStack, observer_can_remove_itself_within_notification)
     stack.add_surface(stub_surface1, default_params.depth, default_params.input_mode);
 }
 
-TEST_F(SurfaceStack, scene_observer_notified_of_add_and_remove_input_visualization)
+TEST_F(SurfaceStack, SceneObserverNotifiedOfAddAndRemoveInputVisualization)
 {
     using namespace ::testing;
 
@@ -691,7 +691,7 @@ TEST_F(SurfaceStack, scene_observer_notified_of_add_and_remove_input_visualizati
     stack.remove_input_visualization(mt::fake_shared(r));
 }
 
-TEST_F(SurfaceStack, overlays_do_not_appear_in_input_enumeration)
+TEST_F(SurfaceStack, OverlaysDoNotAppearInInputEnumeration)
 {
     mtd::StubRenderable r;
     
@@ -712,7 +712,7 @@ TEST_F(SurfaceStack, overlays_do_not_appear_in_input_enumeration)
     EXPECT_EQ(2, observed_input_targets);
 }
 
-TEST_F(SurfaceStack, overlays_appear_at_top_of_renderlist)
+TEST_F(SurfaceStack, OverlaysAppearAtTopOfRenderlist)
 {
     using namespace ::testing;
 
@@ -730,7 +730,7 @@ TEST_F(SurfaceStack, overlays_appear_at_top_of_renderlist)
             SceneElementFor(mt::fake_shared(r))));    
 }
 
-TEST_F(SurfaceStack, removed_overlays_are_removed)
+TEST_F(SurfaceStack, RemovedOverlaysAreRemoved)
 {
     using namespace ::testing;
 
@@ -756,7 +756,7 @@ TEST_F(SurfaceStack, removed_overlays_are_removed)
             SceneElementFor(stub_surface2)));
 }
 
-TEST_F(SurfaceStack, scene_observers_notified_of_generic_scene_change)
+TEST_F(SurfaceStack, SceneObserversNotifiedOfGenericSceneChange)
 {
     MockSceneObserver o1, o2;
 
@@ -769,7 +769,7 @@ TEST_F(SurfaceStack, scene_observers_notified_of_generic_scene_change)
     stack.emit_scene_changed();
 }
 
-TEST_F(SurfaceStack, only_enumerates_exposed_input_surfaces)
+TEST_F(SurfaceStack, OnlyEnumeratesExposedInputSurfaces)
 {
     using namespace ::testing;
 

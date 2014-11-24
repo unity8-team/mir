@@ -60,7 +60,7 @@ struct MockInputChannel : public mi::InputChannel
 };
 }
 
-TEST(SurfaceCreationParametersTest, default_creation_parameters)
+TEST(SurfaceCreationParametersTest, DefaultCreationParameters)
 {
     using namespace geom;
     ms::SurfaceCreationParameters params;
@@ -77,7 +77,7 @@ TEST(SurfaceCreationParametersTest, default_creation_parameters)
     EXPECT_EQ(ms::a_surface(), params);
 }
 
-TEST(SurfaceCreationParametersTest, builder_mutators)
+TEST(SurfaceCreationParametersTest, BuilderMutators)
 {
     using namespace geom;
     Size const size{1024, 768};
@@ -96,7 +96,7 @@ TEST(SurfaceCreationParametersTest, builder_mutators)
     EXPECT_EQ(format, params.pixel_format);
 }
 
-TEST(SurfaceCreationParametersTest, equality)
+TEST(SurfaceCreationParametersTest, Equality)
 {
     using namespace geom;
     Size const size{1024, 768};
@@ -117,7 +117,7 @@ TEST(SurfaceCreationParametersTest, equality)
     EXPECT_EQ(params1, params0);
 }
 
-TEST(SurfaceCreationParametersTest, inequality)
+TEST(SurfaceCreationParametersTest, Inequality)
 {
     using namespace geom;
 
@@ -222,7 +222,7 @@ struct SurfaceCreation : public ::testing::Test
 
 }
 
-TEST_F(SurfaceCreation, test_surface_queries_stream_for_pf)
+TEST_F(SurfaceCreation, TestSurfaceQueriesStreamForPf)
 {
     using namespace testing;
     ms::BasicSurface surf(
@@ -245,7 +245,7 @@ TEST_F(SurfaceCreation, test_surface_queries_stream_for_pf)
     EXPECT_EQ(ret_pf, pf);
 }
 
-TEST_F(SurfaceCreation, test_surface_gets_right_name)
+TEST_F(SurfaceCreation, TestSurfaceGetsRightName)
 {
     ms::BasicSurface surf(
         surface_name,
@@ -261,7 +261,7 @@ TEST_F(SurfaceCreation, test_surface_gets_right_name)
     EXPECT_EQ(surface_name, surf.name());
 }
 
-TEST_F(SurfaceCreation, test_surface_queries_state_for_size)
+TEST_F(SurfaceCreation, TestSurfaceQueriesStateForSize)
 {
     ms::BasicSurface surf(
         surface_name,
@@ -277,7 +277,7 @@ TEST_F(SurfaceCreation, test_surface_queries_state_for_size)
     EXPECT_EQ(size, surf.size());
 }
 
-TEST_F(SurfaceCreation, test_surface_next_buffer)
+TEST_F(SurfaceCreation, TestSurfaceNextBuffer)
 {
     using namespace testing;
     ms::BasicSurface surf(
@@ -302,7 +302,7 @@ TEST_F(SurfaceCreation, test_surface_next_buffer)
         [&graphics_resource](mg::Buffer* result){ EXPECT_THAT(result, Eq(&graphics_resource)); });
 }
 
-TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
+TEST_F(SurfaceCreation, TestSurfaceGetsIpcFromStream)
 {
     using namespace testing;
 
@@ -328,7 +328,7 @@ TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
         [&stub_buffer](mg::Buffer* result){ EXPECT_THAT(result, Eq(&stub_buffer)); });
 }
 
-TEST_F(SurfaceCreation, test_surface_gets_top_left)
+TEST_F(SurfaceCreation, TestSurfaceGetsTopLeft)
 {
     ms::BasicSurface surf(
         surface_name,
@@ -345,7 +345,7 @@ TEST_F(SurfaceCreation, test_surface_gets_top_left)
     EXPECT_EQ(geom::Point(), ret_top_left);
 }
 
-TEST_F(SurfaceCreation, test_surface_move_to)
+TEST_F(SurfaceCreation, TestSurfaceMoveTo)
 {
     geom::Point p{55, 66};
 
@@ -364,7 +364,7 @@ TEST_F(SurfaceCreation, test_surface_move_to)
     EXPECT_EQ(p, surf.top_left());
 }
 
-TEST_F(SurfaceCreation, resize_updates_stream_and_state)
+TEST_F(SurfaceCreation, ResizeUpdatesStreamAndState)
 {
     using namespace testing;
     geom::Size const new_size{123, 456};
@@ -395,7 +395,7 @@ TEST_F(SurfaceCreation, resize_updates_stream_and_state)
     EXPECT_THAT(surf.size(), Eq(new_size));
 }
 
-TEST_F(SurfaceCreation, duplicate_resize_ignored)
+TEST_F(SurfaceCreation, DuplicateResizeIgnored)
 {
     using namespace testing;
     geom::Size const new_size{123, 456};
@@ -431,7 +431,7 @@ TEST_F(SurfaceCreation, duplicate_resize_ignored)
     EXPECT_THAT(surf.size(), Eq(new_size));
 }
 
-TEST_F(SurfaceCreation, unsuccessful_resize_does_not_update_state)
+TEST_F(SurfaceCreation, UnsuccessfulResizeDoesNotUpdateState)
 {
     using namespace testing;
     geom::Size const new_size{123, 456};
@@ -458,7 +458,7 @@ TEST_F(SurfaceCreation, unsuccessful_resize_does_not_update_state)
     EXPECT_EQ(size, surf.size());
 }
 
-TEST_F(SurfaceCreation, impossible_resize_clamps)
+TEST_F(SurfaceCreation, ImpossibleResizeClamps)
 {
     using namespace testing;
 
@@ -496,7 +496,7 @@ TEST_F(SurfaceCreation, impossible_resize_clamps)
     }
 }
 
-TEST_F(SurfaceCreation, test_get_input_channel)
+TEST_F(SurfaceCreation, TestGetInputChannel)
 {
     auto mock_channel = std::make_shared<MockInputChannel>();
     ms::BasicSurface surf(
@@ -513,7 +513,7 @@ TEST_F(SurfaceCreation, test_get_input_channel)
     EXPECT_EQ(mock_channel, surf.input_channel());
 }
 
-TEST_F(SurfaceCreation, test_surface_set_alpha)
+TEST_F(SurfaceCreation, TestSurfaceSetAlpha)
 {
     using namespace testing;
 
@@ -533,7 +533,7 @@ TEST_F(SurfaceCreation, test_surface_set_alpha)
     EXPECT_FLOAT_EQ(alpha, surf.compositor_snapshot(nullptr)->alpha());
 }
 
-TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
+TEST_F(SurfaceCreation, TestSurfaceForceRequestsToComplete)
 {
     using namespace testing;
 
@@ -553,7 +553,7 @@ TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
     surf.force_requests_to_complete();
 }
 
-TEST_F(SurfaceCreation, test_surface_allow_framedropping)
+TEST_F(SurfaceCreation, TestSurfaceAllowFramedropping)
 {
     using namespace testing;
 
@@ -574,7 +574,7 @@ TEST_F(SurfaceCreation, test_surface_allow_framedropping)
     surf.allow_framedropping(true);
 }
 
-TEST_F(SurfaceCreation, test_surface_next_buffer_tells_state_on_first_frame)
+TEST_F(SurfaceCreation, TestSurfaceNextBufferTellsStateOnFirstFrame)
 {
     ms::BasicSurface surf(
         surface_name,
@@ -603,7 +603,7 @@ TEST_F(SurfaceCreation, test_surface_next_buffer_tells_state_on_first_frame)
     EXPECT_EQ(3, notification_count);
 }
 
-TEST_F(SurfaceCreation, input_fds)
+TEST_F(SurfaceCreation, InputFds)
 {
     using namespace testing;
 
@@ -640,7 +640,7 @@ TEST_F(SurfaceCreation, input_fds)
     EXPECT_EQ(client_fd, input_surf.client_input_fd());
 }
 
-TEST_F(SurfaceCreation, consume_calls_send_event)
+TEST_F(SurfaceCreation, ConsumeCallsSendEvent)
 {
     using namespace testing;
 

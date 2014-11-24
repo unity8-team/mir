@@ -39,7 +39,7 @@ struct DemoRenderer : public testing::Test
     int const titlebar_height{5};
 };
 
-TEST_F(DemoRenderer, detects_embellishments_on_renderables)
+TEST_F(DemoRenderer, DetectsEmbellishmentsOnRenderables)
 {
     me::DemoRenderer demo_renderer(stub_factory, region, dest_alpha, titlebar_height, shadow_radius);
 

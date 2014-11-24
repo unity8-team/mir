@@ -35,18 +35,18 @@ struct AndroidInputSortedVector : public ::testing::Test
 };
 }
 
-TEST_F(AndroidInputSortedVector, empty_vector_isEmpty)
+TEST_F(AndroidInputSortedVector, EmptyVectorIsEmpty)
 {
     EXPECT_TRUE(test_vector.isEmpty());
 }
 
-TEST_F(AndroidInputSortedVector, non_empty_vector_not_isEmpty)
+TEST_F(AndroidInputSortedVector, NonEmptyVectorNotIsEmpty)
 {
     test_vector.add(1);
     EXPECT_FALSE(test_vector.isEmpty());
 }
 
-TEST_F(AndroidInputSortedVector, items_found_at_expected_indexes)
+TEST_F(AndroidInputSortedVector, ItemsFoundAtExpectedIndexes)
 {
     test_vector.add(3);
     test_vector.add(1);
@@ -61,7 +61,7 @@ TEST_F(AndroidInputSortedVector, items_found_at_expected_indexes)
     EXPECT_EQ(android::NAME_NOT_FOUND, test_vector.indexOf(4));
 }
 
-TEST_F(AndroidInputSortedVector, duplicate_adds_create_single_entry)
+TEST_F(AndroidInputSortedVector, DuplicateAddsCreateSingleEntry)
 {
     test_vector.add(3);
     test_vector.add(1);
@@ -83,7 +83,7 @@ TEST_F(AndroidInputSortedVector, duplicate_adds_create_single_entry)
     EXPECT_EQ(android::NAME_NOT_FOUND, test_vector.indexOf(4));
 }
 
-TEST_F(AndroidInputSortedVector, adds_returns_correct_index)
+TEST_F(AndroidInputSortedVector, AddsReturnsCorrectIndex)
 {
     EXPECT_EQ(0, test_vector.add(3));
     EXPECT_EQ(0, test_vector.add(1));
@@ -96,7 +96,7 @@ TEST_F(AndroidInputSortedVector, adds_returns_correct_index)
     EXPECT_EQ(0, test_vector.add(0));
 }
 
-TEST_F(AndroidInputSortedVector, missing_items_are_not_found)
+TEST_F(AndroidInputSortedVector, MissingItemsAreNotFound)
 {
     test_vector.add(3);
     test_vector.add(1);
@@ -106,7 +106,7 @@ TEST_F(AndroidInputSortedVector, missing_items_are_not_found)
     EXPECT_EQ(android::NAME_NOT_FOUND, test_vector.indexOf(4));
 }
 
-TEST_F(AndroidInputSortedVector, index_gets_expected_items)
+TEST_F(AndroidInputSortedVector, IndexGetsExpectedItems)
 {
     test_vector.add(30);
     test_vector.add(10);
@@ -119,7 +119,7 @@ TEST_F(AndroidInputSortedVector, index_gets_expected_items)
     EXPECT_EQ(30, test_vector.itemAt(3));
 }
 
-TEST_F(AndroidInputSortedVector, edit_changes_item)
+TEST_F(AndroidInputSortedVector, EditChangesItem)
 {
     test_vector.add(30);
     test_vector.add(10);
@@ -132,7 +132,7 @@ TEST_F(AndroidInputSortedVector, edit_changes_item)
     EXPECT_EQ(12, test_vector.itemAt(1));
 }
 
-TEST_F(AndroidInputSortedVector, removed_items_are_not_found)
+TEST_F(AndroidInputSortedVector, RemovedItemsAreNotFound)
 {
     test_vector.add(3);
     test_vector.add(1);
@@ -145,7 +145,7 @@ TEST_F(AndroidInputSortedVector, removed_items_are_not_found)
     EXPECT_EQ(android::NAME_NOT_FOUND, test_vector.indexOf(1));
 }
 
-TEST_F(AndroidInputSortedVector, remove_unknown_items_is_noop)
+TEST_F(AndroidInputSortedVector, RemoveUnknownItemsIsNoop)
 {
     test_vector.add(3);
     test_vector.add(2);
@@ -155,7 +155,7 @@ TEST_F(AndroidInputSortedVector, remove_unknown_items_is_noop)
     EXPECT_EQ(3u, test_vector.size());
 }
 
-TEST_F(AndroidInputSortedVector, item_at_removed_index_are_not_found)
+TEST_F(AndroidInputSortedVector, ItemAtRemovedIndexAreNotFound)
 {
     test_vector.add(30);
     test_vector.add(10);
@@ -169,7 +169,7 @@ TEST_F(AndroidInputSortedVector, item_at_removed_index_are_not_found)
     EXPECT_EQ(android::NAME_NOT_FOUND, test_vector.indexOf(10));
 }
 
-TEST_F(AndroidInputSortedVector, count_items_at_removed_index_are_not_found)
+TEST_F(AndroidInputSortedVector, CountItemsAtRemovedIndexAreNotFound)
 {
     test_vector.add(30);
     test_vector.add(10);
@@ -187,7 +187,7 @@ TEST_F(AndroidInputSortedVector, count_items_at_removed_index_are_not_found)
 }
 
 // Android utils use ALOG_ASSERT - which tends to bomb the program
-TEST_F(AndroidInputSortedVector, remove_beyond_end_fails)
+TEST_F(AndroidInputSortedVector, RemoveBeyondEndFails)
 {
     test_vector.add(30);
     test_vector.add(10);

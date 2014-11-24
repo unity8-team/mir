@@ -91,7 +91,7 @@ protected:
 
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_key_events_to_filter)
+TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, ManagerDispatchesKeyEventsToFilter)
 {
     using namespace ::testing;
 
@@ -109,7 +109,7 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_key_
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_button_down_events_to_filter)
+TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, ManagerDispatchesButtonDownEventsToFilter)
 {
     using namespace ::testing;
 
@@ -127,7 +127,7 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_butt
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_button_up_events_to_filter)
+TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, ManagerDispatchesButtonUpEventsToFilter)
 {
     using namespace ::testing;
 
@@ -158,7 +158,7 @@ TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_butt
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, manager_dispatches_motion_events_to_filter)
+TEST_F(AndroidInputManagerAndEventFilterDispatcherSetup, ManagerDispatchesMotionEventsToFilter)
 {
     using namespace ::testing;
 
@@ -266,7 +266,7 @@ MATCHER_P(WindowHandleWithInputFd, input_fd, "")
 
 }
 
-TEST_F(AndroidInputManagerDispatcherInterceptSetup, server_input_fd_of_focused_channel_is_sent_unfiltered_key_events)
+TEST_F(AndroidInputManagerDispatcherInterceptSetup, ServerInputFdOfFocusedChannelIsSentUnfilteredKeyEvents)
 {
     using namespace ::testing;
 
@@ -288,7 +288,7 @@ TEST_F(AndroidInputManagerDispatcherInterceptSetup, server_input_fd_of_focused_c
     wait_condition.wait_for_at_most_seconds(1);
 }
 
-TEST_F(AndroidInputManagerDispatcherInterceptSetup, changing_focus_changes_event_recipient)
+TEST_F(AndroidInputManagerDispatcherInterceptSetup, ChangingFocusChangesEventRecipient)
 {
     using namespace ::testing;
 

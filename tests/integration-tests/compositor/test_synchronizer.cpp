@@ -33,7 +33,7 @@ void test_func(mt::SynchronizerSpawned* synchronizer, int* data)
 }
 }
 
-TEST(Synchronizer, thread_stop_start)
+TEST(Synchronizer, ThreadStopStart)
 {
     int data = 0;
 
@@ -69,7 +69,7 @@ void test_func_pause (mt::SynchronizerSpawned* synchronizer, int* data) {
 }
 }
 
-TEST(Synchronizer, thread_pause_req)
+TEST(Synchronizer, ThreadPauseReq)
 {
     int data = 0, old_data = 0;
 

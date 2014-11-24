@@ -63,7 +63,7 @@ protected:
 
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_swapinterval)
+TEST_F(AndroidNativeWindowTest, NativeWindowSwapinterval)
 {
     using namespace testing;
 
@@ -84,7 +84,7 @@ TEST_F(AndroidNativeWindowTest, native_window_swapinterval)
 }
 
 /* Query hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_query_hook)
+TEST_F(AndroidNativeWindowTest, NativeWindowQueryHook)
 {
     using namespace testing;
 
@@ -102,7 +102,7 @@ TEST_F(AndroidNativeWindowTest, native_window_query_hook)
 }
 
 /* perform hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_perform_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowPerformHookCallable)
 {
     int const format = 4;
 
@@ -114,7 +114,7 @@ TEST_F(AndroidNativeWindowTest, native_window_perform_hook_callable)
 }
 
 /* setSwapInterval hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_setswapinterval_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowSetswapintervalHookCallable)
 {
     int const swap = 2;
 
@@ -123,7 +123,7 @@ TEST_F(AndroidNativeWindowTest, native_window_setswapinterval_hook_callable)
 }
 
 /* dequeue hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueHookCallable)
 {
     ANativeWindowBuffer* returned_buffer;
     int fence_fd;
@@ -132,7 +132,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_hook_callable)
     window.dequeueBuffer(&window, &returned_buffer, &fence_fd);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_returns_right_buffer)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueReturnsRightBuffer)
 {
     using namespace testing;
 
@@ -153,7 +153,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_returns_right_buffer)
     EXPECT_EQ(fake_fd, fence_fd);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_returns_previously_cancelled_buffer)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueReturnsPreviouslyCancelledBuffer)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -171,7 +171,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_returns_previously_cancell
     EXPECT_EQ(dequeued_buffer, expected_buffer);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueDeprecatedHookCallable)
 {
     ANativeWindowBuffer* tmp;
 
@@ -179,7 +179,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_hook_callable)
     window.dequeueBuffer_DEPRECATED(&window, &tmp);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_returns_right_buffer)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueDeprecatedReturnsRightBuffer)
 {
     using namespace testing;
 
@@ -198,7 +198,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_returns_right_b
     EXPECT_EQ(mock_buffer->anwb(), returned_buffer);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_returns_previously_cancelled_buffer)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueDeprecatedReturnsPreviouslyCancelledBuffer)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -216,7 +216,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_returns_previou
 }
 
 /* queue hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_queue_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowQueueHookCallable)
 {
     ANativeWindowBuffer* tmp = nullptr;
 
@@ -224,7 +224,7 @@ TEST_F(AndroidNativeWindowTest, native_window_queue_hook_callable)
     window.queueBuffer(&window, tmp, -1);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_queue_passes_buffer_back)
+TEST_F(AndroidNativeWindowTest, NativeWindowQueuePassesBufferBack)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -236,7 +236,7 @@ TEST_F(AndroidNativeWindowTest, native_window_queue_passes_buffer_back)
     window.queueBuffer(&window, &buffer, fence_fd);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_queue_deprecated_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowQueueDeprecatedHookCallable)
 {
     ANativeWindowBuffer* tmp = nullptr;
 
@@ -244,7 +244,7 @@ TEST_F(AndroidNativeWindowTest, native_window_queue_deprecated_hook_callable)
     window.queueBuffer_DEPRECATED(&window, tmp);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_queue_deprecated_passes_buffer_back)
+TEST_F(AndroidNativeWindowTest, NativeWindowQueueDeprecatedPassesBufferBack)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -256,7 +256,7 @@ TEST_F(AndroidNativeWindowTest, native_window_queue_deprecated_passes_buffer_bac
 }
 
 /* cancel hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_cancel_hooks_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowCancelHooksCallable)
 {
     ANativeWindowBuffer* tmp = nullptr;
 
@@ -267,7 +267,7 @@ TEST_F(AndroidNativeWindowTest, native_window_cancel_hooks_callable)
 }
 
 /* lock hook tests */
-TEST_F(AndroidNativeWindowTest, native_window_lock_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowLockHookCallable)
 {
     ANativeWindowBuffer* tmp = 0x0;
 
@@ -275,19 +275,19 @@ TEST_F(AndroidNativeWindowTest, native_window_lock_hook_callable)
     window.lockBuffer_DEPRECATED(&window, tmp);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_incref_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowIncrefHookCallable)
 {
     ASSERT_NE(nullptr, window.common.incRef);
     window.common.incRef(NULL);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_decref_hook_callable)
+TEST_F(AndroidNativeWindowTest, NativeWindowDecrefHookCallable)
 {
     ASSERT_NE(nullptr, window.common.decRef);
     window.common.decRef(NULL);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_has_proper_rc)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueDeprecatedHasProperRc)
 {
     ANativeWindowBuffer* tmp;
 
@@ -295,7 +295,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_deprecated_has_proper_rc)
     EXPECT_EQ(0, ret);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_dequeue_has_proper_rc)
+TEST_F(AndroidNativeWindowTest, NativeWindowDequeueHasProperRc)
 {
     ANativeWindowBuffer* tmp;
     int fencefd;
@@ -304,7 +304,7 @@ TEST_F(AndroidNativeWindowTest, native_window_dequeue_has_proper_rc)
     EXPECT_EQ(0, ret);
 }
 
-TEST_F(AndroidNativeWindowTest, native_window_cancel_hook_does_not_call_driver_interpreter)
+TEST_F(AndroidNativeWindowTest, NativeWindowCancelHookDoesNotCallDriverInterpreter)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -317,7 +317,7 @@ TEST_F(AndroidNativeWindowTest, native_window_cancel_hook_does_not_call_driver_i
     EXPECT_EQ(0, rc);
 }
 
-TEST_F(AndroidNativeWindowTest, returns_error_on_dequeue_buffer_failure)
+TEST_F(AndroidNativeWindowTest, ReturnsErrorOnDequeueBufferFailure)
 {
     using namespace testing;
 
@@ -329,7 +329,7 @@ TEST_F(AndroidNativeWindowTest, returns_error_on_dequeue_buffer_failure)
     EXPECT_THAT(window.dequeueBuffer_DEPRECATED(&window, nullptr), Eq(failure_code));
 }
 
-TEST_F(AndroidNativeWindowTest, returns_error_on_queue_buffer_failure)
+TEST_F(AndroidNativeWindowTest, ReturnsErrorOnQueueBufferFailure)
 {
     using namespace testing;
 
@@ -341,7 +341,7 @@ TEST_F(AndroidNativeWindowTest, returns_error_on_queue_buffer_failure)
     EXPECT_THAT(window.queueBuffer_DEPRECATED(&window, nullptr), Eq(failure_code));
 }
 
-TEST_F(AndroidNativeWindowTest, returns_error_on_query_failure)
+TEST_F(AndroidNativeWindowTest, ReturnsErrorOnQueryFailure)
 {
     using namespace testing;
 
@@ -351,7 +351,7 @@ TEST_F(AndroidNativeWindowTest, returns_error_on_query_failure)
     EXPECT_THAT(window.query(&window, 0, nullptr), Eq(failure_code));
 }
 
-TEST_F(AndroidNativeWindowTest, returns_error_on_perform_failure)
+TEST_F(AndroidNativeWindowTest, ReturnsErrorOnPerformFailure)
 {
     using namespace testing;
 

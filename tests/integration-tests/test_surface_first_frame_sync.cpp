@@ -136,7 +136,7 @@ private:
 
 using SurfaceFirstFrameSync = BespokeDisplayServerTestFixture;
 
-TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
+TEST_F(SurfaceFirstFrameSync, SurfaceNotRenderedUntilBufferIsPushed)
 {
     static std::string const surface_created{"surface_created_0950f3f9.tmp"};
     static std::string const do_next_buffer{"do_next_buffer_0950f3f9.tmp"};

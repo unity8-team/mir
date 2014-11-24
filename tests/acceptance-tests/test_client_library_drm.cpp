@@ -28,7 +28,7 @@ using namespace testing;
 
 using MirClientLibraryDrmTest = mtf::ConnectedClientHeadlessServer;
 
-TEST_F(MirClientLibraryDrmTest, sets_gbm_device_in_platform_data)
+TEST_F(MirClientLibraryDrmTest, SetsGbmDeviceInPlatformData)
 {
     struct gbm_device* dev = reinterpret_cast<struct gbm_device*>(connection);
 

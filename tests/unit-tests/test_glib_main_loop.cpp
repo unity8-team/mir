@@ -69,7 +69,7 @@ struct GLibMainLoopTest : ::testing::Test
 
 }
 
-TEST_F(GLibMainLoopTest, stops_from_within_handler)
+TEST_F(GLibMainLoopTest, StopsFromWithinHandler)
 {
     mt::Signal loop_finished;
 
@@ -85,7 +85,7 @@ TEST_F(GLibMainLoopTest, stops_from_within_handler)
     EXPECT_TRUE(loop_finished.wait_for(std::chrono::seconds{5}));
 }
 
-TEST_F(GLibMainLoopTest, stops_from_outside_handler)
+TEST_F(GLibMainLoopTest, StopsFromOutsideHandler)
 {
     mt::Signal loop_running;
     mt::Signal loop_finished;
@@ -106,7 +106,7 @@ TEST_F(GLibMainLoopTest, stops_from_outside_handler)
     EXPECT_TRUE(loop_finished.wait_for(std::chrono::seconds{5}));
 }
 
-TEST_F(GLibMainLoopTest, ignores_handler_added_after_stop)
+TEST_F(GLibMainLoopTest, IgnoresHandlerAddedAfterStop)
 {
     int const owner{0};
     bool handler_called{false};
@@ -129,7 +129,7 @@ TEST_F(GLibMainLoopTest, ignores_handler_added_after_stop)
     EXPECT_FALSE(handler_called);
 }
 
-TEST_F(GLibMainLoopTest, handles_signal)
+TEST_F(GLibMainLoopTest, HandlesSignal)
 {
     int const signum{SIGUSR1};
     int handled_signum{0};
@@ -149,7 +149,7 @@ TEST_F(GLibMainLoopTest, handles_signal)
     ASSERT_EQ(signum, handled_signum);
 }
 
-TEST_F(GLibMainLoopTest, handles_multiple_signals)
+TEST_F(GLibMainLoopTest, HandlesMultipleSignals)
 {
     std::vector<int> const signals{SIGUSR1, SIGUSR2};
     size_t const num_signals_to_send{10};
@@ -186,7 +186,7 @@ TEST_F(GLibMainLoopTest, handles_multiple_signals)
         EXPECT_EQ(signals[i % signals.size()], handled_signals[i]) << " index " << i;
 }
 
-TEST_F(GLibMainLoopTest, invokes_all_registered_handlers_for_signal)
+TEST_F(GLibMainLoopTest, InvokesAllRegisteredHandlersForSignal)
 {
     using namespace testing;
 
@@ -239,7 +239,7 @@ TEST_F(GLibMainLoopTest, invokes_all_registered_handlers_for_signal)
     ASSERT_THAT(handled_signum, Each(signum));
 }
 
-TEST_F(GLibMainLoopTest, propagates_exception_from_signal_handler)
+TEST_F(GLibMainLoopTest, PropagatesExceptionFromSignalHandler)
 {
     // Execute in forked process to work around
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61643
@@ -258,7 +258,7 @@ TEST_F(GLibMainLoopTest, propagates_exception_from_signal_handler)
         });
 }
 
-TEST_F(GLibMainLoopTest, handles_fd)
+TEST_F(GLibMainLoopTest, HandlesFd)
 {
     mt::Pipe p;
     char const data_to_write{'a'};
@@ -282,7 +282,7 @@ TEST_F(GLibMainLoopTest, handles_fd)
     EXPECT_EQ(data_to_write, data_read);
 }
 
-TEST_F(GLibMainLoopTest, multiple_fds_with_single_handler_handled)
+TEST_F(GLibMainLoopTest, MultipleFdsWithSingleHandlerHandled)
 {
     using namespace testing;
 
@@ -330,7 +330,7 @@ TEST_F(GLibMainLoopTest, multiple_fds_with_single_handler_handled)
     EXPECT_THAT(elems_read, ContainerEq(values_from_to<size_t>(0, num_elems_to_send - 1)));
 }
 
-TEST_F(GLibMainLoopTest, multiple_fd_handlers_are_called)
+TEST_F(GLibMainLoopTest, MultipleFdHandlersAreCalled)
 {
     using namespace testing;
 
@@ -443,7 +443,7 @@ TEST_F(GLibMainLoopTest,
     EXPECT_EQ(p2.read_fd(), p2_handler_executes);
 }
 
-TEST_F(GLibMainLoopTest, unregister_does_not_close_fds)
+TEST_F(GLibMainLoopTest, UnregisterDoesNotCloseFds)
 {
     mt::Pipe p1, p2;
     char const data_to_write{'b'};
@@ -476,7 +476,7 @@ TEST_F(GLibMainLoopTest, unregister_does_not_close_fds)
     EXPECT_EQ(data_to_write, data_read);
 }
 
-TEST_F(GLibMainLoopTest, propagates_exception_from_fd_handler)
+TEST_F(GLibMainLoopTest, PropagatesExceptionFromFdHandler)
 {
     // Execute in forked process to work around
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61643
@@ -498,7 +498,7 @@ TEST_F(GLibMainLoopTest, propagates_exception_from_fd_handler)
         });
 }
 
-TEST_F(GLibMainLoopTest, dispatches_action)
+TEST_F(GLibMainLoopTest, DispatchesAction)
 {
     using namespace testing;
 
@@ -518,7 +518,7 @@ TEST_F(GLibMainLoopTest, dispatches_action)
     EXPECT_THAT(num_actions, Eq(1));
 }
 
-TEST_F(GLibMainLoopTest, dispatches_multiple_actions_in_order)
+TEST_F(GLibMainLoopTest, DispatchesMultipleActionsInOrder)
 {
     using namespace testing;
 
@@ -543,7 +543,7 @@ TEST_F(GLibMainLoopTest, dispatches_multiple_actions_in_order)
     EXPECT_THAT(actions, ContainerEq(values_from_to(0, num_actions - 1)));
 }
 
-TEST_F(GLibMainLoopTest, does_not_dispatch_paused_actions)
+TEST_F(GLibMainLoopTest, DoesNotDispatchPausedActions)
 {
     using namespace testing;
 
@@ -591,7 +591,7 @@ TEST_F(GLibMainLoopTest, does_not_dispatch_paused_actions)
     EXPECT_THAT(actions, ElementsAre(1, 3));
 }
 
-TEST_F(GLibMainLoopTest, dispatches_actions_resumed_from_within_another_action)
+TEST_F(GLibMainLoopTest, DispatchesActionsResumedFromWithinAnotherAction)
 {
     using namespace testing;
 
@@ -624,7 +624,7 @@ TEST_F(GLibMainLoopTest, dispatches_actions_resumed_from_within_another_action)
     EXPECT_THAT(actions, ElementsAre(1, 0));
 }
 
-TEST_F(GLibMainLoopTest, handles_enqueue_from_within_action)
+TEST_F(GLibMainLoopTest, HandlesEnqueueFromWithinAction)
 {
     using namespace testing;
 
@@ -657,7 +657,7 @@ TEST_F(GLibMainLoopTest, handles_enqueue_from_within_action)
     EXPECT_THAT(actions, ContainerEq(values_from_to(0, num_actions - 1)));
 }
 
-TEST_F(GLibMainLoopTest, dispatches_actions_resumed_externally)
+TEST_F(GLibMainLoopTest, DispatchesActionsResumedExternally)
 {
     using namespace testing;
 
@@ -701,7 +701,7 @@ TEST_F(GLibMainLoopTest, dispatches_actions_resumed_externally)
     EXPECT_THAT(actions, ElementsAre(1, 0));
 }
 
-TEST_F(GLibMainLoopTest, propagates_exception_from_server_action)
+TEST_F(GLibMainLoopTest, PropagatesExceptionFromServerAction)
 {
     // Execute in forked process to work around
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61643
@@ -715,7 +715,7 @@ TEST_F(GLibMainLoopTest, propagates_exception_from_server_action)
         });
 }
 
-TEST_F(GLibMainLoopTest, can_be_rerun_after_exception)
+TEST_F(GLibMainLoopTest, CanBeRerunAfterException)
 {
     // Execute in forked process to work around
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61643
@@ -791,7 +791,7 @@ struct GLibMainLoopAlarmTest : ::testing::Test
 
 }
 
-TEST_F(GLibMainLoopAlarmTest, main_loop_runs_until_stop_called)
+TEST_F(GLibMainLoopAlarmTest, MainLoopRunsUntilStopCalled)
 {
     auto mainloop_started = std::make_shared<mt::Signal>();
 
@@ -827,7 +827,7 @@ TEST_F(GLibMainLoopAlarmTest, main_loop_runs_until_stop_called)
     EXPECT_FALSE(timer_fired->wait_for(std::chrono::milliseconds{10}));
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_starts_in_pending_state)
+TEST_F(GLibMainLoopAlarmTest, AlarmStartsInPendingState)
 {
     auto alarm = ml.notify_in(delay, [this]() {});
 
@@ -836,7 +836,7 @@ TEST_F(GLibMainLoopAlarmTest, alarm_starts_in_pending_state)
     EXPECT_EQ(mir::time::Alarm::pending, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_fires_with_correct_delay)
+TEST_F(GLibMainLoopAlarmTest, AlarmFiresWithCorrectDelay)
 {
     UnblockMainLoop unblocker(ml);
 
@@ -849,7 +849,7 @@ TEST_F(GLibMainLoopAlarmTest, alarm_fires_with_correct_delay)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, multiple_alarms_fire)
+TEST_F(GLibMainLoopAlarmTest, MultipleAlarmsFire)
 {
     using namespace testing;
 
@@ -870,7 +870,7 @@ TEST_F(GLibMainLoopAlarmTest, multiple_alarms_fire)
         EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_changes_to_triggered_state)
+TEST_F(GLibMainLoopAlarmTest, AlarmChangesToTriggeredState)
 {
     auto alarm_fired = std::make_shared<mt::Signal>();
     auto alarm = ml.notify_in(std::chrono::milliseconds{5}, [alarm_fired]()
@@ -886,7 +886,7 @@ TEST_F(GLibMainLoopAlarmTest, alarm_changes_to_triggered_state)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
+TEST_F(GLibMainLoopAlarmTest, CancelledAlarmDoesntFire)
 {
     UnblockMainLoop unblocker(ml);
     auto alarm = ml.notify_in(std::chrono::milliseconds{100},
@@ -901,7 +901,7 @@ TEST_F(GLibMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
     EXPECT_EQ(mir::time::Alarm::cancelled, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, destroyed_alarm_doesnt_fire)
+TEST_F(GLibMainLoopAlarmTest, DestroyedAlarmDoesntFire)
 {
     auto alarm = ml.notify_in(std::chrono::milliseconds{200},
                               [](){ FAIL() << "Alarm handler of destroyed alarm called"; });
@@ -912,7 +912,7 @@ TEST_F(GLibMainLoopAlarmTest, destroyed_alarm_doesnt_fire)
     clock->advance_by(std::chrono::milliseconds{200}, ml);
 }
 
-TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_fires_again)
+TEST_F(GLibMainLoopAlarmTest, RescheduledAlarmFiresAgain)
 {
     std::atomic<int> call_count{0};
 
@@ -934,7 +934,7 @@ TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_fires_again)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
+TEST_F(GLibMainLoopAlarmTest, RescheduledAlarmCancelsPreviousScheduling)
 {
     std::atomic<int> call_count{0};
 
@@ -957,7 +957,7 @@ TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
     EXPECT_EQ(1, call_count);
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_callback_cannot_deadlock)
+TEST_F(GLibMainLoopAlarmTest, AlarmCallbackCannotDeadlock)
 {   // Regression test for deadlock bug LP: #1339700
     std::timed_mutex m;
     std::atomic_bool failed(false);
@@ -997,7 +997,7 @@ TEST_F(GLibMainLoopAlarmTest, alarm_callback_cannot_deadlock)
     t.join();
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_fires_at_correct_time_point)
+TEST_F(GLibMainLoopAlarmTest, AlarmFiresAtCorrectTimePoint)
 {
     mir::time::Timestamp real_soon = clock->now() + std::chrono::milliseconds{120};
 
@@ -1012,7 +1012,7 @@ TEST_F(GLibMainLoopAlarmTest, alarm_fires_at_correct_time_point)
     EXPECT_EQ(mir::time::Alarm::triggered, alarm->state());
 }
 
-TEST_F(GLibMainLoopAlarmTest, propagates_exception_from_alarm)
+TEST_F(GLibMainLoopAlarmTest, PropagatesExceptionFromAlarm)
 {
     // Execute in forked process to work around
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61643
@@ -1029,7 +1029,7 @@ TEST_F(GLibMainLoopAlarmTest, propagates_exception_from_alarm)
 }
 
 // More targeted regression test for LP: #1381925
-TEST_F(GLibMainLoopTest, stress_emits_alarm_notification_with_zero_timeout)
+TEST_F(GLibMainLoopTest, StressEmitsAlarmNotificationWithZeroTimeout)
 {
     UnblockMainLoop unblocker{ml};
 
@@ -1051,7 +1051,7 @@ TEST_F(GLibMainLoopTest, stress_emits_alarm_notification_with_zero_timeout)
 // the main loop in the main process and then trying to do the same in a forked
 // process. This happens, for example, when we run some tests with an in-process
 // server setup followed by a test using an out-of-process server setup.
-TEST(GLibMainLoopForkTest, handles_signals_when_created_in_forked_process)
+TEST(GLibMainLoopForkTest, HandlesSignalsWhenCreatedInForkedProcess)
 {
     auto const check_mainloop_signal_handling =
         []

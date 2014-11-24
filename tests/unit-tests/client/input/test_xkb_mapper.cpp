@@ -54,7 +54,7 @@ static int map_repeated_key(mircv::XKBMapper &mapper, MirKeyAction action, int s
 
 }
 
-TEST(XKBMapper, maps_generic_us_english_keys)
+TEST(XKBMapper, MapsGenericUsEnglishKeys)
 {
     mircv::XKBMapper mapper;
 
@@ -66,7 +66,7 @@ TEST(XKBMapper, maps_generic_us_english_keys)
     EXPECT_EQ(XKB_KEY_4, map_key(mapper, mir_key_action_down, KEY_4));
 }
 
-TEST(XKBMapper, key_action_multiple_does_not_update_modifier_state)
+TEST(XKBMapper, KeyActionMultipleDoesNotUpdateModifierState)
 {
     mircv::XKBMapper mapper;
 
@@ -74,7 +74,7 @@ TEST(XKBMapper, key_action_multiple_does_not_update_modifier_state)
     EXPECT_EQ(XKB_KEY_7, map_key(mapper, mir_key_action_down, KEY_7));
 }
 
-TEST(XKBMapper, key_repeats_do_not_recurse_modifier_state)
+TEST(XKBMapper, KeyRepeatsDoNotRecurseModifierState)
 {
     mircv::XKBMapper mapper;
 

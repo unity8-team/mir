@@ -174,7 +174,7 @@ void wait_for_surface_release(SurfaceSync* context)
 
 using ErrorReporting = BespokeDisplayServerTestFixture;
 
-TEST_F(ErrorReporting, c_api_returns_connection_error)
+TEST_F(ErrorReporting, CApiReturnsConnectionError)
 {
 
     struct ServerConfig : TestingServerConfiguration
@@ -208,7 +208,7 @@ TEST_F(ErrorReporting, c_api_returns_connection_error)
     launch_client_process(client_config);
 }
 
-TEST_F(ErrorReporting, c_api_returns_surface_creation_error)
+TEST_F(ErrorReporting, CApiReturnsSurfaceCreationError)
 {
 
     struct ServerConfig : TestingServerConfiguration

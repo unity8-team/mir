@@ -51,7 +51,7 @@ struct PeriodicPerfReport : ::testing::Test
 
 } // namespace
 
-TEST_F(PeriodicPerfReport, reports_the_right_numbers_at_full_speed)
+TEST_F(PeriodicPerfReport, ReportsTheRightNumbersAtFullSpeed)
 {
     int const fps = 50;
     int const nbuffers = 3;
@@ -93,7 +93,7 @@ TEST_F(PeriodicPerfReport, reports_the_right_numbers_at_full_speed)
     }
 }
 
-TEST_F(PeriodicPerfReport, reports_the_right_numbers_at_low_speed)
+TEST_F(PeriodicPerfReport, ReportsTheRightNumbersAtLowSpeed)
 {
     int const nbuffers = 3;
     std::chrono::microseconds const render_time = std::chrono::milliseconds(3);
@@ -123,7 +123,7 @@ TEST_F(PeriodicPerfReport, reports_the_right_numbers_at_low_speed)
     }
 }
 
-TEST_F(PeriodicPerfReport, reports_nothing_on_idle)
+TEST_F(PeriodicPerfReport, ReportsNothingOnIdle)
 {
     using namespace testing;
     EXPECT_CALL(report, display(_,_,_,_,_)).Times(0);

@@ -56,7 +56,7 @@ struct MockInputChannel : public mi::InputChannel
 
 }
 
-TEST(AndroidInputWindowHandle, update_info_uses_geometry_and_channel_from_surface)
+TEST(AndroidInputWindowHandle, UpdateInfoUsesGeometryAndChannelFromSurface)
 {
     using namespace ::testing;
 

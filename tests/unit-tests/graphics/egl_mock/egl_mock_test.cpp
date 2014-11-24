@@ -22,7 +22,7 @@
 
 namespace mtd = mir::test::doubles;
 
-TEST(EglMock, demo)
+TEST(EglMock, Demo)
 {
     using namespace ::testing;
 
@@ -32,7 +32,7 @@ TEST(EglMock, demo)
 }
 
 #define EGL_MOCK_TEST(test, egl_call, mock_egl_call)                   \
-    TEST(EglMock, test_##test)                                         \
+    TEST(EglMock, Test##test)                                          \
     {                                                                  \
         using namespace ::testing;                                     \
                                                                        \

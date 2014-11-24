@@ -41,7 +41,7 @@ public:
 };
 }
 
-TEST(GlobalEventSender, sender)
+TEST(GlobalEventSender, Sender)
 {
     using namespace testing;
 

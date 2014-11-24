@@ -496,7 +496,7 @@ struct MirClientSurfaceTest : public testing::Test
 
 }
 
-TEST_F(MirClientSurfaceTest, client_buffer_created_on_surface_creation)
+TEST_F(MirClientSurfaceTest, ClientBufferCreatedOnSurfaceCreation)
 {
     using namespace testing;
 
@@ -506,7 +506,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_surface_creation)
     create_and_wait_for_surface_with(*client_comm_channel, mock_buffer_factory);
 }
 
-TEST_F(MirClientSurfaceTest, attributes_set_on_surface_creation)
+TEST_F(MirClientSurfaceTest, AttributesSetOnSurfaceCreation)
 {
     using namespace testing;
 
@@ -518,7 +518,7 @@ TEST_F(MirClientSurfaceTest, attributes_set_on_surface_creation)
     }
 }
 
-TEST_F(MirClientSurfaceTest, create_wait_handle_really_blocks)
+TEST_F(MirClientSurfaceTest, CreateWaitHandleReallyBlocks)
 {
     using namespace testing;
 
@@ -534,7 +534,7 @@ TEST_F(MirClientSurfaceTest, create_wait_handle_really_blocks)
     EXPECT_GE(std::chrono::steady_clock::now(), expected_end);
 }
 
-TEST_F(MirClientSurfaceTest, next_buffer_wait_handle_really_blocks)
+TEST_F(MirClientSurfaceTest, NextBufferWaitHandleReallyBlocks)
 {
     using namespace testing;
 
@@ -551,7 +551,7 @@ TEST_F(MirClientSurfaceTest, next_buffer_wait_handle_really_blocks)
     EXPECT_GE(std::chrono::steady_clock::now(), expected_end);
 }
 
-TEST_F(MirClientSurfaceTest, client_buffer_created_on_next_buffer)
+TEST_F(MirClientSurfaceTest, ClientBufferCreatedOnNextBuffer)
 {
     using namespace testing;
 
@@ -568,7 +568,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_next_buffer)
     buffer_wait_handle->wait_for_all();
 }
 
-TEST_F(MirClientSurfaceTest, client_buffer_uses_ipc_message_from_server_on_create)
+TEST_F(MirClientSurfaceTest, ClientBufferUsesIpcMessageFromServerOnCreate)
 {
     using namespace testing;
 
@@ -578,7 +578,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_uses_ipc_message_from_server_on_creat
                 BufferPackageMatches(mock_server_tool->server_package));
 }
 
-TEST_F(MirClientSurfaceTest, message_width_height_used_in_buffer_creation)
+TEST_F(MirClientSurfaceTest, MessageWidthHeightUsedInBufferCreation)
 {
     using namespace testing;
 
@@ -588,7 +588,7 @@ TEST_F(MirClientSurfaceTest, message_width_height_used_in_buffer_creation)
                 Eq(geom::Size(mock_server_tool->width_sent, mock_server_tool->height_sent)));
 }
 
-TEST_F(MirClientSurfaceTest, message_pf_used_in_buffer_creation)
+TEST_F(MirClientSurfaceTest, MessagePfUsedInBufferCreation)
 {
     using namespace testing;
 
@@ -599,7 +599,7 @@ TEST_F(MirClientSurfaceTest, message_pf_used_in_buffer_creation)
 }
 
 // TODO: input fd is not checked in the test
-TEST_F(MirClientSurfaceTest, creates_input_thread_with_input_fd_when_delegate_specified)
+TEST_F(MirClientSurfaceTest, CreatesInputThreadWithInputFdWhenDelegateSpecified)
 {
     using namespace ::testing;
 
@@ -619,7 +619,7 @@ TEST_F(MirClientSurfaceTest, creates_input_thread_with_input_fd_when_delegate_sp
     surface.set_event_handler(&delegate);
 }
 
-TEST_F(MirClientSurfaceTest, does_not_create_input_thread_when_no_delegate_specified)
+TEST_F(MirClientSurfaceTest, DoesNotCreateInputThreadWhenNoDelegateSpecified)
 {
     using namespace ::testing;
 
@@ -636,7 +636,7 @@ TEST_F(MirClientSurfaceTest, does_not_create_input_thread_when_no_delegate_speci
     wait_handle->wait_for_all();
 }
 
-TEST_F(MirClientSurfaceTest, returns_current_buffer)
+TEST_F(MirClientSurfaceTest, ReturnsCurrentBuffer)
 {
     using namespace testing;
 
@@ -655,7 +655,7 @@ TEST_F(MirClientSurfaceTest, returns_current_buffer)
     EXPECT_THAT(next_buffer, Ne(creation_buffer));
 }
 
-TEST_F(MirClientSurfaceTest, surface_resizes_with_latest_buffer)
+TEST_F(MirClientSurfaceTest, SurfaceResizesWithLatestBuffer)
 {
     using namespace testing;
 
@@ -679,7 +679,7 @@ TEST_F(MirClientSurfaceTest, surface_resizes_with_latest_buffer)
     EXPECT_THAT(after.height, Eq(new_height));
 }
 
-TEST_F(MirClientSurfaceTest, get_cpu_region_returns_correct_data)
+TEST_F(MirClientSurfaceTest, GetCpuRegionReturnsCorrectData)
 {
     using namespace testing;
 
@@ -716,14 +716,14 @@ TEST_F(MirClientSurfaceTest, get_cpu_region_returns_correct_data)
     }
 }
 
-TEST_F(MirClientSurfaceTest, valid_surface_is_valid)
+TEST_F(MirClientSurfaceTest, ValidSurfaceIsValid)
 {
     auto const surface = create_and_wait_for_surface_with(*client_comm_channel, stub_buffer_factory);
 
     EXPECT_TRUE(MirSurface::is_valid(surface.get()));
 }
 
-TEST_F(MirClientSurfaceTest, configure_cursor_wait_handle_really_blocks)
+TEST_F(MirClientSurfaceTest, ConfigureCursorWaitHandleReallyBlocks)
 {
     using namespace testing;
 
@@ -743,7 +743,7 @@ TEST_F(MirClientSurfaceTest, configure_cursor_wait_handle_really_blocks)
     mir_cursor_configuration_destroy(cursor_config);
 }
 
-TEST_F(MirClientSurfaceTest, configure_wait_handle_really_blocks)
+TEST_F(MirClientSurfaceTest, ConfigureWaitHandleReallyBlocks)
 {
     using namespace testing;
 

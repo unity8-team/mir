@@ -150,7 +150,7 @@ struct ClientLibrary : mtf::HeadlessInProcessServer
 
 using namespace testing;
 
-TEST_F(ClientLibrary, client_library_connects_and_disconnects)
+TEST_F(ClientLibrary, ClientLibraryConnectsAndDisconnects)
 {
     MirWaitHandle* wh = mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this);
     EXPECT_THAT(wh, NotNull());
@@ -163,7 +163,7 @@ TEST_F(ClientLibrary, client_library_connects_and_disconnects)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, synchronous_connection)
+TEST_F(ClientLibrary, SynchronousConnection)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -174,7 +174,7 @@ TEST_F(ClientLibrary, synchronous_connection)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, creates_surface)
+TEST_F(ClientLibrary, CreatesSurface)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
@@ -220,7 +220,7 @@ TEST_F(ClientLibrary, creates_surface)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, can_set_surface_types)
+TEST_F(ClientLibrary, CanSetSurfaceTypes)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
@@ -265,7 +265,7 @@ TEST_F(ClientLibrary, can_set_surface_types)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, can_set_surface_state)
+TEST_F(ClientLibrary, CanSetSurfaceState)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -307,7 +307,7 @@ TEST_F(ClientLibrary, can_set_surface_state)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, receives_surface_dpi_value)
+TEST_F(ClientLibrary, ReceivesSurfaceDpiValue)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -330,7 +330,7 @@ TEST_F(ClientLibrary, receives_surface_dpi_value)
 }
 
 #ifndef ANDROID
-TEST_F(ClientLibrary, surface_scanout_flag_toggles)
+TEST_F(ClientLibrary, SurfaceScanoutFlagToggles)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -388,9 +388,9 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
 
 #ifdef ANDROID
 // Mir's Android test infrastructure isn't quite ready for this yet.
-TEST_F(ClientLibrary, DISABLED_gets_buffer_dimensions)
+TEST_F(ClientLibrary, DISABLED_GetsBufferDimensions)
 #else
-TEST_F(ClientLibrary, gets_buffer_dimensions)
+TEST_F(ClientLibrary, GetsBufferDimensions)
 #endif
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
@@ -436,7 +436,7 @@ TEST_F(ClientLibrary, gets_buffer_dimensions)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, creates_multiple_surfaces)
+TEST_F(ClientLibrary, CreatesMultipleSurfaces)
 {
     int const n_surfaces = 13;
     size_t old_surface_count = 0;
@@ -475,7 +475,7 @@ TEST_F(ClientLibrary, creates_multiple_surfaces)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, client_library_accesses_and_advances_buffers)
+TEST_F(ClientLibrary, ClientLibraryAccessesAndAdvancesBuffers)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
@@ -501,7 +501,7 @@ TEST_F(ClientLibrary, client_library_accesses_and_advances_buffers)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, fully_synchronous_client)
+TEST_F(ClientLibrary, FullySynchronousClient)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -527,7 +527,7 @@ TEST_F(ClientLibrary, fully_synchronous_client)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, highly_threaded_client)
+TEST_F(ClientLibrary, HighlyThreadedClient)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
@@ -560,7 +560,7 @@ TEST_F(ClientLibrary, highly_threaded_client)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, accesses_platform_package)
+TEST_F(ClientLibrary, AccessesPlatformPackage)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
@@ -575,7 +575,7 @@ TEST_F(ClientLibrary, accesses_platform_package)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibrary, accesses_display_info)
+TEST_F(ClientLibrary, AccessesDisplayInfo)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 

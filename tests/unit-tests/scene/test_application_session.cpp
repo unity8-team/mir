@@ -146,7 +146,7 @@ struct ApplicationSession : public testing::Test
 
 }
 
-TEST_F(ApplicationSession, uses_coordinator_to_create_surface)
+TEST_F(ApplicationSession, UsesCoordinatorToCreateSurface)
 {
     using namespace ::testing;
 
@@ -163,7 +163,7 @@ TEST_F(ApplicationSession, uses_coordinator_to_create_surface)
     session->destroy_surface(surf);
 }
 
-TEST_F(ApplicationSession, notifies_listener_of_create_and_destroy_surface)
+TEST_F(ApplicationSession, NotifiesListenerOfCreateAndDestroySurface)
 {
     using namespace ::testing;
 
@@ -181,7 +181,7 @@ TEST_F(ApplicationSession, notifies_listener_of_create_and_destroy_surface)
     session->destroy_surface(surf);
 }
 
-TEST_F(ApplicationSession, notifies_listener_of_surface_destruction_via_session_destruction)
+TEST_F(ApplicationSession, NotifiesListenerOfSurfaceDestructionViaSessionDestruction)
 {
     using namespace ::testing;
 
@@ -199,7 +199,7 @@ TEST_F(ApplicationSession, notifies_listener_of_surface_destruction_via_session_
     }
 }
 
-TEST_F(ApplicationSession, throws_on_get_invalid_surface)
+TEST_F(ApplicationSession, ThrowsOnGetInvalidSurface)
 {
     using namespace ::testing;
 
@@ -212,7 +212,7 @@ TEST_F(ApplicationSession, throws_on_get_invalid_surface)
     }, std::runtime_error);
 }
 
-TEST_F(ApplicationSession, throws_on_destroy_invalid_surface)
+TEST_F(ApplicationSession, ThrowsOnDestroyInvalidSurface)
 {
     using namespace ::testing;
 
@@ -225,7 +225,7 @@ TEST_F(ApplicationSession, throws_on_destroy_invalid_surface)
     }, std::runtime_error);
 }
 
-TEST_F(ApplicationSession, default_surface_is_first_surface)
+TEST_F(ApplicationSession, DefaultSurfaceIsFirstSurface)
 {
     using namespace ::testing;
 
@@ -249,7 +249,7 @@ TEST_F(ApplicationSession, default_surface_is_first_surface)
     app_session->destroy_surface(id3);
 }
 
-TEST_F(ApplicationSession, session_visbility_propagates_to_surfaces)
+TEST_F(ApplicationSession, SessionVisbilityPropagatesToSurfaces)
 {
     using namespace ::testing;
 
@@ -275,7 +275,7 @@ TEST_F(ApplicationSession, session_visbility_propagates_to_surfaces)
     app_session->destroy_surface(surf);
 }
 
-TEST_F(ApplicationSession, takes_snapshot_of_default_surface)
+TEST_F(ApplicationSession, TakesSnapshotOfDefaultSurface)
 {
     using namespace ::testing;
 
@@ -304,7 +304,7 @@ TEST_F(ApplicationSession, takes_snapshot_of_default_surface)
     app_session.destroy_surface(surface);
 }
 
-TEST_F(ApplicationSession, returns_null_snapshot_if_no_default_surface)
+TEST_F(ApplicationSession, ReturnsNullSnapshotIfNoDefaultSurface)
 {
     using namespace ::testing;
 
@@ -324,7 +324,7 @@ TEST_F(ApplicationSession, returns_null_snapshot_if_no_default_surface)
     app_session.take_snapshot(std::ref(mock_snapshot_callback));
 }
 
-TEST_F(ApplicationSession, process_id)
+TEST_F(ApplicationSession, ProcessId)
 {
     using namespace ::testing;
 
@@ -361,7 +361,7 @@ struct ApplicationSessionSender : public ApplicationSession
 };
 }
 
-TEST_F(ApplicationSessionSender, display_config_sender)
+TEST_F(ApplicationSessionSender, DisplayConfigSender)
 {
     using namespace ::testing;
 
@@ -372,7 +372,7 @@ TEST_F(ApplicationSessionSender, display_config_sender)
     app_session.send_display_config(stub_config);
 }
 
-TEST_F(ApplicationSessionSender, lifecycle_event_sender)
+TEST_F(ApplicationSessionSender, LifecycleEventSender)
 {
     using namespace ::testing;
 
@@ -382,7 +382,7 @@ TEST_F(ApplicationSessionSender, lifecycle_event_sender)
     app_session.set_lifecycle_state(mir_lifecycle_state_will_suspend);
 }
 
-TEST_F(ApplicationSessionSender, start_prompt_session)
+TEST_F(ApplicationSessionSender, StartPromptSession)
 {
     using namespace ::testing;
 
@@ -390,7 +390,7 @@ TEST_F(ApplicationSessionSender, start_prompt_session)
     app_session.start_prompt_session();
 }
 
-TEST_F(ApplicationSessionSender, stop_prompt_session)
+TEST_F(ApplicationSessionSender, StopPromptSession)
 {
     using namespace ::testing;
 

@@ -66,7 +66,7 @@ public:
 };
 }
 
-TEST_F(TemporaryBuffersTest, compositor_buffer_acquires_and_releases)
+TEST_F(TemporaryBuffersTest, CompositorBufferAcquiresAndReleases)
 {
     using namespace testing;
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
@@ -77,7 +77,7 @@ TEST_F(TemporaryBuffersTest, compositor_buffer_acquires_and_releases)
     mc::TemporaryCompositorBuffer proxy_buffer(mock_bundle, 0);
 }
 
-TEST_F(TemporaryBuffersTest, snapshot_buffer_acquires_and_releases)
+TEST_F(TemporaryBuffersTest, SnapshotBufferAcquiresAndReleases)
 {
     using namespace testing;
     EXPECT_CALL(*mock_bundle, snapshot_acquire())
@@ -88,7 +88,7 @@ TEST_F(TemporaryBuffersTest, snapshot_buffer_acquires_and_releases)
     mc::TemporarySnapshotBuffer proxy_buffer(mock_bundle);
 }
 
-TEST_F(TemporaryBuffersTest, base_test_size)
+TEST_F(TemporaryBuffersTest, BaseTestSize)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, size())
@@ -99,7 +99,7 @@ TEST_F(TemporaryBuffersTest, base_test_size)
     EXPECT_EQ(buffer_size, size);
 }
 
-TEST_F(TemporaryBuffersTest, base_test_stride)
+TEST_F(TemporaryBuffersTest, BaseTestStride)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, stride())
@@ -110,7 +110,7 @@ TEST_F(TemporaryBuffersTest, base_test_stride)
     EXPECT_EQ(buffer_stride, stride);
 }
 
-TEST_F(TemporaryBuffersTest, base_test_pixel_format)
+TEST_F(TemporaryBuffersTest, BaseTestPixelFormat)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, pixel_format())
@@ -121,7 +121,7 @@ TEST_F(TemporaryBuffersTest, base_test_pixel_format)
     EXPECT_EQ(buffer_pixel_format, pixel_format);
 }
 
-TEST_F(TemporaryBuffersTest, base_gl_bind_to_texture)
+TEST_F(TemporaryBuffersTest, BaseGlBindToTexture)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, gl_bind_to_texture())
@@ -130,7 +130,7 @@ TEST_F(TemporaryBuffersTest, base_gl_bind_to_texture)
     proxy_buffer.gl_bind_to_texture();
 }
 
-TEST_F(TemporaryBuffersTest, base_test_id)
+TEST_F(TemporaryBuffersTest, BaseTestId)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, id())
@@ -139,7 +139,7 @@ TEST_F(TemporaryBuffersTest, base_test_id)
     proxy_buffer.id();
 }
 
-TEST_F(TemporaryBuffersTest, base_test_native_buffer_handle)
+TEST_F(TemporaryBuffersTest, BaseTestNativeBufferHandle)
 {
     TemporaryTestBuffer proxy_buffer(mock_buffer);
     EXPECT_CALL(*mock_buffer, native_buffer_handle())

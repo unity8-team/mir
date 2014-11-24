@@ -87,7 +87,7 @@ protected:
 typedef ::testing::Types<mga::HwcFbDevice, mga::HwcDevice> HWCDeviceTestTypes;
 TYPED_TEST_CASE(HWCCommon, HWCDeviceTestTypes);
 
-TYPED_TEST(HWCCommon, test_proc_registration)
+TYPED_TEST(HWCCommon, TestProcRegistration)
 {
     using namespace testing;
     std::shared_ptr<mga::HWCCallbacks> callbacks;
@@ -103,7 +103,7 @@ TYPED_TEST(HWCCommon, test_proc_registration)
     EXPECT_THAT(callbacks->hooks.hotplug, Ne(nullptr));
 }
 
-TYPED_TEST(HWCCommon, test_device_destruction_unregisters_self_from_hooks)
+TYPED_TEST(HWCCommon, TestDeviceDestructionUnregistersSelfFromHooks)
 {
     using namespace testing;
     std::shared_ptr<mga::HWCCallbacks> callbacks;
@@ -119,7 +119,7 @@ TYPED_TEST(HWCCommon, test_device_destruction_unregisters_self_from_hooks)
     EXPECT_THAT(callbacks->self, Eq(nullptr));    
 }
 
-TYPED_TEST(HWCCommon, registerst_hooks_and_turns_on_display)
+TYPED_TEST(HWCCommon, RegisterstHooksAndTurnsOnDisplay)
 {
     using namespace testing;
 
@@ -135,7 +135,7 @@ TYPED_TEST(HWCCommon, registerst_hooks_and_turns_on_display)
     testing::Mock::VerifyAndClearExpectations(this->mock_device.get());
 }
 
-TYPED_TEST(HWCCommon, test_hwc_suspend_standby_throw)
+TYPED_TEST(HWCCommon, TestHwcSuspendStandbyThrow)
 {
     using namespace testing;
     auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
@@ -148,7 +148,7 @@ TYPED_TEST(HWCCommon, test_hwc_suspend_standby_throw)
     }, std::runtime_error);
 }
 
-TYPED_TEST(HWCCommon, test_hwc_deactivates_vsync_on_blank)
+TYPED_TEST(HWCCommon, TestHwcDeactivatesVsyncOnBlank)
 {
     using namespace testing;
 
@@ -166,7 +166,7 @@ TYPED_TEST(HWCCommon, test_hwc_deactivates_vsync_on_blank)
     device->mode(mir_power_mode_off);
 }
 
-TYPED_TEST(HWCCommon, test_hwc_display_is_deactivated_on_destroy)
+TYPED_TEST(HWCCommon, TestHwcDisplayIsDeactivatedOnDestroy)
 {
     auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
 
@@ -178,7 +178,7 @@ TYPED_TEST(HWCCommon, test_hwc_display_is_deactivated_on_destroy)
     device.reset();
 }
 
-TYPED_TEST(HWCCommon, catches_exception_during_destruction)
+TYPED_TEST(HWCCommon, CatchesExceptionDuringDestruction)
 {
     auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
     EXPECT_CALL(*this->mock_device, display_off())
@@ -186,7 +186,7 @@ TYPED_TEST(HWCCommon, catches_exception_during_destruction)
     device.reset();
 }
 
-TYPED_TEST(HWCCommon, callback_calls_hwcvsync)
+TYPED_TEST(HWCCommon, CallbackCallsHwcvsync)
 {
     using namespace testing;
     std::shared_ptr<mga::HWCCallbacks> callbacks;
@@ -205,13 +205,13 @@ TYPED_TEST(HWCCommon, callback_calls_hwcvsync)
     callbacks->hooks.vsync(&callbacks->hooks, 0, 0);
 }
 
-TYPED_TEST(HWCCommon, set_orientation)
+TYPED_TEST(HWCCommon, SetOrientation)
 {
     auto device = make_hwc_device<TypeParam>(this->mock_device, this->mock_fbdev, this->mock_vsync);
     EXPECT_FALSE(device->apply_orientation(mir_orientation_left));
 }
 
-TYPED_TEST(HWCCommon, first_unblank_failure_is_not_fatal) //lp:1345533
+TYPED_TEST(HWCCommon, FirstUnblankFailureIsNotFatal) //lp:1345533
 {
     ON_CALL(*this->mock_device, display_on())
         .WillByDefault(testing::Throw(std::runtime_error("error")));
@@ -220,7 +220,7 @@ TYPED_TEST(HWCCommon, first_unblank_failure_is_not_fatal) //lp:1345533
     });
 }
 
-TYPED_TEST(HWCCommon, first_vsync_failure_is_not_fatal) //lp:1345533
+TYPED_TEST(HWCCommon, FirstVsyncFailureIsNotFatal) //lp:1345533
 {
     ON_CALL(*this->mock_device, vsync_signal_on())
         .WillByDefault(testing::Throw(std::runtime_error("error")));

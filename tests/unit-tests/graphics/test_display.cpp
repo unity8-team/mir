@@ -103,7 +103,7 @@ public:
 
 }
 
-TEST_F(DisplayTest, configure_disallows_invalid_configuration)
+TEST_F(DisplayTest, ConfigureDisallowsInvalidConfiguration)
 {
     using namespace testing;
     auto display = create_display();
@@ -118,7 +118,7 @@ TEST_F(DisplayTest, configure_disallows_invalid_configuration)
     // platform-dependent exercise, so won't be tested here.
 }
 
-TEST_F(DisplayTest, gl_context_make_current_uses_shared_context)
+TEST_F(DisplayTest, GlContextMakeCurrentUsesSharedContext)
 {
     using namespace testing;
     EGLContext const shared_context{reinterpret_cast<EGLContext>(0x111)};
@@ -159,7 +159,7 @@ TEST_F(DisplayTest, gl_context_make_current_uses_shared_context)
         .Times(AtLeast(0));
 }
 
-TEST_F(DisplayTest, gl_context_releases_context)
+TEST_F(DisplayTest, GlContextReleasesContext)
 {
     using namespace testing;
 
@@ -185,7 +185,7 @@ TEST_F(DisplayTest, gl_context_releases_context)
         .Times(AtLeast(0));
 }
 
-TEST_F(DisplayTest, does_not_expose_display_buffer_for_output_with_power_mode_off)
+TEST_F(DisplayTest, DoesNotExposeDisplayBufferForOutputWithPowerModeOff)
 {
     using namespace testing;
     auto display = create_display();

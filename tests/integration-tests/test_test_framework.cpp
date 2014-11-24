@@ -34,7 +34,7 @@ namespace mf = mir::frontend;
 // We need some tests to prove that errors are reported by the
 // display server test fixture.  But don't want them to fail in
 // normal builds.
-TEST_F(BespokeDisplayServerTestFixture, DISABLED_failing_server_side_test)
+TEST_F(BespokeDisplayServerTestFixture, DISABLED_FailingServerSideTest)
 {
     struct Server : TestingServerConfiguration
     {
@@ -48,11 +48,11 @@ TEST_F(BespokeDisplayServerTestFixture, DISABLED_failing_server_side_test)
     launch_server_process(fail);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, DISABLED_failing_without_server)
+TEST_F(BespokeDisplayServerTestFixture, DISABLED_FailingWithoutServer)
 {
 }
 
-TEST_F(DefaultDisplayServerTestFixture, demonstrate_multiple_clients)
+TEST_F(DefaultDisplayServerTestFixture, DemonstrateMultipleClients)
 {
     struct Client : TestingClientConfiguration
     {
@@ -79,7 +79,7 @@ struct DemoInProcessServer : mir_test_framework::InProcessServer
 };
 }
 
-TEST_F(DemoInProcessServer, client_can_connect)
+TEST_F(DemoInProcessServer, ClientCanConnect)
 {
     auto const connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     EXPECT_TRUE(mir_connection_is_valid(connection));

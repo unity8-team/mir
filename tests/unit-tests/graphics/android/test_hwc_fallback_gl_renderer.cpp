@@ -129,7 +129,7 @@ public:
 };
 }
 
-TEST_F(HWCFallbackGLRenderer, compiles_and_sets_up_gl_program)
+TEST_F(HWCFallbackGLRenderer, CompilesAndSetsUpGlProgram)
 {
     using namespace testing;
     InSequence seq;
@@ -154,7 +154,7 @@ MATCHER_P(Matches4x4Matrix, value, "matches expected 4x4 matrix")
     return !(::testing::Test::HasFailure());
 }
 
-TEST_F(HWCFallbackGLRenderer, sets_up_orthographic_matrix_based_on_screen_size)
+TEST_F(HWCFallbackGLRenderer, SetsUpOrthographicMatrixBasedOnScreenSize)
 {
     using namespace testing;
     geom::Size sz{800,600};
@@ -203,7 +203,7 @@ MATCHER_P2(MatchesVertices, vertices, stride, "matches vertices")
     return !(::testing::Test::HasFailure());
 }
 
-TEST_F(HWCFallbackGLRenderer, computes_vertex_coordinates_correctly)
+TEST_F(HWCFallbackGLRenderer, ComputesVertexCoordinatesCorrectly)
 {
     using namespace testing;
     geom::Rectangle rect1{{100,200},{50, 60}};
@@ -241,7 +241,7 @@ TEST_F(HWCFallbackGLRenderer, computes_vertex_coordinates_correctly)
     glprogram.render(renderlist, mock_swapping_context);
 }
 
-TEST_F(HWCFallbackGLRenderer, computes_texture_coordinates_correctly)
+TEST_F(HWCFallbackGLRenderer, ComputesTextureCoordinatesCorrectly)
 {
     using namespace testing;
     geom::Rectangle rect1{{100,200},{50, 60}};
@@ -268,7 +268,7 @@ TEST_F(HWCFallbackGLRenderer, computes_texture_coordinates_correctly)
     glprogram.render(renderlist, mock_swapping_context);
 }
 
-TEST_F(HWCFallbackGLRenderer, executes_render_in_sequence)
+TEST_F(HWCFallbackGLRenderer, ExecutesRenderInSequence)
 {
     using namespace testing;
     auto renderable1 = std::make_shared<mtd::StubRenderable>();
@@ -313,7 +313,7 @@ TEST_F(HWCFallbackGLRenderer, executes_render_in_sequence)
     glprogram.render(renderlist, mock_swapping_context);
 }
 
-TEST_F(HWCFallbackGLRenderer, activates_alpha_per_renderable)
+TEST_F(HWCFallbackGLRenderer, ActivatesAlphaPerRenderable)
 {
     mg::RenderableList renderlist{
         std::make_shared<mtd::StubTranslucentRenderable>(),

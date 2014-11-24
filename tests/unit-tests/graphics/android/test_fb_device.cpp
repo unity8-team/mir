@@ -68,7 +68,7 @@ struct FBDevice : public ::testing::Test
     testing::NiceMock<mtd::MockSwappingGLContext> mock_context;
 };
 
-TEST_F(FBDevice, rejects_overlays)
+TEST_F(FBDevice, RejectsOverlays)
 {
     std::list<std::shared_ptr<mg::Renderable>> renderlist
     {
@@ -81,7 +81,7 @@ TEST_F(FBDevice, rejects_overlays)
     EXPECT_FALSE(fbdev.post_overlays(mock_context, renderlist, stub_compositor));
 }
 
-TEST_F(FBDevice, commits_frame_via_post)
+TEST_F(FBDevice, CommitsFrameViaPost)
 {
     using namespace testing;
     EXPECT_CALL(*fb_hal_mock, post_interface(fb_hal_mock.get(), native_buffer->handle()))
@@ -98,7 +98,7 @@ TEST_F(FBDevice, commits_frame_via_post)
     fbdev.post_gl(mock_context);
 }
 
-TEST_F(FBDevice, sets_swapinterval_1_on_start)
+TEST_F(FBDevice, SetsSwapinterval_1OnStart)
 {
     EXPECT_CALL(*fb_hal_mock, setSwapInterval_interface(fb_hal_mock.get(), 1))
         .Times(1);
@@ -106,19 +106,19 @@ TEST_F(FBDevice, sets_swapinterval_1_on_start)
 }
 
 //not all fb devices provide a swap interval hook. make sure we don't explode if thats the case
-TEST_F(FBDevice, does_not_segfault_if_null_swapinterval_hook)
+TEST_F(FBDevice, DoesNotSegfaultIfNullSwapintervalHook)
 {
     fb_hal_mock->setSwapInterval = nullptr;
     mga::FBDevice fbdev(fb_hal_mock);
 }
 
-TEST_F(FBDevice, does_not_accept_orientation_changes)
+TEST_F(FBDevice, DoesNotAcceptOrientationChanges)
 {
     mga::FBDevice fbdev(fb_hal_mock);
     EXPECT_FALSE(fbdev.apply_orientation(mir_orientation_left));
 }
 
-TEST_F(FBDevice, can_screen_on_off)
+TEST_F(FBDevice, CanScreenOnOff)
 {
     fb_hal_mock->setSwapInterval = nullptr;
     using namespace testing;

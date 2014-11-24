@@ -23,7 +23,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, point)
+TEST(geometry, Point)
 {
     using namespace geom;
     Point const pointx2y4{X(2), Y(4)};
@@ -42,7 +42,7 @@ TEST(geometry, point)
     EXPECT_NE(pointx2y4, defaultValue);
 }
 
-TEST(geometry, point_is_usable)
+TEST(geometry, PointIsUsable)
 {
     using namespace geom;
 

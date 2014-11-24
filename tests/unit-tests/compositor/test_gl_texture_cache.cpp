@@ -50,7 +50,7 @@ public:
 };
 }
 
-TEST_F(RecentlyUsedCache, caches_and_uploads_texture_only_on_buffer_changes)
+TEST_F(RecentlyUsedCache, CachesAndUploadsTextureOnlyOnBufferChanges)
 {
     using namespace testing;
     InSequence seq;
@@ -113,7 +113,7 @@ TEST_F(RecentlyUsedCache, caches_and_uploads_texture_only_on_buffer_changes)
     cache.drop_unused();
 }
 
-TEST_F(RecentlyUsedCache, holds_buffers_till_the_end)
+TEST_F(RecentlyUsedCache, HoldsBuffersTillTheEnd)
 {
     auto old_use_count = mock_buffer.use_count();
     mc::RecentlyUsedCache cache;
@@ -124,7 +124,7 @@ TEST_F(RecentlyUsedCache, holds_buffers_till_the_end)
 }
 
 //LP: #1362444
-TEST_F(RecentlyUsedCache, invalidated_buffers_are_reloaded)
+TEST_F(RecentlyUsedCache, InvalidatedBuffersAreReloaded)
 {
     ON_CALL(*mock_buffer, id())
         .WillByDefault(testing::Return(mg::BufferID(0)));

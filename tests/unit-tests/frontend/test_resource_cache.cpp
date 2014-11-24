@@ -62,7 +62,7 @@ struct ResourceCache : ::testing::Test
 };
 }
 
-TEST_F(ResourceCache, resources_are_saved)
+TEST_F(ResourceCache, ResourcesAreSaved)
 {
     int const a_few = 13;
 
@@ -77,7 +77,7 @@ TEST_F(ResourceCache, resources_are_saved)
     EXPECT_EQ(a_few, TestResource::instances.load());
 }
 
-TEST_F(ResourceCache, resources_are_freed)
+TEST_F(ResourceCache, ResourcesAreFreed)
 {
     int const a_few = 13;
 
@@ -97,7 +97,7 @@ TEST_F(ResourceCache, resources_are_freed)
     EXPECT_EQ(0, TestResource::instances.load());
 }
 
-TEST_F(ResourceCache, fds_are_saved)
+TEST_F(ResourceCache, FdsAreSaved)
 {
     using namespace mir::test::doubles;
     using namespace testing;

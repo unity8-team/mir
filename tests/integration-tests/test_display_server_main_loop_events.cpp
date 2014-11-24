@@ -349,7 +349,7 @@ private:
 
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigint)
+TEST(DisplayServerMainLoopEvents, DisplayServerShutsDownProperlyOnSigint)
 {
     ServerConfig server_config;
 
@@ -360,7 +360,7 @@ TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigint)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigterm)
+TEST(DisplayServerMainLoopEvents, DisplayServerShutsDownProperlyOnSigterm)
 {
     ServerConfig server_config;
 
@@ -371,7 +371,7 @@ TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigterm)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
+TEST(DisplayServerMainLoopEvents, DisplayServerComponentsPauseAndResume)
 {
     using namespace testing;
 
@@ -427,7 +427,7 @@ TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
+TEST(DisplayServerMainLoopEvents, DisplayServerQuitsWhenPaused)
 {
     using namespace testing;
 
@@ -475,7 +475,7 @@ TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_failure)
+TEST(DisplayServerMainLoopEvents, DisplayServerAttemptsToContinueOnPauseFailure)
 {
     using namespace testing;
 
@@ -530,7 +530,7 @@ TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_f
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
+TEST(DisplayServerMainLoopEvents, DisplayServerHandlesConfigurationChange)
 {
     using namespace testing;
 
@@ -577,7 +577,7 @@ TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
+TEST(DisplayServerMainLoopEvents, PostponesConfigurationWhenPaused)
 {
     using namespace testing;
 
@@ -641,7 +641,7 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, server_status_listener)
+TEST(DisplayServerMainLoopEvents, ServerStatusListener)
 {
     using namespace testing;
 

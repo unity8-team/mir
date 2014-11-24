@@ -80,7 +80,7 @@ protected:
     mtf::UdevEnvironment fake_devices;
 };
 
-TEST_F(MesaBufferAllocatorTest, allocator_returns_non_null_buffer)
+TEST_F(MesaBufferAllocatorTest, AllocatorReturnsNonNullBuffer)
 {
     using namespace testing;
     EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,_));
@@ -89,7 +89,7 @@ TEST_F(MesaBufferAllocatorTest, allocator_returns_non_null_buffer)
     EXPECT_TRUE(allocator->alloc_buffer(buffer_properties).get() != NULL);
 }
 
-TEST_F(MesaBufferAllocatorTest, large_hardware_buffers_bypass)
+TEST_F(MesaBufferAllocatorTest, LargeHardwareBuffersBypass)
 {
     using namespace testing;
     EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,_));
@@ -104,7 +104,7 @@ TEST_F(MesaBufferAllocatorTest, large_hardware_buffers_bypass)
     EXPECT_TRUE(buf->can_bypass());
 }
 
-TEST_F(MesaBufferAllocatorTest, small_buffers_dont_bypass)
+TEST_F(MesaBufferAllocatorTest, SmallBuffersDontBypass)
 {
     using namespace testing;
     EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,_));
@@ -119,7 +119,7 @@ TEST_F(MesaBufferAllocatorTest, small_buffers_dont_bypass)
     EXPECT_FALSE(buf->can_bypass());
 }
 
-TEST_F(MesaBufferAllocatorTest, software_buffers_dont_bypass)
+TEST_F(MesaBufferAllocatorTest, SoftwareBuffersDontBypass)
 {
     using namespace testing;
 
@@ -132,7 +132,7 @@ TEST_F(MesaBufferAllocatorTest, software_buffers_dont_bypass)
     EXPECT_FALSE(buf->can_bypass());
 }
 
-TEST_F(MesaBufferAllocatorTest, bypass_disables_when_option_is_disabled)
+TEST_F(MesaBufferAllocatorTest, BypassDisablesWhenOptionIsDisabled)
 {
     using namespace testing;
     EXPECT_CALL(mock_gbm, gbm_bo_create(_,_,_,_,_));
@@ -150,7 +150,7 @@ TEST_F(MesaBufferAllocatorTest, bypass_disables_when_option_is_disabled)
     EXPECT_FALSE(buf->can_bypass());
 }
 
-TEST_F(MesaBufferAllocatorTest, correct_buffer_format_translation_argb_8888)
+TEST_F(MesaBufferAllocatorTest, CorrectBufferFormatTranslationArgb_8888)
 {
     using namespace testing;
 
@@ -160,7 +160,7 @@ TEST_F(MesaBufferAllocatorTest, correct_buffer_format_translation_argb_8888)
     allocator->alloc_buffer(mg::BufferProperties{size, mir_pixel_format_argb_8888, usage});
 }
 
-TEST_F(MesaBufferAllocatorTest, correct_buffer_format_translation_xrgb_8888)
+TEST_F(MesaBufferAllocatorTest, CorrectBufferFormatTranslationXrgb_8888)
 {
     using namespace testing;
 
@@ -175,7 +175,7 @@ MATCHER_P(has_flag_set, flag, "")
     return arg & flag;
 }
 
-TEST_F(MesaBufferAllocatorTest, creates_hardware_rendering_buffer)
+TEST_F(MesaBufferAllocatorTest, CreatesHardwareRenderingBuffer)
 {
     using namespace testing;
 
@@ -187,7 +187,7 @@ TEST_F(MesaBufferAllocatorTest, creates_hardware_rendering_buffer)
     allocator->alloc_buffer(properties);
 }
 
-TEST_F(MesaBufferAllocatorTest, creates_software_rendering_buffer)
+TEST_F(MesaBufferAllocatorTest, CreatesSoftwareRenderingBuffer)
 {
     using namespace testing;
 
@@ -198,7 +198,7 @@ TEST_F(MesaBufferAllocatorTest, creates_software_rendering_buffer)
     allocator->alloc_buffer(properties);
 }
 
-TEST_F(MesaBufferAllocatorTest, creates_hardware_rendering_buffer_for_undefined_usage)
+TEST_F(MesaBufferAllocatorTest, CreatesHardwareRenderingBufferForUndefinedUsage)
 {
     using namespace testing;
 
@@ -210,7 +210,7 @@ TEST_F(MesaBufferAllocatorTest, creates_hardware_rendering_buffer_for_undefined_
     allocator->alloc_buffer(properties);
 }
 
-TEST_F(MesaBufferAllocatorTest, requests_correct_buffer_dimensions)
+TEST_F(MesaBufferAllocatorTest, RequestsCorrectBufferDimensions)
 {
     using namespace testing;
 
@@ -220,7 +220,7 @@ TEST_F(MesaBufferAllocatorTest, requests_correct_buffer_dimensions)
     allocator->alloc_buffer(buffer_properties);
 }
 
-TEST_F(MesaBufferAllocatorTest, correct_buffer_handle_is_destroyed)
+TEST_F(MesaBufferAllocatorTest, CorrectBufferHandleIsDestroyed)
 {
     using namespace testing;
     gbm_bo* bo{reinterpret_cast<gbm_bo*>(0xabcd)};
@@ -232,7 +232,7 @@ TEST_F(MesaBufferAllocatorTest, correct_buffer_handle_is_destroyed)
     allocator->alloc_buffer(buffer_properties);
 }
 
-TEST_F(MesaBufferAllocatorTest, throws_on_buffer_creation_failure)
+TEST_F(MesaBufferAllocatorTest, ThrowsOnBufferCreationFailure)
 {
     using namespace testing;
 
@@ -246,7 +246,7 @@ TEST_F(MesaBufferAllocatorTest, throws_on_buffer_creation_failure)
     }, std::runtime_error);
 }
 
-TEST_F(MesaBufferAllocatorTest, supported_pixel_formats_contain_common_formats)
+TEST_F(MesaBufferAllocatorTest, SupportedPixelFormatsContainCommonFormats)
 {
     auto supported_pixel_formats = allocator->supported_pixel_formats();
 
@@ -262,7 +262,7 @@ TEST_F(MesaBufferAllocatorTest, supported_pixel_formats_contain_common_formats)
     EXPECT_EQ(1, xrgb_8888_count);
 }
 
-TEST_F(MesaBufferAllocatorTest, supported_pixel_formats_have_sane_default_in_first_position)
+TEST_F(MesaBufferAllocatorTest, SupportedPixelFormatsHaveSaneDefaultInFirstPosition)
 {
     auto supported_pixel_formats = allocator->supported_pixel_formats();
 
@@ -270,7 +270,7 @@ TEST_F(MesaBufferAllocatorTest, supported_pixel_formats_have_sane_default_in_fir
     EXPECT_EQ(mir_pixel_format_argb_8888, supported_pixel_formats[0]);
 }
 
-TEST_F(MesaBufferAllocatorTest, alloc_with_unsupported_pixel_format_throws)
+TEST_F(MesaBufferAllocatorTest, AllocWithUnsupportedPixelFormatThrows)
 {
     using namespace testing;
 

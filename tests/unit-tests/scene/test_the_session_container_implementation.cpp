@@ -28,7 +28,7 @@ namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace mtd = mir::test::doubles;
 
-TEST(DefaultSessionContainer, for_each)
+TEST(DefaultSessionContainer, ForEach)
 {
     using namespace ::testing;
     ms::DefaultSessionContainer container;
@@ -55,7 +55,7 @@ TEST(DefaultSessionContainer, for_each)
     container.for_each(std::ref(functor));
 }
 
-TEST(DefaultSessionContainer, successor_of)
+TEST(DefaultSessionContainer, SuccessorOf)
 {
     using namespace ::testing;
     ms::DefaultSessionContainer container;
@@ -76,7 +76,7 @@ TEST(DefaultSessionContainer, successor_of)
     EXPECT_EQ(session3, container.successor_of(std::shared_ptr<ms::Session>()));
 }
 
-TEST(DefaultSessionContainer, invalid_session_throw_behavior)
+TEST(DefaultSessionContainer, InvalidSessionThrowBehavior)
 {
     using namespace ::testing;
     ms::DefaultSessionContainer container;

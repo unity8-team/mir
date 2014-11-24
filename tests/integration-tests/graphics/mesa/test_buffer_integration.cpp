@@ -193,7 +193,7 @@ struct BufferTextureInstantiatorThread
     bool exception_thrown;
 };
 
-TEST_F(MesaBufferIntegration, buffer_creation_from_arbitrary_thread_works)
+TEST_F(MesaBufferIntegration, BufferCreationFromArbitraryThreadWorks)
 {
     using namespace testing;
 
@@ -205,7 +205,7 @@ TEST_F(MesaBufferIntegration, buffer_creation_from_arbitrary_thread_works)
     });
 }
 
-TEST_F(MesaBufferIntegration, buffer_destruction_from_arbitrary_thread_works)
+TEST_F(MesaBufferIntegration, BufferDestructionFromArbitraryThreadWorks)
 {
     using namespace testing;
 
@@ -220,7 +220,7 @@ TEST_F(MesaBufferIntegration, buffer_destruction_from_arbitrary_thread_works)
     });
 }
 
-TEST_F(MesaBufferIntegration, buffer_lazy_texture_instantiation_from_arbitrary_thread_fails)
+TEST_F(MesaBufferIntegration, BufferLazyTextureInstantiationFromArbitraryThreadFails)
 {
     using namespace testing;
 

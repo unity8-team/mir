@@ -119,7 +119,7 @@ private:
 };
 }
 
-TEST_F(DebugAPI, translates_surface_coordinates_to_screen_coordinates)
+TEST_F(DebugAPI, TranslatesSurfaceCoordinatesToScreenCoordinates)
 {
     start_server_with_debug(true);
 
@@ -153,7 +153,7 @@ TEST_F(DebugAPI, translates_surface_coordinates_to_screen_coordinates)
     mir_surface_release_sync(surf);
 }
 
-TEST_F(DebugAPI, is_unavaliable_when_server_not_started_with_debug)
+TEST_F(DebugAPI, IsUnavaliableWhenServerNotStartedWithDebug)
 {
     start_server_with_debug(false);
 

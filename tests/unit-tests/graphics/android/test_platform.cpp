@@ -85,7 +85,7 @@ protected:
 };
 
 /* ipc packaging tests */
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_with_fence)
+TEST_F(PlatformBufferIPCPackaging, TestIpcDataPackedCorrectlyForFullIpcWithFence)
 {
     using namespace ::testing;
     int fake_fence{333};
@@ -117,7 +117,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     ipc_ops->pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_without_fence)
+TEST_F(PlatformBufferIPCPackaging, TestIpcDataPackedCorrectlyForFullIpcWithoutFence)
 {
     using namespace ::testing;
     EXPECT_CALL(*native_buffer, copy_fence())
@@ -156,7 +156,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     ipc_ops->pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
+TEST_F(PlatformBufferIPCPackaging, TestIpcDataPackedCorrectlyForNested)
 {
     using namespace ::testing;
     EXPECT_CALL(*native_buffer, copy_fence())
@@ -192,7 +192,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
     ipc_ops->pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::full_msg);
 }
 
-TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ipc)
+TEST_F(PlatformBufferIPCPackaging, TestIpcDataPackedCorrectlyForPartialIpc)
 {
     using namespace ::testing;
 
@@ -219,7 +219,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ip
     ipc_ops->pack_buffer(mock_ipc_msg, *mock_buffer, mg::BufferIpcMsgType::update_msg);
 }
 
-TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)
+TEST(AndroidGraphicsPlatform, EglNativeDisplayIsEglDefaultDisplay)
 {
     mga::Platform platform(
         std::make_shared<mtd::StubDisplayBuilder>(),
@@ -228,7 +228,7 @@ TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)
     EXPECT_EQ(EGL_DEFAULT_DISPLAY, platform.egl_native_display());
 }
 
-TEST(NestedPlatformCreation, doesnt_access_display_hardware)
+TEST(NestedPlatformCreation, DoesntAccessDisplayHardware)
 {
     using namespace testing;
 

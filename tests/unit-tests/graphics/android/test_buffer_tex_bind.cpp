@@ -52,7 +52,7 @@ public:
     std::shared_ptr<mtd::MockAndroidNativeBuffer> mock_native_buffer;
 };
 
-TEST_F(AndroidBufferBinding, buffer_queries_for_display)
+TEST_F(AndroidBufferBinding, BufferQueriesForDisplay)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglGetCurrentDisplay())
@@ -62,7 +62,7 @@ TEST_F(AndroidBufferBinding, buffer_queries_for_display)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_creates_image_on_first_bind)
+TEST_F(AndroidBufferBinding, BufferCreatesImageOnFirstBind)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglCreateImageKHR(_,_,_,_,_))
@@ -72,7 +72,7 @@ TEST_F(AndroidBufferBinding, buffer_creates_image_on_first_bind)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_only_makes_one_image_per_display)
+TEST_F(AndroidBufferBinding, BufferOnlyMakesOneImagePerDisplay)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglCreateImageKHR(_,_,_,_,_))
@@ -84,7 +84,7 @@ TEST_F(AndroidBufferBinding, buffer_only_makes_one_image_per_display)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_anwb_is_bound)
+TEST_F(AndroidBufferBinding, BufferAnwbIsBound)
 {
     using namespace testing;
     ANativeWindowBuffer *stub_anwb = reinterpret_cast<ANativeWindowBuffer*>(0xdeed);
@@ -98,7 +98,7 @@ TEST_F(AndroidBufferBinding, buffer_anwb_is_bound)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_makes_new_image_with_new_display)
+TEST_F(AndroidBufferBinding, BufferMakesNewImageWithNewDisplay)
 {
     using namespace testing;
     EGLDisplay second_fake_display =
@@ -119,7 +119,7 @@ TEST_F(AndroidBufferBinding, buffer_makes_new_image_with_new_display)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_frees_images_it_makes)
+TEST_F(AndroidBufferBinding, BufferFreesImagesItMakes)
 {
     using namespace testing;
     EGLDisplay second_fake_display =
@@ -138,7 +138,7 @@ TEST_F(AndroidBufferBinding, buffer_frees_images_it_makes)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_frees_images_it_makes_with_proper_args)
+TEST_F(AndroidBufferBinding, BufferFreesImagesItMakesWithProperArgs)
 {
     using namespace testing;
 
@@ -178,7 +178,7 @@ TEST_F(AndroidBufferBinding, buffer_frees_images_it_makes_with_proper_args)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_uses_current_display)
+TEST_F(AndroidBufferBinding, BufferUsesCurrentDisplay)
 {
     using namespace testing;
     EGLDisplay fake_display = (EGLDisplay) 0x32298;
@@ -193,7 +193,7 @@ TEST_F(AndroidBufferBinding, buffer_uses_current_display)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_specifies_no_context)
+TEST_F(AndroidBufferBinding, BufferSpecifiesNoContext)
 {
     using namespace testing;
 
@@ -203,7 +203,7 @@ TEST_F(AndroidBufferBinding, buffer_specifies_no_context)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_sets_egl_native_buffer_android)
+TEST_F(AndroidBufferBinding, BufferSetsEglNativeBufferAndroid)
 {
     using namespace testing;
 
@@ -213,7 +213,7 @@ TEST_F(AndroidBufferBinding, buffer_sets_egl_native_buffer_android)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_sets_proper_attributes)
+TEST_F(AndroidBufferBinding, BufferSetsProperAttributes)
 {
     using namespace testing;
 
@@ -233,7 +233,7 @@ TEST_F(AndroidBufferBinding, buffer_sets_proper_attributes)
 
 }
 
-TEST_F(AndroidBufferBinding, buffer_destroys_correct_buffer_with_single_image)
+TEST_F(AndroidBufferBinding, BufferDestroysCorrectBufferWithSingleImage)
 {
     using namespace testing;
     EGLImageKHR fake_egl_image = (EGLImageKHR) 0x84210;
@@ -247,7 +247,7 @@ TEST_F(AndroidBufferBinding, buffer_destroys_correct_buffer_with_single_image)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_image_creation_failure_does_not_save)
+TEST_F(AndroidBufferBinding, BufferImageCreationFailureDoesNotSave)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglCreateImageKHR(_,_,_,_,_))
@@ -268,7 +268,7 @@ TEST_F(AndroidBufferBinding, buffer_image_creation_failure_does_not_save)
     }, std::runtime_error);
 }
 
-TEST_F(AndroidBufferBinding, buffer_image_creation_failure_throws)
+TEST_F(AndroidBufferBinding, BufferImageCreationFailureThrows)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglCreateImageKHR(_,_,_,_,_))
@@ -284,7 +284,7 @@ TEST_F(AndroidBufferBinding, buffer_image_creation_failure_throws)
 
 
 /* binding tests */
-TEST_F(AndroidBufferBinding, buffer_calls_binding_extension)
+TEST_F(AndroidBufferBinding, BufferCallsBindingExtension)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(_, _))
@@ -293,7 +293,7 @@ TEST_F(AndroidBufferBinding, buffer_calls_binding_extension)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_calls_binding_extension_every_time)
+TEST_F(AndroidBufferBinding, BufferCallsBindingExtensionEveryTime)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(_, _))
@@ -305,7 +305,7 @@ TEST_F(AndroidBufferBinding, buffer_calls_binding_extension_every_time)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_binding_specifies_gl_texture_2d)
+TEST_F(AndroidBufferBinding, BufferBindingSpecifiesGlTexture_2d)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, _))
@@ -314,7 +314,7 @@ TEST_F(AndroidBufferBinding, buffer_binding_specifies_gl_texture_2d)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_binding_uses_right_image)
+TEST_F(AndroidBufferBinding, BufferBindingUsesRightImage)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, glEGLImageTargetTexture2DOES(_, mock_egl.fake_egl_image))
@@ -323,7 +323,7 @@ TEST_F(AndroidBufferBinding, buffer_binding_uses_right_image)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, buffer_binding_uses_right_image_after_display_swap)
+TEST_F(AndroidBufferBinding, BufferBindingUsesRightImageAfterDisplaySwap)
 {
     using namespace testing;
     EGLDisplay second_fake_display =
@@ -347,7 +347,7 @@ TEST_F(AndroidBufferBinding, buffer_binding_uses_right_image_after_display_swap)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, gl_bind_to_texture_waits_on_fence)
+TEST_F(AndroidBufferBinding, GlBindToTextureWaitsOnFence)
 {
     using namespace testing;
     EXPECT_CALL(*mock_native_buffer, ensure_available_for(mga::BufferAccess::read))
@@ -357,7 +357,7 @@ TEST_F(AndroidBufferBinding, gl_bind_to_texture_waits_on_fence)
     buffer.gl_bind_to_texture();
 }
 
-TEST_F(AndroidBufferBinding, different_egl_contexts_displays_generate_new_eglimages)
+TEST_F(AndroidBufferBinding, DifferentEglContextsDisplaysGenerateNewEglimages)
 {
     using namespace testing;
 

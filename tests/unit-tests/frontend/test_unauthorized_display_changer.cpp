@@ -35,7 +35,7 @@ struct UnauthorizedDisplayChangerTest : public ::testing::Test
     mtd::MockDisplayChanger underlying_changer;
 };
 
-TEST_F(UnauthorizedDisplayChangerTest, change_attempt)
+TEST_F(UnauthorizedDisplayChangerTest, ChangeAttempt)
 {
     mtd::NullDisplayConfiguration conf;
     mf::UnauthorizedDisplayChanger changer(mt::fake_shared(underlying_changer));
@@ -45,7 +45,7 @@ TEST_F(UnauthorizedDisplayChangerTest, change_attempt)
     }, std::runtime_error);
 }
 
-TEST_F(UnauthorizedDisplayChangerTest, access_config)
+TEST_F(UnauthorizedDisplayChangerTest, AccessConfig)
 {
     using namespace testing;
 

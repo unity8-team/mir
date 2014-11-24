@@ -77,12 +77,12 @@ public:
 
 }
 
-TEST_F(SharedLibrary, load_nonexistent_library_fails)
+TEST_F(SharedLibrary, LoadNonexistentLibraryFails)
 {
     EXPECT_THROW({ mir::SharedLibrary nonexistent(nonexistent_library); }, std::runtime_error);
 }
 
-TEST_F(SharedLibrary, load_nonexistent_library_fails_with_useful_info)
+TEST_F(SharedLibrary, LoadNonexistentLibraryFailsWithUsefulInfo)
 {
     try
     {
@@ -97,19 +97,19 @@ TEST_F(SharedLibrary, load_nonexistent_library_fails_with_useful_info)
     }
 }
 
-TEST_F(SharedLibrary, load_valid_library_works)
+TEST_F(SharedLibrary, LoadValidLibraryWorks)
 {
     mir::SharedLibrary existing(existing_library);
 }
 
-TEST_F(SharedLibrary, load_nonexistent_function_fails)
+TEST_F(SharedLibrary, LoadNonexistentFunctionFails)
 {
     mir::SharedLibrary existing(existing_library);
 
     EXPECT_THROW({ existing.load_function<void(*)()>(nonexistent_function); }, std::runtime_error);
 }
 
-TEST_F(SharedLibrary, load_nonexistent_function_fails_with_useful_info)
+TEST_F(SharedLibrary, LoadNonexistentFunctionFailsWithUsefulInfo)
 {
     mir::SharedLibrary existing(existing_library);
 
@@ -127,19 +127,19 @@ TEST_F(SharedLibrary, load_nonexistent_function_fails_with_useful_info)
     }
 }
 
-TEST_F(SharedLibrary, load_valid_function_works)
+TEST_F(SharedLibrary, LoadValidFunctionWorks)
 {
     mir::SharedLibrary existing(existing_library);
     existing.load_function<void(*)()>(existing_function);
 }
 
-TEST_F(SharedLibrary, load_valid_versioned_function_works)
+TEST_F(SharedLibrary, LoadValidVersionedFunctionWorks)
 {
     mir::SharedLibrary existing{existing_library};
     existing.load_function<void(*)()>(existing_function, existent_version);
 }
 
-TEST_F(SharedLibrary, load_invalid_versioned_function_fails_with_appropriate_error)
+TEST_F(SharedLibrary, LoadInvalidVersionedFunctionFailsWithAppropriateError)
 {
     mir::SharedLibrary existing{existing_library};
 

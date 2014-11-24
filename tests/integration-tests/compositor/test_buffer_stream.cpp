@@ -122,7 +122,7 @@ struct BufferStreamTest : public ::testing::Test
 
 }
 
-TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
+TEST_F(BufferStreamTest, GivesSameBackBufferUntilMoreAvailable)
 {
     mg::Buffer* client1 = buffer_stream.acquire_client_buffer_blocking();
     auto client1_id = client1->id();
@@ -153,7 +153,7 @@ TEST_F(BufferStreamTest, gives_same_back_buffer_until_more_available)
     EXPECT_EQ(comp3_id, comp4->id());
 }
 
-TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
+TEST_F(BufferStreamTest, GivesAllMonitorsTheSameBuffer)
 {
     mg::Buffer* client_buffer{nullptr};
     int const prefill = buffers_free_for_client();
@@ -172,7 +172,7 @@ TEST_F(BufferStreamTest, gives_all_monitors_the_same_buffer)
     }
 }
 
-TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
+TEST_F(BufferStreamTest, GivesDifferentBackBufferAsap)
 {
     buffer_stream.release_client_buffer(buffer_stream.acquire_client_buffer_blocking());
     auto comp1 = buffer_stream.lock_compositor_buffer(nullptr);
@@ -186,7 +186,7 @@ TEST_F(BufferStreamTest, gives_different_back_buffer_asap)
     comp2.reset();
 }
 
-TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
+TEST_F(BufferStreamTest, ResizeAffectsClientBuffersImmediately)
 {
     auto old_size = buffer_stream.stream_size();
 
@@ -220,7 +220,7 @@ TEST_F(BufferStreamTest, resize_affects_client_buffers_immediately)
     buffer_stream.release_client_buffer(client);
 }
 
-TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
+TEST_F(BufferStreamTest, CompositorGetsResizedBuffers)
 {
     auto old_size = buffer_stream.stream_size();
 
@@ -279,7 +279,7 @@ TEST_F(BufferStreamTest, compositor_gets_resized_buffers)
     comp5.reset();
 }
 
-TEST_F(BufferStreamTest, can_get_partly_released_back_buffer)
+TEST_F(BufferStreamTest, CanGetPartlyReleasedBackBuffer)
 {
     mg::Buffer* client = buffer_stream.acquire_client_buffer_blocking();
     buffer_stream.release_client_buffer(client);
@@ -343,7 +343,7 @@ void snapshot_loop(mc::BufferStream &stream,
 
 }
 
-TEST_F(BufferStreamTest, stress_test_distinct_buffers)
+TEST_F(BufferStreamTest, StressTestDistinctBuffers)
 {
     // More would be good, but armhf takes too long
     const int num_snapshotters{2};
@@ -381,7 +381,7 @@ TEST_F(BufferStreamTest, stress_test_distinct_buffers)
         s->join();
 }
 
-TEST_F(BufferStreamTest, blocked_client_is_released_on_timeout)
+TEST_F(BufferStreamTest, BlockedClientIsReleasedOnTimeout)
 {
     using namespace testing;
 

@@ -107,7 +107,7 @@ struct EventObservingClient : mtf::TestingClientConfiguration
 
 }
 
-TEST_F(BespokeDisplayServerTestFixture, a_surface_is_notified_of_receiving_focus)
+TEST_F(BespokeDisplayServerTestFixture, ASurfaceIsNotifiedOfReceivingFocus)
 {
     using namespace ::testing;
 
@@ -137,7 +137,7 @@ ACTION_P(SignalFence, fence)
 
 }
 
-TEST_F(BespokeDisplayServerTestFixture, two_surfaces_are_notified_of_gaining_and_losing_focus)
+TEST_F(BespokeDisplayServerTestFixture, TwoSurfacesAreNotifiedOfGainingAndLosingFocus)
 {
     using namespace ::testing;
 

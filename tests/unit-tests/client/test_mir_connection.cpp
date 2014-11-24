@@ -185,7 +185,7 @@ struct MirConnectionTest : public testing::Test
     std::shared_ptr<MirConnection> const connection;
 };
 
-TEST_F(MirConnectionTest, returns_correct_egl_native_display)
+TEST_F(MirConnectionTest, ReturnsCorrectEglNativeDisplay)
 {
     using namespace testing;
 
@@ -210,7 +210,7 @@ MATCHER_P(has_drm_magic, magic, "")
     return arg->magic() == magic;
 }
 
-TEST_F(MirConnectionTest, client_drm_auth_magic_calls_server_drm_auth_magic)
+TEST_F(MirConnectionTest, ClientDrmAuthMagicCallsServerDrmAuthMagic)
 {
     using namespace testing;
 
@@ -280,7 +280,7 @@ void fill_surface_pixel_formats(mp::ConnectParameters const*, mp::Connection* re
 
 }
 
-TEST_F(MirConnectionTest, populates_display_output_correctly_on_startup)
+TEST_F(MirConnectionTest, PopulatesDisplayOutputCorrectlyOnStartup)
 {
     using namespace testing;
 
@@ -319,7 +319,7 @@ TEST_F(MirConnectionTest, populates_display_output_correctly_on_startup)
     mcl::delete_config_storage(configuration);
 }
 
-TEST_F(MirConnectionTest, user_tries_to_configure_incorrectly)
+TEST_F(MirConnectionTest, UserTriesToConfigureIncorrectly)
 {
     using namespace testing;
 
@@ -364,7 +364,7 @@ TEST_F(MirConnectionTest, user_tries_to_configure_incorrectly)
     mcl::delete_config_storage(configuration);
 }
 
-TEST_F(MirConnectionTest, display_configuration_validation_succeeds_for_invalid_mode_in_disconnected_output)
+TEST_F(MirConnectionTest, DisplayConfigurationValidationSucceedsForInvalidModeInDisconnectedOutput)
 {
     using namespace testing;
 
@@ -385,7 +385,7 @@ TEST_F(MirConnectionTest, display_configuration_validation_succeeds_for_invalid_
     mcl::delete_config_storage(configuration);
 }
 
-TEST_F(MirConnectionTest, display_configuration_validation_uses_updated_configuration)
+TEST_F(MirConnectionTest, DisplayConfigurationValidationUsesUpdatedConfiguration)
 {
     using namespace testing;
 
@@ -422,7 +422,7 @@ TEST_F(MirConnectionTest, display_configuration_validation_uses_updated_configur
     mcl::delete_config_storage(configuration);
 }
 
-TEST_F(MirConnectionTest, populates_pfs_correctly)
+TEST_F(MirConnectionTest, PopulatesPfsCorrectly)
 {
     using namespace testing;
 
@@ -445,7 +445,7 @@ TEST_F(MirConnectionTest, populates_pfs_correctly)
     }
 }
 
-TEST_F(MirConnectionTest, valid_display_configure_sent)
+TEST_F(MirConnectionTest, ValidDisplayConfigureSent)
 {
     using namespace testing;
 
@@ -508,7 +508,7 @@ static void surface_event_callback(MirSurface *, MirEvent const *ev, void *)
 
 }
 
-TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
+TEST_F(MirConnectionTest, FocusedWindowSynthesisesUnfocusEventOnRelease)
 {
     using namespace testing;
 
@@ -546,7 +546,7 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
     EXPECT_TRUE(unfocused_received);
 }
 
-TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_release)
+TEST_F(MirConnectionTest, UnfocusedWindowDoesNotSynthesiseUnfocusEventOnRelease)
 {
     using namespace testing;
 
@@ -595,7 +595,7 @@ ACTION_P(FillPlatformDataWith, sample_data)
 
 }
 
-TEST_F(MirConnectionTest, sets_extra_platform_data)
+TEST_F(MirConnectionTest, SetsExtraPlatformData)
 {
     using namespace testing;
     std::vector<int> const initial_data{0x66, 0x67, 0x68};

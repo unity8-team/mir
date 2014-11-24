@@ -54,7 +54,7 @@ void fill(mp::DisplayOutput* out)
 }
 }
 
-TEST(TestDisplayConfiguration, configuration_storage)
+TEST(TestDisplayConfiguration, ConfigurationStorage)
 {
     mp::DisplayConfiguration protobuf_config;
     fill(protobuf_config.add_display_output());

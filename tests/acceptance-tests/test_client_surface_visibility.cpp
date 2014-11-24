@@ -312,14 +312,14 @@ struct MirSurfaceVisibilityEvent : BasicFixture
 
 }
 
-TEST_F(MirSurfaceVisibilityEvent, occluded_received_when_surface_goes_off_screen)
+TEST_F(MirSurfaceVisibilityEvent, OccludedReceivedWhenSurfaceGoesOffScreen)
 {
     expect_surface_visibility_event_after(
         mir_surface_visibility_occluded,
         [this] { move_surface_off_screen(); });
 }
 
-TEST_F(MirSurfaceVisibilityEvent, exposed_received_when_surface_reenters_screen)
+TEST_F(MirSurfaceVisibilityEvent, ExposedReceivedWhenSurfaceReentersScreen)
 {
     expect_surface_visibility_event_after(
         mir_surface_visibility_occluded,
@@ -330,14 +330,14 @@ TEST_F(MirSurfaceVisibilityEvent, exposed_received_when_surface_reenters_screen)
         [this] { move_surface_into_screen(); });
 }
 
-TEST_F(MirSurfaceVisibilityEvent, occluded_received_when_surface_occluded_by_other_surface)
+TEST_F(MirSurfaceVisibilityEvent, OccludedReceivedWhenSurfaceOccludedByOtherSurface)
 {
     expect_surface_visibility_event_after(
         mir_surface_visibility_occluded,
         [this] { create_larger_surface_on_top(); });
 }
 
-TEST_F(MirSurfaceVisibilityEvent, exposed_received_when_surface_raised_over_occluding_surface)
+TEST_F(MirSurfaceVisibilityEvent, ExposedReceivedWhenSurfaceRaisedOverOccludingSurface)
 {
     expect_surface_visibility_event_after(
         mir_surface_visibility_occluded,

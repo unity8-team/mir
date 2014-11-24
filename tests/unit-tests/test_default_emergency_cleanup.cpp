@@ -31,14 +31,14 @@ struct MockHandler
 
 }
 
-TEST(DefaultEmergencyCleanupTest, works_without_any_handlers)
+TEST(DefaultEmergencyCleanupTest, WorksWithoutAnyHandlers)
 {
     mir::DefaultEmergencyCleanup cleanup;
 
     cleanup();
 }
 
-TEST(DefaultEmergencyCleanupTest, calls_single_handler)
+TEST(DefaultEmergencyCleanupTest, CallsSingleHandler)
 {
     mir::DefaultEmergencyCleanup cleanup;
     MockHandler handler;
@@ -50,7 +50,7 @@ TEST(DefaultEmergencyCleanupTest, calls_single_handler)
     cleanup();
 }
 
-TEST(DefaultEmergencyCleanupTest, calls_multiple_handlers_in_order)
+TEST(DefaultEmergencyCleanupTest, CallsMultipleHandlersInOrder)
 {
     mir::DefaultEmergencyCleanup cleanup;
     MockHandler first_handler;

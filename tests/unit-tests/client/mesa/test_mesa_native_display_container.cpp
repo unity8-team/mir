@@ -45,7 +45,7 @@ struct MesaNativeDisplayContainerSetup : public testing::Test
 
 }
 
-TEST_F(MesaNativeDisplayContainerSetup, valid_displays_come_from_factory)
+TEST_F(MesaNativeDisplayContainerSetup, ValidDisplaysComeFromFactory)
 {
     using namespace ::testing;
 
@@ -56,7 +56,7 @@ TEST_F(MesaNativeDisplayContainerSetup, valid_displays_come_from_factory)
     EXPECT_FALSE(container->validate(&invalid_native_display));
 }
 
-TEST_F(MesaNativeDisplayContainerSetup, releasing_displays_invalidates_address)
+TEST_F(MesaNativeDisplayContainerSetup, ReleasingDisplaysInvalidatesAddress)
 {
     using namespace ::testing;
 

@@ -156,14 +156,14 @@ struct SocketConnection : public Test
     }
 };
 
-TEST_F(SocketConnection, dispatches_message_on_receipt)
+TEST_F(SocketConnection, DispatchesMessageOnReceipt)
 {
     EXPECT_CALL(mock_processor, dispatch(_,_)).Times(1);
 
     fake_receiving_message();
 }
 
-TEST_F(SocketConnection, dispatches_messages_on_receipt)
+TEST_F(SocketConnection, DispatchesMessagesOnReceipt)
 {
     auto const arbitary_no_of_messages = 5;
 
@@ -173,14 +173,14 @@ TEST_F(SocketConnection, dispatches_messages_on_receipt)
         fake_receiving_message();
 }
 
-TEST_F(SocketConnection, checks_client_pid_when_message_received)
+TEST_F(SocketConnection, ChecksClientPidWhenMessageReceived)
 {
     EXPECT_CALL(stub_receiver, client_creds()).Times(1);
 
     fake_receiving_message();
 }
 
-TEST_F(SocketConnection, notifies_client_pid_before_message_dispatched)
+TEST_F(SocketConnection, NotifiesClientPidBeforeMessageDispatched)
 {
     InSequence seq;
     EXPECT_CALL(mock_processor, client_pid(_)).Times(1);
@@ -189,7 +189,7 @@ TEST_F(SocketConnection, notifies_client_pid_before_message_dispatched)
     fake_receiving_message();
 }
 
-TEST_F(SocketConnection, notifies_client_pid_once_only)
+TEST_F(SocketConnection, NotifiesClientPidOnceOnly)
 {
     auto const arbitary_no_of_messages = 5;
 
@@ -199,7 +199,7 @@ TEST_F(SocketConnection, notifies_client_pid_once_only)
         fake_receiving_message();
 }
 
-TEST_F(SocketConnection, receives_and_dispatches_fds)
+TEST_F(SocketConnection, ReceivesAndDispatchesFds)
 {
     std::vector<mir::Fd> fds{stub_receiver.some_fds[0], stub_receiver.some_fds[1]};
     EXPECT_CALL(mock_processor, dispatch(_, ContainerEq(fds)));

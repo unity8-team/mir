@@ -261,7 +261,7 @@ public:
 
 }
 
-TEST_F(MirScreencastTest, creates_screencast_on_construction)
+TEST_F(MirScreencastTest, CreatesScreencastOnConstruction)
 {
     using namespace testing;
 
@@ -278,7 +278,7 @@ TEST_F(MirScreencastTest, creates_screencast_on_construction)
         null_callback_func, nullptr};
 }
 
-TEST_F(MirScreencastTest, releases_screencast_on_release)
+TEST_F(MirScreencastTest, ReleasesScreencastOnRelease)
 {
     using namespace testing;
 
@@ -305,7 +305,7 @@ TEST_F(MirScreencastTest, releases_screencast_on_release)
     screencast.release(null_callback_func, nullptr);
 }
 
-TEST_F(MirScreencastTest, requests_screencast_buffer_on_next_buffer)
+TEST_F(MirScreencastTest, RequestsScreencastBufferOnNextBuffer)
 {
     using namespace testing;
     uint32_t const screencast_id{77};
@@ -331,7 +331,7 @@ TEST_F(MirScreencastTest, requests_screencast_buffer_on_next_buffer)
     screencast.next_buffer(null_callback_func, nullptr);
 }
 
-TEST_F(MirScreencastTest, executes_callback_on_creation)
+TEST_F(MirScreencastTest, ExecutesCallbackOnCreation)
 {
     using namespace testing;
 
@@ -349,7 +349,7 @@ TEST_F(MirScreencastTest, executes_callback_on_creation)
     screencast.creation_wait_handle()->wait_for_all();
 }
 
-TEST_F(MirScreencastTest, executes_callback_on_release)
+TEST_F(MirScreencastTest, ExecutesCallbackOnRelease)
 {
     using namespace testing;
 
@@ -370,7 +370,7 @@ TEST_F(MirScreencastTest, executes_callback_on_release)
     wh->wait_for_all();
 }
 
-TEST_F(MirScreencastTest, executes_callback_on_next_buffer)
+TEST_F(MirScreencastTest, ExecutesCallbackOnNextBuffer)
 {
     using namespace testing;
 
@@ -391,7 +391,7 @@ TEST_F(MirScreencastTest, executes_callback_on_next_buffer)
     wh->wait_for_all();
 }
 
-TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
+TEST_F(MirScreencastTest, ConstructionThrowsOnInvalidParams)
 {
     mir::geometry::Size const invalid_size{0, 0};
     mir::geometry::Rectangle const invalid_region{{0, 0}, {0, 0}};
@@ -427,7 +427,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
     }, std::runtime_error);
 }
 
-TEST_F(MirScreencastTest, returns_correct_surface_parameters)
+TEST_F(MirScreencastTest, ReturnsCorrectSurfaceParameters)
 {
     MirScreencast screencast{
         default_region,
@@ -449,7 +449,7 @@ TEST_F(MirScreencastTest, returns_correct_surface_parameters)
     EXPECT_EQ(mir_display_output_id_invalid, params.output_id);
 }
 
-TEST_F(MirScreencastTest, uses_buffer_message_from_server)
+TEST_F(MirScreencastTest, UsesBufferMessageFromServer)
 {
     using namespace testing;
 
@@ -481,7 +481,7 @@ TEST_F(MirScreencastTest, uses_buffer_message_from_server)
     screencast.creation_wait_handle()->wait_for_all();
 }
 
-TEST_F(MirScreencastTest, returns_current_client_buffer)
+TEST_F(MirScreencastTest, ReturnsCurrentClientBuffer)
 {
     using namespace testing;
 
@@ -523,7 +523,7 @@ TEST_F(MirScreencastTest, returns_current_client_buffer)
     EXPECT_EQ(client_buffer2, screencast.get_current_buffer());
 }
 
-TEST_F(MirScreencastTest, gets_egl_native_window)
+TEST_F(MirScreencastTest, GetsEglNativeWindow)
 {
     using namespace testing;
 
@@ -542,7 +542,7 @@ TEST_F(MirScreencastTest, gets_egl_native_window)
     EXPECT_EQ(StubEGLNativeWindowFactory::egl_native_window, egl_native_window);
 }
 
-TEST_F(MirScreencastTest, is_invalid_if_server_create_screencast_fails)
+TEST_F(MirScreencastTest, IsInvalidIfServerCreateScreencastFails)
 {
     using namespace testing;
 
@@ -562,7 +562,7 @@ TEST_F(MirScreencastTest, is_invalid_if_server_create_screencast_fails)
     EXPECT_FALSE(screencast.valid());
 }
 
-TEST_F(MirScreencastTest, calls_callback_on_creation_failure)
+TEST_F(MirScreencastTest, CallsCallbackOnCreationFailure)
 {
     using namespace testing;
 

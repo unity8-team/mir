@@ -57,7 +57,7 @@ struct NestedDisplayBufferTest : testing::Test
     geom::Rectangle const default_rect;
 };
 
-TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_alpha)
+TEST_F(NestedDisplayBufferTest, AlphaEnabledPixelFormatEnablesDestinationAlpha)
 {
     mgnd::NestedOutput db{
         egl_disp_handle,
@@ -69,7 +69,7 @@ TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_a
     EXPECT_TRUE(db.uses_alpha());
 }
 
-TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alpha)
+TEST_F(NestedDisplayBufferTest, NonAlphaPixelFormatDisablesDestinationAlpha)
 {
     mgnd::NestedOutput db{
         egl_disp_handle,

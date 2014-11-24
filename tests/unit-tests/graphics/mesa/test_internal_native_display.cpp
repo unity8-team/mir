@@ -69,7 +69,7 @@ MATCHER_P(PackageMatches, package, "")
 }
 }
 
-TEST_F(InternalNativeDisplay, display_get_platform_matches_construction_platform)
+TEST_F(InternalNativeDisplay, DisplayGetPlatformMatchesConstructionPlatform)
 {
     using namespace ::testing;
 

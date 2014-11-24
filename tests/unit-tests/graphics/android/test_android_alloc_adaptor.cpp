@@ -64,7 +64,7 @@ public:
     int const sw_usage_flags;
 };
 
-TEST_F(AdaptorICSTest, resource_type_test_fail_ret)
+TEST_F(AdaptorICSTest, ResourceTypeTestFailRet)
 {
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
@@ -78,7 +78,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_ret)
     }, std::runtime_error);
 }
 
-TEST_F(AdaptorICSTest, resource_type_test_fail_stride)
+TEST_F(AdaptorICSTest, ResourceTypeTestFailStride)
 {
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
@@ -92,7 +92,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_stride)
     }, std::runtime_error);
 }
 
-TEST_F(AdaptorICSTest, resource_type_test_fail_null_handle)
+TEST_F(AdaptorICSTest, ResourceTypeTestFailNullHandle)
 {
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,_,_,_))
@@ -106,7 +106,7 @@ TEST_F(AdaptorICSTest, resource_type_test_fail_null_handle)
     }, std::runtime_error);
 }
 
-TEST_F(AdaptorICSTest, resource_type_test_proper_alloc_is_used)
+TEST_F(AdaptorICSTest, ResourceTypeTestProperAllocIsUsed)
 {
     using namespace testing;
 
@@ -116,7 +116,7 @@ TEST_F(AdaptorICSTest, resource_type_test_proper_alloc_is_used)
     alloc_adaptor->alloc_buffer(size, pf, usage);
 }
 
-TEST_F(AdaptorICSTest, resource_type_test_deleter_deletes_correct_handle)
+TEST_F(AdaptorICSTest, ResourceTypeTestDeleterDeletesCorrectHandle)
 {
     using namespace testing;
 
@@ -130,7 +130,7 @@ TEST_F(AdaptorICSTest, resource_type_test_deleter_deletes_correct_handle)
     alloc_adaptor->alloc_buffer(size, pf, usage);
 }
 
-TEST_F(AdaptorICSTest, adaptor_gralloc_format_conversion_abgr8888)
+TEST_F(AdaptorICSTest, AdaptorGrallocFormatConversionAbgr8888)
 {
     using namespace testing;
 
@@ -140,7 +140,7 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_format_conversion_abgr8888)
     alloc_adaptor->alloc_buffer(size, pf, usage);
 }
 
-TEST_F(AdaptorICSTest, adaptor_gralloc_dimension_conversion)
+TEST_F(AdaptorICSTest, AdaptorGrallocDimensionConversion)
 {
     using namespace testing;
     int w = size.width.as_uint32_t();
@@ -151,7 +151,7 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_dimension_conversion)
     alloc_adaptor->alloc_buffer(size, pf, usage );
 }
 
-TEST_F(AdaptorICSTest, adaptor_gralloc_hw_usage_conversion)
+TEST_F(AdaptorICSTest, AdaptorGrallocHwUsageConversion)
 {
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,hw_usage_flags,_,_));
@@ -160,7 +160,7 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_hw_usage_conversion)
     alloc_adaptor->alloc_buffer(size, pf, usage );
 }
 
-TEST_F(AdaptorICSTest, adaptor_gralloc_sw_usage_conversion)
+TEST_F(AdaptorICSTest, AdaptorGrallocSwUsageConversion)
 {
     using namespace testing;
     EXPECT_CALL(*mock_alloc_device, alloc_interface(_,_,_,_,sw_usage_flags,_,_));
@@ -169,7 +169,7 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_sw_usage_conversion)
     alloc_adaptor->alloc_buffer(size, pf, mga::BufferUsage::use_software);
 }
 
-TEST_F(AdaptorICSTest, adaptor_gralloc_usage_conversion_fb_gles)
+TEST_F(AdaptorICSTest, AdaptorGrallocUsageConversionFbGles)
 {
     using namespace testing;
 
@@ -179,7 +179,7 @@ TEST_F(AdaptorICSTest, adaptor_gralloc_usage_conversion_fb_gles)
     alloc_adaptor->alloc_buffer(size, pf, mga::BufferUsage::use_framebuffer_gles);
 }
 
-TEST_F(AdaptorICSTest, handle_size_is_correct)
+TEST_F(AdaptorICSTest, HandleSizeIsCorrect)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);
     auto anwb = native_handle->anwb();
@@ -188,35 +188,35 @@ TEST_F(AdaptorICSTest, handle_size_is_correct)
     EXPECT_EQ(static_cast<int>(mock_alloc_device->fake_stride), anwb->stride);
 }
 
-TEST_F(AdaptorICSTest, handle_buffer_pf_is_converted_to_android_abgr_8888)
+TEST_F(AdaptorICSTest, HandleBufferPfIsConvertedToAndroidAbgr_8888)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);
     auto anwb = native_handle->anwb();
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBA_8888, anwb->format);
 }
 
-TEST_F(AdaptorICSTest, handle_buffer_pf_is_converted_to_android_xbgr_8888)
+TEST_F(AdaptorICSTest, HandleBufferPfIsConvertedToAndroidXbgr_8888)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, mir_pixel_format_xbgr_8888, usage);
     auto anwb = native_handle->anwb();
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBX_8888, anwb->format);
 }
 
-TEST_F(AdaptorICSTest, handle_buffer_usage_is_converted_to_android_use_hw)
+TEST_F(AdaptorICSTest, HandleBufferUsageIsConvertedToAndroidUseHw)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);
     auto anwb = native_handle->anwb();
     EXPECT_EQ(hw_usage_flags, anwb->usage);
 }
 
-TEST_F(AdaptorICSTest, handle_buffer_usage_is_converted_to_android_use_fb)
+TEST_F(AdaptorICSTest, HandleBufferUsageIsConvertedToAndroidUseFb)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, mga::BufferUsage::use_framebuffer_gles);
     auto anwb = native_handle->anwb();
     EXPECT_EQ(fb_usage_flags, anwb->usage);
 }
 
-TEST_F(AdaptorICSTest, handle_has_strong_reference_for_c_drivers)
+TEST_F(AdaptorICSTest, HandleHasStrongReferenceForCDrivers)
 {
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);
     auto anwb = native_handle->anwb();
@@ -226,7 +226,7 @@ TEST_F(AdaptorICSTest, handle_has_strong_reference_for_c_drivers)
     anwb->common.decRef(&anwb->common);
 }
 
-TEST_F(AdaptorICSTest, handle_has_right_magic)
+TEST_F(AdaptorICSTest, HandleHasRightMagic)
 {
     int magic = ANDROID_NATIVE_MAKE_CONSTANT('_','b','f','r');  /* magic value shared by JB and ICS */
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);
@@ -234,7 +234,7 @@ TEST_F(AdaptorICSTest, handle_has_right_magic)
     EXPECT_EQ(magic, anwb->common.magic);
 }
 
-TEST_F(AdaptorICSTest, handle_has_version)
+TEST_F(AdaptorICSTest, HandleHasVersion)
 {
     int version = sizeof(ANativeWindowBuffer);  /* version value shared by JB and ICS */
     auto native_handle = alloc_adaptor->alloc_buffer(size, pf, usage);

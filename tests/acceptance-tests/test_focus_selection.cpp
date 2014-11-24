@@ -46,7 +46,7 @@ MATCHER(NonNullSession, "")
 }
 }
 
-TEST_F(BespokeDisplayServerTestFixture, sessions_creating_surface_receive_focus)
+TEST_F(BespokeDisplayServerTestFixture, SessionsCreatingSurfaceReceiveFocus)
 {
     struct ServerConfig : TestingServerConfiguration
     {
@@ -80,7 +80,7 @@ TEST_F(BespokeDisplayServerTestFixture, sessions_creating_surface_receive_focus)
     launch_client_process(client);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, surfaces_receive_input_focus_when_created)
+TEST_F(BespokeDisplayServerTestFixture, SurfacesReceiveInputFocusWhenCreated)
 {
     struct ServerConfig : TestingServerConfiguration
     {

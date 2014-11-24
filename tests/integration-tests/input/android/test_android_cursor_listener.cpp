@@ -95,7 +95,7 @@ struct AndroidCursorListenerIntegrationTest : testing::Test, mtf::FakeEventHubSe
 
 }
 
-TEST_F(AndroidCursorListenerIntegrationTest, cursor_listener_receives_motion)
+TEST_F(AndroidCursorListenerIntegrationTest, CursorListenerReceivesMotion)
 {
     using namespace ::testing;
 

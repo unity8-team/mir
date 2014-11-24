@@ -113,7 +113,7 @@ struct DefaultDisplayBufferCompositor : public testing::Test
 };
 }
 
-TEST_F(DefaultDisplayBufferCompositor, render)
+TEST_F(DefaultDisplayBufferCompositor, Render)
 {
     using namespace testing;
     EXPECT_CALL(mock_renderer, render(IsEmpty()))
@@ -132,7 +132,7 @@ TEST_F(DefaultDisplayBufferCompositor, render)
     compositor.composite(make_scene_elements({}));
 }
 
-TEST_F(DefaultDisplayBufferCompositor, skips_scene_that_should_not_be_rendered)
+TEST_F(DefaultDisplayBufferCompositor, SkipsSceneThatShouldNotBeRendered)
 {
     using namespace testing;
     
@@ -188,7 +188,7 @@ TEST_F(DefaultDisplayBufferCompositor, skips_scene_that_should_not_be_rendered)
     }));
 }
 
-TEST_F(DefaultDisplayBufferCompositor, optimization_skips_composition)
+TEST_F(DefaultDisplayBufferCompositor, OptimizationSkipsComposition)
 {
     using namespace testing;
     auto report = std::make_shared<mtd::MockCompositorReport>();
@@ -214,7 +214,7 @@ TEST_F(DefaultDisplayBufferCompositor, optimization_skips_composition)
     compositor.composite(make_scene_elements({}));
 }
 
-TEST_F(DefaultDisplayBufferCompositor, calls_renderer_in_sequence)
+TEST_F(DefaultDisplayBufferCompositor, CallsRendererInSequence)
 {
     using namespace testing;
     Sequence render_seq;
@@ -243,7 +243,7 @@ TEST_F(DefaultDisplayBufferCompositor, calls_renderer_in_sequence)
     }));
 }
 
-TEST_F(DefaultDisplayBufferCompositor, optimization_toggles_seamlessly)
+TEST_F(DefaultDisplayBufferCompositor, OptimizationTogglesSeamlessly)
 {
     using namespace testing;
     ON_CALL(display_buffer, view_area())
@@ -298,7 +298,7 @@ TEST_F(DefaultDisplayBufferCompositor, optimization_toggles_seamlessly)
     fullscreen->set_buffer({});  // Avoid GMock complaining about false leaks
 }
 
-TEST_F(DefaultDisplayBufferCompositor, occluded_surfaces_are_not_rendered)
+TEST_F(DefaultDisplayBufferCompositor, OccludedSurfacesAreNotRendered)
 {
     using namespace testing;
     EXPECT_CALL(display_buffer, view_area())
@@ -356,7 +356,7 @@ struct MockSceneElement : mc::SceneElement
 };
 }
 
-TEST_F(DefaultDisplayBufferCompositor, marks_rendered_scene_elements)
+TEST_F(DefaultDisplayBufferCompositor, MarksRenderedSceneElements)
 {
     using namespace testing;
 
@@ -376,7 +376,7 @@ TEST_F(DefaultDisplayBufferCompositor, marks_rendered_scene_elements)
     compositor.composite({element0_rendered, element1_rendered});
 }
 
-TEST_F(DefaultDisplayBufferCompositor, marks_occluded_scene_elements)
+TEST_F(DefaultDisplayBufferCompositor, MarksOccludedSceneElements)
 {
     using namespace testing;
 
@@ -399,7 +399,7 @@ TEST_F(DefaultDisplayBufferCompositor, marks_occluded_scene_elements)
     compositor.composite({element0_occluded, element1_rendered, element2_occluded});
 }
 
-TEST_F(DefaultDisplayBufferCompositor, ignores_invisible_scene_elements)
+TEST_F(DefaultDisplayBufferCompositor, IgnoresInvisibleSceneElements)
 {
     using namespace testing;
 

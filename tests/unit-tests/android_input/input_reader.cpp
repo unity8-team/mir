@@ -3438,7 +3438,7 @@ const char *MultiTouchInputMapperTest::inputSourceToStr(uint32_t source) const {
     }
 }
 
-TEST_F(MultiTouchInputMapperTest, DISABLED_Process_NormalMultiTouchGesture_WithoutTrackingIds) {
+TEST_F(MultiTouchInputMapperTest, DISABLED__Process_NormalMultiTouchGesture_WithoutTrackingIds) {
     MultiTouchInputMapper* mapper = new MultiTouchInputMapper(mDevice);
     addConfigurationProperty("touch.deviceType", "touchScreen");
     prepareDisplay(DISPLAY_ORIENTATION_0);

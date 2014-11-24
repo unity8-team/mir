@@ -29,7 +29,7 @@ namespace mcl = mir::client;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
 
-TEST(AndroidClientPlatformTest, egl_native_display_is_egl_default_display)
+TEST(AndroidClientPlatformTest, EglNativeDisplayIsEglDefaultDisplay)
 {
     mtd::MockClientContext context;
     mcl::android::ClientPlatformFactory factory;
@@ -40,7 +40,7 @@ TEST(AndroidClientPlatformTest, egl_native_display_is_egl_default_display)
     EXPECT_EQ(EGL_DEFAULT_DISPLAY, *native_display);
 }
 
-TEST(AndroidClientPlatformTest, egl_native_window_is_set)
+TEST(AndroidClientPlatformTest, EglNativeWindowIsSet)
 {
     mtd::MockClientContext context;
     mcl::android::ClientPlatformFactory factory;

@@ -139,7 +139,7 @@ ACTION(RunClosure)
 
 }
 
-TEST_F(MirPromptSessionTest, start_prompt_session)
+TEST_F(MirPromptSessionTest, StartPromptSession)
 {
     using namespace testing;
 
@@ -153,7 +153,7 @@ TEST_F(MirPromptSessionTest, start_prompt_session)
     prompt_session.start(__LINE__, null_callback_func, nullptr);
 }
 
-TEST_F(MirPromptSessionTest, stop_prompt_session)
+TEST_F(MirPromptSessionTest, StopPromptSession)
 {
     using namespace testing;
 
@@ -167,7 +167,7 @@ TEST_F(MirPromptSessionTest, stop_prompt_session)
     prompt_session.stop(null_callback_func, nullptr);
 }
 
-TEST_F(MirPromptSessionTest, executes_callback_on_start)
+TEST_F(MirPromptSessionTest, ExecutesCallbackOnStart)
 {
     using namespace testing;
 
@@ -180,7 +180,7 @@ TEST_F(MirPromptSessionTest, executes_callback_on_start)
     prompt_session.start(__LINE__, mock_callback_func, &mock_cb)->wait_for_all();
 }
 
-TEST_F(MirPromptSessionTest, executes_callback_on_stop)
+TEST_F(MirPromptSessionTest, ExecutesCallbackOnStop)
 {
     using namespace testing;
 
@@ -193,7 +193,7 @@ TEST_F(MirPromptSessionTest, executes_callback_on_stop)
     prompt_session.stop(mock_callback_func, &mock_cb)->wait_for_all();
 }
 
-TEST_F(MirPromptSessionTest, notifies_event_callback)
+TEST_F(MirPromptSessionTest, NotifiesEventCallback)
 {
     using namespace testing;
 

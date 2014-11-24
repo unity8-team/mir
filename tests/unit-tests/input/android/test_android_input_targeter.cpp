@@ -51,7 +51,7 @@ struct AndroidInputTargeterSetup : ::testing::Test
     std::shared_ptr<mtd::MockAndroidInputDispatcher> dispatcher = std::make_shared<mtd::MockAndroidInputDispatcher>();
 };
 
-TEST_F(AndroidInputTargeterSetup, on_focus_cleared)
+TEST_F(AndroidInputTargeterSetup, OnFocusCleared)
 {
     using namespace ::testing;
 
@@ -64,7 +64,7 @@ TEST_F(AndroidInputTargeterSetup, on_focus_cleared)
     targeter.focus_cleared();
 }
 
-TEST_F(AndroidInputTargeterSetup, on_focus_changed)
+TEST_F(AndroidInputTargeterSetup, OnFocusChanged)
 {
     using namespace ::testing;
 
@@ -84,7 +84,7 @@ TEST_F(AndroidInputTargeterSetup, on_focus_changed)
     targeter.focus_changed(stub_channel);
 }
 
-TEST_F(AndroidInputTargeterSetup, on_focus_changed_throw_behavior)
+TEST_F(AndroidInputTargeterSetup, OnFocusChangedThrowBehavior)
 {
     using namespace ::testing;
 

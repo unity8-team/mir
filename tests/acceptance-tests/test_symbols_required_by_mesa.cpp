@@ -23,7 +23,7 @@
 
 using namespace testing;
 
-TEST(SymbolsRequiredByMesa, are_exported_by_libmirclientplatform)
+TEST(SymbolsRequiredByMesa, AreExportedByLibmirclientplatform)
 {
     auto const handle = dlopen(MIR_CLIENT_DRIVER_BINARY, RTLD_LAZY);
     ASSERT_THAT(handle, NotNull());
@@ -34,7 +34,7 @@ TEST(SymbolsRequiredByMesa, are_exported_by_libmirclientplatform)
     dlclose(handle);
 }
 
-TEST(SymbolsRequiredByMesa, are_exported_by_libmirplatformgraphics)
+TEST(SymbolsRequiredByMesa, AreExportedByLibmirplatformgraphics)
 {
     auto const handle = dlopen(MIR_PLATFORM_DRIVER_BINARY, RTLD_LAZY);
     ASSERT_THAT(handle, NotNull());

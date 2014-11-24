@@ -71,7 +71,7 @@ private:
     mir::DefaultServerConfiguration config;
 };
 
-TEST_F(GLMark2Test, benchmark_fullscreen_default)
+TEST_F(GLMark2Test, BenchmarkFullscreenDefault)
 {
     run_glmark2("/tmp/glmark2_fullscreen_default.results", raw);
 }

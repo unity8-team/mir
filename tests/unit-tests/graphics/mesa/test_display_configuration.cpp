@@ -136,7 +136,7 @@ public:
 
 }
 
-TEST_F(MesaDisplayConfigurationTest, configuration_is_read_correctly)
+TEST_F(MesaDisplayConfigurationTest, ConfigurationIsReadCorrectly)
 {
     using namespace ::testing;
 
@@ -266,7 +266,7 @@ TEST_F(MesaDisplayConfigurationTest, configuration_is_read_correctly)
     EXPECT_EQ(expected_outputs.size(), output_count);
 }
 
-TEST_F(MesaDisplayConfigurationTest, get_kms_connector_id_returns_correct_id)
+TEST_F(MesaDisplayConfigurationTest, GetKmsConnectorIdReturnsCorrectId)
 {
     uint32_t const crtc0_id{10};
     uint32_t const encoder0_id{20};
@@ -309,7 +309,7 @@ TEST_F(MesaDisplayConfigurationTest, get_kms_connector_id_returns_correct_id)
     });
 }
 
-TEST_F(MesaDisplayConfigurationTest, get_kms_connector_id_throws_on_invalid_id)
+TEST_F(MesaDisplayConfigurationTest, GetKmsConnectorIdThrowsOnInvalidId)
 {
     uint32_t const crtc0_id{10};
     uint32_t const encoder0_id{20};
@@ -348,7 +348,7 @@ TEST_F(MesaDisplayConfigurationTest, get_kms_connector_id_throws_on_invalid_id)
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayConfigurationTest, returns_updated_configuration)
+TEST_F(MesaDisplayConfigurationTest, ReturnsUpdatedConfiguration)
 {
     using namespace ::testing;
 
@@ -534,7 +534,7 @@ TEST_F(MesaDisplayConfigurationTest, returns_updated_configuration)
     EXPECT_EQ(expected_outputs_after.size(), output_count);
 }
 
-TEST_F(MesaDisplayConfigurationTest, new_monitor_defaults_to_preferred_mode)
+TEST_F(MesaDisplayConfigurationTest, NewMonitorDefaultsToPreferredMode)
 {
     using namespace ::testing;
 

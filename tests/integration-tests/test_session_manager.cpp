@@ -72,7 +72,7 @@ struct TestSessionManagerAndFocusSelectionStrategy : public testing::Test
 
 }
 
-TEST_F(TestSessionManagerAndFocusSelectionStrategy, cycle_focus)
+TEST_F(TestSessionManagerAndFocusSelectionStrategy, CycleFocus)
 {
     using namespace ::testing;
 
@@ -101,7 +101,7 @@ TEST_F(TestSessionManagerAndFocusSelectionStrategy, cycle_focus)
     EXPECT_CALL(focus_setter, set_focus_to(_)).Times(AtLeast(0));
 }
 
-TEST_F(TestSessionManagerAndFocusSelectionStrategy, closing_applications_transfers_focus)
+TEST_F(TestSessionManagerAndFocusSelectionStrategy, ClosingApplicationsTransfersFocus)
 {
     using namespace ::testing;
 

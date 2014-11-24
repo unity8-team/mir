@@ -67,7 +67,7 @@ struct InternalClientWindow : public ::testing::Test
 
 }
 
-TEST_F(InternalClientWindow, returns_buffer_from_surface_when_requested)
+TEST_F(InternalClientWindow, ReturnsBufferFromSurfaceWhenRequested)
 {
     using namespace testing;
     EXPECT_CALL(*mock_surface, swap_buffers(_))
@@ -81,7 +81,7 @@ TEST_F(InternalClientWindow, returns_buffer_from_surface_when_requested)
     EXPECT_EQ(stub_native_buffer.get(), test_buffer);
 }
 
-TEST_F(InternalClientWindow, reports_correct_size_and_concrete_type)
+TEST_F(InternalClientWindow, ReportsCorrectSizeAndConcreteType)
 {
     using namespace testing;
     EXPECT_CALL(*mock_surface, size())
@@ -99,7 +99,7 @@ TEST_F(InternalClientWindow, reports_correct_size_and_concrete_type)
     EXPECT_EQ(sz.height.as_uint32_t(), rc_height);
 }
 
-TEST_F(InternalClientWindow, reports_driver_default_format)
+TEST_F(InternalClientWindow, ReportsDriverDefaultFormat)
 {
     using namespace testing;
     EXPECT_CALL(*mock_surface, pixel_format())
@@ -111,7 +111,7 @@ TEST_F(InternalClientWindow, reports_driver_default_format)
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBA_8888, rc_format);
 }
 
-TEST_F(InternalClientWindow, reports_different_format_after_driver_sets_format)
+TEST_F(InternalClientWindow, ReportsDifferentFormatAfterDriverSetsFormat)
 {
     using namespace testing;
     EXPECT_CALL(*mock_surface, pixel_format())

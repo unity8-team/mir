@@ -115,7 +115,7 @@ MATCHER_P(WeakPtrTo, p, "")
 }
 }
 
-TEST_F(SessionManagement, creating_a_surface_adds_it_to_scene)
+TEST_F(SessionManagement, CreatingASurfaceAddsItToScene)
 {
     auto const session = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
 
@@ -123,7 +123,7 @@ TEST_F(SessionManagement, creating_a_surface_adds_it_to_scene)
     session->create_surface(params);
 }
 
-TEST_F(SessionManagement, focus_on_a_session_raises_its_surface)
+TEST_F(SessionManagement, FocusOnASessionRaisesItsSurface)
 {
     EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(AnyNumber());
 

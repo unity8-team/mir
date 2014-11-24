@@ -48,7 +48,7 @@ struct InterpreterResourceTest : public ::testing::Test
     std::shared_ptr<mg::NativeBuffer> native_buffer3;
 };
 
-TEST_F(InterpreterResourceTest, deposit_buffer)
+TEST_F(InterpreterResourceTest, DepositBuffer)
 {
     mga::InterpreterCache cache;
     cache.store_buffer(stub_buffer1, native_buffer1);
@@ -57,7 +57,7 @@ TEST_F(InterpreterResourceTest, deposit_buffer)
     EXPECT_EQ(stub_buffer1, test_buffer);
 }
 
-TEST_F(InterpreterResourceTest, deposit_many_buffers)
+TEST_F(InterpreterResourceTest, DepositManyBuffers)
 {
     mga::InterpreterCache cache;
     cache.store_buffer(stub_buffer1, native_buffer1);
@@ -69,7 +69,7 @@ TEST_F(InterpreterResourceTest, deposit_many_buffers)
     EXPECT_EQ(stub_buffer2, cache.retrieve_buffer(native_buffer2->anwb()));
 }
 
-TEST_F(InterpreterResourceTest, deposit_buffer_has_ownership)
+TEST_F(InterpreterResourceTest, DepositBufferHasOwnership)
 {
     mga::InterpreterCache cache;
 
@@ -85,7 +85,7 @@ TEST_F(InterpreterResourceTest, deposit_buffer_has_ownership)
     EXPECT_EQ(use_count_before, stub_buffer1.use_count());
 }
 
-TEST_F(InterpreterResourceTest, update_usage_for)
+TEST_F(InterpreterResourceTest, UpdateUsageFor)
 {
     int fence_fd = 44;
     mga::InterpreterCache cache;
@@ -101,7 +101,7 @@ TEST_F(InterpreterResourceTest, update_usage_for)
     }, std::runtime_error);
 }
 
-TEST_F(InterpreterResourceTest, retreive_buffer_with_bad_key_throws)
+TEST_F(InterpreterResourceTest, RetreiveBufferWithBadKeyThrows)
 {
     mga::InterpreterCache cache;
     EXPECT_THROW({

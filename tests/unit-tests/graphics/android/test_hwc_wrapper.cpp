@@ -77,7 +77,7 @@ struct HwcWrapper : public ::testing::Test
     hwc_display_contents_1_t *primary_display;
 };
 
-TEST_F(HwcWrapper, submits_correct_prepare_parameters)
+TEST_F(HwcWrapper, SubmitsCorrectPrepareParameters)
 {
     using namespace testing;
     Sequence seq;
@@ -97,7 +97,7 @@ TEST_F(HwcWrapper, submits_correct_prepare_parameters)
     EXPECT_EQ(nullptr, external_display);
 }
 
-TEST_F(HwcWrapper, throws_on_prepare_failure)
+TEST_F(HwcWrapper, ThrowsOnPrepareFailure)
 {
     using namespace testing;
 
@@ -112,7 +112,7 @@ TEST_F(HwcWrapper, throws_on_prepare_failure)
     }, std::runtime_error);
 }
 
-TEST_F(HwcWrapper, submits_correct_set_parameters)
+TEST_F(HwcWrapper, SubmitsCorrectSetParameters)
 {
     using namespace testing;
     Sequence seq;
@@ -130,7 +130,7 @@ TEST_F(HwcWrapper, submits_correct_set_parameters)
     EXPECT_EQ(nullptr, external_display);
 }
 
-TEST_F(HwcWrapper, throws_on_set_failure)
+TEST_F(HwcWrapper, ThrowsOnSetFailure)
 {
     using namespace testing;
 
@@ -145,7 +145,7 @@ TEST_F(HwcWrapper, throws_on_set_failure)
     }, std::runtime_error);
 }
 
-TEST_F(HwcWrapper, register_procs_registers_and_preserves_hooks_until_destruction)
+TEST_F(HwcWrapper, RegisterProcsRegistersAndPreservesHooksUntilDestruction)
 {
     using namespace testing;
     auto procs = std::make_shared<mga::HWCCallbacks>();
@@ -162,7 +162,7 @@ TEST_F(HwcWrapper, register_procs_registers_and_preserves_hooks_until_destructio
     EXPECT_THAT(procs.use_count(), Eq(use_count));
 }
 
-TEST_F(HwcWrapper, turns_display_on)
+TEST_F(HwcWrapper, TurnsDisplayOn)
 {
     using namespace testing;
     Sequence seq;
@@ -182,7 +182,7 @@ TEST_F(HwcWrapper, turns_display_on)
     }, std::runtime_error);
 }
 
-TEST_F(HwcWrapper, turns_display_off)
+TEST_F(HwcWrapper, TurnsDisplayOff)
 {
     using namespace testing;
     Sequence seq;
@@ -202,7 +202,7 @@ TEST_F(HwcWrapper, turns_display_off)
     }, std::runtime_error);
 }
 
-TEST_F(HwcWrapper, turns_vsync_on)
+TEST_F(HwcWrapper, TurnsVsyncOn)
 {
     using namespace testing;
     Sequence seq;
@@ -222,7 +222,7 @@ TEST_F(HwcWrapper, turns_vsync_on)
     }, std::runtime_error);
 }
 
-TEST_F(HwcWrapper, turns_vsync_off)
+TEST_F(HwcWrapper, TurnsVsyncOff)
 {
     using namespace testing;
     Sequence seq;

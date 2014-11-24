@@ -24,7 +24,7 @@
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
 
-TEST(buffer_properties, default_create)
+TEST(bufferProperties, DefaultCreate)
 {
     geom::Size size;
     MirPixelFormat pixel_format{mir_pixel_format_invalid};
@@ -37,7 +37,7 @@ TEST(buffer_properties, default_create)
     EXPECT_EQ(usage, prop.usage);
 }
 
-TEST(buffer_properties, custom_create)
+TEST(bufferProperties, CustomCreate)
 {
     geom::Size size{66, 166};
     MirPixelFormat pixel_format{mir_pixel_format_abgr_8888};
@@ -50,7 +50,7 @@ TEST(buffer_properties, custom_create)
     EXPECT_EQ(usage, prop.usage);
 }
 
-TEST(buffer_properties, equal_properties_test_equal)
+TEST(bufferProperties, EqualPropertiesTestEqual)
 {
     geom::Size size{66, 166};
     MirPixelFormat pixel_format{mir_pixel_format_abgr_8888};
@@ -65,7 +65,7 @@ TEST(buffer_properties, equal_properties_test_equal)
     EXPECT_EQ(prop1, prop0);
 }
 
-TEST(buffer_properties, unequal_properties_test_unequal)
+TEST(bufferProperties, UnequalPropertiesTestUnequal)
 {
     geom::Size size[2] =
     {

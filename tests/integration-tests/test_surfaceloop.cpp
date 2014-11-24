@@ -242,7 +242,7 @@ struct SurfaceLoop : mtf::BasicClientServerFixture<BufferCounterConfig>
     }
 };
 
-TEST_F(SurfaceLoop, all_created_buffers_are_destroyed)
+TEST_F(SurfaceLoop, AllCreatedBuffersAreDestroyed)
 {
     for (int i = 0; i != max_surface_count; ++i)
         mir_connection_create_surface(connection, &request_params, create_surface_callback, ssync+i);
@@ -257,7 +257,7 @@ TEST_F(SurfaceLoop, all_created_buffers_are_destroyed)
         wait_for_surface_release(ssync+i);
 }
 
-TEST_F(SurfaceLoop, all_created_buffers_are_destroyed_if_client_disconnects_without_releasing_surfaces)
+TEST_F(SurfaceLoop, AllCreatedBuffersAreDestroyedIfClientDisconnectsWithoutReleasingSurfaces)
 {
     for (int i = 0; i != max_surface_count; ++i)
         mir_connection_create_surface(connection, &request_params, create_surface_callback, ssync+i);

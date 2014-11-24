@@ -223,7 +223,7 @@ public:
     mia::InputSender sender{mt::fake_shared(fake_scene), mt::fake_shared(loop), mt::fake_shared(observer), mr::null_input_report()};
 };
 
-TEST_F(AndroidInputSender, subscribes_to_scene)
+TEST_F(AndroidInputSender, SubscribesToScene)
 {
     using namespace ::testing;
     NiceMock<mtd::MockScene> mock_scene;
@@ -232,12 +232,12 @@ TEST_F(AndroidInputSender, subscribes_to_scene)
     mia::InputSender sender(mt::fake_shared(mock_scene), mt::fake_shared(loop), mt::fake_shared(observer), mr::null_input_report());
 }
 
-TEST_F(AndroidInputSender, throws_on_unknown_channel)
+TEST_F(AndroidInputSender, ThrowsOnUnknownChannel)
 {
     EXPECT_THROW(sender.send_event(key_event, channel), boost::exception);
 }
 
-TEST_F(AndroidInputSender,throws_on_deregistered_channels)
+TEST_F(AndroidInputSender,throwsOnDeregisteredChannels)
 {
     register_surface();
     deregister_surface();
@@ -245,7 +245,7 @@ TEST_F(AndroidInputSender,throws_on_deregistered_channels)
     EXPECT_THROW(sender.send_event(key_event, channel), boost::exception);
 }
 
-TEST_F(AndroidInputSender, first_send_on_surface_registers_server_fd)
+TEST_F(AndroidInputSender, FirstSendOnSurfaceRegistersServerFd)
 {
     using namespace ::testing;
     register_surface();
@@ -255,7 +255,7 @@ TEST_F(AndroidInputSender, first_send_on_surface_registers_server_fd)
     sender.send_event(key_event, channel);
 }
 
-TEST_F(AndroidInputSender, second_send_on_surface_does_not_register_server_fd)
+TEST_F(AndroidInputSender, SecondSendOnSurfaceDoesNotRegisterServerFd)
 {
     using namespace ::testing;
     register_surface();
@@ -266,7 +266,7 @@ TEST_F(AndroidInputSender, second_send_on_surface_does_not_register_server_fd)
     sender.send_event(key_event, channel);
 }
 
-TEST_F(AndroidInputSender, removal_of_surface_after_send_unregisters_server_fd)
+TEST_F(AndroidInputSender, RemovalOfSurfaceAfterSendUnregistersServerFd)
 {
     using namespace ::testing;
     register_surface();
@@ -280,7 +280,7 @@ TEST_F(AndroidInputSender, removal_of_surface_after_send_unregisters_server_fd)
     Mock::VerifyAndClearExpectations(&loop);
 }
 
-TEST_F(AndroidInputSender, can_send_consumeable_mir_key_events)
+TEST_F(AndroidInputSender, CanSendConsumeableMirKeyEvents)
 {
     register_surface();
 
@@ -292,7 +292,7 @@ TEST_F(AndroidInputSender, can_send_consumeable_mir_key_events)
     EXPECT_EQ(key_event.key.scan_code, client_key_event.getScanCode());
 }
 
-TEST_F(AndroidInputSender, can_send_consumeable_mir_motion_events)
+TEST_F(AndroidInputSender, CanSendConsumeableMirMotionEvents)
 {
     using namespace ::testing;
     register_surface();
@@ -318,7 +318,7 @@ TEST_F(AndroidInputSender, can_send_consumeable_mir_motion_events)
     }
 }
 
-TEST_F(AndroidInputSender, response_keeps_fd_registered)
+TEST_F(AndroidInputSender, ResponseKeepsFdRegistered)
 {
     using namespace ::testing;
     register_surface();
@@ -333,7 +333,7 @@ TEST_F(AndroidInputSender, response_keeps_fd_registered)
     Mock::VerifyAndClearExpectations(&loop);
 }
 
-TEST_F(AndroidInputSender, finish_signal_triggers_success_callback_as_consumed)
+TEST_F(AndroidInputSender, FinishSignalTriggersSuccessCallbackAsConsumed)
 {
     register_surface();
 
@@ -349,7 +349,7 @@ TEST_F(AndroidInputSender, finish_signal_triggers_success_callback_as_consumed)
     loop.trigger_pending_fds();
 }
 
-TEST_F(AndroidInputSender, finish_signal_triggers_success_callback_as_not_consumed)
+TEST_F(AndroidInputSender, FinishSignalTriggersSuccessCallbackAsNotConsumed)
 {
     register_surface();
 
@@ -365,7 +365,7 @@ TEST_F(AndroidInputSender, finish_signal_triggers_success_callback_as_not_consum
     loop.trigger_pending_fds();
 }
 
-TEST_F(AndroidInputSender, unordered_finish_signal_triggers_the_right_callback)
+TEST_F(AndroidInputSender, UnorderedFinishSignalTriggersTheRightCallback)
 {
     register_surface();
 
@@ -389,7 +389,7 @@ TEST_F(AndroidInputSender, unordered_finish_signal_triggers_the_right_callback)
     loop.trigger_pending_fds();
 }
 
-TEST_F(AndroidInputSender, observer_notified_on_disapeared_surface )
+TEST_F(AndroidInputSender, ObserverNotifiedOnDisapearedSurface )
 {
     register_surface();
 
@@ -400,7 +400,7 @@ TEST_F(AndroidInputSender, observer_notified_on_disapeared_surface )
     deregister_surface();
 }
 
-TEST_F(AndroidInputSender, alarm_created_for_input_send)
+TEST_F(AndroidInputSender, AlarmCreatedForInputSend)
 {
     using namespace ::testing;
 
@@ -410,7 +410,7 @@ TEST_F(AndroidInputSender, alarm_created_for_input_send)
     sender.send_event(key_event, channel);
 }
 
-TEST_F(AndroidInputSender, observer_informed_on_response_timeout)
+TEST_F(AndroidInputSender, ObserverInformedOnResponseTimeout)
 {
     register_surface();
 
@@ -422,7 +422,7 @@ TEST_F(AndroidInputSender, observer_informed_on_response_timeout)
     loop.fire_all_alarms();
 }
 
-TEST_F(AndroidInputSender, observer_informed_about_closed_socket_on_send_event)
+TEST_F(AndroidInputSender, ObserverInformedAboutClosedSocketOnSendEvent)
 {
     register_surface();
 

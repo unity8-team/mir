@@ -111,7 +111,7 @@ struct GrallocRegistrar : public ::testing::Test
     std::shared_ptr<mtd::MockAndroidNativeBuffer> const mock_native_buffer;
 };
 
-TEST_F(GrallocRegistrar, client_buffer_converts_stub_package)
+TEST_F(GrallocRegistrar, ClientBufferConvertsStubPackage)
 {
     int const flag_offset{1};
     mcla::GrallocRegistrar registrar(mock_module);
@@ -127,14 +127,14 @@ TEST_F(GrallocRegistrar, client_buffer_converts_stub_package)
         EXPECT_EQ(stub_package.data[i + flag_offset], handle->data[i + stub_package.fd_items]);
 }
 
-TEST_F(GrallocRegistrar, client_sets_correct_version)
+TEST_F(GrallocRegistrar, ClientSetsCorrectVersion)
 {
     mcla::GrallocRegistrar registrar(mock_module);
     auto buffer = registrar.register_buffer(stub_package, pf);
     EXPECT_EQ(buffer->handle()->version, static_cast<int>(sizeof(native_handle_t)));
 }
 
-TEST_F(GrallocRegistrar, registrar_registers_using_module)
+TEST_F(GrallocRegistrar, RegistrarRegistersUsingModule)
 {
     using namespace testing;
     native_handle_t const* handle1 = nullptr;
@@ -155,7 +155,7 @@ TEST_F(GrallocRegistrar, registrar_registers_using_module)
     EXPECT_EQ(handle1, handle2);
 }
 
-TEST_F(GrallocRegistrar, registrar_frees_fds)
+TEST_F(GrallocRegistrar, RegistrarFreesFds)
 {
     using namespace testing;
     MirBufferPackage stub_package;
@@ -174,7 +174,7 @@ TEST_F(GrallocRegistrar, registrar_frees_fds)
 }
 
 
-TEST_F(GrallocRegistrar, register_failure)
+TEST_F(GrallocRegistrar, RegisterFailure)
 {
     using namespace testing;
     EXPECT_CALL(*mock_module, registerBuffer_interface(_, _))
@@ -189,7 +189,7 @@ TEST_F(GrallocRegistrar, register_failure)
     }, std::runtime_error);
 }
 
-TEST_F(GrallocRegistrar, region_is_cleaned_up_correctly)
+TEST_F(GrallocRegistrar, RegionIsCleanedUpCorrectly)
 {
     using namespace testing;
     mcla::GrallocRegistrar registrar(mock_module);
@@ -219,7 +219,7 @@ TEST_F(GrallocRegistrar, region_is_cleaned_up_correctly)
     EXPECT_EQ(handle_alloc, handle_freed);
 }
 
-TEST_F(GrallocRegistrar, maps_buffer_for_cpu_correctly)
+TEST_F(GrallocRegistrar, MapsBufferForCpuCorrectly)
 {
     EXPECT_CALL(*mock_module, lock_interface(
         mock_module.get(),
@@ -236,7 +236,7 @@ TEST_F(GrallocRegistrar, maps_buffer_for_cpu_correctly)
     registrar.secure_for_cpu(mock_native_buffer, rect);
 }
 
-TEST_F(GrallocRegistrar, lock_failure_throws)
+TEST_F(GrallocRegistrar, LockFailureThrows)
 {
     using namespace testing;
     EXPECT_CALL(*mock_module, lock_interface(_,_,_,_,_,_,_,_))
@@ -251,7 +251,7 @@ TEST_F(GrallocRegistrar, lock_failure_throws)
 }
 
 /* unlock is called in destructor. should not throw */
-TEST_F(GrallocRegistrar, unlock_failure_doesnt_throw)
+TEST_F(GrallocRegistrar, UnlockFailureDoesntThrow)
 {
     using namespace testing;
     EXPECT_CALL(*mock_module, unlock_interface(_,_))
@@ -265,7 +265,7 @@ TEST_F(GrallocRegistrar, unlock_failure_doesnt_throw)
     });
 }
 
-TEST_F(GrallocRegistrar, produces_valid_anwb)
+TEST_F(GrallocRegistrar, ProducesValidAnwb)
 {
     using namespace testing;
     mcla::GrallocRegistrar registrar(mock_module);

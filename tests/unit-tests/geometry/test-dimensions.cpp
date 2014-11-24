@@ -23,7 +23,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, width)
+TEST(geometry, Width)
 {
     geom::Width width0 {0};
     geom::Width width42 {42};
@@ -37,7 +37,7 @@ TEST(geometry, width)
     EXPECT_NE(width42, width0);
 }
 
-TEST(geometry, height)
+TEST(geometry, Height)
 {
     geom::Height height0 {0};
     geom::Height height42 {42};
@@ -51,7 +51,7 @@ TEST(geometry, height)
     EXPECT_NE(height42, height0);
 }
 
-TEST(geometry, delta_arithmetic)
+TEST(geometry, DeltaArithmetic)
 {
     using namespace geom;
     DeltaX dx1{1};
@@ -62,7 +62,7 @@ TEST(geometry, delta_arithmetic)
     EXPECT_EQ(DeltaX(1), x2-dx1);
 }
 
-TEST(geometry, coordinates)
+TEST(geometry, Coordinates)
 {
     using namespace geom;
     X x1{1};
@@ -79,7 +79,7 @@ TEST(geometry, coordinates)
     EXPECT_EQ(dx18, y42 - y24);
 }
 
-TEST(geometry, conversions)
+TEST(geometry, Conversions)
 {
     using namespace geom;
     Width w1{1};
@@ -90,7 +90,7 @@ TEST(geometry, conversions)
     EXPECT_NE(dx1, dim_cast<DeltaX>(X()));
 }
 
-TEST(geometry, signed_dimensions)
+TEST(geometry, SignedDimensions)
 {
     using namespace geom;
 

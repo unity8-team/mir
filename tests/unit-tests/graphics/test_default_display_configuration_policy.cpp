@@ -161,7 +161,7 @@ MockDisplayConfiguration create_default_configuration(size_t max_outputs = MockD
     };
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, uses_all_connected_valid_outputs)
+TEST(DefaultDisplayConfigurationPolicyTest, UsesAllConnectedValidOutputs)
 {
     using namespace ::testing;
 
@@ -185,7 +185,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, uses_all_connected_valid_outputs)
     });
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, default_policy_is_power_mode_on)
+TEST(DefaultDisplayConfigurationPolicyTest, DefaultPolicyIsPowerModeOn)
 {
     using namespace ::testing;
 
@@ -200,7 +200,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, default_policy_is_power_mode_on)
     });
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, default_orientation_is_normal)
+TEST(DefaultDisplayConfigurationPolicyTest, DefaultOrientationIsNormal)
 {
     using namespace ::testing;
 
@@ -213,7 +213,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, default_orientation_is_normal)
     });
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, does_not_enable_more_outputs_than_supported)
+TEST(DefaultDisplayConfigurationPolicyTest, DoesNotEnableMoreOutputsThanSupported)
 {
     using namespace ::testing;
 
@@ -233,7 +233,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, does_not_enable_more_outputs_than_su
     EXPECT_GE(max_simultaneous_outputs, used_count);
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, prefer_opaque_over_alpha)
+TEST(DefaultDisplayConfigurationPolicyTest, PreferOpaqueOverAlpha)
 {
     using namespace ::testing;
 
@@ -248,7 +248,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, prefer_opaque_over_alpha)
     });
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, preserve_opaque_selection)
+TEST(DefaultDisplayConfigurationPolicyTest, PreserveOpaqueSelection)
 {
     using namespace ::testing;
 
@@ -263,7 +263,7 @@ TEST(DefaultDisplayConfigurationPolicyTest, preserve_opaque_selection)
     });
 }
 
-TEST(DefaultDisplayConfigurationPolicyTest, accept_transparency_when_only_option)
+TEST(DefaultDisplayConfigurationPolicyTest, AcceptTransparencyWhenOnlyOption)
 {
     using namespace ::testing;
 

@@ -23,7 +23,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, size)
+TEST(geometry, Size)
 {
     using namespace geom;
     Size const size2x4{2, 4};

@@ -82,7 +82,7 @@ struct SwapperSwappingStress : public ::testing::Test
 
 } // namespace
 
-TEST_F(SwapperSwappingStress, swapper)
+TEST_F(SwapperSwappingStress, Swapper)
 {
     std::atomic_bool done(false);
 
@@ -126,7 +126,7 @@ TEST_F(SwapperSwappingStress, swapper)
     h.wait();
 }
 
-TEST_F(SwapperSwappingStress, different_swapper_types)
+TEST_F(SwapperSwappingStress, DifferentSwapperTypes)
 {
     std::atomic_bool done(false);
 

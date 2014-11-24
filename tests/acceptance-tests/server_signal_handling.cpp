@@ -55,7 +55,7 @@ struct ServerSignal : mtf::InterprocessClientServerTest
 };
 }
 
-TEST_F(ServerSignal, terminate_handler_is_called_for_SIGTERM)
+TEST_F(ServerSignal, TerminateHandlerIsCalledFor_SIGTERM)
 {
     run_in_server([&]
         {
@@ -65,7 +65,7 @@ TEST_F(ServerSignal, terminate_handler_is_called_for_SIGTERM)
         });
 }
 
-TEST_F(ServerSignal, terminate_handler_is_called_for_SIGINT)
+TEST_F(ServerSignal, TerminateHandlerIsCalledFor_SIGINT)
 {
     run_in_server([&]
         {
@@ -77,7 +77,7 @@ TEST_F(ServerSignal, terminate_handler_is_called_for_SIGINT)
 
 struct Abort : ServerSignal, ::testing::WithParamInterface<int> {};
 
-TEST_P(Abort, cleanup_handler_is_called_for)
+TEST_P(Abort, CleanupHandlerIsCalledFor)
 {
     expect_server_signalled(GetParam());
 
@@ -89,7 +89,7 @@ TEST_P(Abort, cleanup_handler_is_called_for)
 INSTANTIATE_TEST_CASE_P(ServerSignal, Abort,
     ::testing::Values(SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS));
 
-TEST_F(ServerSignal, multiple_cleanup_handlers_are_called)
+TEST_F(ServerSignal, MultipleCleanupHandlersAreCalled)
 {
     const int multiple = 5;
     expect_server_signalled(SIGABRT);

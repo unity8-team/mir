@@ -56,7 +56,7 @@ public:
 };
 }
 
-TEST_F(AndroidInputReaderPolicySetup, configuration_has_display_info_filled_from_view_area)
+TEST_F(AndroidInputReaderPolicySetup, ConfigurationHasDisplayInfoFilledFromViewArea)
 {
     static int32_t const testing_display_id = 0;
     static bool const testing_display_is_external = false;

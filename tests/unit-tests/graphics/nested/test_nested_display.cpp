@@ -70,7 +70,7 @@ struct NestedDisplay : testing::Test
 
 }
 
-TEST_F(NestedDisplay, respects_gl_config)
+TEST_F(NestedDisplay, RespectsGlConfig)
 {
     using namespace testing;
 
@@ -105,7 +105,7 @@ TEST_F(NestedDisplay, respects_gl_config)
         mt::fake_shared(mock_gl_config)};
 }
 
-TEST_F(NestedDisplay, does_not_change_host_display_configuration_at_construction)
+TEST_F(NestedDisplay, DoesNotChangeHostDisplayConfigurationAtConstruction)
 {
     using namespace testing;
 
@@ -124,7 +124,7 @@ TEST_F(NestedDisplay, does_not_change_host_display_configuration_at_construction
 }
 
 // Regression test for LP: #1372276
-TEST_F(NestedDisplay, keeps_platform_alive)
+TEST_F(NestedDisplay, KeepsPlatformAlive)
 {
     using namespace testing;
 

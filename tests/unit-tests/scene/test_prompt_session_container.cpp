@@ -116,20 +116,20 @@ struct PromptSessionContainer : testing::Test
 };
 }
 
-TEST_F(PromptSessionContainer, throws_exception_if_no_prompt_session)
+TEST_F(PromptSessionContainer, ThrowsExceptionIfNoPromptSession)
 {
     EXPECT_THROW(
         container.insert_participant(prompt_session1.get(), session1, ms::PromptSessionContainer::ParticipantType::prompt_provider),
         std::runtime_error);
 }
 
-TEST_F(PromptSessionContainer, insert_true_if_prompt_session_exists)
+TEST_F(PromptSessionContainer, InsertTrueIfPromptSessionExists)
 {
     container.insert_prompt_session(prompt_session1);
     EXPECT_TRUE(container.insert_participant(prompt_session1.get(), session1, ms::PromptSessionContainer::ParticipantType::prompt_provider));
 }
 
-TEST_F(PromptSessionContainer, insert_true_if_not_duplicate)
+TEST_F(PromptSessionContainer, InsertTrueIfNotDuplicate)
 {
     container.insert_prompt_session(prompt_session1);
     container.insert_prompt_session(prompt_session2);
@@ -150,7 +150,7 @@ TEST_F(PromptSessionContainer, insert_true_if_not_duplicate)
     EXPECT_FALSE(container.insert_participant(prompt_session3.get(), session3, ms::PromptSessionContainer::ParticipantType::prompt_provider));
 }
 
-TEST_F(PromptSessionContainer, lists_participants_in_a_prompt_session)
+TEST_F(PromptSessionContainer, ListsParticipantsInAPromptSession)
 {
     container.insert_prompt_session(prompt_session1);
     container.insert_prompt_session(prompt_session2);
@@ -168,7 +168,7 @@ TEST_F(PromptSessionContainer, lists_participants_in_a_prompt_session)
     EXPECT_THAT(list_participants_for(prompt_session3), ElementsAre(session2));
 }
 
-TEST_F(PromptSessionContainer, lists_prompt_sessions_for_a_participant)
+TEST_F(PromptSessionContainer, ListsPromptSessionsForAParticipant)
 {
     container.insert_prompt_session(prompt_session1);
     container.insert_prompt_session(prompt_session2);
@@ -193,7 +193,7 @@ TEST_F(PromptSessionContainer, lists_prompt_sessions_for_a_participant)
     EXPECT_THAT(list_prompt_sessions_for(session4), ElementsAre(prompt_session2));
 }
 
-TEST_F(PromptSessionContainer, associates_processes_with_a_prompt_session_until_it_is_removed)
+TEST_F(PromptSessionContainer, AssociatesProcessesWithAPromptSessionUntilItIsRemoved)
 {
     container.insert_prompt_session(prompt_session1);
 
@@ -208,7 +208,7 @@ TEST_F(PromptSessionContainer, associates_processes_with_a_prompt_session_until_
     EXPECT_THAT(count_participants_for(prompt_session1), Eq(0));
 }
 
-TEST_F(PromptSessionContainer, associates_prompt_sessions_with_a_participant_until_it_is_removed)
+TEST_F(PromptSessionContainer, AssociatesPromptSessionsWithAParticipantUntilItIsRemoved)
 {
     container.insert_prompt_session(prompt_session1);
     container.insert_prompt_session(prompt_session2);

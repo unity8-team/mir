@@ -22,7 +22,7 @@
 #include <gtest/gtest.h>
 
 
-TEST(GMock, return_by_move)
+TEST(GMock, ReturnByMove)
 {
     struct Interface
     {

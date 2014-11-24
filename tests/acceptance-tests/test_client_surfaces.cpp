@@ -104,7 +104,7 @@ void wait_for_surface_release(SurfaceSync* context)
 }
 }
 
-TEST_F(ClientSurfaces, are_created_with_correct_size)
+TEST_F(ClientSurfaces, AreCreatedWithCorrectSize)
 {
     mir_connection_create_surface(connection, &surface_params, create_surface_callback, ssync);
     wait_for_surface_create(ssync);
@@ -135,7 +135,7 @@ TEST_F(ClientSurfaces, are_created_with_correct_size)
     wait_for_surface_release(ssync);
 }
 
-TEST_F(ClientSurfaces, have_distinct_ids)
+TEST_F(ClientSurfaces, HaveDistinctIds)
 {
     mir_connection_create_surface(connection, &surface_params, create_surface_callback, ssync);
     wait_for_surface_create(ssync);
@@ -157,7 +157,7 @@ TEST_F(ClientSurfaces, have_distinct_ids)
     wait_for_surface_release(ssync);
 }
 
-TEST_F(ClientSurfaces, creates_need_not_be_serialized)
+TEST_F(ClientSurfaces, CreatesNeedNotBeSerialized)
 {
     for (int i = 0; i != max_surface_count; ++i)
         mir_connection_create_surface(connection, &surface_params, create_surface_callback, ssync+i);

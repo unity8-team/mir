@@ -41,7 +41,7 @@ struct AndroidGraphicBufferAllocatorTest : public ::testing::Test
     testing::NiceMock<mtd::MockEGL> mock_egl;
 };
 
-TEST_F(AndroidGraphicBufferAllocatorTest, allocator_accesses_gralloc_module)
+TEST_F(AndroidGraphicBufferAllocatorTest, AllocatorAccessesGrallocModule)
 {
     using namespace testing;
 
@@ -51,7 +51,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, allocator_accesses_gralloc_module)
     mga::AndroidGraphicBufferAllocator allocator{};
 }
 
-TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_contain_common_formats)
+TEST_F(AndroidGraphicBufferAllocatorTest, SupportedPixelFormatsContainCommonFormats)
 {
     mga::AndroidGraphicBufferAllocator allocator{};
     auto supported_pixel_formats = allocator.supported_pixel_formats();
@@ -73,7 +73,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_contain_common
     EXPECT_EQ(1, bgr_888_count);
 }
 
-TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_have_sane_default_in_first_position)
+TEST_F(AndroidGraphicBufferAllocatorTest, SupportedPixelFormatsHaveSaneDefaultInFirstPosition)
 {
     mga::AndroidGraphicBufferAllocator allocator{};
     auto supported_pixel_formats = allocator.supported_pixel_formats();
@@ -82,7 +82,7 @@ TEST_F(AndroidGraphicBufferAllocatorTest, supported_pixel_formats_have_sane_defa
     EXPECT_EQ(mir_pixel_format_abgr_8888, supported_pixel_formats[0]);
 }
 
-TEST_F(AndroidGraphicBufferAllocatorTest, buffer_usage_converter)
+TEST_F(AndroidGraphicBufferAllocatorTest, BufferUsageConverter)
 {
     EXPECT_EQ(mga::BufferUsage::use_hardware,
         mga::AndroidGraphicBufferAllocator::convert_from_compositor_usage(mg::BufferUsage::hardware));

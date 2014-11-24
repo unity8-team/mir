@@ -29,7 +29,7 @@ struct IpcOperations : public ::testing::Test
 };
 
 /* ipc packaging tests */
-TEST_F(IpcOperations, test_ipc_data_packed_correctly_for_full_ipc)
+TEST_F(IpcOperations, TestIpcDataPackedCorrectlyForFullIpc)
 {
     //android has no valid operations platform specific operations yet, expect throw
     mg::PlatformIPCPackage package{

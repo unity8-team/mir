@@ -84,7 +84,7 @@ struct Surface : testing::Test
 };
 }
 
-TEST_F(Surface, attributes)
+TEST_F(Surface, Attributes)
 {
     using namespace testing;
 
@@ -104,7 +104,7 @@ TEST_F(Surface, attributes)
     }, std::logic_error);
 }
 
-TEST_F(Surface, types)
+TEST_F(Surface, Types)
 {
     using namespace testing;
 
@@ -145,7 +145,7 @@ TEST_F(Surface, types)
     EXPECT_EQ(mir_surface_type_freestyle, surf.type());
 }
 
-TEST_F(Surface, states)
+TEST_F(Surface, States)
 {
     using namespace testing;
 
@@ -192,7 +192,7 @@ bool operator==(MirEvent const& a, MirEvent const& b)
     return !memcmp(&a, &b, sizeof(MirEvent));
 }
 
-TEST_F(Surface, clamps_undersized_resize)
+TEST_F(Surface, ClampsUndersizedResize)
 {
     using namespace testing;
 
@@ -214,7 +214,7 @@ TEST_F(Surface, clamps_undersized_resize)
     EXPECT_EQ(expect_size, surf.size());
 }
 
-TEST_F(Surface, emits_resize_events)
+TEST_F(Surface, EmitsResizeEvents)
 {
     using namespace testing;
 
@@ -248,7 +248,7 @@ TEST_F(Surface, emits_resize_events)
     EXPECT_EQ(new_size, surf.size());
 }
 
-TEST_F(Surface, emits_resize_events_only_on_change)
+TEST_F(Surface, EmitsResizeEventsOnlyOnChange)
 {
     using namespace testing;
 
@@ -299,7 +299,7 @@ TEST_F(Surface, emits_resize_events_only_on_change)
     EXPECT_EQ(new_size2, surf.size());
 }
 
-TEST_F(Surface, remembers_alpha)
+TEST_F(Surface, RemembersAlpha)
 {
     ms::BasicSurface surf(
         std::string("stub"),
@@ -327,7 +327,7 @@ TEST_F(Surface, remembers_alpha)
     EXPECT_FLOAT_EQ(1.0f, surf.alpha());
 }
 
-TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
+TEST_F(Surface, SendsFocusNotificationsWhenFocusGainedAndLost)
 {
     using namespace testing;
 
@@ -360,7 +360,7 @@ TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
     surf.configure(mir_surface_attrib_focus, mir_surface_unfocused);
 }
 
-TEST_F(Surface, configurator_selects_attribute_values)
+TEST_F(Surface, ConfiguratorSelectsAttributeValues)
 {
     using namespace testing;
 
@@ -384,7 +384,7 @@ TEST_F(Surface, configurator_selects_attribute_values)
     EXPECT_EQ(mir_surface_state_minimized, surf.configure(mir_surface_attrib_state, mir_surface_state_restored));
 }
 
-TEST_F(Surface, take_input_focus)
+TEST_F(Surface, TakeInputFocus)
 {
     using namespace ::testing;
 
@@ -405,7 +405,7 @@ TEST_F(Surface, take_input_focus)
     surf.take_input_focus(mt::fake_shared(targeter));
 }
 
-TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
+TEST_F(Surface, WithMostRecentBufferDoUsesCompositorBuffer)
 {
     auto stub_buffer_stream = std::make_shared<mtd::StubBufferStream>();
 

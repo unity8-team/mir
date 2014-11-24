@@ -69,7 +69,7 @@ protected:
     std::shared_ptr<mtd::StubGLProgramFactory> const stub_gl_program_factory;
 };
 
-TEST_F(Display, creation_creates_egl_resources_properly)
+TEST_F(Display, CreationCreatesEglResourcesProperly)
 {
     using namespace testing;
     EGLSurface fake_surface = (EGLSurface) 0x715;
@@ -114,7 +114,7 @@ TEST_F(Display, creation_creates_egl_resources_properly)
         null_display_report);
 }
 
-TEST_F(Display, selects_usable_configuration)
+TEST_F(Display, SelectsUsableConfiguration)
 {
     using namespace testing;
     int const incorrect_visual_id = 2;
@@ -163,7 +163,7 @@ TEST_F(Display, selects_usable_configuration)
     EXPECT_EQ(correct_config, selected_config);
 }
 
-TEST_F(Display, respects_gl_config)
+TEST_F(Display, RespectsGlConfig)
 {
     using namespace testing;
 
@@ -190,7 +190,7 @@ TEST_F(Display, respects_gl_config)
         null_display_report);
 }
 
-TEST_F(Display, logs_creation_events)
+TEST_F(Display, LogsCreationEvents)
 {
     using namespace testing;
 
@@ -212,7 +212,7 @@ TEST_F(Display, logs_creation_events)
         mock_display_report);
 }
 
-TEST_F(Display, throws_on_eglMakeCurrent_failure)
+TEST_F(Display, ThrowsOnEglMakeCurrentFailure)
 {
     using namespace testing;
 
@@ -237,7 +237,7 @@ TEST_F(Display, throws_on_eglMakeCurrent_failure)
     }, std::runtime_error);
 }
 
-TEST_F(Display, logs_error_because_of_surface_creation_failure)
+TEST_F(Display, LogsErrorBecauseOfSurfaceCreationFailure)
 {
     using namespace testing;
 
@@ -263,7 +263,7 @@ TEST_F(Display, logs_error_because_of_surface_creation_failure)
     }, std::runtime_error);
 }
 
-TEST_F(Display, configures_display_buffer)
+TEST_F(Display, ConfiguresDisplayBuffer)
 {
     using namespace testing;
     mga::Display display(
@@ -299,7 +299,7 @@ TEST_F(Display, configures_display_buffer)
 }
 
 //we only have single display and single mode on android for the time being
-TEST_F(Display, supports_one_output_configuration)
+TEST_F(Display, SupportsOneOutputConfiguration)
 {
     mga::Display display(
         stub_db_factory,

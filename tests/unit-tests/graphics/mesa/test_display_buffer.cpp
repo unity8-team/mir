@@ -98,7 +98,7 @@ protected:
 
 };
 
-TEST_F(MesaDisplayBufferTest, unrotated_view_area_is_untouched)
+TEST_F(MesaDisplayBufferTest, UnrotatedViewAreaIsUntouched)
 {
     graphics::mesa::DisplayBuffer db(
         create_platform(),
@@ -113,7 +113,7 @@ TEST_F(MesaDisplayBufferTest, unrotated_view_area_is_untouched)
     EXPECT_EQ(display_area, db.view_area());
 }
 
-TEST_F(MesaDisplayBufferTest, normal_orientation_with_bypassable_list_can_bypass)
+TEST_F(MesaDisplayBufferTest, NormalOrientationWithBypassableListCanBypass)
 {
     graphics::mesa::DisplayBuffer db(
         create_platform(),
@@ -128,7 +128,7 @@ TEST_F(MesaDisplayBufferTest, normal_orientation_with_bypassable_list_can_bypass
     EXPECT_TRUE(db.post_renderables_if_optimizable(bypassable_list));
 }
 
-TEST_F(MesaDisplayBufferTest, rotated_cannot_bypass)
+TEST_F(MesaDisplayBufferTest, RotatedCannotBypass)
 {
     graphics::mesa::DisplayBuffer db(
         create_platform(),
@@ -143,7 +143,7 @@ TEST_F(MesaDisplayBufferTest, rotated_cannot_bypass)
     EXPECT_FALSE(db.post_renderables_if_optimizable(bypassable_list));
 }
 
-TEST_F(MesaDisplayBufferTest, orientation_not_implemented_internally)
+TEST_F(MesaDisplayBufferTest, OrientationNotImplementedInternally)
 {
     graphics::mesa::DisplayBuffer db(
         create_platform(),
@@ -158,7 +158,7 @@ TEST_F(MesaDisplayBufferTest, orientation_not_implemented_internally)
     EXPECT_EQ(mir_orientation_left, db.orientation());
 }
 
-TEST_F(MesaDisplayBufferTest, normal_rotation_constructs_normal_fb)
+TEST_F(MesaDisplayBufferTest, NormalRotationConstructsNormalFb)
 {
     EXPECT_CALL(mock_gbm, gbm_bo_get_user_data(_))
         .WillOnce(Return((void*)0));
@@ -176,7 +176,7 @@ TEST_F(MesaDisplayBufferTest, normal_rotation_constructs_normal_fb)
         mock_egl.fake_egl_context);
 }
 
-TEST_F(MesaDisplayBufferTest, left_rotation_constructs_transposed_fb)
+TEST_F(MesaDisplayBufferTest, LeftRotationConstructsTransposedFb)
 {
     EXPECT_CALL(mock_gbm, gbm_bo_get_user_data(_))
         .WillOnce(Return((void*)0));
@@ -194,7 +194,7 @@ TEST_F(MesaDisplayBufferTest, left_rotation_constructs_transposed_fb)
         mock_egl.fake_egl_context);
 }
 
-TEST_F(MesaDisplayBufferTest, inverted_rotation_constructs_normal_fb)
+TEST_F(MesaDisplayBufferTest, InvertedRotationConstructsNormalFb)
 {
     EXPECT_CALL(mock_gbm, gbm_bo_get_user_data(_))
         .WillOnce(Return((void*)0));
@@ -212,7 +212,7 @@ TEST_F(MesaDisplayBufferTest, inverted_rotation_constructs_normal_fb)
         mock_egl.fake_egl_context);
 }
 
-TEST_F(MesaDisplayBufferTest, right_rotation_constructs_transposed_fb)
+TEST_F(MesaDisplayBufferTest, RightRotationConstructsTransposedFb)
 {
     EXPECT_CALL(mock_gbm, gbm_bo_get_user_data(_))
         .WillOnce(Return((void*)0));
@@ -230,7 +230,7 @@ TEST_F(MesaDisplayBufferTest, right_rotation_constructs_transposed_fb)
         mock_egl.fake_egl_context);
 }
 
-TEST_F(MesaDisplayBufferTest, first_post_flips_but_no_wait)
+TEST_F(MesaDisplayBufferTest, FirstPostFlipsButNoWait)
 {
     EXPECT_CALL(*mock_kms_output, schedule_page_flip(_))
         .Times(1);
@@ -250,7 +250,7 @@ TEST_F(MesaDisplayBufferTest, first_post_flips_but_no_wait)
     db.post_update();
 }
 
-TEST_F(MesaDisplayBufferTest, waits_for_page_flip_on_second_post)
+TEST_F(MesaDisplayBufferTest, WaitsForPageFlipOnSecondPost)
 {
     InSequence seq;
 
@@ -279,7 +279,7 @@ TEST_F(MesaDisplayBufferTest, waits_for_page_flip_on_second_post)
     db.post_update();
 }
 
-TEST_F(MesaDisplayBufferTest, skips_bypass_because_of_incompatible_list)
+TEST_F(MesaDisplayBufferTest, SkipsBypassBecauseOfIncompatibleList)
 {
     graphics::RenderableList list{
         std::make_shared<FakeRenderable>(display_area),
@@ -299,7 +299,7 @@ TEST_F(MesaDisplayBufferTest, skips_bypass_because_of_incompatible_list)
     EXPECT_FALSE(db.post_renderables_if_optimizable(list));
 }
 
-TEST_F(MesaDisplayBufferTest, skips_bypass_because_of_incompatible_bypass_buffer)
+TEST_F(MesaDisplayBufferTest, SkipsBypassBecauseOfIncompatibleBypassBuffer)
 {
     auto fullscreen = std::make_shared<FakeRenderable>(display_area);
     auto nonbypassable = std::make_shared<testing::NiceMock<MockBuffer>>();
@@ -321,7 +321,7 @@ TEST_F(MesaDisplayBufferTest, skips_bypass_because_of_incompatible_bypass_buffer
     EXPECT_FALSE(db.post_renderables_if_optimizable(list));
 }
 
-TEST_F(MesaDisplayBufferTest, does_not_use_alpha)
+TEST_F(MesaDisplayBufferTest, DoesNotUseAlpha)
 {
     geometry::Rectangle const area{{12,34}, {56,78}};
 

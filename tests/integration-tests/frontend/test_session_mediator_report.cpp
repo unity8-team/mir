@@ -55,7 +55,7 @@ const int rpc_timeout_ms{100000};
 typedef BespokeDisplayServerTestFixture SessionMediatorReport;
 }
 
-TEST_F(SessionMediatorReport, session_connect_called)
+TEST_F(SessionMediatorReport, SessionConnectCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -99,7 +99,7 @@ TEST_F(SessionMediatorReport, session_connect_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, session_create_surface_called)
+TEST_F(SessionMediatorReport, SessionCreateSurfaceCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -154,7 +154,7 @@ TEST_F(SessionMediatorReport, session_create_surface_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, session_next_buffer_called)
+TEST_F(SessionMediatorReport, SessionNextBufferCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -211,7 +211,7 @@ TEST_F(SessionMediatorReport, session_next_buffer_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, session_exchange_buffer_called)
+TEST_F(SessionMediatorReport, SessionExchangeBufferCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -272,7 +272,7 @@ TEST_F(SessionMediatorReport, session_exchange_buffer_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, session_release_surface_called)
+TEST_F(SessionMediatorReport, SessionReleaseSurfaceCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -342,7 +342,7 @@ TEST_F(SessionMediatorReport, session_release_surface_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, session_disconnect_called)
+TEST_F(SessionMediatorReport, SessionDisconnectCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -422,7 +422,7 @@ TEST_F(SessionMediatorReport, session_disconnect_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, prompt_session_start_called)
+TEST_F(SessionMediatorReport, PromptSessionStartCalled)
 {
     struct Server : TestingServerConfiguration
     {
@@ -474,7 +474,7 @@ TEST_F(SessionMediatorReport, prompt_session_start_called)
     launch_client_process(client_process);
 }
 
-TEST_F(SessionMediatorReport, prompt_session_stop_called)
+TEST_F(SessionMediatorReport, PromptSessionStopCalled)
 {
     struct Server : TestingServerConfiguration
     {

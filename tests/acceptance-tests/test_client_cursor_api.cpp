@@ -272,7 +272,7 @@ struct TestClientCursorAPI : mtf::InProcessServer
 // In this set we create a 1x1 client surface at the point (1,0). The client requests to disable the cursor
 // over this surface. Since the cursor starts at (0,0) we when we move the cursor by (1,0) thus causing it
 // to enter the bounds of the first surface, we should observe it being disabled.
-TEST_F(TestClientCursorAPI, client_may_disable_cursor_over_surface)
+TEST_F(TestClientCursorAPI, ClientMayDisableCursorOverSurface)
 {
     using namespace ::testing;
 
@@ -292,7 +292,7 @@ TEST_F(TestClientCursorAPI, client_may_disable_cursor_over_surface)
     client_shutdown_expectations();
 }
 
-TEST_F(TestClientCursorAPI, cursor_restored_when_leaving_surface)
+TEST_F(TestClientCursorAPI, CursorRestoredWhenLeavingSurface)
 {
     using namespace ::testing;
 
@@ -315,7 +315,7 @@ TEST_F(TestClientCursorAPI, cursor_restored_when_leaving_surface)
     client_shutdown_expectations();
 }
 
-TEST_F(TestClientCursorAPI, cursor_changed_when_crossing_surface_boundaries)
+TEST_F(TestClientCursorAPI, CursorChangedWhenCrossingSurfaceBoundaries)
 {
     using namespace ::testing;
 
@@ -342,7 +342,7 @@ TEST_F(TestClientCursorAPI, cursor_changed_when_crossing_surface_boundaries)
     client_shutdown_expectations();
 }
 
-TEST_F(TestClientCursorAPI, cursor_request_taken_from_top_surface)
+TEST_F(TestClientCursorAPI, CursorRequestTakenFromTopSurface)
 {
     using namespace ::testing;
 
@@ -366,7 +366,7 @@ TEST_F(TestClientCursorAPI, cursor_request_taken_from_top_surface)
     client_shutdown_expectations();
 }
 
-TEST_F(TestClientCursorAPI, cursor_request_applied_without_cursor_motion)
+TEST_F(TestClientCursorAPI, CursorRequestAppliedWithoutCursorMotion)
 {
     using namespace ::testing;
 

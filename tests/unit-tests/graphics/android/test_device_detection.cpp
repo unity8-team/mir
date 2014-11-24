@@ -31,7 +31,7 @@ struct MockOps : mga::PropertiesWrapper
 };
 }
 
-TEST(DeviceDetection, two_buffers_by_default)
+TEST(DeviceDetection, TwoBuffersByDefault)
 {
     using namespace testing;
     char const default_str[] = "";
@@ -51,7 +51,7 @@ TEST(DeviceDetection, two_buffers_by_default)
     EXPECT_EQ(2u, quirks.num_framebuffers());
 }
 
-TEST(DeviceDetection, three_buffers_reported_for_mx3)
+TEST(DeviceDetection, ThreeBuffersReportedForMx3)
 {
     using namespace testing;
     char const default_str[] = "";
@@ -72,7 +72,7 @@ TEST(DeviceDetection, three_buffers_reported_for_mx3)
 }
 
 //LP: 1371619, 1370555
-TEST(DeviceDetection, reports_gralloc_reopenable_after_close_by_default)
+TEST(DeviceDetection, ReportsGrallocReopenableAfterCloseByDefault)
 {
     using namespace testing;
     char const default_str[] = "";
@@ -91,7 +91,7 @@ TEST(DeviceDetection, reports_gralloc_reopenable_after_close_by_default)
     EXPECT_TRUE(quirks.gralloc_reopenable_after_close());
 }
 
-TEST(DeviceDetection, reports_gralloc_not_reopenable_after_close_on_krillin)
+TEST(DeviceDetection, ReportsGrallocNotReopenableAfterCloseOnKrillin)
 {
     using namespace testing;
     char const default_str[] = "";

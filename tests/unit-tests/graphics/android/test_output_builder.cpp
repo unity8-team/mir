@@ -112,7 +112,7 @@ public:
     std::shared_ptr<mga::HwcLogger> logger{std::make_shared<mga::NullHwcLogger>()};
 };
 }
-TEST_F(OutputBuilder, hwc_version_10_success)
+TEST_F(OutputBuilder, HwcVersion_10Success)
 {
     using namespace testing;
 
@@ -134,7 +134,7 @@ TEST_F(OutputBuilder, hwc_version_10_success)
     factory.create_display_buffer(stub_program_factory, gl_context);
 }
 
-TEST_F(OutputBuilder, hwc_version_10_failure_uses_gpu)
+TEST_F(OutputBuilder, HwcVersion_10FailureUsesGpu)
 {
     using namespace testing;
 
@@ -157,7 +157,7 @@ TEST_F(OutputBuilder, hwc_version_10_failure_uses_gpu)
     factory.create_display_buffer(stub_program_factory, gl_context);
 }
 
-TEST_F(OutputBuilder, hwc_version_11_success)
+TEST_F(OutputBuilder, HwcVersion_11Success)
 {
     using namespace testing;
 
@@ -177,7 +177,7 @@ TEST_F(OutputBuilder, hwc_version_11_success)
     factory.create_display_buffer(stub_program_factory, gl_context);
 }
 
-TEST_F(OutputBuilder, hwc_version_11_hwc_failure)
+TEST_F(OutputBuilder, HwcVersion_11HwcFailure)
 {
     using namespace testing;
 
@@ -200,7 +200,7 @@ TEST_F(OutputBuilder, hwc_version_11_hwc_failure)
     factory.create_display_buffer(stub_program_factory, gl_context);
 }
 
-TEST_F(OutputBuilder, hwc_version_11_hwc_and_fb_failure_fatal)
+TEST_F(OutputBuilder, HwcVersion_11HwcAndFbFailureFatal)
 {
     using namespace testing;
 
@@ -223,7 +223,7 @@ TEST_F(OutputBuilder, hwc_version_11_hwc_and_fb_failure_fatal)
     }, std::runtime_error);
 }
 
-TEST_F(OutputBuilder, hwc_version_12)
+TEST_F(OutputBuilder, HwcVersion_12)
 {
     using namespace testing;
 

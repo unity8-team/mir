@@ -71,14 +71,14 @@ struct ServerConfigurationWrapping : mir_test_framework::HeadlessTest
 };
 }
 
-TEST_F(ServerConfigurationWrapping, surface_coordinator_is_of_wrapper_type)
+TEST_F(ServerConfigurationWrapping, SurfaceCoordinatorIsOfWrapperType)
 {
     auto const my_surface_coordinator = std::dynamic_pointer_cast<MySurfaceCoordinator>(surface_coordinator);
 
     EXPECT_THAT(my_surface_coordinator, Ne(nullptr));
 }
 
-TEST_F(ServerConfigurationWrapping, can_override_surface_coordinator_methods)
+TEST_F(ServerConfigurationWrapping, CanOverrideSurfaceCoordinatorMethods)
 {
     auto const my_surface_coordinator = std::dynamic_pointer_cast<MySurfaceCoordinator>(surface_coordinator);
 
@@ -86,19 +86,19 @@ TEST_F(ServerConfigurationWrapping, can_override_surface_coordinator_methods)
     surface_coordinator->raise({});
 }
 
-TEST_F(ServerConfigurationWrapping, returns_same_surface_coordinator_from_cache)
+TEST_F(ServerConfigurationWrapping, ReturnsSameSurfaceCoordinatorFromCache)
 {
     ASSERT_THAT(server.the_surface_coordinator(), Eq(surface_coordinator));
 }
 
-TEST_F(ServerConfigurationWrapping, session_coordinator_is_of_wrapper_type)
+TEST_F(ServerConfigurationWrapping, SessionCoordinatorIsOfWrapperType)
 {
     auto const my_session_coordinator = std::dynamic_pointer_cast<MySessionCoordinator>(session_coordinator);
 
     EXPECT_THAT(my_session_coordinator, Ne(nullptr));
 }
 
-TEST_F(ServerConfigurationWrapping, can_override_session_coordinator_methods)
+TEST_F(ServerConfigurationWrapping, CanOverrideSessionCoordinatorMethods)
 {
     auto const my_session_coordinator = std::dynamic_pointer_cast<MySessionCoordinator>(session_coordinator);
 
@@ -106,7 +106,7 @@ TEST_F(ServerConfigurationWrapping, can_override_session_coordinator_methods)
     session_coordinator->focus_next();
 }
 
-TEST_F(ServerConfigurationWrapping, returns_same_session_coordinator_from_cache)
+TEST_F(ServerConfigurationWrapping, ReturnsSameSessionCoordinatorFromCache)
 {
     ASSERT_THAT(server.the_session_coordinator(), Eq(session_coordinator));
 }

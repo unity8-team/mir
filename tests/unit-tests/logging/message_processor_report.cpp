@@ -65,7 +65,7 @@ struct MessageProcessorReport : public Test
 };
 }
 
-TEST_F(MessageProcessorReport, everything_fine)
+TEST_F(MessageProcessorReport, EverythingFine)
 {
     mir::time::Timestamp a_time;
     EXPECT_CALL(clock, now()).Times(2).WillRepeatedly(Return(a_time));
@@ -78,7 +78,7 @@ TEST_F(MessageProcessorReport, everything_fine)
     report.completed_invocation(this, 1, true);
 }
 
-TEST_F(MessageProcessorReport, slow_call)
+TEST_F(MessageProcessorReport, SlowCall)
 {
     mir::time::Timestamp a_time;
     mir::time::Timestamp another_time = a_time + std::chrono::microseconds(1234);
@@ -95,7 +95,7 @@ TEST_F(MessageProcessorReport, slow_call)
     report.completed_invocation(this, 1, true);
 }
 
-TEST_F(MessageProcessorReport, reports_disconnect)
+TEST_F(MessageProcessorReport, ReportsDisconnect)
 {
     mir::time::Timestamp a_time;
     EXPECT_CALL(clock, now()).Times(2).WillRepeatedly(Return(a_time));
@@ -108,7 +108,7 @@ TEST_F(MessageProcessorReport, reports_disconnect)
     report.completed_invocation(this, 1, false);
 }
 
-TEST_F(MessageProcessorReport, reports_error_during_call)
+TEST_F(MessageProcessorReport, ReportsErrorDuringCall)
 {
     const char* testError = "***Test error***";
 
@@ -124,7 +124,7 @@ TEST_F(MessageProcessorReport, reports_error_during_call)
     report.completed_invocation(this, 1, false);
 }
 
-TEST_F(MessageProcessorReport, reports_unknown_method)
+TEST_F(MessageProcessorReport, ReportsUnknownMethod)
 {
     EXPECT_CALL(clock, now()).Times(0);
     EXPECT_CALL(logger, log(
@@ -135,7 +135,7 @@ TEST_F(MessageProcessorReport, reports_unknown_method)
     report.unknown_method(this, 1, "unknown_function_name");
 }
 
-TEST_F(MessageProcessorReport, reports_error_deserializing_call)
+TEST_F(MessageProcessorReport, ReportsErrorDeserializingCall)
 {
     const char* testError = "***Test error***";
 
@@ -147,7 +147,7 @@ TEST_F(MessageProcessorReport, reports_error_deserializing_call)
     report.exception_handled(this, std::runtime_error(testError));
 }
 
-TEST_F(MessageProcessorReport, logs_a_debug_message_when_invocation_starts)
+TEST_F(MessageProcessorReport, LogsADebugMessageWhenInvocationStarts)
 {
     mir::time::Timestamp a_time;
     EXPECT_CALL(clock, now()).Times(AnyNumber()).WillRepeatedly(Return(a_time));
@@ -164,7 +164,7 @@ TEST_F(MessageProcessorReport, logs_a_debug_message_when_invocation_starts)
     report.received_invocation(this, 1, __PRETTY_FUNCTION__);
 }
 
-TEST_F(MessageProcessorReport, logs_incomplete_calls_on_destruction)
+TEST_F(MessageProcessorReport, LogsIncompleteCallsOnDestruction)
 {
     mir::time::Timestamp a_time;
     EXPECT_CALL(clock, now()).Times(AnyNumber()).WillRepeatedly(Return(a_time));

@@ -261,7 +261,7 @@ struct SessionMediator : public ::testing::Test
 };
 }
 
-TEST_F(SessionMediator, disconnect_releases_session)
+TEST_F(SessionMediator, DisconnectReleasesSession)
 {
     using namespace ::testing;
     EXPECT_CALL(*shell, close_session(_))
@@ -271,7 +271,7 @@ TEST_F(SessionMediator, disconnect_releases_session)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, connect_calls_connect_handler)
+TEST_F(SessionMediator, ConnectCallsConnectHandler)
 {
     using namespace ::testing;
     int connects_handled_count = 0;
@@ -297,7 +297,7 @@ TEST_F(SessionMediator, connect_calls_connect_handler)
     EXPECT_THAT(connects_handled_count, Eq(1));
 }
 
-TEST_F(SessionMediator, calling_methods_before_connect_throws)
+TEST_F(SessionMediator, CallingMethodsBeforeConnectThrows)
 {
     EXPECT_THROW({
         mediator.create_surface(nullptr, &surface_parameters, &surface_response, null_callback.get());
@@ -324,7 +324,7 @@ TEST_F(SessionMediator, calling_methods_before_connect_throws)
     }, std::logic_error);
 }
 
-TEST_F(SessionMediator, calling_methods_after_connect_works)
+TEST_F(SessionMediator, CallingMethodsAfterConnectWorks)
 {
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
@@ -340,7 +340,7 @@ TEST_F(SessionMediator, calling_methods_after_connect_works)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, calling_methods_after_disconnect_throws)
+TEST_F(SessionMediator, CallingMethodsAfterDisconnectThrows)
 {
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
@@ -371,14 +371,14 @@ TEST_F(SessionMediator, calling_methods_after_disconnect_throws)
 }
 
 //How does this test fail? consider removal
-TEST_F(SessionMediator, can_reconnect_after_disconnect)
+TEST_F(SessionMediator, CanReconnectAfterDisconnect)
 {
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 }
 
-TEST_F(SessionMediator, connect_packs_display_configuration)
+TEST_F(SessionMediator, ConnectPacksDisplayConfiguration)
 {
     using namespace testing;
     mtd::StubDisplayConfig config;
@@ -397,7 +397,7 @@ TEST_F(SessionMediator, connect_packs_display_configuration)
     EXPECT_THAT(connection.display_configuration(), mt::DisplayConfigMatches(std::cref(config)));
 }
 
-TEST_F(SessionMediator, creating_surface_packs_response_with_input_fds)
+TEST_F(SessionMediator, CreatingSurfacePacksResponseWithInputFds)
 {
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
@@ -408,7 +408,7 @@ TEST_F(SessionMediator, creating_surface_packs_response_with_input_fds)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, no_input_channel_returns_no_fds)
+TEST_F(SessionMediator, NoInputChannelReturnsNoFds)
 {
     using namespace testing;
 
@@ -426,7 +426,7 @@ TEST_F(SessionMediator, no_input_channel_returns_no_fds)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, session_only_sends_mininum_information_for_buffers)
+TEST_F(SessionMediator, SessionOnlySendsMininumInformationForBuffers)
 {
     using namespace testing;
     mf::SurfaceId surf_id{0};
@@ -476,7 +476,7 @@ TEST_F(SessionMediator, session_only_sends_mininum_information_for_buffers)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, session_with_multiple_surfaces_only_sends_needed_buffers)
+TEST_F(SessionMediator, SessionWithMultipleSurfacesOnlySendsNeededBuffers)
 {
     using namespace testing;
     EXPECT_CALL(mock_ipc_operations, pack_buffer(_,_,mg::BufferIpcMsgType::full_msg))
@@ -503,7 +503,7 @@ TEST_F(SessionMediator, session_with_multiple_surfaces_only_sends_needed_buffers
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, destroys_tracker_associated_with_destroyed_surface)
+TEST_F(SessionMediator, DestroysTrackerAssociatedWithDestroyedSurface)
 {
     using namespace testing;
     mf::SurfaceId first_id{0};
@@ -525,7 +525,7 @@ TEST_F(SessionMediator, destroys_tracker_associated_with_destroyed_surface)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, buffer_resource_for_surface_unaffected_by_other_surfaces)
+TEST_F(SessionMediator, BufferResourceForSurfaceUnaffectedByOtherSurfaces)
 {
     using namespace testing;
     mtd::StubBuffer buffer;
@@ -558,7 +558,7 @@ TEST_F(SessionMediator, buffer_resource_for_surface_unaffected_by_other_surfaces
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, display_config_request)
+TEST_F(SessionMediator, DisplayConfigRequest)
 {
     using namespace testing;
     mp::ConnectParameters connect_parameters;
@@ -627,7 +627,7 @@ TEST_F(SessionMediator, display_config_request)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, fully_packs_buffer_for_create_screencast)
+TEST_F(SessionMediator, FullyPacksBufferForCreateScreencast)
 {
     using namespace testing;
 
@@ -642,7 +642,7 @@ TEST_F(SessionMediator, fully_packs_buffer_for_create_screencast)
     EXPECT_EQ(stub_buffer.id().as_value(), screencast.buffer().buffer_id());
 }
 
-TEST_F(SessionMediator, partially_packs_buffer_for_screencast_buffer)
+TEST_F(SessionMediator, PartiallyPacksBufferForScreencastBuffer)
 {
     using namespace testing;
 
@@ -659,7 +659,7 @@ TEST_F(SessionMediator, partially_packs_buffer_for_screencast_buffer)
     EXPECT_EQ(stub_buffer.id().as_value(), protobuf_buffer.buffer_id());
 }
 
-TEST_F(SessionMediator, prompt_provider_fds_allocated_by_connector)
+TEST_F(SessionMediator, PromptProviderFdsAllocatedByConnector)
 {
     using namespace ::testing;
     int const fd_count{11};
@@ -680,7 +680,7 @@ TEST_F(SessionMediator, prompt_provider_fds_allocated_by_connector)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, exchange_buffer)
+TEST_F(SessionMediator, ExchangeBuffer)
 {
     using namespace testing;
     auto const& mock_surface = stubbed_session->mock_surface_at(mf::SurfaceId{0});
@@ -708,7 +708,7 @@ TEST_F(SessionMediator, exchange_buffer)
     EXPECT_THAT(exchanged_buffer.buffer_id(), Eq(stub_buffer2.id().as_value()));
 }
 
-TEST_F(SessionMediator, session_exchange_buffer_sends_minimum_information)
+TEST_F(SessionMediator, SessionExchangeBufferSendsMinimumInformation)
 {
     using namespace testing;
     mp::Buffer exchanged_buffer;
@@ -759,7 +759,7 @@ TEST_F(SessionMediator, session_exchange_buffer_sends_minimum_information)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, exchange_buffer_throws_if_client_submits_bad_request)
+TEST_F(SessionMediator, ExchangeBufferThrowsIfClientSubmitsBadRequest)
 {
     using namespace testing;
     auto const& mock_surface = stubbed_session->mock_surface_at(mf::SurfaceId{0});
@@ -789,7 +789,7 @@ TEST_F(SessionMediator, exchange_buffer_throws_if_client_submits_bad_request)
     }, std::logic_error);
 }
 
-TEST_F(SessionMediator, exchange_buffer_different_for_different_surfaces)
+TEST_F(SessionMediator, ExchangeBufferDifferentForDifferentSurfaces)
 {
     using namespace testing;
     mp::SurfaceParameters surface_request;
@@ -820,7 +820,7 @@ TEST_F(SessionMediator, exchange_buffer_different_for_different_surfaces)
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 }
 
-TEST_F(SessionMediator, buffer_fd_resources_are_put_in_resource_cache)
+TEST_F(SessionMediator, BufferFdResourcesArePutInResourceCache)
 {
     using namespace testing;
     NiceMock<MockResourceCache> mock_cache;
@@ -863,7 +863,7 @@ TEST_F(SessionMediator, buffer_fd_resources_are_put_in_resource_cache)
 }
 
 //FIXME: we have an platform specific request in the protocol!
-TEST_F(SessionMediator, drm_auth_magic_calls_platform_operation_abstraction)
+TEST_F(SessionMediator, DrmAuthMagicCallsPlatformOperationAbstraction)
 {
     using namespace testing;
 
@@ -886,7 +886,7 @@ TEST_F(SessionMediator, drm_auth_magic_calls_platform_operation_abstraction)
     EXPECT_THAT(drm_response.status_code(), Eq(test_response));
 }
 
-TEST_F(SessionMediator, drm_auth_magic_sets_status_code_on_error)
+TEST_F(SessionMediator, DrmAuthMagicSetsStatusCodeOnError)
 {
     using namespace testing;
 

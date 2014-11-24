@@ -50,7 +50,7 @@ struct ProgramOption : testing::Test
 };
 }
 
-TEST_F(ProgramOption, parse_device_line_long)
+TEST_F(ProgramOption, ParseDeviceLineLong)
 {
     mir::options::ProgramOption po;
 
@@ -68,7 +68,7 @@ TEST_F(ProgramOption, parse_device_line_long)
     EXPECT_FALSE(po.is_set("garbage"));
 }
 
-TEST_F(ProgramOption, parse_device_line_short)
+TEST_F(ProgramOption, ParseDeviceLineShort)
 {
     mir::options::ProgramOption po;
 
@@ -86,7 +86,7 @@ TEST_F(ProgramOption, parse_device_line_short)
     EXPECT_FALSE(po.is_set("garbage"));
 }
 
-TEST_F(ProgramOption, parse_device_yes_no)
+TEST_F(ProgramOption, ParseDeviceYesNo)
 {
     mir::options::ProgramOption po;
 
@@ -110,7 +110,7 @@ TEST_F(ProgramOption, parse_device_yes_no)
     EXPECT_TRUE(po.get("flag-default", true));
 }
 
-TEST_F(ProgramOption, parse_device_line_help)
+TEST_F(ProgramOption, ParseDeviceLineHelp)
 {
     mir::options::ProgramOption po;
 
@@ -125,7 +125,7 @@ TEST_F(ProgramOption, parse_device_line_help)
     EXPECT_TRUE(po.is_set("help"));
 }
 
-TEST_F(ProgramOption, matches_compound_name_lookup)
+TEST_F(ProgramOption, MatchesCompoundNameLookup)
 {
     using testing::Eq;
     mir::options::ProgramOption po;
@@ -147,7 +147,7 @@ TEST_F(ProgramOption, matches_compound_name_lookup)
     EXPECT_THAT(po.get("count,c", 42), Eq(27));
 }
 
-TEST_F(ProgramOption, defaulted_values_are_available)
+TEST_F(ProgramOption, DefaultedValuesAreAvailable)
 {
     using testing::Eq;
     mir::options::ProgramOption po;
@@ -163,7 +163,7 @@ TEST_F(ProgramOption, defaulted_values_are_available)
     EXPECT_THAT(po.get("defaulted", 3), Eq(666));
 }
 
-TEST_F(ProgramOption, test_boost_any_overload)
+TEST_F(ProgramOption, TestBoostAnyOverload)
 {
     using testing::Eq;
     mir::options::ProgramOption po;
@@ -192,7 +192,7 @@ TEST_F(ProgramOption, test_boost_any_overload)
     EXPECT_THROW(po.get<int>("flag-yes,y"), std::bad_cast);
 }
 
-TEST_F(ProgramOption, unparsed_command_line_returns_unprocessed_tokens)
+TEST_F(ProgramOption, UnparsedCommandLineReturnsUnprocessedTokens)
 {
     using namespace testing;
 
@@ -214,7 +214,7 @@ TEST_F(ProgramOption, unparsed_command_line_returns_unprocessed_tokens)
     EXPECT_THAT(po.unparsed_command_line(), ElementsAre("--hello", "world", "--answer", "42"));
 }
 
-TEST(ProgramOptionEnv, parse_environment)
+TEST(ProgramOptionEnv, ParseEnvironment)
 {
     // Env variables should be uppercase and "_" delimited
     char const* name = "some-key";
@@ -237,7 +237,7 @@ TEST(ProgramOptionEnv, parse_environment)
 }
 
 // TODO need to parse something
-TEST(ProgramOptionFile, parse_files)
+TEST(ProgramOptionFile, ParseFiles)
 {
     bpo::options_description desc("Config file options");
 

@@ -32,7 +32,7 @@ namespace mc = mir::compositor;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(TimeoutFrameDroppingPolicy, does_not_fire_before_notified_of_block)
+TEST(TimeoutFrameDroppingPolicy, DoesNotFireBeforeNotifiedOfBlock)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -46,7 +46,7 @@ TEST(TimeoutFrameDroppingPolicy, does_not_fire_before_notified_of_block)
     EXPECT_FALSE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, schedules_alarm_for_correct_timeout)
+TEST(TimeoutFrameDroppingPolicy, SchedulesAlarmForCorrectTimeout)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -63,7 +63,7 @@ TEST(TimeoutFrameDroppingPolicy, schedules_alarm_for_correct_timeout)
     EXPECT_TRUE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, framedrop_callback_cancelled_by_unblock)
+TEST(TimeoutFrameDroppingPolicy, FramedropCallbackCancelledByUnblock)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -81,7 +81,7 @@ TEST(TimeoutFrameDroppingPolicy, framedrop_callback_cancelled_by_unblock)
     EXPECT_FALSE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, policy_drops_one_frame_per_blocking_swap)
+TEST(TimeoutFrameDroppingPolicy, PolicyDropsOneFramePerBlockingSwap)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -111,7 +111,7 @@ TEST(TimeoutFrameDroppingPolicy, policy_drops_one_frame_per_blocking_swap)
     EXPECT_FALSE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, policy_drops_frames_no_more_frequently_than_timeout)
+TEST(TimeoutFrameDroppingPolicy, PolicyDropsFramesNoMoreFrequentlyThanTimeout)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -134,7 +134,7 @@ TEST(TimeoutFrameDroppingPolicy, policy_drops_frames_no_more_frequently_than_tim
     EXPECT_TRUE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, newly_blocking_frame_doesnt_reset_timeout)
+TEST(TimeoutFrameDroppingPolicy, NewlyBlockingFrameDoesntResetTimeout)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);
@@ -152,7 +152,7 @@ TEST(TimeoutFrameDroppingPolicy, newly_blocking_frame_doesnt_reset_timeout)
     EXPECT_TRUE(frame_dropped);
 }
 
-TEST(TimeoutFrameDroppingPolicy, interspersed_timeouts_and_unblocks)
+TEST(TimeoutFrameDroppingPolicy, InterspersedTimeoutsAndUnblocks)
 {
     auto clock = std::make_shared<mt::FakeClock>();
     auto timer = std::make_shared<mtd::FakeTimer>(clock);

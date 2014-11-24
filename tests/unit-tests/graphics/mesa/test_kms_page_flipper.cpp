@@ -64,7 +64,7 @@ ACTION_P(InvokePageFlipHandler, param)
 
 }
 
-TEST_F(KMSPageFlipperTest, schedule_flip_calls_drm_page_flip)
+TEST_F(KMSPageFlipperTest, ScheduleFlipCallsDrmPageFlip)
 {
     using namespace testing;
 
@@ -78,7 +78,7 @@ TEST_F(KMSPageFlipperTest, schedule_flip_calls_drm_page_flip)
     page_flipper.schedule_flip(crtc_id, fb_id);
 }
 
-TEST_F(KMSPageFlipperTest, double_schedule_flip_throws)
+TEST_F(KMSPageFlipperTest, DoubleScheduleFlipThrows)
 {
     using namespace testing;
 
@@ -96,7 +96,7 @@ TEST_F(KMSPageFlipperTest, double_schedule_flip_throws)
     }, std::logic_error);
 }
 
-TEST_F(KMSPageFlipperTest, wait_for_flip_handles_drm_event)
+TEST_F(KMSPageFlipperTest, WaitForFlipHandlesDrmEvent)
 {
     using namespace testing;
 
@@ -121,7 +121,7 @@ TEST_F(KMSPageFlipperTest, wait_for_flip_handles_drm_event)
     page_flipper.wait_for_flip(crtc_id);
 }
 
-TEST_F(KMSPageFlipperTest, wait_for_non_scheduled_page_flip_doesnt_block)
+TEST_F(KMSPageFlipperTest, WaitForNonScheduledPageFlipDoesntBlock)
 {
     using namespace testing;
 
@@ -136,7 +136,7 @@ TEST_F(KMSPageFlipperTest, wait_for_non_scheduled_page_flip_doesnt_block)
     page_flipper.wait_for_flip(crtc_id);
 }
 
-TEST_F(KMSPageFlipperTest, failure_in_wait_for_flip_throws)
+TEST_F(KMSPageFlipperTest, FailureInWaitForFlipThrows)
 {
     using namespace testing;
 
@@ -162,7 +162,7 @@ TEST_F(KMSPageFlipperTest, failure_in_wait_for_flip_throws)
     }, std::runtime_error);
 }
 
-TEST_F(KMSPageFlipperTest, wait_for_flips_interleaved)
+TEST_F(KMSPageFlipperTest, WaitForFlipsInterleaved)
 {
     using namespace testing;
 
@@ -243,7 +243,7 @@ private:
 
 }
 
-TEST_F(KMSPageFlipperTest, threads_switch_worker)
+TEST_F(KMSPageFlipperTest, ThreadsSwitchWorker)
 {
     using namespace testing;
 
@@ -309,7 +309,7 @@ TEST_F(KMSPageFlipperTest, threads_switch_worker)
     page_flipping_threads[other_index].join();
 }
 
-TEST_F(KMSPageFlipperTest, threads_worker_notifies_non_worker)
+TEST_F(KMSPageFlipperTest, ThreadsWorkerNotifiesNonWorker)
 {
     using namespace testing;
 
@@ -500,7 +500,7 @@ ACTION_P2(AddPageFlipEvent, counter, write_drm_fd)
 
 }
 
-TEST_F(KMSPageFlipperTest, threads_concurrent_page_flips_dont_deadlock)
+TEST_F(KMSPageFlipperTest, ThreadsConcurrentPageFlipsDontDeadlock)
 {
     using namespace testing;
 

@@ -26,7 +26,7 @@ namespace ms = mir::scene;
 namespace mtd = mir::test::doubles;
 namespace mt = mir::test;
 
-TEST(BroadcastingSessionEventSinkTest, emits_and_handles_focus_change)
+TEST(BroadcastingSessionEventSinkTest, EmitsAndHandlesFocusChange)
 {
     mtd::StubSceneSession session1;
     std::vector<ms::Session*> handler_called(3, nullptr);
@@ -50,7 +50,7 @@ TEST(BroadcastingSessionEventSinkTest, emits_and_handles_focus_change)
     }
 }
 
-TEST(BroadcastingSessionEventSinkTest, emits_and_handles_no_focus)
+TEST(BroadcastingSessionEventSinkTest, EmitsAndHandlesNoFocus)
 {
     mtd::StubSceneSession session1;
     std::vector<int> handler_called(3, 0);
@@ -74,7 +74,7 @@ TEST(BroadcastingSessionEventSinkTest, emits_and_handles_no_focus)
     }
 }
 
-TEST(BroadcastingSessionEventSinkTest, emits_and_handles_session_stopping)
+TEST(BroadcastingSessionEventSinkTest, EmitsAndHandlesSessionStopping)
 {
     mtd::StubSceneSession session1;
     std::vector<ms::Session*> handler_called(3, nullptr);

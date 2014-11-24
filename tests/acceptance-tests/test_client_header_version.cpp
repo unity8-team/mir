@@ -20,7 +20,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(ClientHeaderVersion, mir_client_version_ge_is_sane)
+TEST(ClientHeaderVersion, MirClientVersionGeIsSane)
 {
     // We have to be greater than 0.0.0
     EXPECT_TRUE(MIR_CLIENT_VERSION >= MIR_VERSION_NUMBER(0, 0, 0));
@@ -42,7 +42,7 @@ TEST(ClientHeaderVersion, mir_client_version_ge_is_sane)
 				       MIR_CLIENT_MICRO_VERSION + 1));
 }
 
-TEST(ClientHeaderVersion, mir_client_version_ge_is_usable_in_preprocessor)
+TEST(ClientHeaderVersion, MirClientVersionGeIsUsableInPreprocessor)
 {
 #if MIR_CLIENT_VERSION < MIR_VERSION_NUMBER(0, 0, 0)
     FAIL() << "MIR_CLIENT_VERSION < MIR_VERSION_NUMBER(0, 0, 0)";

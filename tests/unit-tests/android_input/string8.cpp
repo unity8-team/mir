@@ -24,7 +24,7 @@
 
 using namespace android;
 
-TEST(AndroidString8, appendFormat)
+TEST(AndroidString8, AppendFormat)
 {
     String8 string;
 
@@ -40,7 +40,7 @@ TEST(AndroidString8, appendFormat)
     EXPECT_STREQ("Hello12", c_str(string));
 }
 
-TEST(AndroidString8, formatString8)
+TEST(AndroidString8, FormatString8)
 {
     auto string = formatString8("Hello %s #%02x", "world", 0x42);
 

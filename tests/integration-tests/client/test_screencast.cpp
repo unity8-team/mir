@@ -85,7 +85,7 @@ struct MirScreencastTest : public testing::Test
 
 }
 
-TEST_F(MirScreencastTest, gets_buffer_fd_when_creating_screencast)
+TEST_F(MirScreencastTest, GetsBufferFdWhenCreatingScreencast)
 {
     std::vector<char> const cookie{'2','3','l','$'};
 
@@ -123,7 +123,7 @@ TEST_F(MirScreencastTest, gets_buffer_fd_when_creating_screencast)
     close(read_fd);
 }
 
-TEST_F(MirScreencastTest, gets_buffer_fd_when_getting_screencast_buffer)
+TEST_F(MirScreencastTest, GetsBufferFdWhenGettingScreencastBuffer)
 {
     std::vector<char> const cookie{'X','%','q','S'};
 

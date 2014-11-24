@@ -59,7 +59,7 @@ private:
 };
 }
 
-TEST_F(UnresponsiveClient, does_not_hang_server)
+TEST_F(UnresponsiveClient, DoesNotHangServer)
 {
     mt::CrossProcessAction server_send_events;
     mt::CrossProcessAction client_connect;

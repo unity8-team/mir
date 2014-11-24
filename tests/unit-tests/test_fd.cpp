@@ -48,7 +48,7 @@ struct Fd : public testing::Test
 };
 }
 
-TEST_F(Fd, does_not_close_if_construction_doesnt_intend_to_transfer_ownership)
+TEST_F(Fd, DoesNotCloseIfConstructionDoesntIntendToTransferOwnership)
 {
     EXPECT_TRUE(fd_is_open(raw_fd));
     {
@@ -57,7 +57,7 @@ TEST_F(Fd, does_not_close_if_construction_doesnt_intend_to_transfer_ownership)
     EXPECT_TRUE(fd_is_open(raw_fd));
 }
 
-TEST_F(Fd, closes_when_refcount_is_zero)
+TEST_F(Fd, ClosesWhenRefcountIsZero)
 {
     EXPECT_TRUE(fd_is_open(raw_fd));
     mir::Fd fd2(-1);
@@ -74,7 +74,7 @@ TEST_F(Fd, closes_when_refcount_is_zero)
     EXPECT_FALSE(fd_is_open(raw_fd));
 }
 
-TEST_F(Fd, moves_around)
+TEST_F(Fd, MovesAround)
 {
     EXPECT_TRUE(fd_is_open(raw_fd));
     mir::Fd fd0(-1);

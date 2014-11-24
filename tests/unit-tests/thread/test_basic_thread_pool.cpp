@@ -107,7 +107,7 @@ private:
 };
 }
 
-TEST_F(BasicThreadPool, executes_given_functor)
+TEST_F(BasicThreadPool, ExecutesGivenFunctor)
 {
     using namespace testing;
     mth::BasicThreadPool p{default_num_threads};
@@ -119,7 +119,7 @@ TEST_F(BasicThreadPool, executes_given_functor)
     EXPECT_TRUE(task.was_called());
 }
 
-TEST_F(BasicThreadPool, executes_on_preferred_thread)
+TEST_F(BasicThreadPool, ExecutesOnPreferredThread)
 {
     using namespace testing;
     mth::BasicThreadPool p{default_num_threads};
@@ -143,7 +143,7 @@ TEST_F(BasicThreadPool, executes_on_preferred_thread)
     EXPECT_THAT(task2.thread_name(), Eq(expected_name));
 }
 
-TEST_F(BasicThreadPool, recycles_threads)
+TEST_F(BasicThreadPool, RecyclesThreads)
 {
     using namespace testing;
     mth::BasicThreadPool p{2};
@@ -178,7 +178,7 @@ TEST_F(BasicThreadPool, recycles_threads)
     EXPECT_THAT(task3.thread_name(), AnyOf(Eq(thread1_name), Eq(thread2_name)));
 }
 
-TEST_F(BasicThreadPool, creates_new_threads)
+TEST_F(BasicThreadPool, CreatesNewThreads)
 {
     using namespace testing;
     mth::BasicThreadPool p{1};
@@ -199,7 +199,7 @@ TEST_F(BasicThreadPool, creates_new_threads)
     EXPECT_THAT(task2.thread_name(), Ne(expected_name));
 }
 
-TEST_F(BasicThreadPool, can_shrink)
+TEST_F(BasicThreadPool, CanShrink)
 {
     using namespace testing;
     mth::BasicThreadPool p{0};

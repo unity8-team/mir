@@ -78,7 +78,7 @@ public:
     mclg::NativeSurface native_surface{mock_surface};
 };
 
-TEST_F(MesaClientNativeSurfaceTest, basic_parameters)
+TEST_F(MesaClientNativeSurfaceTest, BasicParameters)
 {
     MirSurfaceParameters params;
     native_surface.surface_get_parameters(&native_surface, &params);
@@ -87,7 +87,7 @@ TEST_F(MesaClientNativeSurfaceTest, basic_parameters)
     EXPECT_EQ(surf_params.pixel_format, params.pixel_format);
 }
 
-TEST_F(MesaClientNativeSurfaceTest, first_advance_skips_request)
+TEST_F(MesaClientNativeSurfaceTest, FirstAdvanceSkipsRequest)
 {   // Verify the workaround for LP: #1281938 is functioning, until it's
     // fixed in Mesa and we can remove it from Mir.
     
@@ -101,7 +101,7 @@ TEST_F(MesaClientNativeSurfaceTest, first_advance_skips_request)
     native_surface.surface_advance_buffer(&native_surface, &buffer_package);
 }
 
-TEST_F(MesaClientNativeSurfaceTest, basic_advance)
+TEST_F(MesaClientNativeSurfaceTest, BasicAdvance)
 {
     using namespace testing;
     MirBufferPackage buffer_package;
@@ -118,7 +118,7 @@ TEST_F(MesaClientNativeSurfaceTest, basic_advance)
     native_surface.surface_advance_buffer(&native_surface, &buffer_package);
 }
 
-TEST_F(MesaClientNativeSurfaceTest, swapinterval_request)
+TEST_F(MesaClientNativeSurfaceTest, SwapintervalRequest)
 {
     using namespace testing;
 
@@ -132,7 +132,7 @@ TEST_F(MesaClientNativeSurfaceTest, swapinterval_request)
     native_surface.set_swapinterval(1);
 }
 
-TEST_F(MesaClientNativeSurfaceTest, swapinterval_unsupported_request)
+TEST_F(MesaClientNativeSurfaceTest, SwapintervalUnsupportedRequest)
 {
     EXPECT_EQ(MIR_MESA_FALSE, native_surface.set_swapinterval(-1));
     EXPECT_EQ(MIR_MESA_TRUE, native_surface.set_swapinterval(0));
@@ -140,7 +140,7 @@ TEST_F(MesaClientNativeSurfaceTest, swapinterval_unsupported_request)
     EXPECT_EQ(MIR_MESA_FALSE, native_surface.set_swapinterval(2));
 }
 
-TEST_F(MesaClientNativeSurfaceTest, returns_error_on_advance_buffer_failure)
+TEST_F(MesaClientNativeSurfaceTest, ReturnsErrorOnAdvanceBufferFailure)
 {
     using namespace testing;
 
@@ -151,7 +151,7 @@ TEST_F(MesaClientNativeSurfaceTest, returns_error_on_advance_buffer_failure)
     EXPECT_THAT(native_surface.advance_buffer(&buffer_package), Eq(MIR_MESA_FALSE));
 }
 
-TEST_F(MesaClientNativeSurfaceTest, returns_error_on_get_parameters_failure)
+TEST_F(MesaClientNativeSurfaceTest, ReturnsErrorOnGetParametersFailure)
 {
     using namespace testing;
 
@@ -162,7 +162,7 @@ TEST_F(MesaClientNativeSurfaceTest, returns_error_on_get_parameters_failure)
     EXPECT_THAT(native_surface.get_parameters(&surface_params), Eq(MIR_MESA_FALSE));
 }
 
-TEST_F(MesaClientNativeSurfaceTest, returns_error_on_set_swap_interval_failure)
+TEST_F(MesaClientNativeSurfaceTest, ReturnsErrorOnSetSwapIntervalFailure)
 {
     using namespace testing;
 

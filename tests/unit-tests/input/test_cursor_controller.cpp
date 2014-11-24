@@ -240,7 +240,7 @@ struct TestCursorController : public testing::Test
 
 }
 
-TEST_F(TestCursorController, moves_cursor)
+TEST_F(TestCursorController, MovesCursor)
 {
     using namespace ::testing;
 
@@ -257,7 +257,7 @@ TEST_F(TestCursorController, moves_cursor)
     controller.cursor_moved_to(0.0f, 0.0f);
 }
 
-TEST_F(TestCursorController, updates_cursor_image_when_entering_surface)
+TEST_F(TestCursorController, UpdatesCursorImageWhenEnteringSurface)
 {
     using namespace ::testing;
 
@@ -274,7 +274,7 @@ TEST_F(TestCursorController, updates_cursor_image_when_entering_surface)
     controller.cursor_moved_to(1.0f, 1.0f);
 }
 
-TEST_F(TestCursorController, surface_with_no_cursor_image_hides_cursor)
+TEST_F(TestCursorController, SurfaceWithNoCursorImageHidesCursor)
 {
     using namespace ::testing;
 
@@ -291,7 +291,7 @@ TEST_F(TestCursorController, surface_with_no_cursor_image_hides_cursor)
     controller.cursor_moved_to(1.0f, 1.0f);
 }
 
-TEST_F(TestCursorController, takes_cursor_image_from_topmost_surface)
+TEST_F(TestCursorController, TakesCursorImageFromTopmostSurface)
 {
     using namespace ::testing;
 
@@ -308,7 +308,7 @@ TEST_F(TestCursorController, takes_cursor_image_from_topmost_surface)
     controller.cursor_moved_to(1.0f, 1.0f);
 }
 
-TEST_F(TestCursorController, restores_cursor_when_leaving_surface)
+TEST_F(TestCursorController, RestoresCursorWhenLeavingSurface)
 {
     using namespace ::testing;
 
@@ -331,7 +331,7 @@ TEST_F(TestCursorController, restores_cursor_when_leaving_surface)
     controller.cursor_moved_to(2.0f, 2.0f);
 }
 
-TEST_F(TestCursorController, change_in_cursor_request_triggers_image_update_without_cursor_motion)
+TEST_F(TestCursorController, ChangeInCursorRequestTriggersImageUpdateWithoutCursorMotion)
 {
     using namespace ::testing;
 
@@ -353,7 +353,7 @@ TEST_F(TestCursorController, change_in_cursor_request_triggers_image_update_with
     surface.set_cursor_image(std::make_shared<NamedCursorImage>(cursor_name_2));
 }
 
-TEST_F(TestCursorController, change_in_scene_triggers_image_update)
+TEST_F(TestCursorController, ChangeInSceneTriggersImageUpdate)
 {
     using namespace ::testing;
 
@@ -371,7 +371,7 @@ TEST_F(TestCursorController, change_in_scene_triggers_image_update)
     targets.add_surface(mt::fake_shared(surface));
 }
 
-TEST_F(TestCursorController, cursor_image_not_reset_needlessly)
+TEST_F(TestCursorController, CursorImageNotResetNeedlessly)
 {
     using namespace ::testing;
 

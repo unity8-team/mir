@@ -25,7 +25,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, rectangles_empty)
+TEST(geometry, RectanglesEmpty)
 {
     using namespace geom;
 
@@ -35,7 +35,7 @@ TEST(geometry, rectangles_empty)
     EXPECT_EQ(0u, rectangles.size());
 }
 
-TEST(geometry, rectangles_not_empty)
+TEST(geometry, RectanglesNotEmpty)
 {
     using namespace geom;
 
@@ -70,7 +70,7 @@ TEST(geometry, rectangles_not_empty)
                             [](bool b){return b;}));
 }
 
-TEST(geometry, rectangles_clear)
+TEST(geometry, RectanglesClear)
 {
     using namespace geom;
 
@@ -93,7 +93,7 @@ TEST(geometry, rectangles_clear)
     EXPECT_EQ(rectangles_empty, rectangles);
 }
 
-TEST(geometry, rectangles_bounding_rectangle)
+TEST(geometry, RectanglesBoundingRectangle)
 {
     using namespace geom;
 
@@ -126,7 +126,7 @@ TEST(geometry, rectangles_bounding_rectangle)
     }
 }
 
-TEST(geometry, rectangles_equality)
+TEST(geometry, RectanglesEquality)
 {
     using namespace geom;
 
@@ -169,7 +169,7 @@ TEST(geometry, rectangles_equality)
     EXPECT_NE(rectangles1, rectangles_empty);
 }
 
-TEST(geometry, rectangles_copy_assign)
+TEST(geometry, RectanglesCopyAssign)
 {
     using namespace geom;
 
@@ -200,7 +200,7 @@ TEST(geometry, rectangles_copy_assign)
     EXPECT_EQ(rectangles2.bounding_rectangle(), rectangles3.bounding_rectangle());
 }
 
-TEST(geometry, rectangles_confine)
+TEST(geometry, RectanglesConfine)
 {
     using namespace geom;
 

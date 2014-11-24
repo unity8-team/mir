@@ -44,7 +44,7 @@ struct AndroidInputIntSet : public ::testing::Test
 };
 }
 
-TEST_F(AndroidInputIntSet, difference)
+TEST_F(AndroidInputIntSet, Difference)
 {
     IntSet a = {1, 2, 3,       6};
     IntSet b = {   2, 3, 4, 5};
@@ -54,7 +54,7 @@ TEST_F(AndroidInputIntSet, difference)
     EXPECT_EQ(expected_c, c);
 }
 
-TEST_F(AndroidInputIntSet, intersection)
+TEST_F(AndroidInputIntSet, Intersection)
 {
     IntSet a = {1, 2, 3};
     IntSet b = {   2, 3, 4, 5};
@@ -64,13 +64,13 @@ TEST_F(AndroidInputIntSet, intersection)
     EXPECT_EQ(expected_c, c);
 }
 
-TEST_F(AndroidInputIntSet, first)
+TEST_F(AndroidInputIntSet, First)
 {
     IntSet a = {4, 2, 1, 3};
     EXPECT_EQ(1, a.first());
 }
 
-TEST_F(AndroidInputIntSet, remove_set)
+TEST_F(AndroidInputIntSet, RemoveSet)
 {
     IntSet a = {1, 2, 3, 4};
     IntSet b = {   2, 3,    5};
@@ -81,7 +81,7 @@ TEST_F(AndroidInputIntSet, remove_set)
     EXPECT_EQ(expected_a, a);
 }
 
-TEST_F(AndroidInputIntSet, index_of)
+TEST_F(AndroidInputIntSet, IndexOf)
 {
     IntSet a = {5, 6, 10, 15};
 
@@ -89,7 +89,7 @@ TEST_F(AndroidInputIntSet, index_of)
     EXPECT_EQ(2u, a.indexOf(10));
 }
 
-TEST_F(AndroidInputIntSet, for_each)
+TEST_F(AndroidInputIntSet, ForEach)
 {
     IntSet a = {5, 6, 10, 15};
 
@@ -103,14 +103,14 @@ TEST_F(AndroidInputIntSet, for_each)
     EXPECT_EQ(expected_values, actual_values);
 }
 
-TEST_F(AndroidInputIntSet, to_string)
+TEST_F(AndroidInputIntSet, ToString)
 {
     IntSet a = {1, 2, 3};
     string expected_str = "1, 2, 3";
     EXPECT_EQ(expected_str, a.toString());
 }
 
-TEST_F(AndroidInputIntSet, unnecessary_constructions)
+TEST_F(AndroidInputIntSet, UnnecessaryConstructions)
 {
     IntSet a = {1, 2, 3,       6};
     IntSet b = {   2, 3, 4, 5};

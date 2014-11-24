@@ -142,7 +142,7 @@ std::shared_ptr<mt::StubServerTool> StressProtobufCommunicator::stub_server_tool
 std::shared_ptr<mt::TestProtobufServer> StressProtobufCommunicator::stub_server;
 
 
-TEST_F(StressProtobufCommunicator, DISABLED_stress_exchange_buffer)
+TEST_F(StressProtobufCommunicator, DISABLED_StressExchangeBuffer)
 {
     client->display_server.create_surface(
         0,

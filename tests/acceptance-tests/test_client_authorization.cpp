@@ -96,7 +96,7 @@ struct ClientCredsTestFixture : mtf::InterprocessClientServerTest
 };
 }
 
-TEST_F(ClientCredsTestFixture, session_authorizer_receives_pid_of_connecting_clients)
+TEST_F(ClientCredsTestFixture, SessionAuthorizerReceivesPidOfConnectingClients)
 {
     auto const matches_creds = [&](mf::SessionCredentials const& creds)
     {
@@ -143,7 +143,7 @@ TEST_F(ClientCredsTestFixture, session_authorizer_receives_pid_of_connecting_cli
 }
 
 // This test is also a regression test for https://bugs.launchpad.net/mir/+bug/1358191
-TEST_F(ClientCredsTestFixture, authorizer_may_prevent_connection_of_clients)
+TEST_F(ClientCredsTestFixture, AuthorizerMayPreventConnectionOfClients)
 {
     init_server([&]
         {

@@ -34,7 +34,7 @@ struct BypassMatchTest : public testing::Test
     geom::Rectangle const secondary_monitor{{1920, 0},{1920, 1200}};
 };
 
-TEST_F(BypassMatchTest, nothing_matches_nothing)
+TEST_F(BypassMatchTest, NothingMatchesNothing)
 {
     mg::RenderableList empty_list{};
     mgm::BypassMatch matcher(primary_monitor);
@@ -42,7 +42,7 @@ TEST_F(BypassMatchTest, nothing_matches_nothing)
     EXPECT_EQ(empty_list.rend(), std::find_if(empty_list.rbegin(), empty_list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, small_window_not_bypassed)
+TEST_F(BypassMatchTest, SmallWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -52,7 +52,7 @@ TEST_F(BypassMatchTest, small_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, single_fullscreen_window_bypassed)
+TEST_F(BypassMatchTest, SingleFullscreenWindowBypassed)
 {
     auto window = std::make_shared<mtd::FakeRenderable>(0, 0, 1920, 1200);
     mgm::BypassMatch matcher(primary_monitor);
@@ -63,7 +63,7 @@ TEST_F(BypassMatchTest, single_fullscreen_window_bypassed)
     EXPECT_EQ(window, *it);
 }
 
-TEST_F(BypassMatchTest, translucent_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, TranslucentFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -73,7 +73,7 @@ TEST_F(BypassMatchTest, translucent_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, hidden_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, HiddenFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -83,7 +83,7 @@ TEST_F(BypassMatchTest, hidden_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, unposted_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, UnpostedFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -93,7 +93,7 @@ TEST_F(BypassMatchTest, unposted_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, shaped_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, ShapedFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -104,7 +104,7 @@ TEST_F(BypassMatchTest, shaped_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, offset_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, OffsetFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -115,7 +115,7 @@ TEST_F(BypassMatchTest, offset_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, obscured_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, ObscuredFullscreenWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -127,7 +127,7 @@ TEST_F(BypassMatchTest, obscured_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, translucently_obscured_fullscreen_window_not_bypassed)
+TEST_F(BypassMatchTest, TranslucentlyObscuredFullscreenWindowNotBypassed)
 {   // Regression test for LP: #1266385
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -139,7 +139,7 @@ TEST_F(BypassMatchTest, translucently_obscured_fullscreen_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, unobscured_fullscreen_window_bypassed)
+TEST_F(BypassMatchTest, UnobscuredFullscreenWindowBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -154,7 +154,7 @@ TEST_F(BypassMatchTest, unobscured_fullscreen_window_bypassed)
     EXPECT_EQ(bypassed, *it);
 }
 
-TEST_F(BypassMatchTest, unobscured_fullscreen_alpha_window_not_bypassed)
+TEST_F(BypassMatchTest, UnobscuredFullscreenAlphaWindowNotBypassed)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -166,7 +166,7 @@ TEST_F(BypassMatchTest, unobscured_fullscreen_alpha_window_not_bypassed)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, many_fullscreen_windows_only_bypass_top)
+TEST_F(BypassMatchTest, ManyFullscreenWindowsOnlyBypassTop)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -187,7 +187,7 @@ TEST_F(BypassMatchTest, many_fullscreen_windows_only_bypass_top)
     EXPECT_EQ(bypassed, *it);
 }
 
-TEST_F(BypassMatchTest, many_fullscreen_windows_only_bypass_top_rectangular)
+TEST_F(BypassMatchTest, ManyFullscreenWindowsOnlyBypassTopRectangular)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -208,7 +208,7 @@ TEST_F(BypassMatchTest, many_fullscreen_windows_only_bypass_top_rectangular)
     EXPECT_EQ(bypassed, *it);
 }
 
-TEST_F(BypassMatchTest, nonrectangular_not_bypassable)
+TEST_F(BypassMatchTest, NonrectangularNotBypassable)
 {
     mgm::BypassMatch matcher(primary_monitor);
 
@@ -222,7 +222,7 @@ TEST_F(BypassMatchTest, nonrectangular_not_bypassable)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, nonvisible_not_bypassble)
+TEST_F(BypassMatchTest, NonvisibleNotBypassble)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -232,7 +232,7 @@ TEST_F(BypassMatchTest, nonvisible_not_bypassble)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, offscreen_not_bypassable)
+TEST_F(BypassMatchTest, OffscreenNotBypassable)
 {
     mgm::BypassMatch matcher(primary_monitor);
     mg::RenderableList list{
@@ -241,7 +241,7 @@ TEST_F(BypassMatchTest, offscreen_not_bypassable)
     EXPECT_EQ(list.rend(), std::find_if(list.rbegin(), list.rend(), matcher));
 }
 
-TEST_F(BypassMatchTest, multimonitor_one_bypassed)
+TEST_F(BypassMatchTest, MultimonitorOneBypassed)
 {
     mgm::BypassMatch primary_matcher(primary_monitor);
     mgm::BypassMatch secondary_matcher(secondary_monitor);
@@ -259,7 +259,7 @@ TEST_F(BypassMatchTest, multimonitor_one_bypassed)
     EXPECT_EQ(bypassed, *it);
 }
 
-TEST_F(BypassMatchTest, dual_bypass)
+TEST_F(BypassMatchTest, DualBypass)
 {
     mgm::BypassMatch primary_matcher(primary_monitor);
     mgm::BypassMatch secondary_matcher(secondary_monitor);
@@ -280,7 +280,7 @@ TEST_F(BypassMatchTest, dual_bypass)
     EXPECT_EQ(secondary_bypassed, *it);
 }
 
-TEST_F(BypassMatchTest, multimonitor_oversized_no_bypass)
+TEST_F(BypassMatchTest, MultimonitorOversizedNoBypass)
 {
     mgm::BypassMatch primary_matcher(primary_monitor);
     mgm::BypassMatch secondary_matcher(secondary_monitor);

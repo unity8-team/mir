@@ -27,7 +27,7 @@
 namespace mi = mir::input;
 namespace mia = mir::input::android;
 
-TEST(AndroidInputLexicon, translates_key_events)
+TEST(AndroidInputLexicon, TranslatesKeyEvents)
 {
     using namespace ::testing;
     auto android_key_ev = new android::KeyEvent();
@@ -71,7 +71,7 @@ TEST(AndroidInputLexicon, translates_key_events)
     delete android_key_ev;
 }
 
-TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
+TEST(AndroidInputLexicon, TranslatesSinglePointerMotionEvents)
 {
     using namespace ::testing;
     auto android_motion_ev = new android::MotionEvent;
@@ -173,7 +173,7 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     delete android_motion_ev;
 }
 
-TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
+TEST(AndroidInputLexicon, TranslatesMultiPointerMotionEvents)
 {
     using namespace ::testing;
     auto android_motion_ev = new android::MotionEvent;

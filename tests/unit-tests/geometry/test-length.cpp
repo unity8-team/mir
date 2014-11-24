@@ -22,7 +22,7 @@
 
 using namespace mir::geometry;
 
-TEST(Length, zero)
+TEST(Length, Zero)
 {
     Length zero;
 
@@ -39,7 +39,7 @@ TEST(Length, zero)
     EXPECT_EQ(zero, 0.0_in);
 }
 
-TEST(Length, millimetres)
+TEST(Length, Millimetres)
 {
     Length one_mm(1, Length::millimetres);
     EXPECT_EQ(Length(1000, Length::micrometres), one_mm);
@@ -54,7 +54,7 @@ TEST(Length, millimetres)
     }
 }
 
-TEST(Length, centimetres)
+TEST(Length, Centimetres)
 {
     Length one_cm(1, Length::centimetres);
     EXPECT_EQ(Length(10000, Length::micrometres), one_cm);
@@ -75,7 +75,7 @@ TEST(Length, centimetres)
     }
 }
 
-TEST(Length, inches)
+TEST(Length, Inches)
 {
     Length one_in(1, Length::inches);
     EXPECT_EQ(Length(25400, Length::micrometres), one_in);
@@ -101,7 +101,7 @@ TEST(Length, DPI)
     EXPECT_EQ(123456, Length(123456, Length::inches).as_pixels(1.0f));
 }
 
-TEST(Length, assign)
+TEST(Length, Assign)
 {
     auto const a = 123.45_in;
     Length b;
@@ -114,7 +114,7 @@ TEST(Length, assign)
     EXPECT_EQ(3135630, b.as(Length::micrometres));
 }
 
-TEST(Length, copy)
+TEST(Length, Copy)
 {
     auto const a = 123.45_in;
     Length b(a);

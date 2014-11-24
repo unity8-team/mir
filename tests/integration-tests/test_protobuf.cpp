@@ -183,7 +183,7 @@ void callback(std::atomic<bool>* called_back) { called_back->store(true); }
 char const* const nothing_returned = "Nothing returned";
 }
 
-TEST_F(DemoPrivateProtobuf, client_calls_server)
+TEST_F(DemoPrivateProtobuf, ClientCallsServer)
 {
     using namespace testing;
     EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _));
@@ -230,7 +230,7 @@ TEST_F(DemoPrivateProtobuf, client_calls_server)
     EXPECT_THAT(result.error(), Eq(nothing_returned));
 }
 
-TEST_F(DemoPrivateProtobuf, wrapping_message_processor)
+TEST_F(DemoPrivateProtobuf, WrappingMessageProcessor)
 {
     using namespace testing;
     EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))
@@ -242,7 +242,7 @@ TEST_F(DemoPrivateProtobuf, wrapping_message_processor)
     mir_connection_release(connection);
 }
 
-TEST_F(DemoPrivateProtobuf, server_receives_function_call)
+TEST_F(DemoPrivateProtobuf, ServerReceivesFunctionCall)
 {
     using namespace testing;
     EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))
@@ -270,7 +270,7 @@ TEST_F(DemoPrivateProtobuf, server_receives_function_call)
 }
 
 
-TEST_F(DemoPrivateProtobuf, client_receives_result)
+TEST_F(DemoPrivateProtobuf, ClientReceivesResult)
 {
     using namespace testing;
     EXPECT_CALL(*demo_connection_creator, create_processor(_, _, _))

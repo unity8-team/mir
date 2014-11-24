@@ -75,7 +75,7 @@ struct StubScene : public mtd::StubInputScene
 
 }
 
-TEST(AndroidInputTargetEnumerator, enumerates_registered_handles_for_surfaces)
+TEST(AndroidInputTargetEnumerator, EnumeratesRegisteredHandlesForSurfaces)
 {
     using namespace ::testing;
 

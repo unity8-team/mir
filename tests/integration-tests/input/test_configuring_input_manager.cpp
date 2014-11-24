@@ -28,7 +28,7 @@ namespace mtd = mir::test::doubles;
 
 #include <stdio.h>
 
-TEST_F(BespokeDisplayServerTestFixture, starting_display_server_starts_input_manager)
+TEST_F(BespokeDisplayServerTestFixture, StartingDisplayServerStartsInputManager)
 {
     struct ServerConfig : TestingServerConfiguration
     {

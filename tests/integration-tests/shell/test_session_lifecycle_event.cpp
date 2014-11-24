@@ -73,7 +73,7 @@ struct LifecycleEventTest : mtf::InProcessServer
 
 }
 
-TEST_F(LifecycleEventTest, lifecycle_event_test)
+TEST_F(LifecycleEventTest, LifecycleEventTest)
 {
     using namespace ::testing;
 

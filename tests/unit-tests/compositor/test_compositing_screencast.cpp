@@ -194,7 +194,7 @@ struct CompositingScreencastTest : testing::Test
 
 }
 
-TEST_F(CompositingScreencastTest, produces_different_session_ids)
+TEST_F(CompositingScreencastTest, ProducesDifferentSessionIds)
 {
     std::unordered_set<mf::ScreencastSessionId> session_ids;
 
@@ -207,7 +207,7 @@ TEST_F(CompositingScreencastTest, produces_different_session_ids)
     }
 }
 
-TEST_F(CompositingScreencastTest, throws_on_creation_with_invalid_params)
+TEST_F(CompositingScreencastTest, ThrowsOnCreationWithInvalidParams)
 {
     std::unordered_set<mf::ScreencastSessionId> session_ids;
     geom::Size invalid_size{0, 0};
@@ -218,20 +218,20 @@ TEST_F(CompositingScreencastTest, throws_on_creation_with_invalid_params)
     EXPECT_THROW(screencast.create_session(default_region, default_size, mir_pixel_format_invalid), std::runtime_error);
 }
 
-TEST_F(CompositingScreencastTest, throws_on_capture_with_invalid_session_id)
+TEST_F(CompositingScreencastTest, ThrowsOnCaptureWithInvalidSessionId)
 {
     mf::ScreencastSessionId const invalid_session_id{10};
     EXPECT_THROW(screencast.capture(invalid_session_id), std::logic_error);
 }
 
-TEST_F(CompositingScreencastTest, throws_on_capture_with_destroyed_session_id)
+TEST_F(CompositingScreencastTest, ThrowsOnCaptureWithDestroyedSessionId)
 {
     auto session_id = screencast.create_session(default_region, default_size, default_pixel_format);
     screencast.destroy_session(session_id);
     EXPECT_THROW(screencast.capture(session_id), std::logic_error);
 }
 
-TEST_F(CompositingScreencastTest, captures_by_compositing_with_provided_region)
+TEST_F(CompositingScreencastTest, CapturesByCompositingWithProvidedRegion)
 {
     using namespace testing;
 
@@ -259,7 +259,7 @@ TEST_F(CompositingScreencastTest, captures_by_compositing_with_provided_region)
     screencast_local.capture(session_id);
 }
 
-TEST_F(CompositingScreencastTest, allocates_and_uses_buffer_with_provided_size)
+TEST_F(CompositingScreencastTest, AllocatesAndUsesBufferWithProvidedSize)
 {
     using namespace testing;
 
@@ -283,7 +283,7 @@ TEST_F(CompositingScreencastTest, allocates_and_uses_buffer_with_provided_size)
     ASSERT_EQ(&stub_buffer, buffer.get());
 }
 
-TEST_F(CompositingScreencastTest, uses_one_buffer_per_session)
+TEST_F(CompositingScreencastTest, UsesOneBufferPerSession)
 {
     using namespace testing;
 
@@ -314,7 +314,7 @@ TEST_F(CompositingScreencastTest, uses_one_buffer_per_session)
     ASSERT_EQ(&stub_buffer2, buffer2.get());
 }
 
-TEST_F(CompositingScreencastTest, registers_and_unregisters_from_scene)
+TEST_F(CompositingScreencastTest, RegistersAndUnregistersFromScene)
 {
     using namespace testing;
     NiceMock<mtd::MockScene> mock_scene;

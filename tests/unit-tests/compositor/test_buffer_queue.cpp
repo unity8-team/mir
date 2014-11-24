@@ -194,7 +194,7 @@ void switching_client_thread(mc::BufferQueue &bundle, int nframes)
 }
 }
 
-TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
+TEST_F(BufferQueueTest, BufferQueueOfOneIsSupported)
 {
     std::unique_ptr<mc::BufferQueue> q;
     ASSERT_NO_THROW(q = std::move(
@@ -232,7 +232,7 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
     EXPECT_NO_THROW(next_request->release_buffer());
 }
 
-TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
+TEST_F(BufferQueueTest, BufferQueueOfOneSupportsResizing)
 {
     mc::BufferQueue q(1, allocator, basic_properties, policy_factory);
 
@@ -257,20 +257,20 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
     EXPECT_NO_THROW(q.compositor_release(q.compositor_acquire(this)));
 }
 
-TEST_F(BufferQueueTest, framedropping_is_disabled_by_default)
+TEST_F(BufferQueueTest, FramedroppingIsDisabledByDefault)
 {
     mc::BufferQueue bundle(2, allocator, basic_properties, policy_factory);
     EXPECT_THAT(bundle.framedropping_allowed(), Eq(false));
 }
 
-TEST_F(BufferQueueTest, throws_when_creating_with_invalid_num_buffers)
+TEST_F(BufferQueueTest, ThrowsWhenCreatingWithInvalidNumBuffers)
 {
     EXPECT_THROW(mc::BufferQueue a(0, allocator, basic_properties, policy_factory), std::logic_error);
     EXPECT_THROW(mc::BufferQueue a(-1, allocator, basic_properties, policy_factory), std::logic_error);
     EXPECT_THROW(mc::BufferQueue a(-10, allocator, basic_properties, policy_factory), std::logic_error);
 }
 
-TEST_F(BufferQueueTest, client_can_acquire_and_release_buffer)
+TEST_F(BufferQueueTest, ClientCanAcquireAndReleaseBuffer)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -282,7 +282,7 @@ TEST_F(BufferQueueTest, client_can_acquire_and_release_buffer)
     }
 }
 
-TEST_F(BufferQueueTest, client_can_acquire_buffers)
+TEST_F(BufferQueueTest, ClientCanAcquireBuffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -299,7 +299,7 @@ TEST_F(BufferQueueTest, client_can_acquire_buffers)
 }
 
 /* Regression test for LP: #1315302 */
-TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
+TEST_F(BufferQueueTest, ClientsCanHaveMultiplePendingCompletions)
 {
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
@@ -330,7 +330,7 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
     handle2->release_buffer();
 }
 
-TEST_F(BufferQueueTest, compositor_acquires_frames_in_order_for_synchronous_client)
+TEST_F(BufferQueueTest, CompositorAcquiresFramesInOrderForSynchronousClient)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -359,7 +359,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order_for_synchronous_clie
     }
 }
 
-TEST_F(BufferQueueTest, framedropping_clients_never_block)
+TEST_F(BufferQueueTest, FramedroppingClientsNeverBlock)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -376,7 +376,7 @@ TEST_F(BufferQueueTest, framedropping_clients_never_block)
 }
 
 /* Regression test for LP: #1210042 */
-TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
+TEST_F(BufferQueueTest, ClientsDontRecycleStartupBuffer)
 {
     mc::BufferQueue q(3, allocator, basic_properties, policy_factory);
 
@@ -394,7 +394,7 @@ TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
     q.compositor_release(comp_buffer);
 }
 
-TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
+TEST_F(BufferQueueTest, ThrowsOnOutOfOrderClientRelease)
 {
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -414,7 +414,7 @@ TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
     }
 }
 
-TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
+TEST_F(BufferQueueTest, AsyncClientCyclesThroughAllBuffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -449,7 +449,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
     }
 }
 
-TEST_F(BufferQueueTest, compositor_can_acquire_and_release)
+TEST_F(BufferQueueTest, CompositorCanAcquireAndRelease)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -467,7 +467,7 @@ TEST_F(BufferQueueTest, compositor_can_acquire_and_release)
     }
 }
 
-TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
+TEST_F(BufferQueueTest, MultipleCompositorsAreInSync)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -489,7 +489,7 @@ TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
     }
 }
 
-TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
+TEST_F(BufferQueueTest, CompositorAcquiresFramesInOrder)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -523,7 +523,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
     }
 }
 
-TEST_F(BufferQueueTest, compositor_acquire_never_blocks_when_there_are_no_ready_buffers)
+TEST_F(BufferQueueTest, CompositorAcquireNeverBlocksWhenThereAreNoReadyBuffers)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -537,7 +537,7 @@ TEST_F(BufferQueueTest, compositor_acquire_never_blocks_when_there_are_no_ready_
     }
 }
 
-TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
+TEST_F(BufferQueueTest, CompositorCanAlwaysAcquireBuffer)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -575,7 +575,7 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
     }
 }
 
-TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
+TEST_F(BufferQueueTest, CompositorAcquireRecyclesLatestReadyBuffer)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -604,7 +604,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
     }
 }
 
-TEST_F(BufferQueueTest, compositor_release_verifies_parameter)
+TEST_F(BufferQueueTest, CompositorReleaseVerifiesParameter)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -621,7 +621,7 @@ TEST_F(BufferQueueTest, compositor_release_verifies_parameter)
 }
 
 /* Regression test for LP#1270964 */
-TEST_F(BufferQueueTest, compositor_client_interleaved)
+TEST_F(BufferQueueTest, CompositorClientInterleaved)
 {
     mc::BufferQueue q(3, allocator, basic_properties, policy_factory);
 
@@ -643,7 +643,7 @@ TEST_F(BufferQueueTest, compositor_client_interleaved)
     q.compositor_release(compositor_buffer);
 }
 
-TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
+TEST_F(BufferQueueTest, OverlappingCompositorsGetDifferentFrames)
 {
     // This test simulates bypass behaviour
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
@@ -681,7 +681,7 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
     }
 }
 
-TEST_F(BufferQueueTest, snapshot_acquire_basic)
+TEST_F(BufferQueueTest, SnapshotAcquireBasic)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -695,7 +695,7 @@ TEST_F(BufferQueueTest, snapshot_acquire_basic)
     }
 }
 
-TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown)
+TEST_F(BufferQueueTest, CallbacksCantHappenAfterShutdown)
 {
     mc::BufferQueue q(1, allocator, basic_properties, policy_factory);
 
@@ -704,7 +704,7 @@ TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown)
     ASSERT_FALSE(client->has_acquired_buffer());
 }
 
-TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown_with_snapshots)
+TEST_F(BufferQueueTest, CallbacksCantHappenAfterShutdownWithSnapshots)
 {
     mc::BufferQueue q(1, allocator, basic_properties, policy_factory);
 
@@ -716,7 +716,7 @@ TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown_with_snapshots)
     ASSERT_FALSE(client->has_acquired_buffer());
 }
 
-TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
+TEST_F(BufferQueueTest, SnapshotAcquireNeverBlocks)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -732,7 +732,7 @@ TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
     }
 }
 
-TEST_F(BufferQueueTest, snapshot_release_verifies_parameter)
+TEST_F(BufferQueueTest, SnapshotReleaseVerifiesParameter)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -756,7 +756,7 @@ TEST_F(BufferQueueTest, snapshot_release_verifies_parameter)
     }
 }
 
-TEST_F(BufferQueueTest, stress)
+TEST_F(BufferQueueTest, Stress)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -789,7 +789,7 @@ TEST_F(BufferQueueTest, stress)
     }
 }
 
-TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
+TEST_F(BufferQueueTest, FramedroppingClientsGetAllBuffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -810,7 +810,7 @@ TEST_F(BufferQueueTest, framedropping_clients_get_all_buffers)
     }
 }
 
-TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
+TEST_F(BufferQueueTest, WaitingClientsUnblockOnShutdown)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -836,7 +836,7 @@ TEST_F(BufferQueueTest, waiting_clients_unblock_on_shutdown)
     }
 }
 
-TEST_F(BufferQueueTest, client_framerate_matches_compositor)
+TEST_F(BufferQueueTest, ClientFramerateMatchesCompositor)
 {
     for (int nbuffers = 2; nbuffers <= 3; nbuffers++)
     {
@@ -889,7 +889,7 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
 }
 
 /* Regression test LP: #1241369 / LP: #1241371 */
-TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
+TEST_F(BufferQueueTest, SlowClientFramerateMatchesCompositor)
 {
     /* BufferQueue can only satify this for nbuffers >= 3
      * since a client can only own up to nbuffers - 1 at any one time
@@ -950,7 +950,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
     }
 }
 
-TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
+TEST_F(BufferQueueTest, ResizeAffectsClientAcquiresImmediately)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -985,7 +985,7 @@ int max_ownable_buffers(int nbuffers)
 }
 }
 
-TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
+TEST_F(BufferQueueTest, CompositorAcquiresResizedFrames)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -1050,7 +1050,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
     }
 }
 
-TEST_F(BufferQueueTest, uncomposited_client_swaps_when_policy_triggered)
+TEST_F(BufferQueueTest, UncompositedClientSwapsWhenPolicyTriggered)
 {
     for (int nbuffers = 2;
          nbuffers <= max_nbuffers_to_test;
@@ -1077,7 +1077,7 @@ TEST_F(BufferQueueTest, uncomposited_client_swaps_when_policy_triggered)
     }
 }
 
-TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
+TEST_F(BufferQueueTest, PartiallyCompositedClientSwapsWhenPolicyTriggered)
 {
     for (int nbuffers = 2;
          nbuffers <= max_nbuffers_to_test;
@@ -1117,7 +1117,7 @@ TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
     }
 }
 
-TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames_eventually)
+TEST_F(BufferQueueTest, WithSingleBufferCompositorAcquiresResizedFramesEventually)
 {
     int const nbuffers{1};
     geom::Size const new_size{123,456};
@@ -1138,7 +1138,7 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames_ev
     q.compositor_release(buf);
 }
 
-TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
+TEST_F(BufferQueueTest, DoubleBufferedClientIsNotBlockedPrematurely)
 {  // Regression test for LP: #1319765
     using namespace testing;
 
@@ -1161,7 +1161,7 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
     handle->release_buffer();
 }
 
-TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
+TEST_F(BufferQueueTest, CompositeOnDemandNeverDeadlocksWith_2Buffers)
 {  // Extended regression test for LP: #1319765
     using namespace testing;
 
@@ -1201,7 +1201,7 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
 }
 
 /* Regression test for LP: #1306464 */
-TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_available_buffers)
+TEST_F(BufferQueueTest, FramedroppingClientAcquireDoesNotBlockWhenNoAvailableBuffers)
 {
     using namespace testing;
 
@@ -1249,7 +1249,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     EXPECT_THAT(handle->has_acquired_buffer(), Eq(true));
 }
 
-TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
+TEST_F(BufferQueueTest, CompositorNeverOwnsClientBuffers)
 {
     static std::chrono::nanoseconds const time_for_client_to_acquire{1};
 
@@ -1307,7 +1307,7 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
     }
 }
 
-TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
+TEST_F(BufferQueueTest, ClientNeverOwnsCompositorBuffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -1343,7 +1343,7 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
  * http://code.launchpad.net/~albaguirre/mir/
  * alternative-switching-bundle-implementation/+merge/216606/comments/517048
  */
-TEST_F(BufferQueueTest, buffers_are_not_lost)
+TEST_F(BufferQueueTest, BuffersAreNotLost)
 {
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -1404,7 +1404,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
 }
 
 /* FIXME (enabling this optimization breaks timing tests) */
-TEST_F(BufferQueueTest, DISABLED_synchronous_clients_only_get_two_real_buffers)
+TEST_F(BufferQueueTest, DISABLED_SynchronousClientsOnlyGetTwoRealBuffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -1446,7 +1446,7 @@ TEST_F(BufferQueueTest, DISABLED_synchronous_clients_only_get_two_real_buffers)
  * just before returning the acquired_buffer at the end of
  * BufferQueue::compositor_acquire().
  */
-TEST_F(BufferQueueTest, DISABLED_lp_1317801_regression_test)
+TEST_F(BufferQueueTest, DISABLED_Lp_1317801RegressionTest)
 {
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
@@ -1467,7 +1467,7 @@ TEST_F(BufferQueueTest, DISABLED_lp_1317801_regression_test)
     q.compositor_release(b);
 }
 
-TEST_F(BufferQueueTest, first_user_is_recorded)
+TEST_F(BufferQueueTest, FirstUserIsRecorded)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
@@ -1479,7 +1479,7 @@ TEST_F(BufferQueueTest, first_user_is_recorded)
     }
 }
 
-TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffers_without_clients)
+TEST_F(BufferQueueTest, GivesCompositorAValidBufferAfterDroppingOldBuffersWithoutClients)
 {
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
@@ -1490,7 +1490,7 @@ TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffe
     ASSERT_THAT(comp, Ne(nullptr));
 }
 
-TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_buffers)
+TEST_F(BufferQueueTest, GivesCompositorTheNewestBufferAfterDroppingOldBuffers)
 {
     int const nbuffers = 3;
     mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
@@ -1513,7 +1513,7 @@ TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_bu
     ASSERT_THAT(comp->id(), Eq(handle2->id()));
 }
 
-TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_old_buffers)
+TEST_F(BufferQueueTest, GivesNewCompositorTheNewestBufferAfterDroppingOldBuffers)
 {
     int const nbuffers = 3;
     void const* const new_compositor_id{&nbuffers};

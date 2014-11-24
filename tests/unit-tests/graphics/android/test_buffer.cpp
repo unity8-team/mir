@@ -65,7 +65,7 @@ protected:
     std::shared_ptr<mg::EGLExtensions> extensions;
 };
 
-TEST_F(AndroidGraphicBufferBasic, size_query_test)
+TEST_F(AndroidGraphicBufferBasic, SizeQueryTest)
 {
     using namespace testing;
 
@@ -75,7 +75,7 @@ TEST_F(AndroidGraphicBufferBasic, size_query_test)
     EXPECT_EQ(expected_size, buffer.size());
 }
 
-TEST_F(AndroidGraphicBufferBasic, format_query_test)
+TEST_F(AndroidGraphicBufferBasic, FormatQueryTest)
 {
     using namespace testing;
 
@@ -83,7 +83,7 @@ TEST_F(AndroidGraphicBufferBasic, format_query_test)
     EXPECT_EQ(mir_pixel_format_abgr_8888, buffer.pixel_format());
 }
 
-TEST_F(AndroidGraphicBufferBasic, returns_native_buffer_times_two)
+TEST_F(AndroidGraphicBufferBasic, ReturnsNativeBufferTimesTwo)
 {
     using namespace testing;
     int acquire_fake_fence_fd1 = 948;
@@ -107,7 +107,7 @@ TEST_F(AndroidGraphicBufferBasic, returns_native_buffer_times_two)
     }
 }
 
-TEST_F(AndroidGraphicBufferBasic, queries_native_window_for_stride)
+TEST_F(AndroidGraphicBufferBasic, QueriesNativeWindowForStride)
 {
     using namespace testing;
 

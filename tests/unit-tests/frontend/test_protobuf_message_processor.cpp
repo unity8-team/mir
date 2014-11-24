@@ -80,7 +80,7 @@ struct StubDisplayServer : mfd::DisplayServer
 };
 }
 
-TEST(ProtobufMessageProcessor, preserves_response_resource_for_exchange_buffer)
+TEST(ProtobufMessageProcessor, PreservesResponseResourceForExchangeBuffer)
 {
     using namespace testing;
     StubProtobufMessageSender stub_msg_sender;

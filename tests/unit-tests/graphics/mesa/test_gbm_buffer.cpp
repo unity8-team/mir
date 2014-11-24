@@ -91,7 +91,7 @@ protected:
     mtf::UdevEnvironment fake_devices;
 };
 
-TEST_F(GBMBufferTest, dimensions_test)
+TEST_F(GBMBufferTest, DimensionsTest)
 {
     using namespace testing;
 
@@ -102,7 +102,7 @@ TEST_F(GBMBufferTest, dimensions_test)
     ASSERT_EQ(size, buffer->size());
 }
 
-TEST_F(GBMBufferTest, buffer_has_expected_pixel_format)
+TEST_F(GBMBufferTest, BufferHasExpectedPixelFormat)
 {
     using namespace testing;
 
@@ -113,7 +113,7 @@ TEST_F(GBMBufferTest, buffer_has_expected_pixel_format)
     ASSERT_EQ(pf, buffer->pixel_format());
 }
 
-TEST_F(GBMBufferTest, stride_has_sane_value)
+TEST_F(GBMBufferTest, StrideHasSaneValue)
 {
     using namespace testing;
 
@@ -129,7 +129,7 @@ TEST_F(GBMBufferTest, stride_has_sane_value)
     ASSERT_LE(minimum, buffer->stride());
 }
 
-TEST_F(GBMBufferTest, buffer_native_handle_has_correct_size)
+TEST_F(GBMBufferTest, BufferNativeHandleHasCorrectSize)
 {
     using namespace testing;
 
@@ -151,7 +151,7 @@ ACTION_P(SetGEMFlinkName, value)
     flink->name = value;
 }
 
-TEST_F(GBMBufferTest, buffer_native_handle_contains_correct_data)
+TEST_F(GBMBufferTest, BufferNativeHandleContainsCorrectData)
 {
     using namespace testing;
 
@@ -173,7 +173,7 @@ TEST_F(GBMBufferTest, buffer_native_handle_contains_correct_data)
     EXPECT_EQ(stride.as_uint32_t(), static_cast<unsigned int>(handle->stride));
 }
 
-TEST_F(GBMBufferTest, buffer_creation_throws_on_prime_fd_failure)
+TEST_F(GBMBufferTest, BufferCreationThrowsOnPrimeFdFailure)
 {
     using namespace testing;
 
@@ -186,7 +186,7 @@ TEST_F(GBMBufferTest, buffer_creation_throws_on_prime_fd_failure)
     }, std::runtime_error);
 }
 
-TEST_F(GBMBufferTest, gl_bind_to_texture_egl_image_creation_failed)
+TEST_F(GBMBufferTest, GlBindToTextureEglImageCreationFailed)
 {
     using namespace testing;
 
@@ -199,7 +199,7 @@ TEST_F(GBMBufferTest, gl_bind_to_texture_egl_image_creation_failed)
     }, std::runtime_error);
 }
 
-TEST_F(GBMBufferTest, gl_bind_to_texture_uses_egl_image)
+TEST_F(GBMBufferTest, GlBindToTextureUsesEglImage)
 {
     using namespace testing;
 

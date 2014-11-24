@@ -93,7 +93,7 @@ struct MirScreencastTest : mtf::BasicClientServerFixture<StubServerConfig>
 
 }
 
-TEST_F(MirScreencastTest, creation_with_invalid_connection_fails)
+TEST_F(MirScreencastTest, CreationWithInvalidConnectionFails)
 {
     using namespace testing;
 
@@ -101,7 +101,7 @@ TEST_F(MirScreencastTest, creation_with_invalid_connection_fails)
     ASSERT_EQ(nullptr, screencast);
 }
 
-TEST_F(MirScreencastTest, contacts_server_screencast_for_create_and_release)
+TEST_F(MirScreencastTest, ContactsServerScreencastForCreateAndRelease)
 {
     using namespace testing;
 
@@ -123,7 +123,7 @@ TEST_F(MirScreencastTest, contacts_server_screencast_for_create_and_release)
     mir_screencast_release_sync(screencast);
 }
 
-TEST_F(MirScreencastTest, contacts_server_screencast_with_provided_params)
+TEST_F(MirScreencastTest, ContactsServerScreencastWithProvidedParams)
 {
     using namespace testing;
 
@@ -152,7 +152,7 @@ TEST_F(MirScreencastTest, contacts_server_screencast_with_provided_params)
     mir_screencast_release_sync(screencast);
 }
 
-TEST_F(MirScreencastTest, creation_with_invalid_params_fails)
+TEST_F(MirScreencastTest, CreationWithInvalidParamsFails)
 {
     using namespace testing;
 
@@ -173,7 +173,7 @@ TEST_F(MirScreencastTest, creation_with_invalid_params_fails)
     ASSERT_EQ(nullptr, screencast);
 }
 
-TEST_F(MirScreencastTest, gets_valid_egl_native_window)
+TEST_F(MirScreencastTest, GetsValidEglNativeWindow)
 {
     using namespace testing;
 
@@ -195,7 +195,7 @@ TEST_F(MirScreencastTest, gets_valid_egl_native_window)
     mir_screencast_release_sync(screencast);
 }
 
-TEST_F(MirScreencastTest, fails_on_client_when_server_request_fails)
+TEST_F(MirScreencastTest, FailsOnClientWhenServerRequestFails)
 {
     using namespace testing;
 
@@ -234,7 +234,7 @@ struct UnauthorizedMirScreencastTest : mtf::BasicClientServerFixture<MockAuthori
 
 }
 
-TEST_F(UnauthorizedMirScreencastTest, fails_to_create_screencast)
+TEST_F(UnauthorizedMirScreencastTest, FailsToCreateScreencast)
 {
     using namespace testing;
 

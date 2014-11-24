@@ -221,7 +221,7 @@ public:
 
 }
 
-TEST_F(MesaDisplayTest, create_display)
+TEST_F(MesaDisplayTest, CreateDisplay)
 {
     using namespace testing;
 
@@ -282,7 +282,7 @@ TEST_F(MesaDisplayTest, create_display)
     auto display = create_display(create_platform());
 }
 
-TEST_F(MesaDisplayTest, reset_crtc_on_destruction)
+TEST_F(MesaDisplayTest, ResetCrtcOnDestruction)
 {
     using namespace testing;
 
@@ -319,7 +319,7 @@ TEST_F(MesaDisplayTest, reset_crtc_on_destruction)
     auto display = create_display(create_platform());
 }
 
-TEST_F(MesaDisplayTest, create_display_drm_failure)
+TEST_F(MesaDisplayTest, CreateDisplayDrmFailure)
 {
     using namespace testing;
 
@@ -336,7 +336,7 @@ TEST_F(MesaDisplayTest, create_display_drm_failure)
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayTest, create_display_kms_failure)
+TEST_F(MesaDisplayTest, CreateDisplayKmsFailure)
 {
     using namespace testing;
 
@@ -359,7 +359,7 @@ TEST_F(MesaDisplayTest, create_display_kms_failure)
     }, std::runtime_error) << "Expected that c'tor of mgm::Display throws";
 }
 
-TEST_F(MesaDisplayTest, create_display_gbm_failure)
+TEST_F(MesaDisplayTest, CreateDisplayGbmFailure)
 {
     using namespace testing;
 
@@ -397,7 +397,7 @@ ACTION_P(InvokePageFlipHandler, param)
 
 }
 
-TEST_F(MesaDisplayTest, post_update)
+TEST_F(MesaDisplayTest, PostUpdate)
 {
     using namespace testing;
 
@@ -440,7 +440,7 @@ TEST_F(MesaDisplayTest, post_update)
     });
 }
 
-TEST_F(MesaDisplayTest, post_update_flip_failure)
+TEST_F(MesaDisplayTest, PostUpdateFlipFailure)
 {
     using namespace testing;
 
@@ -479,7 +479,7 @@ TEST_F(MesaDisplayTest, post_update_flip_failure)
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayTest, successful_creation_of_display_reports_successful_setup_of_native_resources)
+TEST_F(MesaDisplayTest, SuccessfulCreationOfDisplayReportsSuccessfulSetupOfNativeResources)
 {
     using namespace ::testing;
 
@@ -513,7 +513,7 @@ TEST_F(MesaDisplayTest, successful_creation_of_display_reports_successful_setup_
                         mock_report);
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_setup_of_native_resources)
+TEST_F(MesaDisplayTest, OutputsCorrectStringForSuccessfulSetupOfNativeResources)
 {
     using namespace ::testing;
 
@@ -529,7 +529,7 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_setup_of_native_re
     reporter->report_successful_setup_of_native_resources();
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_make_current_on_construction)
+TEST_F(MesaDisplayTest, OutputsCorrectStringForSuccessfulEglMakeCurrentOnConstruction)
 {
     using namespace ::testing;
 
@@ -545,7 +545,7 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_make_current_o
     reporter->report_successful_egl_make_current_on_construction();
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_buffer_swap_on_construction)
+TEST_F(MesaDisplayTest, OutputsCorrectStringForSuccessfulEglBufferSwapOnConstruction)
 {
     using namespace ::testing;
 
@@ -561,7 +561,7 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_egl_buffer_swap_on
     reporter->report_successful_egl_buffer_swap_on_construction();
 }
 
-TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_drm_mode_set_crtc_on_construction)
+TEST_F(MesaDisplayTest, OutputsCorrectStringForSuccessfulDrmModeSetCrtcOnConstruction)
 {
     using namespace ::testing;
 
@@ -578,7 +578,7 @@ TEST_F(MesaDisplayTest, outputs_correct_string_for_successful_drm_mode_set_crtc_
 }
 
 // Disabled until mesa drm platform and mir platform properly shows support for those extensions
-TEST_F(MesaDisplayTest, DISABLED_constructor_throws_if_egl_khr_image_pixmap_not_supported)
+TEST_F(MesaDisplayTest, DISABLED_ConstructorThrowsIfEglKhrImagePixmapNotSupported)
 {
     using namespace ::testing;
 
@@ -593,7 +593,7 @@ TEST_F(MesaDisplayTest, DISABLED_constructor_throws_if_egl_khr_image_pixmap_not_
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayTest, constructor_throws_if_gl_oes_image_not_supported)
+TEST_F(MesaDisplayTest, ConstructorThrowsIfGlOesImageNotSupported)
 {
     using namespace ::testing;
 
@@ -608,7 +608,7 @@ TEST_F(MesaDisplayTest, constructor_throws_if_gl_oes_image_not_supported)
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayTest, for_each_display_buffer_calls_callback)
+TEST_F(MesaDisplayTest, ForEachDisplayBufferCallsCallback)
 {
     using namespace ::testing;
 
@@ -624,7 +624,7 @@ TEST_F(MesaDisplayTest, for_each_display_buffer_calls_callback)
     EXPECT_NE(0, callback_count);
 }
 
-TEST_F(MesaDisplayTest, constructor_sets_vt_graphics_mode)
+TEST_F(MesaDisplayTest, ConstructorSetsVtGraphicsMode)
 {
     using namespace testing;
 
@@ -642,7 +642,7 @@ TEST_F(MesaDisplayTest, constructor_sets_vt_graphics_mode)
     auto display = create_display(platform);
 }
 
-TEST_F(MesaDisplayTest, pause_drops_drm_master)
+TEST_F(MesaDisplayTest, PauseDropsDrmMaster)
 {
     using namespace testing;
 
@@ -654,7 +654,7 @@ TEST_F(MesaDisplayTest, pause_drops_drm_master)
     display->pause();
 }
 
-TEST_F(MesaDisplayTest, resume_sets_drm_master)
+TEST_F(MesaDisplayTest, ResumeSetsDrmMaster)
 {
     using namespace testing;
 
@@ -666,7 +666,7 @@ TEST_F(MesaDisplayTest, resume_sets_drm_master)
     display->resume();
 }
 
-TEST_F(MesaDisplayTest, set_or_drop_drm_master_failure_throws_and_reports_error)
+TEST_F(MesaDisplayTest, SetOrDropDrmMasterFailureThrowsAndReportsError)
 {
     using namespace testing;
 
@@ -699,7 +699,7 @@ TEST_F(MesaDisplayTest, set_or_drop_drm_master_failure_throws_and_reports_error)
     }, std::runtime_error);
 }
 
-TEST_F(MesaDisplayTest, configuration_change_registers_video_devices_handler)
+TEST_F(MesaDisplayTest, ConfigurationChangeRegistersVideoDevicesHandler)
 {
     using namespace testing;
 
@@ -711,7 +711,7 @@ TEST_F(MesaDisplayTest, configuration_change_registers_video_devices_handler)
     display->register_configuration_change_handler(mock_register, []{});
 }
 
-TEST_F(MesaDisplayTest, drm_device_change_event_triggers_handler)
+TEST_F(MesaDisplayTest, DrmDeviceChangeEventTriggersHandler)
 {
     using namespace testing;
 
@@ -768,7 +768,7 @@ TEST_F(MesaDisplayTest, drm_device_change_event_triggers_handler)
     EXPECT_EQ(expected_call_count, call_count);
 }
 
-TEST_F(MesaDisplayTest, respects_gl_config)
+TEST_F(MesaDisplayTest, RespectsGlConfig)
 {
     using namespace testing;
 

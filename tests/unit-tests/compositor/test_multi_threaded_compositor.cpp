@@ -345,7 +345,7 @@ auto const null_report = mr::null_compositor_report();
 unsigned int const composites_per_update{1};
 }
 
-TEST(MultiThreadedCompositor, compositing_happens_in_different_threads)
+TEST(MultiThreadedCompositor, CompositingHappensInDifferentThreads)
 {
     using namespace testing;
 
@@ -367,7 +367,7 @@ TEST(MultiThreadedCompositor, compositing_happens_in_different_threads)
     EXPECT_TRUE(db_compositor_factory->buffers_rendered_in_different_threads());
 }
 
-TEST(MultiThreadedCompositor, reports_in_the_right_places)
+TEST(MultiThreadedCompositor, ReportsInTheRightPlaces)
 {
     using namespace testing;
 
@@ -420,7 +420,7 @@ TEST(MultiThreadedCompositor, reports_in_the_right_places)
  * Nonetheless, the test is useful since it's very likely to fail if a problem
  * is present (and don't forget that it's usually run multiple times per day).
  */
-TEST(MultiThreadedCompositor, composites_only_on_demand)
+TEST(MultiThreadedCompositor, CompositesOnlyOnDemand)
 {
     using namespace testing;
 
@@ -480,7 +480,7 @@ TEST(MultiThreadedCompositor, composites_only_on_demand)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, when_no_initial_composite_is_needed_there_is_none)
+TEST(MultiThreadedCompositor, WhenNoInitialCompositeIsNeededThereIsNone)
 {
     using namespace testing;
 
@@ -503,7 +503,7 @@ TEST(MultiThreadedCompositor, when_no_initial_composite_is_needed_there_is_none)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, when_no_initial_composite_is_needed_we_still_composite_on_restart)
+TEST(MultiThreadedCompositor, WhenNoInitialCompositeIsNeededWeStillCompositeOnRestart)
 {
     using namespace testing;
 
@@ -538,7 +538,7 @@ TEST(MultiThreadedCompositor, when_no_initial_composite_is_needed_we_still_compo
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, surface_update_from_render_doesnt_deadlock)
+TEST(MultiThreadedCompositor, SurfaceUpdateFromRenderDoesntDeadlock)
 {
     using namespace testing;
 
@@ -557,7 +557,7 @@ TEST(MultiThreadedCompositor, surface_update_from_render_doesnt_deadlock)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, makes_and_releases_display_buffer_current_target)
+TEST(MultiThreadedCompositor, MakesAndReleasesDisplayBufferCurrentTarget)
 {
     using namespace testing;
 
@@ -580,7 +580,7 @@ TEST(MultiThreadedCompositor, makes_and_releases_display_buffer_current_target)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
+TEST(MultiThreadedCompositor, DoubleStartOrStopIgnored)
 {
     using namespace testing;
 
@@ -610,7 +610,7 @@ TEST(MultiThreadedCompositor, double_start_or_stop_ignored)
     compositor.stop();
 }
 
-TEST(MultiThreadedCompositor, cleans_up_after_throw_in_start)
+TEST(MultiThreadedCompositor, CleansUpAfterThrowInStart)
 {
     unsigned int const nbuffers{3};
 
@@ -658,7 +658,7 @@ TEST(MultiThreadedCompositor, cleans_up_after_throw_in_start)
     EXPECT_TRUE(db_compositor_factory->each_buffer_rendered_in_single_thread());
 }
 
-TEST(MultiThreadedCompositor, names_compositor_threads)
+TEST(MultiThreadedCompositor, NamesCompositorThreads)
 {
     using namespace testing;
 
@@ -684,7 +684,7 @@ TEST(MultiThreadedCompositor, names_compositor_threads)
         EXPECT_THAT(thread_names[i], Eq("Mir/Comp")) << "i=" << i;
 }
 
-TEST(MultiThreadedCompositor, registers_and_unregisters_with_scene)
+TEST(MultiThreadedCompositor, RegistersAndUnregistersWithScene)
 {
     using namespace testing;
     unsigned int const nbuffers{3};

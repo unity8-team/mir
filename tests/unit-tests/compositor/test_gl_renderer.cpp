@@ -173,7 +173,7 @@ public:
 
 }
 
-TEST_F(GLRenderer, render_is_done_in_sequence)
+TEST_F(GLRenderer, RenderIsDoneInSequence)
 {
     InSequence seq;
 
@@ -214,7 +214,7 @@ TEST_F(GLRenderer, render_is_done_in_sequence)
     renderer.render(renderable_list);
 }
 
-TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
+TEST_F(GLRenderer, DisablesBlendingForRgbxSurfaces)
 {
     InSequence seq;
     EXPECT_CALL(*renderable, shaped())
@@ -225,7 +225,7 @@ TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
     renderer.render(renderable_list);
 }
 
-TEST_F(GLRenderer, binds_for_every_primitive_when_tessellate_is_overridden)
+TEST_F(GLRenderer, BindsForEveryPrimitiveWhenTessellateIsOverridden)
 {
     //'listening to the tests', it would be a bit easier to use a tessellator mock of some sort
     struct OverriddenTessellateRenderer : public mc::GLRenderer
@@ -262,7 +262,7 @@ TEST_F(GLRenderer, binds_for_every_primitive_when_tessellate_is_overridden)
     renderer.render(renderable_list);
 }
 
-TEST_F(GLRenderer, opaque_alpha_channel)
+TEST_F(GLRenderer, OpaqueAlphaChannel)
 {
     InSequence seq;
     EXPECT_CALL(mock_gl, glClearColor(_, _, _, 1.0f));
@@ -276,7 +276,7 @@ TEST_F(GLRenderer, opaque_alpha_channel)
     renderer.render(renderable_list);
 }
 
-TEST_F(GLRenderer, generates_alpha_channel_content)
+TEST_F(GLRenderer, GeneratesAlphaChannelContent)
 {
     EXPECT_CALL(mock_gl, glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
 

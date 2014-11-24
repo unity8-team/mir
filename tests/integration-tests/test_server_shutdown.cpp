@@ -159,7 +159,7 @@ struct FakeEventHubServerConfig : TestingServerConfiguration
 
 using ServerShutdown = BespokeDisplayServerTestFixture;
 
-TEST_F(ServerShutdown, server_can_shut_down_when_clients_are_blocked)
+TEST_F(ServerShutdown, ServerCanShutDownWhenClientsAreBlocked)
 {
     Flag next_buffer_done1{"next_buffer_done1_c5d49978.tmp"};
     Flag next_buffer_done2{"next_buffer_done2_c5d49978.tmp"};
@@ -285,7 +285,7 @@ TEST(ServerShutdownWithThreadException,
     EXPECT_EQ(0, input_manager.use_count());
 }
 
-TEST_F(ServerShutdown, server_releases_resources_on_shutdown_with_connected_clients)
+TEST_F(ServerShutdown, ServerReleasesResourcesOnShutdownWithConnectedClients)
 {
     Flag surface_created1{"surface_created1_7e9c69fc.tmp"};
     Flag surface_created2{"surface_created2_7e9c69fc.tmp"};

@@ -147,7 +147,7 @@ struct HwcDevice : public ::testing::Test
 };
 }
 
-TEST_F(HwcDevice, prepares_a_skip_and_target_layer_by_default)
+TEST_F(HwcDevice, PreparesASkipAndTargetLayerByDefault)
 {
     using namespace testing;
     std::list<hwc_layer_1_t*> expected_list
@@ -163,7 +163,7 @@ TEST_F(HwcDevice, prepares_a_skip_and_target_layer_by_default)
     device.post_gl(stub_context);
 }
 
-TEST_F(HwcDevice, calls_backup_compositor_when_overlay_rejected)
+TEST_F(HwcDevice, CallsBackupCompositorWhenOverlayRejected)
 {
     using namespace testing;
     mtd::MockRenderableListCompositor mock_compositor;
@@ -197,7 +197,7 @@ TEST_F(HwcDevice, calls_backup_compositor_when_overlay_rejected)
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, mock_compositor));
 }
 
-TEST_F(HwcDevice, resets_layers_when_prepare_gl_called)
+TEST_F(HwcDevice, ResetsLayersWhenPrepareGlCalled)
 {
     using namespace testing;
     std::list<hwc_layer_1_t*> expected_list1
@@ -224,7 +224,7 @@ TEST_F(HwcDevice, resets_layers_when_prepare_gl_called)
     device.post_gl(stub_context);
 }
 
-TEST_F(HwcDevice, sets_and_updates_fences)
+TEST_F(HwcDevice, SetsAndUpdatesFences)
 {
     using namespace testing;
     int fb_release_fence = 94;
@@ -261,7 +261,7 @@ TEST_F(HwcDevice, sets_and_updates_fences)
         close(hwc_retire_fence);
 }
 
-TEST_F(HwcDevice, commits_correct_list_with_rejected_renderables)
+TEST_F(HwcDevice, CommitsCorrectListWithRejectedRenderables)
 {
     using namespace testing;
     int fb_acquire_fence = 80;
@@ -305,7 +305,7 @@ TEST_F(HwcDevice, commits_correct_list_with_rejected_renderables)
     EXPECT_TRUE(device.post_overlays(stub_context, {stub_renderable1}, stub_compositor));
 }
 
-TEST_F(HwcDevice, commits_correct_list_when_all_accepted_as_overlays)
+TEST_F(HwcDevice, CommitsCorrectListWhenAllAcceptedAsOverlays)
 {
     using namespace testing;
     int overlay_acquire_fence1 = 80;
@@ -367,7 +367,7 @@ TEST_F(HwcDevice, commits_correct_list_when_all_accepted_as_overlays)
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcDevice, discards_second_set_if_all_overlays_and_nothing_has_changed)
+TEST_F(HwcDevice, DiscardsSecondSetIfAllOverlaysAndNothingHasChanged)
 {
     using namespace testing;
     ON_CALL(*mock_device, prepare(_))
@@ -380,7 +380,7 @@ TEST_F(HwcDevice, discards_second_set_if_all_overlays_and_nothing_has_changed)
     EXPECT_FALSE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcDevice, submits_every_time_if_at_least_one_layer_is_gl_rendered)
+TEST_F(HwcDevice, SubmitsEveryTimeIfAtLeastOneLayerIsGlRendered)
 {
     using namespace testing;
     mga::HwcDevice device(mock_device, mock_vsync, mock_file_ops);
@@ -401,7 +401,7 @@ TEST_F(HwcDevice, submits_every_time_if_at_least_one_layer_is_gl_rendered)
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcDevice, resets_composition_type_with_prepare) //lp:1314399
+TEST_F(HwcDevice, ResetsCompositionTypeWithPrepare) //lp:1314399
 {
     using namespace testing;
     mg::RenderableList renderlist({stub_renderable1});
@@ -423,7 +423,7 @@ TEST_F(HwcDevice, resets_composition_type_with_prepare) //lp:1314399
 }
 
 //note: HWC models overlay layer buffers as owned by the display hardware until a subsequent set.
-TEST_F(HwcDevice, owns_overlay_buffers_until_next_set)
+TEST_F(HwcDevice, OwnsOverlayBuffersUntilNextSet)
 {
     using namespace testing;
     EXPECT_CALL(*mock_device, prepare(_))
@@ -440,7 +440,7 @@ TEST_F(HwcDevice, owns_overlay_buffers_until_next_set)
     EXPECT_THAT(stub_buffer1.use_count(), Eq(use_count_before));
 }
 
-TEST_F(HwcDevice, does_not_set_acquirefences_when_it_has_set_them_previously_without_update)
+TEST_F(HwcDevice, DoesNotSetAcquirefencesWhenItHasSetThemPreviouslyWithoutUpdate)
 {
     using namespace testing;
     int acquire_fence1 = 39303;
@@ -521,7 +521,7 @@ TEST_F(HwcDevice, does_not_set_acquirefences_when_it_has_set_them_previously_wit
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcDevice, does_not_own_framebuffer_buffers_past_set)
+TEST_F(HwcDevice, DoesNotOwnFramebufferBuffersPastSet)
 {
     using namespace testing;
     EXPECT_CALL(*mock_device, prepare(_))
@@ -539,7 +539,7 @@ TEST_F(HwcDevice, does_not_own_framebuffer_buffers_past_set)
     EXPECT_THAT(stub_buffer1.use_count(), Eq(use_count_before));
 }
 
-TEST_F(HwcDevice, rejects_empty_list)
+TEST_F(HwcDevice, RejectsEmptyList)
 {
     mga::HwcDevice device(mock_device, mock_vsync, mock_file_ops);
 
@@ -548,7 +548,7 @@ TEST_F(HwcDevice, rejects_empty_list)
 }
 
 //TODO: we could accept a 90 degree transform
-TEST_F(HwcDevice, rejects_list_containing_transformed)
+TEST_F(HwcDevice, RejectsListContainingTransformed)
 {
     mga::HwcDevice device(mock_device, mock_vsync, mock_file_ops);
 
@@ -558,7 +558,7 @@ TEST_F(HwcDevice, rejects_list_containing_transformed)
 }
 
 //TODO: support plane alpha for hwc 1.2 and later
-TEST_F(HwcDevice, rejects_list_containing_plane_alpha)
+TEST_F(HwcDevice, RejectsListContainingPlaneAlpha)
 {
     using namespace testing;
 
@@ -568,7 +568,7 @@ TEST_F(HwcDevice, rejects_list_containing_plane_alpha)
     EXPECT_FALSE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcDevice, does_not_own_overlay_buffers_after_screen_off)
+TEST_F(HwcDevice, DoesNotOwnOverlayBuffersAfterScreenOff)
 {
     using namespace testing;
     EXPECT_CALL(*mock_device, prepare(_))
@@ -584,7 +584,7 @@ TEST_F(HwcDevice, does_not_own_overlay_buffers_after_screen_off)
     EXPECT_THAT(stub_buffer1.use_count(), Eq(use_count_before));
 }
 
-TEST_F(HwcDevice, tracks_hwc_owned_fences_even_across_list_changes)
+TEST_F(HwcDevice, TracksHwcOwnedFencesEvenAcrossListChanges)
 {
     using namespace testing;
     hwc_layer_1_t layer3;
@@ -673,7 +673,7 @@ TEST_F(HwcDevice, tracks_hwc_owned_fences_even_across_list_changes)
     EXPECT_TRUE(device.post_overlays(stub_context, renderlist2, stub_compositor));
 }
 
-TEST_F(HwcDevice, tracks_hwc_owned_fences_across_list_rearrange)
+TEST_F(HwcDevice, TracksHwcOwnedFencesAcrossListRearrange)
 {
     using namespace testing;
     hwc_layer_1_t layer3;

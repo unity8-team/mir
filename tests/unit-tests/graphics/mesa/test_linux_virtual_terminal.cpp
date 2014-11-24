@@ -261,7 +261,7 @@ public:
 };
 
 
-TEST_F(LinuxVirtualTerminalTest, use_provided_vt)
+TEST_F(LinuxVirtualTerminalTest, UseProvidedVt)
 {
     using namespace testing;
 
@@ -279,7 +279,7 @@ TEST_F(LinuxVirtualTerminalTest, use_provided_vt)
     mgm::LinuxVirtualTerminal vt{fops, std::move(pops), vt_num, null_report};
 }
 
-TEST_F(LinuxVirtualTerminalTest, sets_up_current_vt)
+TEST_F(LinuxVirtualTerminalTest, SetsUpCurrentVt)
 {
     using namespace testing;
 
@@ -298,7 +298,7 @@ TEST_F(LinuxVirtualTerminalTest, sets_up_current_vt)
     mgm::LinuxVirtualTerminal vt{fops, std::move(pops), 0, null_report};
 }
 
-TEST_F(LinuxVirtualTerminalTest, failure_to_find_current_vt_throws)
+TEST_F(LinuxVirtualTerminalTest, FailureToFindCurrentVtThrows)
 {
     using namespace testing;
 
@@ -326,7 +326,7 @@ TEST_F(LinuxVirtualTerminalTest, failure_to_find_current_vt_throws)
     }, std::runtime_error);
 }
 
-TEST_F(LinuxVirtualTerminalTest, does_not_restore_vt_mode_if_vt_process)
+TEST_F(LinuxVirtualTerminalTest, DoesNotRestoreVtModeIfVtProcess)
 {
     using namespace testing;
 
@@ -345,7 +345,7 @@ TEST_F(LinuxVirtualTerminalTest, does_not_restore_vt_mode_if_vt_process)
     mgm::LinuxVirtualTerminal vt(fops, std::move(pops), 0, null_report);
 }
 
-TEST_F(LinuxVirtualTerminalTest, sets_graphics_mode)
+TEST_F(LinuxVirtualTerminalTest, SetsGraphicsMode)
 {
     using namespace testing;
 
@@ -369,7 +369,7 @@ TEST_F(LinuxVirtualTerminalTest, sets_graphics_mode)
     vt.set_graphics_mode();
 }
 
-TEST_F(LinuxVirtualTerminalTest, failure_to_set_graphics_mode_throws)
+TEST_F(LinuxVirtualTerminalTest, FailureToSetGraphicsModeThrows)
 {
     using namespace testing;
 
@@ -395,7 +395,7 @@ TEST_F(LinuxVirtualTerminalTest, failure_to_set_graphics_mode_throws)
     }, std::runtime_error);
 }
 
-TEST_F(LinuxVirtualTerminalTest, uses_sigusr1_for_switch_handling)
+TEST_F(LinuxVirtualTerminalTest, UsesSigusr1ForSwitchHandling)
 {
     using namespace testing;
 
@@ -418,7 +418,7 @@ TEST_F(LinuxVirtualTerminalTest, uses_sigusr1_for_switch_handling)
     vt.register_switch_handlers(mock_event_handler_register, null_handler, null_handler);
 }
 
-TEST_F(LinuxVirtualTerminalTest, allows_vt_switch_on_switch_away_handler_success)
+TEST_F(LinuxVirtualTerminalTest, AllowsVtSwitchOnSwitchAwayHandlerSuccess)
 {
     using namespace testing;
 
@@ -448,7 +448,7 @@ TEST_F(LinuxVirtualTerminalTest, allows_vt_switch_on_switch_away_handler_success
     sig_handler(SIGUSR1);
 }
 
-TEST_F(LinuxVirtualTerminalTest, disallows_vt_switch_on_switch_away_handler_failure)
+TEST_F(LinuxVirtualTerminalTest, DisallowsVtSwitchOnSwitchAwayHandlerFailure)
 {
     using namespace testing;
 
@@ -488,7 +488,7 @@ TEST_F(LinuxVirtualTerminalTest, disallows_vt_switch_on_switch_away_handler_fail
     sig_handler(SIGUSR1);
 }
 
-TEST_F(LinuxVirtualTerminalTest, reports_failed_vt_switch_back_attempt)
+TEST_F(LinuxVirtualTerminalTest, ReportsFailedVtSwitchBackAttempt)
 {
     using namespace testing;
 
@@ -526,7 +526,7 @@ TEST_F(LinuxVirtualTerminalTest, reports_failed_vt_switch_back_attempt)
     sig_handler(SIGUSR1);
 }
 
-TEST_F(LinuxVirtualTerminalTest, does_not_try_to_reaquire_session_leader)
+TEST_F(LinuxVirtualTerminalTest, DoesNotTryToReaquireSessionLeader)
 {
     using namespace testing;
 
@@ -553,7 +553,7 @@ TEST_F(LinuxVirtualTerminalTest, does_not_try_to_reaquire_session_leader)
     mgm::LinuxVirtualTerminal vt{fops, std::move(pops), vt_num, null_report};
 }
 
-TEST_F(LinuxVirtualTerminalTest, relinquishes_group_leader_before_claiming_session_leader)
+TEST_F(LinuxVirtualTerminalTest, RelinquishesGroupLeaderBeforeClaimingSessionLeader)
 {
     using namespace testing;
 
@@ -592,7 +592,7 @@ TEST_F(LinuxVirtualTerminalTest, relinquishes_group_leader_before_claiming_sessi
     mgm::LinuxVirtualTerminal vt{fops, std::move(pops), vt_num, null_report};
 }
 
-TEST_F(LinuxVirtualTerminalTest, exception_if_setting_process_group_fails)
+TEST_F(LinuxVirtualTerminalTest, ExceptionIfSettingProcessGroupFails)
 {
     using namespace testing;
 
@@ -627,7 +627,7 @@ TEST_F(LinuxVirtualTerminalTest, exception_if_setting_process_group_fails)
     }, std::runtime_error);
 }
 
-TEST_F(LinuxVirtualTerminalTest, exception_if_becoming_session_leader_fails)
+TEST_F(LinuxVirtualTerminalTest, ExceptionIfBecomingSessionLeaderFails)
 {
     using namespace testing;
 
@@ -665,7 +665,7 @@ TEST_F(LinuxVirtualTerminalTest, exception_if_becoming_session_leader_fails)
     }, std::runtime_error);
 }
 
-TEST_F(LinuxVirtualTerminalTest, restores_keyboard_and_graphics)
+TEST_F(LinuxVirtualTerminalTest, RestoresKeyboardAndGraphics)
 {
     using namespace testing;
 

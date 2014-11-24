@@ -27,7 +27,7 @@
 namespace droidinput = android;
 namespace mia = mir::input::android;
 
-TEST(AndroidInputChannel, packages_own_valid_fds)
+TEST(AndroidInputChannel, PackagesOwnValidFds)
 {
     int server_fd, client_fd;
     {

@@ -32,7 +32,7 @@ namespace mia = mi::android;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-TEST(EventFilterDispatcherPolicy, offers_key_events_to_filter)
+TEST(EventFilterDispatcherPolicy, OffersKeyEventsToFilter)
 {
     using namespace ::testing;
     droidinput::KeyEvent ev;
@@ -53,7 +53,7 @@ TEST(EventFilterDispatcherPolicy, offers_key_events_to_filter)
     EXPECT_TRUE(policy.filterInputEvent(&ev, 0));
 }
 
-TEST(EventFilterDispatcherPolicy, motion_events_are_allowed_to_pass_to_clients)
+TEST(EventFilterDispatcherPolicy, MotionEventsAreAllowedToPassToClients)
 {
     using namespace ::testing;
 

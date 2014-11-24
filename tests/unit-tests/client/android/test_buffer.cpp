@@ -58,7 +58,7 @@ struct AndroidClientBuffer : public ::testing::Test
     MirBufferPackage package;
 };
 
-TEST_F(AndroidClientBuffer, registers_native_handle_with_correct_size)
+TEST_F(AndroidClientBuffer, RegistersNativeHandleWithCorrectSize)
 {
     EXPECT_CALL(*mock_registrar, register_buffer(testing::_, testing::_))
         .WillOnce(testing::Return(mock_native_buffer));
@@ -69,7 +69,7 @@ TEST_F(AndroidClientBuffer, registers_native_handle_with_correct_size)
     EXPECT_EQ(stride, buffer.stride());
 }
 
-TEST_F(AndroidClientBuffer, packs_memory_region_correctly)
+TEST_F(AndroidClientBuffer, PacksMemoryRegionCorrectly)
 {
     using namespace testing;
     geom::Rectangle rect{{0,0}, size};
@@ -87,7 +87,7 @@ TEST_F(AndroidClientBuffer, packs_memory_region_correctly)
     EXPECT_EQ(pf, region->format);
 }
 
-TEST_F(AndroidClientBuffer, update_from_package_merges_fence_when_present)
+TEST_F(AndroidClientBuffer, UpdateFromPackageMergesFenceWhenPresent)
 {
     mga::NativeFence fake_fence{213};
     EXPECT_CALL(*mock_native_buffer, update_usage(fake_fence, mga::BufferAccess::read))
@@ -104,7 +104,7 @@ TEST_F(AndroidClientBuffer, update_from_package_merges_fence_when_present)
     buffer.update_from(package);
 }
 
-TEST_F(AndroidClientBuffer, fills_update_msg)
+TEST_F(AndroidClientBuffer, FillsUpdateMsg)
 {
     using namespace testing;
     using mir::graphics::android::BufferFlag;

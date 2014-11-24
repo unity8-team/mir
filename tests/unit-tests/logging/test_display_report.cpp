@@ -101,7 +101,7 @@ std::string egl_string_mapping [] =
 
 }
 
-TEST_F(DisplayReport, eglconfig)
+TEST_F(DisplayReport, Eglconfig)
 {
     using namespace testing;
     EGLDisplay disp = reinterpret_cast<EGLDisplay>(9);

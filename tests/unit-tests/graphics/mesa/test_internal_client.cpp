@@ -48,7 +48,7 @@ public:
 };
 }
 
-TEST(InternalClient, native_display_sanity)
+TEST(InternalClient, NativeDisplaySanity)
 {
     auto stub_display = std::make_shared<MirMesaEGLNativeDisplay>();
     mgm::InternalClient client(stub_display);
@@ -57,7 +57,7 @@ TEST(InternalClient, native_display_sanity)
     EXPECT_EQ(reinterpret_cast<EGLNativeDisplayType>(stub_display.get()), native_display);
 }
 
-TEST(InternalClient, native_surface_sanity)
+TEST(InternalClient, NativeSurfaceSanity)
 {
     auto stub_display = std::make_shared<MirMesaEGLNativeDisplay>();
     mgm::InternalClient client(stub_display);

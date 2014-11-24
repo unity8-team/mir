@@ -64,7 +64,7 @@ struct OcclusionFilterTest : public Test
 
 }
 
-TEST_F(OcclusionFilterTest, single_window_not_occluded)
+TEST_F(OcclusionFilterTest, SingleWindowNotOccluded)
 {
     auto window = std::make_shared<mtd::FakeRenderable>(12, 34, 56, 78);
     auto elements = scene_elements_from({window});
@@ -75,7 +75,7 @@ TEST_F(OcclusionFilterTest, single_window_not_occluded)
     EXPECT_THAT(renderables_from(elements), ElementsAre(window));
 }
 
-TEST_F(OcclusionFilterTest, partially_offscreen_still_visible)
+TEST_F(OcclusionFilterTest, PartiallyOffscreenStillVisible)
 { // Regression test for LP: #1301115
     auto left =   std::make_shared<mtd::FakeRenderable>(-10,   10, 100, 100);
     auto right =  std::make_shared<mtd::FakeRenderable>(1900,  10, 100, 100);
@@ -89,7 +89,7 @@ TEST_F(OcclusionFilterTest, partially_offscreen_still_visible)
     EXPECT_THAT(renderables_from(elements), ElementsAre(left, right, top, bottom));
 }
 
-TEST_F(OcclusionFilterTest, smaller_window_occluded)
+TEST_F(OcclusionFilterTest, SmallerWindowOccluded)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
     auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
@@ -101,7 +101,7 @@ TEST_F(OcclusionFilterTest, smaller_window_occluded)
     EXPECT_THAT(renderables_from(elements), ElementsAre(top));
 }
 
-TEST_F(OcclusionFilterTest, translucent_window_occludes_nothing)
+TEST_F(OcclusionFilterTest, TranslucentWindowOccludesNothing)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 0.5f);
     auto bottom = std::make_shared<mtd::FakeRenderable>(Rectangle{{12, 12}, {5, 5}}, 1.0f);
@@ -113,7 +113,7 @@ TEST_F(OcclusionFilterTest, translucent_window_occludes_nothing)
     EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
-TEST_F(OcclusionFilterTest, hidden_window_is_self_occluded)
+TEST_F(OcclusionFilterTest, HiddenWindowIsSelfOccluded)
 {
     auto window = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
     auto elements = scene_elements_from({window});
@@ -124,7 +124,7 @@ TEST_F(OcclusionFilterTest, hidden_window_is_self_occluded)
     EXPECT_THAT(renderables_from(elements), IsEmpty());
 }
 
-TEST_F(OcclusionFilterTest, hidden_window_occludes_nothing)
+TEST_F(OcclusionFilterTest, HiddenWindowOccludesNothing)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
     auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
@@ -136,7 +136,7 @@ TEST_F(OcclusionFilterTest, hidden_window_occludes_nothing)
     EXPECT_THAT(renderables_from(elements), ElementsAre(bottom));
 }
 
-TEST_F(OcclusionFilterTest, shaped_window_occludes_nothing)
+TEST_F(OcclusionFilterTest, ShapedWindowOccludesNothing)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, false, true);
     auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
@@ -148,7 +148,7 @@ TEST_F(OcclusionFilterTest, shaped_window_occludes_nothing)
     EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
-TEST_F(OcclusionFilterTest, identical_window_occluded)
+TEST_F(OcclusionFilterTest, IdenticalWindowOccluded)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
     auto bottom = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
@@ -160,7 +160,7 @@ TEST_F(OcclusionFilterTest, identical_window_occluded)
     EXPECT_THAT(renderables_from(elements), ElementsAre(top));
 }
 
-TEST_F(OcclusionFilterTest, larger_window_never_occluded)
+TEST_F(OcclusionFilterTest, LargerWindowNeverOccluded)
 {
     auto top = std::make_shared<mtd::FakeRenderable>(10, 10, 10, 10);
     auto bottom = std::make_shared<mtd::FakeRenderable>(9, 9, 12, 12);
@@ -172,7 +172,7 @@ TEST_F(OcclusionFilterTest, larger_window_never_occluded)
     EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
-TEST_F(OcclusionFilterTest, cascaded_windows_never_occluded)
+TEST_F(OcclusionFilterTest, CascadedWindowsNeverOccluded)
 {
     std::vector<std::shared_ptr<mg::Renderable>> renderables;
     unsigned int const num_windows{10u};
@@ -187,7 +187,7 @@ TEST_F(OcclusionFilterTest, cascaded_windows_never_occluded)
     EXPECT_THAT(renderables_from(elements), ElementsAreArray(renderables));
 }
 
-TEST_F(OcclusionFilterTest, some_occluded_and_some_not)
+TEST_F(OcclusionFilterTest, SomeOccludedAndSomeNot)
 {
     auto window0 = std::make_shared<mtd::FakeRenderable>(10, 20, 400, 300);
     auto window1 = std::make_shared<mtd::FakeRenderable>(10, 20, 5, 5);

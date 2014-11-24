@@ -45,7 +45,7 @@ struct MockOutputVisitor
 
 }
 
-TEST(NestedDisplayConfiguration, empty_configuration_is_read_correctly)
+TEST(NestedDisplayConfiguration, EmptyConfigurationIsReadCorrectly)
 {
     auto empty_configuration =
         std::shared_ptr<MirDisplayConfiguration>(
@@ -57,7 +57,7 @@ TEST(NestedDisplayConfiguration, empty_configuration_is_read_correctly)
     config.for_each_output([](mg::DisplayConfigurationOutput const&) { FAIL(); });
 }
 
-TEST(NestedDisplayConfiguration, trivial_configuration_has_one_card)
+TEST(NestedDisplayConfiguration, TrivialConfigurationHasOneCard)
 {
     mgn::NestedDisplayConfiguration config(mt::build_trivial_configuration());
 
@@ -67,7 +67,7 @@ TEST(NestedDisplayConfiguration, trivial_configuration_has_one_card)
     config.for_each_card([&cv](mg::DisplayConfigurationCard const& card) { cv.f(card); });
 }
 
-TEST(NestedDisplayConfiguration, trivial_configuration_has_one_output)
+TEST(NestedDisplayConfiguration, TrivialConfigurationHasOneOutput)
 {
     mgn::NestedDisplayConfiguration config(mt::build_trivial_configuration());
 
@@ -77,7 +77,7 @@ TEST(NestedDisplayConfiguration, trivial_configuration_has_one_output)
     config.for_each_output([&ov](mg::DisplayConfigurationOutput const& output) { ov.f(output); });
 }
 
-TEST(NestedDisplayConfiguration, trivial_configuration_can_be_configured)
+TEST(NestedDisplayConfiguration, TrivialConfigurationCanBeConfigured)
 {
     auto const mir_config = mt::build_trivial_configuration();
     auto const default_current_output_format = mir_config->outputs[0].current_format;
@@ -107,7 +107,7 @@ TEST(NestedDisplayConfiguration, trivial_configuration_can_be_configured)
 // portable validation logic which can be found in:
 // TEST(DisplayConfiguration, ...
 
-TEST(NestedDisplayConfiguration, non_trivial_configuration_has_two_cards)
+TEST(NestedDisplayConfiguration, NonTrivialConfigurationHasTwoCards)
 {
     mgn::NestedDisplayConfiguration config(mt::build_non_trivial_configuration());
 
@@ -117,7 +117,7 @@ TEST(NestedDisplayConfiguration, non_trivial_configuration_has_two_cards)
     config.for_each_card([&cv](mg::DisplayConfigurationCard const& card) { cv.f(card); });
 }
 
-TEST(NestedDisplayConfiguration, non_trivial_configuration_has_three_outputs)
+TEST(NestedDisplayConfiguration, NonTrivialConfigurationHasThreeOutputs)
 {
     mgn::NestedDisplayConfiguration config(mt::build_non_trivial_configuration());
 
@@ -127,7 +127,7 @@ TEST(NestedDisplayConfiguration, non_trivial_configuration_has_three_outputs)
     config.for_each_output([&ov](mg::DisplayConfigurationOutput const& output) { ov.f(output); });
 }
 
-TEST(NestedDisplayConfiguration, non_trivial_configuration_can_be_configured)
+TEST(NestedDisplayConfiguration, NonTrivialConfigurationCanBeConfigured)
 {
     auto const mir_config = mt::build_non_trivial_configuration();
     mg::DisplayConfigurationOutputId const id(mir_config->outputs[1].output_id);

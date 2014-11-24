@@ -242,7 +242,7 @@ struct ExchangeBufferTest : mir_test_framework::InProcessServer
 };
 }
 
-TEST_F(ExchangeBufferTest, exchanges_happen)
+TEST_F(ExchangeBufferTest, ExchangesHappen)
 {
     auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
     MirSurfaceParameters const request_params =
@@ -278,7 +278,7 @@ MATCHER(NoErrorOnFileRead, "")
     return arg > 0;
 }
 }
-TEST_F(ExchangeBufferTest, fds_can_be_sent_back)
+TEST_F(ExchangeBufferTest, FdsCanBeSentBack)
 {
     using namespace testing;
     std::string test_string{"mir was a space station"};

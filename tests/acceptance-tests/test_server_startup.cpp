@@ -30,7 +30,7 @@ namespace mtf = mir_test_framework;
 
 using ServerStartup = mtf::InterprocessClientServerTest;
 
-TEST_F(ServerStartup, creates_endpoint_on_filesystem)
+TEST_F(ServerStartup, CreatesEndpointOnFilesystem)
 {
     ASSERT_FALSE(mtf::detect_server(mtf::test_socket_file(), std::chrono::milliseconds(0)));
 
@@ -43,7 +43,7 @@ TEST_F(ServerStartup, creates_endpoint_on_filesystem)
         });
 }
 
-TEST_F(ServerStartup, after_server_sigkilled_can_start_new_instance)
+TEST_F(ServerStartup, AfterServerSigkilledCanStartNewInstance)
 {
     ASSERT_FALSE(mtf::detect_server(mtf::test_socket_file(), std::chrono::milliseconds(0)));
 

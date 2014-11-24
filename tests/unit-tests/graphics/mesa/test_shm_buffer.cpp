@@ -60,7 +60,7 @@ struct ShmBufferTest : public testing::Test
 
 }
 
-TEST_F(ShmBufferTest, has_correct_properties)
+TEST_F(ShmBufferTest, HasCorrectProperties)
 {
     size_t const bytes_per_pixel = MIR_BYTES_PER_PIXEL(pixel_format);
     size_t const expected_stride{bytes_per_pixel * size.width.as_uint32_t()};
@@ -70,7 +70,7 @@ TEST_F(ShmBufferTest, has_correct_properties)
     EXPECT_EQ(pixel_format, shm_buffer.pixel_format());
 }
 
-TEST_F(ShmBufferTest, native_buffer_contains_correct_data)
+TEST_F(ShmBufferTest, NativeBufferContainsCorrectData)
 {
     size_t const bytes_per_pixel = MIR_BYTES_PER_PIXEL(pixel_format);
     size_t const expected_stride{bytes_per_pixel * size.width.as_uint32_t()};
@@ -85,12 +85,12 @@ TEST_F(ShmBufferTest, native_buffer_contains_correct_data)
     EXPECT_EQ(expected_stride, static_cast<size_t>(native_buffer->stride));
 }
 
-TEST_F(ShmBufferTest, cannot_be_used_for_bypass)
+TEST_F(ShmBufferTest, CannotBeUsedForBypass)
 {
     EXPECT_FALSE(shm_buffer.can_bypass());
 }
 
-TEST_F(ShmBufferTest, uploads_pixels_to_texture)
+TEST_F(ShmBufferTest, UploadsPixelsToTexture)
 {
     using namespace testing;
 

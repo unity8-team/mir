@@ -224,7 +224,7 @@ public:
 
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, create_display_sets_all_connected_crtcs)
+TEST_F(MesaDisplayMultiMonitorTest, CreateDisplaySetsAllConnectedCrtcs)
 {
     using namespace testing;
 
@@ -268,7 +268,7 @@ TEST_F(MesaDisplayMultiMonitorTest, create_display_sets_all_connected_crtcs)
     auto display = create_display_cloned(create_platform());
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, create_display_creates_shared_egl_contexts)
+TEST_F(MesaDisplayMultiMonitorTest, CreateDisplayCreatesSharedEglContexts)
 {
     using namespace testing;
 
@@ -315,7 +315,7 @@ ACTION_P(InvokePageFlipHandler, param)
 
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, post_update_flips_all_connected_crtcs)
+TEST_F(MesaDisplayMultiMonitorTest, PostUpdateFlipsAllConnectedCrtcs)
 {
     using namespace testing;
 
@@ -403,7 +403,7 @@ MATCHER_P(IsValidFB, fb_id_container, "") { return fb_id_container->check_fb_id(
 
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, create_display_uses_different_drm_fbs_for_side_by_side)
+TEST_F(MesaDisplayMultiMonitorTest, CreateDisplayUsesDifferentDrmFbsForSideBySide)
 {
     using namespace testing;
 
@@ -450,7 +450,7 @@ TEST_F(MesaDisplayMultiMonitorTest, create_display_uses_different_drm_fbs_for_si
     auto display = create_display_side_by_side(create_platform());
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, configure_clears_unused_connected_outputs)
+TEST_F(MesaDisplayMultiMonitorTest, ConfigureClearsUnusedConnectedOutputs)
 {
     using namespace testing;
 
@@ -504,7 +504,7 @@ TEST_F(MesaDisplayMultiMonitorTest, configure_clears_unused_connected_outputs)
     }
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, resume_clears_unused_connected_outputs)
+TEST_F(MesaDisplayMultiMonitorTest, ResumeClearsUnusedConnectedOutputs)
 {
     using namespace testing;
 

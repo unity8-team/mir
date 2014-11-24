@@ -110,7 +110,7 @@ struct SessionManagerSetup : public testing::Test
 
 }
 
-TEST_F(SessionManagerSetup, open_and_close_session)
+TEST_F(SessionManagerSetup, OpenAndCloseSession)
 {
     using namespace ::testing;
 
@@ -123,7 +123,7 @@ TEST_F(SessionManagerSetup, open_and_close_session)
     session_manager.close_session(session);
 }
 
-TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
+TEST_F(SessionManagerSetup, ClosingSessionRemovesSurfaces)
 {
     using namespace ::testing;
 
@@ -144,7 +144,7 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
     session_manager.close_session(session);
 }
 
-TEST_F(SessionManagerSetup, new_applications_receive_focus)
+TEST_F(SessionManagerSetup, NewApplicationsReceiveFocus)
 {
     using namespace ::testing;
     std::shared_ptr<ms::Session> new_session;
@@ -183,7 +183,7 @@ struct SessionManagerSessionListenerSetup : public testing::Test
 };
 }
 
-TEST_F(SessionManagerSessionListenerSetup, session_listener_is_notified_of_lifecycle_and_focus)
+TEST_F(SessionManagerSessionListenerSetup, SessionListenerIsNotifiedOfLifecycleAndFocus)
 {
     using namespace ::testing;
 
@@ -224,7 +224,7 @@ struct SessionManagerSessionEventsSetup : public testing::Test
 
 }
 
-TEST_F(SessionManagerSessionEventsSetup, session_event_sink_is_notified_of_lifecycle_and_focus)
+TEST_F(SessionManagerSessionEventsSetup, SessionEventSinkIsNotifiedOfLifecycleAndFocus)
 {
     using namespace ::testing;
 

@@ -49,7 +49,7 @@ protected:
     std::shared_ptr<mtd::MockBufferBundle> mock_bundle;
 };
 
-TEST_F(BufferStreamTest, size_query)
+TEST_F(BufferStreamTest, SizeQuery)
 {
     geom::Size size{4, 5};
     mg::BufferProperties properties {size, mir_pixel_format_abgr_8888, mg::BufferUsage::hardware};
@@ -62,7 +62,7 @@ TEST_F(BufferStreamTest, size_query)
     EXPECT_EQ(size, returned_size);
 }
 
-TEST_F(BufferStreamTest, pixel_format_query)
+TEST_F(BufferStreamTest, PixelFormatQuery)
 {
     MirPixelFormat format{mir_pixel_format_abgr_8888};
     mg::BufferProperties properties {geom::Size{4, 5}, format, mg::BufferUsage::hardware};
@@ -75,7 +75,7 @@ TEST_F(BufferStreamTest, pixel_format_query)
     EXPECT_EQ(format, returned_pf);
 }
 
-TEST_F(BufferStreamTest, force_requests_to_complete)
+TEST_F(BufferStreamTest, ForceRequestsToComplete)
 {
     EXPECT_CALL(*mock_bundle, force_requests_to_complete())
         .Times(2);  // Once explcit, once on destruction
@@ -84,7 +84,7 @@ TEST_F(BufferStreamTest, force_requests_to_complete)
     buffer_stream.force_requests_to_complete();
 }
 
-TEST_F(BufferStreamTest, requests_are_completed_before_destruction)
+TEST_F(BufferStreamTest, RequestsAreCompletedBeforeDestruction)
 {
     EXPECT_CALL(*mock_bundle, force_requests_to_complete())
         .Times(1);
@@ -92,7 +92,7 @@ TEST_F(BufferStreamTest, requests_are_completed_before_destruction)
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 }
 
-TEST_F(BufferStreamTest, get_buffer_for_compositor_handles_resources)
+TEST_F(BufferStreamTest, GetBufferForCompositorHandlesResources)
 {
     using namespace testing;
 
@@ -107,7 +107,7 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_handles_resources)
     buffer_stream.lock_compositor_buffer(0);
 }
 
-TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
+TEST_F(BufferStreamTest, GetBufferForCompositorCanLock)
 {
     using namespace testing;
 
@@ -122,7 +122,7 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
     buffer_stream.lock_compositor_buffer(0);
 }
 
-TEST_F(BufferStreamTest, get_buffer_for_client_releases_resources)
+TEST_F(BufferStreamTest, GetBufferForClientReleasesResources)
 {
     std::mutex mutex;
     std::condition_variable cv;
@@ -172,7 +172,7 @@ TEST_F(BufferStreamTest, get_buffer_for_client_releases_resources)
     }
 }
 
-TEST_F(BufferStreamTest, allow_framedropping_device)
+TEST_F(BufferStreamTest, AllowFramedroppingDevice)
 {
     EXPECT_CALL(*mock_bundle, allow_framedropping(true))
         .Times(1);
@@ -181,7 +181,7 @@ TEST_F(BufferStreamTest, allow_framedropping_device)
     buffer_stream.allow_framedropping(true);
 }
 
-TEST_F(BufferStreamTest, resizes_bundle)
+TEST_F(BufferStreamTest, ResizesBundle)
 {
     geom::Size const new_size{66, 77};
 

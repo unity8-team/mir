@@ -156,7 +156,7 @@ struct ClientSurfaceEvents : mtf::ConnectedClientWithASurface
 };
 }
 
-TEST_F(ClientSurfaceEvents, surface_receives_state_events)
+TEST_F(ClientSurfaceEvents, SurfaceReceivesStateEvents)
 {
     int surface_id = mir_debug_surface_id(surface);
 
@@ -217,7 +217,7 @@ TEST_F(ClientSurfaceEvents, surface_receives_state_events)
 
 struct OrientationEvents : ClientSurfaceEvents, ::testing::WithParamInterface<MirOrientation> {};
 
-TEST_P(OrientationEvents, surface_receives_orientation_events)
+TEST_P(OrientationEvents, SurfaceReceivesOrientationEvents)
 {
     set_event_filter(mir_event_type_orientation);
 
@@ -238,7 +238,7 @@ INSTANTIATE_TEST_CASE_P(ClientSurfaceEvents,
     OrientationEvents,
     Values(mir_orientation_normal, mir_orientation_left, mir_orientation_inverted, mir_orientation_right));
 
-TEST_F(ClientSurfaceEvents, client_can_query_current_orientation)
+TEST_F(ClientSurfaceEvents, ClientCanQueryCurrentOrientation)
 {
     set_event_filter(mir_event_type_orientation);
 

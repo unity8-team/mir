@@ -68,7 +68,7 @@ public:
     }
 };
 
-TEST(NestedGraphicsPlatform, egl_native_display_is_host_connection_native_display)
+TEST(NestedGraphicsPlatform, EglNativeDisplayIsHostConnectionNativeDisplay)
 {
     using namespace testing;
 

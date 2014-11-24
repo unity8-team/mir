@@ -116,7 +116,7 @@ struct AndroidInputManagerSetup : public testing::Test
 
 }
 
-TEST_F(AndroidInputManagerSetup, starts_and_stops_reader)
+TEST_F(AndroidInputManagerSetup, StartsAndStopsReader)
 {
     using namespace ::testing;
 
@@ -135,7 +135,7 @@ TEST_F(AndroidInputManagerSetup, starts_and_stops_reader)
     setup_stop_expectations();
 }
 
-TEST_F(AndroidInputManagerSetup, stops_reader_at_destruction)
+TEST_F(AndroidInputManagerSetup, StopsReaderAtDestruction)
 {
     using namespace ::testing;
 
@@ -147,7 +147,7 @@ TEST_F(AndroidInputManagerSetup, stops_reader_at_destruction)
     manager.start();
 }
 
-TEST_F(AndroidInputManagerSetup, channel_factory_returns_input_channel_with_fds)
+TEST_F(AndroidInputManagerSetup, ChannelFactoryReturnsInputChannelWithFds)
 {
     mia::InputChannelFactory factory;
 

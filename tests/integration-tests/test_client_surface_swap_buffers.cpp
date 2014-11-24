@@ -52,7 +52,7 @@ namespace mc = mir::compositor;
 //
 //}
 //
-//TEST_F(MirSurfaceSwapBuffersTest, swap_buffers_does_not_block_when_surface_is_not_composited)
+//TEST_F(MirSurfaceSwapBuffersTest, Swap_buffers_does_not_block_when_surface_is_not_composited)
 //{
 //    using namespace testing;
 //

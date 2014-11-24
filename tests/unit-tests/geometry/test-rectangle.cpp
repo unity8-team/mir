@@ -25,7 +25,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, rectangle)
+TEST(geometry, Rectangle)
 {
     using namespace geom;
     Point const x3y9{X(3), Y(9)};
@@ -46,7 +46,7 @@ TEST(geometry, rectangle)
     EXPECT_NE(rect, default_rect);
 }
 
-TEST(geometry, rectangle_bottom_right)
+TEST(geometry, RectangleBottomRight)
 {
     using namespace testing;
     using namespace geom;
@@ -58,7 +58,7 @@ TEST(geometry, rectangle_bottom_right)
     EXPECT_EQ(Point(2,2), rect_empty.bottom_right());
 }
 
-TEST(geometry, rectangle_contains_rectangle)
+TEST(geometry, RectangleContainsRectangle)
 {
     using namespace testing;
     using namespace geom;
@@ -105,7 +105,7 @@ TEST(geometry, rectangle_contains_rectangle)
     EXPECT_FALSE(r.contains(Rectangle{{-6,-7}, {3,4}}));
 }
 
-TEST(geometry, empty_rectangle_contains_point_only)
+TEST(geometry, EmptyRectangleContainsPointOnly)
 {
     using namespace testing;
     using namespace geom;
@@ -124,7 +124,7 @@ TEST(geometry, empty_rectangle_contains_point_only)
     EXPECT_FALSE(r.contains(Rectangle{{left,top+1}, {0,0}}));
 }
 
-TEST(geometry, elongated_empty_rectangle_contains_points_only)
+TEST(geometry, ElongatedEmptyRectangleContainsPointsOnly)
 {
     using namespace testing;
     using namespace geom;
@@ -148,7 +148,7 @@ TEST(geometry, elongated_empty_rectangle_contains_points_only)
     EXPECT_FALSE(r.contains(Rectangle{{left-1,top}, {0,0}}));
 }
 
-TEST(geometry, rectangle_contains_point)
+TEST(geometry, RectangleContainsPoint)
 {
     using namespace testing;
     using namespace geom;
@@ -164,7 +164,7 @@ TEST(geometry, rectangle_contains_point)
     EXPECT_FALSE(rect_empty.contains({2,2}));
 }
 
-TEST(geometry, rectangle_overlaps)
+TEST(geometry, RectangleOverlaps)
 {
     using namespace testing;
     using namespace geom;
@@ -198,7 +198,7 @@ TEST(geometry, rectangle_overlaps)
     EXPECT_TRUE(rect3.overlaps(rect3));
 }
 
-TEST(geometry, rectangle_intersection)
+TEST(geometry, RectangleIntersection)
 {
     using namespace testing;
     using namespace geom;

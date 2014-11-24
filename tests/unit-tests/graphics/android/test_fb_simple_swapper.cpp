@@ -104,7 +104,7 @@ static int display_attribute_handler(struct hwc_composer_device_1*, int, uint32_
 }
 }
 
-TEST_F(PostingFBBundleTest, hwc_fb_size_allocation)
+TEST_F(PostingFBBundleTest, HwcFbSizeAllocation)
 {
     using namespace testing;
 
@@ -125,7 +125,7 @@ TEST_F(PostingFBBundleTest, hwc_fb_size_allocation)
     EXPECT_EQ(display_size, framebuffers.fb_size());
 }
 
-TEST_F(PostingFBBundleTest, hwc_fb_format_selection)
+TEST_F(PostingFBBundleTest, HwcFbFormatSelection)
 {
     using namespace testing;
     EGLint const expected_egl_config_attr [] =
@@ -160,7 +160,7 @@ TEST_F(PostingFBBundleTest, hwc_fb_format_selection)
 }
 
 //apparently this can happen if the display is in the 'unplugged state'
-TEST_F(PostingFBBundleTest, test_hwc_device_display_config_failure_throws)
+TEST_F(PostingFBBundleTest, TestHwcDeviceDisplayConfigFailureThrows)
 {
     using namespace testing;
     EXPECT_CALL(*mock_hwc_device, getDisplayConfigs_interface(mock_hwc_device.get(),HWC_DISPLAY_PRIMARY,_,_))
@@ -175,7 +175,7 @@ TEST_F(PostingFBBundleTest, test_hwc_device_display_config_failure_throws)
 
 //not all hwc11 implementations give a hint about their framebuffer formats in their configuration.
 //prefer abgr_8888 if we can't figure things out
-TEST_F(PostingFBBundleTest, hwc_version_11_format_selection_failure)
+TEST_F(PostingFBBundleTest, HwcVersion_11FormatSelectionFailure)
 {
     using namespace testing;
     EGLDisplay fake_display = reinterpret_cast<EGLDisplay>(0x11235813);
@@ -196,7 +196,7 @@ TEST_F(PostingFBBundleTest, hwc_version_11_format_selection_failure)
     EXPECT_EQ(mir_pixel_format_abgr_8888, framebuffers.fb_format());
 }
 
-TEST_F(PostingFBBundleTest, bundle_from_fb)
+TEST_F(PostingFBBundleTest, BundleFromFb)
 {
     using namespace testing;
     auto display_size = geom::Size{display_width, display_height};
@@ -210,7 +210,7 @@ TEST_F(PostingFBBundleTest, bundle_from_fb)
 }
 
 //some drivers incorrectly report 0 buffers available. if this is true, we should alloc 2, the minimum requirement
-TEST_F(PostingFBBundleTest, determine_fbnum_always_reports_2_minimum)
+TEST_F(PostingFBBundleTest, DetermineFbnumAlwaysReports_2Minimum)
 {
     using namespace testing;
     auto slightly_malformed_fb_hal_mock = std::make_shared<mtd::MockFBHalDevice>(display_width, display_height, format, 0);
@@ -221,7 +221,7 @@ TEST_F(PostingFBBundleTest, determine_fbnum_always_reports_2_minimum)
     mga::Framebuffers framebuffers(mock_allocator, slightly_malformed_fb_hal_mock);
 }
 
-TEST_F(PostingFBBundleTest, last_rendered_returns_valid)
+TEST_F(PostingFBBundleTest, LastRenderedReturnsValid)
 {
     mga::Framebuffers framebuffers(mock_allocator, mock_fb_hal);
 
@@ -235,7 +235,7 @@ TEST_F(PostingFBBundleTest, last_rendered_returns_valid)
     EXPECT_EQ(first_buffer_ptr, framebuffers.last_rendered_buffer().get());
 }
 
-TEST_F(PostingFBBundleTest, last_rendered_is_first_returned_from_driver)
+TEST_F(PostingFBBundleTest, LastRenderedIsFirstReturnedFromDriver)
 {
     mga::Framebuffers framebuffers(mock_allocator, mock_hwc_device, 2u);
     auto buffer1 = framebuffers.buffer_for_render().get();
@@ -244,7 +244,7 @@ TEST_F(PostingFBBundleTest, last_rendered_is_first_returned_from_driver)
     EXPECT_EQ(buffer2, framebuffers.last_rendered_buffer().get());
 }
 
-TEST_F(PostingFBBundleTest, no_rendering_returns_same_buffer)
+TEST_F(PostingFBBundleTest, NoRenderingReturnsSameBuffer)
 {
     mga::Framebuffers framebuffers(mock_allocator, mock_hwc_device, 2u);
     framebuffers.buffer_for_render().get();
@@ -252,7 +252,7 @@ TEST_F(PostingFBBundleTest, no_rendering_returns_same_buffer)
     EXPECT_EQ(buffer, framebuffers.last_rendered_buffer());
 }
 
-TEST_F(PostingFBBundleTest, three_buffers_for_hwc)
+TEST_F(PostingFBBundleTest, ThreeBuffersForHwc)
 {
     mga::Framebuffers framebuffers(mock_allocator, mock_hwc_device, 3u);
 

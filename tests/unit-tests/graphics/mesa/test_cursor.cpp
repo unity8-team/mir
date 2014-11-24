@@ -238,7 +238,7 @@ struct MesaCursorTest : public ::testing::Test
 
 }
 
-TEST_F(MesaCursorTest, creates_cursor_bo_image)
+TEST_F(MesaCursorTest, CreatesCursorBoImage)
 {
     size_t const cursor_side{64};
     EXPECT_CALL(mock_gbm, gbm_bo_create(mock_gbm.fake_gbm.device,
@@ -251,7 +251,7 @@ TEST_F(MesaCursorTest, creates_cursor_bo_image)
         std::make_shared<StubCursorImage>()};
 }
 
-TEST_F(MesaCursorTest, show_cursor_writes_to_bo)
+TEST_F(MesaCursorTest, ShowCursorWritesToBo)
 {
     using namespace testing;
 
@@ -279,7 +279,7 @@ MATCHER(ContainsASingleWhitePixel, "")
     return true; 
 }
 
-TEST_F(MesaCursorTest, show_cursor_pads_missing_data)
+TEST_F(MesaCursorTest, ShowCursorPadsMissingData)
 {
     using namespace testing;
 
@@ -311,7 +311,7 @@ TEST_F(MesaCursorTest, show_cursor_pads_missing_data)
     cursor.show(SinglePixelCursorImage());
 }
 
-TEST_F(MesaCursorTest, throws_when_images_are_too_large)
+TEST_F(MesaCursorTest, ThrowsWhenImagesAreTooLarge)
 {
     using namespace testing;
 
@@ -330,7 +330,7 @@ TEST_F(MesaCursorTest, throws_when_images_are_too_large)
     }, std::logic_error);
 }
 
-TEST_F(MesaCursorTest, forces_cursor_state_on_construction)
+TEST_F(MesaCursorTest, ForcesCursorStateOnConstruction)
 {
     using namespace testing;
 
@@ -352,7 +352,7 @@ TEST_F(MesaCursorTest, forces_cursor_state_on_construction)
 }
 
 
-TEST_F(MesaCursorTest, move_to_sets_clears_cursor_if_needed)
+TEST_F(MesaCursorTest, MoveToSetsClearsCursorIfNeeded)
 {
     using namespace testing;
 
@@ -369,7 +369,7 @@ TEST_F(MesaCursorTest, move_to_sets_clears_cursor_if_needed)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, move_to_doesnt_set_clear_cursor_if_not_needed)
+TEST_F(MesaCursorTest, MoveToDoesntSetClearCursorIfNotNeeded)
 {
     using namespace testing;
 
@@ -388,7 +388,7 @@ TEST_F(MesaCursorTest, move_to_doesnt_set_clear_cursor_if_not_needed)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, move_to_moves_cursor_to_right_output)
+TEST_F(MesaCursorTest, MoveToMovesCursorToRightOutput)
 {
     using namespace testing;
 
@@ -425,7 +425,7 @@ TEST_F(MesaCursorTest, move_to_moves_cursor_to_right_output)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, moves_properly_to_and_inside_left_rotated_output)
+TEST_F(MesaCursorTest, MovesProperlyToAndInsideLeftRotatedOutput)
 {
     using namespace testing;
 
@@ -441,7 +441,7 @@ TEST_F(MesaCursorTest, moves_properly_to_and_inside_left_rotated_output)
 }
 
 
-TEST_F(MesaCursorTest, moves_properly_to_and_inside_right_rotated_output)
+TEST_F(MesaCursorTest, MovesProperlyToAndInsideRightRotatedOutput)
 {
     using namespace testing;
 
@@ -457,7 +457,7 @@ TEST_F(MesaCursorTest, moves_properly_to_and_inside_right_rotated_output)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, moves_properly_to_and_inside_inverted_output)
+TEST_F(MesaCursorTest, MovesProperlyToAndInsideInvertedOutput)
 {
     using namespace testing;
 
@@ -472,7 +472,7 @@ TEST_F(MesaCursorTest, moves_properly_to_and_inside_inverted_output)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, hides_cursor_in_all_outputs)
+TEST_F(MesaCursorTest, HidesCursorInAllOutputs)
 {
     using namespace testing;
 
@@ -485,7 +485,7 @@ TEST_F(MesaCursorTest, hides_cursor_in_all_outputs)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, hidden_cursor_is_not_shown_on_display_when_moved)
+TEST_F(MesaCursorTest, HiddenCursorIsNotShownOnDisplayWhenMoved)
 {
     using namespace testing;
 
@@ -502,7 +502,7 @@ TEST_F(MesaCursorTest, hidden_cursor_is_not_shown_on_display_when_moved)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, clears_cursor_on_exit)
+TEST_F(MesaCursorTest, ClearsCursorOnExit)
 {
     using namespace testing;
 
@@ -511,7 +511,7 @@ TEST_F(MesaCursorTest, clears_cursor_on_exit)
     EXPECT_CALL(*output_container.outputs[12], clear_cursor());
 }
 
-TEST_F(MesaCursorTest, cursor_is_shown_at_correct_location_after_suspend_resume)
+TEST_F(MesaCursorTest, CursorIsShownAtCorrectLocationAfterSuspendResume)
 {
     using namespace testing;
 
@@ -535,7 +535,7 @@ TEST_F(MesaCursorTest, cursor_is_shown_at_correct_location_after_suspend_resume)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, hidden_cursor_is_not_shown_after_suspend_resume)
+TEST_F(MesaCursorTest, HiddenCursorIsNotShownAfterSuspendResume)
 {
     using namespace testing;
 
@@ -556,7 +556,7 @@ TEST_F(MesaCursorTest, hidden_cursor_is_not_shown_after_suspend_resume)
     output_container.verify_and_clear_expectations();
 }
 
-TEST_F(MesaCursorTest, show_cursor_sets_cursor_with_hotspot)
+TEST_F(MesaCursorTest, ShowCursorSetsCursorWithHotspot)
 {
     using namespace testing;
 

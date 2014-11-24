@@ -41,7 +41,7 @@ struct MockMsgSender : public mfd::MessageSender
 };
 }
 
-TEST(TestEventSender, display_send)
+TEST(TestEventSender, DisplaySend)
 {
     using namespace testing;
 
@@ -66,7 +66,7 @@ TEST(TestEventSender, display_send)
     sender.handle_display_config_change(config);
 }
 
-TEST(TestEventSender, sends_noninput_events)
+TEST(TestEventSender, SendsNoninputEvents)
 {
     using namespace testing;
 
@@ -84,7 +84,7 @@ TEST(TestEventSender, sends_noninput_events)
     event_sender.handle_event(event);
 }
 
-TEST(TestEventSender, never_sends_input_events)
+TEST(TestEventSender, NeverSendsInputEvents)
 {
     using namespace testing;
 

@@ -45,7 +45,7 @@ struct ClientLibraryThread : mtf::InterprocessClientServerTest
     }
 };
 
-TEST_F(ClientLibraryThread, handles_no_signals)
+TEST_F(ClientLibraryThread, HandlesNoSignals)
 {
     run_in_client([&]
         {
@@ -88,7 +88,7 @@ TEST_F(ClientLibraryThread, handles_no_signals)
         });
 }
 
-TEST_F(ClientLibraryThread, does_not_interfere_with_client_signal_handling)
+TEST_F(ClientLibraryThread, DoesNotInterfereWithClientSignalHandling)
 {
     run_in_client([&]
         {

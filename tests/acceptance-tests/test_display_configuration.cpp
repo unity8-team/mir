@@ -170,7 +170,7 @@ void wait_for_server_actions_to_finish(mir::ServerActionQueue& server_action_que
 
 using DisplayConfigurationTest = BespokeDisplayServerTestFixture;
 
-TEST_F(DisplayConfigurationTest, display_configuration_reaches_client)
+TEST_F(DisplayConfigurationTest, DisplayConfigurationReachesClient)
 {
     struct ServerConfig : TestingServerConfiguration
     {
@@ -204,7 +204,7 @@ TEST_F(DisplayConfigurationTest, display_configuration_reaches_client)
     launch_client_process(client_config);
 }
 
-TEST_F(DisplayConfigurationTest, hw_display_change_notification_reaches_all_clients)
+TEST_F(DisplayConfigurationTest, HwDisplayChangeNotificationReachesAllClients)
 {
     mtf::CrossProcessSync client_ready_fence;
     mtf::CrossProcessSync unsubscribed_client_ready_fence;
@@ -345,7 +345,7 @@ TEST_F(DisplayConfigurationTest, hw_display_change_notification_reaches_all_clie
     });
 }
 
-TEST_F(DisplayConfigurationTest, display_change_request_for_unauthorized_client_fails)
+TEST_F(DisplayConfigurationTest, DisplayChangeRequestForUnauthorizedClientFails)
 {
     struct ServerConfig : TestingServerConfiguration
     {
@@ -458,7 +458,7 @@ struct SimpleClient : TestingClientConfiguration
 
 }
 
-TEST_F(DisplayConfigurationTest, changing_config_for_focused_client_configures_display)
+TEST_F(DisplayConfigurationTest, ChangingConfigForFocusedClientConfiguresDisplay)
 {
     mt::CrossProcessAction display_client_connect;
     mt::CrossProcessAction display_client_apply_config;
@@ -538,7 +538,7 @@ TEST_F(DisplayConfigurationTest, changing_config_for_focused_client_configures_d
     });
 }
 
-TEST_F(DisplayConfigurationTest, focusing_client_with_display_config_configures_display)
+TEST_F(DisplayConfigurationTest, FocusingClientWithDisplayConfigConfiguresDisplay)
 {
     mt::CrossProcessAction display_client_connect;
     mt::CrossProcessAction display_client_apply_config;
@@ -634,7 +634,7 @@ TEST_F(DisplayConfigurationTest, focusing_client_with_display_config_configures_
     });
 }
 
-TEST_F(DisplayConfigurationTest, changing_focus_from_client_with_config_to_client_without_config_configures_display)
+TEST_F(DisplayConfigurationTest, ChangingFocusFromClientWithConfigToClientWithoutConfigConfiguresDisplay)
 {
     mt::CrossProcessAction display_client_connect;
     mt::CrossProcessAction display_client_apply_config;
@@ -729,7 +729,7 @@ TEST_F(DisplayConfigurationTest, changing_focus_from_client_with_config_to_clien
     });
 }
 
-TEST_F(DisplayConfigurationTest, hw_display_change_doesnt_apply_base_config_if_per_session_config_is_active)
+TEST_F(DisplayConfigurationTest, HwDisplayChangeDoesntApplyBaseConfigIfPerSessionConfigIsActive)
 {
     mt::CrossProcessAction display_client_connect;
     mt::CrossProcessAction display_client_apply_config;

@@ -76,7 +76,7 @@ public:
 };
 }
 
-TEST_F(MesaGraphicsPlatform, connection_ipc_package)
+TEST_F(MesaGraphicsPlatform, ConnectionIpcPackage)
 {
     using namespace testing;
     mir::test::Pipe auth_pipe;
@@ -108,7 +108,7 @@ TEST_F(MesaGraphicsPlatform, connection_ipc_package)
     );
 }
 
-TEST_F(MesaGraphicsPlatform, a_failure_while_creating_a_platform_results_in_an_error)
+TEST_F(MesaGraphicsPlatform, AFailureWhileCreatingAPlatformResultsInAnError)
 {
     using namespace ::testing;
 
@@ -126,7 +126,7 @@ TEST_F(MesaGraphicsPlatform, a_failure_while_creating_a_platform_results_in_an_e
     FAIL() << "Expected an exception to be thrown.";
 }
 
-TEST_F(MesaGraphicsPlatform, fails_if_no_resources)
+TEST_F(MesaGraphicsPlatform, FailsIfNoResources)
 {
     using namespace ::testing;
 
@@ -143,7 +143,7 @@ TEST_F(MesaGraphicsPlatform, fails_if_no_resources)
 }
 
 /* ipc packaging tests */
-TEST_F(MesaGraphicsPlatform, drm_auth_magic_calls_drm_function_correctly)
+TEST_F(MesaGraphicsPlatform, DrmAuthMagicCallsDrmFunctionCorrectly)
 {
     using namespace testing;
 
@@ -161,7 +161,7 @@ TEST_F(MesaGraphicsPlatform, drm_auth_magic_calls_drm_function_correctly)
     EXPECT_THAT(response_pkg.ipc_data[0], Eq(0));
 }
 
-TEST_F(MesaGraphicsPlatform, drm_auth_magic_throws_if_drm_function_fails)
+TEST_F(MesaGraphicsPlatform, DrmAuthMagicThrowsIfDrmFunctionFails)
 {
     using namespace testing;
 
@@ -180,7 +180,7 @@ TEST_F(MesaGraphicsPlatform, drm_auth_magic_throws_if_drm_function_fails)
     }, std::runtime_error);
 }
 
-TEST_F(MesaGraphicsPlatform, platform_provides_validation_of_display_for_internal_clients)
+TEST_F(MesaGraphicsPlatform, PlatformProvidesValidationOfDisplayForInternalClients)
 {
     MirMesaEGLNativeDisplay* native_display = nullptr;
     EXPECT_EQ(MIR_MESA_FALSE, mgm::mir_server_mesa_egl_native_display_is_valid(native_display));
@@ -193,7 +193,7 @@ TEST_F(MesaGraphicsPlatform, platform_provides_validation_of_display_for_interna
     EXPECT_EQ(MIR_MESA_FALSE, mgm::mir_server_mesa_egl_native_display_is_valid(native_display));
 }
 
-TEST_F(MesaGraphicsPlatform, egl_native_display_is_gbm_device)
+TEST_F(MesaGraphicsPlatform, EglNativeDisplayIsGbmDevice)
 {
     auto platform = create_platform();
     EXPECT_EQ(mock_gbm.fake_gbm.device, platform->egl_native_display());
@@ -239,7 +239,7 @@ private:
  * 100% failure rate for this test (1000 out of 1000 repetitions) when testing
  * without the fix for the race condition we are testing for.
  */
-TEST_F(MesaGraphicsPlatform, drm_close_not_called_concurrently_on_ipc_package_destruction)
+TEST_F(MesaGraphicsPlatform, DrmCloseNotCalledConcurrentlyOnIpcPackageDestruction)
 {
     using namespace testing;
 
@@ -285,7 +285,7 @@ struct StubEmergencyCleanupRegistry : mir::EmergencyCleanupRegistry
     mir::EmergencyCleanupHandler handler;
 };
 
-TEST_F(MesaGraphicsPlatform, restores_vt_on_emergency_cleanup)
+TEST_F(MesaGraphicsPlatform, RestoresVtOnEmergencyCleanup)
 {
     using namespace testing;
 
@@ -304,7 +304,7 @@ TEST_F(MesaGraphicsPlatform, restores_vt_on_emergency_cleanup)
     Mock::VerifyAndClearExpectations(mock_vt.get());
 }
 
-TEST_F(MesaGraphicsPlatform, releases_drm_on_emergency_cleanup)
+TEST_F(MesaGraphicsPlatform, ReleasesDrmOnEmergencyCleanup)
 {
     using namespace testing;
 
@@ -325,7 +325,7 @@ TEST_F(MesaGraphicsPlatform, releases_drm_on_emergency_cleanup)
     Mock::VerifyAndClearExpectations(&mock_drm);
 }
 
-TEST_F(MesaGraphicsPlatform, does_not_propagate_emergency_cleanup_exceptions)
+TEST_F(MesaGraphicsPlatform, DoesNotPropagateEmergencyCleanupExceptions)
 {
     using namespace testing;
 

@@ -19,7 +19,7 @@
 #include "cutils/log.h"  // Get the final value of LOG_NDEBUG
 #include <gtest/gtest.h>
 
-TEST(Macros, android_verbose_logging_is_disabled)
+TEST(Macros, AndroidVerboseLoggingIsDisabled)
 {
     // Ensure verbose logging (ALOGV) is removed. It requires significant
     // CPU time to constantly format some verbose messages...

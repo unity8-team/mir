@@ -361,7 +361,7 @@ std::shared_ptr<mtf::Process> TestClientIPCRender::render_accelerated_process;
 mtf::CrossProcessSync TestClientIPCRender::sync4;
 std::shared_ptr<mtf::Process> TestClientIPCRender::render_accelerated_process_double;
 
-TEST_F(TestClientIPCRender, test_render_single)
+TEST_F(TestClientIPCRender, TestRenderSingle)
 {
     sync1.try_signal_ready_for();
 
@@ -374,7 +374,7 @@ TEST_F(TestClientIPCRender, test_render_single)
     EXPECT_TRUE(draw_pattern0.check(*region));
 }
 
-TEST_F(TestClientIPCRender, test_render_double)
+TEST_F(TestClientIPCRender, TestRenderDouble)
 {
     sync2.try_signal_ready_for();
 
@@ -390,7 +390,7 @@ TEST_F(TestClientIPCRender, test_render_double)
     EXPECT_TRUE(draw_pattern1.check(*region1));
 }
 
-TEST_F(TestClientIPCRender, test_accelerated_render)
+TEST_F(TestClientIPCRender, TestAcceleratedRender)
 {
     mt::DrawPatternSolid red_pattern(0xFF0000FF);
 
@@ -404,7 +404,7 @@ TEST_F(TestClientIPCRender, test_accelerated_render)
     EXPECT_TRUE(red_pattern.check(*region0));
 }
 
-TEST_F(TestClientIPCRender, test_accelerated_render_double)
+TEST_F(TestClientIPCRender, TestAcceleratedRenderDouble)
 {
     mt::DrawPatternSolid red_pattern(0xFF0000FF);
     mt::DrawPatternSolid green_pattern(0xFF00FF00);

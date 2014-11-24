@@ -134,7 +134,7 @@ std::shared_ptr<mt::StubServerTool> PublishedSocketConnector::stub_server_tool;
 std::shared_ptr<MockConnectorReport> PublishedSocketConnector::communicator_report;
 std::shared_ptr<mt::TestProtobufServer> PublishedSocketConnector::stub_server;
 
-TEST_F(PublishedSocketConnector, create_surface_results_in_a_callback)
+TEST_F(PublishedSocketConnector, CreateSurfaceResultsInACallback)
 {
     EXPECT_CALL(*client, create_surface_done()).Times(1);
 
@@ -147,7 +147,7 @@ TEST_F(PublishedSocketConnector, create_surface_results_in_a_callback)
     client->wait_for_create_surface();
 }
 
-TEST_F(PublishedSocketConnector, connection_sets_app_name)
+TEST_F(PublishedSocketConnector, ConnectionSetsAppName)
 {
     EXPECT_CALL(*client, connect_done()).Times(1);
 
@@ -164,7 +164,7 @@ TEST_F(PublishedSocketConnector, connection_sets_app_name)
     EXPECT_EQ(__PRETTY_FUNCTION__, stub_server_tool->app_name);
 }
 
-TEST_F(PublishedSocketConnector, create_surface_sets_surface_name)
+TEST_F(PublishedSocketConnector, CreateSurfaceSetsSurfaceName)
 {
     EXPECT_CALL(*client, connect_done()).Times(1);
     EXPECT_CALL(*client, create_surface_done()).Times(1);
@@ -217,7 +217,7 @@ MATCHER_P(InvocationMethodEq, name, "")
 
 }
 
-TEST_F(PublishedSocketConnector, double_disconnection_does_not_break)
+TEST_F(PublishedSocketConnector, DoubleDisconnectionDoesNotBreak)
 {
     using namespace testing;
 
@@ -270,7 +270,7 @@ TEST_F(PublishedSocketConnector, double_disconnection_does_not_break)
     client->wait_for_disconnect_done();
 }
 
-TEST_F(PublishedSocketConnector, getting_and_advancing_buffers)
+TEST_F(PublishedSocketConnector, GettingAndAdvancingBuffers)
 {
     EXPECT_CALL(*client, create_surface_done()).Times(testing::AtLeast(0));
     EXPECT_CALL(*client, disconnect_done()).Times(testing::AtLeast(0));
@@ -329,7 +329,7 @@ TEST_F(PublishedSocketConnector,
     client->wait_for_disconnect_done();
 }
 
-TEST_F(PublishedSocketConnector, drm_auth_magic_is_processed_by_the_server)
+TEST_F(PublishedSocketConnector, DrmAuthMagicIsProcessedByTheServer)
 {
     mir::protobuf::DRMMagic magic;
     mir::protobuf::DRMAuthMagicStatus status;
@@ -359,7 +359,7 @@ public:
 
 }
 
-TEST_F(PublishedSocketConnector, disorderly_disconnection_handled)
+TEST_F(PublishedSocketConnector, DisorderlyDisconnectionHandled)
 {
     using namespace testing;
 
@@ -394,7 +394,7 @@ TEST_F(PublishedSocketConnector, disorderly_disconnection_handled)
     while (!done && cv.wait_until(lock, deadline) != std::cv_status::timeout);
 }
 
-TEST_F(PublishedSocketConnector, configure_display)
+TEST_F(PublishedSocketConnector, ConfigureDisplay)
 {
     EXPECT_CALL(*client, display_configure_done())
         .Times(1);
@@ -408,7 +408,7 @@ TEST_F(PublishedSocketConnector, configure_display)
     client->wait_for_configure_display_done();
 }
 
-TEST_F(PublishedSocketConnector, connection_using_socket_fd)
+TEST_F(PublishedSocketConnector, ConnectionUsingSocketFd)
 {
     int const next_buffer_calls{8};
     char buffer[128] = {0};

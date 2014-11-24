@@ -39,7 +39,7 @@ Cras ultrices molestie eleifend. Pellentesque habitant morbi tristique senectus 
 et malesuada fames ac turpis egestas.)";
 }
 
-TEST(AndroidSha1, test)
+TEST(AndroidSha1, Test)
 {
     EXPECT_STREQ("aa74e4cdc9b384c5e30df0d3ea3cd1121a854ef7",
         c_str(detail::sha1(String8(test_text))));

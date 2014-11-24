@@ -80,7 +80,7 @@ class InputTranslatorWithPolicyParam : public InputTranslator,
 
 }
 
-TEST_F(InputTranslator, notifies_configuration_change)
+TEST_F(InputTranslator, NotifiesConfigurationChange)
 {
     using namespace ::testing;
 
@@ -90,7 +90,7 @@ TEST_F(InputTranslator, notifies_configuration_change)
     translator.notifyConfigurationChanged(&change);
 }
 
-TEST_F(InputTranslator, notifies_device_reset)
+TEST_F(InputTranslator, NotifiesDeviceReset)
 {
     using namespace ::testing;
 
@@ -100,7 +100,7 @@ TEST_F(InputTranslator, notifies_device_reset)
     translator.notifyDeviceReset(&reset);
 }
 
-TEST_F(InputTranslator, ignores_invalid_key_events)
+TEST_F(InputTranslator, IgnoresInvalidKeyEvents)
 {
     using namespace ::testing;
 
@@ -115,7 +115,7 @@ TEST_F(InputTranslator, ignores_invalid_key_events)
     translator.notifyKey(&key);
 }
 
-TEST_F(InputTranslator, ignores_invalid_motion_action)
+TEST_F(InputTranslator, IgnoresInvalidMotionAction)
 {
     using namespace ::testing;
 
@@ -130,7 +130,7 @@ TEST_F(InputTranslator, ignores_invalid_motion_action)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, ignores_motion_action_with_wrong_index)
+TEST_F(InputTranslator, IgnoresMotionActionWithWrongIndex)
 {
     using namespace ::testing;
 
@@ -145,7 +145,7 @@ TEST_F(InputTranslator, ignores_motion_action_with_wrong_index)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, accepts_motion_action_with_existing_index)
+TEST_F(InputTranslator, AcceptsMotionActionWithExistingIndex)
 {
     using namespace ::testing;
 
@@ -165,7 +165,7 @@ TEST_F(InputTranslator, accepts_motion_action_with_existing_index)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, ignores_motion_with_duplicated_pointerids)
+TEST_F(InputTranslator, IgnoresMotionWithDuplicatedPointerids)
 {
     using namespace ::testing;
 
@@ -183,7 +183,7 @@ TEST_F(InputTranslator, ignores_motion_with_duplicated_pointerids)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, ignores_motion_with_invalid_pointerids)
+TEST_F(InputTranslator, IgnoresMotionWithInvalidPointerids)
 {
     using namespace ::testing;
 
@@ -201,7 +201,7 @@ TEST_F(InputTranslator, ignores_motion_with_invalid_pointerids)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, forwards_pointer_positions)
+TEST_F(InputTranslator, ForwardsPointerPositions)
 {
     using namespace ::testing;
 
@@ -221,7 +221,7 @@ TEST_F(InputTranslator, forwards_pointer_positions)
     translator.notifyMotion(&motion);
 }
 
-TEST_F(InputTranslator, forwards_and_converts_up_down_key_notifications)
+TEST_F(InputTranslator, ForwardsAndConvertsUpDownKeyNotifications)
 {
     using namespace ::testing;
 
@@ -238,7 +238,7 @@ TEST_F(InputTranslator, forwards_and_converts_up_down_key_notifications)
     translator.notifyKey(&up);
 }
 
-TEST_F(InputTranslator, forwards_all_key_event_paramters_correctly)
+TEST_F(InputTranslator, ForwardsAllKeyEventParamtersCorrectly)
 {
     using namespace ::testing;
     MirEvent expected;
@@ -272,7 +272,7 @@ TEST_F(InputTranslator, forwards_all_key_event_paramters_correctly)
     translator.notifyKey(&notified);
 }
 
-TEST_F(InputTranslator, forwards_all_motion_event_paramters_correctly)
+TEST_F(InputTranslator, ForwardsAllMotionEventParamtersCorrectly)
 {
     using namespace ::testing;
     MirEvent expected;
@@ -341,7 +341,7 @@ TEST_F(InputTranslator, forwards_all_motion_event_paramters_correctly)
     translator.notifyMotion(&notified);
 }
 
-TEST_P(InputTranslatorWithPolicyParam, forwards_policy_modifiers_as_flags_and_modifiers)
+TEST_P(InputTranslatorWithPolicyParam, ForwardsPolicyModifiersAsFlagsAndModifiers)
 {
     using namespace ::testing;
 

@@ -144,7 +144,7 @@ struct SurfacesWithOutputId : BasicFixture
 
 }
 
-TEST_F(SurfacesWithOutputId, fullscreen_surfaces_are_placed_at_top_left_of_correct_output)
+TEST_F(SurfacesWithOutputId, FullscreenSurfacesArePlacedAtTopLeftOfCorrectOutput)
 {
     std::vector<std::shared_ptr<MirSurface>> surfaces;
 
@@ -163,7 +163,7 @@ TEST_F(SurfacesWithOutputId, fullscreen_surfaces_are_placed_at_top_left_of_corre
     EXPECT_EQ(display_rects, surface_rects);
 }
 
-TEST_F(SurfacesWithOutputId, non_fullscreen_surfaces_are_not_accepted)
+TEST_F(SurfacesWithOutputId, NonFullscreenSurfacesAreNotAccepted)
 {
     for (uint32_t n = 0; n < config->num_outputs; ++n)
     {

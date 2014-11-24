@@ -40,7 +40,7 @@ struct RenderingTrackerTest : testing::Test
 
 }
 
-TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_single_compositor)
+TEST_F(RenderingTrackerTest, OccludesSurfaceWhenOccludedInSingleCompositor)
 {
     using namespace testing;
 
@@ -55,7 +55,7 @@ TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_single_compositor
     tracker.occluded_in(compositor_id1);
 }
 
-TEST_F(RenderingTrackerTest, exposes_surface_when_rendered_in_single_compositor)
+TEST_F(RenderingTrackerTest, ExposesSurfaceWhenRenderedInSingleCompositor)
 {
     using namespace testing;
 
@@ -70,7 +70,7 @@ TEST_F(RenderingTrackerTest, exposes_surface_when_rendered_in_single_compositor)
     tracker.rendered_in(compositor_id1);
 }
 
-TEST_F(RenderingTrackerTest, exposes_surface_when_rendered_in_one_of_many_compositors)
+TEST_F(RenderingTrackerTest, ExposesSurfaceWhenRenderedInOneOfManyCompositors)
 {
     using namespace testing;
 
@@ -86,7 +86,7 @@ TEST_F(RenderingTrackerTest, exposes_surface_when_rendered_in_one_of_many_compos
     tracker.rendered_in(compositor_id2);
 }
 
-TEST_F(RenderingTrackerTest, does_not_occlude_surface_when_not_occluded_in_all_compositors)
+TEST_F(RenderingTrackerTest, DoesNotOccludeSurfaceWhenNotOccludedInAllCompositors)
 {
     using namespace testing;
 
@@ -103,7 +103,7 @@ TEST_F(RenderingTrackerTest, does_not_occlude_surface_when_not_occluded_in_all_c
     tracker.occluded_in(compositor_id2);
 }
 
-TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_all_compositors)
+TEST_F(RenderingTrackerTest, OccludesSurfaceWhenOccludedInAllCompositors)
 {
     using namespace testing;
 
@@ -120,7 +120,7 @@ TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_all_compositors)
     tracker.occluded_in(compositor_id3);
 }
 
-TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_remaining_compositors_after_removing_compositor)
+TEST_F(RenderingTrackerTest, OccludesSurfaceWhenOccludedInRemainingCompositorsAfterRemovingCompositor)
 {
     using namespace testing;
 
@@ -142,7 +142,7 @@ TEST_F(RenderingTrackerTest, occludes_surface_when_occluded_in_remaining_composi
     tracker.active_compositors(compositors);
 }
 
-TEST_F(RenderingTrackerTest, throws_when_passed_inactive_compositor_id)
+TEST_F(RenderingTrackerTest, ThrowsWhenPassedInactiveCompositorId)
 {
     EXPECT_THROW({
         tracker.occluded_in(compositor_id1);

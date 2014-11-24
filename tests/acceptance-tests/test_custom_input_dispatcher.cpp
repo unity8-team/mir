@@ -104,7 +104,7 @@ struct CustomDispatcherServerConfig : mtf::InputTestingServerConfiguration
 
 using CustomInputDispatcher = BespokeDisplayServerTestFixture;
 
-TEST_F(CustomInputDispatcher, receives_input)
+TEST_F(CustomInputDispatcher, ReceivesInput)
 {
     struct ServerConfig : CustomDispatcherServerConfig
     {
@@ -137,7 +137,7 @@ TEST_F(CustomInputDispatcher, receives_input)
     });
 }
 
-TEST_F(CustomInputDispatcher, gets_started_and_stopped)
+TEST_F(CustomInputDispatcher, GetsStartedAndStopped)
 {
     struct ServerConfig : CustomDispatcherServerConfig
     {
@@ -155,7 +155,7 @@ TEST_F(CustomInputDispatcher, gets_started_and_stopped)
     launch_server_process(server_config);
 }
 
-TEST_F(CustomInputDispatcher, receives_focus_changes)
+TEST_F(CustomInputDispatcher, ReceivesFocusChanges)
 {
     struct ServerConfig : CustomDispatcherServerConfig
     {

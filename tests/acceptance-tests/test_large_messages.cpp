@@ -89,7 +89,7 @@ void connection_callback(MirConnection* connection, void* context)
 // Regression test for lp:1320187. Without a fix for that bug, connecting
 // to a server with a lot of information in the display configuration hangs
 // the client, because the server reply message is incomplete/corrupted.
-TEST_F(LargeMessages, connection_to_server_with_large_display_configuration_succeeds)
+TEST_F(LargeMessages, ConnectionToServerWithLargeDisplayConfigurationSucceeds)
 {
     using namespace testing;
 

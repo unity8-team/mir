@@ -79,7 +79,7 @@ struct AndroidInputDispatcherTest : public testing::Test
 
 }
 
-TEST_F(AndroidInputDispatcherTest, start_starts_dispatcher_and_thread)
+TEST_F(AndroidInputDispatcherTest, StartStartsDispatcherAndThread)
 {
     using namespace ::testing;
 
@@ -96,7 +96,7 @@ TEST_F(AndroidInputDispatcherTest, start_starts_dispatcher_and_thread)
     input_dispatcher.start();
 }
 
-TEST_F(AndroidInputDispatcherTest, stop_stops_dispatcher_and_thread)
+TEST_F(AndroidInputDispatcherTest, StopStopsDispatcherAndThread)
 {
     using namespace ::testing;
 
@@ -163,7 +163,7 @@ MATCHER_P(KeyArgsMatches, expected, "")
         arg->downTime == expected.downTime;
 }
 
-TEST_F(AndroidInputDispatcherTest, axis_values_are_properly_converted)
+TEST_F(AndroidInputDispatcherTest, AxisValuesAreProperlyConverted)
 {
     using namespace ::testing;
     droidinput::PointerCoords expected_coords[MIR_INPUT_EVENT_MAX_POINTER_COUNT];
@@ -237,7 +237,7 @@ TEST_F(AndroidInputDispatcherTest, axis_values_are_properly_converted)
     input_dispatcher.dispatch(event);
 }
 
-TEST_F(AndroidInputDispatcherTest, forwards_all_key_event_paramters_correctly)
+TEST_F(AndroidInputDispatcherTest, ForwardsAllKeyEventParamtersCorrectly)
 {
     using namespace ::testing;
     MirEvent event;

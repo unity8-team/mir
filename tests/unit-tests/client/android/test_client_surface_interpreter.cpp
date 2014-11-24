@@ -99,7 +99,7 @@ protected:
     std::shared_ptr<MockClientBuffer> mock_client_buffer;
 };
 
-TEST_F(AndroidInterpreter, gets_buffer_via_the_surface_on_request)
+TEST_F(AndroidInterpreter, GetsBufferViaTheSurfaceOnRequest)
 {
     using namespace testing;
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
@@ -112,7 +112,7 @@ TEST_F(AndroidInterpreter, gets_buffer_via_the_surface_on_request)
     interpreter.driver_requests_buffer();
 }
 
-TEST_F(AndroidInterpreter, gets_native_handle_from_returned_buffer)
+TEST_F(AndroidInterpreter, GetsNativeHandleFromReturnedBuffer)
 {
     using namespace testing;
     auto buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
@@ -131,7 +131,7 @@ TEST_F(AndroidInterpreter, gets_native_handle_from_returned_buffer)
     EXPECT_EQ(buffer.get(), returned_buffer);
 }
 
-TEST_F(AndroidInterpreter, advances_surface_on_buffer_return)
+TEST_F(AndroidInterpreter, AdvancesSurfaceOnBufferReturn)
 {
     using namespace testing;
     ANativeWindowBuffer buffer;
@@ -146,7 +146,7 @@ TEST_F(AndroidInterpreter, advances_surface_on_buffer_return)
 }
 
 /* format is an int that is set by the driver. these are not the HAL_PIXEL_FORMATS in android */
-TEST_F(AndroidInterpreter, remembers_format)
+TEST_F(AndroidInterpreter, RemembersFormat)
 {
     int format = 945;
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
@@ -158,7 +158,7 @@ TEST_F(AndroidInterpreter, remembers_format)
     EXPECT_EQ(format, tmp_format);
 }
 
-TEST_F(AndroidInterpreter, returns_no_transform_for_transform_hint_query)
+TEST_F(AndroidInterpreter, ReturnsNoTransformForTransformHintQuery)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -170,7 +170,7 @@ TEST_F(AndroidInterpreter, returns_no_transform_for_transform_hint_query)
     EXPECT_EQ(transform_hint_zero, transform);
 }
 
-TEST_F(AndroidInterpreter, returns_width_as_default_width)
+TEST_F(AndroidInterpreter, ReturnsWidthAsDefaultWidth)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -180,7 +180,7 @@ TEST_F(AndroidInterpreter, returns_width_as_default_width)
     EXPECT_EQ(surf_params.width, default_width);
 }
 
-TEST_F(AndroidInterpreter, returns_height_as_default_height)
+TEST_F(AndroidInterpreter, ReturnsHeightAsDefaultHeight)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -190,7 +190,7 @@ TEST_F(AndroidInterpreter, returns_height_as_default_height)
     EXPECT_EQ(surf_params.height, default_height);
 }
 
-TEST_F(AndroidInterpreter, returns_surface_as_concrete_type)
+TEST_F(AndroidInterpreter, ReturnsSurfaceAsConcreteType)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -199,7 +199,7 @@ TEST_F(AndroidInterpreter, returns_surface_as_concrete_type)
     EXPECT_EQ(NATIVE_WINDOW_SURFACE, concrete_type);
 }
 
-TEST_F(AndroidInterpreter, returns_width)
+TEST_F(AndroidInterpreter, ReturnsWidth)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -209,7 +209,7 @@ TEST_F(AndroidInterpreter, returns_width)
     EXPECT_EQ(surf_params.width, width);
 }
 
-TEST_F(AndroidInterpreter, returns_height)
+TEST_F(AndroidInterpreter, ReturnsHeight)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -226,7 +226,7 @@ TEST_F(AndroidInterpreter, returns_height)
    to keep 2 buffers on hand at all time, the driver might dequeue 5 buffers, then cancel those 5 buffers.
    After the first call to queueBuffer however, the client may never own more than the number it has
    reserved (in this case, 3 buffers) */
-TEST_F(AndroidInterpreter, returns_2_for_min_undequeued_query)
+TEST_F(AndroidInterpreter, Returns_2ForMinUndequeuedQuery)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     mcla::ClientSurfaceInterpreter interpreter(mock_surface);
@@ -235,7 +235,7 @@ TEST_F(AndroidInterpreter, returns_2_for_min_undequeued_query)
     EXPECT_EQ(2, num_buffers);
 }
 
-TEST_F(AndroidInterpreter, requests_swapinterval_change)
+TEST_F(AndroidInterpreter, RequestsSwapintervalChange)
 {
     testing::NiceMock<MockMirSurface> mock_surface{surf_params};
     testing::InSequence seq;

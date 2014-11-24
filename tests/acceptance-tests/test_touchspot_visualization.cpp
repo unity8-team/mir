@@ -164,7 +164,7 @@ geom::Point transform_to_screen_space(geom::Point in_touchpad_space)
 
 using namespace ::testing;
 
-TEST_F(TestTouchspotVisualizations, touch_is_given_to_touchspot_visualizer)
+TEST_F(TestTouchspotVisualizations, TouchIsGivenToTouchspotVisualizer)
 {
     auto minimum_touch = mi::android::FakeEventHub::TouchScreenMinAxisValue;
 
@@ -190,7 +190,7 @@ TEST_F(TestTouchspotVisualizations, touch_is_given_to_touchspot_visualizer)
     start_server();
 }
 
-TEST_F(TestTouchspotVisualizations, touchspots_follow_gesture)
+TEST_F(TestTouchspotVisualizations, TouchspotsFollowGesture)
 {
     auto minimum_touch = mi::android::FakeEventHub::TouchScreenMinAxisValue;
     auto maximum_touch = mi::android::FakeEventHub::TouchScreenMaxAxisValue;

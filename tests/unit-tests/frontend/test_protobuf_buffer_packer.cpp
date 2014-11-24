@@ -31,7 +31,7 @@ namespace mp=mir::protobuf;
 namespace geom=mir::geometry;
 namespace mtd=mir::test::doubles;
 
-TEST(ProtobufBufferPacker, packing)
+TEST(ProtobufBufferPacker, Packing)
 {
     geom::Stride dummy_stride(4);
 
@@ -65,7 +65,7 @@ TEST(ProtobufBufferPacker, packing)
     EXPECT_EQ(789, response.height());
 }
 
-TEST(ProtobufBufferPacker, data_and_fds_are_the_same_as_packed)
+TEST(ProtobufBufferPacker, DataAndFdsAreTheSameAsPacked)
 {
     using namespace testing;
 
@@ -89,7 +89,7 @@ TEST(ProtobufBufferPacker, data_and_fds_are_the_same_as_packed)
     EXPECT_THAT(data, ElementsAreArray(response.data().data(), num_data));
 }
 
-TEST(ProtobufBufferPacker, message_takes_ownership_of_fds)
+TEST(ProtobufBufferPacker, MessageTakesOwnershipOfFds)
 {
     using namespace testing;
 

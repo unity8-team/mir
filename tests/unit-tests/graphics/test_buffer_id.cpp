@@ -24,7 +24,7 @@
 
 namespace mg = mir::graphics;
 
-TEST(unique_generator, generate_unique)
+TEST(uniqueGenerator, GenerateUnique)
 {
     using mir::test::doubles::StubBuffer;
     int const ids = 542;

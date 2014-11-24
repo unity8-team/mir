@@ -57,7 +57,7 @@ void null_lifecycle_callback(MirConnection*, MirLifecycleState, void*)
 }
 }
 
-TEST_F(ServerDisconnect, is_detected_by_client)
+TEST_F(ServerDisconnect, IsDetectedByClient)
 {
     mtf::CrossProcessSync sync;
 
@@ -99,7 +99,7 @@ TEST_F(ServerDisconnect, is_detected_by_client)
     }
 }
 
-TEST_F(ServerDisconnect, doesnt_stop_client_calling_API_functions)
+TEST_F(ServerDisconnect, DoesntStopClientCalling_APIFunctions)
 {
     mt::CrossProcessAction connect;
     mt::CrossProcessAction create_surface;
@@ -162,7 +162,7 @@ TEST_F(ServerDisconnect, doesnt_stop_client_calling_API_functions)
     }
 }
 
-TEST_F(ServerDisconnect, causes_client_to_terminate_by_default)
+TEST_F(ServerDisconnect, CausesClientToTerminateByDefault)
 {
     mt::CrossProcessAction connect;
     mtf::CrossProcessSync create_surface_sync;

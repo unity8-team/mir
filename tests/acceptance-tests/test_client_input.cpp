@@ -223,7 +223,7 @@ struct TestClientInput : mtf::InProcessServer
 
 }
 
-TEST_F(TestClientInput, clients_receive_key_input)
+TEST_F(TestClientInput, ClientsReceiveKeyInput)
 {
     using namespace testing;
 
@@ -243,7 +243,7 @@ TEST_F(TestClientInput, clients_receive_key_input)
             mis::a_key_down_event().of_scancode(KEY_ENTER));
 }
 
-TEST_F(TestClientInput, clients_receive_us_english_mapped_keys)
+TEST_F(TestClientInput, ClientsReceiveUsEnglishMappedKeys)
 {
     using namespace testing;
 
@@ -267,7 +267,7 @@ TEST_F(TestClientInput, clients_receive_us_english_mapped_keys)
         mis::a_key_down_event().of_scancode(KEY_4));
 }
 
-TEST_F(TestClientInput, clients_receive_motion_inside_window)
+TEST_F(TestClientInput, ClientsReceiveMotionInsideWindow)
 {
     using namespace testing;
 
@@ -294,7 +294,7 @@ TEST_F(TestClientInput, clients_receive_motion_inside_window)
     fake_event_hub()->synthesize_event(mis::a_motion_event().with_movement(2,2));
 }
 
-TEST_F(TestClientInput, clients_receive_button_events_inside_window)
+TEST_F(TestClientInput, ClientsReceiveButtonEventsInsideWindow)
 {
     using namespace testing;
 
@@ -312,7 +312,7 @@ TEST_F(TestClientInput, clients_receive_button_events_inside_window)
             .with_action(mis::EventAction::Down));
 }
 
-TEST_F(TestClientInput, multiple_clients_receive_motion_inside_windows)
+TEST_F(TestClientInput, MultipleClientsReceiveMotionInsideWindows)
 {
     using namespace testing;
 
@@ -359,7 +359,7 @@ TEST_F(TestClientInput, multiple_clients_receive_motion_inside_windows)
         mis::a_motion_event().with_movement(screen_width / 2, screen_height / 2));
 }
 
-TEST_F(TestClientInput, clients_do_not_receive_motion_outside_input_region)
+TEST_F(TestClientInput, ClientsDoNotReceiveMotionOutsideInputRegion)
 {
     using namespace testing;
 
@@ -414,7 +414,7 @@ TEST_F(TestClientInput, clients_do_not_receive_motion_outside_input_region)
     fake_event_hub()->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
 }
 
-TEST_F(TestClientInput, scene_obscure_motion_events_by_stacking)
+TEST_F(TestClientInput, SceneObscureMotionEventsByStacking)
 {
     using namespace testing;
 
@@ -467,7 +467,7 @@ TEST_F(TestClientInput, scene_obscure_motion_events_by_stacking)
     fake_event_hub()->synthesize_event(mis::a_button_up_event().of_button(BTN_LEFT));
 }
 
-TEST_F(TestClientInput, hidden_clients_do_not_receive_pointer_events)
+TEST_F(TestClientInput, HiddenClientsDoNotReceivePointerEvents)
 {
     using namespace testing;
 
@@ -510,7 +510,7 @@ TEST_F(TestClientInput, hidden_clients_do_not_receive_pointer_events)
     fake_event_hub()->synthesize_event(mis::a_motion_event().with_movement(1,1));
 }
 
-TEST_F(TestClientInput, clients_receive_motion_within_coordinate_system_of_window)
+TEST_F(TestClientInput, ClientsReceiveMotionWithinCoordinateSystemOfWindow)
 {
     using namespace testing;
 
@@ -544,7 +544,7 @@ TEST_F(TestClientInput, clients_receive_motion_within_coordinate_system_of_windo
 }
 
 // TODO: Consider tests for more input devices with custom mapping (i.e. joysticks...)
-TEST_F(TestClientInput, usb_direct_input_devices_work)
+TEST_F(TestClientInput, UsbDirectInputDevicesWork)
 {
     using namespace ::testing;
 
@@ -595,7 +595,7 @@ TEST_F(TestClientInput, usb_direct_input_devices_work)
         mis::a_touch_event().at_position({abs_touch_x_2, abs_touch_y_2}));
 }
 
-TEST_F(TestClientInput, send_mir_input_events_through_surface)
+TEST_F(TestClientInput, SendMirInputEventsThroughSurface)
 {
     InputClient client1{new_connection(), test_client_name_1};
 

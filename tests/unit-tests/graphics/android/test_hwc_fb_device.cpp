@@ -97,7 +97,7 @@ protected:
     hwc_layer_1_t skip_layer;
 };
 
-TEST_F(HwcFbDevice, hwc10_post_gl_only)
+TEST_F(HwcFbDevice, Hwc10PostGlOnly)
 {
     using namespace testing;
     std::list<hwc_layer_1_t*> expected_list{&skip_layer};
@@ -119,7 +119,7 @@ TEST_F(HwcFbDevice, hwc10_post_gl_only)
     device.post_gl(mock_context);
 }
 
-TEST_F(HwcFbDevice, hwc10_rejects_overlays)
+TEST_F(HwcFbDevice, Hwc10RejectsOverlays)
 {
     using namespace testing;
     mtd::StubRenderableListCompositor stub_compositor;
@@ -135,7 +135,7 @@ TEST_F(HwcFbDevice, hwc10_rejects_overlays)
     EXPECT_FALSE(device.post_overlays(stub_context, renderlist, stub_compositor));
 }
 
-TEST_F(HwcFbDevice, hwc10_post)
+TEST_F(HwcFbDevice, Hwc10Post)
 {
     using namespace testing;
     auto native_buffer = std::make_shared<NiceMock<mtd::MockAndroidNativeBuffer>>();

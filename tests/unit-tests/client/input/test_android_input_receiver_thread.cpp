@@ -76,7 +76,7 @@ ACTION_P(StopThread, thread)
 
 }
 
-TEST_F(AndroidInputReceiverThreadSetup, reads_events_until_stopped)
+TEST_F(AndroidInputReceiverThreadSetup, ReadsEventsUntilStopped)
 {
     using namespace ::testing;
 
@@ -92,7 +92,7 @@ TEST_F(AndroidInputReceiverThreadSetup, reads_events_until_stopped)
     input_thread.join();
 }
 
-TEST_F(AndroidInputReceiverThreadSetup, receives_and_dispatches_available_events_when_ready)
+TEST_F(AndroidInputReceiverThreadSetup, ReceivesAndDispatchesAvailableEventsWhenReady)
 {
     using namespace ::testing;
     MockEventHandler mock_handler;
@@ -122,7 +122,7 @@ TEST_F(AndroidInputReceiverThreadSetup, receives_and_dispatches_available_events
     input_thread.join();
 }
 
-TEST_F(AndroidInputReceiverThreadSetup, input_callback_invoked_from_thread)
+TEST_F(AndroidInputReceiverThreadSetup, InputCallbackInvokedFromThread)
 {
     using namespace ::testing;
     MockEventHandler mock_handler;

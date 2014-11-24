@@ -54,7 +54,7 @@ char const* const component = "android-input";
 char const* const LOG_TAG = "Foo";
 }
 
-TEST_F(InputReport, debug_message)
+TEST_F(InputReport, DebugMessage)
 {
     // default minimum log priority is "informational". "debug" is lower than that.
     EXPECT_CALL(logger, log(_, _, _)).Times(0);
@@ -62,7 +62,7 @@ TEST_F(InputReport, debug_message)
     ALOG(LOG_DEBUG, NULL, "Test function is %s", __PRETTY_FUNCTION__);
 }
 
-TEST_F(InputReport, unknown_message)
+TEST_F(InputReport, UnknownMessage)
 {
     char const* const unknown = "Unknown message";
 
@@ -73,7 +73,7 @@ TEST_F(InputReport, unknown_message)
     ALOG(LOG_UNKNOWN, NULL, unknown);
 }
 
-TEST_F(InputReport, verbose_message)
+TEST_F(InputReport, VerboseMessage)
 {
     char const* const verbose = "A very long story. (OK, I lied.)";
 
@@ -83,7 +83,7 @@ TEST_F(InputReport, verbose_message)
     ALOG(LOG_VERBOSE, NULL, verbose);
 }
 
-TEST_F(InputReport, info_message)
+TEST_F(InputReport, InfoMessage)
 {
     EXPECT_CALL(logger, log(
             ml::Severity::informational,
@@ -93,7 +93,7 @@ TEST_F(InputReport, info_message)
     ALOGI("Some informational message");
 }
 
-TEST_F(InputReport, warning_message)
+TEST_F(InputReport, WarningMessage)
 {
     EXPECT_CALL(logger, log(
             ml::Severity::warning,
@@ -103,7 +103,7 @@ TEST_F(InputReport, warning_message)
     ALOGW("Warning!!!");
 }
 
-TEST_F(InputReport, error_message)
+TEST_F(InputReport, ErrorMessage)
 {
     EXPECT_CALL(logger, log(
             ml::Severity::error,

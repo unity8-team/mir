@@ -135,7 +135,7 @@ class ConfigurableFailureConfiguration : public mtf::StubConnectionConfiguration
 
 using ClientLibraryErrors = mtf::HeadlessInProcessServer;
 
-TEST_F(ClientLibraryErrors, exception_in_client_configuration_constructor_generates_error)
+TEST_F(ClientLibraryErrors, ExceptionInClientConfigurationConstructorGeneratesError)
 {
     mtf::UsingClientPlatform<ConfigurableFailureConfiguration<Method::the_client_platform_factory>> stubby;
 
@@ -146,7 +146,7 @@ TEST_F(ClientLibraryErrors, exception_in_client_configuration_constructor_genera
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibraryErrors, exception_in_platform_construction_generates_error)
+TEST_F(ClientLibraryErrors, ExceptionInPlatformConstructionGeneratesError)
 {
     mtf::UsingClientPlatform<ConfigurableFailureConfiguration<Method::create_client_platform>> stubby;
 
@@ -157,7 +157,7 @@ TEST_F(ClientLibraryErrors, exception_in_platform_construction_generates_error)
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibraryErrors, connecting_to_garbage_socket_returns_appropriate_error)
+TEST_F(ClientLibraryErrors, ConnectingToGarbageSocketReturnsAppropriateError)
 {
     using namespace testing;
     mtf::UsingStubClientPlatform stubby;
@@ -176,7 +176,7 @@ TEST_F(ClientLibraryErrors, connecting_to_garbage_socket_returns_appropriate_err
     mir_connection_release(connection);
 }
 
-TEST_F(ClientLibraryErrors, create_surface_returns_error_object_on_failure)
+TEST_F(ClientLibraryErrors, CreateSurfaceReturnsErrorObjectOnFailure)
 {
     mtf::UsingClientPlatform<ConfigurableFailureConfiguration<Method::create_buffer_factory>> stubby;
 
@@ -211,7 +211,7 @@ void recording_surface_callback(MirSurface*, void* ctx)
 }
 }
 
-TEST_F(ClientLibraryErrors, surface_release_on_error_object_still_calls_callback)
+TEST_F(ClientLibraryErrors, SurfaceReleaseOnErrorObjectStillCallsCallback)
 {
     mtf::UsingClientPlatform<ConfigurableFailureConfiguration<Method::create_buffer_factory>> stubby;
 
@@ -240,7 +240,7 @@ TEST_F(ClientLibraryErrors, surface_release_on_error_object_still_calls_callback
 }
 
 
-TEST_F(ClientLibraryErrors, create_surface_returns_error_object_on_failure_in_reply_processing)
+TEST_F(ClientLibraryErrors, CreateSurfaceReturnsErrorObjectOnFailureInReplyProcessing)
 {
     mtf::UsingClientPlatform<ConfigurableFailureConfiguration<Method::create_egl_native_window>> stubby;
 
@@ -269,7 +269,7 @@ TEST_F(ClientLibraryErrors, create_surface_returns_error_object_on_failure_in_re
 using ClientLibraryErrorsDeathTest = ClientLibraryErrors;
 
 
-TEST_F(ClientLibraryErrorsDeathTest, createing_surface_on_garbage_connection_is_fatal)
+TEST_F(ClientLibraryErrorsDeathTest, CreateingSurfaceOnGarbageConnectionIsFatal)
 {
     mtf::UsingStubClientPlatform stubby;
 
@@ -289,7 +289,7 @@ TEST_F(ClientLibraryErrorsDeathTest, createing_surface_on_garbage_connection_is_
 }
 
 
-TEST_F(ClientLibraryErrorsDeathTest, creating_surface_synchronosly_on_malconstructed_connection_is_fatal)
+TEST_F(ClientLibraryErrorsDeathTest, CreatingSurfaceSynchronoslyOnMalconstructedConnectionIsFatal)
 {
     MirSurfaceParameters const request_params =
     {
@@ -308,7 +308,7 @@ TEST_F(ClientLibraryErrorsDeathTest, creating_surface_synchronosly_on_malconstru
     EXPECT_DEATH(mir_connection_create_surface_sync(connection, &request_params), "");
 }
 
-TEST_F(ClientLibraryErrorsDeathTest, creating_surface_synchronosly_on_invalid_connection_is_fatal)
+TEST_F(ClientLibraryErrorsDeathTest, CreatingSurfaceSynchronoslyOnInvalidConnectionIsFatal)
 {
     MirSurfaceParameters const request_params =
     {

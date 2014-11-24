@@ -56,7 +56,7 @@ protected:
 
 }
 
-TEST_F(AndroidPointerControllerSetup, button_state_is_saved)
+TEST_F(AndroidPointerControllerSetup, ButtonStateIsSaved)
 {
     using namespace ::testing;
 
@@ -64,7 +64,7 @@ TEST_F(AndroidPointerControllerSetup, button_state_is_saved)
     EXPECT_EQ(controller->getButtonState(), AKEY_STATE_DOWN);
 }
 
-TEST_F(AndroidPointerControllerSetup, position_is_saved)
+TEST_F(AndroidPointerControllerSetup, PositionIsSaved)
 {
     using namespace ::testing;
 
@@ -83,7 +83,7 @@ TEST_F(AndroidPointerControllerSetup, position_is_saved)
     EXPECT_EQ(stored_y, saved_y);
 }
 
-TEST_F(AndroidPointerControllerSetup, move_updates_position)
+TEST_F(AndroidPointerControllerSetup, MoveUpdatesPosition)
 {
     using namespace ::testing;
 
@@ -107,7 +107,7 @@ TEST_F(AndroidPointerControllerSetup, move_updates_position)
     EXPECT_EQ(start_y + dy, final_y);
 }
 
-TEST_F(AndroidPointerControllerSetup, returns_bounds_of_view_area)
+TEST_F(AndroidPointerControllerSetup, ReturnsBoundsOfViewArea)
 {
     using namespace ::testing;
     EXPECT_CALL(input_region, bounding_rectangle())

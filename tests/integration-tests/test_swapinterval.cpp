@@ -94,7 +94,7 @@ private:
 }
 
 using SwapIntervalSignalTest = BespokeDisplayServerTestFixture;
-TEST_F(SwapIntervalSignalTest, swapinterval_test)
+TEST_F(SwapIntervalSignalTest, SwapintervalTest)
 {
     static std::string const swapinterval_set{"swapinterval_set_952f3f10.tmp"};
     static std::string const do_client_finish{"do_client_finish_952f3f10.tmp"};

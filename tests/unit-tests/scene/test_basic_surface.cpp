@@ -111,7 +111,7 @@ struct BasicSurfaceTest : public testing::Test
 
 }
 
-TEST_F(BasicSurfaceTest, basics)
+TEST_F(BasicSurfaceTest, Basics)
 {
     EXPECT_EQ(name, surface.name());
     EXPECT_EQ(rect.size, surface.size());
@@ -119,7 +119,7 @@ TEST_F(BasicSurfaceTest, basics)
     EXPECT_FALSE(surface.compositor_snapshot(compositor_id)->shaped());
 }
 
-TEST_F(BasicSurfaceTest, id_always_unique)
+TEST_F(BasicSurfaceTest, IdAlwaysUnique)
 {
     int const N = 10;
     std::unique_ptr<ms::BasicSurface> surfaces[N];
@@ -139,7 +139,7 @@ TEST_F(BasicSurfaceTest, id_always_unique)
     }
 }
 
-TEST_F(BasicSurfaceTest, id_never_invalid)
+TEST_F(BasicSurfaceTest, IdNeverInvalid)
 {
     int const N = 10;
     std::unique_ptr<ms::BasicSurface> surfaces[N];
@@ -156,7 +156,7 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
     }
 }
 
-TEST_F(BasicSurfaceTest, update_top_left)
+TEST_F(BasicSurfaceTest, UpdateTopLeft)
 {
     EXPECT_CALL(mock_callback, call())
         .Times(1);
@@ -170,7 +170,7 @@ TEST_F(BasicSurfaceTest, update_top_left)
     EXPECT_EQ(new_top_left, surface.top_left());
 }
 
-TEST_F(BasicSurfaceTest, update_size)
+TEST_F(BasicSurfaceTest, UpdateSize)
 {
     geom::Size const new_size{34, 56};
 
@@ -194,7 +194,7 @@ TEST_F(BasicSurfaceTest, update_size)
  * Until logic is implemented to separate size() from client_size(), verify
  * they do return the same thing for backward compatibility.
  */
-TEST_F(BasicSurfaceTest, size_equals_client_size)
+TEST_F(BasicSurfaceTest, SizeEqualsClientSize)
 {
     geom::Size const new_size{34, 56};
 
@@ -208,7 +208,7 @@ TEST_F(BasicSurfaceTest, size_equals_client_size)
     EXPECT_EQ(new_size, surface.client_size());
 }
 
-TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
+TEST_F(BasicSurfaceTest, TestSurfaceSetTransformationUpdatesTransform)
 {
     EXPECT_CALL(mock_callback, call())
         .Times(1);
@@ -227,7 +227,7 @@ TEST_F(BasicSurfaceTest, test_surface_set_transformation_updates_transform)
     EXPECT_EQ(trans, got);
 }
 
-TEST_F(BasicSurfaceTest, test_surface_set_alpha_notifies_changes)
+TEST_F(BasicSurfaceTest, TestSurfaceSetAlphaNotifiesChanges)
 {
     using namespace testing;
     EXPECT_CALL(mock_callback, call())
@@ -240,7 +240,7 @@ TEST_F(BasicSurfaceTest, test_surface_set_alpha_notifies_changes)
     EXPECT_THAT(alpha, FloatEq(surface.alpha()));
 }
 
-TEST_F(BasicSurfaceTest, test_surface_is_opaque_by_default)
+TEST_F(BasicSurfaceTest, TestSurfaceIsOpaqueByDefault)
 {
     using namespace testing;
 
@@ -248,7 +248,7 @@ TEST_F(BasicSurfaceTest, test_surface_is_opaque_by_default)
     EXPECT_FALSE(surface.compositor_snapshot(compositor_id)->shaped());
 }
 
-TEST_F(BasicSurfaceTest, test_surface_visibility)
+TEST_F(BasicSurfaceTest, TestSurfaceVisibility)
 {
     using namespace testing;
     mtd::StubBuffer mock_buffer;
@@ -277,7 +277,7 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
     EXPECT_TRUE(surface.visible());
 }
 
-TEST_F(BasicSurfaceTest, test_surface_hidden_notifies_changes)
+TEST_F(BasicSurfaceTest, TestSurfaceHiddenNotifiesChanges)
 {
     using namespace testing;
     EXPECT_CALL(mock_callback, call())
@@ -288,7 +288,7 @@ TEST_F(BasicSurfaceTest, test_surface_hidden_notifies_changes)
     surface.set_hidden(true);
 }
 
-TEST_F(BasicSurfaceTest, test_surface_frame_posted_notifies_changes)
+TEST_F(BasicSurfaceTest, TestSurfaceFramePostedNotifiesChanges)
 {
     using namespace testing;
     mtd::StubBuffer mock_buffer;
@@ -308,7 +308,7 @@ TEST_F(BasicSurfaceTest, test_surface_frame_posted_notifies_changes)
 }
 
 // a 1x1 window at (1,1) will get events at (1,1)
-TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
+TEST_F(BasicSurfaceTest, DefaultRegionIsSurfaceRectangle)
 {
     geom::Point pt(1,1);
     geom::Size one_by_one{geom::Width{1}, geom::Height{1}};
@@ -348,7 +348,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
     }
 }
 
-TEST_F(BasicSurfaceTest, set_input_region)
+TEST_F(BasicSurfaceTest, SetInputRegion)
 {
     std::vector<geom::Rectangle> const rectangles = {
         {{geom::X{0}, geom::Y{0}}, {geom::Width{1}, geom::Height{1}}}, //region0
@@ -385,7 +385,7 @@ TEST_F(BasicSurfaceTest, set_input_region)
     }
 }
 
-TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to_larger_size)
+TEST_F(BasicSurfaceTest, UpdatesDefaultInputRegionWhenSurfaceIsResizedToLargerSize)
 {
     geom::Rectangle const new_rect{rect.top_left,{10,10}};
     surface.resize(new_rect.size);
@@ -412,7 +412,7 @@ TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to
     }
 }
 
-TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to_smaller_size)
+TEST_F(BasicSurfaceTest, UpdatesDefaultInputRegionWhenSurfaceIsResizedToSmallerSize)
 {
     geom::Rectangle const new_rect{rect.top_left,{2,2}};
     surface.resize(new_rect.size);
@@ -439,7 +439,7 @@ TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to
     }
 }
 
-TEST_F(BasicSurfaceTest, restores_default_input_region_when_setting_empty_input_region)
+TEST_F(BasicSurfaceTest, RestoresDefaultInputRegionWhenSettingEmptyInputRegion)
 {
     std::vector<geom::Rectangle> const rectangles = {
         {{geom::X{0}, geom::Y{0}}, {geom::Width{1}, geom::Height{1}}}, //region0
@@ -452,18 +452,18 @@ TEST_F(BasicSurfaceTest, restores_default_input_region_when_setting_empty_input_
     EXPECT_TRUE(surface.input_area_contains(rect.bottom_right() - geom::Displacement{1,1}));
 }
 
-TEST_F(BasicSurfaceTest, disables_input_when_setting_input_region_with_empty_rectangle)
+TEST_F(BasicSurfaceTest, DisablesInputWhenSettingInputRegionWithEmptyRectangle)
 {
     surface.set_input_region({geom::Rectangle()});
     EXPECT_FALSE(surface.input_area_contains(rect.top_left));
 }
 
-TEST_F(BasicSurfaceTest, reception_mode_is_normal_by_default)
+TEST_F(BasicSurfaceTest, ReceptionModeIsNormalByDefault)
 {
     EXPECT_EQ(mi::InputReceptionMode::normal, surface.reception_mode());
 }
 
-TEST_F(BasicSurfaceTest, reception_mode_can_be_changed)
+TEST_F(BasicSurfaceTest, ReceptionModeCanBeChanged)
 {
     surface.set_reception_mode(mi::InputReceptionMode::receives_all_input);
 
@@ -530,7 +530,7 @@ AttributeTestParameters const surface_focus_test_parameters{
 
 }
 
-TEST_P(BasicSurfaceAttributeTest, default_value)
+TEST_P(BasicSurfaceAttributeTest, DefaultValue)
 {
     auto const& params = GetParam();
     auto const& attribute = params.attribute;
@@ -539,7 +539,7 @@ TEST_P(BasicSurfaceAttributeTest, default_value)
     EXPECT_EQ(default_value, surface.query(attribute));
 }
 
-TEST_P(BasicSurfaceAttributeTest, notifies_about_attrib_changes)
+TEST_P(BasicSurfaceAttributeTest, NotifiesAboutAttribChanges)
 {
     using namespace testing;
 
@@ -562,7 +562,7 @@ TEST_P(BasicSurfaceAttributeTest, notifies_about_attrib_changes)
     surface.configure(attribute, value2);
 }
 
-TEST_P(BasicSurfaceAttributeTest, does_not_notify_if_attrib_is_unchanged)
+TEST_P(BasicSurfaceAttributeTest, DoesNotNotifyIfAttribIsUnchanged)
 {
     using namespace testing;
 
@@ -583,7 +583,7 @@ TEST_P(BasicSurfaceAttributeTest, does_not_notify_if_attrib_is_unchanged)
     surface.configure(attribute, another_value);
 }
 
-TEST_P(BasicSurfaceAttributeTest, throws_on_invalid_value)
+TEST_P(BasicSurfaceAttributeTest, ThrowsOnInvalidValue)
 {
     using namespace testing;
     
@@ -614,7 +614,7 @@ INSTANTIATE_TEST_CASE_P(SurfaceDPIAttributeTest, BasicSurfaceAttributeTest,
 INSTANTIATE_TEST_CASE_P(SurfaceFocusAttributeTest, BasicSurfaceAttributeTest,
    ::testing::Values(surface_focus_test_parameters));
 
-TEST_F(BasicSurfaceTest, configure_returns_value_set_by_configurator)
+TEST_F(BasicSurfaceTest, ConfigureReturnsValueSetByConfigurator)
 {
     using namespace testing;
     
@@ -646,7 +646,7 @@ TEST_F(BasicSurfaceTest, configure_returns_value_set_by_configurator)
     EXPECT_EQ(mir_surface_focused, surface.configure(mir_surface_attrib_focus, mir_surface_unfocused));
 }
 
-TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
+TEST_F(BasicSurfaceTest, CallsSendEventOnConsume)
 {
     using namespace ::testing;
 
@@ -667,7 +667,7 @@ TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
     surface.consume(event);
 }
 
-TEST_F(BasicSurfaceTest, observer_can_trigger_state_change_within_notification)
+TEST_F(BasicSurfaceTest, ObserverCanTriggerStateChangeWithinNotification)
 {
     using namespace testing;
 
@@ -690,7 +690,7 @@ TEST_F(BasicSurfaceTest, observer_can_trigger_state_change_within_notification)
     surface.set_hidden(true);
 }
 
-TEST_F(BasicSurfaceTest, observer_can_remove_itself_within_notification)
+TEST_F(BasicSurfaceTest, ObserverCanRemoveItselfWithinNotification)
 {
     using namespace testing;
     MockSurfaceAttribObserver observer1;

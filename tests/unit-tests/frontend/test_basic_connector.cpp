@@ -41,7 +41,7 @@ struct StubConnectorReport : mir::report::null::ConnectorReport
 
 }
 
-TEST(BasicConnector, names_ipc_threads)
+TEST(BasicConnector, NamesIpcThreads)
 {
     using namespace testing;
 

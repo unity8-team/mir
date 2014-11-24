@@ -296,7 +296,7 @@ struct NestedServer : mtf::InProcessServer, HostServerConfiguration
 };
 }
 
-TEST_F(NestedServer, nested_platform_connects_and_disconnects)
+TEST_F(NestedServer, NestedPlatformConnectsAndDisconnects)
 {
     NestedServerConfiguration nested_config{connection_string, the_graphics_platform()};
 
@@ -307,7 +307,7 @@ TEST_F(NestedServer, nested_platform_connects_and_disconnects)
     NestedMirRunner nested_mir{nested_config};
 }
 
-TEST_F(NestedServer, sees_expected_outputs)
+TEST_F(NestedServer, SeesExpectedOutputs)
 {
     NestedServerConfiguration nested_config{connection_string, the_graphics_platform()};
     NestedMirRunner nested_mir{nested_config};
@@ -331,7 +331,7 @@ TEST_F(NestedServer, sees_expected_outputs)
 //////////////////////////////////////////////////////////////////
 // TODO the following test was used in investigating lifetime issues.
 // TODO it may not have much long term value, but decide that later.
-TEST_F(NestedServer, on_exit_display_objects_should_be_destroyed)
+TEST_F(NestedServer, OnExitDisplayObjectsShouldBeDestroyed)
 {
     struct MyServerConfiguration : NestedServerConfiguration
     {
@@ -354,7 +354,7 @@ TEST_F(NestedServer, on_exit_display_objects_should_be_destroyed)
     EXPECT_FALSE(config.my_display.lock()) << "after run_mir() exits the display should be released";
 }
 
-TEST_F(NestedServer, receives_lifecycle_events_from_host)
+TEST_F(NestedServer, ReceivesLifecycleEventsFromHost)
 {
     struct MyServerConfiguration : NestedServerConfiguration
     {

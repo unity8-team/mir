@@ -22,7 +22,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-TEST(MirClientTest, mir_connection_is_valid_handles_invalid_pointers)
+TEST(MirClientTest, MirConnectionIsValidHandlesInvalidPointers)
 {
     using namespace testing;
 
@@ -37,7 +37,7 @@ TEST(MirClientTest, mir_connection_is_valid_handles_invalid_pointers)
     ASSERT_FALSE(mir_connection_is_valid(not_a_mir_connection_on_the_heap));
 }
 
-TEST(MirClientTest, mir_surface_is_valid_handles_invalid_pointers)
+TEST(MirClientTest, MirSurfaceIsValidHandlesInvalidPointers)
 {
     MirSurface* null_pointer = NULL;
     double stack_variable;

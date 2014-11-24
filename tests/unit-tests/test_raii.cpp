@@ -49,7 +49,7 @@ void destroy_ptr(RaiiTest* p)   { self->destroy_ptr(p); }
 
 using namespace testing;
 
-TEST_F(RaiiTest, free_create_free_destroy_ptr)
+TEST_F(RaiiTest, FreeCreateFreeDestroyPtr)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_ptr()).Times(1).WillRepeatedly(Return(this));
@@ -65,7 +65,7 @@ TEST_F(RaiiTest, free_create_free_destroy_ptr)
     EXPECT_EQ(this, raii.get());
 }
 
-TEST_F(RaiiTest, lambda_create_free_destroy_ptr)
+TEST_F(RaiiTest, LambdaCreateFreeDestroyPtr)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_ptr()).Times(1).WillRepeatedly(Return(this));
@@ -81,7 +81,7 @@ TEST_F(RaiiTest, lambda_create_free_destroy_ptr)
     EXPECT_EQ(this, raii.get());
 }
 
-TEST_F(RaiiTest, free_create_lambda_destroy_ptr)
+TEST_F(RaiiTest, FreeCreateLambdaDestroyPtr)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_ptr()).Times(1).WillRepeatedly(Return(this));
@@ -97,7 +97,7 @@ TEST_F(RaiiTest, free_create_lambda_destroy_ptr)
     EXPECT_EQ(this, raii.get());
 }
 
-TEST_F(RaiiTest, lambda_create_lambda_destroy_ptr)
+TEST_F(RaiiTest, LambdaCreateLambdaDestroyPtr)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_ptr()).Times(1).WillRepeatedly(Return(this));
@@ -113,7 +113,7 @@ TEST_F(RaiiTest, lambda_create_lambda_destroy_ptr)
     EXPECT_EQ(this, raii.get());
 }
 
-TEST_F(RaiiTest, free_create_free_destroy_void)
+TEST_F(RaiiTest, FreeCreateFreeDestroyVoid)
 {
     EXPECT_CALL(*this, create_void()).Times(1);
 
@@ -125,7 +125,7 @@ TEST_F(RaiiTest, free_create_free_destroy_void)
     EXPECT_CALL(*this, destroy_void()).Times(1);
 }
 
-TEST_F(RaiiTest, lambda_create_free_destroy_void)
+TEST_F(RaiiTest, LambdaCreateFreeDestroyVoid)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_void()).Times(1);
@@ -136,7 +136,7 @@ TEST_F(RaiiTest, lambda_create_free_destroy_void)
         ::destroy_void);
 }
 
-TEST_F(RaiiTest, free_create_lambda_destroy_void)
+TEST_F(RaiiTest, FreeCreateLambdaDestroyVoid)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_void()).Times(1);
@@ -147,7 +147,7 @@ TEST_F(RaiiTest, free_create_lambda_destroy_void)
         [this] (){ destroy_void(); });
 }
 
-TEST_F(RaiiTest, lambda_create_lambda_destroy_void)
+TEST_F(RaiiTest, LambdaCreateLambdaDestroyVoid)
 {
     InSequence seq;
     EXPECT_CALL(*this, create_void()).Times(1);
@@ -158,7 +158,7 @@ TEST_F(RaiiTest, lambda_create_lambda_destroy_void)
         [this] (){ destroy_void(); });
 }
 
-TEST_F(RaiiTest, deleter_for_free_destroy_ptr)
+TEST_F(RaiiTest, DeleterForFreeDestroyPtr)
 {
     EXPECT_CALL(*this, destroy_ptr(this)).Times(1);
 
@@ -169,7 +169,7 @@ TEST_F(RaiiTest, deleter_for_free_destroy_ptr)
     EXPECT_EQ(this, raii.get());
 }
 
-TEST_F(RaiiTest, deleter_for_lambda_destroy_ptr)
+TEST_F(RaiiTest, DeleterForLambdaDestroyPtr)
 {
     EXPECT_CALL(*this, destroy_ptr(this)).Times(1);
 

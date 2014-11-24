@@ -115,7 +115,7 @@ public:
 
 }
 
-TEST_F(RealKMSOutputTest, construction_queries_connector)
+TEST_F(RealKMSOutputTest, ConstructionQueriesConnector)
 {
     using namespace testing;
 
@@ -128,7 +128,7 @@ TEST_F(RealKMSOutputTest, construction_queries_connector)
                               mt::fake_shared(null_page_flipper)};
 }
 
-TEST_F(RealKMSOutputTest, operations_use_existing_crtc)
+TEST_F(RealKMSOutputTest, OperationsUseExistingCrtc)
 {
     using namespace testing;
 
@@ -163,7 +163,7 @@ TEST_F(RealKMSOutputTest, operations_use_existing_crtc)
     output.wait_for_page_flip();
 }
 
-TEST_F(RealKMSOutputTest, operations_use_possible_crtc)
+TEST_F(RealKMSOutputTest, OperationsUsePossibleCrtc)
 {
     using namespace testing;
 
@@ -198,7 +198,7 @@ TEST_F(RealKMSOutputTest, operations_use_possible_crtc)
     output.wait_for_page_flip();
 }
 
-TEST_F(RealKMSOutputTest, set_crtc_failure_is_handled_gracefully)
+TEST_F(RealKMSOutputTest, SetCrtcFailureIsHandledGracefully)
 {
     using namespace testing;
 
@@ -235,7 +235,7 @@ TEST_F(RealKMSOutputTest, set_crtc_failure_is_handled_gracefully)
     }, std::runtime_error);
 }
 
-TEST_F(RealKMSOutputTest, clear_crtc_gets_crtc_if_none_is_current)
+TEST_F(RealKMSOutputTest, ClearCrtcGetsCrtcIfNoneIsCurrent)
 {
     using namespace testing;
 
@@ -251,7 +251,7 @@ TEST_F(RealKMSOutputTest, clear_crtc_gets_crtc_if_none_is_current)
     output.clear_crtc();
 }
 
-TEST_F(RealKMSOutputTest, clear_crtc_does_not_throw_if_no_crtc_is_found)
+TEST_F(RealKMSOutputTest, ClearCrtcDoesNotThrowIfNoCrtcIsFound)
 {
     using namespace testing;
 
@@ -276,7 +276,7 @@ TEST_F(RealKMSOutputTest, clear_crtc_does_not_throw_if_no_crtc_is_found)
     output.clear_crtc();
 }
 
-TEST_F(RealKMSOutputTest, clear_crtc_throws_if_drm_call_fails)
+TEST_F(RealKMSOutputTest, ClearCrtcThrowsIfDrmCallFails)
 {
     using namespace testing;
 

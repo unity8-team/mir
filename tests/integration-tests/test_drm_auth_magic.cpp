@@ -88,7 +88,7 @@ void drm_auth_magic_callback(int status, void* client_context)
 
 }
 
-TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
+TEST_F(BespokeDisplayServerTestFixture, ClientDrmAuthMagicCallsPlatform)
 {
     unsigned int const magic{0x10111213};
 
@@ -142,7 +142,7 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
     launch_client_process(client_config);
 }
 
-TEST_F(BespokeDisplayServerTestFixture, drm_auth_magic_platform_error_reaches_client)
+TEST_F(BespokeDisplayServerTestFixture, DrmAuthMagicPlatformErrorReachesClient)
 {
     unsigned int const magic{0x10111213};
     static int const auth_magic_error{667};

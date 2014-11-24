@@ -84,7 +84,7 @@ public:
 #endif
 };
 
-TEST_F(GraphicsPlatform, buffer_allocator_creation)
+TEST_F(GraphicsPlatform, BufferAllocatorCreation)
 {
     using namespace testing;
 
@@ -97,7 +97,7 @@ TEST_F(GraphicsPlatform, buffer_allocator_creation)
 
 }
 
-TEST_F(GraphicsPlatform, buffer_creation)
+TEST_F(GraphicsPlatform, BufferCreation)
 {
     auto platform = create_platform();
     auto allocator = platform->create_buffer_allocator();
@@ -119,7 +119,7 @@ TEST_F(GraphicsPlatform, buffer_creation)
 
 }
 
-TEST_F(GraphicsPlatform, connection_ipc_package)
+TEST_F(GraphicsPlatform, ConnectionIpcPackage)
 {
     auto platform = create_platform();
     auto ipc_ops = platform->make_ipc_operations();

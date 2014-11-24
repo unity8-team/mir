@@ -22,7 +22,7 @@
 #include <gtest/gtest.h>
 
 using namespace mir::graphics;
-TEST(MirPixelFormatUtils, contains_alpha)
+TEST(MirPixelFormatUtils, ContainsAlpha)
 {
     EXPECT_FALSE(contains_alpha(mir_pixel_format_xbgr_8888));
     EXPECT_FALSE(contains_alpha(mir_pixel_format_bgr_888));
@@ -34,7 +34,7 @@ TEST(MirPixelFormatUtils, contains_alpha)
     EXPECT_FALSE(contains_alpha(mir_pixel_formats));
 }
 
-TEST(MirPixelFormatUtils, red_channel_depths)
+TEST(MirPixelFormatUtils, RedChannelDepths)
 {
     EXPECT_EQ(8, red_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, red_channel_depth(mir_pixel_format_bgr_888));
@@ -46,7 +46,7 @@ TEST(MirPixelFormatUtils, red_channel_depths)
     EXPECT_EQ(0, red_channel_depth(mir_pixel_formats));
 }
 
-TEST(MirPixelFormatUtils, blue_channel_depths)
+TEST(MirPixelFormatUtils, BlueChannelDepths)
 {
     EXPECT_EQ(8, blue_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, blue_channel_depth(mir_pixel_format_bgr_888));
@@ -58,7 +58,7 @@ TEST(MirPixelFormatUtils, blue_channel_depths)
     EXPECT_EQ(0, blue_channel_depth(mir_pixel_formats));
 }
 
-TEST(MirPixelFormatUtils, green_channel_depths)
+TEST(MirPixelFormatUtils, GreenChannelDepths)
 {
     EXPECT_EQ(8, green_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(8, green_channel_depth(mir_pixel_format_bgr_888));
@@ -71,7 +71,7 @@ TEST(MirPixelFormatUtils, green_channel_depths)
 }
 
 
-TEST(MirPixelFormatUtils, alpha_channel_depths)
+TEST(MirPixelFormatUtils, AlphaChannelDepths)
 {
     EXPECT_EQ(0, alpha_channel_depth(mir_pixel_format_xbgr_8888));
     EXPECT_EQ(0, alpha_channel_depth(mir_pixel_format_bgr_888));
@@ -83,7 +83,7 @@ TEST(MirPixelFormatUtils, alpha_channel_depths)
     EXPECT_EQ(0, alpha_channel_depth(mir_pixel_formats));
 }
 
-TEST(MirPixelFormatUtils, valid_mir_pixel_format)
+TEST(MirPixelFormatUtils, ValidMirPixelFormat)
 {
     EXPECT_TRUE(valid_pixel_format(mir_pixel_format_xbgr_8888));
     EXPECT_TRUE(valid_pixel_format(mir_pixel_format_bgr_888));

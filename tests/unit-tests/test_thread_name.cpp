@@ -77,7 +77,7 @@ MATCHER_P(IsPrefixOf, value, "")
 
 }
 
-TEST_F(MirThreadName, sets_thread_name)
+TEST_F(MirThreadName, SetsThreadName)
 {
     using namespace ::testing;
 
@@ -88,7 +88,7 @@ TEST_F(MirThreadName, sets_thread_name)
     EXPECT_THAT(name_of_thread(thread), Eq(thread_name));
 }
 
-TEST_F(MirThreadName, sets_part_of_long_thread_name)
+TEST_F(MirThreadName, SetsPartOfLongThreadName)
 {
     using namespace ::testing;
 

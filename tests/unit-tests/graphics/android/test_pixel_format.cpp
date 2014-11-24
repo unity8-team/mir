@@ -22,7 +22,7 @@
 
 namespace mga=mir::graphics::android;
 
-TEST(PixelFormatConversion, conversion_to_android_test)
+TEST(PixelFormatConversion, ConversionToAndroidTest)
 {
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBA_8888, mga::to_android_format(mir_pixel_format_abgr_8888));
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGBX_8888, mga::to_android_format(mir_pixel_format_xbgr_8888));
@@ -32,7 +32,7 @@ TEST(PixelFormatConversion, conversion_to_android_test)
     EXPECT_EQ(HAL_PIXEL_FORMAT_RGB_888, mga::to_android_format(mir_pixel_format_bgr_888));
 }
 
-TEST(PixelFormatConversion, conversion_to_mir_test)
+TEST(PixelFormatConversion, ConversionToMirTest)
 {
     EXPECT_EQ(mir_pixel_format_abgr_8888, mga::to_mir_format(HAL_PIXEL_FORMAT_RGBA_8888));
     EXPECT_EQ(mir_pixel_format_xbgr_8888, mga::to_mir_format(HAL_PIXEL_FORMAT_RGBX_8888));

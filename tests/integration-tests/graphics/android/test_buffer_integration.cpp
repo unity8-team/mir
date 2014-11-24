@@ -79,7 +79,7 @@ auto client_acquire_blocking(mc::BufferQueue& switching_bundle)
 }
 }
 
-TEST_F(AndroidBufferIntegration, allocator_can_create_sw_buffer)
+TEST_F(AndroidBufferIntegration, AllocatorCanCreateSwBuffer)
 {
     using namespace testing;
 
@@ -95,7 +95,7 @@ TEST_F(AndroidBufferIntegration, allocator_can_create_sw_buffer)
     EXPECT_TRUE(red_pattern.check(*region));
 }
 
-TEST_F(AndroidBufferIntegration, allocator_can_create_hw_buffer)
+TEST_F(AndroidBufferIntegration, AllocatorCanCreateHwBuffer)
 {
     using namespace testing;
 
@@ -107,7 +107,7 @@ TEST_F(AndroidBufferIntegration, allocator_can_create_hw_buffer)
     EXPECT_NE(nullptr, test_buffer);
 }
 
-TEST_F(AndroidBufferIntegration, swapper_creation_is_sane)
+TEST_F(AndroidBufferIntegration, SwapperCreationIsSane)
 {
     using namespace testing;
 

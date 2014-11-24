@@ -25,7 +25,7 @@ namespace
 int const arbitrary_number_of_events = 100;
 }
 
-TEST(WaitHandle, symmetric_synchronous)
+TEST(WaitHandle, SymmetricSynchronous)
 {
     MirWaitHandle w;
     for (int i = 0; i != arbitrary_number_of_events; ++i)
@@ -41,7 +41,7 @@ TEST(WaitHandle, symmetric_synchronous)
     EXPECT_TRUE(true);   // Failure would be hanging in the above loop
 }
 
-TEST(WaitHandle, asymmetric_synchronous)
+TEST(WaitHandle, AsymmetricSynchronous)
 {
     MirWaitHandle w;
 
@@ -75,7 +75,7 @@ namespace
     }
 }
 
-TEST(WaitHandle, symmetric_asynchronous)
+TEST(WaitHandle, SymmetricAsynchronous)
 {
     const int max = 100;
     MirWaitHandle in, out;
@@ -108,7 +108,7 @@ namespace
     }
 }
 
-TEST(WaitHandle, asymmetric_asynchronous)
+TEST(WaitHandle, AsymmetricAsynchronous)
 {
     const int max = 100;
     MirWaitHandle in, out;
@@ -144,7 +144,7 @@ namespace
     }
 }
 
-TEST(WaitHandle, many_waiters)
+TEST(WaitHandle, ManyWaiters)
 {
     const int max = 100;
     MirWaitHandle w;

@@ -103,7 +103,7 @@ void restore_xcursor_path()
 
 }
 
-TEST(XCursorLoader, loads_cursors_from_testing_theme)
+TEST(XCursorLoader, LoadsCursorsFromTestingTheme)
 {
     set_xcursor_path();
 
@@ -124,7 +124,7 @@ TEST(XCursorLoader, loads_cursors_from_testing_theme)
     restore_xcursor_path();
 }
 
-TEST(XCursorLoader, only_supports_the_default_size)
+TEST(XCursorLoader, OnlySupportsTheDefaultSize)
 {
     mi::XCursorLoader loader;
     
@@ -133,7 +133,7 @@ TEST(XCursorLoader, only_supports_the_default_size)
     }, std::logic_error);
 }
 
-TEST(XCursorLoader, default_image_is_arrow_from_xcursor_theme)
+TEST(XCursorLoader, DefaultImageIsArrowFromXcursorTheme)
 {
     set_xcursor_path();
 
@@ -150,7 +150,7 @@ TEST(XCursorLoader, default_image_is_arrow_from_xcursor_theme)
     restore_xcursor_path();
 }
 
-TEST(XCursorLoader, symbolic_names_which_are_not_present_resolve_to_default)
+TEST(XCursorLoader, SymbolicNamesWhichAreNotPresentResolveToDefault)
 {
     set_xcursor_path();
 

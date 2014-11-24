@@ -71,7 +71,7 @@ MATCHER_P(WindowHandleFor, channel, "")
 
 }
 
-TEST_F(AndroidInputRegistrarFdSetup, input_channel_opened_behavior)
+TEST_F(AndroidInputRegistrarFdSetup, InputChannelOpenedBehavior)
 {
     using namespace ::testing;
 
@@ -85,7 +85,7 @@ TEST_F(AndroidInputRegistrarFdSetup, input_channel_opened_behavior)
     }, std::logic_error);
 }
 
-TEST_F(AndroidInputRegistrarFdSetup, input_channel_closed_behavior)
+TEST_F(AndroidInputRegistrarFdSetup, InputChannelClosedBehavior)
 {
     using namespace ::testing;
 
@@ -105,7 +105,7 @@ TEST_F(AndroidInputRegistrarFdSetup, input_channel_closed_behavior)
     }, std::logic_error);
 }
 
-TEST_F(AndroidInputRegistrarFdSetup, monitor_flag_is_passed_to_dispatcher)
+TEST_F(AndroidInputRegistrarFdSetup, MonitorFlagIsPassedToDispatcher)
 {
     using namespace ::testing;
 

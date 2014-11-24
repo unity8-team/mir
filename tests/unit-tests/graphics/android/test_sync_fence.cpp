@@ -71,7 +71,7 @@ MATCHER_P(MergeMatches, value,
     return argument->fd2 == value.fd2;
 }
 
-TEST_F(SyncSwTest, sync_wait)
+TEST_F(SyncSwTest, SyncWait)
 {
     EXPECT_CALL(*mock_fops, ioctl(dummy_fd_value, SYNC_IOC_WAIT, TimeoutMatches(-1)))
         .Times(1);
@@ -100,7 +100,7 @@ struct IoctlSetter
     int fd;
 };
 }
-TEST_F(SyncSwTest, sync_merge_with_valid_fd)
+TEST_F(SyncSwTest, SyncMergeWithValidFd)
 {
     using namespace testing;
     int dummy_fd2 = 44;
@@ -117,7 +117,7 @@ TEST_F(SyncSwTest, sync_merge_with_valid_fd)
     fence1.merge_with(dummy_fd2);
 }
 
-TEST_F(SyncSwTest, sync_merge_with_invalid_fd)
+TEST_F(SyncSwTest, SyncMergeWithInvalidFd)
 {
     using namespace testing;
     EXPECT_CALL(*mock_fops, ioctl(dummy_fd_value, static_cast<int>(SYNC_IOC_MERGE), _))
@@ -127,7 +127,7 @@ TEST_F(SyncSwTest, sync_merge_with_invalid_fd)
     fence1.merge_with(invalid_fd_value);
 }
 
-TEST_F(SyncSwTest, copy_dups_fd)
+TEST_F(SyncSwTest, CopyDupsFd)
 {
     using namespace testing;
     int fd2 = dummy_fd_value + 1;

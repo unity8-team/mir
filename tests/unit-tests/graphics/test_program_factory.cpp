@@ -136,7 +136,7 @@ MATCHER_P(NthCharacterIsNul, n, "specified character is the nul-byte")
     return arg[n] == '\0';
 }
 
-TEST_F(ProgramFactory, vertex_shader_compiler_failure_recovers_and_throws)
+TEST_F(ProgramFactory, VertexShaderCompilerFailureRecoversAndThrows)
 {
     using namespace std::placeholders;
 
@@ -156,7 +156,7 @@ TEST_F(ProgramFactory, vertex_shader_compiler_failure_recovers_and_throws)
     }, std::runtime_error);
 }
 
-TEST_F(ProgramFactory, fragment_shader_compiler_failure_recovers_and_throw)
+TEST_F(ProgramFactory, FragmentShaderCompilerFailureRecoversAndThrow)
 {
     using namespace std::placeholders;
 
@@ -177,7 +177,7 @@ TEST_F(ProgramFactory, fragment_shader_compiler_failure_recovers_and_throw)
     }, std::runtime_error);
 }
 
-TEST_F(ProgramFactory, graphics_program_linker_failure_recovers_and_throw)
+TEST_F(ProgramFactory, GraphicsProgramLinkerFailureRecoversAndThrow)
 {
     using namespace std::placeholders;
 
@@ -199,7 +199,7 @@ TEST_F(ProgramFactory, graphics_program_linker_failure_recovers_and_throw)
     }, std::runtime_error);
 }
 
-TEST_F(ProgramFactory, graphics_program_creation_success)
+TEST_F(ProgramFactory, GraphicsProgramCreationSuccess)
 {
     using namespace std::placeholders;
 

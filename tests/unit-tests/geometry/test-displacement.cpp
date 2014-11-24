@@ -23,7 +23,7 @@
 
 namespace geom = mir::geometry;
 
-TEST(geometry, displacement)
+TEST(geometry, Displacement)
 {
     using namespace geom;
     Displacement disp;
@@ -41,7 +41,7 @@ TEST(geometry, displacement)
     EXPECT_NE(dx2dy4, disp);
 }
 
-TEST(geometry, displacement_arithmetic)
+TEST(geometry, DisplacementArithmetic)
 {
     using namespace geom;
     Displacement const dx2dy4{DeltaX{2}, DeltaY{4}};
@@ -56,7 +56,7 @@ TEST(geometry, displacement_arithmetic)
     EXPECT_EQ(expected_sub, sub);
 }
 
-TEST(geometry, displacement_point_arithmetic)
+TEST(geometry, DisplacementPointArithmetic)
 {
     using namespace geom;
     Point const x2y4{X{2}, Y{4}};

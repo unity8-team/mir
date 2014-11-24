@@ -32,7 +32,7 @@ struct ResourceFactoryTest  : public ::testing::Test
     mtd::HardwareAccessMock hw_access_mock;
 };
 
-TEST_F(ResourceFactoryTest, fb_native_creation_opens_and_closes_gralloc)
+TEST_F(ResourceFactoryTest, FbNativeCreationOpensAndClosesGralloc)
 {
     using namespace testing;
     EXPECT_CALL(hw_access_mock, hw_get_module(StrEq(GRALLOC_HARDWARE_MODULE_ID), _))
@@ -43,7 +43,7 @@ TEST_F(ResourceFactoryTest, fb_native_creation_opens_and_closes_gralloc)
     EXPECT_TRUE(hw_access_mock.open_count_matches_close());
 }
 
-TEST_F(ResourceFactoryTest, test_device_creation_throws_on_failure)
+TEST_F(ResourceFactoryTest, TestDeviceCreationThrowsOnFailure)
 {
     using namespace testing;
     mga::ResourceFactory factory;
@@ -67,7 +67,7 @@ TEST_F(ResourceFactoryTest, test_device_creation_throws_on_failure)
     }, std::runtime_error);
 }
 
-TEST_F(ResourceFactoryTest, hwc_allocation)
+TEST_F(ResourceFactoryTest, HwcAllocation)
 {
     using namespace testing;
     EXPECT_CALL(hw_access_mock, hw_get_module(StrEq(HWC_HARDWARE_MODULE_ID), _))
@@ -79,7 +79,7 @@ TEST_F(ResourceFactoryTest, hwc_allocation)
     EXPECT_TRUE(hw_access_mock.open_count_matches_close());
 }
 
-TEST_F(ResourceFactoryTest, hwc_allocation_failures)
+TEST_F(ResourceFactoryTest, HwcAllocationFailures)
 {
     using namespace testing;
 

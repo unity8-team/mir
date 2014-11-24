@@ -88,7 +88,7 @@ protected:
 };
 }
 
-TEST_F(DisplayBuffer, can_post_update_with_gl_only)
+TEST_F(DisplayBuffer, CanPostUpdateWithGlOnly)
 {
     using namespace testing;
 
@@ -102,7 +102,7 @@ TEST_F(DisplayBuffer, can_post_update_with_gl_only)
     db.post_update();
 }
 
-TEST_F(DisplayBuffer, posts_overlay_list_returns_display_device_decision)
+TEST_F(DisplayBuffer, PostsOverlayListReturnsDisplayDeviceDecision)
 {
     using namespace testing;
     mg::RenderableList renderlist{
@@ -120,7 +120,7 @@ TEST_F(DisplayBuffer, posts_overlay_list_returns_display_device_decision)
     EXPECT_FALSE(db.post_renderables_if_optimizable(renderlist)); 
 }
 
-TEST_F(DisplayBuffer, defaults_to_normal_orientation)
+TEST_F(DisplayBuffer, DefaultsToNormalOrientation)
 {
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory, mga::OverlayOptimization::enabled);
@@ -128,7 +128,7 @@ TEST_F(DisplayBuffer, defaults_to_normal_orientation)
     EXPECT_EQ(mir_orientation_normal, db.orientation());
 }
 
-TEST_F(DisplayBuffer, orientation_is_passed_through)
+TEST_F(DisplayBuffer, OrientationIsPassedThrough)
 {
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory, mga::OverlayOptimization::enabled);
@@ -145,7 +145,7 @@ TEST_F(DisplayBuffer, orientation_is_passed_through)
     }
 }
 
-TEST_F(DisplayBuffer, rotation_transposes_dimensions)
+TEST_F(DisplayBuffer, RotationTransposesDimensions)
 {
     using namespace testing;
 
@@ -177,7 +177,7 @@ TEST_F(DisplayBuffer, rotation_transposes_dimensions)
     EXPECT_EQ(transposed, db.view_area().size);
 }
 
-TEST_F(DisplayBuffer, reports_correct_size)
+TEST_F(DisplayBuffer, ReportsCorrectSize)
 {
     using namespace testing;
 
@@ -191,7 +191,7 @@ TEST_F(DisplayBuffer, reports_correct_size)
     EXPECT_EQ(origin_pt, view_area.top_left);
 }
 
-TEST_F(DisplayBuffer, creates_egl_context_from_shared_context)
+TEST_F(DisplayBuffer, CreatesEglContextFromSharedContext)
 {
     using namespace testing;
 
@@ -215,7 +215,7 @@ TEST_F(DisplayBuffer, creates_egl_context_from_shared_context)
     testing::Mock::VerifyAndClearExpectations(&mock_egl);
 }
 
-TEST_F(DisplayBuffer, fails_on_egl_resource_creation)
+TEST_F(DisplayBuffer, FailsOnEglResourceCreation)
 {
     using namespace testing;
     EXPECT_CALL(mock_egl, eglCreateContext(_,_,_,_))
@@ -239,7 +239,7 @@ TEST_F(DisplayBuffer, fails_on_egl_resource_creation)
     }, std::runtime_error);
 }
 
-TEST_F(DisplayBuffer, can_make_current)
+TEST_F(DisplayBuffer, CanMakeCurrent)
 {
     using namespace testing;
     EGLContext fake_ctxt = reinterpret_cast<EGLContext>(0x4422);
@@ -264,7 +264,7 @@ TEST_F(DisplayBuffer, can_make_current)
     }, std::runtime_error);
 }
 
-TEST_F(DisplayBuffer, release_current)
+TEST_F(DisplayBuffer, ReleaseCurrent)
 {
     using namespace testing;
     mga::DisplayBuffer db(
@@ -275,7 +275,7 @@ TEST_F(DisplayBuffer, release_current)
     db.release_current();
 }
 
-TEST_F(DisplayBuffer, sets_display_power_mode_to_on_at_start)
+TEST_F(DisplayBuffer, SetsDisplayPowerModeToOnAtStart)
 {
     using namespace testing;
     mga::DisplayBuffer db(
@@ -284,7 +284,7 @@ TEST_F(DisplayBuffer, sets_display_power_mode_to_on_at_start)
     EXPECT_EQ(mir_power_mode_on, config.power_mode);
 }
 
-TEST_F(DisplayBuffer, changes_display_power_mode)
+TEST_F(DisplayBuffer, ChangesDisplayPowerMode)
 {
     using namespace testing;
     mga::DisplayBuffer db(
@@ -305,7 +305,7 @@ TEST_F(DisplayBuffer, changes_display_power_mode)
     db.configure(config); 
 }
 
-TEST_F(DisplayBuffer, disregards_double_display_power_mode_request)
+TEST_F(DisplayBuffer, DisregardsDoubleDisplayPowerModeRequest)
 {
     using namespace testing;
     mga::DisplayBuffer db(
@@ -324,7 +324,7 @@ TEST_F(DisplayBuffer, disregards_double_display_power_mode_request)
 }
 
 //configuration tests
-TEST_F(DisplayBuffer, display_orientation_supported)
+TEST_F(DisplayBuffer, DisplayOrientationSupported)
 {
     using namespace testing;
 
@@ -343,7 +343,7 @@ TEST_F(DisplayBuffer, display_orientation_supported)
     EXPECT_EQ(mir_orientation_normal, config.orientation);
 }
 
-TEST_F(DisplayBuffer, display_orientation_not_supported)
+TEST_F(DisplayBuffer, DisplayOrientationNotSupported)
 {
     using namespace testing;
     EXPECT_CALL(*mock_display_device, apply_orientation(mir_orientation_left))
@@ -361,7 +361,7 @@ TEST_F(DisplayBuffer, display_orientation_not_supported)
     EXPECT_EQ(mir_orientation_left, config.orientation);
 }
 
-TEST_F(DisplayBuffer, incorrect_display_configure_throws)
+TEST_F(DisplayBuffer, IncorrectDisplayConfigureThrows)
 {
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory, mga::OverlayOptimization::enabled);
@@ -373,7 +373,7 @@ TEST_F(DisplayBuffer, incorrect_display_configure_throws)
     }, std::runtime_error); 
 }
 
-TEST_F(DisplayBuffer, android_display_configuration_info)
+TEST_F(DisplayBuffer, AndroidDisplayConfigurationInfo)
 {
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory, mga::OverlayOptimization::enabled);
@@ -395,7 +395,7 @@ TEST_F(DisplayBuffer, android_display_configuration_info)
     //TODO fill physical_size_mm fields accordingly;
 }
 
-TEST_F(DisplayBuffer, does_not_use_alpha)
+TEST_F(DisplayBuffer, DoesNotUseAlpha)
 {
     mga::DisplayBuffer db(
         mock_fb_bundle, mock_display_device, native_window, *gl_context, stub_program_factory, mga::OverlayOptimization::enabled);
@@ -403,7 +403,7 @@ TEST_F(DisplayBuffer, does_not_use_alpha)
     EXPECT_FALSE(db.uses_alpha());
 }
 
-TEST_F(DisplayBuffer, reject_list_if_option_disabled)
+TEST_F(DisplayBuffer, RejectListIfOptionDisabled)
 {
     mg::RenderableList renderlist{std::make_shared<mtd::StubRenderable>()};
     mga::DisplayBuffer db(

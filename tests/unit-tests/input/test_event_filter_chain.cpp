@@ -27,7 +27,7 @@
 namespace mi = mir::input;
 namespace mtd = mir::test::doubles;
 
-TEST(EventFilterChain, offers_events_to_filters)
+TEST(EventFilterChain, OffersEventsToFilters)
 {
     using namespace ::testing;
     auto filter = std::make_shared<mtd::MockEventFilter>();
@@ -40,7 +40,7 @@ TEST(EventFilterChain, offers_events_to_filters)
     EXPECT_FALSE(filter_chain.handle(ev));
 }
 
-TEST(EventFilterChain, prepends_appends_filters)
+TEST(EventFilterChain, PrependsAppendsFilters)
 {
     using namespace ::testing;
     auto filter1 = std::make_shared<mtd::MockEventFilter>();
@@ -63,7 +63,7 @@ TEST(EventFilterChain, prepends_appends_filters)
     EXPECT_FALSE(filter_chain.handle(ev));
 }
 
-TEST(EventFilterChain, accepting_event_halts_emission)
+TEST(EventFilterChain, AcceptingEventHaltsEmission)
 {
     using namespace ::testing;
     auto filter = std::make_shared<mtd::MockEventFilter>();
@@ -81,7 +81,7 @@ TEST(EventFilterChain, accepting_event_halts_emission)
     EXPECT_TRUE(filter_chain.handle(ev));
 }
 
-TEST(EventFilterChain, does_not_own_event_filters)
+TEST(EventFilterChain, DoesNotOwnEventFilters)
 {
     using namespace ::testing;
 

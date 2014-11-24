@@ -50,7 +50,7 @@ struct LegacySceneChangeNotificationTest : public testing::Test
 }; 
 }
 
-TEST_F(LegacySceneChangeNotificationTest, fowards_all_observations_to_callback)
+TEST_F(LegacySceneChangeNotificationTest, FowardsAllObservationsToCallback)
 {
     EXPECT_CALL(scene_callback, invoke())
         .Times(3);
@@ -61,7 +61,7 @@ TEST_F(LegacySceneChangeNotificationTest, fowards_all_observations_to_callback)
     observer.surfaces_reordered();
 }
 
-TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_surfaces)
+TEST_F(LegacySceneChangeNotificationTest, RegistersObserverWithSurfaces)
 {
     EXPECT_CALL(surface, add_observer(testing::_))
         .Times(1);
@@ -70,7 +70,7 @@ TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_surfaces)
     observer.surface_added(&surface);
 }
 
-TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_existing_surfaces)
+TEST_F(LegacySceneChangeNotificationTest, RegistersObserverWithExistingSurfaces)
 {
     EXPECT_CALL(surface, add_observer(testing::_))
         .Times(1);
@@ -79,7 +79,7 @@ TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_existing_surfa
     observer.surface_exists(&surface);
 }
 
-TEST_F(LegacySceneChangeNotificationTest, observes_surface_changes)
+TEST_F(LegacySceneChangeNotificationTest, ObservesSurfaceChanges)
 {
     using namespace ::testing;
     std::shared_ptr<ms::SurfaceObserver> surface_observer;
@@ -97,7 +97,7 @@ TEST_F(LegacySceneChangeNotificationTest, observes_surface_changes)
     surface_observer->frame_posted(buffer_num);
 }
 
-TEST_F(LegacySceneChangeNotificationTest, destroying_observer_unregisters_surface_observers)
+TEST_F(LegacySceneChangeNotificationTest, DestroyingObserverUnregistersSurfaceObservers)
 {
     using namespace ::testing;
     
@@ -111,7 +111,7 @@ TEST_F(LegacySceneChangeNotificationTest, destroying_observer_unregisters_surfac
     }
 }
 
-TEST_F(LegacySceneChangeNotificationTest, ending_observation_unregisters_observers)
+TEST_F(LegacySceneChangeNotificationTest, EndingObservationUnregistersObservers)
 {
     using namespace ::testing;
     EXPECT_CALL(surface, add_observer(_))
