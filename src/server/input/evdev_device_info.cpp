@@ -29,6 +29,7 @@
 #include <fcntl.h>
 
 #include <cstring>
+#include <system_error>
 
 namespace mi = mir::input;
 
@@ -56,14 +57,18 @@ void fill_identifier(int fd, mi::InputDeviceIdentifier &id)
 {
     char buffer[80];
     if (ioctl(fd, EVIOCGNAME(sizeof buffer - 1), &buffer) < 1)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to get device name"));
+        BOOST_THROW_EXCEPTION(
+            std::system_error(std::error_code(errno, std::system_category()),
+                              "Failed to get device name"));
 
     buffer[sizeof(buffer) - 1] = '\0';
     id.name = buffer;
 
     input_id device_input_id;
     if (ioctl(fd, EVIOCGID, &device_input_id) < 0)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to get device input id"));
+        BOOST_THROW_EXCEPTION(
+            std::system_error(std::error_code(errno, std::system_category()),
+                              "Failed to get device input id"));
 
     id.bus = device_input_id.bustype;
     id.product = device_input_id.product;
@@ -100,13 +105,17 @@ mi::EvdevDeviceInfo::EvdevDeviceInfo(const char* devpath)
 
         mir::Fd input_device(::open(devpath, O_RDONLY|O_NONBLOCK));
         if (input_device < 0)
-            BOOST_THROW_EXCEPTION(std::runtime_error("Failed to open input device"));
+            BOOST_THROW_EXCEPTION(
+                std::system_error(std::error_code(errno, std::system_category()),
+                                  "Failed to open input device"));
 
         // Figure out the kinds of events the device reports.
         auto const get_bitmask = [&](int bit, size_t size, uint8_t* buf) -> void
         {
             if(ioctl(input_device, EVIOCGBIT(bit, size), buf) < 1)
-                BOOST_THROW_EXCEPTION(std::runtime_error("Failed to query input device"));
+                BOOST_THROW_EXCEPTION(
+                    std::system_error(std::error_code(errno, std::system_category()),
+                                      "Failed to query input device"));
         };
         get_bitmask(EV_KEY, sizeof key_bit_mask, key_bit_mask);
         get_bitmask(EV_REL, sizeof rel_bit_mask, rel_bit_mask);
@@ -116,16 +125,17 @@ mi::EvdevDeviceInfo::EvdevDeviceInfo(const char* devpath)
         get_bitmask(EV_FF, sizeof ff_bit_mask, ff_bit_mask);
 
         if (ioctl(input_device, EVIOCGPROP(sizeof property_bit_mask), property_bit_mask) < 1)
-            BOOST_THROW_EXCEPTION(std::runtime_error("Failed to query input device"));
+            BOOST_THROW_EXCEPTION(
+                std::system_error(std::error_code(errno, std::system_category()),
+                                  "Failed to query devices properties"));
 
         fill_identifier(input_device, identifier);
 
         device_class = evaluate_device_class();
     }
-    catch( boost::exception & e )
+    catch (boost::exception& e)
     {
-        e << boost::errinfo_errno(errno)
-            << boost::errinfo_file_name(devpath);
+        e << boost::errinfo_file_name(devpath);
         throw;
     }
 }
