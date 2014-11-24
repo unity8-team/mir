@@ -19,16 +19,14 @@
 #include "mir/logging/dumb_console_logger.h"
 
 #include <iostream>
-#include <ctime>
 #include <cstdio>
+#include <chrono>
 
 namespace ml = mir::logging;
 
 ml::DumbConsoleLogger::DumbConsoleLogger()
+    : start_time{clock.now()}
 {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    start_time = ts.tv_sec;
 }
 
 void ml::DumbConsoleLogger::log(ml::Severity severity,
@@ -47,12 +45,13 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
 
     std::ostream& out = severity < ml::Severity::informational ? std::cerr : std::cout;
 
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    auto relative = clock.now() - start_time;
+    auto usec = std::chrono::duration_cast<std::chrono::microseconds>
+                    (relative).count();
+    long whole = usec / 1000000L;
+    long fraction = usec % 1000000L;
     char now[32];
-    long seconds = ts.tv_sec - start_time;
-    long microseconds = ts.tv_nsec / 1000;
-    snprintf(now, sizeof(now), "%ld.%06ld", seconds, microseconds);
+    snprintf(now, sizeof(now), "%ld.%06ld", whole, fraction);
 
     out << "["
         << now

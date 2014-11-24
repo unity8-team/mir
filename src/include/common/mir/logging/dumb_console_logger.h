@@ -20,7 +20,7 @@
 #define MIR_LOGGING_DUMB_CONSOLE_LOGGER_H_
 
 #include "mir/logging/logger.h"
-#include <ctime>
+#include "mir/time/steady_clock.h"
 
 namespace mir
 {
@@ -33,7 +33,8 @@ public:
 protected:
     void log(Severity severity, const std::string& message, const std::string& component) override;
 private:
-    time_t start_time;
+    time::SteadyClock const clock;
+    time::Timestamp const start_time;
 };
 }
 }
