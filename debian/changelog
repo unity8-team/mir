@@ -1,3 +1,13 @@
+platform-api (2.5.0+15.04.20141124-0ubuntu1) vivid; urgency=low
+
+  [ Alberto Aguirre ]
+  * No-change rebuild against mir 0.9.0
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 24 Nov 2014 22:40:37 +0000
+
 platform-api (2.5.0+15.04.20141027-0ubuntu1) vivid; urgency=low
 
   [ Alexandros Frantzis ]
