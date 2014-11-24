@@ -64,12 +64,12 @@ void me::EventFilter::set_compositor(std::shared_ptr<mc::Compositor> const& cpto
     compositor = cptor;
 }
 
-void me::WindowManager::set_input_scene(std::shared_ptr<mi::Scene> const& s)
+void me::EventFilter::set_input_scene(std::shared_ptr<mi::Scene> const& s)
 {
     input_scene = s;
 }
 
-void me::WindowManager::force_redraw()
+void me::EventFilter::force_redraw()
 {
     // This is clumsy, but the only option our architecture allows us for now
     // Same hack as used in TouchspotController...
