@@ -555,7 +555,9 @@ void mf::SessionMediator::configure_cursor(
             
             auto size = geom::Size{width, height};
             if (size != mi::default_cursor_size)
-                BOOST_THROW_EXCEPTION(std::logic_error("only 24x24 cursors are currently supported"));
+                BOOST_THROW_EXCEPTION(std::logic_error("invalid cursor size only 24x24 cursors are currently supported"));
+            if (hotspot_x > width || hotspot_y > height)
+                BOOST_THROW_EXCEPTION(std::logic_error("hotspot past bounds of cursor"));
 
             auto image = std::make_shared<Argb8888CursorImage>(pixels.data(), geom::Size{width, height},
                 geom::Displacement{hotspot_x, hotspot_y});

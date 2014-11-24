@@ -453,7 +453,7 @@ TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
     using namespace ::testing;
 
     unsigned width = 24, height = 24, hotspot_x = 7, hotspot_y = 9;
-    uint32_t pixels[64*64];
+    uint32_t pixels[24*24];
     uint32_t black = 0xffffffff, transparent = 0x000000;
     for (unsigned i = 0; i < height; i++)
     {
