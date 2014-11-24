@@ -20,6 +20,8 @@
 
 #include <mir_toolkit/common.h>
 
+#include <stdint.h>
+
 /**
  * Opaque structure containing cursor parameterization. Create with mir_cursor* family.
  * Used with mir_surface_configure_cursor.
@@ -51,6 +53,18 @@ void mir_cursor_configuration_destroy(MirCursorConfiguration *parameters);
  *            to_mir_cursor_configuration_destroy
  */
 MirCursorConfiguration *mir_cursor_configuration_from_name(char const* name);
+
+/**
+ * Returns a new MirCursorConfiguration representing a cursor visualizing given pixel data.
+ * 
+ *     \param[in] pixels The unstrided pixel data, of size width*height.
+ *     \param[in] width Width of a line in pixel data.
+ *     \param[in] height Height of pixel data
+ *     \return A cursor parameters object which must be passed
+ *            to_mir_cursor_configuration_destroy
+ */
+MirCursorConfiguration *mir_cursor_configuration_from_argb_8888(uint32_t const* pixels, unsigned width,
+    unsigned height);                                                                    
 
 #ifdef __cplusplus
 }

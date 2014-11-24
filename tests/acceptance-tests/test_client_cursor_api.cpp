@@ -97,6 +97,17 @@ MATCHER_P(CursorNamed, name, "")
     return cursor_is_named(arg, name);
 }
 
+MATCHER_P3(CursorWithPixels, pixels, width, height, "")
+{
+    if (width != arg.size().width.as_uint32_t())
+        return false;
+    if (height != arg.size().height.as_uint32_t())
+        return false;
+    if (memcmp(arg.as_argb_8888(), pixels, width*height) != 0)
+        return false;
+    return true;
+}
+
 struct CursorClient
 {
     CursorClient(std::string const& connect_string, std::string const& client_name)
@@ -205,6 +216,32 @@ struct NamedCursorClient : CursorClient
     }
 
     std::string const cursor_name;
+};
+
+struct ImageCursorClient : CursorClient
+{
+    ImageCursorClient(
+        std::string const& connect_string,
+        std::string const& client_name,
+        uint32_t const* argb_8888,
+        unsigned width, unsigned height)
+        : CursorClient{connect_string, client_name},
+          argb_8888(argb_8888),
+          width(width),
+          height(height)
+    {
+    }
+
+    void setup_cursor(MirSurface* surface) override
+    {
+        auto conf = mir_cursor_configuration_from_argb_8888(argb_8888, width, height);
+        mir_wait_for(mir_surface_configure_cursor(surface, conf));
+        mir_cursor_configuration_destroy(conf);
+    }
+
+    std::string const cursor_name;
+    uint32_t const* argb_8888;
+    unsigned width, height;
 };
 
 struct TestServerConfiguration : mtf::FakeEventHubServerConfiguration
@@ -399,6 +436,40 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_without_cursor_motion)
 
     client.run();
 
+    expectations_satisfied.wait_for_at_most_seconds(5);
+
+    client_shutdown_expectations();
+}
+
+TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
+{
+    using namespace ::testing;
+
+    unsigned width = 64, height = 64;
+    uint32_t pixels[64*64];
+    uint32_t black = 0xffffffff, transparent = 0x000000;
+    for (unsigned i = 0; i < height; i++)
+    {
+        for (unsigned j = 0; j < width; j++)
+        {
+            auto &pixel = pixels[i*width+j];
+            if (i % 2 == 0)
+                pixel = black;
+            else
+                pixel = transparent;
+        }
+    }
+
+
+    test_server_config().client_geometries[client_name_1] =
+        geom::Rectangle{{1, 0}, {1, 1}};
+
+    ImageCursorClient client{new_connection(), client_name_1, pixels, width, height};
+    client.run();
+
+    InSequence seq;
+    EXPECT_CALL(test_server_config().cursor, show(CursorWithPixels(pixels, width, height)))
+        .WillOnce(mt::WakeUp(&expectations_satisfied));
     expectations_satisfied.wait_for_at_most_seconds(5);
 
     client_shutdown_expectations();
