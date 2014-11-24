@@ -31,10 +31,12 @@ MirCursorConfiguration::MirCursorConfiguration(char const* name) :
 {
 }
 
-MirCursorConfiguration::MirCursorConfiguration(uint32_t const* pixels, geom::Size const& size) :
+MirCursorConfiguration::MirCursorConfiguration(uint32_t const* pixels, geom::Size const& size,
+    geom::Displacement const& hotspot) :
     name(std::string()),
     pixel_data(new uint32_t[size.width.as_int()*size.height.as_int()]),
-    pixels_size(size)
+    pixels_size(size),
+    hotspot_(hotspot)
 {
     memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());
 }
@@ -52,6 +54,11 @@ bool MirCursorConfiguration::has_pixels() const
 std::tuple<uint32_t const*, geom::Size> MirCursorConfiguration::pixels() const
 {
     return std::tuple<uint32_t const*, geom::Size>(pixel_data.get(), pixels_size);
+}
+
+geom::Displacement MirCursorConfiguration::hotspot() const
+{
+    return hotspot_;
 }
 
 void mir_cursor_configuration_destroy(MirCursorConfiguration *cursor)
@@ -72,11 +79,11 @@ MirCursorConfiguration* mir_cursor_configuration_from_name(char const* name)
 }
 
 MirCursorConfiguration* mir_cursor_configuration_from_argb_8888(uint32_t const* pixels, unsigned width,
-    unsigned height)                                                             
+    unsigned height, unsigned hotspot_x, unsigned hotspot_y)
 {
     try 
     {
-        return new MirCursorConfiguration(pixels, {width, height});
+        return new MirCursorConfiguration(pixels, {width, height}, {hotspot_x, hotspot_y});
     }
     catch (...)
     {

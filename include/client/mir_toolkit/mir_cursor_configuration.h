@@ -60,11 +60,13 @@ MirCursorConfiguration *mir_cursor_configuration_from_name(char const* name);
  *     \param[in] pixels The unstrided pixel data, of size width*height.
  *     \param[in] width Width of a line in pixel data.
  *     \param[in] height Height of pixel data
+ *     \param[in] hotspot_x X displacement in to image on which to place pointer
+ *     \param[in] hotspot_y X displacement in to image on which to place pointer
  *     \return A cursor parameters object which must be passed
  *            to_mir_cursor_configuration_destroy
  */
 MirCursorConfiguration *mir_cursor_configuration_from_argb_8888(uint32_t const* pixels, unsigned width,
-    unsigned height);                                                                    
+    unsigned height, unsigned hotspot_x, unsigned hotspot_y);
 
 #ifdef __cplusplus
 }

@@ -97,11 +97,15 @@ MATCHER_P(CursorNamed, name, "")
     return cursor_is_named(arg, name);
 }
 
-MATCHER_P3(CursorWithPixels, pixels, width, height, "")
+MATCHER_P5(CursorWithPixels, pixels, width, height, hotspot_x, hotspot_y, "")
 {
     if (width != arg.size().width.as_uint32_t())
         return false;
     if (height != arg.size().height.as_uint32_t())
+        return false;
+    if (hotspot_x != arg.hotspot().dx.as_uint32_t())
+        return false;
+    if (hotspot_y != arg.hotspot().dy.as_uint32_t())
         return false;
     if (memcmp(arg.as_argb_8888(), pixels, width*height) != 0)
         return false;
@@ -224,24 +228,27 @@ struct ImageCursorClient : CursorClient
         std::string const& connect_string,
         std::string const& client_name,
         uint32_t const* argb_8888,
-        unsigned width, unsigned height)
+        unsigned width, unsigned height,
+        unsigned hotspot_x, unsigned hotspot_y)
         : CursorClient{connect_string, client_name},
           argb_8888(argb_8888),
           width(width),
-          height(height)
+          height(height),
+          hotspot_x(hotspot_x),
+          hotspot_y(hotspot_y)
     {
     }
 
     void setup_cursor(MirSurface* surface) override
     {
-        auto conf = mir_cursor_configuration_from_argb_8888(argb_8888, width, height);
+        auto conf = mir_cursor_configuration_from_argb_8888(argb_8888, width, height, hotspot_x, hotspot_y);
         mir_wait_for(mir_surface_configure_cursor(surface, conf));
         mir_cursor_configuration_destroy(conf);
     }
 
     std::string const cursor_name;
     uint32_t const* argb_8888;
-    unsigned width, height;
+    unsigned width, height, hotspot_x, hotspot_y;
 };
 
 struct TestServerConfiguration : mtf::FakeEventHubServerConfiguration
@@ -445,7 +452,7 @@ TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
 {
     using namespace ::testing;
 
-    unsigned width = 64, height = 64;
+    unsigned width = 64, height = 64, hotspot_x = 7, hotspot_y = 9;
     uint32_t pixels[64*64];
     uint32_t black = 0xffffffff, transparent = 0x000000;
     for (unsigned i = 0; i < height; i++)
@@ -464,10 +471,10 @@ TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
     test_server_config().client_geometries[client_name_1] =
         geom::Rectangle{{1, 0}, {1, 1}};
 
-    ImageCursorClient client{new_connection(), client_name_1, pixels, width, height};
+    ImageCursorClient client{new_connection(), client_name_1, pixels, width, height, hotspot_x, hotspot_y};
     client.run();
 
-    EXPECT_CALL(test_server_config().cursor, show(CursorWithPixels(pixels, width, height)))
+    EXPECT_CALL(test_server_config().cursor, show(CursorWithPixels(pixels, width, height, hotspot_x, hotspot_y)))
         .WillOnce(mt::WakeUp(&expectations_satisfied));
     fake_event_hub()->synthesize_event(mis::a_motion_event().with_movement(1, 0));
 

@@ -20,6 +20,7 @@
 #define MIR_CLIENT_CURSOR_CONFIGURATION_H_
 
 #include "mir/geometry/size.h"
+#include "mir/geometry/displacement.h"
 
 #include <string>
 #include <tuple>
@@ -33,16 +34,20 @@ class MirCursorConfiguration
 {
 public:
     MirCursorConfiguration(char const* name);
-    MirCursorConfiguration(uint32_t const* pixels, mir::geometry::Size const& size);
+    MirCursorConfiguration(uint32_t const* pixels, mir::geometry::Size const& size, mir::geometry::Displacement const& hotspot);
+
+    std::string cursor_name() const;
     
     bool has_pixels() const;
-    std::string cursor_name() const;
     std::tuple<uint32_t const*, mir::geometry::Size> pixels() const;
+    mir::geometry::Displacement hotspot() const;
 private:
     std::string const name;
 
     std::unique_ptr<uint32_t[]> pixel_data;
     mir::geometry::Size const pixels_size;
+    
+    mir::geometry::Displacement hotspot_;
 };
 
 #endif // MIR_CLIENT_CURSOR_CONFIGURATION_H_

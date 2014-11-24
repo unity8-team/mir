@@ -192,6 +192,8 @@ message CursorSetting {
   repeated uint32 pixels = 3;
   optional uint32 width = 4;
   optional uint32 height = 5;
+  optional uint32 hotspot_x = 6;
+  optional uint32 hotspot_y = 7;
 }
 
 message SocketFDRequest {

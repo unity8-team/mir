@@ -488,9 +488,10 @@ namespace
 {
 struct Argb8888CursorImage : public mg::CursorImage
 {
-    Argb8888CursorImage(uint32_t const* pixels, geom::Size const& size) :
+    Argb8888CursorImage(uint32_t const* pixels, geom::Size const& size, geom::Displacement hotspot) :
         pixel_data(new uint32_t[size.width.as_int()*size.height.as_int()]),
-        pixels_size(size)
+        pixels_size(size),
+        hotspot_(hotspot)
     {
         memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());        
     }
@@ -507,12 +508,12 @@ struct Argb8888CursorImage : public mg::CursorImage
 
     geom::Displacement hotspot() const
     {
-        // TODO
-        return {0, 0};
+        return hotspot_;
     }
   
     std::unique_ptr<uint32_t[]> pixel_data;
     geom::Size pixels_size;
+    geom::Displacement hotspot_;
 };
 }
 
@@ -542,13 +543,18 @@ void mf::SessionMediator::configure_cursor(
         }
         else if (cursor_request->has_width() && cursor_request->has_height())
         {
-            // TODO: Asserts, etc?
-            auto width = cursor_request->width();
-            auto height = cursor_request->height();
-            auto const& pixels = cursor_request->pixels();
+            int width = cursor_request->width();
+            int height = cursor_request->height();
+            int hotspot_x = cursor_request->hotspot_x();
+            int hotspot_y = cursor_request->hotspot_y();
             
-            // assert(pixels.size) == width * height ! TODO
-            auto image = std::make_shared<Argb8888CursorImage>(pixels.data(), geom::Size{width, height});
+            auto const& pixels = cursor_request->pixels();
+
+            if (static_cast<unsigned int>(pixels.size()) != width*height*sizeof(uint32_t))
+                BOOST_THROW_EXCEPTION(std::logic_error("cursor image pixel size does not match dimensions"));
+
+            auto image = std::make_shared<Argb8888CursorImage>(pixels.data(), geom::Size{width, height},
+                geom::Displacement{hotspot_x, hotspot_y});
             surface->set_cursor_image(image);
         }
         else
