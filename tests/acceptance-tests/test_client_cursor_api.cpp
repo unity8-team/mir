@@ -467,9 +467,10 @@ TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
     ImageCursorClient client{new_connection(), client_name_1, pixels, width, height};
     client.run();
 
-    InSequence seq;
     EXPECT_CALL(test_server_config().cursor, show(CursorWithPixels(pixels, width, height)))
         .WillOnce(mt::WakeUp(&expectations_satisfied));
+    fake_event_hub()->synthesize_event(mis::a_motion_event().with_movement(1, 0));
+
     expectations_satisfied.wait_for_at_most_seconds(5);
 
     client_shutdown_expectations();

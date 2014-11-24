@@ -400,8 +400,22 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
     {
         std::unique_lock<decltype(mutex)> lock(mutex);
         setting.mutable_surfaceid()->CopyFrom(surface.id());
-        if (cursor && cursor->name != mir_disabled_cursor_name)
-            setting.set_name(cursor->name.c_str());
+        if (cursor && cursor->has_pixels())
+        {
+            // TODO: Cleanup?
+            auto image = cursor->pixels();
+            auto pixels = std::get<0>(image);
+            auto size = std::get<1>(image);
+            
+            google::protobuf::RepeatedField<uint32_t> r(pixels, pixels + (size.width.as_int() * size.height.as_int())*sizeof(uint32_t));
+            setting.mutable_pixels()->Swap(&r);
+            setting.set_width(size.width.as_uint32_t());
+            setting.set_height(size.height.as_uint32_t());
+        }
+        else if (cursor && cursor->cursor_name() != mir_disabled_cursor_name)
+        {
+            setting.set_name(cursor->cursor_name().c_str());
+        }
     }
     
     configure_cursor_wait_handle.expect_result();

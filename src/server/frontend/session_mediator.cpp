@@ -37,6 +37,7 @@
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
+#include "mir/graphics/cursor_image.h"
 #include "mir/frontend/client_constants.h"
 #include "mir/frontend/event_sink.h"
 #include "mir/frontend/screencast.h"
@@ -483,6 +484,38 @@ std::function<void(std::shared_ptr<mf::Session> const&)> mf::SessionMediator::pr
     };
 }
 
+namespace
+{
+struct Argb8888CursorImage : public mg::CursorImage
+{
+    Argb8888CursorImage(uint32_t const* pixels, geom::Size const& size) :
+        pixel_data(new uint32_t[size.width.as_int()*size.height.as_int()]),
+        pixels_size(size)
+    {
+        memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());        
+    }
+
+    void const* as_argb_8888() const
+    {
+        return pixel_data.get();
+    }
+
+    geom::Size size() const
+    {
+        return pixels_size;
+    }
+
+    geom::Displacement hotspot() const
+    {
+        // TODO
+        return {0, 0};
+    }
+  
+    std::unique_ptr<uint32_t[]> pixel_data;
+    geom::Size pixels_size;
+};
+}
+
 void mf::SessionMediator::configure_cursor(
     google::protobuf::RpcController*,
     mir::protobuf::CursorSetting const* cursor_request,
@@ -505,6 +538,17 @@ void mf::SessionMediator::configure_cursor(
         if (cursor_request->has_name())
         {
             auto const& image = cursor_images->image(cursor_request->name(), mi::default_cursor_size);
+            surface->set_cursor_image(image);
+        }
+        else if (cursor_request->has_width() && cursor_request->has_height())
+        {
+            // TODO: Asserts, etc?
+            auto width = cursor_request->width();
+            auto height = cursor_request->height();
+            auto const& pixels = cursor_request->pixels();
+            
+            // assert(pixels.size) == width * height ! TODO
+            auto image = std::make_shared<Argb8888CursorImage>(pixels.data(), geom::Size{width, height});
             surface->set_cursor_image(image);
         }
         else

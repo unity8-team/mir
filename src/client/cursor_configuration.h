@@ -22,18 +22,20 @@
 #include "mir/geometry/size.h"
 
 #include <string>
-#include <stdint.h>
 #include <tuple>
+#include <memory>
+
+#include <stdint.h>
 
 // Parameters for configuring the apperance and behavior of the system cursor. 
 // Will grow to include cursors specified by raw RGBA data, hotspots, etc...
-classt MirCursorConfiguration 
+class MirCursorConfiguration 
 {
 public:
     MirCursorConfiguration(char const* name);
     MirCursorConfiguration(uint32_t const* pixels, mir::geometry::Size const& size);
     
-    bool has_pixels();
+    bool has_pixels() const;
     std::string cursor_name() const;
     std::tuple<uint32_t const*, mir::geometry::Size> pixels() const;
 private:

@@ -184,8 +184,14 @@ message Screencast {
 
 message CursorSetting {
   required SurfaceId surfaceid = 1;
-  // No name is interpreted as disabled cursor.
+
   optional string name = 2;
+  // If both pixels and name erroneously included, name will be used over pixels.
+  // If pixels is included width and height must be included.
+  // If both fields are omitted the cursor will be disabled.
+  repeated uint32 pixels = 3;
+  optional uint32 width = 4;
+  optional uint32 height = 5;
 }
 
 message SocketFDRequest {

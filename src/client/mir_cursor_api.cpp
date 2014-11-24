@@ -21,6 +21,8 @@
 
 #include <memory>
 
+#include <string.h>
+
 namespace geom = mir::geometry;
 
 MirCursorConfiguration::MirCursorConfiguration(char const* name) :
@@ -32,9 +34,14 @@ MirCursorConfiguration::MirCursorConfiguration(char const* name) :
 MirCursorConfiguration::MirCursorConfiguration(uint32_t const* pixels, geom::Size const& size) :
     name(std::string()),
     pixel_data(new uint32_t[size.width.as_int()*size.height.as_int()]),
-    size(size);
+    pixels_size(size)
 {
-    pixel_data = new 
+    memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());
+}
+
+std::string MirCursorConfiguration::cursor_name() const
+{
+    return name;
 }
 
 bool MirCursorConfiguration::has_pixels() const
@@ -42,9 +49,9 @@ bool MirCursorConfiguration::has_pixels() const
     return pixel_data != nullptr;
 }
 
-std::tuple<uint32_t const*, geom::Size> pixels() const
+std::tuple<uint32_t const*, geom::Size> MirCursorConfiguration::pixels() const
 {
-    return {pixel_data, size};
+    return std::tuple<uint32_t const*, geom::Size>(pixel_data.get(), pixels_size);
 }
 
 void mir_cursor_configuration_destroy(MirCursorConfiguration *cursor)
@@ -64,7 +71,7 @@ MirCursorConfiguration* mir_cursor_configuration_from_name(char const* name)
     }
 }
 
-MirCursorConfiguration* mir_cursor_configuration_from_pixels(uint32_t const* pixels, unsigned width,
+MirCursorConfiguration* mir_cursor_configuration_from_argb_8888(uint32_t const* pixels, unsigned width,
     unsigned height)                                                             
 {
     try 
