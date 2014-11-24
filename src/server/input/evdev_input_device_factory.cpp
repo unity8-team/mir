@@ -46,7 +46,6 @@ std::unique_ptr<mi::InputDevice> mi::EvdevInputDeviceFactory::create_device(mi::
     }
 
     if (best_provider != nullptr)
-	//return std::forward<std::unique_ptr<InputDevice>>(best_provider->create_device(info));
 	return std::move(best_provider->create_device(info));
 
     return std::unique_ptr<mi::InputDevice>();

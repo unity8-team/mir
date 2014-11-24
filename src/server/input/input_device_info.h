@@ -44,12 +44,12 @@ public:
     InputDeviceInfo() = default;
     enum DeviceClasses
     {
-        cursor      = 0x00000001,
-        keyboard    = 0x00000002,
-        touchpad    = 0x00000004,
-        touchscreen = 0x00000008,
-        gamepad     = 0x00000010,
-        joystick    = 0x00000020,
+        cursor      = 1<<1,
+        keyboard    = 1<<2,
+        touchpad    = 1<<3,
+        touchscreen = 1<<4,
+        gamepad     = 1<<5,
+        joystick    = 1<<6,
     };
     virtual std::string path() const = 0;
     virtual uint32_t device_classes() const = 0;
