@@ -201,3 +201,11 @@ MIR_COMMON_3 {
   };
  local: *;
 };
+
+MIR_COMMON_3.1 {
+ global:
+  extern "C++" {
+    mir::logging::DumbConsoleLogger::DumbConsoleLogger*;
+  };
+ local: *;
+};

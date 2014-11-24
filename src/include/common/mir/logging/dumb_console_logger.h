@@ -20,6 +20,7 @@
 #define MIR_LOGGING_DUMB_CONSOLE_LOGGER_H_
 
 #include "mir/logging/logger.h"
+#include <ctime>
 
 namespace mir
 {
@@ -28,9 +29,11 @@ namespace logging
 class DumbConsoleLogger : public Logger
 {
 public:
-
+    DumbConsoleLogger();
 protected:
     void log(Severity severity, const std::string& message, const std::string& component) override;
+private:
+    time_t start_time;
 };
 }
 }

@@ -24,6 +24,13 @@
 
 namespace ml = mir::logging;
 
+ml::DumbConsoleLogger::DumbConsoleLogger()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    start_time = ts.tv_sec;
+}
+
 void ml::DumbConsoleLogger::log(ml::Severity severity,
                                 const std::string& message,
                                 const std::string& component)
@@ -43,8 +50,9 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     char now[32];
-    snprintf(now, sizeof(now), "%ld.%06ld",
-             (long)ts.tv_sec, ts.tv_nsec / 1000);
+    long seconds = ts.tv_sec - start_time;
+    long microseconds = ts.tv_nsec / 1000;
+    snprintf(now, sizeof(now), "%ld.%06ld", seconds, microseconds);
 
     out << "["
         << now
