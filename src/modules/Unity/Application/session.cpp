@@ -256,12 +256,10 @@ void Session::setState(State state)
         foreachPromptSession([this, state](const std::shared_ptr<ms::PromptSession>& promptSession) {
             switch (state) {
                 case Session::State::Suspended:
-                    if (promptSession->state() == mir_prompt_session_state_started)
-                        m_promptSessionManager->suspend_prompt_session(promptSession, true);
+                    m_promptSessionManager->suspend_prompt_session(promptSession);
                     break;
                 case Session::State::Running:
-                    if (promptSession->state() == mir_prompt_session_state_suspended)
-                        m_promptSessionManager->suspend_prompt_session(promptSession, false);
+                    m_promptSessionManager->resume_prompt_session(promptSession);
                     break;
                 default:
                     break;

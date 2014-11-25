@@ -34,7 +34,9 @@ public:
 
     MOCK_CONST_METHOD1(stop_prompt_session, void(std::shared_ptr<PromptSession> const&));
 
-    MOCK_CONST_METHOD2(suspend_prompt_session, void(std::shared_ptr<PromptSession> const&, bool));
+    MOCK_CONST_METHOD1(suspend_prompt_session, void(std::shared_ptr<PromptSession> const&));
+
+    MOCK_CONST_METHOD1(resume_prompt_session, void(std::shared_ptr<PromptSession> const&));
 
     MOCK_CONST_METHOD2(add_prompt_provider, void(std::shared_ptr<PromptSession> const&,
         std::shared_ptr<mir::scene::Session> const&));

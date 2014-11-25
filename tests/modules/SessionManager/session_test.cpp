@@ -217,10 +217,9 @@ TEST_F(SessionTests, SuspendPromptSessionWhenSessionSuspends)
     session->setState(Session::State::Running);
 
     auto mirPromptSession = std::make_shared<ms::MockPromptSession>();
-    EXPECT_CALL(*mirPromptSession, state()).WillRepeatedly(Return(mir_prompt_session_state_started));
     session->appendPromptSession(mirPromptSession);
 
-    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), suspend_prompt_session(_, true)).Times(1);
+    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), suspend_prompt_session(_)).Times(1);
 
     session->setState(Session::State::Suspended);
 
@@ -241,10 +240,9 @@ TEST_F(SessionTests, ResumePromptSessionWhenSessionResumes)
     session->setState(Session::State::Suspended);
 
     auto mirPromptSession = std::make_shared<ms::MockPromptSession>();
-    EXPECT_CALL(*mirPromptSession, state()).WillRepeatedly(Return(mir_prompt_session_state_suspended));
     session->appendPromptSession(mirPromptSession);
 
-    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), suspend_prompt_session(_, false)).Times(1);
+    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), resume_prompt_session(_)).Times(1);
 
     session->setState(Session::State::Running);
 

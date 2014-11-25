@@ -27,8 +27,10 @@ namespace scene {
 struct MockPromptSession : public PromptSession
 {
 public:
-    MOCK_METHOD1(set_state, void(MirPromptSessionState));
-    MOCK_CONST_METHOD0(state, MirPromptSessionState());
+    MOCK_METHOD1(start, void(std::shared_ptr<Session> const&));
+    MOCK_METHOD1(stop, void(std::shared_ptr<Session> const&));
+    MOCK_METHOD1(suspend, void(std::shared_ptr<Session> const&));
+    MOCK_METHOD1(resume, void(std::shared_ptr<Session> const&));
 };
 
 } // namespace scene
