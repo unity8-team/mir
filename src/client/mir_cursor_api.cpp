@@ -38,7 +38,7 @@ MirCursorConfiguration::MirCursorConfiguration(uint32_t const* pixels, geom::Siz
     pixels_size(size),
     hotspot_(hotspot)
 {
-    memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());
+    memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int()*sizeof(uint32_t));
 }
 
 std::string MirCursorConfiguration::cursor_name() const

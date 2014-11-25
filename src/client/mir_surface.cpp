@@ -407,7 +407,7 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
             auto size = std::get<1>(image);
             
             google::protobuf::RepeatedField<uint32_t> r(pixels,
-                pixels + (size.width.as_int() * size.height.as_int())*sizeof(uint32_t));
+                pixels + (size.width.as_int() * size.height.as_int()));
             setting.mutable_pixels()->Swap(&r);
             setting.set_width(size.width.as_uint32_t());
             setting.set_height(size.height.as_uint32_t());

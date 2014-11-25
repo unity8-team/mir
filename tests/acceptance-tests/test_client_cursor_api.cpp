@@ -107,7 +107,7 @@ MATCHER_P5(CursorWithPixels, pixels, width, height, hotspot_x, hotspot_y, "")
         return false;
     if (hotspot_y != arg.hotspot().dy.as_uint32_t())
         return false;
-    if (memcmp(arg.as_argb_8888(), pixels, width*height) != 0)
+    if (memcmp(arg.as_argb_8888(), pixels, width*height*sizeof(uint32_t)) != 0)
         return false;
     return true;
 }

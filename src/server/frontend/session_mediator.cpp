@@ -493,7 +493,7 @@ struct Argb8888CursorImage : public mg::CursorImage
         pixels_size(size),
         hotspot_(hotspot)
     {
-        memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int());        
+        memcpy(pixel_data.get(), pixels, size.width.as_int()*size.height.as_int()*sizeof(uint32_t));
     }
 
     void const* as_argb_8888() const
@@ -550,7 +550,7 @@ void mf::SessionMediator::configure_cursor(
             
             auto const& pixels = cursor_request->pixels();
 
-            if (static_cast<unsigned int>(pixels.size()) != width*height*sizeof(uint32_t))
+            if (pixels.size() != width*height)
                 BOOST_THROW_EXCEPTION(std::logic_error("cursor image pixel size does not match dimensions"));
             
             auto size = geom::Size{width, height};
