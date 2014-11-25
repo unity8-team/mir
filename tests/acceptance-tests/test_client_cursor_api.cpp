@@ -454,7 +454,7 @@ TEST_F(TestClientCursorAPI, pixels_from_image_cursor_given_to_server_cursor)
 
     unsigned width = 24, height = 24, hotspot_x = 7, hotspot_y = 9;
     uint32_t pixels[24*24];
-    uint32_t black = 0xffffffff, transparent = 0x000000;
+    uint32_t black = 0xffffffff, transparent = 0x00000000;
     for (unsigned i = 0; i < height; i++)
     {
         for (unsigned j = 0; j < width; j++)
