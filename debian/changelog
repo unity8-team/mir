@@ -1,3 +1,9 @@
+platform-api (2.6.0) UNRELEASED; urgency=medium
+
+  * Stub out mirserver backend 
+
+ -- Alberto Aguirre <alberto.aguirre@canonical.com>  Thu, 13 Nov 2014 13:44:31 -0600
+
 platform-api (2.5.0+15.04.20141124-0ubuntu1) vivid; urgency=low
 
   [ Alberto Aguirre ]
