@@ -18,6 +18,7 @@ include_directories(
 )
 
 add_executable(general_test ${GENERAL_TEST_SOURCES})
+add_dependencies(general_test GMock)
 
 target_link_libraries(
   general_test

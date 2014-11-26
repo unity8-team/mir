@@ -19,6 +19,7 @@ include_directories(
 )
 
 add_executable(mirsurfaceitem_test ${MIR_SURFACE_ITEM_TEST_SOURCES})
+add_dependencies(mirsurfaceitem_test GMock)
 
 target_link_libraries(
   mirsurfaceitem_test

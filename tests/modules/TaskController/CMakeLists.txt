@@ -16,6 +16,7 @@ include_directories(
 )
 
 add_executable(taskcontroller_test ${TASK_CONTROLLER_TEST_SOURCES})
+add_dependencies(taskcontroller_test GMock)
 
 target_link_libraries(
   taskcontroller_test

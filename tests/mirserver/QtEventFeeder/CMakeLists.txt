@@ -14,6 +14,7 @@ include_directories(
 )
 
 add_executable(QtEventFeederTest ${EVENT_FEEDER_TEST_SOURCES})
+add_dependencies(QtEventFeederTest GMock)
 
 target_link_libraries(
   QtEventFeederTest

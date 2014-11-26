@@ -19,6 +19,7 @@ include_directories(
 )
 
 add_executable(desktop_file_reader_test ${DESKTOP_FILE_READER_TEST_SOURCES})
+add_dependencies(desktop_file_reader_test GMock)
 
 target_link_libraries(
   desktop_file_reader_test

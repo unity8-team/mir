@@ -12,6 +12,7 @@ include_directories(
 )
 
 add_executable(ClipboardTest ${CLIPBOARD_TEST_SOURCES})
+add_dependencies(ClipboardTest GMock)
 
 target_link_libraries(
   ClipboardTest

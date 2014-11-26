@@ -19,6 +19,7 @@ include_directories(
 )
 
 add_executable(sessionmanager_test ${SESSION_MANAGER_TEST_SOURCES})
+add_dependencies(sessionmanager_test GMock)
 
 target_link_libraries(
   sessionmanager_test
