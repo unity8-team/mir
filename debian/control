@@ -12,6 +12,7 @@ Build-Depends: debhelper (>= 9),
                g++-4.9,
                libboost-system-dev,
                libfontconfig1-dev,
+               libgles2-mesa-dev,
                libglib2.0-dev,
                liblttng-ust-dev,
                libmirclient-dev (>= 0.6.0),
@@ -36,7 +37,6 @@ Build-Depends: debhelper (>= 9),
                qtbase5-private-dev,
                qtdeclarative5-dev,
                qtdeclarative5-private-dev,
-               libgles2-mesa-dev
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/qtmir
 # if you don't have have commit access to this branch but would like to upload
