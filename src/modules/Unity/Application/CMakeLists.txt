@@ -74,6 +74,6 @@ qt5_use_modules(unityapplicationplugin Core Quick DBus Qml)
 include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)
 
-set(QML_MODULE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/qt5/qml")
-install(FILES "qmldir" DESTINATION "${QML_MODULE_INSTALL_DIR}/Unity/Application")
-install(TARGETS unityapplicationplugin LIBRARY DESTINATION "${QML_MODULE_INSTALL_DIR}/Unity/Application")
+
+# install
+add_qml_plugin(Unity.Application 0.1 Unity/Application TARGETS unityapplicationplugin)
