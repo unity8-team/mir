@@ -1,8 +1,6 @@
 # Qt5PlatformSupport is not available as a cmake module.
 pkg_check_modules(QT5PLATFORM_SUPPORT Qt5PlatformSupport REQUIRED)
 
-find_package(Qt5Gui)
-
 # Hacks for the QPA privates monster.
 pkg_check_modules(FONTCONFIG fontconfig REQUIRED)
 add_definitions(-DQ_FONTCONFIGDATABASE)
@@ -71,11 +69,6 @@ add_library(qpa-mirserver SHARED
 target_link_libraries(
     qpa-mirserver
 
-    Qt5::Core
-    Qt5::Quick
-    Qt5::DBus
-    Qt5::Sensors
-
     ${MIRSERVER_LDFLAGS}
     ${URL_DISPATCHER_LDFLAGS}
     ${PROTOBUF_LDFLAGS}
@@ -92,6 +85,8 @@ target_link_libraries(
 
     -lboost_system
 )
+
+qt5_use_modules(qpa-mirserver Core Quick DBus Sensors)
 
 include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)
