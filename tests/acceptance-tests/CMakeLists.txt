@@ -90,10 +90,8 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_ACCEPTANCE_TESTS"
   OFF)
 
-set (MIR_CLIENT_PLATFORM client-platform-dummy.so)
-
 if (MIR_RUN_ACCEPTANCE_TESTS)
-  mir_discover_tests(mir_acceptance_tests MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_PLATFORM})
+  mir_discover_tests(mir_acceptance_tests)
 endif (MIR_RUN_ACCEPTANCE_TESTS)
 
 install(

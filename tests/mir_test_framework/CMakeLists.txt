@@ -86,10 +86,12 @@ target_link_libraries(
 
 set_target_properties(
   mirclientplatformstub PROPERTIES;
-  OUTPUT_NAME client-platform-dummy
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/client-modules
+  OUTPUT_NAME dummy
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
+install(TARGETS mirclientplatformstub LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
 
 set(server_symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols-server.map)
 add_library(
@@ -107,10 +109,12 @@ target_link_libraries(
 
 set_target_properties(
   mirplatformgraphicsstub PROPERTIES;
-  OUTPUT_NAME platform-graphics-dummy
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/server-modules
+  OUTPUT_NAME graphics-dummy
   PREFIX ""
   LINK_FLAGS "-Wl,--version-script,${server_symbol_map}"
 )
+install(TARGETS mirplatformgraphicsstub LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PLUGIN_PATH})
 
 add_custom_command(TARGET mir-test-framework POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory

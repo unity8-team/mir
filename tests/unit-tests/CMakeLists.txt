@@ -132,14 +132,11 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_UNIT_TESTS"
   OFF)
 
-set (MIR_CLIENT_PLATFORM client-platform-dummy.so)
-
 if (MIR_RUN_UNIT_TESTS)
   mir_discover_tests(mir_unit_tests
                        LD_PRELOAD=libumockdev-preload.so.0
                        G_SLICE=always-malloc
-                       G_DEBUG=gc-friendly
-                       MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_PLATFORM})
+                       G_DEBUG=gc-friendly)
 endif (MIR_RUN_UNIT_TESTS)
 
 install(

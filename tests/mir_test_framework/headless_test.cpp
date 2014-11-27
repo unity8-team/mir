@@ -39,7 +39,8 @@ std::chrono::seconds const timeout{100000};
 mtf::HeadlessTest::HeadlessTest()
 {
     configure_from_commandline(server);
-    add_to_environment("MIR_SERVER_PLATFORM_GRAPHICS_LIB", (mtf::library_path() + "/platform-graphics-dummy.so").c_str());
+    add_to_environment("MIR_SERVER_PLATFORM_GRAPHICS_LIB", (mtf::library_path() + "/server-modules/graphics-dummy.so").c_str());
+    add_to_environment("MIR_CLIENT_PLATFORM_PATH", (mtf::library_path() + "/client-modules/").c_str());
     server.add_configuration_option(mtd::logging_opt, mtd::logging_descr, false);
     server.override_the_logger([&]()
         {

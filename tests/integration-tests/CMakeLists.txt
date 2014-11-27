@@ -130,7 +130,7 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_INTEGRATION_TESTS"
   OFF)
 
-set (MIR_CLIENT_MODULE "client-platform-dummy.so")
+set (MIR_CLIENT_MODULE "client-modules/dummy.so")
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
   # Android platform integration tests have Android-specific tests
