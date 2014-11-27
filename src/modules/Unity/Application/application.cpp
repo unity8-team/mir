@@ -356,4 +356,3 @@ Session* Application::session() const
 }
 
 } // namespace qtmir
-
