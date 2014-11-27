@@ -479,20 +479,21 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
         /*
          * Insufficient nbuffers for frame dropping? This means you're either
          * trying to use frame dropping with bypass/multimonitor or have
-         * supplied nbuffers<3. But we still have many options...
+         * supplied nbuffers < 3. So consider the options...
          *  1. Crash. No, that's really unhelpful.
-         *  2. Drop the visible frame (tearing). Probably not. It looks bad.
+         *  2. Drop the visible frame. Probably not; it looks pretty awful.
+         *     Not just tearing but you'll see very ugly polygon rendering
+         *     artefacts.
          *  3. Drop the newest ready frame. Absolutely not; that will cause
          *     indefinite freezes or at least stuttering.
          *  4. Overallocate; more buffers. Maybe in future but we don't
          *     have a safe and reliable implementation of that yet that doesn't
-         *     also enlarge the queue lag unacceptably.
+         *     also enlarge the queue lag unacceptably or hang glmark2.
          *  5. Just give a warning and carry on at regular frame rate
          *     as if framedropping was disabled. Yes, see below.
          */
         std::call_once(warn_dropping_failed, [this]()
         {
-            // TODO: Convert to a formatted log message when available
             auto n = std::to_string(nbuffers);
             auto consuming = std::to_string(buffers_sent_to_compositor.size());
             auto ready = std::to_string(ready_to_composite_queue.size());
