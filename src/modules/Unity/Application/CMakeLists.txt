@@ -54,11 +54,6 @@ add_library(unityapplicationplugin SHARED
 target_link_libraries(
     unityapplicationplugin
 
-    Qt5::Core
-    Qt5::Gui
-    Qt5::Quick
-    Qt5::DBus
-
     ${CMAKE_THREAD_LIBS_INIT}
 
     ${GLIB_LDFLAGS}
@@ -73,7 +68,7 @@ target_link_libraries(
     qpa-mirserver
 )
 
-qt5_use_modules(unityapplicationplugin DBus Qml)
+qt5_use_modules(unityapplicationplugin Core Quick DBus Qml)
 
 # Generate tracepoints.c and .h from tracepoints.tp
 include(UseLttngGenTp)
