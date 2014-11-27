@@ -477,7 +477,9 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
     else
     {
         /*
-         * Insufficient nbuffers for frame dropping? We have many options...
+         * Insufficient nbuffers for frame dropping? This means you're either
+         * trying to use frame dropping with bypass/multimonitor or have
+         * supplied nbuffers<3. But we still have many options...
          *  1. Crash. No, that's really unhelpful.
          *  2. Drop the visible frame (tearing). Probably not. It looks bad.
          *  3. Drop the newest ready frame. Absolutely not; that will cause
