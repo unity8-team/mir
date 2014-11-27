@@ -477,7 +477,7 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
     else
     {
         /*
-         * Insufficient nbuffers for frame dropping? We have many options..
+         * Insufficient nbuffers for frame dropping? We have many options...
          *  1. Crash. No, that's really unhelpful.
          *  2. Drop the visible frame (tearing). Probably not. It looks bad.
          *  3. Drop the newest ready frame. Absolutely not; that will cause
@@ -486,7 +486,7 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
          *     have a safe and reliable implementation of that yet that doesn't
          *     also enlarge the queue lag unacceptably.
          *  5. Just give a warning and carry on at regular frame rate
-         *     as if framedropping was disabled. Yes.
+         *     as if framedropping was disabled. Yes, see below.
          */
         std::call_once(warn_dropping_failed, [this]()
         {
