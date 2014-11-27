@@ -4,8 +4,11 @@ Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
                google-mock (>= 1.6.0+svn437),
+               cmake,
+               cmake-data,
                libboost-system-dev,
                libfontconfig1-dev,
+               libgles2-mesa-dev,
                libglib2.0-dev,
                liblttng-ust-dev,
                libmirclient-dev (>= 0.4.0),
