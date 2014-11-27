@@ -19,6 +19,7 @@
 
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
+#include "mir/logging/logger.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -470,8 +471,39 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
     }
 
     if (drop)
+    {
         give_buffer_to_client(drop, std::move(lock));
-    // else TODO decide if its unsafe not to
+    }
+    else
+    {
+        /*
+         * Insufficient nbuffers for frame dropping? We have many options..
+         *  1. Crash. No, that's really unhelpful.
+         *  2. Drop the visible frame (tearing). Probably not. It looks bad.
+         *  3. Drop the newest ready frame. Absolutely not; that will cause
+         *     indefinite freezes or at least stuttering.
+         *  4. Overallocate; more buffers. Maybe in future but we don't
+         *     have a safe and reliable implementation of that yet that doesn't
+         *     also enlarge the queue lag unacceptably.
+         *  5. Just give a warning and carry on at regular frame rate
+         *     as if framedropping was disabled. Yes.
+         */
+        std::call_once(warn_dropping_failed, [this]()
+        {
+            // TODO: Convert to a formatted log message when available
+            auto n = std::to_string(nbuffers);
+            auto consuming = std::to_string(buffers_sent_to_compositor.size());
+            auto ready = std::to_string(ready_to_composite_queue.size());
+            auto producing = std::to_string(buffers_owned_by_client.size());
+            mir::logging::log(mir::logging::Severity::warning,
+                              "Insufficient nbuffers("+n+") to support "
+                              "frame dropping ("+
+                              consuming+" compositing, "+
+                              ready+" ready, "+
+                              producing+" with client)",
+                              "BufferQueue");
+        });
+    }
 }
 
 void mc::BufferQueue::drop_old_buffers()

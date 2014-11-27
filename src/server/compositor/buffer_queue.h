@@ -98,6 +98,8 @@ private:
     // Ensure framedrop_policy gets destroyed first so the callback installed
     // does not access dead objects.
     std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
+
+    std::once_flag warn_dropping_failed;
 };
 
 }
