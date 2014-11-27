@@ -67,7 +67,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libmirplatform4driver-mesa | libmirplatform4driver-android,
+         mir-platform-graphics-mesa | mir-platform-graphics-android,
 Description: Display server for Ubuntu - server library
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
@@ -144,7 +144,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libmirclient8driver-mesa | libmirclient8driver-android,
+         mir-client-platform-mesa | mir-client-platform-android,
 Description: Display server for Ubuntu - client library
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
@@ -266,35 +266,7 @@ Description: Display server for Ubuntu - shared library
  Contains the shared libraries required for the Mir server and client.
 
 # Longer-term these drivers should move out-of-tree
-Package: libmirclient8driver-mesa
-Section: libs
-Architecture: i386 amd64 armhf arm64
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
-Description: Display server for Ubuntu - client platform library for Mesa
- Mir is a display server running on linux systems, with a focus on efficiency,
- robust operation and a well-defined driver model.
- .
- Contains the shared libraries required for the Mir clients to interact with
- the underlying hardware platform using the Mesa drivers.
-
-Package: libmirclient8driver-android
-Section: libs
-Architecture: i386 amd64 armhf
-Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
-Description: Display server for Ubuntu - client platform library for Android
- Mir is a display server running on linux systems, with a focus on efficiency,
- robust operation and a well-defined driver model.
- .
- Contains the shared libraries required for the Mir clients to interact with
- the underlying hardware platform using the Android drivers.
-
-Package: libmirplatform4driver-mesa
+Package: mir-platform-graphics-mesa
 Section: libs
 Architecture: i386 amd64 armhf arm64
 Multi-Arch: same
@@ -308,7 +280,7 @@ Description: Display server for Ubuntu - platform library for Mesa
  Contains the shared libraries required for the Mir server to interact with
  the hardware platform using the Mesa drivers.
 
-Package: libmirplatform4driver-android
+Package: mir-platform-graphics-android
 Section: libs
 Architecture: i386 amd64 armhf
 Multi-Arch: same
@@ -322,14 +294,42 @@ Description: Display server for Ubuntu - platform library for Android
  Contains the shared libraries required for the Mir server to interact with
  the hardware platform using the Android drivers.
 
+Package: mir-client-platform-mesa
+Section: libs
+Architecture: i386 amd64 armhf arm64
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Display server for Ubuntu - client platform library for Mesa
+ Mir is a display server running on linux systems, with a focus on efficiency,
+ robust operation and a well-defined driver model.
+ .
+ Contains the shared libraries required for the Mir clients to interact with
+ the underlying hardware platform using the Mesa drivers.
+
+Package: mir-client-platform-android
+Section: libs
+Architecture: i386 amd64 armhf
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Display server for Ubuntu - client platform library for Android
+ Mir is a display server running on linux systems, with a focus on efficiency,
+ robust operation and a well-defined driver model.
+ .
+ Contains the shared libraries required for the Mir clients to interact with
+ the underlying hardware platform using the Android drivers.
+
 Package: mir-graphics-drivers-desktop
 Section: libs
 Architecture: i386 amd64 armhf arm64
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
-	 libmirplatform3driver-mesa,
-	 libmirclient8driver-mesa
+	 mir-platform-graphics-mesa,
+	 mir-client-platform-mesa,
 Description: Display server for Ubuntu - desktop driver metapackage
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
@@ -343,8 +343,8 @@ Architecture: i386 amd64 armhf
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
-	 libmirplatform4driver-android,
-	 libmirclient8driver-android
+	 mir-platform-graphics-android,
+	 mir-client-platform-android,
 Description: Display server for Ubuntu - android driver metapackage
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
