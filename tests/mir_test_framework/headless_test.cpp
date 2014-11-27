@@ -23,6 +23,7 @@
 #include "mir/main_loop.h"
 #include "mir/options/option.h"
 #include "mir_test_doubles/null_logger.h"
+#include "mir_test_framework/executable_path.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -32,13 +33,13 @@ namespace mtf = mir_test_framework;
 
 namespace
 {
-std::chrono::seconds const timeout{10};
+std::chrono::seconds const timeout{100000};
 }
 
 mtf::HeadlessTest::HeadlessTest()
 {
     configure_from_commandline(server);
-    add_to_environment("MIR_SERVER_PLATFORM_GRAPHICS_LIB", "libmirplatformstub.so");
+    add_to_environment("MIR_SERVER_PLATFORM_GRAPHICS_LIB", (mtf::library_path() + "/platform-graphics-dummy.so").c_str());
     server.add_configuration_option(mtd::logging_opt, mtd::logging_descr, false);
     server.override_the_logger([&]()
         {

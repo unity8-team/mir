@@ -35,7 +35,6 @@ add_definitions(-DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}/")
 add_definitions(-DCLIENT_PLATFORM_VERSION="${CLIENT_PLATFORM_VERSION}")
 add_definitions(-DMIR_LOGGING_COMPONENT_FALLBACK="mirclient")
 
-
 add_subdirectory(rpc/)
 add_subdirectory(lttng/)
 

@@ -19,7 +19,11 @@
 #define MIR_TEST_DOUBLES_MOCK_ANDROID_ALLOC_DEVICE_H_
 
 #include <gmock/gmock.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <hardware/gralloc.h>
+#pragma GCC diagnostic pop
 
 namespace mir
 {

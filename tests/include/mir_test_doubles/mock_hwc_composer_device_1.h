@@ -19,7 +19,12 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_HWC_COMPOSER_DEVICE_1_H_
 #define MIR_TEST_DOUBLES_MOCK_HWC_COMPOSER_DEVICE_1_H_
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <hardware/hwcomposer.h>
+#pragma GCC diagnostic pop
+
 #include <gmock/gmock.h>
 
 namespace mir

@@ -98,6 +98,15 @@ target_link_libraries(
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
+  # Mesa platform dependencies
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  # Android platform dependencies
+  ${LIBHARDWARE_LIBRARIES}
+  ${ANDROID_PROPERTIES_LIBRARIES}
+  # Shared platform dependencies
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
@@ -107,7 +116,7 @@ target_link_libraries(
   ${MIR_SERVER_REFERENCES}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
+if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_integration_tests
   mirsharedandroid
   ${ANDROID_PROPERTIES_LDFLAGS}
@@ -121,8 +130,18 @@ CMAKE_DEPENDENT_OPTION(
   "MIR_BUILD_INTEGRATION_TESTS"
   OFF)
 
+set (MIR_CLIENT_MODULE "client-platform-dummy.so")
+
+if (MIR_TEST_PLATFORM STREQUAL "android")
+  # Android platform integration tests have Android-specific tests
+  # requiring a real platform
+  set (MIR_CLIENT_MODULE "client-modules/android.so")
+endif()
+
 if (MIR_RUN_INTEGRATION_TESTS)
-  mir_discover_tests(mir_integration_tests)
+  mir_discover_tests(mir_integration_tests
+    MIR_CLIENT_PLATFORM_LIB=${LIBRARY_OUTPUT_PATH}/${MIR_CLIENT_MODULE}
+  )
 endif (MIR_RUN_INTEGRATION_TESTS)
 
 install(
