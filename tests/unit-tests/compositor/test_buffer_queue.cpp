@@ -1160,7 +1160,7 @@ TEST_F(BufferQueueTest, uncomposited_client_swaps_when_policy_triggered)
 
 TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
 {
-    for (int nbuffers = 2;
+    for (int nbuffers = 3;  // framedropping is only truly safe with 3
          nbuffers <= max_nbuffers_to_test;
          nbuffers++)
     {
