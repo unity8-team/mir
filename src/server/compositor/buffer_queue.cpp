@@ -486,9 +486,9 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
          *     artefacts.
          *  3. Drop the newest ready frame. Absolutely not; that will cause
          *     indefinite freezes or at least stuttering.
-         *  4. Overallocate; more buffers. Maybe in future but we don't
-         *     have a safe and reliable implementation of that yet that doesn't
-         *     also enlarge the queue lag unacceptably or hang glmark2.
+         *  4. Overallocate; more buffers. Maybe in future but we don't yet
+         *     have a safe and reliable implementation. It seems to
+         *     kill Android rather quickly using four buffers (try glmark2).
          *  5. Just give a warning and carry on at regular frame rate
          *     as if framedropping was disabled. Yes, see below.
          */
