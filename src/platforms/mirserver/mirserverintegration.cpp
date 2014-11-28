@@ -170,15 +170,6 @@ QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 
 void MirServerIntegration::initialize()
 {
-    // Creates instance of and start the Mir server in a separate thread
-    m_mirServer = new QMirServer(m_mirConfig);
-
-    m_display = new Display(m_mirConfig);
-    m_nativeInterface = new NativeInterface(m_mirConfig);
-
-    for (QPlatformScreen *screen : m_display->screens())
-        screenAdded(screen);
-
     // install signal handler into the Mir event loop
     auto mainLoop = m_mirConfig->the_main_loop();
 
@@ -189,6 +180,17 @@ void MirServerIntegration::initialize()
         qDebug() << "Signal caught by Mir, stopping Mir server..";
         QCoreApplication::quit();
     });
+
+    m_mirConfig->apply_settings();
+
+    // Creates instance of and start the Mir server in a separate thread
+    m_mirServer = new QMirServer(m_mirConfig);
+
+    m_display = new Display(m_mirConfig);
+    m_nativeInterface = new NativeInterface(m_mirConfig);
+
+    for (QPlatformScreen *screen : m_display->screens())
+        screenAdded(screen);
 
     m_clipboard->setupDBusService();
 }

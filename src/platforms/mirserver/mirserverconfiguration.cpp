@@ -108,7 +108,6 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
             return std::make_shared<FocusSetter>();
         });
 
-    apply_settings();
     qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration created";
 }
 

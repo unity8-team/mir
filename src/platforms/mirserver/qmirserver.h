@@ -25,7 +25,7 @@
 // local
 #include "mirserverconfiguration.h"
 
-// Wrap mir::DisplayServer with QObject, so it can be controlled via QThread
+// Wrap mir::Server with QObject, so it can be controlled via QThread
 class MirServerWorker : public QObject
 {
     Q_OBJECT
