@@ -14,6 +14,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <QCoreApplication>
+
 #include "mirserverconfiguration.h"
 
 // local
@@ -108,6 +110,14 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
             return std::make_shared<FocusSetter>();
         });
 
+    set_terminator([&](int)
+        {
+            qDebug() << "Signal caught by Mir, stopping Mir server..";
+            QCoreApplication::quit();
+        });
+
+    apply_settings();
+
     qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration created";
 }
 
@@ -129,7 +139,6 @@ MirServerConfiguration::MirServerConfiguration(int argc, char const* argv[], QOb
 SessionAuthorizer *MirServerConfiguration::sessionAuthorizer()
 {
     auto sharedPtr = the_session_authorizer();
-    qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration::sessionAuthorizer(): " << sharedPtr.unique();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionAuthorizer*>(sharedPtr.get());
@@ -138,7 +147,6 @@ SessionAuthorizer *MirServerConfiguration::sessionAuthorizer()
 SessionListener *MirServerConfiguration::sessionListener()
 {
     auto sharedPtr = the_session_listener();
-    qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration::sessionListener(): " << sharedPtr.unique();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SessionListener*>(sharedPtr.get());
@@ -147,7 +155,6 @@ SessionListener *MirServerConfiguration::sessionListener()
 PromptSessionListener *MirServerConfiguration::promptSessionListener()
 {
     auto sharedPtr = the_prompt_session_listener();
-    qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration::promptSessionListener(): " << sharedPtr.unique();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<PromptSessionListener*>(sharedPtr.get());
@@ -156,7 +163,6 @@ PromptSessionListener *MirServerConfiguration::promptSessionListener()
 SurfaceConfigurator *MirServerConfiguration::surfaceConfigurator()
 {
     auto sharedPtr = the_surface_configurator();
-    qCDebug(QTMIR_MIR_MESSAGES) << "MirServerConfiguration::surfaceConfigurator(): " << sharedPtr.unique();
     if (sharedPtr.unique()) return 0;
 
     return static_cast<SurfaceConfigurator*>(sharedPtr.get());

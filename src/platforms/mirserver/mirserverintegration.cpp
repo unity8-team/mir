@@ -42,7 +42,6 @@
 // Mir
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
-#include <mir/main_loop.h>
 
 // std
 #include <csignal>
@@ -170,19 +169,6 @@ QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 
 void MirServerIntegration::initialize()
 {
-    // install signal handler into the Mir event loop
-    auto mainLoop = m_mirConfig->the_main_loop();
-
-    mainLoop->register_signal_handler(
-    {SIGINT, SIGTERM},
-    [&](int)
-    {
-        qDebug() << "Signal caught by Mir, stopping Mir server..";
-        QCoreApplication::quit();
-    });
-
-    m_mirConfig->apply_settings();
-
     // Creates instance of and start the Mir server in a separate thread
     m_mirServer = new QMirServer(m_mirConfig);
 
