@@ -53,6 +53,7 @@ set_target_properties(mirplatform
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 add_subdirectory(graphics/)
+add_subdirectory(input/evdev)
 add_subdirectory(options)
 add_subdirectory(fatal)
 
