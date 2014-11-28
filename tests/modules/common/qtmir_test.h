@@ -49,12 +49,7 @@ public:
     : MirServerConfiguration(0, nullptr)
     , mock_prompt_session_manager(std::make_shared<StubPromptSessionManager>())
     {
-    }
-
-    std::shared_ptr<ms::PromptSessionManager> the_prompt_session_manager() override
-    {
-        return prompt_session_manager([this]()
-           ->std::shared_ptr<ms::PromptSessionManager>
+        override_the_prompt_session_manager([this]
            {
                return the_mock_prompt_session_manager();
            });
