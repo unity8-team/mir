@@ -38,6 +38,7 @@ namespace
 {
 MirPixelFormat determine_hwc11_fb_format()
 {
+#if 0
     static EGLint const fb_egl_config_attr [] =
     {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -69,6 +70,8 @@ MirPixelFormat determine_hwc11_fb_format()
 
     eglTerminate(egl_display);
     return fb_format;
+#endif
+    return mir_pixel_format_unknown;
 }
 
 std::pair<geom::Size, double> determine_hwc11_size_and_rate(

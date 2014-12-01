@@ -128,6 +128,7 @@ typedef enum MirPixelFormat
     mir_pixel_format_argb_8888,
     mir_pixel_format_xrgb_8888,
     mir_pixel_format_bgr_888,
+    mir_pixel_format_unknown,
     mir_pixel_formats
 } MirPixelFormat;
 
