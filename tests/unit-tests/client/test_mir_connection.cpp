@@ -30,6 +30,8 @@
 #include "src/server/frontend/resource_cache.h" /* needed by test_server.h */
 #include "mir_test/test_protobuf_server.h"
 #include "mir_test/stub_server_tool.h"
+#include "mir_test/pipe.h"
+#include "mir_test/signal.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -184,20 +186,20 @@ struct MirConnectionTest : public testing::Test
     MirConnectionTest()
         : mock_platform{std::make_shared<testing::NiceMock<MockClientPlatform>>()},
           mock_channel{std::make_shared<testing::NiceMock<MockRpcChannel>>()},
-          conf{mock_platform, mock_channel},
-          connection{std::make_shared<MirConnection>(conf)}
+          conf{mock_platform, mock_channel}
     {
     }
 
     std::shared_ptr<testing::NiceMock<MockClientPlatform>> const mock_platform;
     std::shared_ptr<testing::NiceMock<MockRpcChannel>> const mock_channel;
     TestConnectionConfiguration conf;
-    std::shared_ptr<MirConnection> const connection;
 };
 
 TEST_F(MirConnectionTest, returns_correct_egl_native_display)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     EGLNativeDisplayType native_display_raw = reinterpret_cast<EGLNativeDisplayType>(0xabcdef);
     auto native_display = std::make_shared<EGLNativeDisplayType>();
@@ -223,6 +225,8 @@ MATCHER_P(has_drm_magic, magic, "")
 TEST_F(MirConnectionTest, client_drm_auth_magic_calls_server_drm_auth_magic)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     unsigned int const drm_magic{0x10111213};
 
@@ -294,6 +298,8 @@ TEST_F(MirConnectionTest, populates_display_output_correctly_on_startup)
 {
     using namespace testing;
 
+    auto connection = std::make_shared<MirConnection>(conf);
+
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_display_configuration));
 
@@ -332,6 +338,8 @@ TEST_F(MirConnectionTest, populates_display_output_correctly_on_startup)
 TEST_F(MirConnectionTest, user_tries_to_configure_incorrectly)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_display_configuration));
@@ -378,6 +386,8 @@ TEST_F(MirConnectionTest, display_configuration_validation_succeeds_for_invalid_
 {
     using namespace testing;
 
+    auto connection = std::make_shared<MirConnection>(conf);
+
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_display_configuration));
 
@@ -398,6 +408,8 @@ TEST_F(MirConnectionTest, display_configuration_validation_succeeds_for_invalid_
 TEST_F(MirConnectionTest, display_configuration_validation_uses_updated_configuration)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_display_configuration));
@@ -436,6 +448,8 @@ TEST_F(MirConnectionTest, populates_pfs_correctly)
 {
     using namespace testing;
 
+    auto connection = std::make_shared<MirConnection>(conf);
+
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_surface_pixel_formats));
     MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
@@ -458,6 +472,8 @@ TEST_F(MirConnectionTest, populates_pfs_correctly)
 TEST_F(MirConnectionTest, valid_display_configure_sent)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(Invoke(fill_display_configuration));
@@ -522,6 +538,8 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
 {
     using namespace testing;
 
+    auto connection = std::make_shared<MirConnection>(conf);
+
     MirSurfaceParameters params;
     params.name = __PRETTY_FUNCTION__;
 
@@ -559,6 +577,8 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
 TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_release)
 {
     using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf);
 
     MirSurfaceParameters params;
     params.name = __PRETTY_FUNCTION__;
@@ -611,6 +631,8 @@ TEST_F(MirConnectionTest, sets_extra_platform_data)
     std::vector<int> const initial_data{0x66, 0x67, 0x68};
     std::vector<int> const extra_data{0x11, 0x12, 0x13};
 
+    auto connection = std::make_shared<MirConnection>(conf);
+
     EXPECT_CALL(*mock_channel, connect(_,_))
         .WillOnce(FillPlatformDataWith(initial_data));
 
@@ -639,4 +661,45 @@ TEST_F(MirConnectionTest, sets_extra_platform_data)
 
     for (size_t i = 0; i < extra_data.size(); i++)
         EXPECT_EQ(extra_data[i], pkg.data[i + initial_data.size()]) << " i=" << i;
+}
+
+TEST_F(MirConnectionTest, dispatch_works_with_automatic_dispatch)
+{
+    using namespace testing;
+
+    auto channel = std::dynamic_pointer_cast<MockRpcChannel>(conf.the_rpc_channel());
+    mir::test::Pipe mock_epoll;
+    auto dispatched = std::make_shared<mir::test::Signal>();
+
+    ON_CALL(*channel, watch_fd()).WillByDefault(Return(mir::Fd{mock_epoll.read_fd()}));
+    ON_CALL(*channel, dispatch())
+        .WillByDefault(Invoke([dispatched]() { dispatched->raise(); }));
+
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::automatic);
+
+    int dummy{0};
+    EXPECT_EQ(sizeof(dummy), write(mock_epoll.write_fd(), &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(dispatched->wait_for(std::chrono::seconds{1}));
+}
+
+TEST_F(MirConnectionTest, manual_dispatch_is_not_automatically_dispatched)
+{
+    using namespace testing;
+
+    auto channel = std::dynamic_pointer_cast<MockRpcChannel>(conf.the_rpc_channel());
+
+    mir::test::Pipe mock_epoll;
+    int dummy{0};
+    EXPECT_EQ(sizeof(dummy), write(mock_epoll.write_fd(), &dummy, sizeof(dummy)));
+
+    auto dispatched = std::make_shared<mir::test::Signal>();
+
+    EXPECT_CALL(*channel, watch_fd()).Times(0);
+    ON_CALL(*channel, dispatch())
+        .WillByDefault(Invoke([dispatched]() { dispatched->raise(); }));
+
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::manual);
+
+    EXPECT_FALSE(dispatched->wait_for(std::chrono::seconds{1}));
 }

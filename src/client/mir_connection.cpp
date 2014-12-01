@@ -93,8 +93,13 @@ MirConnection::MirConnection(std::string const& error_message) :
 {
 }
 
+MirConnection::MirConnection(mir::client::ConnectionConfiguration& conf) :
+    MirConnection(conf, DispatchType::automatic)
+{
+}
+
 MirConnection::MirConnection(
-    mir::client::ConnectionConfiguration& conf) :
+    mir::client::ConnectionConfiguration& conf, DispatchType dispatch) :
         deregisterer{this},
         platform_library{conf.the_platform_library()},
         channel(conf.the_rpc_channel()),
@@ -106,7 +111,10 @@ MirConnection::MirConnection(
         lifecycle_control(conf.the_lifecycle_control()),
         surface_map(conf.the_surface_map()),
         event_handler_register(conf.the_event_handler_register()),
-        eventloop{std::unique_ptr<mcl::rpc::SimpleRpcThread>{new mcl::rpc::SimpleRpcThread{std::dynamic_pointer_cast<mcl::rpc::Dispatchable>(channel)}}}
+        eventloop{dispatch == DispatchType::automatic ?
+                      new mcl::rpc::SimpleRpcThread{std::dynamic_pointer_cast<mcl::rpc::Dispatchable>(channel)} :
+                      nullptr
+                  }
 {
     connect_result.set_error("connect not called");
     {

@@ -70,12 +70,19 @@ class Logger;
 }
 }
 
+enum class DispatchType
+{
+    automatic,
+    manual
+};
+
 struct MirConnection : mir::client::ClientContext
 {
 public:
     MirConnection(std::string const& error_message);
 
     MirConnection(mir::client::ConnectionConfiguration& conf);
+    MirConnection(mir::client::ConnectionConfiguration &conf, DispatchType dispatch);
     ~MirConnection() noexcept;
 
     MirConnection(MirConnection const &) = delete;
