@@ -41,7 +41,8 @@ std::string determine_device_name(mga::PropertiesWrapper const& properties)
 
 unsigned int num_framebuffers_for(std::string const& device_name)
 {
-    if (device_name == std::string{"mx3"})
+    if ((device_name == std::string{"mx3"}) ||
+       (device_name == std::string{"mx4"}))
         return 3;
     else
         return 2;

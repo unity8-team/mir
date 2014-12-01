@@ -105,6 +105,7 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> mga::OutputBuilder::create_displ
                 display_report->report_hwc_composition_in_use(1,0);
                 break;
             default:
+                display_report->report_hwc_composition_in_use(1,3);
                 break;
         } 
     }
