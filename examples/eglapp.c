@@ -121,29 +121,6 @@ static void mir_eglapp_handle_event(MirSurface* surface, MirEvent const* ev, voi
     }
 }
 
-static const MirDisplayOutput *find_active_output(
-    const MirDisplayConfiguration *conf)
-{
-    const MirDisplayOutput *output = NULL;
-    int d;
-
-    for (d = 0; d < (int)conf->num_outputs; d++)
-    {
-        const MirDisplayOutput *out = conf->outputs + d;
-
-        if (out->used &&
-            out->connected &&
-            out->num_modes &&
-            out->current_mode < out->num_modes)
-        {
-            output = out;
-            break;
-        }
-    }
-
-    return output;
-}
-
 mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                                 unsigned int *width, unsigned int *height)
 {
@@ -172,6 +149,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     EGLint swapinterval = 1;
     char *mir_socket = NULL;
     char const* cursor_name = mir_default_cursor_name;
+    MirSurfaceState initial_state = mir_surface_state_restored;
 
     if (argc > 1)
     {
@@ -229,8 +207,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
                     }
                     break;
                 case 'f':
-                    *width = 0;
-                    *height = 0;
+                    initial_state = mir_surface_state_fullscreen;
                     break;
                 case 's':
                     {
@@ -302,16 +279,6 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     MirDisplayConfiguration* display_config =
         mir_connection_create_display_config(connection);
 
-    const MirDisplayOutput *output = find_active_output(display_config);
-
-    if (output == NULL)
-    {
-        printf("No active outputs found.\n");
-        return 0;
-    }
-
-    const MirDisplayMode *mode = &output->modes[output->current_mode];
-
     unsigned int format[mir_pixel_formats];
     unsigned int nformats;
 
@@ -333,12 +300,8 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
         }
     }
 
-    printf("Current active output is %dx%d %+d%+d\n",
-           mode->horizontal_resolution, mode->vertical_resolution,
-           output->position_x, output->position_y);
-
-    surfaceparm.width = *width > 0 ? *width : mode->horizontal_resolution;
-    surfaceparm.height = *height > 0 ? *height : mode->vertical_resolution;
+    surfaceparm.width = *width;
+    surfaceparm.height = *height;
 
     mir_display_config_destroy(display_config);
 
@@ -357,6 +320,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     surface = mir_connection_create_surface_sync(connection, &surfaceparm);
     CHECK(mir_surface_is_valid(surface), "Can't create a surface");
 
+    mir_surface_set_state(surface, initial_state);
     mir_surface_set_event_handler(surface, &delegate);
     
     MirCursorConfiguration *conf = mir_cursor_configuration_from_name(cursor_name);
