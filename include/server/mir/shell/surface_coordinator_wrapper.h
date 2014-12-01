@@ -35,6 +35,8 @@ public:
         scene::Session* session) override;
 
     void raise(std::weak_ptr<scene::Surface> const& surface) override;
+    int configure(scene::Surface&, MirSurfaceAttrib, int) override;
+    void fullscreen(scene::Surface&) override;
 
     void remove_surface(std::weak_ptr<scene::Surface> const& surface) override;
 

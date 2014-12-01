@@ -41,6 +41,10 @@ struct StubSession : public frontend::Session
     {
         return std::shared_ptr<frontend::Surface>();
     }
+    int configure(frontend::SurfaceId, MirSurfaceAttrib, int value) override
+    {
+        return value;
+    }
     std::string name() const override
     {
         return std::string();

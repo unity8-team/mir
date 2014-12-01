@@ -16,6 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+// TODO: Eliminate redundancy between this file and stub_session.h
+
 #ifndef MIR_TEST_DOUBLES_STUB_SCENE_SESSION_H_
 #define MIR_TEST_DOUBLES_STUB_SCENE_SESSION_H_
 
@@ -42,6 +44,10 @@ struct StubSceneSession : public scene::Session
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId /* surface */) const override
     {
         return std::shared_ptr<frontend::Surface>();
+    }
+    int configure(frontend::SurfaceId, MirSurfaceAttrib, int value) override
+    {
+        return value;
     }
     std::string name() const override
     {

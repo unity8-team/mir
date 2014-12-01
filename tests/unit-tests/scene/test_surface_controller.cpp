@@ -47,6 +47,7 @@ struct MockSurfaceAllocator : public ms::SurfaceFactory
 struct MockPlacementStrategy : public ms::PlacementStrategy
 {
     MOCK_METHOD2(place, ms::SurfaceCreationParameters(ms::Session const&, ms::SurfaceCreationParameters const&));
+    MOCK_CONST_METHOD1(fullscreen, geom::Rectangle(geom::Rectangle const&));
 };
 
 struct MockSurfaceStackModel : public ms::SurfaceStackModel

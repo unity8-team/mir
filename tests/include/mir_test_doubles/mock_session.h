@@ -44,7 +44,7 @@ struct MockSession : public frontend::Session
     MOCK_METHOD0(show, void());
 
     MOCK_METHOD1(send_display_config, void(graphics::DisplayConfiguration const&));
-    MOCK_METHOD3(configure_surface, int(frontend::SurfaceId, MirSurfaceAttrib, int));
+    MOCK_METHOD3(configure, int(frontend::SurfaceId, MirSurfaceAttrib, int));
 };
 
 }
