@@ -55,3 +55,12 @@ ms::SurfaceCreationParameters msh::DefaultPlacementStrategy::place(
 
     return placed_parameters;
 }
+
+
+geom::Rectangle msh::DefaultPlacementStrategy::fullscreen(geom::Rectangle const& window) const
+{
+    geom::Rectangle enlarged = window;
+    display_layout->size_to_output(enlarged);
+    return enlarged;
+}
+

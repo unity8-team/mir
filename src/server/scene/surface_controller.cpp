@@ -85,5 +85,10 @@ void ms::SurfaceController::set_state(Surface& surface,
 
 void ms::SurfaceController::fullscreen(Surface& surface)
 {
-    surface.resize({1024, 768}); // TODO;
+    geometry::Rectangle rect{surface.top_left(), surface.size()};
+    placement_strategy->fullscreen(rect);
+
+    // TODO: Make this atomic (LP: #1395957)
+    surface.resize(rect.size);  // Might throw
+    surface.move_to(rect.top_left);  // Unlikely to ever throw
 }

@@ -37,6 +37,7 @@ public:
     virtual ~DefaultPlacementStrategy() {}
 
     virtual scene::SurfaceCreationParameters place(scene::Session const& session, scene::SurfaceCreationParameters const& request_parameters);
+    virtual geometry::Rectangle fullscreen(geometry::Rectangle const&) const override;
 
 protected:
     DefaultPlacementStrategy(DefaultPlacementStrategy const&) = delete;
