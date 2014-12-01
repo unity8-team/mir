@@ -346,7 +346,7 @@ void MirConnection::done_drm_auth_magic(mir_drm_auth_magic_callback callback,
 
 int MirConnection::watch_fd() const
 {
-    return -1;
+    return eventloop ? -1 : std::dynamic_pointer_cast<mcl::rpc::Dispatchable>(channel)->watch_fd();
 }
 
 MirWaitHandle* MirConnection::drm_auth_magic(unsigned int magic,

@@ -32,6 +32,7 @@
 #include "mir_test/stub_server_tool.h"
 #include "mir_test/pipe.h"
 #include "mir_test/signal.h"
+#include "mir_test/fd_utils.h"
 #include "mir_test_doubles/stub_client_buffer_factory.h"
 
 #include "mir_protobuf.pb.h"
@@ -703,4 +704,24 @@ TEST_F(MirConnectionTest, returns_invalid_watch_fd_when_using_automatic_dispatch
     auto connection = std::make_shared<MirConnection>(conf, DispatchType::automatic);
 
     EXPECT_THAT(connection->watch_fd(), Lt(0));
+}
+
+TEST_F(MirConnectionTest, returns_pollable_watch_fd_when_using_manual_dispatch)
+{
+    using namespace testing;
+
+    // MirConnection will need a valid fd
+    auto channel = std::dynamic_pointer_cast<MockRpcChannel>(conf.the_rpc_channel());
+
+    mir::test::Pipe mock_epoll;
+    ON_CALL(*channel, watch_fd()).WillByDefault(Return(mir::Fd{mock_epoll.read_fd()}));
+
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::manual);
+
+    EXPECT_THAT(connection->watch_fd(), Gt(0));
+
+    pollfd fd_readable;
+    fd_readable.events = POLLIN;
+    fd_readable.fd = connection->watch_fd();
+    EXPECT_TRUE(mir::test::std_call_succeeded(poll(&fd_readable, 1, 0)));
 }
