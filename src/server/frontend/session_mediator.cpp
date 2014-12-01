@@ -677,3 +677,15 @@ void mf::SessionMediator::pack_protobuf_buffer(
     for(auto const& fd : packer.fds())
         resource_cache->save_fd(&protobuf_buffer, fd);
 }
+
+void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController* controller,
+    const mir::protobuf::BufferStreamParameters* request,
+    mir::protobuf::BufferStream* response,
+    google::protobuf::Closure* done)
+{
+    // TODO
+    (void) controller;
+    (void) request;
+    (void) response;
+    done->Run();
+}

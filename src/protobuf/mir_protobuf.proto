@@ -21,7 +21,18 @@ message SurfaceParameters {
   optional uint32 output_id = 6;
 }
 
+message BufferStreamParameters {
+  required int32 width = 1;
+  required int32 height = 2;
+  required int32 pixel_format = 3;
+  required int32 buffer_usage = 4;
+}
+
 message SurfaceId {
+  required int32 value = 1;
+};
+
+message BufferStreamId {
   required int32 value = 1;
 };
 
@@ -112,6 +123,15 @@ message Surface {
   repeated SurfaceSetting attributes = 9;
 
   optional string error = 127;
+}
+
+message BufferStream {
+    optional BufferStreamId id = 1;
+    optional Buffer buffer = 2;
+    repeated sint32 fd = 3;
+    optional int32 fds_on_side_channel = 4;
+    
+    optional string error = 127;
 }
 
 message DRMMagic {
@@ -227,6 +247,9 @@ service DisplayServer {
   rpc start_prompt_session(PromptSessionParameters) returns (Void);
   rpc stop_prompt_session(Void) returns (Void);
   rpc exchange_buffer(BufferRequest) returns (Buffer);
+  
+  rpc create_buffer_stream(BufferStreamParameters) returns (BufferStream);
+  rpc release_buffer_stream(BufferStreamId) returns (Void);
 }
 
 message CoordinateTranslationRequest {

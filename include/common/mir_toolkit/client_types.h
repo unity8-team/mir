@@ -46,6 +46,8 @@ typedef void* MirEGLNativeDisplayType;
 typedef struct MirConnection MirConnection;
 typedef struct MirSurface MirSurface;
 typedef struct MirSurfaceSpec MirSurfaceSpec;
+typedef struct MirBufferStream MirBufferStream;
+typedef struct MirBufferStreamSpec MirBufferStreamSpec;
 typedef struct MirScreencast MirScreencast;
 typedef struct MirPromptSession MirPromptSession;
 
@@ -74,6 +76,17 @@ typedef void (*mir_connected_callback)(MirConnection *connection, void *client_c
  *                                   mir_connect
  */
 typedef void (*mir_surface_callback)(MirSurface *surface, void *client_context);
+
+/**
+ * Callback to be passed when calling:
+ *  - mir_connection_create_buffer_stream
+ *  - mir_buffer_stream_swap_buffers
+ *  - mir_buffer_stream_release
+ *   \param [in] buffer_stream             the buffer_stream being updated
+ *   \param [in,out] client_context  context provided by client in calling
+ *                                   mir_connect
+ */
+typedef void (*mir_buffer_stream_callback)(MirBufferStream *buffer_stream, void *client_context);
 
 /**
  * Callback member of MirEventDelegate for handling of events.

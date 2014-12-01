@@ -98,6 +98,11 @@ public:
                         mir::protobuf::Surface* response,
                         google::protobuf::Closure* done) override;
 
+    void create_buffer_stream(google::protobuf::RpcController* controller,
+                             const mir::protobuf::BufferStreamParameters* request,
+                             mir::protobuf::BufferStream* response,
+                             google::protobuf::Closure* done) override;
+
     void next_buffer(
         google::protobuf::RpcController* controller,
         mir::protobuf::SurfaceId const* request,

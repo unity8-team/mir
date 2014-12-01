@@ -110,6 +110,7 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
     auto const message_type = response->GetTypeName();
 
     mir::protobuf::Surface* surface = nullptr;
+    mir::protobuf::BufferStream* buffer_stream = nullptr;
     mir::protobuf::Buffer* buffer = nullptr;
     mir::protobuf::Platform* platform = nullptr;
     mir::protobuf::SocketFD* socket_fd = nullptr;
@@ -123,6 +124,12 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
         surface = static_cast<mir::protobuf::Surface*>(response);
         if (surface && surface->has_buffer())
             buffer = surface->mutable_buffer();
+    }
+    else if (message_type == "mir.protobuf.BufferStream")
+    {
+        buffer_stream = static_cast<mir::protobuf::BufferStream*>(response);
+        if (buffer_stream && buffer_stream->has_buffer())
+            buffer = buffer_stream->mutable_buffer();
     }
     else if (message_type == "mir.protobuf.Screencast")
     {
@@ -147,6 +154,7 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
 
     receive_any_file_descriptors_for(surface);
     receive_any_file_descriptors_for(buffer);
+    receive_any_file_descriptors_for(buffer_stream);
     receive_any_file_descriptors_for(platform);
     receive_any_file_descriptors_for(socket_fd);
     complete->Run();
