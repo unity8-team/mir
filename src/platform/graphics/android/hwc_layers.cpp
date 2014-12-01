@@ -143,11 +143,12 @@ bool mga::HWCLayer::setup_layer(
         position.bottom_right().x.as_int(),
         position.bottom_right().y.as_int()
     };
-    hwc_layer->sourceCrop = 
+
+    hwc_layer->sourceCropf = 
     {
-        0, 0,
-        buffer.size().width.as_int(),
-        buffer.size().height.as_int()
+        0.0f, 0.0f,
+        static_cast<float>(buffer.size().width.as_int()),
+        static_cast<float>(buffer.size().height.as_int()),
     };
 
     visible_rect = hwc_layer->displayFrame;
