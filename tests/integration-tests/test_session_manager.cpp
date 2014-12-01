@@ -21,6 +21,7 @@
 #include "mir/shell/focus_setter.h"
 #include "src/server/scene/default_session_container.h"
 #include "mir/scene/null_session_listener.h"
+#include "mir/scene/buffer_stream_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "src/server/scene/basic_surface.h"
 #include "mir/scene/surface_creation_parameters.h"
@@ -33,11 +34,13 @@
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_session_event_sink.h"
 #include "mir_test_doubles/null_prompt_session_manager.h"
+#include "mir_test_doubles/stub_buffer_stream_factory.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace mc = mir::compositor;
+namespace mg = mir::graphics;
 namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace ms = mir::scene;
@@ -52,6 +55,7 @@ struct TestSessionManagerAndFocusSelectionStrategy : public testing::Test
     TestSessionManagerAndFocusSelectionStrategy()
         : session_manager(
               mt::fake_shared(surface_coordinator),
+              mt::fake_shared(buffer_stream_factory),
               mt::fake_shared(container),
               mt::fake_shared(focus_setter),
               std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -63,6 +67,7 @@ struct TestSessionManagerAndFocusSelectionStrategy : public testing::Test
     }
 
     mtd::MockSurfaceCoordinator surface_coordinator; // TODO this isn't used as a mock
+    mtd::StubBufferStreamFactory buffer_stream_factory;
     ms::DefaultSessionContainer container;
     mtd::MockFocusSetter focus_setter;
     std::shared_ptr<mf::Session> new_session;

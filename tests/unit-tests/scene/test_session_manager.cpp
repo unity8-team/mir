@@ -36,6 +36,7 @@
 #include "mir_test_doubles/mock_focus_setter.h"
 #include "mir_test_doubles/mock_session_listener.h"
 #include "mir_test_doubles/stub_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_stream_factory.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/null_session_event_sink.h"
@@ -79,6 +80,7 @@ struct SessionManagerSetup : public testing::Test
 {
     SessionManagerSetup()
       : session_manager(mt::fake_shared(surface_coordinator),
+                        mt::fake_shared(buffer_stream_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -101,6 +103,7 @@ struct SessionManagerSetup : public testing::Test
         std::shared_ptr<mg::CursorImage>(),
         mir::report::null_scene_report());
     mtd::MockSurfaceCoordinator surface_coordinator;
+    mtd::StubBufferStreamFactory buffer_stream_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     ms::NullSessionListener session_listener;
@@ -163,6 +166,7 @@ struct SessionManagerSessionListenerSetup : public testing::Test
 {
     SessionManagerSessionListenerSetup()
       : session_manager(mt::fake_shared(surface_coordinator),
+                        mt::fake_shared(buffer_stream_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -175,6 +179,7 @@ struct SessionManagerSessionListenerSetup : public testing::Test
     }
 
     mtd::MockSurfaceCoordinator surface_coordinator;
+    mtd::StubBufferStreamFactory buffer_stream_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     testing::NiceMock<mtd::MockSessionListener> session_listener;
@@ -203,6 +208,7 @@ struct SessionManagerSessionEventsSetup : public testing::Test
 {
     SessionManagerSessionEventsSetup()
       : session_manager(mt::fake_shared(surface_coordinator),
+                        mt::fake_shared(buffer_stream_factory),
                         mt::fake_shared(container),
                         mt::fake_shared(focus_setter),
                         std::make_shared<mtd::NullSnapshotStrategy>(),
@@ -215,6 +221,7 @@ struct SessionManagerSessionEventsSetup : public testing::Test
     }
 
     mtd::MockSurfaceCoordinator surface_coordinator;
+    mtd::StubBufferStreamFactory buffer_stream_factory;
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     testing::NiceMock<mtd::MockFocusSetter> focus_setter; // Inelegant but some tests need a stub
     MockSessionEventSink session_event_sink;

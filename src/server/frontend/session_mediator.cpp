@@ -142,16 +142,16 @@ void mf::SessionMediator::connect(
 }
 
 void mf::SessionMediator::advance_buffer(
-    SurfaceId surf_id,
-    Surface& surface,
+    BufferStreamId stream_id,
+    BufferStream& stream,
     std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete)
 {
-    auto client_buffer = surface_tracker.last_buffer(surf_id);
-    surface.swap_buffers(
+    auto client_buffer = surface_tracker.last_buffer(stream_id);
+    stream.swap_buffers(
         client_buffer, 
-        [this, surf_id, complete](mg::Buffer* new_buffer)
+        [this, stream_id, complete](mg::Buffer* new_buffer)
         {
-            if (surface_tracker.track_buffer(surf_id, new_buffer))
+            if (surface_tracker.track_buffer(stream_id, new_buffer))
                 complete(new_buffer, mg::BufferIpcMsgType::update_msg);
             else
                 complete(new_buffer, mg::BufferIpcMsgType::full_msg);
@@ -256,11 +256,11 @@ void mf::SessionMediator::exchange_buffer(
     mir::protobuf::Buffer* response,
     google::protobuf::Closure* done)
 {
-    mf::SurfaceId const surface_id{request->id().value()};
+    mf::BufferStreamId const buffer_stream_id{request->id().value()};
     mg::BufferID const buffer_id{static_cast<uint32_t>(request->buffer().buffer_id())};
 
     mfd::ProtobufBufferPacker request_msg{const_cast<mir::protobuf::Buffer*>(&request->buffer())};
-    ipc_operations->unpack_buffer(request_msg, *surface_tracker.last_buffer(surface_id));
+    ipc_operations->unpack_buffer(request_msg, *surface_tracker.last_buffer(buffer_stream_id));
 
     auto const lock = std::make_shared<std::unique_lock<std::mutex>>(session_mutex);
     auto const session = weak_session.lock();
@@ -269,14 +269,14 @@ void mf::SessionMediator::exchange_buffer(
 
     report->session_exchange_buffer_called(session->name());
 
-    auto const& surface = session->get_surface(surface_id);
-    surface->swap_buffers(
+    auto const& stream = session->get_buffer_stream(buffer_stream_id);
+    stream->swap_buffers(
         surface_tracker.buffer_from(buffer_id),
-        [this, surface_id, lock, response, done](mg::Buffer* new_buffer)
+        [this, buffer_stream_id, lock, response, done](mg::Buffer* new_buffer)
         {
             lock->unlock();
 
-            if (surface_tracker.track_buffer(surface_id, new_buffer))
+            if (surface_tracker.track_buffer(buffer_stream_id, new_buffer))
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::update_msg);
             else
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::full_msg);

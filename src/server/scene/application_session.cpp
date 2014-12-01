@@ -40,12 +40,14 @@ namespace mg = mir::graphics;
 
 ms::ApplicationSession::ApplicationSession(
     std::shared_ptr<ms::SurfaceCoordinator> const& surface_coordinator,
+    std::shared_ptr<ms::BufferStreamFactory> const& buffer_stream_factory,
     pid_t pid,
     std::string const& session_name,
     std::shared_ptr<SnapshotStrategy> const& snapshot_strategy,
     std::shared_ptr<SessionListener> const& session_listener,
     std::shared_ptr<mf::EventSink> const& sink) :
     surface_coordinator(surface_coordinator),
+    buffer_stream_factory(buffer_stream_factory),
     pid(pid),
     session_name(session_name),
     snapshot_strategy(snapshot_strategy),
@@ -103,6 +105,12 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
     std::unique_lock<std::mutex> lock(surfaces_mutex);
 
     return checked_find(id)->second;
+}
+
+std::shared_ptr<mf::BufferStream> ms::ApplicationSession::get_buffer_stream(mf::BufferStreamId id) const
+{
+    // TODO: Update for create_buffer_stream ~racarr
+    return get_surface(id);
 }
 
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)

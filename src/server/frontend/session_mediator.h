@@ -57,6 +57,7 @@ class ClientBufferTracker;
 class Shell;
 class Session;
 class Surface;
+class BufferStream;
 class MessageResourceCache;
 class SessionMediatorReport;
 class EventSink;
@@ -184,8 +185,8 @@ private:
                               graphics::BufferIpcMsgType msg_type);
 
     void advance_buffer(
-        SurfaceId surf_id,
-        Surface& surface,
+        BufferStreamId surf_id,
+        BufferStream& surface,
         std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete);
 
     virtual std::function<void(std::shared_ptr<Session> const&)> prompt_session_connect_handler() const;

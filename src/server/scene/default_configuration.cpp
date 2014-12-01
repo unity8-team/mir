@@ -178,6 +178,7 @@ mir::DefaultServerConfiguration::the_session_coordinator()
             return wrap_session_coordinator(
                 std::make_shared<ms::SessionManager>(
                     the_surface_coordinator(),
+                    the_buffer_stream_factory(),
                     the_session_container(),
                     the_shell_focus_setter(),
                     the_snapshot_strategy(),

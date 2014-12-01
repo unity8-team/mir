@@ -25,6 +25,7 @@
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_session_listener.h"
 #include "mir_test_doubles/stub_display_configuration.h"
+#include "mir_test_doubles/stub_buffer_stream_factory.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_prompt_session.h"
@@ -97,6 +98,7 @@ struct ApplicationSession : public testing::Test
         : event_sink(std::make_shared<mtd::NullEventSink>()),
           stub_session_listener(std::make_shared<ms::NullSessionListener>()),
           stub_surface_coordinator(std::make_shared<StubSurfaceCoordinator>()),
+          stub_buffer_stream_factory(std::make_shared<mtd::StubBufferStreamFactory>()),
           null_snapshot_strategy(std::make_shared<mtd::NullSnapshotStrategy>()),
           pid(0),
           name("test-session-name")
@@ -106,7 +108,7 @@ struct ApplicationSession : public testing::Test
     std::shared_ptr<ms::ApplicationSession> make_application_session_with_stubs()
     {
         return std::make_shared<ms::ApplicationSession>(
-           stub_surface_coordinator,
+           stub_surface_coordinator, stub_buffer_stream_factory,
            pid, name,
            null_snapshot_strategy,
            stub_session_listener,
@@ -117,7 +119,7 @@ struct ApplicationSession : public testing::Test
         std::shared_ptr<ms::SurfaceCoordinator> const& surface_coordinator)
     {
         return std::make_shared<ms::ApplicationSession>(
-           surface_coordinator,
+           surface_coordinator, stub_buffer_stream_factory,
            pid, name,
            null_snapshot_strategy,
            stub_session_listener,
@@ -128,7 +130,7 @@ struct ApplicationSession : public testing::Test
         std::shared_ptr<ms::SessionListener> const& session_listener)
     {
         return std::make_shared<ms::ApplicationSession>(
-           stub_surface_coordinator,
+           stub_surface_coordinator, stub_buffer_stream_factory,
            pid, name,
            null_snapshot_strategy,
            session_listener,
@@ -138,6 +140,7 @@ struct ApplicationSession : public testing::Test
     std::shared_ptr<mtd::NullEventSink> const event_sink;
     std::shared_ptr<ms::NullSessionListener> const stub_session_listener;
     std::shared_ptr<StubSurfaceCoordinator> const stub_surface_coordinator;
+    std::shared_ptr<mtd::StubBufferStreamFactory> const stub_buffer_stream_factory;
     std::shared_ptr<ms::SnapshotStrategy> const null_snapshot_strategy;
     
     pid_t pid;
@@ -293,7 +296,7 @@ TEST_F(ApplicationSession, takes_snapshot_of_default_surface)
                 take_snapshot_of(default_surface_buffer_access, _));
 
     ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),                                       
+        mt::fake_shared(surface_coordinator), stub_buffer_stream_factory,
         pid, name,
         snapshot_strategy,
         std::make_shared<ms::NullSessionListener>(),
@@ -312,7 +315,7 @@ TEST_F(ApplicationSession, returns_null_snapshot_if_no_default_surface)
     MockSnapshotCallback mock_snapshot_callback;
 
     ms::ApplicationSession app_session(
-        stub_surface_coordinator,
+        stub_surface_coordinator, stub_buffer_stream_factory,
         pid, name,
         snapshot_strategy,
         std::make_shared<ms::NullSessionListener>(),
@@ -331,13 +334,32 @@ TEST_F(ApplicationSession, process_id)
     pid_t const session_pid{__LINE__};
 
     ms::ApplicationSession app_session(
-        stub_surface_coordinator,
+        stub_surface_coordinator, stub_buffer_stream_factory,
         session_pid, name,
         null_snapshot_strategy,
         std::make_shared<ms::NullSessionListener>(),
         event_sink);
 
     EXPECT_THAT(app_session.process_id(), Eq(session_pid));
+}
+
+// TODO: TEst that get buffer_stream fails on surface ids
+TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
+{
+    using namespace ::testing;
+
+    auto app_session = make_application_session_with_stubs();
+
+    ms::SurfaceCreationParameters params;
+
+    auto id1 = app_session->create_surface(params);
+    EXPECT_TRUE(app_session->get_buffer_stream(id1) != nullptr);
+
+    app_session->destroy_surface(id1);
+
+    EXPECT_THROW({
+            app_session->get_buffer_stream(id1);
+    }, std::runtime_error);
 }
 
 namespace
@@ -352,7 +374,7 @@ public:
 struct ApplicationSessionSender : public ApplicationSession
 {
     ApplicationSessionSender()
-        : app_session(stub_surface_coordinator,pid, name,null_snapshot_strategy, stub_session_listener, mt::fake_shared(sender))
+        : app_session(stub_surface_coordinator, stub_buffer_stream_factory, pid, name,null_snapshot_strategy, stub_session_listener, mt::fake_shared(sender))
     {
     }
 

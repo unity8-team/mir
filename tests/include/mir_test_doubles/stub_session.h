@@ -41,6 +41,10 @@ struct StubSession : public frontend::Session
     {
         return std::shared_ptr<frontend::Surface>();
     }
+    std::shared_ptr<frontend::BufferStream> get_buffer_stream(frontend::BufferStreamId /* id */) const override
+    {
+        return std::shared_ptr<frontend::BufferStream>();
+    }
     std::string name() const override
     {
         return std::string();

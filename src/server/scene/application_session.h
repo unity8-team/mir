@@ -30,6 +30,7 @@ namespace mir
 namespace frontend
 {
 class EventSink;
+class BufferStream;
 }
 
 namespace scene
@@ -38,12 +39,14 @@ class SessionListener;
 class Surface;
 class SurfaceCoordinator;
 class SnapshotStrategy;
+class BufferStreamFactory;
 
 class ApplicationSession : public Session
 {
 public:
     ApplicationSession(
         std::shared_ptr<SurfaceCoordinator> const& surface_coordinator,
+        std::shared_ptr<BufferStreamFactory> const& buffer_stream_factory,
         pid_t pid,
         std::string const& session_name,
         std::shared_ptr<SnapshotStrategy> const& snapshot_strategy,
@@ -55,6 +58,7 @@ public:
     frontend::SurfaceId create_surface(SurfaceCreationParameters const& params) override;
     void destroy_surface(frontend::SurfaceId surface) override;
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const override;
+    std::shared_ptr<frontend::BufferStream> get_buffer_stream(frontend::BufferStreamId surface) const override;
 
     void take_snapshot(SnapshotCallback const& snapshot_taken) override;
     std::shared_ptr<Surface> default_surface() const override;
@@ -80,6 +84,7 @@ protected:
 
 private:
     std::shared_ptr<SurfaceCoordinator> const surface_coordinator;
+    std::shared_ptr<BufferStreamFactory> const buffer_stream_factory;
     pid_t const pid;
     std::string const session_name;
     std::shared_ptr<SnapshotStrategy> const snapshot_strategy;
