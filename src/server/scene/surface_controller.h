@@ -47,6 +47,8 @@ public:
 
     void raise(std::weak_ptr<Surface> const& surface) override;
 
+    int configure(Surface&, MirSurfaceAttrib, int) override;
+
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
     std::shared_ptr<PlacementStrategy> const placement_strategy;

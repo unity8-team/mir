@@ -111,7 +111,7 @@ int ms::ApplicationSession::configure(mf::SurfaceId surface_id,
 {
     std::unique_lock<std::mutex> lock(surfaces_mutex);
     auto surface = checked_find(surface_id)->second;
-    return surface->configure(attrib, value);
+    return surface_coordinator->configure(*surface, attrib, value);
 }
 
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
