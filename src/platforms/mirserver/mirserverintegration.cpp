@@ -94,8 +94,8 @@ MirServerIntegration::MirServerIntegration()
         }
     }
 
-    m_mirConfig = QSharedPointer<MirServerConfiguration>(
-                      new MirServerConfiguration(args.length(), const_cast<const char**>(argv)));
+    m_mirConfig = QSharedPointer<MirServer>(
+                      new MirServer(args.length(), const_cast<const char**>(argv)));
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
     QGuiApplicationPrivate::instance()->setEventDispatcher(eventDispatcher_);

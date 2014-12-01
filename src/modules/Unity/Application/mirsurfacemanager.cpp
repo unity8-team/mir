@@ -29,7 +29,7 @@
 
 // QPA mirserver
 #include "nativeinterface.h"
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "logging.h"
@@ -81,7 +81,7 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 }
 
 MirSurfaceManager::MirSurfaceManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        const QSharedPointer<MirServer>& mirConfig,
         SessionManager* sessionManager,
         QObject *parent)
     : MirSurfaceItemModel(parent)

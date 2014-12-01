@@ -26,7 +26,7 @@
 #include "tracepoints.h" // generated from tracepoints.tp
 
 // mirserver
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "nativeinterface.h"
 #include "sessionlistener.h"
 #include "sessionauthorizer.h"
@@ -61,7 +61,7 @@ namespace qtmir
 namespace {
 
 // FIXME: AppManager should not implement policy based on display geometry, shell should do that
-bool forceAllAppsIntoMainStage(const QSharedPointer<MirServerConfiguration> &mirConfig)
+bool forceAllAppsIntoMainStage(const QSharedPointer<MirServer> &mirConfig)
 {
     const int tabletModeMinimimWithGU = 100;
 
@@ -182,7 +182,7 @@ ApplicationManager* ApplicationManager::singleton()
 }
 
 ApplicationManager::ApplicationManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        const QSharedPointer<MirServer>& mirConfig,
         const QSharedPointer<TaskController>& taskController,
         const QSharedPointer<DesktopFileReader::Factory>& desktopFileReaderFactory,
         const QSharedPointer<ProcInfo>& procInfo,

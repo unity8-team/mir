@@ -14,8 +14,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIRSERVERCONFIGURATION_H
-#define MIRSERVERCONFIGURATION_H
+#ifndef MIRSERVER_H
+#define MIRSERVER_H
 
 #include <QObject>
 #include <mir/server.h>
@@ -27,8 +27,8 @@ class SurfaceConfigurator;
 class PromptSessionListener;
 
 // We use virtual inheritance of mir::Server to facilitate derived classes (e.g. testing)
-// calling initialization functions before MirServerConfiguration is constructed.
-class MirServerConfiguration : public QObject, public virtual mir::Server
+// calling initialization functions before MirServer is constructed.
+class MirServer : public QObject, public virtual mir::Server
 {
     Q_OBJECT
 
@@ -38,8 +38,8 @@ class MirServerConfiguration : public QObject, public virtual mir::Server
     Q_PROPERTY(PromptSessionListener* promptSessionListener READ promptSessionListener CONSTANT)
 
 public:
-    MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
-    ~MirServerConfiguration() = default;
+    MirServer(int argc, char const* argv[], QObject* parent = 0);
+    ~MirServer() = default;
 
     /* qt specific */
     // getters
@@ -52,4 +52,4 @@ private:
     std::shared_ptr<QtEventFeeder> m_qtEventFeeder;
 };
 
-#endif // MIRSERVERCONFIGURATION_H
+#endif // MIRSERVER_H

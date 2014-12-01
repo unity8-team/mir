@@ -23,7 +23,7 @@
 #include "qmirserver.h"
 
 
-QMirServer::QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject *parent)
+QMirServer::QMirServer(const QSharedPointer<MirServer> &config, QObject *parent)
     : QObject(parent)
     , m_mirServer(new MirServerWorker(config))
 {

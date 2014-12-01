@@ -19,7 +19,7 @@
 #include "miropenglcontext.h"
 
 #include "displaywindow.h"
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "mirglconfig.h"
 
 #include <QDebug>

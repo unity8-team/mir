@@ -24,7 +24,7 @@
 #include <qpa/qplatformintegration.h>
 
 // local
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 
 class Display;
 class NativeInterface;
@@ -68,7 +68,7 @@ public:
     QPlatformNativeInterface *nativeInterface() const override;
 
 private:
-    QSharedPointer<MirServerConfiguration> m_mirConfig;
+    QSharedPointer<MirServer> m_mirConfig;
 
     QScopedPointer<QPlatformAccessibility> m_accessibility;
     QScopedPointer<QPlatformFontDatabase> m_fontDb;

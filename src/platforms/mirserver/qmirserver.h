@@ -23,7 +23,7 @@
 #include <QSharedPointer>
 
 // local
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 
 // Wrap mir::Server with QObject, so it can be controlled via QThread
 class MirServerWorker : public QObject
@@ -31,7 +31,7 @@ class MirServerWorker : public QObject
     Q_OBJECT
 
 public:
-    MirServerWorker(const QSharedPointer<MirServerConfiguration> &config)
+    MirServerWorker(const QSharedPointer<MirServer> &config)
         : config(config)
     {}
 
@@ -43,7 +43,7 @@ public Q_SLOTS:
     void stop() { config->stop(); }
 
 private:
-    const QSharedPointer<MirServerConfiguration> config;
+    const QSharedPointer<MirServer> config;
 };
 
 
@@ -52,7 +52,7 @@ class QMirServer: public QObject
     Q_OBJECT
 
 public:
-    QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject* parent=0);
+    QMirServer(const QSharedPointer<MirServer> &config, QObject* parent=0);
     ~QMirServer();
 
 Q_SIGNALS:

@@ -35,7 +35,7 @@ SOURCES += \
     surfaceconfigurator.cpp \
     promptsessionlistener.cpp \
     mirplacementstrategy.cpp \
-    mirserverconfiguration.cpp \
+    mirserver.cpp \
     mirserverstatuslistener.cpp \
     display.cpp \
     screen.cpp \
@@ -62,7 +62,7 @@ HEADERS += \
     logging.h \
     mirglconfig.h \
     mirplacementstrategy.h \
-    mirserverconfiguration.h \
+    mirserver.h \
     mirserverstatuslistener.h \
     display.h \
     screen.h \
