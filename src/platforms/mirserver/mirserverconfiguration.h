@@ -26,7 +26,9 @@ class SessionAuthorizer;
 class SurfaceConfigurator;
 class PromptSessionListener;
 
-class MirServerConfiguration : public QObject, public mir::Server
+// We use virtual inheritance of mir::Server to facilitate derived classes (e.g. testing)
+// calling initialization functions before MirServerConfiguration is constructed.
+class MirServerConfiguration : public QObject, public virtual mir::Server
 {
     Q_OBJECT
 
