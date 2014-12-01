@@ -695,3 +695,12 @@ TEST_F(MirConnectionTest, manual_dispatch_is_not_automatically_dispatched)
 
     EXPECT_FALSE(dispatched->wait_for(std::chrono::seconds{1}));
 }
+
+TEST_F(MirConnectionTest, returns_invalid_watch_fd_when_using_automatic_dispatch)
+{
+    using namespace testing;
+
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::automatic);
+
+    EXPECT_THAT(connection->watch_fd(), Lt(0));
+}

@@ -344,6 +344,11 @@ void MirConnection::done_drm_auth_magic(mir_drm_auth_magic_callback callback,
     drm_auth_magic_wait_handle.result_received();
 }
 
+int MirConnection::watch_fd() const
+{
+    return -1;
+}
+
 MirWaitHandle* MirConnection::drm_auth_magic(unsigned int magic,
                                              mir_drm_auth_magic_callback callback,
                                              void* context)
