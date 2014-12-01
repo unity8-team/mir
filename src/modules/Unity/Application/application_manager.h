@@ -80,7 +80,7 @@ public:
     static ApplicationManager* singleton();
 
     explicit ApplicationManager(
-            const QSharedPointer<MirServer> &mirConfig,
+            const QSharedPointer<MirServer> &mirServer,
             const QSharedPointer<TaskController> &taskController,
             const QSharedPointer<DesktopFileReader::Factory> &desktopFileReaderFactory,
             const QSharedPointer<ProcInfo> &processInfo,
@@ -149,7 +149,7 @@ private:
 
     Application* findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession);
 
-    QSharedPointer<MirServer> m_mirConfig;
+    QSharedPointer<MirServer> m_mirServer;
 
     QList<Application*> m_applications;
     Application* m_focusedApplication;

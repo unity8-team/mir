@@ -23,9 +23,9 @@
 #include "qmirserver.h"
 
 
-QMirServer::QMirServer(const QSharedPointer<MirServer> &config, QObject *parent)
+QMirServer::QMirServer(const QSharedPointer<MirServer> &server, QObject *parent)
     : QObject(parent)
-    , m_mirServer(new MirServerWorker(config))
+    , m_mirServer(new MirServerWorker(server))
 {
     m_mirServer->moveToThread(&m_mirThread);
 

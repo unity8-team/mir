@@ -18,8 +18,8 @@
 
 #include "nativeinterface.h"
 
-NativeInterface::NativeInterface(const QSharedPointer<MirServer> &config)
-    : m_mirConfig(config)
+NativeInterface::NativeInterface(const QSharedPointer<MirServer> &server)
+    : m_mirServer(server)
 {
 }
 
@@ -28,13 +28,13 @@ void *NativeInterface::nativeResourceForIntegration(const QByteArray &resource)
     void *result = nullptr;
 
     if (resource == "SessionAuthorizer")
-        result = m_mirConfig->sessionAuthorizer();
+        result = m_mirServer->sessionAuthorizer();
     else if (resource == "SessionConfigurator")
-        result = m_mirConfig->surfaceConfigurator();
+        result = m_mirServer->surfaceConfigurator();
     else if (resource == "SessionListener")
-        result = m_mirConfig->sessionListener();
+        result = m_mirServer->sessionListener();
     else if (resource == "PromptSessionListener")
-        result = m_mirConfig->promptSessionListener();
+        result = m_mirServer->promptSessionListener();
 
     return result;
 }

@@ -31,19 +31,19 @@ class MirServerWorker : public QObject
     Q_OBJECT
 
 public:
-    MirServerWorker(const QSharedPointer<MirServer> &config)
-        : config(config)
+    MirServerWorker(const QSharedPointer<MirServer> &server)
+        : server(server)
     {}
 
 Q_SIGNALS:
     void stopped();
 
 public Q_SLOTS:
-    void run() { config->run(); Q_EMIT stopped(); }
-    void stop() { config->stop(); }
+    void run() { server->run(); Q_EMIT stopped(); }
+    void stop() { server->stop(); }
 
 private:
-    const QSharedPointer<MirServer> config;
+    const QSharedPointer<MirServer> server;
 };
 
 

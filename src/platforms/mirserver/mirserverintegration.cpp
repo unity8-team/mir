@@ -67,7 +67,7 @@ MirServerIntegration::MirServerIntegration()
     , m_eventDispatcher(createUnixEventDispatcher())
 #endif
     , m_display(nullptr)
-    , m_mirServer(nullptr)
+    , m_qmirServer(nullptr)
     , m_nativeInterface(nullptr)
     , m_clipboard(new Clipboard)
 {
@@ -94,7 +94,7 @@ MirServerIntegration::MirServerIntegration()
         }
     }
 
-    m_mirConfig = QSharedPointer<MirServer>(
+    m_mirServer = QSharedPointer<MirServer>(
                       new MirServer(args.length(), const_cast<const char**>(argv)));
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 2, 0)
@@ -109,7 +109,7 @@ MirServerIntegration::~MirServerIntegration()
 {
     delete m_nativeInterface;
     delete m_display;
-    delete m_mirServer;
+    delete m_qmirServer;
 }
 
 bool MirServerIntegration::hasCapability(QPlatformIntegration::Capability cap) const
@@ -135,7 +135,7 @@ QPlatformWindow *MirServerIntegration::createPlatformWindow(QWindow *window) con
 
     DisplayWindow* displayWindow = nullptr;
 
-    m_mirConfig->the_display()->for_each_display_buffer(
+    m_mirServer->the_display()->for_each_display_buffer(
                 [&](mg::DisplayBuffer& buffer) {
         // FIXME(gerry) this will go very bad for >1 display buffer
         displayWindow = new DisplayWindow(window, &buffer);
@@ -157,7 +157,7 @@ QPlatformBackingStore *MirServerIntegration::createPlatformBackingStore(QWindow 
 QPlatformOpenGLContext *MirServerIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const
 {
     qDebug() << "createPlatformOpenGLContext" << context;
-    return new MirOpenGLContext(m_mirConfig, context->format());
+    return new MirOpenGLContext(m_mirServer, context->format());
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
@@ -170,10 +170,10 @@ QAbstractEventDispatcher *MirServerIntegration::createEventDispatcher() const
 void MirServerIntegration::initialize()
 {
     // Creates instance of and start the Mir server in a separate thread
-    m_mirServer = new QMirServer(m_mirConfig);
+    m_qmirServer = new QMirServer(m_mirServer);
 
-    m_display = new Display(m_mirConfig);
-    m_nativeInterface = new NativeInterface(m_mirConfig);
+    m_display = new Display(m_mirServer);
+    m_nativeInterface = new NativeInterface(m_mirServer);
 
     for (QPlatformScreen *screen : m_display->screens())
         screenAdded(screen);

@@ -81,7 +81,7 @@ class QtMirTest : public ::testing::Test
 {
 public:
     QtMirTest()
-        : mirConfig{
+        : mirServer{
             QSharedPointer<FakeMirServer> (new FakeMirServer)
         }
         , taskController{
@@ -95,7 +95,7 @@ public:
               )
         }
         , applicationManager{
-            mirConfig,
+            mirServer,
             taskController,
             QSharedPointer<DesktopFileReader::Factory>(
                 &desktopFileReaderFactory,
@@ -103,11 +103,11 @@ public:
             QSharedPointer<ProcInfo>(&procInfo,[](ProcInfo *){})
         }
         , sessionManager{
-            mirConfig,
+            mirServer,
             &applicationManager,
         }
         , surfaceManager{
-            mirConfig,
+            mirServer,
             &sessionManager
         }
     {
@@ -146,7 +146,7 @@ public:
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<FakeMirServer> mirConfig;
+    QSharedPointer<FakeMirServer> mirServer;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
     SessionManager sessionManager;

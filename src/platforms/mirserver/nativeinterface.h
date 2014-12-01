@@ -33,7 +33,7 @@ public:
 
     virtual void *nativeResourceForIntegration(const QByteArray &resource);
 
-    QSharedPointer<MirServer> m_mirConfig;
+    QSharedPointer<MirServer> m_mirServer;
 };
 
 #endif // NATIVEINTEGRATION_H
