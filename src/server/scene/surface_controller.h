@@ -53,6 +53,9 @@ private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
     std::shared_ptr<PlacementStrategy> const placement_strategy;
     std::shared_ptr<SurfaceStackModel> const surface_stack;
+
+    void set_state(Surface&, MirSurfaceState);
+    void fullscreen(Surface&);
 };
 
 }

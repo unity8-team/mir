@@ -59,5 +59,31 @@ int ms::SurfaceController::configure(Surface& surface,
                                      MirSurfaceAttrib attrib,
                                      int value)
 {
+    switch (attrib)
+    {
+    case mir_surface_attrib_state:
+        set_state(surface, static_cast<MirSurfaceState>(value));
+        break;
+    default:
+        break;
+    }
     return surface.configure(attrib, value);
+}
+
+void ms::SurfaceController::set_state(Surface& surface,
+                                      MirSurfaceState desired)
+{
+    switch (desired)
+    {
+    case mir_surface_state_fullscreen:
+        fullscreen(surface);
+        break;
+    default:
+        break;
+    }
+}
+
+void ms::SurfaceController::fullscreen(Surface& surface)
+{
+    surface.resize({1024, 768}); // TODO;
 }
