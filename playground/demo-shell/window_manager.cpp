@@ -69,6 +69,12 @@ void me::WindowManager::set_input_scene(std::shared_ptr<mi::Scene> const& s)
     input_scene = s;
 }
 
+void me::WindowManager::set_surface_coordinator(
+    std::shared_ptr<mir::scene::SurfaceCoordinator> const& c)
+{
+    surface_coordinator = c;
+}
+
 void me::WindowManager::force_redraw()
 {
     // This is clumsy, but the only option our architecture allows us for now
@@ -135,6 +141,7 @@ bool me::WindowManager::handle(MirEvent const& event)
     assert(focus_controller);
     assert(display);
     assert(compositor);
+    assert(surface_coordinator);
 
     bool handled = false;
 
@@ -146,6 +153,19 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             focus_controller->focus_next();
             return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F11)
+        {
+            if (auto const app =
+                    focus_controller->focussed_application().lock())
+            {
+                if (auto const surf = app->default_surface())
+                {
+                    surface_coordinator->fullscreen(*surf);
+                    return true;
+                }
+            }
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||

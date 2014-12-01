@@ -23,6 +23,7 @@
 #include "mir/input/scene.h"
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/size.h"
+#include "mir/scene/surface_coordinator.h"
 
 #include <memory>
 
@@ -53,6 +54,8 @@ public:
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
     void set_input_scene(std::shared_ptr<input::Scene> const& scene);
+    void set_surface_coordinator(
+        std::shared_ptr<scene::SurfaceCoordinator> const&);
     void force_redraw();
     
     bool handle(MirEvent const& event) override;
@@ -66,6 +69,7 @@ private:
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
     std::shared_ptr<input::Scene> input_scene;
+    std::shared_ptr<scene::SurfaceCoordinator> surface_coordinator;
 
     geometry::Point click;
     geometry::Point old_pos;

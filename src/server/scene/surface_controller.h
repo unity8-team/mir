@@ -48,6 +48,7 @@ public:
     void raise(std::weak_ptr<Surface> const& surface) override;
 
     int configure(Surface&, MirSurfaceAttrib, int) override;
+    void fullscreen(Surface&) override;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
@@ -55,7 +56,6 @@ private:
     std::shared_ptr<SurfaceStackModel> const surface_stack;
 
     void set_state(Surface&, MirSurfaceState);
-    void fullscreen(Surface&);
 };
 
 }

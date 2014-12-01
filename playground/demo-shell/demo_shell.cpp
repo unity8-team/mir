@@ -145,6 +145,7 @@ try
             wm->set_display(config.the_display());
             wm->set_compositor(config.the_compositor());
             wm->set_input_scene(config.the_input_scene());
+            wm->set_surface_coordinator(config.the_surface_coordinator());
         });
     return 0;
 }
