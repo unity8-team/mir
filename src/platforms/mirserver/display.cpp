@@ -19,7 +19,9 @@
 #include "display.h"
 
 #include "screen.h"
+#include "mirserver.h"
 
+#include <mir/graphics/display.h>
 #include <mir/graphics/display_configuration.h>
 #include <QDebug>
 
@@ -27,7 +29,7 @@ namespace mg = mir::graphics;
 
 // TODO: Listen for display changes and update the list accordingly
 
-Display::Display(const QSharedPointer<mir::Server> &server, QObject *parent)
+Display::Display(const QSharedPointer<MirServer> &server, QObject *parent)
   : QObject(parent)
   , m_mirServer(server)
 {

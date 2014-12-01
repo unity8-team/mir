@@ -35,7 +35,7 @@
 // The Mir "Display" generates a shared GL context for all DisplayBuffers
 // (i.e. individual display output buffers) to use as a common base context.
 
-MirOpenGLContext::MirOpenGLContext(const QSharedPointer<mir::Server> &server, const QSurfaceFormat &format)
+MirOpenGLContext::MirOpenGLContext(const QSharedPointer<MirServer> &server, const QSurfaceFormat &format)
     : m_mirServer(server)
 #if GL_DEBUG
     , m_logger(new QOpenGLDebugLogger(this))
