@@ -1,5 +1,3 @@
-find_package(Qt5Gui)
-
 set(
   EVENT_FEEDER_TEST_SOURCES
   qteventfeeder_test.cpp

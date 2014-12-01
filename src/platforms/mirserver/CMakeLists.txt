@@ -83,10 +83,13 @@ target_link_libraries(
     ${GIO_LDFLAGS}
     ${FONTCONFIG_LDFLAGS}
 
+    Qt5::Core
+    Qt5::DBus
+    Qt5::Quick
+    Qt5::Sensors
+
     -lboost_system
 )
-
-qt5_use_modules(qpa-mirserver Core Quick DBus Sensors)
 
 include(UseLttngGenTp)
 add_lttng_gen_tp(NAME tracepoints)

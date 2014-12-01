@@ -65,10 +65,13 @@ target_link_libraries(
 
     ${GL_LIBRARIES}
 
+    Qt5::Core
+    Qt5::DBus
+    Qt5::Qml
+    Qt5::Quick
+
     qpa-mirserver
 )
-
-qt5_use_modules(unityapplicationplugin Core Quick DBus Qml)
 
 # Generate tracepoints.c and .h from tracepoints.tp
 include(UseLttngGenTp)
