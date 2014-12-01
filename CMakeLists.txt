@@ -27,7 +27,7 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 set(MIR_VERSION_MAJOR 0)
-set(MIR_VERSION_MINOR 8) # This should change at least with every MIRSERVER_ABI
+set(MIR_VERSION_MINOR 10) # This should change at least with every MIRSERVER_ABI
 set(MIR_VERSION_PATCH 0)
 
 set(MIR_VERSION ${MIR_VERSION_MAJOR}.${MIR_VERSION_MINOR}.${MIR_VERSION_PATCH})
@@ -104,7 +104,7 @@ add_definitions(-DLOG_NDEBUG=1)
 
 enable_testing()
 
-include_directories(include/common src/include/common)
+include_directories(include/common)
 
 # Check for boost
 find_package(Boost 1.48.0 COMPONENTS date_time system program_options iostreams filesystem REQUIRED)
@@ -125,10 +125,10 @@ endif(MIR_DISABLE_EPOLL_REACTOR)
 
 add_definitions(-DMESA_EGL_NO_X11_HEADERS)
 
-# Default to mesa backend
+# Default to mesa backend, but build all of them
 set(
   MIR_PLATFORM
-  mesa
+  mesa;android
   CACHE
   STRING
   "a list of graphics backends to build (options are 'mesa' or 'android')"
@@ -154,6 +154,7 @@ find_package(GFlags REQUIRED)
 find_package(XKBCOMMON REQUIRED)
 find_package(LTTngUST REQUIRED)
 pkg_check_modules(UDEV REQUIRED libudev)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
 
 include_directories (${GLESv2_INCLUDE_DIRS})
 include_directories (${EGL_INCLUDE_DIRS})

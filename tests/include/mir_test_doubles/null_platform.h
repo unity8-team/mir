@@ -22,6 +22,7 @@
 #include "mir/graphics/platform.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "null_display.h"
+#include "null_platform_ipc_operations.h"
 
 namespace mir
 {
@@ -32,8 +33,7 @@ namespace doubles
 class NullPlatform : public graphics::Platform
 {
  public:
-    std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator(
-            const std::shared_ptr<graphics::BufferInitializer>& /*buffer_initializer*/)
+    std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator() override
     {
         return nullptr;
     }
@@ -41,32 +41,27 @@ class NullPlatform : public graphics::Platform
     std::shared_ptr<graphics::Display> create_display(
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const&,
         std::shared_ptr<graphics::GLProgramFactory> const&,
-        std::shared_ptr<graphics::GLConfig> const&)
+        std::shared_ptr<graphics::GLConfig> const&) override
     {
         return std::make_shared<NullDisplay>();
     }
 
-    std::shared_ptr<graphics::PlatformIPCPackage> get_ipc_package()
+    std::shared_ptr<graphics::PlatformIPCPackage> connection_ipc_package()
     {
         return std::make_shared<graphics::PlatformIPCPackage>();
     }
 
-    std::shared_ptr<graphics::InternalClient> create_internal_client()
-    {
-        return nullptr;
-    }
-    
-    std::shared_ptr<graphics::BufferWriter> make_buffer_writer()
+    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override
     {
         return nullptr;
     }
 
-    void fill_buffer_package(
-        graphics::BufferIPCPacker*, graphics::Buffer const*, graphics::BufferIpcMsgType) const
+    std::shared_ptr<graphics::PlatformIpcOperations> make_ipc_operations() const override
     {
+        return std::make_shared<NullPlatformIpcOperations>();
     }
 
-    EGLNativeDisplayType egl_native_display() const
+    EGLNativeDisplayType egl_native_display() const override
     {
         return EGLNativeDisplayType();
     }

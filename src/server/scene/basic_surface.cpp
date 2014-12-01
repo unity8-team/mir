@@ -101,6 +101,12 @@ void ms::SurfaceObservers::reception_mode_set_to(mi::InputReceptionMode mode)
         { observer->reception_mode_set_to(mode); });
 }
 
+void ms::SurfaceObservers::client_surface_close_requested()
+{
+    for_each([](std::shared_ptr<SurfaceObserver> const& observer)
+        { observer->client_surface_close_requested(); });
+}
+
 
 ms::BasicSurface::BasicSurface(
     std::string const& name,
@@ -151,6 +157,9 @@ void ms::BasicSurface::force_requests_to_complete()
 ms::BasicSurface::~BasicSurface() noexcept
 {
     report->surface_deleted(this, surface_name);
+
+    if (surface_buffer_stream) // some tests use null for surface_buffer_stream
+        surface_buffer_stream->drop_client_requests();
 }
 
 std::shared_ptr<mc::BufferStream> ms::BasicSurface::buffer_stream() const
@@ -545,6 +554,10 @@ std::shared_ptr<mg::CursorImage> ms::BasicSurface::cursor_image() const
     return cursor_image_;
 }
 
+void ms::BasicSurface::request_client_surface_close()
+{
+    observers.client_surface_close_requested();
+}
 
 int ms::BasicSurface::dpi() const
 {
@@ -616,14 +629,12 @@ public:
         geom::Rectangle const& position,
         glm::mat4 const& transform,
         bool visible,
-        bool alpha_enabled,
         float alpha,
         bool shaped,
         mg::Renderable::ID id)
     : underlying_buffer_stream{stream},
       compositor_buffer{nullptr},
       compositor_id{compositor_id},
-      alpha_enabled_{alpha_enabled},
       alpha_{alpha},
       shaped_{shaped},
       visible_{visible},
@@ -650,9 +661,6 @@ public:
     bool visible() const override
     { return visible_; }
 
-    bool alpha_enabled() const override
-    { return alpha_enabled_; }
-
     geom::Rectangle screen_position() const override
     { return screen_position_; }
 
@@ -671,7 +679,6 @@ private:
     std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
     std::shared_ptr<mg::Buffer> mutable compositor_buffer;
     void const*const compositor_id;
-    bool const alpha_enabled_;
     float const alpha_;
     bool const shaped_;
     bool const visible_;
@@ -685,7 +692,6 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
 {
     std::unique_lock<std::mutex> lk(guard);
 
-    auto const shaped = nonrectangular || (surface_alpha < 1.0f);
     return std::unique_ptr<mg::Renderable>(
         new SurfaceSnapshot(
             surface_buffer_stream,
@@ -693,7 +699,6 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
             surface_rect,
             transformation_matrix,
             visible(lk),
-            shaped,
             surface_alpha,
             nonrectangular, 
             this));

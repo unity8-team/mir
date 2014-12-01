@@ -18,27 +18,23 @@
 
 #include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
 #include "src/server/compositor/buffer_queue.h"
-#include "mir/graphics/buffer_initializer.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/graphics/buffer_properties.h"
-
-#include "playground/testdraw/graphics_region_factory.h"
-#include "playground/testdraw/patterns.h"
+#include "graphics_region_factory.h"
+#include "patterns.h"
 
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
-
 #include <gtest/gtest.h>
 
 namespace mc=mir::compositor;
 namespace geom=mir::geometry;
 namespace mga=mir::graphics::android;
 namespace mg=mir::graphics;
-namespace mtd=mir::test::draw;
+namespace mt=mir::test;
 
 namespace
 {
-
 class AndroidBufferIntegration : public ::testing::Test
 {
 protected:
@@ -47,15 +43,13 @@ protected:
         size = geom::Size{334, 122};
         pf  = mir_pixel_format_abgr_8888;
         buffer_properties = mg::BufferProperties{size, pf, mg::BufferUsage::software};
-        null_buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
-        graphics_region_factory = mtd::create_graphics_region_factory();
+        graphics_region_factory = std::make_shared<mt::GraphicsRegionFactory>();
     }
 
-    std::shared_ptr<mg::BufferInitializer> null_buffer_initializer;
     geom::Size size;
     MirPixelFormat pf;
     mg::BufferProperties buffer_properties;
-    std::shared_ptr<mtd::GraphicsRegionFactory> graphics_region_factory;
+    std::shared_ptr<mt::GraphicsRegionFactory> graphics_region_factory;
     mir::test::doubles::StubFrameDroppingPolicyFactory policy_factory;
 };
 
@@ -89,14 +83,14 @@ TEST_F(AndroidBufferIntegration, allocator_can_create_sw_buffer)
 {
     using namespace testing;
 
-    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
+    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>();
 
     mg::BufferProperties sw_properties{size, pf, mg::BufferUsage::software};
     auto test_buffer = allocator->alloc_buffer(sw_properties);
 
     auto region = graphics_region_factory->graphic_region_from_handle(
         *test_buffer->native_buffer_handle());
-    mtd::DrawPatternSolid red_pattern(0xFF0000FF);
+    mt::DrawPatternSolid red_pattern(0xFF0000FF);
     red_pattern.draw(*region);
     EXPECT_TRUE(red_pattern.check(*region));
 }
@@ -106,7 +100,7 @@ TEST_F(AndroidBufferIntegration, allocator_can_create_hw_buffer)
     using namespace testing;
 
     mg::BufferProperties hw_properties{size, pf, mg::BufferUsage::hardware};
-    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
+    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>();
 
     //TODO: kdub it is a bit trickier to test that a gpu can render... just check creation for now
     auto test_buffer = allocator->alloc_buffer(hw_properties);
@@ -117,7 +111,7 @@ TEST_F(AndroidBufferIntegration, swapper_creation_is_sane)
 {
     using namespace testing;
 
-    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(null_buffer_initializer);
+    auto allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>();
 
     mc::BufferQueue swapper(2, allocator, buffer_properties, policy_factory);
 

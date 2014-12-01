@@ -20,9 +20,8 @@
 #ifndef MIR_GRAPHICS_PLATFORM_H_
 #define MIR_GRAPHICS_PLATFORM_H_
 
-#include "basic_platform.h"
-
 #include <boost/program_options/options_description.hpp>
+#include <EGL/egl.h>
 #include <memory>
 
 namespace mir
@@ -42,24 +41,17 @@ class Option;
 /// the graphics environment.
 namespace graphics
 {
-class BufferIPCPacker;
 class Buffer;
 class Display;
-struct PlatformIPCPackage;
-class BufferInitializer;
 class InternalClient;
 class DisplayReport;
 class DisplayConfigurationPolicy;
 class GraphicBufferAllocator;
 class GLConfig;
 class GLProgramFactory;
+class PlatformIpcOperations;
 class BufferWriter;
 
-enum class BufferIpcMsgType
-{
-    full_msg, //pack the full ipc representation of the buffer
-    update_msg //assume the client has a full representation, and pack only updates to the buffer 
-};
 /**
  * \defgroup platform_enablement Mir platform enablement
  *
@@ -70,7 +62,7 @@ enum class BufferIpcMsgType
  * Interface to platform specific support for graphics operations.
  * \ingroup platform_enablement
  */
-class Platform : public BasicPlatform
+class Platform
 {
 public:
     Platform() = default;
@@ -81,12 +73,8 @@ public:
 
     /**
      * Creates the buffer allocator subsystem.
-     *
-     * \param [in] buffer_initializer the object responsible for initializing the buffers
      */
-
-    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<BufferInitializer> const& buffer_initializer) = 0;
+    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() = 0;
     
     virtual std::shared_ptr<BufferWriter> make_buffer_writer() = 0;
 
@@ -99,33 +87,12 @@ public:
         std::shared_ptr<GLConfig> const& gl_config) = 0;
 
     /**
-     * Gets the IPC package for the platform.
-     *
-     * The IPC package will be sent to clients when they connect.
+     * Creates an object capable of doing platform specific processing of buffers
+     * before they are sent or after they are recieved accross IPC
      */
-    virtual std::shared_ptr<PlatformIPCPackage> get_ipc_package() = 0;
+    virtual std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const = 0;
 
-    /**
-     * Arranges the IPC package for a buffer that is to be sent through
-     * the frontend. This should be called every time a buffer is to be
-     * sent cross-process.
-     *
-     * The Buffer IPC package will be sent to clients when receiving a buffer.
-     * The implementation must use the provided packer object to perform the packing.
-     *
-     * \param [in] packer   the object providing the packing functionality
-     * \param [in] buffer   the buffer to fill the IPC package for
-     * \param [in] ipc_type what sort of ipc message is needed
-     */
-    virtual void fill_buffer_package(
-        BufferIPCPacker* packer,
-        Buffer const* buffer,
-        BufferIpcMsgType msg_type) const = 0;
-
-    /**
-     * Creates the in-process client support object.
-     */
-    virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
+    virtual EGLNativeDisplayType egl_native_display() const = 0;
 };
 
 /**

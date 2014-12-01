@@ -219,11 +219,10 @@ void mgm::DisplayBuffer::post_update(
     std::shared_ptr<graphics::Buffer> bypass_buf)
 {
     /*
-     * If the last frame was composited then we haven't waited for the
-     * page flips yet. This is good because it maximizes the time available
-     * to spend rendering each frame. However we have to wait here, because
-     * it will be unsafe to swap_buffers before guaranteeing the previous
-     * page flip finished.
+     * We might not have waited for the previous frame to page flip yet.
+     * This is good because it maximizes the time available to spend rendering
+     * each frame. Just remember wait_for_page_flip() must be called at some
+     * point before the next schedule_page_flip().
      */
     wait_for_page_flip();
 
@@ -243,13 +242,6 @@ void mgm::DisplayBuffer::post_update(
     last_flipped_bufobj = scheduled_bufobj;
     scheduled_bufobj = nullptr;
 
-    /*
-     * Bring the back buffer to the front and get the buffer object
-     * corresponding to the front buffer.
-     */
-    if (!bypass_buf && !egl.swap_buffers())
-        fatal_error("Failed to perform initial surface buffer swap");
-
     mgm::BufferObject *bufobj;
     if (bypass_buf)
     {
@@ -259,6 +251,8 @@ void mgm::DisplayBuffer::post_update(
     }
     else
     {
+        if (!egl.swap_buffers())
+            fatal_error("Failed to perform buffer swap");
         bufobj = get_front_buffer_object();
     }
 

@@ -114,40 +114,28 @@ struct FakeCommandLine
 struct NativePlatformAdapter : mg::NativePlatform
 {
     NativePlatformAdapter(std::shared_ptr<mg::Platform> const& adaptee) :
-        adaptee(adaptee) {}
-
-    void initialize(std::shared_ptr<mg::NestedContext> const& /*nested_context*/) override {}
-
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<mg::BufferInitializer> const& buffer_initializer) override
+        adaptee(adaptee),
+        ipc_ops(adaptee->make_ipc_operations())
     {
-        return adaptee->create_buffer_allocator(buffer_initializer);
     }
 
-    std::shared_ptr<mg::PlatformIPCPackage> get_ipc_package() override
+    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
     {
-        return adaptee->get_ipc_package();
+        return adaptee->create_buffer_allocator();
     }
 
-    std::shared_ptr<mg::InternalClient> create_internal_client() override
+    std::shared_ptr<mg::PlatformIpcOperations> make_ipc_operations() const override
     {
-        return adaptee->create_internal_client();
+        return ipc_ops;
     }
 
     std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
     {
         return adaptee->make_buffer_writer();
     }
-
-    void fill_buffer_package(
-        mg::BufferIPCPacker* packer,
-        mg::Buffer const* buffer,
-        mg::BufferIpcMsgType msg_type) const override
-    {
-        return adaptee->fill_buffer_package(packer, buffer, msg_type);
-    }
     
     std::shared_ptr<mg::Platform> const adaptee;
+    std::shared_ptr<mg::PlatformIpcOperations> const ipc_ops;
 };
 
 struct MockHostLifecycleEventListener : msh::HostLifecycleEventListener

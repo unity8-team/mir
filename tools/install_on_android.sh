@@ -21,10 +21,8 @@ pushd ${BUILD_DIR} > /dev/null
     # Upload and run the tests!
     # Requires: https://wiki.canonical.com/ProductStrategyTeam/Android/Deploy
     #
-    RUN_DIR=/tmp/mirtest
+    RUN_DIR=/home/phablet/mirtest
 
-    adb wait-for-device
-    adb root
     adb wait-for-device
     adb shell mkdir -p ${RUN_DIR}/udev_recordings
 
@@ -34,8 +32,11 @@ pushd ${BUILD_DIR} > /dev/null
              lib/libmirclient.so.* \
              lib/libmircommon.so.* \
              lib/libmirplatform.so.* \
-             lib/libmirplatformgraphics.so \
-             lib/libmirclientplatform.so \
+             lib/libmirplatform*driver.so \
+             lib/libmirclient*driver.so \
+             lib/libmirprotobuf.so.* \
+             lib/libmirclient-debug-extension.so.* \
+             lib/libmirplatformstub.so \
              lib/libmirserver.so.*
     do
         adb push $x ${RUN_DIR}

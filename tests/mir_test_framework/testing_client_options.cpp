@@ -18,6 +18,7 @@
 
 #include "mir_test_framework/testing_client_configuration.h"
 #include "mir_test_framework/stub_client_connection_configuration.h"
+#include "mir_test_doubles/stub_client_buffer_factory.h"
 #include "mir/options/program_option.h"
 #include "src/client/default_connection_configuration.h"
 #include "src/client/client_platform_factory.h"
@@ -29,60 +30,10 @@
 namespace mcl = mir::client;
 namespace mtf=mir_test_framework;
 namespace geom = mir::geometry;
-
+namespace mtd = mir::test::doubles;
 
 namespace
 {
-class StubClientBuffer : public mcl::ClientBuffer
-{
-    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write()
-    {
-        return nullptr;
-    }
-
-    geom::Size size() const
-    {
-        return geom::Size{};
-    }
-
-    geom::Stride stride() const
-    {
-        return geom::Stride{};
-    }
-
-    MirPixelFormat pixel_format() const
-    {
-        return mir_pixel_format_abgr_8888;
-    }
-
-    uint32_t age() const
-    {
-        return 0;
-    }
-    void increment_age()
-    {
-    }
-    void mark_as_submitted()
-    {
-    }
-    std::shared_ptr<mir::graphics::NativeBuffer> native_buffer_handle() const
-    {
-        return nullptr;
-    }
-    void update_from(MirBufferPackage const&) override
-    {
-    }
-};
-
-struct StubClientBufferFactory : public mcl::ClientBufferFactory
-{
-    std::shared_ptr<mcl::ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const&,
-                                                     geom::Size, MirPixelFormat)
-    {
-        return std::make_shared<StubClientBuffer>();
-    }
-};
-
 struct StubClientPlatform : public mcl::ClientPlatform
 {
     MirPlatformType platform_type() const
@@ -92,7 +43,7 @@ struct StubClientPlatform : public mcl::ClientPlatform
 
     std::shared_ptr<mcl::ClientBufferFactory> create_buffer_factory()
     {
-        return std::make_shared<StubClientBufferFactory>();
+        return std::make_shared<mtd::StubClientBufferFactory>();
     }
 
     std::shared_ptr<EGLNativeWindowType> create_egl_native_window(mcl::ClientSurface*)

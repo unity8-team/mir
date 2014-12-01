@@ -32,6 +32,7 @@
 #include "mir_test/stub_server_tool.h"
 #include "mir_test/pipe.h"
 #include "mir_test/signal.h"
+#include "mir_test_doubles/stub_client_buffer_factory.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -43,6 +44,7 @@
 namespace mcl = mir::client;
 namespace mp = mir::protobuf;
 namespace geom = mir::geometry;
+namespace mtd = mir::test::doubles;
 
 namespace
 {
@@ -87,16 +89,6 @@ struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel,
     MOCK_METHOD0(dispatch, void());
 };
 
-struct StubClientBufferFactory : public mcl::ClientBufferFactory
-{
-    std::shared_ptr<mcl::ClientBuffer> create_buffer(std::shared_ptr<MirBufferPackage> const& /* package */,
-                                                     geom::Size /*size*/, MirPixelFormat /*pf*/) override
-    {
-        return std::shared_ptr<mcl::ClientBuffer>();
-    }
-};
-
-
 struct MockClientPlatform : public mcl::ClientPlatform
 {
     MockClientPlatform()
@@ -109,7 +101,7 @@ struct MockClientPlatform : public mcl::ClientPlatform
         ON_CALL(*this, create_egl_native_display())
             .WillByDefault(Return(native_display));
         ON_CALL(*this, create_buffer_factory())
-            .WillByDefault(Return(std::make_shared<StubClientBufferFactory>()));
+            .WillByDefault(Return(std::make_shared<mtd::StubClientBufferFactory>()));
         ON_CALL(*this, create_egl_native_window(_))
             .WillByDefault(Return(std::shared_ptr<EGLNativeWindowType>()));
     }

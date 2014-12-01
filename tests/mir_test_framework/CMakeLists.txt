@@ -1,4 +1,9 @@
 include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/common
+  ${PROJECT_SOURCE_DIR}/src/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/client
     ${Boost_INCLUDE_DIRS}
     ${GLESv2_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}
@@ -10,8 +15,14 @@ set(
 
   executable_path.cpp
   command_line_server_configuration.cpp
+  connected_client_headless_server.cpp
+  connected_client_with_a_surface.cpp
   cross_process_sync.cpp
+  headless_in_process_server.cpp
+  headless_test.cpp
+  interprocess_client_server_test.cpp
   server_runner.cpp
+  temporary_environment_value.cpp
   testing_server_options.cpp
   input_testing_server_options.cpp
   stubbed_server_configuration.cpp
@@ -44,6 +55,7 @@ uses_android_input(mir-test-framework)
 target_link_libraries(
   mir-test-framework
 
+  mirplatformstub
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
@@ -65,3 +77,21 @@ add_custom_command(TARGET mir-test-framework POST_BUILD
   ${CMAKE_CURRENT_SOURCE_DIR}/testing-cursor-theme ${CMAKE_BINARY_DIR}/bin/testing-cursor-theme
   COMMENT "Copying testing cursor themes to build dir..."
 )
+
+string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
+
+add_library(
+  mirplatformstub SHARED
+  stubbed_graphics_platform.cpp
+)
+
+target_link_libraries(mirplatformstub 
+  mir-test-doubles
+)
+
+set_target_properties(mirplatformstub
+  PROPERTIES
+  LINK_FLAGS "-Wl,--exclude-libs=ALL"
+)
+
+install(TARGETS mirplatformstub LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

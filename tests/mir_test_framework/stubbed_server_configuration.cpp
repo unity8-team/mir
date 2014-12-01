@@ -19,182 +19,38 @@
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/command_line_server_configuration.h"
 
-#include "mir/options/default_configuration.h"
-#include "mir/graphics/buffer_ipc_packer.h"
-#include "mir/graphics/buffer_writer.h"
-#include "mir/graphics/cursor.h"
-#include "mir/input/input_channel.h"
-#include "mir/input/input_manager.h"
+#include "stubbed_graphics_platform.h"
 
-#include "mir_test_doubles/stub_display.h"
-#include "mir_test_doubles/null_platform.h"
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_buffer_allocator.h"
+#include "mir/options/default_configuration.h"
+#include "mir/graphics/cursor.h"
+
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_renderer.h"
 #include "mir_test_doubles/stub_input_sender.h"
 
-#ifdef ANDROID
-#include "mir_test_doubles/mock_android_native_buffer.h"
-#endif
-
-#include "mir/compositor/renderer.h"
 #include "mir/compositor/renderer_factory.h"
-#include "src/server/input/null_input_configuration.h"
+#include "src/server/input/null_input_manager.h"
 #include "src/server/input/null_input_dispatcher.h"
 #include "src/server/input/null_input_targeter.h"
-
-#include <system_error>
-#include <boost/exception/errinfo_errno.hpp>
-#include <boost/throw_exception.hpp>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include "mir_test_doubles/null_logger.h"
 
 namespace geom = mir::geometry;
 namespace mc = mir::compositor;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
+namespace ml = mir::logging;
 namespace mo = mir::options;
 namespace mtd = mir::test::doubles;
 namespace mtf = mir_test_framework;
 
 namespace
 {
-class StubFDBuffer : public mtd::StubBuffer
-{
-public:
-    StubFDBuffer(mg::BufferProperties const& properties)
-        : StubBuffer(properties),
-          properties{properties}
-    {
-        fd = open("/dev/zero", O_RDONLY);
-        if (fd < 0)
-            BOOST_THROW_EXCEPTION(
-                boost::enable_error_info(
-                    std::system_error(errno, std::system_category(), "Failed to open dummy fd")));
-    }
-
-    std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override
-    {
-#ifndef ANDROID
-        auto native_buffer = std::make_shared<mg::NativeBuffer>();
-        native_buffer->data_items = 1;
-        native_buffer->data[0] = 0xDEADBEEF;
-        native_buffer->fd_items = 1;
-        native_buffer->fd[0] = fd;
-        native_buffer->width = properties.size.width.as_int();
-        native_buffer->height = properties.size.height.as_int();
-
-        native_buffer->flags = 0;
-        if (properties.size.width.as_int() >= 800 &&
-            properties.size.height.as_int() >= 600 &&
-            properties.usage == mg::BufferUsage::hardware)
-        {
-            native_buffer->flags |= mir_buffer_flag_can_scanout;
-        }
-#else
-        auto native_buffer = std::make_shared<mtd::StubAndroidNativeBuffer>();
-        auto anwb = native_buffer->anwb();
-        anwb->width = properties.size.width.as_int();
-        anwb->height = properties.size.width.as_int();
-#endif
-        return native_buffer;
-    }
-
-    ~StubFDBuffer() noexcept
-    {
-        close(fd);
-    }
-private:
-    int fd;
-    const mg::BufferProperties properties;
-};
-
-class StubGraphicBufferAllocator : public mtd::StubBufferAllocator
-{
- public:
-    std::shared_ptr<mg::Buffer> alloc_buffer(mg::BufferProperties const& properties) override
-    {
-        if (properties.size.width == geom::Width{0} ||
-            properties.size.height == geom::Height{0})
-        {
-            BOOST_THROW_EXCEPTION(
-                std::runtime_error("Request for allocation of buffer with invalid size"));
-        }
-
-        return std::make_shared<StubFDBuffer>(properties);
-    }
-};
-
 class StubCursor : public mg::Cursor
 {
     void show(mg::CursorImage const&) override {}
     void hide() override {}
     void move_to(geom::Point) override {}
-};
-
-class StubGraphicPlatform : public mtd::NullPlatform
-{
-public:
-    StubGraphicPlatform(std::vector<geom::Rectangle> const& display_rects)
-        : display_rects{display_rects}
-    {
-    }
-
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
-        const std::shared_ptr<mg::BufferInitializer>& /*buffer_initializer*/) override
-    {
-        return std::make_shared<StubGraphicBufferAllocator>();
-    }
-
-    void fill_buffer_package(
-        mg::BufferIPCPacker* packer, mg::Buffer const* buffer, mg::BufferIpcMsgType msg_type) const override
-    {
-        if (msg_type == mg::BufferIpcMsgType::full_msg)
-        {
-#ifndef ANDROID
-            auto native_handle = buffer->native_buffer_handle();
-            for(auto i=0; i<native_handle->data_items; i++)
-            {
-                packer->pack_data(native_handle->data[i]);
-            }
-            for(auto i=0; i<native_handle->fd_items; i++)
-            {
-                using namespace mir;
-                packer->pack_fd(Fd(IntOwnedFd{native_handle->fd[i]}));
-            }
-
-            packer->pack_flags(native_handle->flags);
-#endif
-            packer->pack_stride(buffer->stride());
-            packer->pack_size(buffer->size());
-        }
-    }
-
-    std::shared_ptr<mg::Display> create_display(
-        std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
-        std::shared_ptr<mg::GLProgramFactory> const&,
-        std::shared_ptr<mg::GLConfig> const&) override
-    {
-        return std::make_shared<mtd::StubDisplay>(display_rects);
-    }
-    
-    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
-    {
-        struct NullWriter : mg::BufferWriter 
-        {
-            void write(mg::Buffer& /* buffer */, 
-                unsigned char const* /* data */, size_t /* size */) override
-            {
-            }
-        };
-        return std::make_shared<NullWriter>();
-    }
-    
-    std::vector<geom::Rectangle> const display_rects;
 };
 
 class StubRendererFactory : public mc::RendererFactory
@@ -222,6 +78,7 @@ mtf::StubbedServerConfiguration::StubbedServerConfiguration(
           namespace po = boost::program_options;
 
           result->add_options()
+                  (mtd::logging_opt, po::value<bool>()->default_value(false), mtd::logging_descr)
                   ("tests-use-real-graphics", po::value<bool>()->default_value(false), "Use real graphics in tests.")
                   ("tests-use-real-input", po::value<bool>()->default_value(false), "Use real input in tests.");
 
@@ -255,14 +112,14 @@ std::shared_ptr<mc::RendererFactory> mtf::StubbedServerConfiguration::the_render
             });
 }
 
-std::shared_ptr<mi::InputConfiguration> mtf::StubbedServerConfiguration::the_input_configuration()
+std::shared_ptr<mi::InputManager> mtf::StubbedServerConfiguration::the_input_manager()
 {
     auto options = the_options();
 
     if (options->get<bool>("tests-use-real-input"))
-        return DefaultServerConfiguration::the_input_configuration();
+        return DefaultServerConfiguration::the_input_manager();
     else
-        return std::make_shared<mi::NullInputConfiguration>();
+        return std::make_shared<mi::NullInputManager>();
 }
 
 std::shared_ptr<msh::InputTargeter> mtf::StubbedServerConfiguration::the_input_targeter()
@@ -298,4 +155,12 @@ std::shared_ptr<mi::InputSender> mtf::StubbedServerConfiguration::the_input_send
 std::shared_ptr<mg::Cursor> mtf::StubbedServerConfiguration::the_cursor()
 {
     return std::make_shared<StubCursor>();
+}
+
+std::shared_ptr<ml::Logger> mtf::StubbedServerConfiguration::the_logger()
+{
+    if (the_options()->get<bool>(mtd::logging_opt))
+        return DefaultServerConfiguration::the_logger();
+
+    return std::make_shared<mtd::NullLogger>();
 }

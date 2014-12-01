@@ -27,7 +27,13 @@ If you are curious about Mir internals or intend to contribute to it, you should
 get the source and build it:
 
  - \ref building_source_for_pc
- - \ref building_source_for_android
+ - \ref building_source_for_arm
+
+### Preparing a VM to run Mir
+
+Especially if you want to debug the shell without locking your system this might be a helpful setup:
+
+- \ref setup_kvm_for_mir
 
 Using Mir
 ---------
@@ -76,7 +82,6 @@ Mir server is written as a library which allows the server code to be adapted
 for bespoke applications.
 
  - \subpage render_surfaces-example "render_surfaces.cpp: A simple program using the Mir library"
- - \ref demo_inprocess_egl
 
 Working on Mir code
 -------------------
@@ -85,3 +90,5 @@ Working on Mir code
  - \ref md_HACKING "Mir hacking guide"
  - \subpage android_new_device_bringup "New android device bringup" 
  - \ref component_reports
+ - \ref dso_versioning_guide
+ - \ref abi_compatibility_tools

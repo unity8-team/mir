@@ -47,31 +47,20 @@ public:
 class StubNativePlatform : public mg::NativePlatform
 {
 public:
-    void initialize(std::shared_ptr<mg::NestedContext> const&) override {}
-
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<mg::BufferInitializer> const&) override
+    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
     {
         return {};
     }
 
-    std::shared_ptr<mg::PlatformIPCPackage> get_ipc_package() override
+    std::shared_ptr<mg::PlatformIpcOperations> make_ipc_operations() const override
     {
         return {};
     }
 
-    std::shared_ptr<mg::InternalClient> create_internal_client() override
-    {
-        return {};
-    }
-    
     std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
     {
         return {};
     }
-
-    void fill_buffer_package(
-        mg::BufferIPCPacker*, mg::Buffer const*, mg::BufferIpcMsgType) const override {}
 };
 
 TEST(NestedGraphicsPlatform, egl_native_display_is_host_connection_native_display)

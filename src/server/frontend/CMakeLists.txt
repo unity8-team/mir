@@ -15,13 +15,13 @@ set(
   resource_cache.cpp
   socket_messenger.cpp
   event_sender.cpp
-  surface.cpp
   surface_tracker.cpp
   unauthorized_display_changer.cpp
   unauthorized_screencast.cpp
   session_credentials.cpp
   default_configuration.cpp
   default_ipc_factory.cpp
+  unsupported_coordinate_translator.cpp
 )
 
 add_library(

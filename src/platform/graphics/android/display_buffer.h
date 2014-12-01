@@ -22,7 +22,7 @@
 #include "configurable_display_buffer.h"
 #include "mir/graphics/egl_resources.h"
 #include "mir/graphics/gl_program_factory.h"
-#include "android_display_configuration.h"
+#include "display_configuration.h"
 #include "gl_context.h"
 #include "hwc_fallback_gl_renderer.h"
 #include "overlay_optimization.h"
@@ -48,17 +48,17 @@ public:
                   GLProgramFactory const& program_factory,
                   OverlayOptimization overlay_option);
 
-    geometry::Rectangle view_area() const;
-    void make_current();
-    void release_current();
-    void post_update();
-    bool post_renderables_if_optimizable(RenderableList const& renderlist);
+    geometry::Rectangle view_area() const override;
+    void make_current() override;
+    void release_current() override;
+    void post_update() override;
+    bool post_renderables_if_optimizable(RenderableList const& renderlist) override;
 
     MirOrientation orientation() const override;
     bool uses_alpha() const override;
 
-    DisplayConfigurationOutput configuration() const;
-    void configure(DisplayConfigurationOutput const&);
+    DisplayConfigurationOutput configuration() const override;
+    void configure(DisplayConfigurationOutput const&) override;
 
 private:
     std::shared_ptr<FramebufferBundle> const fb_bundle;

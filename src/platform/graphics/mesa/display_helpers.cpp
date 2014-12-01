@@ -46,7 +46,7 @@ void mgmh::DRMHelper::setup(std::shared_ptr<mir::udev::Context> const& udev)
         BOOST_THROW_EXCEPTION(std::runtime_error("Failed to open DRM device\n"));
 }
 
-int mgmh::DRMHelper::get_authenticated_fd()
+mir::Fd mgmh::DRMHelper::authenticated_fd()
 {
     /* We must have our own device fd first, so that it has become the DRM master */
     if (fd < 0)
@@ -60,7 +60,7 @@ int mgmh::DRMHelper::get_authenticated_fd()
             boost::enable_error_info(
                 std::runtime_error("Failed to get BusID of DRM device")) << boost::errinfo_errno(errno));
     int auth_fd = drmOpen(NULL, busid);
-    free(busid);
+    drmFreeBusid(busid);
 
     if (auth_fd < 0)
         BOOST_THROW_EXCEPTION(
@@ -91,10 +91,11 @@ int mgmh::DRMHelper::get_authenticated_fd()
                 std::runtime_error("Failed to authenticate DRM device magic cookie")) << boost::errinfo_errno(-ret));
     }
 
-    return auth_fd;
+    //TODO: remove IntOwnedFd, its how the code works now though
+    return mir::Fd{IntOwnedFd{auth_fd}};
 }
 
-void mgmh::DRMHelper::auth_magic(drm_magic_t magic) const
+void mgmh::DRMHelper::auth_magic(drm_magic_t magic)
 {
     /* We must have our own device fd first, so that it has become the DRM master */
     if (fd < 0)
@@ -130,7 +131,7 @@ void mgmh::DRMHelper::drop_master() const
         BOOST_THROW_EXCEPTION(
             boost::enable_error_info(
                 std::runtime_error("Failed to drop DRM master"))
-                    << boost::errinfo_errno(-ret));
+                    << boost::errinfo_errno(errno));
     }
 }
 
@@ -150,7 +151,7 @@ void mgmh::DRMHelper::set_master() const
         BOOST_THROW_EXCEPTION(
             boost::enable_error_info(
                 std::runtime_error("Failed to set DRM master"))
-                    << boost::errinfo_errno(-ret));
+                    << boost::errinfo_errno(errno));
     }
 }
 
