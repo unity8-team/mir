@@ -300,6 +300,13 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
         }
     }
 
+    if (*width == 0 && *height == 0)
+    {
+        initial_state = mir_surface_state_fullscreen;
+        *width = 1; // Will be unused but must be nonzero :(
+        *height = 1;
+    }
+
     surfaceparm.width = *width;
     surfaceparm.height = *height;
 

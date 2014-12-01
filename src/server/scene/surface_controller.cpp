@@ -91,7 +91,7 @@ void ms::SurfaceController::fullscreen(Surface& surface)
     //       It makes sense given SurfaceController is the implementation of
     //       SurfaceCoordinator. And placement sounds a lot like coordination
     //       of surfaces. There's presently a little too much indirection here:
-    placement_strategy->fullscreen(rect);
+    rect = placement_strategy->fullscreen(rect);
 
     // TODO: Make this atomic (LP: #1395957)
     surface.resize(rect.size);  // Might throw
