@@ -28,7 +28,7 @@ class PromptSessionListener;
 
 // We use virtual inheritance of mir::Server to facilitate derived classes (e.g. testing)
 // calling initialization functions before MirServer is constructed.
-class MirServer : public QObject, public virtual mir::Server
+class MirServer : public QObject, private virtual mir::Server
 {
     Q_OBJECT
 
@@ -40,6 +40,17 @@ class MirServer : public QObject, public virtual mir::Server
 public:
     MirServer(int argc, char const* argv[], QObject* parent = 0);
     ~MirServer() = default;
+
+    /* mir specific */
+    using mir::Server::run;
+    using mir::Server::stop;
+    using mir::Server::the_display;
+    using mir::Server::the_gl_config;
+    using mir::Server::the_prompt_session_listener;
+    using mir::Server::the_prompt_session_manager;
+    using mir::Server::the_session_authorizer;
+    using mir::Server::the_session_listener;
+    using mir::Server::the_surface_configurator;
 
     /* qt specific */
     // getters
