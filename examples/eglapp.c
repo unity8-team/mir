@@ -306,8 +306,8 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     {
         initial_state = mir_surface_state_fullscreen;
 
-        // FIXME: Initial width/height should be ignored, but the server
-        //        will report an error if they're zero.
+        // These should be ignored due to the initial_state, but it's
+        // unfortunately required that they're never zero:
         surfaceparm.width = 1;
         surfaceparm.height = 1;
     }

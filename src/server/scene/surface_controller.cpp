@@ -93,7 +93,7 @@ void ms::SurfaceController::fullscreen(Surface& surface)
     //       of surfaces. There's presently a little too much indirection here:
     rect = placement_strategy->fullscreen(rect);
 
-    // TODO: Make this atomic (LP: #1395957)
-    surface.resize(rect.size);  // Might throw
+    // TODO: Make these an atomic operation (LP: #1395957)
+    surface.resize(rect.size);       // Might throw
     surface.move_to(rect.top_left);  // Unlikely to ever throw
 }
