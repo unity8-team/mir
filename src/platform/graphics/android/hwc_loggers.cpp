@@ -143,7 +143,7 @@ std::ostream& operator<<(std::ostream& str, mga::OverlayOptimization opt)
 
 void mga::HwcFormattedLogger::log_list_submitted_to_prepare(hwc_display_contents_1_t const& list) const
 {
-    std::cout << "before prepare():" << std::endl
+    std::cout << "before prep():" << std::endl
               << " # | pos {l,t,r,b}         | crop {l,t,r,b}        | transform | blending | "
               << std::endl;
     for(auto i = 0u; i < list.numHwLayers; i++)
