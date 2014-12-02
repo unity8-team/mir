@@ -37,6 +37,13 @@ struct StubSession : public frontend::Session
     void destroy_surface(frontend::SurfaceId /* surface */) override
     {
     }
+    frontend::BufferStreamId create_buffer_stream(graphics::BufferProperties const& /* params */) override
+    {
+        return frontend::BufferStreamId{0};
+    }
+    void destroy_buffer_stream(frontend::BufferStreamId /* stream */) override
+    {
+    }
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId /* surface */) const override
     {
         return std::shared_ptr<frontend::Surface>();

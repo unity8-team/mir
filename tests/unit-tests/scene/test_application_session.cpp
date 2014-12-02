@@ -26,6 +26,7 @@
 #include "mir_test_doubles/mock_session_listener.h"
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/stub_buffer_stream_factory.h"
+#include "mir_test_doubles/stub_buffer_stream.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_prompt_session.h"
@@ -35,8 +36,11 @@
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
+namespace mg = mir::graphics;
 namespace ms = mir::scene;
 namespace mi = mir::input;
+namespace geom = mir::geometry;
+
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
@@ -44,10 +48,10 @@ namespace
 {
 static std::shared_ptr<mtd::MockSurface> make_mock_surface()
 {
-    return std::make_shared<testing::NiceMock<mtd::MockSurface> >();
+    return std::make_shared<testing::NiceMock<mtd::MockSurface>>();
 }
 
-struct MockBufferStreamFactory : public mc::BufferStreamFactory
+struct MockBufferStreamFactory : public ms::BufferStreamFactory
 {
     MOCK_METHOD1(create_buffer_stream, std::shared_ptr<mc::BufferStream>(mg::BufferProperties const&));
 };
@@ -380,25 +384,28 @@ TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
 
 TEST_F(ApplicationSession, buffer_stream_constructed_with_requested_parameters)
 {
-    mtd::StubBufferStream;
-    MockBufferStream factory;
+    using namespace ::testing;
+    
+    geom::Size const buffer_size{geom::Width{1}, geom::Height{1}};
 
-    // TODO: Fill
-    mg::BufferProperties properties;
+    mtd::StubBufferStream stream;
+    MockBufferStreamFactory factory;
+
+    mg::BufferProperties properties(buffer_size, mir_pixel_format_argb_8888, mg::BufferUsage::software);
     
     EXPECT_CALL(factory, create_buffer_stream(properties)).Times(1)
-        .WillOnce(Return(mt::fake_shared(stub_buffer_stream)));
+        .WillOnce(Return(mt::fake_shared(stream)));
 
-    auto session = make_session_with_buffer_stream_factory(mt::fake_shared(factory));
+    auto session = make_application_session_with_buffer_stream_factory(mt::fake_shared(factory));
     auto id = session->create_buffer_stream(properties);
 
-    EXPECT_TRUE(app_session->get_buffer_stream(id) != nullptr);
+    EXPECT_TRUE(session->get_buffer_stream(id) != nullptr);
     
     session->destroy_buffer_stream(id);
     
     EXPECT_THROW({
-            app_session->get_buffer_stream(id);
-    });
+            session->get_buffer_stream(id);
+    }, std::runtime_error);
 }
 
 namespace

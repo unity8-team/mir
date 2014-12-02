@@ -43,7 +43,7 @@ struct StubSceneSession : public scene::Session
     {
         return frontend::BufferStreamId{0};
     }
-    void destroy_buffer_stream(frontend::BufferStreamId /* stream */)
+    void destroy_buffer_stream(frontend::BufferStreamId /* stream */) override
     {
     }
 

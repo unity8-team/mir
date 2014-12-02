@@ -29,14 +29,7 @@
 extern "C" {
 #endif
 
-MirWaitHandle* mir_buffer_stream_create(MirConnection *connection,
-    int width, int height,
-    MirPixelFormat format,
-    MirBufferUsage buffer_usage,
-    mir_buffer_stream_callback callback, 
-    void* context);
-
-MirBufferStream* mir_buffer_stream_create_sync(MirConnection *connection,
+MirBufferStream* mir_connection_create_buffer_stream_sync(MirConnection *connection,
     int width, int height,
     MirPixelFormat format,
     MirBufferUsage buffer_usage);

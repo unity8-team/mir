@@ -22,7 +22,10 @@
 #include "mir/scene/surface_coordinator.h"
 #include "snapshot_strategy.h"
 #include "mir/scene/session_listener.h"
+#include "mir/scene/buffer_stream_factory.h"
 #include "mir/frontend/event_sink.h"
+#include "mir/frontend/buffer_stream.h"
+#include "mir/compositor/buffer_stream.h"
 #include "default_session_container.h"
 
 #include <boost/throw_exception.hpp>
@@ -37,6 +40,7 @@ namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
+namespace mc = mir::compositor;
 
 ms::ApplicationSession::ApplicationSession(
     std::shared_ptr<ms::SurfaceCoordinator> const& surface_coordinator,
@@ -90,13 +94,38 @@ mf::SurfaceId ms::ApplicationSession::create_surface(const SurfaceCreationParame
     return id;
 }
 
+namespace
+{
+struct SimpleBufferStream : public mf::BufferStream
+{
+    SimpleBufferStream(std::shared_ptr<mc::BufferStream> const& buffer_stream)
+        : buffer_stream(buffer_stream)
+    {
+    }
+
+    void swap_buffers(mg::Buffer* old_buffer, std::function<void(mg::Buffer* new_buffer)> complete)
+    {
+        if (old_buffer)
+            buffer_stream->release_client_buffer(old_buffer);
+        else
+            buffer_stream->acquire_client_buffer(complete);
+    }
+    
+    std::shared_ptr<mc::BufferStream> const buffer_stream;
+};
+}
+
 mf::BufferStreamId ms::ApplicationSession::create_buffer_stream(mg::BufferProperties const& buffer_props)
 {
-    // TODO
-    (void) buffer_props;
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-
     auto const id = static_cast<mf::BufferStreamId>(next_id());
+    
+    auto stream = std::make_shared<SimpleBufferStream>(buffer_stream_factory->create_buffer_stream(buffer_props));
+    
+    // TODO: Observers, etc?
+    {
+        std::unique_lock<std::mutex> lock(surfaces_mutex);
+        streams[id] = stream;
+    }
     return id;
 }
 
