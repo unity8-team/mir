@@ -32,6 +32,10 @@ namespace frontend
 class EventSink;
 class BufferStream;
 }
+namespace graphics
+{
+class BufferProperties;
+}
 
 namespace scene
 {
@@ -77,6 +81,9 @@ public:
 
     void start_prompt_session() override;
     void stop_prompt_session() override;
+    
+    frontend::BufferStreamId create_buffer_stream(graphics::BufferProperties const& properties);
+    void destroy_buffer_stream(frontend::BufferStreamId stream);
 
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
@@ -97,8 +104,13 @@ private:
 
     typedef std::map<frontend::SurfaceId, std::shared_ptr<Surface>> Surfaces;
     Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
+
+    typedef std::map<frontend::SurfaceId, std::shared_ptr<frontend::BufferStream>> BufferStreams;
+
+    // TODO: Update mutex name
     std::mutex mutable surfaces_mutex;
     Surfaces surfaces;
+    BufferStreams streams;
 };
 
 }

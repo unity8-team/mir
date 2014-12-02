@@ -90,6 +90,16 @@ mf::SurfaceId ms::ApplicationSession::create_surface(const SurfaceCreationParame
     return id;
 }
 
+mf::BufferStreamId ms::ApplicationSession::create_buffer_stream(mg::BufferProperties const& buffer_props)
+{
+    // TODO
+    (void) buffer_props;
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+
+    auto const id = static_cast<mf::BufferStreamId>(next_id());
+    return id;
+}
+
 ms::ApplicationSession::Surfaces::const_iterator ms::ApplicationSession::checked_find(mf::SurfaceId id) const
 {
     auto p = surfaces.find(id);
@@ -109,8 +119,13 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
 
 std::shared_ptr<mf::BufferStream> ms::ApplicationSession::get_buffer_stream(mf::BufferStreamId id) const
 {
-    // TODO: Update for create_buffer_stream ~racarr
-    return get_surface(id);
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+
+    auto p = streams.find(id);
+    if (p == streams.end())
+        return get_surface(id);
+    else 
+        return p->second;
 }
 
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
@@ -143,6 +158,17 @@ void ms::ApplicationSession::destroy_surface(mf::SurfaceId id)
     lock.unlock();
 
     surface_coordinator->remove_surface(surface);
+}
+
+void ms::ApplicationSession::destroy_buffer_stream(mf::BufferStreamId id)
+{
+    std::unique_lock<std::mutex> lock(surfaces_mutex);
+    auto p = streams.find(id);
+    if (p == streams.end())
+        BOOST_THROW_EXCEPTION(std::runtime_error("Invalid buffer stream id"));
+    auto const stream = p->second;
+
+    streams.erase(p);
 }
 
 std::string ms::ApplicationSession::name() const

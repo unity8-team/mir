@@ -47,6 +47,11 @@ static std::shared_ptr<mtd::MockSurface> make_mock_surface()
     return std::make_shared<testing::NiceMock<mtd::MockSurface> >();
 }
 
+struct MockBufferStreamFactory : public mc::BufferStreamFactory
+{
+    MOCK_METHOD1(create_buffer_stream, std::shared_ptr<mc::BufferStream>(mg::BufferProperties const&));
+};
+
 class MockSnapshotStrategy : public ms::SnapshotStrategy
 {
 public:
@@ -109,6 +114,17 @@ struct ApplicationSession : public testing::Test
     {
         return std::make_shared<ms::ApplicationSession>(
            stub_surface_coordinator, stub_buffer_stream_factory,
+           pid, name,
+           null_snapshot_strategy,
+           stub_session_listener,
+           event_sink);
+    }
+
+    std::shared_ptr<ms::ApplicationSession> make_application_session_with_buffer_stream_factory(
+        std::shared_ptr<ms::BufferStreamFactory> const& buffer_stream_factory)
+    {
+        return std::make_shared<ms::ApplicationSession>(
+           stub_surface_coordinator, buffer_stream_factory,
            pid, name,
            null_snapshot_strategy,
            stub_session_listener,
@@ -343,7 +359,7 @@ TEST_F(ApplicationSession, process_id)
     EXPECT_THAT(app_session.process_id(), Eq(session_pid));
 }
 
-// TODO: TEst that get buffer_stream fails on surface ids
+// TODO: TEst that get surface fails on surface ids
 TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
 {
     using namespace ::testing;
@@ -360,6 +376,29 @@ TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
     EXPECT_THROW({
             app_session->get_buffer_stream(id1);
     }, std::runtime_error);
+}
+
+TEST_F(ApplicationSession, buffer_stream_constructed_with_requested_parameters)
+{
+    mtd::StubBufferStream;
+    MockBufferStream factory;
+
+    // TODO: Fill
+    mg::BufferProperties properties;
+    
+    EXPECT_CALL(factory, create_buffer_stream(properties)).Times(1)
+        .WillOnce(Return(mt::fake_shared(stub_buffer_stream)));
+
+    auto session = make_session_with_buffer_stream_factory(mt::fake_shared(factory));
+    auto id = session->create_buffer_stream(properties);
+
+    EXPECT_TRUE(app_session->get_buffer_stream(id) != nullptr);
+    
+    session->destroy_buffer_stream(id);
+    
+    EXPECT_THROW({
+            app_session->get_buffer_stream(id);
+    });
 }
 
 namespace
