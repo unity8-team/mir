@@ -46,6 +46,7 @@ public:
     using mir::Server::stop;
     using mir::Server::the_display;
     using mir::Server::the_gl_config;
+    using mir::Server::the_main_loop;
     using mir::Server::the_prompt_session_listener;
     using mir::Server::the_prompt_session_manager;
     using mir::Server::the_session_authorizer;

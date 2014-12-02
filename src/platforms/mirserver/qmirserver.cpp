@@ -19,9 +19,37 @@
 #include <QCoreApplication>
 #include <QDebug>
 
+#include <mir/main_loop.h>
+
 // local
 #include "qmirserver.h"
 
+
+void MirServerWorker::run()
+{
+    auto const main_loop = server->the_main_loop();
+    // By enqueuing the notification code in the main loop, we are
+    // ensuring that the server has really and fully started before
+    // leaving wait_for_startup().
+    main_loop->enqueue(
+        this,
+        [&]
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            mir_running = true;
+            started_cv.notify_one();
+        });
+
+    server->run();
+    Q_EMIT stopped();
+}
+
+bool MirServerWorker::wait_for_mir_startup()
+{
+    std::unique_lock<decltype(mutex)> lock(mutex);
+    started_cv.wait_for(lock, std::chrono::seconds{10}, [&]{ return mir_running; });
+    return mir_running;
+}
 
 QMirServer::QMirServer(const QSharedPointer<MirServer> &server, QObject *parent)
     : QObject(parent)
@@ -37,6 +65,12 @@ QMirServer::QMirServer(const QSharedPointer<MirServer> &server, QObject *parent)
 
     m_mirThread.start(QThread::TimeCriticalPriority);
     Q_EMIT run();
+
+    if (!m_mirServer->wait_for_mir_startup())
+    {
+        qCritical() << "ERROR: QMirServer - Mir failed to start";
+        QCoreApplication::quit();
+    }
 }
 
 QMirServer::~QMirServer()

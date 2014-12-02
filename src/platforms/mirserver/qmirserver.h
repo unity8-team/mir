@@ -25,6 +25,9 @@
 // local
 #include "mirserver.h"
 
+#include <condition_variable>
+#include <mutex>
+
 // Wrap mir::Server with QObject, so it can be controlled via QThread
 class MirServerWorker : public QObject
 {
@@ -35,14 +38,20 @@ public:
         : server(server)
     {}
 
+    bool wait_for_mir_startup();
+
 Q_SIGNALS:
     void stopped();
 
 public Q_SLOTS:
-    void run() { server->run(); Q_EMIT stopped(); }
+    void run();
     void stop() { server->stop(); }
 
 private:
+    std::mutex mutex;
+    std::condition_variable started_cv;
+    bool mir_running{false};
+
     const QSharedPointer<MirServer> server;
 };
 
