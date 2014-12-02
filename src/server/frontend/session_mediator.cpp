@@ -49,6 +49,8 @@
 #include "client_buffer_tracker.h"
 #include "protobuf_buffer_packer.h"
 
+#include "mir_toolkit/client_types.h"
+
 #include <boost/exception/get_error_info.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
@@ -678,14 +680,63 @@ void mf::SessionMediator::pack_protobuf_buffer(
         resource_cache->save_fd(&protobuf_buffer, fd);
 }
 
-void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController* controller,
+void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
     const mir::protobuf::BufferStreamParameters* request,
     mir::protobuf::BufferStream* response,
     google::protobuf::Closure* done)
 {
-    // TODO
-    (void) controller;
+    auto const lock = std::make_shared<std::unique_lock<std::mutex>>(session_mutex);
+
+    auto const session = weak_session.lock();
+
+    if (session.get() == nullptr)
+        BOOST_THROW_EXCEPTION(std::logic_error("Invalid application session"));
+
+    
+    // TODO: Add method to report
+    
+    mg::BufferUsage usage = mg::BufferUsage::undefined;
+    auto client_usage = request->buffer_usage();
+    if (client_usage == mir_buffer_usage_hardware)
+        usage = mg::BufferUsage::hardware;
+    else
+        usage = mg::BufferUsage::software;
+
+    auto stream_size = geom::Size{geom::Width{request->width()}, geom::Height{request->height()}};
+    mg::BufferProperties props(stream_size,
+        static_cast<MirPixelFormat>(request->pixel_format()),
+        usage);
+                         
+    
+    auto const buffer_stream_id = session->create_buffer_stream(props);
+    auto stream = session->get_buffer_stream(buffer_stream_id);
+    
+    response->mutable_id()->set_value(buffer_stream_id.as_value());
+//    response->set_pixel_format(stream->get_stream_pixel_format());
+
+    // TODO proper buffer usage and stream
+    response->set_buffer_usage(request->buffer_usage());
+    response->set_buffer_usage(request->pixel_format());
+
+    advance_buffer(buffer_stream_id, *stream,
+        [lock, this, response, done, session]
+        (graphics::Buffer* client_buffer, graphics::BufferIpcMsgType msg_type)
+        {
+            lock->unlock();
+
+            auto buffer = response->mutable_buffer();
+            pack_protobuf_buffer(*buffer, client_buffer, msg_type);
+
+            done->Run();
+        });
+}
+
+void mf::SessionMediator::release_buffer_stream(google::protobuf::RpcController*,
+    const mir::protobuf::BufferStreamId* request,
+    mir::protobuf::Void*,
+    google::protobuf::Closure* done)
+{
+    // TODO: Impl
     (void) request;
-    (void) response;
     done->Run();
 }

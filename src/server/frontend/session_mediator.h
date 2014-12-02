@@ -102,6 +102,10 @@ public:
                              const mir::protobuf::BufferStreamParameters* request,
                              mir::protobuf::BufferStream* response,
                              google::protobuf::Closure* done) override;
+    void release_buffer_stream(google::protobuf::RpcController* controller,
+                             const mir::protobuf::BufferStreamId* request,
+                             mir::protobuf::Void*,
+                             google::protobuf::Closure* done) override;
 
     void next_buffer(
         google::protobuf::RpcController* controller,
