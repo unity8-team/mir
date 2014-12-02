@@ -17,6 +17,7 @@
  */
 
 #include "mir/input/platform.h"
+#include <vector>
 
 namespace mir
 {
@@ -28,6 +29,7 @@ class Context;
 }
 namespace input
 {
+class InputDeviceInfo;
 namespace evdev
 {
 class InputDeviceFactory;
@@ -38,7 +40,7 @@ public:
     Platform(std::shared_ptr<InputReport> const& report,
              std::unique_ptr<udev::Context> udev_context,
              std::unique_ptr<udev::Monitor> monitor,
-             std::shared_ptr<InputDeviceFactory> factory);
+             std::shared_ptr<InputDeviceFactory> const& factory);
     void start_monitor_devices(Multiplexer& loop, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) override;
     void stop_monitor_devices(Multiplexer& loop) override;
 
@@ -48,11 +50,16 @@ private:
     void device_removed(udev::Device const& dev);
     void device_changed(udev::Device const& dev);
     std::shared_ptr<InputReport> const report;
-    std::unique_ptr<udev::Context> udev_context;
+    std::shared_ptr<udev::Context> udev_context;
     std::unique_ptr<udev::Monitor> monitor;
     std::shared_ptr<InputDeviceRegistry> input_device_registry;
     std::shared_ptr<InputDeviceFactory> input_device_factory;
+
+    std::vector<std::pair<std::string,std::shared_ptr<InputDevice>>> devices;
 };
+
+
+std::unique_ptr<Platform> create_evdev_input_platform(std::shared_ptr<InputReport> const& report);
 
 }
 }

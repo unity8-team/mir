@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -13,37 +13,38 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by:
- *   Andreas Pokorny <andreas.pokorny@canonical.com>
+ * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
+ *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_H_
-#define MIR_INPUT_INPUT_DEVICE_H_
+#ifndef MIR_INPUT_INPUT_DEVICE_FACTORY_H_
+#define MIR_INPUT_INPUT_DEVICE_FACTORY_H_
 
 #include <memory>
 
 namespace mir
 {
-class MainLoop;
 namespace input
 {
+class InputDevice;
+namespace evdev
+{
 
-class InputDevice
+class InputDeviceFactory
 {
 public:
-    InputDevice() = default;
-    virtual ~InputDevice() = default;
+    InputDeviceFactory() = default;
+    virtual ~InputDeviceFactory() = default;
 
-    virtual void enable_input_events(MainLoop& event_processor /*, tbd event sink */) = 0;
-    virtual void disable_input_events(MainLoop& event_processor) = 0;
-    // add devie info here..
+    virtual std::unique_ptr<InputDevice> create_device(char const* device_node) = 0;
+
 protected:
-    InputDevice(InputDevice const&) = delete;
-    InputDevice& operator=(InputDevice const&) = delete;
+    InputDeviceFactory(InputDeviceFactory const&) = delete;
+    InputDeviceFactory& operator=(InputDeviceFactory const&) = delete;
 };
 
 }
 }
+} // namespace mir
 
-#endif
-
+#endif // MIR_INPUT_INPUT_DEVICE_FACTORY_H_

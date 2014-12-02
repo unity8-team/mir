@@ -18,46 +18,176 @@
 
 #include "src/platform/input/evdev/platform.h"
 #include "src/server/report/null_report_factory.h"
+#include "src/platform/input/evdev/input_device_factory.h"
 
+#include "mir/input/input_device.h"
 #include "mir/udev/wrapper.h"
 
 #include "mir_test_doubles/mock_main_loop.h"
 #include "mir_test_doubles/mock_input_device_registry.h"
 #include "mir_test_doubles/mock_input_multiplexer.h"
+#include "mir_test_framework/udev_environment.h"
+
+#include <thread>
+#include <chrono>
+#include <unistd.h>
+#include <fcntl.h>
+
 
 #include <gmock/gmock.h>
-
 
 namespace mi = mir::input;
 namespace mie = mi::evdev;
 namespace mr = mir::report;
 namespace mtd = mir::test::doubles;
 
-struct EvdevPlatform : ::testing::Test
+namespace
+{
+
+struct EvdevPlatformBase
 {
 public:
-    EvdevPlatform()
-        : platform(mr::null_input_report(), ctx, monitor)
+    EvdevPlatformBase()
+        : platform(mie::create_evdev_input_platform(mr::null_input_report()))
     {
     }
-    mir::udev::Context * ctx = new mir::udev::Context;
-    mir::udev::Monitor * monitor = new mir::udev::Monitor{*ctx};
-    mie::Platform platform;
+    std::unique_ptr<mie::Platform> platform;
     ::testing::NiceMock<mtd::MockMultiplexer> mock_multiplexer;
     std::shared_ptr<::testing::NiceMock<mtd::MockInputDeviceRegistry>> mock_registry =
         std::make_shared<::testing::NiceMock<mtd::MockInputDeviceRegistry>>();
 };
 
+struct EvdevPlatform : ::testing::Test, EvdevPlatformBase
+{
+};
+
+struct EvdevPlatformDeviceEvents : ::testing::TestWithParam<char const*>, EvdevPlatformBase
+{
+    EvdevPlatformDeviceEvents()
+        : ::testing::TestWithParam<char const*>(), EvdevPlatformBase()
+    {
+        using namespace ::testing;
+        ON_CALL(mock_multiplexer, register_fd_handler_(_,_,_))
+            .WillByDefault(Invoke(
+                    [this](std::initializer_list<int> fd_list, void const*, std::function<void(int)> const& handler)
+                    {
+                        int fd = *fd_list.begin();
+                        fd_callbacks.push_back([=]() { handler(fd); });
+                    }));
+        ON_CALL(mock_multiplexer, enqueue_action_(_))
+            .WillByDefault(Invoke(
+                    [this](std::function<void()> const& action)
+                    {
+                        actions.push_back(action);
+                    }));
+    }
+
+    void remove_device()
+    {
+        mir::udev::Enumerator devices{std::make_shared<mir::udev::Context>()};
+        devices.scan_devices();
+
+        for (auto& device : devices)
+        {
+            /*
+             * Remove just the device providing dev/input/event*
+             * If we remove more, it's possible that we'll remove the parent of the
+             * /dev/input device, and umockdev will not generate a remove event
+             * in that case.
+             */
+            if (device.devnode() && (std::string(device.devnode()).find("input/event") != std::string::npos))
+            {
+                env.remove_device((std::string("/sys") + device.devpath()).c_str());
+            }
+        }
+    }
+
+    void process_pending_actions()
+    {
+        decltype(actions) actions_to_execute;
+        std::swap(actions, actions_to_execute);
+
+        for(auto const& action : actions_to_execute)
+            action();
+    }
+
+    void process_pending_fd_callbacks()
+    {
+        decltype(actions) actions_to_execute;
+
+        actions_to_execute = fd_callbacks;
+
+        for(auto const& action : actions_to_execute)
+            action();
+    }
+
+    mir_test_framework::UdevEnvironment env;
+    std::vector<std::function<void()>> fd_callbacks;
+    std::vector<std::function<void()>> actions;
+};
+
+}
+
 TEST_F(EvdevPlatform, registers_to_multiplexer_on_start)
 {
     using namespace ::testing;
-    EXPECT_CALL(mock_multiplexer, register_fd_handler(_,_,_));
-    platform.start_monitor_devices(mock_multiplexer, mock_registry);
+    EXPECT_CALL(mock_multiplexer, register_fd_handler_(_,_,_));
+    platform->start_monitor_devices(mock_multiplexer, mock_registry);
 }
 
 TEST_F(EvdevPlatform, unregisters_to_multiplexer_on_stop)
 {
     using namespace ::testing;
     EXPECT_CALL(mock_multiplexer, unregister_fd_handler(_));
-    platform.stop_monitor_devices(mock_multiplexer);
+    platform->stop_monitor_devices(mock_multiplexer);
 }
+
+TEST_P(EvdevPlatformDeviceEvents, finds_device_on_start)
+{
+    using namespace ::testing;
+    env.add_standard_device(GetParam());
+
+    EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
+    platform->start_monitor_devices(mock_multiplexer, mock_registry);
+
+    process_pending_actions();
+}
+
+TEST_P(EvdevPlatformDeviceEvents, DISABLED_adds_device_on_hotplug)
+{
+    using namespace ::testing;
+    EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
+    platform->start_monitor_devices(mock_multiplexer, mock_registry);
+    process_pending_actions();
+
+    env.add_standard_device(GetParam());
+
+    process_pending_fd_callbacks();
+}
+
+TEST_P(EvdevPlatformDeviceEvents, DISABLED_removes_device_on_hotplug)
+{
+    using namespace ::testing;
+    EXPECT_CALL(*mock_registry, add_device(_));
+    EXPECT_CALL(*mock_registry, remove_device(_));
+    platform->start_monitor_devices(mock_multiplexer, mock_registry);
+    env.add_standard_device(GetParam());
+
+    process_pending_actions();
+    process_pending_fd_callbacks();
+
+    remove_device();
+
+    process_pending_fd_callbacks();
+}
+
+INSTANTIATE_TEST_CASE_P(EvdevPlatformHotplugging,
+                        EvdevPlatformDeviceEvents,
+                        ::testing::Values("synaptics-touchpad",
+                                          "usb-keyboard",
+                                          "usb-mouse",
+                                          "laptop-keyboard",
+                                          "bluetooth-magic-trackpad",
+                                          "joystick-detection",
+                                          "mt-screen-detection"
+                                          ));

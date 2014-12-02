@@ -13,37 +13,23 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by:
- *   Andreas Pokorny <andreas.pokorny@canonical.com>
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_H_
-#define MIR_INPUT_INPUT_DEVICE_H_
+#ifndef MIR_INPUT_EVDEV_DEVICE_DETECTION_H_
+#define MIR_INPUT_EVDEV_DEVICE_DETECTION_H_
 
-#include <memory>
+#include "mir/input/device_class.h"
 
 namespace mir
 {
-class MainLoop;
 namespace input
 {
-
-class InputDevice
+namespace evdev
 {
-public:
-    InputDevice() = default;
-    virtual ~InputDevice() = default;
-
-    virtual void enable_input_events(MainLoop& event_processor /*, tbd event sink */) = 0;
-    virtual void disable_input_events(MainLoop& event_processor) = 0;
-    // add devie info here..
-protected:
-    InputDevice(InputDevice const&) = delete;
-    InputDevice& operator=(InputDevice const&) = delete;
-};
-
+input::DeviceClass detect_device_class(char const* device);
+}
 }
 }
 
 #endif
-

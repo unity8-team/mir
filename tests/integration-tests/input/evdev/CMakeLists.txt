@@ -1,6 +1,7 @@
 list(
   APPEND INTEGRATION_TESTS_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/test_platform.cpp
+  $<TARGET_OBJECTS:mirplatforminputevdevobjects>
 )
 
 set(

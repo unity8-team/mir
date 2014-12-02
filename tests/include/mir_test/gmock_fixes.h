@@ -119,6 +119,8 @@ class DefaultValue<std::unique_ptr<T>> {
   }
 };
 
+
+
 }
 
 #endif /* MIR_TEST_GMOCK_FIXES_H_ */

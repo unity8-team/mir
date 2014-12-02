@@ -17,10 +17,14 @@
  */
 
 #include "platform.h"
-#include "input_device_factory.h"
+#include "evdev_input_device_factory.h"
+#include "android_device_provider.h"
+#include "libinput_device_provider.h"
 #include "mir/udev/wrapper.h"
 
 #include "mir/input/multiplexer.h"
+#include "mir/input/input_device_registry.h"
+#include "mir/input/input_device.h"
 
 namespace mi = mir::input;
 namespace mo = mir::options;
@@ -41,39 +45,81 @@ mie::Platform::Platform(std::shared_ptr<InputReport> const& report,
     monitor(std::move(monitor)),
     input_device_factory(factory)
 {
+    this->monitor->enable();
+    this->monitor->filter_by_subsystem("input");
 }
 
 void mie::Platform::start_monitor_devices(mi::Multiplexer& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
 {
     this->input_device_registry = input_device_registry;
+
     execution.register_fd_handler(
         {monitor->fd()},
         this,
         [this](int /*fd*/)
         {
-           monitor->process_events(
-               [this](mu::Monitor::EventType event, mu::Device const& dev)
-               {
-                   if (evet == mu::Monitor::ADDED)
-                       device_added(dev);
-                   if (evet == mu::Monitor::REMOVED)
-                       device_removed(dev);
-                   if (evet == mu::Monitor::CHANGED)
-                       device_changed(dev);
-               }
-               );
+            monitor->process_events(
+                [this](mu::Monitor::EventType event, mu::Device const& dev)
+                {
+                    if (event == mu::Monitor::ADDED)
+                        device_added(dev);
+                    if (event == mu::Monitor::REMOVED)
+                        device_removed(dev);
+                    if (event == mu::Monitor::CHANGED)
+                        device_changed(dev);
+                }
+                );
         });
+
+    execution.enqueue_action([this](){ scan_for_devices();});
 }
 
-void mie::Platform::device_added(udev::Device const& dev)
+void mie::Platform::scan_for_devices()
 {
-}
+    mu::Enumerator input_enumerator{udev_context};
+    input_enumerator.match_subsystem("input");
+    input_enumerator.scan_devices();
 
-void mie::Platform::device_removed(udev::Device const& dev)
+    for (auto& device : input_enumerator)
+    {
+        if (device.devnode() != nullptr)
+            device_added(device);
+    }
+}
+ 
+
+void mie::Platform::device_added(mu::Device const& dev)
 {
+    try
+    {
+        std::shared_ptr<mi::InputDevice> input_dev{input_device_factory->create_device(dev.devnode())};
+        input_device_registry->add_device(input_dev);
+        devices.emplace_back(dev.devnode(), input_dev);
+    } catch(...)
+    {
+    }
 }
 
-void mie::Platform::device_changed(udev::Device const& dev)
+void mie::Platform::device_removed(mu::Device const& dev)
+{
+    auto known_device_pos = std::find_if(
+        begin(devices),
+        end(devices),
+        [&dev](std::pair<std::string,std::shared_ptr<InputDevice>> const& item)
+        {
+            return dev.devnode() == item.first;
+        }
+        );
+
+    if (known_device_pos != end(devices))
+    {
+        input_device_registry->remove_device(known_device_pos->second);
+
+        devices.erase(known_device_pos);
+    }
+}
+
+void mie::Platform::device_changed(mu::Device const& /*dev*/)
 {
 }
 
@@ -82,30 +128,43 @@ void mie::Platform::stop_monitor_devices(mi::Multiplexer& execution)
     execution.unregister_fd_handler(this);
 }
 
-extern "C" std::shared_ptr<mi::Platform> create_platform(
+std::unique_ptr<mie::Platform> mie::create_evdev_input_platform(
+    std::shared_ptr<mi::InputReport> const& report)
+{
+    std::unique_ptr<mu::Context> ctx{new mu::Context};
+    std::unique_ptr<mu::Monitor> monitor{new mu::Monitor(*ctx.get())};
+    std::initializer_list<std::shared_ptr<mie::InputDeviceProvider>> providers =
+        {std::make_shared<mie::AndroidDeviceProvider>(), std::make_shared<mie::LibInputDeviceProvider>()};
+    return std::unique_ptr<mie::Platform>(
+        new mie::Platform(
+            report,
+            std::move(ctx),
+            std::move(monitor),
+            std::make_shared<mie::EvdevInputDeviceFactory>(providers))
+        );
+}
+
+extern "C" std::unique_ptr<mi::Platform> create_input_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mi::InputReport> const& report)
 {
-    mir::udev::Context * ctx = new mir::udev::Context;
-    return std::make_shared<mie::Platform>(
-        report,
-        ctx,
-        new mir::udev::Monitor(*ctx));
+    return std::move( mie::create_evdev_input_platform(report) );
 }
 
 
-extern "C" void add_platform_options(
+extern "C" void add_input_platform_options(
     boost::program_options::options_description& /*config*/)
 {
     // no options to add yet
 }
 
-extern "C" mi::PlatformPriority probe_platform(
+extern "C" mi::PlatformPriority probe_input_platform(
     std::shared_ptr<mo::Option> const& options)
 {
     if (options->is_set(host_socket_opt))
     {
         return mi::PlatformPriority::unsupported;
     }
+    return mi::PlatformPriority::supported;
 }

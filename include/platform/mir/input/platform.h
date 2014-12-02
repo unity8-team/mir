@@ -75,7 +75,7 @@ private:
 
 
 
-extern "C" typedef void(*CreatePlatofrm)(
+extern "C" typedef std::unique_ptr<Platform>(*CreatePlatofrm)(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<InputReport> const& report);
@@ -90,7 +90,7 @@ extern "C" typedef void(*CreatePlatofrm)(
  *
  * \ingroup platform_enablement
  */
-extern "C" std::shared_ptr<Platform> create_platform(
+extern "C" std::unique_ptr<Platform> create_input_platform(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<InputReport> const& report);
@@ -105,7 +105,7 @@ extern "C" typedef void(*AddPlatformOptions)(
  *
  * \ingroup platform_enablement
  */
-extern "C" void add_platform_options(
+extern "C" void add_input_platform_options(
     boost::program_options::options_description& config);
 extern "C" typedef PlatformPriority(*ProbePlatform)(
     std::shared_ptr<options::Option> const& options);
@@ -119,7 +119,7 @@ extern "C" typedef PlatformPriority(*ProbePlatform)(
  *
  * \ingroup platform_enablement
  */
-extern "C" PlatformPriority probe_platform(
+extern "C" PlatformPriority probe_input_platform(
     std::shared_ptr<options::Option> const& options);
 }
 }
