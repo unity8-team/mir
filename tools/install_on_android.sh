@@ -26,14 +26,13 @@ pushd ${BUILD_DIR} > /dev/null
     adb wait-for-device
     adb shell mkdir -p ${RUN_DIR}/udev_recordings
 
-    for x in bin/mir_acceptance_tests \
-             bin/mir_integration_tests \
-             bin/mir_unit_tests \
+    for x in bin/mir_demo_standalone_render_to_fb \
+             bin/mir_demo_standalone_render_overlays \
              lib/libmirclient.so.* \
              lib/libmircommon.so.* \
              lib/libmirplatform.so.* \
-             lib/libmirplatform*driver.so \
-             lib/libmirclient*driver.so \
+             lib/android/libmirplatform*driver.so \
+             lib/android/libmirclient*driver.so \
              lib/libmirprotobuf.so.* \
              lib/libmirclient-debug-extension.so.* \
              lib/libmirplatformstub.so \
@@ -48,11 +47,8 @@ pushd ${BUILD_DIR} > /dev/null
     done
 
     echo "cd ${RUN_DIR};
-        export GTEST_OUTPUT=xml:./;
         export LD_LIBRARY_PATH=.;
-        ./mir_unit_tests;
-        ./mir_integration_tests;
-        ./mir_acceptance_tests;
+        ./mir_demo_standalone_render_to_fb;
         exit;
         exit" | adb shell
 
