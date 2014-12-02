@@ -40,7 +40,7 @@ public:
         Session* session) = 0;
 
     virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
-    virtual int configure(Surface&, MirSurfaceAttrib, int) = 0;
+    virtual int configure_surface(Surface&, MirSurfaceAttrib, int) = 0;
 
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) = 0;
 protected:

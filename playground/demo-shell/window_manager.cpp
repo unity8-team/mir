@@ -162,7 +162,7 @@ bool me::WindowManager::handle(MirEvent const& event)
             {
                 if (auto const surf = app->default_surface())
                 {
-                    surface_coordinator->configure(*surf,
+                    surface_coordinator->configure_surface(*surf,
                         mir_surface_attrib_state,
                         mir_surface_state_fullscreen);
                     return true;

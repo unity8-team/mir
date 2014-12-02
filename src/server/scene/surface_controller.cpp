@@ -55,9 +55,9 @@ void ms::SurfaceController::raise(std::weak_ptr<Surface> const& surface)
     surface_stack->raise(surface);
 }
 
-int ms::SurfaceController::configure(Surface& surface,
-                                     MirSurfaceAttrib attrib,
-                                     int value)
+int ms::SurfaceController::configure_surface(Surface& surface,
+                                             MirSurfaceAttrib attrib,
+                                             int value)
 {
     switch (attrib)
     {
