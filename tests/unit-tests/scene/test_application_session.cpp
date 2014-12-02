@@ -93,9 +93,6 @@ struct StubSurfaceCoordinator : public ms::SurfaceCoordinator
     {
         return val;
     }
-    void fullscreen(ms::Surface&) override
-    {
-    }
 };
 
 struct ApplicationSession : public testing::Test

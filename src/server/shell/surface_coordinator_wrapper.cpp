@@ -52,7 +52,3 @@ int msh::SurfaceCoordinatorWrapper::configure(ms::Surface& surface,
     return wrapped->configure(surface, attrib, value);
 }
 
-void msh::SurfaceCoordinatorWrapper::fullscreen(ms::Surface& surface)
-{
-    wrapped->fullscreen(surface);
-}

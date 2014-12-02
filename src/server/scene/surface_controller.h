@@ -30,7 +30,13 @@ class PlacementStrategy;
 class SurfaceStackModel;
 class SurfaceFactory;
 
-/// Will grow up to provide synchronization of model updates
+/**
+ * SurfaceController is the default implementation of SurfaceCoodinator.
+ * Its role is to coodinate Surface operations with external data that a
+ * Surface object in isolation does not have access to. e.g. "snapping"
+ * on movement to the edges of other windows (TODO). Or providing sizing
+ * information for fullscreen/maximized states.
+ */
 class SurfaceController : public SurfaceCoordinator
 {
 public:
@@ -48,14 +54,20 @@ public:
     void raise(std::weak_ptr<Surface> const& surface) override;
 
     int configure(Surface&, MirSurfaceAttrib, int) override;
-    void fullscreen(Surface&) override;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
     std::shared_ptr<PlacementStrategy> const placement_strategy;
     std::shared_ptr<SurfaceStackModel> const surface_stack;
 
+    /*
+     * Should we expose these via SurfaceCoordinator as strongly typed
+     * convenience functions? It would be slightly convenient but also
+     * redudant and so increased pain for other implementations of
+     * SurfaceCoordinator.
+     */
     void set_state(Surface&, MirSurfaceState);
+    void fullscreen(Surface&);
 };
 
 }
