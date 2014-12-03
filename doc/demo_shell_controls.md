@@ -43,5 +43,6 @@ touch alternatives for phones/tablets:
  - Reset display mode to default, on focussed monitor: *Ctrl-Alt-0*
  - Adjust window opacity/alpha: *Alt-mousewheel*
  - Zoom in/out: *Super-mousewheel*
+ - Toggle fullscreen for the focussed window: *Alt-F11*
 
 Want more? Log your requests at: https://bugs.launchpad.net/mir/+filebug
