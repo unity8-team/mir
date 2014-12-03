@@ -62,36 +62,44 @@ int ms::SurfaceController::configure_surface(Surface& surface,
                                              MirSurfaceAttrib attrib,
                                              int value)
 {
-    switch (attrib)
-    {
-    case mir_surface_attrib_state:
+    if (attrib == mir_surface_attrib_state)
         set_state(surface, static_cast<MirSurfaceState>(value));
-        break;
-    default:
-        break;
-    }
+
     return surface.configure(attrib, value);
 }
 
 void ms::SurfaceController::set_state(Surface& surface,
                                       MirSurfaceState desired)
 {
+    if (desired == mir_surface_state_minimized)
+        return;
+
+    geometry::Rectangle old_win{surface.top_left(), surface.size()};
+    auto new_win = old_win;
+
+    auto fullscreen = old_win;
+    display_layout->size_to_output(fullscreen);
+
+    // TODO: Limit maximized to exclude panels/launchers defined by the shell
+    auto maximized = fullscreen;
+
     switch (desired)
     {
     case mir_surface_state_fullscreen:
-        fullscreen(surface);
+        new_win = fullscreen;
+        break;
+    case mir_surface_state_maximized:
+        new_win = maximized;
         break;
     default:
         break;
     }
+
+    if (old_win != new_win)
+    {
+        // TODO: Make these an atomic operation (LP: #1395957)
+        surface.resize(new_win.size);       // Might throw
+        surface.move_to(new_win.top_left);  // Unlikely to ever throw
+    }
 }
 
-void ms::SurfaceController::fullscreen(Surface& surface)
-{
-    auto rect = placement_strategy->fullscreen({surface.top_left(),
-                                                surface.size()});
-
-    // TODO: Make these an atomic operation (LP: #1395957)
-    surface.resize(rect.size);       // Might throw
-    surface.move_to(rect.top_left);  // Unlikely to ever throw
-}

@@ -65,14 +65,7 @@ private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
     std::shared_ptr<SurfaceStackModel> const surface_stack;
 
-    /*
-     * Should we expose these via SurfaceCoordinator as strongly typed
-     * convenience functions? It would be slightly convenient but also
-     * redudant and so increased pain for other implementations of
-     * SurfaceCoordinator.
-     */
     void set_state(Surface&, MirSurfaceState);
-    void fullscreen(Surface&);
 };
 
 }
