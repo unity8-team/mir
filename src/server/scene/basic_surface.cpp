@@ -311,7 +311,7 @@ bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
 {
     std::unique_lock<std::mutex> lock(guard);
 
-    if (hidden)
+    if (!visible(lock))
         return false;
 
     // Restrict to bounding rectangle
@@ -367,7 +367,8 @@ bool ms::BasicSurface::visible() const
 
 bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
 {
-    return !hidden && first_frame_posted;
+    return !hidden && first_frame_posted &&
+        attrib_values[mir_surface_attrib_state] != mir_surface_state_minimized;
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const

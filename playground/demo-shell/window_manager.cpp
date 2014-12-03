@@ -166,6 +166,19 @@ bool me::WindowManager::handle(MirEvent const& event)
             return true;
         }
         else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F9)
+        {
+            if (auto const app =
+                    focus_controller->focussed_application().lock())
+            {
+                if (auto const surf = app->default_surface())
+                {
+                    toggle_surface_state(*surf, mir_surface_state_minimized);
+                    return true;
+                }
+            }
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F11)
         {
             if (auto const app =
