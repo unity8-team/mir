@@ -20,6 +20,7 @@
 
 #include "demo_compositor.h"
 #include "window_manager.h"
+#include "fullscreen_placement_strategy.h"
 #include "../server_configuration.h"
 
 #include "mir/options/default_configuration.h"
@@ -79,6 +80,12 @@ public:
       : ServerConfiguration([argc, argv]
         {
             auto result = std::make_shared<mo::DefaultConfiguration>(argc, argv);
+
+            namespace po = boost::program_options;
+
+            result->add_options()
+                ("fullscreen-surfaces", "Make all surfaces fullscreen");
+
             return result;
         }()),
         filter_list(filter_list)
@@ -94,6 +101,18 @@ public:
                 return std::make_shared<me::DisplayBufferCompositorFactory>(
                     the_gl_program_factory(),
                     the_compositor_report());
+            });
+    }
+
+    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
+    {
+        return shell_placement_strategy(
+            [this]() -> std::shared_ptr<ms::PlacementStrategy>
+            {
+                if (the_options()->is_set("fullscreen-surfaces"))
+                    return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
+                else
+                    return DefaultServerConfiguration::the_placement_strategy();
             });
     }
 
