@@ -154,6 +154,7 @@ private:
     bool visible(std::unique_lock<std::mutex>&) const;
     MirSurfaceType set_type(MirSurfaceType t);  // Use configure() to make public changes
     MirSurfaceState set_state(MirSurfaceState s);
+    MirSurfaceState _state() const;
     int set_dpi(int);
     MirSurfaceVisibility set_visibility(MirSurfaceVisibility v);
     int set_swap_interval(int);

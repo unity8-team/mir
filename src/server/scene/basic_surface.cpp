@@ -179,8 +179,7 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
         std::unique_lock<std::mutex> lk(guard);
         if (top_left == surface_rect.top_left)
             return;
-        if (attrib_values[mir_surface_attrib_state] ==
-                mir_surface_state_restored)
+        if (_state() == mir_surface_state_restored)
             restored_rect.top_left = surface_rect.top_left;
         surface_rect.top_left = top_left;
     }
@@ -292,8 +291,7 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
     // Now the buffer stream has successfully resized, update the state second;
     {
         std::unique_lock<std::mutex> lock(guard);
-        if (attrib_values[mir_surface_attrib_state] ==
-                mir_surface_state_restored)
+        if (_state() == mir_surface_state_restored)
             restored_rect.size = surface_rect.size;
         surface_rect.size = new_size;
     }
@@ -374,7 +372,7 @@ bool ms::BasicSurface::visible() const
 bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
 {
     return !hidden && first_frame_posted &&
-        attrib_values[mir_surface_attrib_state] != mir_surface_state_minimized;
+        _state() != mir_surface_state_minimized;
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const
@@ -426,10 +424,15 @@ MirSurfaceType ms::BasicSurface::set_type(MirSurfaceType t)
     return t;
 }
 
+MirSurfaceState ms::BasicSurface::_state() const
+{
+    return static_cast<MirSurfaceState>(attrib_values[mir_surface_attrib_state]);
+}
+
 MirSurfaceState ms::BasicSurface::state() const
 {
     std::unique_lock<std::mutex> lg(guard);
-    return static_cast<MirSurfaceState>(attrib_values[mir_surface_attrib_state]);
+    return _state();
 }
 
 MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
