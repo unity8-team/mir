@@ -75,8 +75,7 @@ void ms::SurfaceController::set_state(Surface& surface,
         desired == mir_surface_state_restored)
         return;
 
-    geometry::Rectangle old_win{surface.top_left(), surface.size()};
-    auto new_win = old_win;
+    geometry::Rectangle new_win, old_win{surface.top_left(), surface.size()};
 
     auto fullscreen = old_win;
     display_layout->size_to_output(fullscreen);
@@ -93,12 +92,13 @@ void ms::SurfaceController::set_state(Surface& surface,
         new_win = maximized;
         break;
     case mir_surface_state_vertmaximized:
-        // new_win.top_left.x is unchanged
+        new_win.top_left.x = old_win.top_left.x;
         new_win.top_left.y = maximized.top_left.y;
-        // new_win.size.width is unchanged
+        new_win.size.width = old_win.size.width;
         new_win.size.height = maximized.size.height;
         break;
     default:
+        new_win = old_win;
         break;
     }
 
