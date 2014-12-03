@@ -20,6 +20,7 @@
 #include "mir/frontend/client_constants.h"
 #include "client_buffer.h"
 #include "mir_surface.h"
+#include "mir_buffer_stream.h"
 #include "cursor_configuration.h"
 #include "mir_connection.h"
 #include "mir/input/input_receiver_thread.h"
@@ -416,6 +417,8 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
         setting.mutable_surfaceid()->CopyFrom(surface.id());
         if (cursor && cursor->name != mir_disabled_cursor_name)
             setting.set_name(cursor->name.c_str());
+        else if (cursor && cursor->stream != nullptr)
+            setting.mutable_buffer_stream_id()->CopyFrom(cursor->stream->protobuf_id());
     }
     
     configure_cursor_wait_handle.expect_result();

@@ -206,8 +206,9 @@ message Screencast {
 
 message CursorSetting {
   required SurfaceId surfaceid = 1;
-  // No name is interpreted as disabled cursor.
+  // No name or buffer stream is interpreted as disabled cursor.
   optional string name = 2;
+  optional BufferStreamId buffer_stream_id = 3;
 }
 
 message SocketFDRequest {

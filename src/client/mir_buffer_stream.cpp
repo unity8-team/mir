@@ -241,3 +241,8 @@ void MirBufferStream::next_buffer_received(
     callback(this, context);
     next_buffer_wait_handle.result_received();
 }
+
+mir::protobuf::BufferStreamId MirBufferStream::protobuf_id() const
+{
+    return protobuf_buffer_stream.id();
+}

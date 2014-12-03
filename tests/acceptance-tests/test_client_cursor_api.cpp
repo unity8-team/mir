@@ -118,7 +118,7 @@ struct CursorClient
         client_thread = std::thread{
             [this,&setup_done]
             {
-                auto const connection =
+                connection =
                     mir_connect_sync(connect_string.c_str(), client_name.c_str());
 
                 MirSurfaceParameters const request_params =
@@ -169,6 +169,8 @@ struct CursorClient
 
     std::string const connect_string;
     std::string const client_name;
+    
+    MirConnection *connection;
 
     std::thread client_thread;
     mir::test::WaitCondition teardown;
@@ -395,6 +397,52 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_without_cursor_motion)
     InSequence seq;
     EXPECT_CALL(test_server_config().cursor, show(CursorNamed(client_cursor_1)));
     EXPECT_CALL(test_server_config().cursor, hide())
+        .WillOnce(mt::WakeUp(&expectations_satisfied));
+
+    client.run();
+
+    expectations_satisfied.wait_for_at_most_seconds(5);
+
+    client_shutdown_expectations();
+}
+
+TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
+{
+    using namespace ::testing;
+
+    struct BufferStreamClient : CursorClient
+    {
+        using CursorClient::CursorClient;
+
+        void setup_cursor(MirSurface* surface) override
+        {
+            // TODO: Connection?
+            // TODO: Cleanup constants?
+            auto stream = mir_connection_create_buffer_stream_sync(
+                connection, 24, 24, mir_pixel_format_argb_8888,
+                mir_buffer_usage_software);
+            auto conf = mir_cursor_configuration_from_buffer_stream(stream);
+
+            mir_wait_for(mir_surface_configure_cursor(surface, conf));
+            
+            mir_cursor_configuration_destroy(conf);            
+            
+            // TODO: It would be cool to fill the cursor with something :p
+            mir_buffer_stream_swap_buffers_sync(stream);
+            mir_buffer_stream_swap_buffers_sync(stream);
+            mir_buffer_stream_swap_buffers_sync(stream);
+
+        }
+    };
+
+    test_server_config().client_geometries[client_name_1] =
+        geom::Rectangle{{0, 0}, {1, 1}};
+
+    ChangingCursorClient client{new_connection(), client_name_1, client_cursor_1};
+
+    InSequence seq;
+    // Once for application and once for each swap
+    EXPECT_CALL(test_server_config().cursor, show(_)).Times(4)
         .WillOnce(mt::WakeUp(&expectations_satisfied));
 
     client.run();

@@ -21,13 +21,17 @@
 
 #include <string>
 
+struct MirBufferStream;
+
 // Parameters for configuring the apperance and behavior of the system cursor. 
 // Will grow to include cursors specified by raw RGBA data, hotspots, etc...
 struct MirCursorConfiguration 
 {
     MirCursorConfiguration(char const* name);
+    MirCursorConfiguration(MirBufferStream const* stream);
 
     std::string name;
+    MirBufferStream const* stream;
 };
 
 #endif // MIR_CLIENT_CURSOR_CONFIGURATION_H_

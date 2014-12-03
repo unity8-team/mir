@@ -71,6 +71,8 @@ public:
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
     
     MirNativeBuffer* get_current_buffer_package();
+    
+    mir::protobuf::BufferStreamId protobuf_id() const;
 
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);

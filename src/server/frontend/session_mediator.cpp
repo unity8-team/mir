@@ -509,6 +509,10 @@ void mf::SessionMediator::configure_cursor(
             auto const& image = cursor_images->image(cursor_request->name(), mi::default_cursor_size);
             surface->set_cursor_image(image);
         }
+        else if (cursor_request->has_buffer_stream_id())
+        {
+            BOOST_THROW_EXCEPTION(std::logic_error("IMPL"));
+        }
         else
         {
             surface->set_cursor_image({});
