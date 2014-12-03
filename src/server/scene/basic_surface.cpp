@@ -183,6 +183,8 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
         surface_rect.top_left = top_left;
     }
     observers.moved_to(top_left);
+
+    set_state(mir_surface_state_restored);
 }
 
 float ms::BasicSurface::alpha() const
