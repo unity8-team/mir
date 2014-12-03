@@ -179,13 +179,9 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
         std::unique_lock<std::mutex> lk(guard);
         if (top_left == surface_rect.top_left)
             return;
-        if (_state() == mir_surface_state_restored)
-            restored_rect.top_left = surface_rect.top_left;
         surface_rect.top_left = top_left;
     }
     observers.moved_to(top_left);
-
-    set_state(mir_surface_state_restored);
 }
 
 float ms::BasicSurface::alpha() const
@@ -291,8 +287,6 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
     // Now the buffer stream has successfully resized, update the state second;
     {
         std::unique_lock<std::mutex> lock(guard);
-        if (_state() == mir_surface_state_restored)
-            restored_rect.size = surface_rect.size;
         surface_rect.size = new_size;
     }
     observers.resized_to(new_size);
@@ -443,6 +437,7 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
     std::unique_lock<std::mutex> lg(guard);
     if (attrib_values[mir_surface_attrib_state] != s)
     {
+        auto old_state = attrib_values[mir_surface_attrib_state];
         attrib_values[mir_surface_attrib_state] = s;
 
         if (s == mir_surface_state_restored)
@@ -454,7 +449,11 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
             resize(r.size);
         }
         else
+        {
+            if (old_state == mir_surface_state_restored)
+                restored_rect = surface_rect;
             lg.unlock();
+        }
         
         observers.attrib_changed(mir_surface_attrib_state, s);
     }

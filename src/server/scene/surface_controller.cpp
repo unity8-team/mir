@@ -62,10 +62,12 @@ int ms::SurfaceController::configure_surface(Surface& surface,
                                              MirSurfaceAttrib attrib,
                                              int value)
 {
-    if (attrib == mir_surface_attrib_state)
-        set_state(surface, static_cast<MirSurfaceState>(value));
+    int new_value = surface.configure(attrib, value);
 
-    return surface.configure(attrib, value);
+    if (attrib == mir_surface_attrib_state)
+        set_state(surface, static_cast<MirSurfaceState>(new_value));
+
+    return new_value;
 }
 
 void ms::SurfaceController::set_state(Surface& surface,
