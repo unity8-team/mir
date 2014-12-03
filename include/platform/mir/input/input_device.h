@@ -24,9 +24,9 @@
 
 namespace mir
 {
-class MainLoop;
 namespace input
 {
+class Multiplexer;
 class EventSink;
 
 class InputDevice
@@ -35,8 +35,8 @@ public:
     InputDevice() = default;
     virtual ~InputDevice() = default;
 
-    virtual void enable_input_events(MainLoop& event_processor, EventSink & ) = 0;
-    virtual void disable_input_events(MainLoop& event_processor) = 0;
+    virtual void enable_input_events(Multiplexer& trigger_registry, EventSink&) = 0;
+    virtual void disable_input_events(Multiplexer& trigger_registry) = 0;
     // add devie info here..
 protected:
     InputDevice(InputDevice const&) = delete;
