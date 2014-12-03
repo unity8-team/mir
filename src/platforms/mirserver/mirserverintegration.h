@@ -20,11 +20,11 @@
 #ifndef MIRSERVERINTEGRATION_H
 #define MIRSERVERINTEGRATION_H
 
-// qt
-#include <qpa/qplatformintegration.h>
-
 // local
 #include "mirserverconfiguration.h"
+
+// qt
+#include <qpa/qplatformintegration.h>
 
 class Display;
 class NativeInterface;
