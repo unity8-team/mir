@@ -12,13 +12,12 @@ include_directories(
 )
 
 add_executable(QtEventFeederTest ${EVENT_FEEDER_TEST_SOURCES})
-add_dependencies(QtEventFeederTest GMock)
 
 target_link_libraries(
   QtEventFeederTest
   qpa-mirserver
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(QtEventFeeder, QtEventFeederTest)

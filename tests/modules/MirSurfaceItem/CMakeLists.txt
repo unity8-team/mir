@@ -11,7 +11,6 @@ include_directories(
 )
 
 add_executable(mirsurfaceitem_test ${MIR_SURFACE_ITEM_TEST_SOURCES})
-add_dependencies(mirsurfaceitem_test GMock)
 
 target_link_libraries(
   mirsurfaceitem_test
@@ -22,7 +21,7 @@ target_link_libraries(
   Qt5::Test
 
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(MirSurfaceItem mirsurfaceitem_test)

@@ -14,9 +14,7 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # add custom cmake modules
-# cmake-extras module path - not equal to ${CMAKE_ROOT}/Modules due to bug:1394648
-set(CMAKE_EXTRAS_MODULE_PATH /usr/share/cmake-2.8/Modules)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_EXTRAS_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)

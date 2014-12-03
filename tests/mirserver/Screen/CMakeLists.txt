@@ -12,14 +12,13 @@ include_directories(
 )
 
 add_executable(ScreenTest ${SCREEN_TEST_SOURCES})
-add_dependencies(ScreenTest GMock)
 
 target_link_libraries(
   ScreenTest
   qpa-mirserver
 
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(Screen, ScreenTest)

@@ -11,14 +11,13 @@ include_directories(
 )
 
 add_executable(ClipboardTest ${CLIPBOARD_TEST_SOURCES})
-add_dependencies(ClipboardTest GMock)
 
 target_link_libraries(
   ClipboardTest
   qpa-mirserver
 
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(Clipboard, ClipboardTest)

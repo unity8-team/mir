@@ -13,7 +13,6 @@ include_directories(
 )
 
 add_executable(sessionmanager_test ${SESSION_MANAGER_TEST_SOURCES})
-add_dependencies(sessionmanager_test GMock)
 
 target_link_libraries(
   sessionmanager_test
@@ -24,7 +23,7 @@ target_link_libraries(
   Qt5::Test
 
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(SessionManager, sessionmanager_test)

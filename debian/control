@@ -3,7 +3,7 @@ Section: libs
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: cmake,
-               cmake-extras,
+               cmake-extras (>= 0.3),
                debhelper (>= 9),
 # We rely on C++11 features, and to prevent from ABI breaks
 # in libstdc++ causing us issues, we explicitly select a G++

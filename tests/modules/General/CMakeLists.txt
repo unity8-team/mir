@@ -14,7 +14,6 @@ include_directories(
 )
 
 add_executable(general_test ${GENERAL_TEST_SOURCES})
-add_dependencies(general_test GMock)
 
 target_link_libraries(
   general_test
@@ -25,7 +24,7 @@ target_link_libraries(
   Qt5::Gui
 
   ${GTEST_BOTH_LIBRARIES}
-  ${GMOCK_BOTH_LIBRARIES}
+  ${GMOCK_LIBRARIES}
 )
 
 add_test(General general_test)
