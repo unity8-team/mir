@@ -1,4 +1,4 @@
-qtmir-gles (0.4.4+15.04.20141203-0ubuntu3) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20141203-0ubuntu4) UNRELEASED; urgency=medium
 
   [ Gerry Boland ]
   * Sync with upstream
@@ -6,7 +6,7 @@ qtmir-gles (0.4.4+15.04.20141203-0ubuntu3) UNRELEASED; urgency=medium
   [ Michał Sawicz ]
   * Update debian/control based on upstream
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 03 Dec 2014 12:41:34 +0100
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 03 Dec 2014 12:59:06 +0100
 
 qtmir-gles (0.4.4+15.04.20141124-0ubuntu1) vivid; urgency=medium
 
