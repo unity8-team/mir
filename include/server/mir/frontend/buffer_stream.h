@@ -29,6 +29,10 @@ namespace graphics
 {
 class Buffer;
 }
+namespace scene
+{
+class SurfaceObserver;
+}
 
 namespace frontend
 {
@@ -38,8 +42,10 @@ class BufferStream
 public:
     virtual ~BufferStream() = default;
 
-    // TODO: Move swap buffers blocking to mf::BufferStream ?
     virtual void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete) = 0;
+
+    virtual void add_observer(std::shared_ptr<scene::SurfaceObserver> const& observer) = 0;
+    virtual void remove_observer(std::weak_ptr<scene::SurfaceObserver> const& observer) = 0;
 
 protected:
     BufferStream() = default;

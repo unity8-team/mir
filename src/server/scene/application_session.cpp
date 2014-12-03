@@ -107,7 +107,20 @@ struct SimpleBufferStream : public mf::BufferStream
     {
         if (old_buffer)
             buffer_stream->release_client_buffer(old_buffer);
+
         buffer_stream->acquire_client_buffer(complete);
+    }
+    
+    void add_observer(std::shared_ptr<ms::SurfaceObserver> const& observer) override
+    {
+        // TODO
+        (void) observer;
+    }
+    
+    void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& observer)
+    {
+        // TODO
+        (void) observer;
     }
     
     std::shared_ptr<mc::BufferStream> const buffer_stream;
