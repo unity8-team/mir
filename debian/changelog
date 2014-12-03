@@ -4,8 +4,9 @@ qtmir-gles (0.4.4+15.04.20141203-0ubuntu1) UNRELEASED; urgency=medium
   * Sync with upstream
 
   [ Michał Sawicz ]
+  * Update debian/control based on upstream
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 03 Dec 2014 10:29:41 +0100
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 03 Dec 2014 10:30:41 +0100
 
 qtmir-gles (0.4.4+15.04.20141124-0ubuntu1) vivid; urgency=medium
 
