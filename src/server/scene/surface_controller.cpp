@@ -85,13 +85,8 @@ void ms::SurfaceController::set_state(Surface& surface,
 
 void ms::SurfaceController::fullscreen(Surface& surface)
 {
-    geometry::Rectangle rect{surface.top_left(), surface.size()};
-
-    // TODO: Consider moving placement strategy implementation into this class.
-    //       It makes sense given SurfaceController is the implementation of
-    //       SurfaceCoordinator. And placement sounds a lot like coordination
-    //       of surfaces. There's presently a little too much indirection here:
-    rect = placement_strategy->fullscreen(rect);
+    auto rect = placement_strategy->fullscreen({surface.top_left(),
+                                                surface.size()});
 
     // TODO: Make these an atomic operation (LP: #1395957)
     surface.resize(rect.size);       // Might throw

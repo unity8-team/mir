@@ -28,7 +28,6 @@ namespace scene
 class Session;
 struct SurfaceCreationParameters;
 
-// TODO: Consider merging this into SurfaceCoordinator
 class PlacementStrategy
 {
 public:
