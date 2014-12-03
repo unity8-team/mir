@@ -46,5 +46,6 @@ touch alternatives for phones/tablets:
  - Minimize/restore the focussed window: *Alt-F9*
  - Maximize/restore the focussed window: *Alt-F10*
  - Fullscreen/restore the focussed window: *Alt-F11*
+ - Vertically maximize/restore the focussed window: *Alt-F12*
 
 Want more? Log your requests at: https://bugs.launchpad.net/mir/+filebug

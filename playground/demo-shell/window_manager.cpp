@@ -188,6 +188,11 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             toggle(mir_surface_state_fullscreen);
         }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F12)
+        {
+            toggle(mir_surface_state_vertmaximized);
+        }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||
                  (event.key.scan_code == KEY_POWER))
