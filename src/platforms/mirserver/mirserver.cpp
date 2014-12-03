@@ -31,9 +31,6 @@
 #include "qteventfeeder.h"
 #include "logging.h"
 
-// mir
-#include <mir/options/default_configuration.h>
-
 // egl
 #include <EGL/egl.h>
 
