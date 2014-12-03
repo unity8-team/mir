@@ -61,7 +61,7 @@ MirCursorConfiguration *mir_cursor_configuration_from_name(char const* name);
  *    \return A cursor parameters object which must be passed
  *            to_mir_cursor_configuration_destroy
  */
-MirCursorConfiguration *mir_cursor_configuration_from_buffer_stream(MirBufferStream *stream);
+MirCursorConfiguration *mir_cursor_configuration_from_buffer_stream(MirBufferStream const* stream);
 
 #ifdef __cplusplus
 }

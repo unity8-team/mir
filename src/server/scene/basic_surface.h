@@ -55,6 +55,7 @@ namespace scene
 {
 class SceneReport;
 class SurfaceConfigurator;
+class CursorStreamImageAdapter;
 
 class SurfaceObservers : public SurfaceObserver, BasicObservers<SurfaceObserver>
 {
@@ -143,7 +144,7 @@ public:
     void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) override;
     std::shared_ptr<graphics::CursorImage> cursor_image() const override;
     
-    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream) /* override */ { (void) stream; }
+    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream) override;
 
     void request_client_surface_close() override;
 
@@ -181,6 +182,8 @@ private:
 
     void initialize_attributes();
     int attrib_values[mir_surface_attribs];
+    
+    std::shared_ptr<CursorStreamImageAdapter> cursor_stream_adapter;
 };
 
 }

@@ -28,6 +28,7 @@
 
 #include "mir/scene/scene_report.h"
 #include "mir/scene/surface_configurator.h"
+#include "mir/scene/null_surface_observer.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -36,6 +37,7 @@
 
 namespace mc = mir::compositor;
 namespace ms = mir::scene;
+namespace mf = mir::frontend;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
@@ -541,10 +543,72 @@ void ms::BasicSurface::set_cursor_image(std::shared_ptr<mg::CursorImage> const& 
 {
     {
         std::unique_lock<std::mutex> lock(guard);
+        cursor_stream_adapter.reset();
+
         cursor_image_ = image;
     }
 
     observers.cursor_image_set_to(*image);
+}
+
+namespace
+{
+struct FramePostObserver : public ms::NullSurfaceObserver
+{
+    FramePostObserver(std::function<void()> const& exec)
+        : exec_on_post(exec)
+    {
+    }
+    void frame_posted(int frames_available)
+    {
+        if (frames_available)
+            exec_on_post();
+    }
+    std::function<void()> const exec_on_post;
+};
+}
+namespace mir
+{
+namespace scene
+{
+struct CursorStreamImageAdapter
+{
+    CursorStreamImageAdapter(ms::BasicSurface &surface, std::shared_ptr<mf::BufferStream> const& stream)
+        : surface(surface),
+          stream(stream)
+    {
+        post_cursor_image_from_current_buffer();
+        observer = std::make_shared<FramePostObserver>([&](){
+                post_cursor_image_from_current_buffer();
+            });
+        stream->add_observer(observer);
+    }
+
+    ~CursorStreamImageAdapter()
+    {
+        stream->remove_observer(observer);
+    }
+
+    void post_cursor_image_from_current_buffer()
+    {
+    }
+    
+    ms::BasicSurface &surface;
+
+    std::shared_ptr<mf::BufferStream> const stream;
+    std::shared_ptr<FramePostObserver> observer;
+};
+}
+}
+
+void ms::BasicSurface::set_cursor_stream(std::shared_ptr<mf::BufferStream> const& stream)
+{
+    std::unique_lock<std::mutex> lock(guard);
+    
+    {
+        std::unique_lock<std::mutex> lock(guard);
+        cursor_stream_adapter = std::make_shared<ms::CursorStreamImageAdapter>(*this, stream);
+    }
 }
     
 

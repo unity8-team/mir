@@ -107,23 +107,32 @@ struct SimpleBufferStream : public mf::BufferStream
     {
         if (old_buffer)
             buffer_stream->release_client_buffer(old_buffer);
+        
+        if (observer)
+            observer->frame_posted(buffer_stream->buffers_ready_for_compositor());
 
         buffer_stream->acquire_client_buffer(complete);
     }
     
-    void add_observer(std::shared_ptr<ms::SurfaceObserver> const& observer) override
+    void add_observer(std::shared_ptr<ms::SurfaceObserver> const& new_observer) override
     {
-        // TODO
-        (void) observer;
+        // TODO: Could utilize ms::SurfaceObservers to enable situations like setting multiple surfaces
+        // cursor requests from one buffer stream ~racarr
+        if (observer)
+            BOOST_THROW_EXCEPTION(std::runtime_error("Simple buffer stream only supports one observer"));
+        observer = new_observer;
     }
     
-    void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& observer)
+    void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& remove_observer)
     {
-        // TODO
-        (void) observer;
+        // TODO:
+        (void) remove_observer;
+        observer.reset();
     }
     
     std::shared_ptr<mc::BufferStream> const buffer_stream;
+
+    std::shared_ptr<ms::SurfaceObserver> observer;
 };
 }
 
