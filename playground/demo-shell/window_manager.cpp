@@ -134,8 +134,16 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
-void me::WindowManager::toggle_surface_state(scene::Surface& surface,
-                                             MirSurfaceState state)
+void me::WindowManager::toggle(MirSurfaceState state)
+{
+    if (auto const app = focus_controller->focussed_application().lock())
+    {
+        if (auto const surf = app->default_surface())
+            toggle(*surf, state);
+    }
+}
+
+void me::WindowManager::toggle(scene::Surface& surface, MirSurfaceState state)
 {
     auto new_state = state;
     if (new_state == surface.state())
@@ -168,28 +176,17 @@ bool me::WindowManager::handle(MirEvent const& event)
         else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F9)
         {
-            if (auto const app =
-                    focus_controller->focussed_application().lock())
-            {
-                if (auto const surf = app->default_surface())
-                {
-                    toggle_surface_state(*surf, mir_surface_state_minimized);
-                    return true;
-                }
-            }
+            toggle(mir_surface_state_minimized);
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F10)
+        {
+            toggle(mir_surface_state_maximized);
         }
         else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F11)
         {
-            if (auto const app =
-                    focus_controller->focussed_application().lock())
-            {
-                if (auto const surf = app->default_surface())
-                {
-                    toggle_surface_state(*surf, mir_surface_state_fullscreen);
-                    return true;
-                }
-            }
+            toggle(mir_surface_state_fullscreen);
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||

@@ -66,7 +66,8 @@ protected:
     WindowManager& operator=(const WindowManager&) = delete;
 
 private:
-    void toggle_surface_state(scene::Surface& surface, MirSurfaceState state);
+    void toggle(MirSurfaceState state);
+    void toggle(scene::Surface& surface, MirSurfaceState state);
 
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
