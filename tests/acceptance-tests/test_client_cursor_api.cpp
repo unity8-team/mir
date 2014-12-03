@@ -438,7 +438,7 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
     test_server_config().client_geometries[client_name_1] =
         geom::Rectangle{{0, 0}, {1, 1}};
 
-    ChangingCursorClient client{new_connection(), client_name_1, client_cursor_1};
+    BufferStreamClient client{new_connection(), client_name_1};
 
     InSequence seq;
     // Once for application and once for each swap

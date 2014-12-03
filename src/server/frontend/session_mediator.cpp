@@ -511,7 +511,9 @@ void mf::SessionMediator::configure_cursor(
         }
         else if (cursor_request->has_buffer_stream_id())
         {
-            BOOST_THROW_EXCEPTION(std::logic_error("IMPL"));
+            auto const& stream_id = mf::BufferStreamId(cursor_request->buffer_stream_id().value());
+            auto stream = session->get_buffer_stream(stream_id);
+            surface->set_cursor_stream(stream);
         }
         else
         {
@@ -716,6 +718,7 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
     auto stream = session->get_buffer_stream(buffer_stream_id);
     
     response->mutable_id()->set_value(buffer_stream_id.as_value());
+    // TODO: Need to respond with pixel format
 //    response->set_pixel_format(stream->get_stream_pixel_format());
 
     // TODO proper buffer usage and stream

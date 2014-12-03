@@ -142,6 +142,8 @@ public:
     
     void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) override;
     std::shared_ptr<graphics::CursorImage> cursor_image() const override;
+    
+    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream) /* override */ { (void) stream; }
 
     void request_client_surface_close() override;
 
