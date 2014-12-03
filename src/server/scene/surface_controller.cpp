@@ -21,15 +21,18 @@
 #include "mir/scene/surface_factory.h"
 #include "mir/scene/surface.h"
 #include "mir/scene/placement_strategy.h"
+#include "mir/shell/display_layout.h"
 
 namespace ms = mir::scene;
 
 ms::SurfaceController::SurfaceController(
     std::shared_ptr<SurfaceFactory> const& surface_factory,
     std::shared_ptr<ms::PlacementStrategy> const& placement_strategy,
+    std::shared_ptr<shell::DisplayLayout> const& display_layout,
     std::shared_ptr<SurfaceStackModel> const& surface_stack) :
     surface_factory(surface_factory),
     placement_strategy(placement_strategy),
+    display_layout(display_layout),
     surface_stack(surface_stack)
 {
 }
