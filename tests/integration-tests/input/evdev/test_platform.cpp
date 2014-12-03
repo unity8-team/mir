@@ -33,7 +33,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 #include <gmock/gmock.h>
 
 namespace mi = mir::input;
@@ -51,6 +50,7 @@ public:
         : platform(mie::create_evdev_input_platform(mr::null_input_report()))
     {
     }
+    mir_test_framework::UdevEnvironment env; // has to be created before platform
     std::unique_ptr<mie::Platform> platform;
     ::testing::NiceMock<mtd::MockMultiplexer> mock_multiplexer;
     std::shared_ptr<::testing::NiceMock<mtd::MockInputDeviceRegistry>> mock_registry =
@@ -121,7 +121,12 @@ struct EvdevPlatformDeviceEvents : ::testing::TestWithParam<char const*>, EvdevP
             action();
     }
 
-    mir_test_framework::UdevEnvironment env;
+    void process_pending()
+    {
+        process_pending_actions();
+        process_pending_fd_callbacks();
+    }
+
     std::vector<std::function<void()>> fd_callbacks;
     std::vector<std::function<void()>> actions;
 };
@@ -150,35 +155,34 @@ TEST_P(EvdevPlatformDeviceEvents, finds_device_on_start)
     EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
     platform->start_monitor_devices(mock_multiplexer, mock_registry);
 
-    process_pending_actions();
+    process_pending();
 }
 
-TEST_P(EvdevPlatformDeviceEvents, DISABLED_adds_device_on_hotplug)
+TEST_P(EvdevPlatformDeviceEvents, adds_device_on_hotplug)
 {
     using namespace ::testing;
     EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
     platform->start_monitor_devices(mock_multiplexer, mock_registry);
-    process_pending_actions();
+    process_pending();
 
     env.add_standard_device(GetParam());
 
-    process_pending_fd_callbacks();
+    process_pending();
 }
 
-TEST_P(EvdevPlatformDeviceEvents, DISABLED_removes_device_on_hotplug)
+TEST_P(EvdevPlatformDeviceEvents, removes_device_on_hotplug)
 {
     using namespace ::testing;
-    EXPECT_CALL(*mock_registry, add_device(_));
-    EXPECT_CALL(*mock_registry, remove_device(_));
+    EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
+    EXPECT_CALL(*mock_registry, remove_device(_)).Times(1);
     platform->start_monitor_devices(mock_multiplexer, mock_registry);
     env.add_standard_device(GetParam());
 
-    process_pending_actions();
-    process_pending_fd_callbacks();
+    process_pending();
 
     remove_device();
 
-    process_pending_fd_callbacks();
+    process_pending();
 }
 
 INSTANTIATE_TEST_CASE_P(EvdevPlatformHotplugging,

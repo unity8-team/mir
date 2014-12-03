@@ -56,6 +56,7 @@ private:
     std::shared_ptr<InputDeviceFactory> input_device_factory;
 
     std::vector<std::pair<std::string,std::shared_ptr<InputDevice>>> devices;
+    auto find_device(char const* devnode) -> decltype(devices)::iterator;
 };
 
 
