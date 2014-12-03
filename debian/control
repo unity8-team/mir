@@ -2,26 +2,29 @@ Source: qtmir-gles
 Section: libs
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-Build-Depends: debhelper (>= 9),
+Build-Depends: cmake,
+               cmake-extras (>= 0.3),
+               debhelper (>= 9),
+# We rely on C++11 features, and to prevent from ABI breaks
+# in libstdc++ causing us issues, we explicitly select a G++
+# version.
+               g++-4.9,
                google-mock (>= 1.6.0+svn437),
-               cmake,
-               cmake-data,
                libboost-system-dev,
                libfontconfig1-dev,
                libgles2-mesa-dev,
                libglib2.0-dev,
                liblttng-ust-dev,
-               libmirclient-dev (>= 0.4.0),
-               libmirserver-dev (>= 0.4.0),
+               libmirclient-dev (>= 0.6.0),
+               libmircommon-dev,
+               libmirserver-dev (>= 0.6.0),
                libmtdev-dev,
                libprocess-cpp-dev,
-               libqt5gui5-gles,
                libqt5sensors5-dev,
-               libqt5quicktest5,
                libubuntu-app-launch2-dev,
                libubuntu-application-api-dev (>= 2.1.0),
                libudev-dev,
-               libunity-api-dev (>= 7.89),
+               libunity-api-dev (>= 7.92),
                liburl-dispatcher1-dev,
                libxkbcommon-dev,
                libxrender-dev,
@@ -46,15 +49,15 @@ X-Auto-Uploader: no-rewrite-version
 Package: qtmir-android
 Architecture: i386 amd64
 Multi-Arch: same
-Conflicts: qtmir-desktop,
+Conflicts: libqtmir,
+           qtmir-desktop,
            qtubuntu-desktop,
-           libqtmir,
-Replaces: qtmir-desktop,
+Replaces: libqtmir,
+          qtmir-desktop,
           qtubuntu-desktop,
-          libqtmir,
-Provides: qtmir
+Provides: qtmir,
 Depends: ${misc:Depends},
-         ${shlibs:Depends}
+         ${shlibs:Depends},
 Description: Qt platform abstraction (QPA) plugin for a Mir server (mobile) - OpenGLES
  QtMir is a set of Qt5 components to enable one to write a Mir server with Qt.
  It contains a QPA (Qt Platform Abstraction) plugin which creates and manages
