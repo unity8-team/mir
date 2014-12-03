@@ -48,7 +48,6 @@ class DeclarativePlacementStrategy : public mir::scene::PlacementStrategy
     virtual ~DeclarativePlacementStrategy() = default;
     
     mir::scene::SurfaceCreationParameters place(mir::scene::Session const& session, mir::scene::SurfaceCreationParameters const& request_parameters) override;
-    mir::geometry::Rectangle fullscreen(mir::geometry::Rectangle const&) const override;
 
 protected:
     DeclarativePlacementStrategy(const DeclarativePlacementStrategy&) = delete;

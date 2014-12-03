@@ -19,8 +19,6 @@
 #ifndef MIR_SCENE_PLACEMENT_STRATEGY_H_
 #define MIR_SCENE_PLACEMENT_STRATEGY_H_
 
-#include "mir/geometry/rectangle.h"
-
 namespace mir
 {
 namespace scene
@@ -34,8 +32,6 @@ public:
     virtual ~PlacementStrategy() = default;
 
     virtual SurfaceCreationParameters place(Session const& session, SurfaceCreationParameters const& request_parameters) = 0;
-
-    virtual geometry::Rectangle fullscreen(geometry::Rectangle const&) const = 0;
 
 protected:
     PlacementStrategy() = default;

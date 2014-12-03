@@ -54,8 +54,5 @@ ms::SurfaceCreationParameters mtf::DeclarativePlacementStrategy::place(ms::Sessi
     return placed;
 }
 
-mir::geometry::Rectangle mtf::DeclarativePlacementStrategy::fullscreen(
-    mir::geometry::Rectangle const&) const
-{
-    return {{0,0}, {1920,1080}};
-}
+
+

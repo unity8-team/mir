@@ -44,12 +44,6 @@ public:
             .of_size(placement.size);
     }
 
-    mir::geometry::Rectangle fullscreen(mir::geometry::Rectangle const&)
-        const override
-    {
-        return placement;
-    }
-
     mir::geometry::Rectangle placement{{0, 0}, {100, 100}};
 };
 
