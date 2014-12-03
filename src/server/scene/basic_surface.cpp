@@ -120,6 +120,7 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<SceneReport> const& report) :
     surface_name(name),
     surface_rect(rect),
+    previous_rect(surface_rect),
     surface_alpha(1.0f),
     first_frame_posted(false),
     hidden(false),
@@ -176,6 +177,9 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
 {
     {
         std::unique_lock<std::mutex> lk(guard);
+        if (top_left == surface_rect.top_left)
+            return;
+        previous_rect.top_left = surface_rect.top_left;
         surface_rect.top_left = top_left;
     }
     observers.moved_to(top_left);
@@ -284,6 +288,7 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
     // Now the buffer stream has successfully resized, update the state second;
     {
         std::unique_lock<std::mutex> lock(guard);
+        previous_rect.size = surface_rect.size;
         surface_rect.size = new_size;
     }
     observers.resized_to(new_size);
@@ -429,7 +434,17 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
     if (attrib_values[mir_surface_attrib_state] != s)
     {
         attrib_values[mir_surface_attrib_state] = s;
-        lg.unlock();
+
+        if (s == mir_surface_state_restored)
+        {
+            auto restore_rect(previous_rect);
+            lg.unlock();
+            // TODO: Make these atomic (LP: #1395957)
+            move_to(restore_rect.top_left);
+            resize(restore_rect.size);
+        }
+        else
+            lg.unlock();
         
         observers.attrib_changed(mir_surface_attrib_state, s);
     }

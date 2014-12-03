@@ -162,7 +162,7 @@ private:
     SurfaceObservers observers;
     std::mutex mutable guard;
     std::string const surface_name;
-    geometry::Rectangle surface_rect;
+    geometry::Rectangle surface_rect, previous_rect;
     glm::mat4 transformation_matrix;
     float surface_alpha;
     bool first_frame_posted;

@@ -134,6 +134,17 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
+void me::WindowManager::toggle_surface_state(scene::Surface& surface,
+                                             MirSurfaceState state)
+{
+    auto new_state = state;
+    if (new_state == surface.state())
+        new_state = mir_surface_state_restored;
+
+    surface_coordinator->configure_surface(surface,
+        mir_surface_attrib_state, new_state);
+}
+
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
@@ -162,9 +173,7 @@ bool me::WindowManager::handle(MirEvent const& event)
             {
                 if (auto const surf = app->default_surface())
                 {
-                    surface_coordinator->configure_surface(*surf,
-                        mir_surface_attrib_state,
-                        mir_surface_state_fullscreen);
+                    toggle_surface_state(*surf, mir_surface_state_fullscreen);
                     return true;
                 }
             }

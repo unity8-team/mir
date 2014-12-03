@@ -24,6 +24,7 @@
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/size.h"
 #include "mir/scene/surface_coordinator.h"
+#include "mir/scene/surface.h"
 
 #include <memory>
 
@@ -65,6 +66,8 @@ protected:
     WindowManager& operator=(const WindowManager&) = delete;
 
 private:
+    void toggle_surface_state(scene::Surface& surface, MirSurfaceState state);
+
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
