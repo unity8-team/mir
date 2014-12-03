@@ -17,34 +17,27 @@
  *   Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_INPUT_DEVICE_H_
-#define MIR_INPUT_INPUT_DEVICE_H_
+#ifndef MIR_INPUT_EVENT_SINK_H_
+#define MIR_INPUT_EVENT_SINK_H_
 
-#include <memory>
+#include "mir_toolkit/event.h"
 
 namespace mir
 {
-class MainLoop;
 namespace input
 {
-class EventSink;
-
-class InputDevice
+class EventSink
 {
 public:
-    InputDevice() = default;
-    virtual ~InputDevice() = default;
-
-    virtual void enable_input_events(MainLoop& event_processor, EventSink & ) = 0;
-    virtual void disable_input_events(MainLoop& event_processor) = 0;
-    // add devie info here..
-protected:
-    InputDevice(InputDevice const&) = delete;
-    InputDevice& operator=(InputDevice const&) = delete;
+    EventSink() = default;
+    virtual ~EventSink() = default;
+    // TODO change to the new mir input event
+    virtual void handle_input(MirEvent const& event) = 0;
+private:
+    EventSink(EventSink const&) = delete;
+    EventSink& operator=(EventSink const&) = delete;
 };
-
 }
 }
 
 #endif
-
