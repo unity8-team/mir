@@ -1,3 +1,20 @@
+qtmir (0.4.4+15.04.20141203-0ubuntu1) vivid; urgency=low
+
+  [ Gerry Boland ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+  * Fix build with Qt5.4 (LP: #1394884)
+
+  [ Michał Sawicz ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Robert Carr ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Alberto Aguirre ]
+  * Select mirclient backend for platform-api instead of mirserver.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 03 Dec 2014 10:07:12 +0000
+
 qtmir (0.4.4+15.04.20141124-0ubuntu1) vivid; urgency=low
 
   [ Alberto Aguirre ]
