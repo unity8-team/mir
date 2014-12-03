@@ -45,8 +45,8 @@ mie::Platform::Platform(std::shared_ptr<InputReport> const& report,
     monitor(std::move(monitor)),
     input_device_factory(factory)
 {
-    this->monitor->enable();
     this->monitor->filter_by_subsystem("input");
+    this->monitor->enable();
 }
 
 void mie::Platform::start_monitor_devices(mi::Multiplexer& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
@@ -61,6 +61,8 @@ void mie::Platform::start_monitor_devices(mi::Multiplexer& execution, std::share
             monitor->process_events(
                 [this](mu::Monitor::EventType event, mu::Device const& dev)
                 {
+                    if (!dev.devnode())
+                        return;
                     if (event == mu::Monitor::ADDED)
                         device_added(dev);
                     if (event == mu::Monitor::REMOVED)
@@ -86,37 +88,48 @@ void mie::Platform::scan_for_devices()
             device_added(device);
     }
 }
- 
 
 void mie::Platform::device_added(mu::Device const& dev)
 {
+    if (end(devices) != find_device(dev.devnode()))
+        return;
+
+    std::shared_ptr<mi::InputDevice> input_dev;
+
     try
     {
-        std::shared_ptr<mi::InputDevice> input_dev{input_device_factory->create_device(dev.devnode())};
-        input_device_registry->add_device(input_dev);
-        devices.emplace_back(dev.devnode(), input_dev);
+        input_dev = input_device_factory->create_device(dev.devnode());
     } catch(...)
     {
+        // report creation failure
     }
+
+    input_device_registry->add_device(input_dev);
+    devices.emplace_back(dev.devnode(), input_dev);
 }
 
 void mie::Platform::device_removed(mu::Device const& dev)
 {
-    auto known_device_pos = std::find_if(
+    auto known_device_pos = find_device(dev.devnode());
+
+    if (known_device_pos == end(devices))
+        return;
+
+    input_device_registry->remove_device(known_device_pos->second);
+    devices.erase(known_device_pos);
+}
+
+
+auto mie::Platform::find_device(char const* devnode) -> decltype(devices)::iterator
+{
+    return std::find_if(
         begin(devices),
         end(devices),
-        [&dev](std::pair<std::string,std::shared_ptr<InputDevice>> const& item)
+        [devnode](decltype(devices)::value_type const& item)
         {
-            return dev.devnode() == item.first;
+            return devnode == item.first;
         }
         );
-
-    if (known_device_pos != end(devices))
-    {
-        input_device_registry->remove_device(known_device_pos->second);
-
-        devices.erase(known_device_pos);
-    }
 }
 
 void mie::Platform::device_changed(mu::Device const& /*dev*/)
