@@ -107,8 +107,7 @@ struct SimpleBufferStream : public mf::BufferStream
     {
         if (old_buffer)
             buffer_stream->release_client_buffer(old_buffer);
-        else
-            buffer_stream->acquire_client_buffer(complete);
+        buffer_stream->acquire_client_buffer(complete);
     }
     
     std::shared_ptr<mc::BufferStream> const buffer_stream;

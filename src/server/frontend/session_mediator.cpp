@@ -282,7 +282,7 @@ void mf::SessionMediator::exchange_buffer(
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::update_msg);
             else
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::full_msg);
-
+            
             done->Run();
         });
 }

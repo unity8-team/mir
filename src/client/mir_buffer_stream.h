@@ -23,6 +23,7 @@
 #include "mir_wait_handle.h"
 #include "client_buffer_depository.h"
 #include "mir_toolkit/client_types.h"
+#include "mir_toolkit/mir_native_buffer.h"
 #include "mir_protobuf.pb.h"
 #include "mir/geometry/size.h"
 #include "mir/geometry/rectangle.h"
@@ -43,6 +44,7 @@ struct MirBufferStream : public mir::client::ClientSurface
 {
 public:
     MirBufferStream(
+        MirConnection *connection,
         mir::geometry::Size const& size,
         MirPixelFormat pixel_format,
         MirBufferUsage buffer_usage,
@@ -67,6 +69,8 @@ public:
     std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+    
+    MirNativeBuffer* get_current_buffer_package();
 
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);
@@ -76,6 +80,8 @@ private:
         mir_buffer_stream_callback callback, void* context);
     void next_buffer_received(
         mir_buffer_stream_callback callback, void* context);
+    
+    MirConnection *connection;
     
     mir::geometry::Size size;
     MirPixelFormat pixel_format;

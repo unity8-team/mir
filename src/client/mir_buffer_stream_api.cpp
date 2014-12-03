@@ -45,7 +45,7 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
         mir::geometry::Size const size{width, height};
 
         std::unique_ptr<MirBufferStream> buffer_stream_uptr{
-            new MirBufferStream{
+            new MirBufferStream{connection,
                 size,
                 pixel_format, buffer_usage,
                 connection->display_server(),
@@ -75,8 +75,42 @@ void mir_buffer_stream_release_sync(MirBufferStream* buffer_stream)
     delete buffer_stream;
 }
 
-// TODO: Add swap buffer/get current buffer
+void mir_buffer_stream_get_current_buffer(MirBufferStream* buffer_stream, MirNativeBuffer** buffer_package_out)
+{
+    *buffer_package_out = buffer_stream->get_current_buffer_package();
+}
 
+MirWaitHandle* mir_buffer_stream_swap_buffers(
+    MirBufferStream* buffer_stream,
+    mir_buffer_stream_callback callback,
+    void* context)
+try
+{
+    return buffer_stream->next_buffer(callback, context);
+}
+catch (std::exception const&)
+{
+    return nullptr;
+}
+
+namespace
+{
+// assign_result is compatible with all 2-parameter callbacks
+void assign_result(void* result, void** context)
+{
+    if (context)
+        *context = result;
+}
+}
+
+void mir_buffer_stream_swap_buffers_sync(MirBufferStream* buffer_stream)
+{
+    mir_wait_for(mir_buffer_stream_swap_buffers(buffer_stream,
+        reinterpret_cast<mir_buffer_stream_callback>(assign_result),
+        nullptr));
+}
+
+// TODO: Decl
 MirEGLNativeWindowType mir_buffer_stream_egl_native_window(MirBufferStream* buffer_stream)
 {
     return reinterpret_cast<MirEGLNativeWindowType>(buffer_stream->egl_native_window());

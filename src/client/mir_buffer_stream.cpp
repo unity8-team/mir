@@ -14,12 +14,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ *              Robert Carr <robert.carr@canonical.com>
  */
 
 #include "mir_buffer_stream.h"
-#include "mir/frontend/client_constants.h"
-#include "mir_toolkit/mir_native_buffer.h"
+#include "mir_connection.h"
 #include "egl_native_window_factory.h"
+#include "client_buffer.h"
+
+#include "mir/frontend/client_constants.h"
+
+#include "mir_toolkit/mir_native_buffer.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -69,6 +74,7 @@ void populate_buffer_package(
 }
 
 MirBufferStream::MirBufferStream(
+    MirConnection *allocating_connection,
     geom::Size const& size,
     MirPixelFormat pixel_format,
     MirBufferUsage buffer_usage,
@@ -76,7 +82,7 @@ MirBufferStream::MirBufferStream(
     std::shared_ptr<mcl::EGLNativeWindowFactory> const& egl_native_window_factory,
     std::shared_ptr<mcl::ClientBufferFactory> const& factory,
     mir_buffer_stream_callback callback, void* context)
-    : size(size), pixel_format(pixel_format), buffer_usage(buffer_usage),
+    : connection(allocating_connection), size(size), pixel_format(pixel_format), buffer_usage(buffer_usage),
       server(server), egl_native_window_factory{egl_native_window_factory},
       buffer_depository{factory, mir::frontend::client_buffer_cache_size}
 {
@@ -126,6 +132,14 @@ MirSurfaceParameters MirBufferStream::get_parameters() const
         mir_display_output_id_invalid};
 }
 
+MirNativeBuffer* MirBufferStream::get_current_buffer_package()
+{
+    auto platform = connection->get_client_platform();
+    auto buffer = get_current_buffer();
+    auto handle = buffer->native_buffer_handle();
+    return platform->convert_native_buffer(handle.get());
+}
+
 std::shared_ptr<mcl::ClientBuffer> MirBufferStream::get_current_buffer()
 {
     return buffer_depository.current_buffer();
@@ -151,14 +165,15 @@ MirWaitHandle* MirBufferStream::release(
 MirWaitHandle* MirBufferStream::next_buffer(
     mir_buffer_stream_callback callback, void* context)
 {
+    mir::protobuf::BufferRequest request;
     // TODO: Update to be BufferStream ID and use cast in surface instead
-    mir::protobuf::SurfaceId buffer_stream_id;
-    buffer_stream_id.set_value(protobuf_buffer_stream.id().value());
+    request.mutable_id()->set_value(protobuf_buffer_stream.id().value());
+    request.mutable_buffer()->set_buffer_id(buffer_depository.current_buffer_id());
 
     next_buffer_wait_handle.expect_result();
-    server.next_buffer(
+    server.exchange_buffer(
         nullptr,
-        &buffer_stream_id,
+        &request,
         &protobuf_buffer,
         google::protobuf::NewCallback(
             this, &MirBufferStream::next_buffer_received,
