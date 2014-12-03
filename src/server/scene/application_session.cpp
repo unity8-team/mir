@@ -114,6 +114,12 @@ struct SimpleBufferStream : public mf::BufferStream
         buffer_stream->acquire_client_buffer(complete);
     }
     
+    void with_most_recent_buffer_do(std::function<void(mg::Buffer&)> const& exec)
+    {
+        auto buf = buffer_stream->lock_compositor_buffer(this);
+        exec(*buf);
+    }
+    
     void add_observer(std::shared_ptr<ms::SurfaceObserver> const& new_observer) override
     {
         // TODO: Could utilize ms::SurfaceObservers to enable situations like setting multiple surfaces

@@ -71,6 +71,8 @@ struct MockFrontendSurface : public frontend::Surface
     
     MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::SurfaceObserver> const&));
     MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::SurfaceObserver> const&));
+    
+    MOCK_METHOD1(with_most_recent_buffer_do, void(std::function<void(graphics::Buffer&)> const&));
 };
 }
 }

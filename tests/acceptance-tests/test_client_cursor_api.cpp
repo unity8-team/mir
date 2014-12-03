@@ -440,10 +440,13 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
     BufferStreamClient client{new_connection(), client_name_1};
 
-    InSequence seq;
-    // Once for application and once for each swap
-    EXPECT_CALL(test_server_config().cursor, show(_)).Times(4)
-        .WillOnce(mt::WakeUp(&expectations_satisfied));
+    {
+        InSequence seq;
+        // Once for application and once for each swap
+        EXPECT_CALL(test_server_config().cursor, show(_)).Times(3);
+        EXPECT_CALL(test_server_config().cursor, show(_)).Times(1)
+            .WillOnce(mt::WakeUp(&expectations_satisfied));
+    }
 
     client.run();
 

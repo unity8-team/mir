@@ -25,6 +25,7 @@
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
+#include "mir/graphics/cursor_image.h"
 
 #include "mir/scene/scene_report.h"
 #include "mir/scene/surface_configurator.h"
@@ -566,6 +567,29 @@ struct FramePostObserver : public ms::NullSurfaceObserver
     }
     std::function<void()> const exec_on_post;
 };
+struct CursorImageFromBuffer : public mg::CursorImage
+{
+    CursorImageFromBuffer(mg::Buffer &buffer)
+    {
+        (void) buffer;
+    }
+    void const* as_argb_8888() const
+    {
+        return pixels;
+    }
+
+    geom::Size size() const
+    {
+        return geom::Size();
+    }
+
+    geom::Displacement hotspot() const
+    {
+        return geom::Displacement();
+    }
+
+    void const* pixels;
+};
 }
 namespace mir
 {
@@ -591,6 +615,10 @@ struct CursorStreamImageAdapter
 
     void post_cursor_image_from_current_buffer()
     {
+        stream->with_most_recent_buffer_do([&](mg::Buffer &buffer) 
+        {
+            surface.set_cursor_image(std::make_shared<CursorImageFromBuffer>(buffer));
+        });
     }
     
     ms::BasicSurface &surface;
