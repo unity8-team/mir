@@ -736,7 +736,20 @@ void mf::SessionMediator::release_buffer_stream(google::protobuf::RpcController*
     mir::protobuf::Void*,
     google::protobuf::Closure* done)
 {
-    // TODO: Impl
-    (void) request;
+    {
+        std::unique_lock<std::mutex> lock(session_mutex);
+
+        auto session = weak_session.lock();
+
+        if (session.get() == nullptr)
+            BOOST_THROW_EXCEPTION(std::logic_error("Invalid application session"));
+
+        auto const id = BufferStreamId(request->value());
+
+        session->destroy_buffer_stream(id);
+        surface_tracker.remove_surface(id);
+    }
+
+    // TODO: We rely on this sending responses synchronously.
     done->Run();
 }
