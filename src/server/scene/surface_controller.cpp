@@ -71,7 +71,8 @@ int ms::SurfaceController::configure_surface(Surface& surface,
 void ms::SurfaceController::set_state(Surface& surface,
                                       MirSurfaceState desired)
 {
-    if (desired == mir_surface_state_minimized)
+    if (desired == mir_surface_state_minimized ||
+        desired == mir_surface_state_restored)
         return;
 
     geometry::Rectangle old_win{surface.top_left(), surface.size()};
@@ -90,6 +91,12 @@ void ms::SurfaceController::set_state(Surface& surface,
         break;
     case mir_surface_state_maximized:
         new_win = maximized;
+        break;
+    case mir_surface_state_vertmaximized:
+        // new_win.top_left.x is unchanged
+        new_win.top_left.y = maximized.top_left.y;
+        // new_win.size.width is unchanged
+        new_win.size.height = maximized.size.height;
         break;
     default:
         break;
