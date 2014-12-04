@@ -36,7 +36,9 @@ struct MockSurfaceCoordinator : public scene::SurfaceCoordinator
     MOCK_METHOD1(raise, void(std::weak_ptr<scene::Surface> const&));
     MOCK_METHOD3(configure_surface,
                  int(scene::Surface&, MirSurfaceAttrib, int));
-    MOCK_METHOD2(move_surface, void(scene::Surface&, geometry::Point const&));
+    MOCK_METHOD3(drag_surface, void(scene::Surface&,
+                                    geometry::Displacement const&,
+                                    geometry::Point const&));
 
     MOCK_METHOD2(add_surface, std::shared_ptr<scene::Surface>(
         scene::SurfaceCreationParameters const& params,

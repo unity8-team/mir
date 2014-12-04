@@ -22,6 +22,8 @@
 #include "mir/scene/surface.h"
 #include "mir/scene/placement_strategy.h"
 #include "mir/shell/display_layout.h"
+#include "mir/geometry/point.h"
+#include "mir/geometry/displacement.h"
 
 namespace ms = mir::scene;
 
@@ -112,51 +114,47 @@ void ms::SurfaceController::set_state(Surface& surface,
     }
 }
 
-void ms::SurfaceController::move_surface(Surface& surface,
-                                         geometry::Point const& pos)
+void ms::SurfaceController::drag_surface(Surface& surface,
+                                         geometry::Displacement const& grab,
+                                         geometry::Point const& cursor)
 {
-    /*
-     * TODO (1): Make the snap distance configurable.
-     * TODO (2): Make the snap distance insensitive to speed. It presently
-     *           works by pointer velocity only. To avoid that you'd have
-     *           to know the length of the drag gesture.
-     */
-    int const snap_distance = 10;
+    int const snap_distance = 30; // TODO: configurable
     int const sqr_snap_distance = snap_distance * snap_distance;
+
+    auto const& old_pos = surface.top_left();
+    int local_x = cursor.x.as_int() - old_pos.x.as_int();
+    int local_y = cursor.y.as_int() - old_pos.y.as_int();
+    int dx = local_x - grab.dx.as_int();
+    int dy = local_y - grab.dy.as_int();
+    geometry::Displacement delta{dx, dy};
 
     switch (surface.state())
     {
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
+        if ((dx*dx + dy*dy) >= sqr_snap_distance)
         {
-        auto old_pos = surface.top_left();
-        int dx = pos.x.as_int() - old_pos.x.as_int();
-        int dy = pos.y.as_int() - old_pos.y.as_int();
-        int sqr_distance = dx*dx + dy*dy;
-        if (sqr_distance >= sqr_snap_distance)
             configure_surface(surface, mir_surface_attrib_state,
                               mir_surface_state_restored);
-        break;
+            auto const& restored = surface.size();
+            surface.move_to({cursor.x.as_int() - restored.width.as_int()/2,
+                             cursor.y.as_int() - restored.height.as_int()/2});
         }
+        break;
     case mir_surface_state_vertmaximized:
-        {
-        auto old_pos = surface.top_left();
-        int dy = pos.y.as_int() - old_pos.y.as_int();
-        if (dy*dy >= sqr_snap_distance)
+        if ((dy*dy) >= sqr_snap_distance)
         {
             configure_surface(surface, mir_surface_attrib_state,
                               mir_surface_state_restored);
-
-            // TODO: Restore to a more natural position, such that the pointer
-            //       stays in the same place within the surface after
-            //       unsnapping.
+            surface.move_to(surface.top_left() + delta);
         }
         else
-            surface.move_to({pos.x, old_pos.y});
-        break;
+        {
+            surface.move_to({old_pos.x.as_int() + dx, old_pos.y});
         }
+        break;
     default:
-        surface.move_to(pos);
+        surface.move_to(old_pos + delta);
         break;
     }
 }

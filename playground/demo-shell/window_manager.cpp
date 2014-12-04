@@ -384,6 +384,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                     action == mir_motion_action_pointer_down)
                 {
                     click = cursor;
+                    rel_click = click - surf->top_left();
                     handled = true;
                 }
                 else if (event.motion.action == mir_motion_action_move &&
@@ -402,7 +403,8 @@ bool me::WindowManager::handle(MirEvent const& event)
                     }
                     else
                     { // Move surface (by mouse or 3 fingers)
-                        surface_coordinator->move_surface(*surf, old_pos + drag);
+                        surface_coordinator->drag_surface(*surf, rel_click, 
+                                                          cursor);
                     }
 
                     if (fingers == 3)
@@ -446,7 +448,6 @@ bool me::WindowManager::handle(MirEvent const& event)
                     handled = true;
                 }
 
-                old_pos = surf->top_left();
                 old_size = surf->size();
                 old_pinch_diam = pinch_diam;
             }

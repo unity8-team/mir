@@ -59,7 +59,9 @@ public:
     void raise(std::weak_ptr<Surface> const& surface) override;
 
     int configure_surface(Surface&, MirSurfaceAttrib, int) override;
-    void move_surface(Surface&, geometry::Point const&);
+    void drag_surface(Surface& surf,
+                      geometry::Displacement const& grab,
+                      geometry::Point const& cursor) override;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;

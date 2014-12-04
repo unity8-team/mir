@@ -497,7 +497,7 @@ MIR_SERVER_28 {
     mir::shell::SurfaceCoordinatorWrapper::add_surface*;
     mir::shell::SurfaceCoordinatorWrapper::raise*;
     mir::shell::SurfaceCoordinatorWrapper::configure_surface*;
-    mir::shell::SurfaceCoordinatorWrapper::move_surface*;
+    mir::shell::SurfaceCoordinatorWrapper::drag_surface*;
     mir::shell::SurfaceCoordinatorWrapper::remove_surface*;
     mir::shell::SurfaceCoordinatorWrapper::SurfaceCoordinatorWrapper*;
     mir::terminate_with_current_exception*;

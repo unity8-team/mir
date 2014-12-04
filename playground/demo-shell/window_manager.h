@@ -76,7 +76,7 @@ private:
     std::shared_ptr<scene::SurfaceCoordinator> surface_coordinator;
 
     geometry::Point click;
-    geometry::Point old_pos;
+    geometry::Displacement rel_click;
     geometry::Point old_cursor;
     geometry::Size old_size;
     float old_pinch_diam;
