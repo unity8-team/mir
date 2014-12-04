@@ -37,6 +37,7 @@ namespace client
 {
 class ClientBufferFactory;
 class EGLNativeWindowFactory;
+class MemoryRegion;
 }
 }
 
@@ -52,6 +53,7 @@ public:
         std::shared_ptr<mir::client::EGLNativeWindowFactory> const& egl_native_window_factory,
         std::shared_ptr<mir::client::ClientBufferFactory> const& factory,
         mir_buffer_stream_callback callback, void* context);
+    ~MirBufferStream();
 
     MirWaitHandle* creation_wait_handle();
     bool valid();
@@ -73,6 +75,8 @@ public:
     MirNativeBuffer* get_current_buffer_package();
     
     mir::protobuf::BufferStreamId protobuf_id() const;
+
+    void get_cpu_region(MirGraphicsRegion& region);
 
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);
@@ -101,6 +105,9 @@ private:
     MirWaitHandle create_buffer_stream_wait_handle;
     MirWaitHandle release_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
+
+    void release_cpu_region();
+    std::shared_ptr<mir::client::MemoryRegion> secured_region;
 };
 
 #endif /* MIR_CLIENT_MIR_BUFFER_STREAM_H_ */

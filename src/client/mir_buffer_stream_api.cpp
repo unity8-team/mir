@@ -95,7 +95,6 @@ catch (std::exception const&)
 
 namespace
 {
-// assign_result is compatible with all 2-parameter callbacks
 void assign_result(void* result, void** context)
 {
     if (context)
@@ -110,7 +109,13 @@ void mir_buffer_stream_swap_buffers_sync(MirBufferStream* buffer_stream)
         nullptr));
 }
 
-// TODO: Decl
+void mir_buffer_stream_get_graphics_region(
+    MirBufferStream *buffer_stream,
+    MirGraphicsRegion *graphics_region)
+{
+    return buffer_stream->get_cpu_region(*graphics_region);
+}
+
 MirEGLNativeWindowType mir_buffer_stream_egl_native_window(MirBufferStream* buffer_stream)
 {
     return reinterpret_cast<MirEGLNativeWindowType>(buffer_stream->egl_native_window());

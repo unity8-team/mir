@@ -73,6 +73,7 @@ void populate_buffer_package(
 
 }
 
+// TODO: This class probably needs some mutexing
 MirBufferStream::MirBufferStream(
     MirConnection *allocating_connection,
     geom::Size const& size,
@@ -109,6 +110,11 @@ MirBufferStream::MirBufferStream(
         google::protobuf::NewCallback(
             this, &MirBufferStream::buffer_stream_created,
             callback, context));
+}
+
+MirBufferStream::~MirBufferStream()
+{
+    release_cpu_region();
 }
 
 MirWaitHandle* MirBufferStream::creation_wait_handle()
@@ -165,6 +171,8 @@ MirWaitHandle* MirBufferStream::release(
 MirWaitHandle* MirBufferStream::next_buffer(
     mir_buffer_stream_callback callback, void* context)
 {
+    release_cpu_region();
+
     mir::protobuf::BufferRequest request;
     // TODO: Update to be BufferStream ID and use cast in surface instead
     request.mutable_id()->set_value(protobuf_buffer_stream.id().value());
@@ -245,4 +253,21 @@ void MirBufferStream::next_buffer_received(
 mir::protobuf::BufferStreamId MirBufferStream::protobuf_id() const
 {
     return protobuf_buffer_stream.id();
+}
+
+void MirBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
+{
+    auto buffer = buffer_depository.current_buffer();
+
+    secured_region = buffer->secure_for_cpu_write();
+    region_out.width = secured_region->width.as_uint32_t();
+    region_out.height = secured_region->height.as_uint32_t();
+    region_out.stride = secured_region->stride.as_uint32_t();
+    region_out.pixel_format = secured_region->format;
+    region_out.vaddr = secured_region->vaddr.get();
+}
+
+void MirBufferStream::release_cpu_region()
+{
+    secured_region.reset();
 }

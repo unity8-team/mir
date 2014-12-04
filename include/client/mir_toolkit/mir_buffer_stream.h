@@ -93,6 +93,16 @@ MirWaitHandle *mir_buffer_stream_swap_buffers(
  */
 void mir_buffer_stream_swap_buffers_sync(MirBufferStream *buffer_stream);
 
+/**
+ * Get a buffer stream's graphics region, i.e., map the graphics buffer to main
+ * memory.
+ *   \pre                          The buffer stream is valid
+ *   \param [in] buffer stream     The buffer stream
+ *   \param [out] graphics_region  Structure to be populated
+ */
+void mir_buffer_stream_get_graphics_region(
+    MirBufferStream *buffer_stream,
+    MirGraphicsRegion *graphics_region);
 
 /**
  * Get a window type which may be used by EGL.
