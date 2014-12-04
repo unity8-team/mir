@@ -115,18 +115,46 @@ void ms::SurfaceController::set_state(Surface& surface,
 void ms::SurfaceController::move_surface(Surface& surface,
                                          geometry::Point const& pos)
 {
-    // TODO: Make these surface operations atomic (LP: #1395957)
+    /*
+     * TODO (1): Make the snap distance configurable.
+     * TODO (2): Make the snap distance insensitive to speed. It presently
+     *           works by pointer velocity only. To avoid that you'd have
+     *           to know the length of the drag gesture.
+     */
+    int const snap_distance = 10;
+    int const sqr_snap_distance = snap_distance * snap_distance;
 
     switch (surface.state())
     {
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
-        configure_surface(surface, mir_surface_attrib_state,
-                          mir_surface_state_restored);
+        {
+        auto old_pos = surface.top_left();
+        int dx = pos.x.as_int() - old_pos.x.as_int();
+        int dy = pos.y.as_int() - old_pos.y.as_int();
+        int sqr_distance = dx*dx + dy*dy;
+        if (sqr_distance >= sqr_snap_distance)
+            configure_surface(surface, mir_surface_attrib_state,
+                              mir_surface_state_restored);
         break;
+        }
     case mir_surface_state_vertmaximized:
-        surface.move_to({pos.x, surface.top_left().y});
+        {
+        auto old_pos = surface.top_left();
+        int dy = pos.y.as_int() - old_pos.y.as_int();
+        if (dy*dy >= sqr_snap_distance)
+        {
+            configure_surface(surface, mir_surface_attrib_state,
+                              mir_surface_state_restored);
+
+            // TODO: Restore to a more natural position, such that the pointer
+            //       stays in the same place within the surface after
+            //       unsnapping.
+        }
+        else
+            surface.move_to({pos.x, old_pos.y});
         break;
+        }
     default:
         surface.move_to(pos);
         break;
