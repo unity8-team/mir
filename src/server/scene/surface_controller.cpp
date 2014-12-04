@@ -121,9 +121,13 @@ void ms::SurfaceController::drag_surface(Surface& surface,
     int const snap_distance = 30; // TODO: configurable
     int const sqr_snap_distance = snap_distance * snap_distance;
 
-    auto const& old_pos = surface.top_left();
-    int local_x = cursor.x.as_int() - old_pos.x.as_int();
-    int local_y = cursor.y.as_int() - old_pos.y.as_int();
+    auto const& pos = surface.top_left();
+
+    // Local = current relative coordinate of the cursor in the surface
+    int local_x = cursor.x.as_int() - pos.x.as_int();
+    int local_y = cursor.y.as_int() - pos.y.as_int();
+
+    // Delta = the drag gesture vector
     int dx = local_x - grab.dx.as_int();
     int dy = local_y - grab.dy.as_int();
 
@@ -132,30 +136,18 @@ void ms::SurfaceController::drag_surface(Surface& surface,
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
         if ((dx*dx + dy*dy) >= sqr_snap_distance)
-        {
             configure_surface(surface, mir_surface_attrib_state,
                               mir_surface_state_restored);
-            auto const& restored = surface.size();
-            surface.move_to({cursor.x.as_int() - restored.width.as_int()/2,
-                             cursor.y.as_int() - restored.height.as_int()/2});
-        }
         break;
     case mir_surface_state_vertmaximized:
         if ((dy*dy) >= sqr_snap_distance)
-        {
             configure_surface(surface, mir_surface_attrib_state,
                               mir_surface_state_restored);
-            auto const& restored = surface.size();
-            surface.move_to({cursor.x.as_int() - restored.width.as_int()/2,
-                             cursor.y.as_int() - restored.height.as_int()/2});
-        }
         else
-        {
-            surface.move_to({old_pos.x.as_int() + dx, old_pos.y});
-        }
+            surface.move_to({pos.x.as_int() + dx, pos.y});
         break;
     default:
-        surface.move_to(old_pos + geometry::Displacement{dx,dy});
+        surface.move_to(pos + geometry::Displacement{dx,dy});
         break;
     }
 }
