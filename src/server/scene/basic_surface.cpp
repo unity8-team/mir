@@ -120,7 +120,7 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<SceneReport> const& report) :
     surface_name(name),
     surface_rect(rect),
-    restored_rect(surface_rect),
+    restore_rect(surface_rect),
     surface_alpha(1.0f),
     first_frame_posted(false),
     hidden(false),
@@ -442,7 +442,7 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
 
         if (s == mir_surface_state_restored)
         {
-            auto r(restored_rect);
+            auto r(restore_rect);
             lg.unlock();
             // TODO: Make these atomic (LP: #1395957)
             move_to(r.top_left);
@@ -451,7 +451,7 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
         else
         {
             if (old_state == mir_surface_state_restored)
-                restored_rect = surface_rect;
+                restore_rect = surface_rect;
             lg.unlock();
         }
         
