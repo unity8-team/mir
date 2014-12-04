@@ -126,7 +126,6 @@ void ms::SurfaceController::drag_surface(Surface& surface,
     int local_y = cursor.y.as_int() - old_pos.y.as_int();
     int dx = local_x - grab.dx.as_int();
     int dy = local_y - grab.dy.as_int();
-    geometry::Displacement delta{dx, dy};
 
     switch (surface.state())
     {
@@ -146,7 +145,9 @@ void ms::SurfaceController::drag_surface(Surface& surface,
         {
             configure_surface(surface, mir_surface_attrib_state,
                               mir_surface_state_restored);
-            surface.move_to(surface.top_left() + delta);
+            auto const& restored = surface.size();
+            surface.move_to({cursor.x.as_int() - restored.width.as_int()/2,
+                             cursor.y.as_int() - restored.height.as_int()/2});
         }
         else
         {
@@ -154,7 +155,7 @@ void ms::SurfaceController::drag_surface(Surface& surface,
         }
         break;
     default:
-        surface.move_to(old_pos + delta);
+        surface.move_to(old_pos + geometry::Displacement{dx,dy});
         break;
     }
 }
