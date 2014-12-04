@@ -29,6 +29,7 @@
 #include "mir_test_doubles/mock_input_sender.h"
 #include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test/fake_shared.h"
 
 #include "src/server/report/null_report_factory.h"
@@ -101,6 +102,7 @@ struct BasicSurfaceTest : public testing::Test
     std::shared_ptr<ms::LegacySurfaceChangeNotification> observer =
         std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb, [this](int){mock_change_cb();});
     std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
+    std::shared_ptr<mg::BufferAccessor> const buffer_accessor = std::make_shared<mtd::StubBufferAccessor>();
     testing::NiceMock<mtd::MockInputSender> mock_sender;
 
     ms::BasicSurface surface{
@@ -112,6 +114,7 @@ struct BasicSurfaceTest : public testing::Test
         stub_input_sender,
         stub_configurator,
         std::shared_ptr<mg::CursorImage>(),
+        buffer_accessor,
         report};
 };
 
@@ -135,7 +138,7 @@ TEST_F(BasicSurfaceTest, id_always_unique)
         surfaces[i].reset(new ms::BasicSurface(
                 name, rect, false, mock_buffer_stream,
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
-                stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
+                stub_configurator, std::shared_ptr<mg::CursorImage>(), buffer_accessor, report)
             );
 
         for (int j = 0; j < i; ++j)
@@ -155,7 +158,7 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
         surfaces[i].reset(new ms::BasicSurface(
                 name, rect, false, mock_buffer_stream,
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
-                stub_configurator, std::shared_ptr<mg::CursorImage>(), report)
+                stub_configurator, std::shared_ptr<mg::CursorImage>(), buffer_accessor, report)
             );
 
         ASSERT_TRUE(surfaces[i]->compositor_snapshot(compositor_id)->id());
@@ -327,6 +330,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         stub_input_sender,
         stub_configurator,
         std::shared_ptr<mg::CursorImage>(),
+        buffer_accessor,
         report};
 
     surface.add_observer(observer);
@@ -646,6 +650,7 @@ TEST_F(BasicSurfaceTest, configure_returns_value_set_by_configurator)
         mt::fake_shared(mock_sender),
         std::make_shared<FocusSwappingConfigurator>(),
         nullptr,
+        buffer_accessor,
         report};
     
     EXPECT_EQ(mir_surface_unfocused, surface.configure(mir_surface_attrib_focus, mir_surface_focused));
@@ -665,6 +670,7 @@ TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
         mt::fake_shared(mock_sender),
         stub_configurator,
         nullptr,
+        buffer_accessor,
         report};
 
     MirEvent event;

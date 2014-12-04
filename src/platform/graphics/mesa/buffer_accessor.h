@@ -16,25 +16,29 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "buffer_writer.h"
+#ifndef MIR_GRAPHICS_MESA_BUFFER_ACCESSOR_H_
+#define MIR_GRAPHICS_MESA_BUFFER_ACCESSOR_H_
 
-#include "shm_buffer.h"
+#include "mir/graphics/buffer_accessor.h"
 
-#include <boost/throw_exception.hpp>
-#include <stdexcept>
-
-namespace mg = mir::graphics;
-namespace mgm = mir::graphics::mesa;
-
-mgm::BufferWriter::BufferWriter()
+namespace mir
 {
-}
-
-void mgm::BufferWriter::write(mg::Buffer& buffer, unsigned char const* data, size_t size)
+namespace graphics
 {
-    auto shm_buffer = dynamic_cast<mgm::ShmBuffer*>(&buffer);
-    if (!shm_buffer)
-        BOOST_THROW_EXCEPTION(std::logic_error("Direct CPU write is only supported to software allocated buffers on mesa platform"));
+class Buffer;
+
+namespace mesa
+{
+class BufferAccessor : public graphics::BufferAccessor
+{
+public:
+    BufferAccessor();
     
-    shm_buffer->write(data, size);
+    void write(graphics::Buffer& buffer, unsigned char const* data, size_t size) override;
+    void read(Buffer& buffer, std::function<void(unsigned char const*)> const& do_with_data) override;
+};
 }
+}
+}
+
+#endif // MIR_GRAPHICS_MESA_BUFFER_ACCESSOR_H_

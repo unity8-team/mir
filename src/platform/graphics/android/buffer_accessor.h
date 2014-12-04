@@ -13,31 +13,40 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Robert Carr <robert.carr@canonical.com>
+ * Authored by:
+ *   Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_MESA_BUFFER_WRITER_H_
-#define MIR_GRAPHICS_MESA_BUFFER_WRITER_H_
+#ifndef MIR_PLATFORM_ANDROID_BUFFER_ACCESSOR_H_
+#define MIR_PLATFORM_ANDROID_BUFFER_ACCESSOR_H_
 
-#include "mir/graphics/buffer_writer.h"
+#include "mir/graphics/buffer_accessor.h"
+
+#include <hardware/gralloc.h>
+
+#include <memory>
 
 namespace mir
 {
 namespace graphics
 {
-class Buffer;
-
-namespace mesa
+namespace android
 {
-class BufferWriter : public graphics::BufferWriter
+
+class BufferAccessor : public graphics::BufferAccessor
 {
 public:
-    BufferWriter();
-    
-    void write(graphics::Buffer& buffer, unsigned char const* data, size_t size) override;
+     BufferAccessor();
+
+     void write(graphics::Buffer& buffer, unsigned char const* pixels, size_t size) override;
+     void read(Buffer& buffer, std::function<void(unsigned char const*)> const& do_with_data) override;
+
+private:
+     gralloc_module_t const* hw_module;
 };
+
 }
 }
 }
 
-#endif // MIR_GRAPHICS_MESA_BUFFER_WRITER_H_
+#endif /* MIR_PLATFORM_ANDROID_BUFFER_ACCESSOR_H_ */

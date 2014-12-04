@@ -44,6 +44,7 @@ namespace frontend { class EventSink; }
 namespace graphics
 {
 class Buffer;
+class BufferAccessor;
 }
 namespace input
 {
@@ -88,6 +89,7 @@ public:
         std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<SurfaceConfigurator> const& configurator,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
+        std::shared_ptr<graphics::BufferAccessor> const& buffer_accessor,
         std::shared_ptr<SceneReport> const& report);
 
     ~BasicSurface() noexcept;
@@ -179,6 +181,7 @@ private:
     std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
+    std::shared_ptr<graphics::BufferAccessor> buffer_accessor;
     std::shared_ptr<SceneReport> const report;
 
     void initialize_attributes();

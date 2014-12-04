@@ -20,12 +20,14 @@
 
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/renderable.h"
-#include "mir/graphics/buffer_writer.h"
+
 #include "mir_test/fake_shared.h"
+
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_scene.h"
-#include "mir_test_doubles/mock_buffer.h"
+#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test_doubles/stub_input_scene.h"
+#include "mir_test_doubles/mock_buffer.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -48,14 +50,6 @@ struct MockBufferAllocator : public mg::GraphicBufferAllocator
 {
     MOCK_METHOD1(alloc_buffer, std::shared_ptr<mg::Buffer>(mg::BufferProperties const&));
     MOCK_METHOD0(supported_pixel_formats, std::vector<MirPixelFormat>(void));
-};
-
-struct StubBufferWriter : public mg::BufferWriter
-{
-    void write(mg::Buffer& /* buffer */,
-        unsigned char const* /* data */, size_t /* size */) override
-    {
-    }
 };
 
 struct StubScene : public mtd::StubInputScene
@@ -99,12 +93,12 @@ struct TestTouchspotController : public ::testing::Test
 {
     TestTouchspotController()
         : allocator(std::make_shared<MockBufferAllocator>()),
-          writer(std::make_shared<StubBufferWriter>()),
+          accessor(std::make_shared<mtd::StubBufferAccessor>()),
           scene(std::make_shared<StubScene>())
     {
     }
     std::shared_ptr<MockBufferAllocator> const allocator;
-    std::shared_ptr<mg::BufferWriter> const writer;
+    std::shared_ptr<mg::BufferAccessor> const accessor;
     std::shared_ptr<StubScene> const scene;
 };
 
@@ -124,7 +118,7 @@ TEST_F(TestTouchspotController, allocates_software_buffer_for_touchspots)
 
     EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
 }
 
 TEST_F(TestTouchspotController, touches_result_in_renderables_in_stack)
@@ -133,7 +127,7 @@ TEST_F(TestTouchspotController, touches_result_in_renderables_in_stack)
     
     EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
     controller.enable();
     
     controller.visualize_touches({ {{0,0}, 1} });
@@ -147,7 +141,7 @@ TEST_F(TestTouchspotController, spots_move)
     
     EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
     controller.enable();
     
     controller.visualize_touches({ {{0,0}, 1} });
@@ -162,7 +156,7 @@ TEST_F(TestTouchspotController, multiple_spots)
     
     EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
     controller.enable();
     
     controller.visualize_touches({ {{0,0}, 1}, {{1, 1}, 1}, {{3, 3}, 1} });
@@ -184,7 +178,7 @@ TEST_F(TestTouchspotController, touches_do_not_result_in_renderables_in_stack_wh
     
     EXPECT_CALL(*allocator, alloc_buffer(SoftwareBuffer())).Times(1)
         .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
     controller.enable();
 
     controller.disable();
@@ -224,7 +218,7 @@ TEST_F(TestTouchspotControllerSceneUpdates, does_not_emit_damage_if_nothing_happ
 {
     EXPECT_CALL(*scene, emit_scene_changed()).Times(0);
 
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
 
     // We are disabled so no damage should occur.
     controller.visualize_touches({ {{0,0}, 1} });
@@ -238,7 +232,7 @@ TEST_F(TestTouchspotControllerSceneUpdates, emits_scene_damage)
 {
     EXPECT_CALL(*scene, emit_scene_changed()).Times(2);
 
-    mi::TouchspotController controller(allocator, writer, scene);
+    mi::TouchspotController controller(allocator, accessor, scene);
 
     controller.enable();
     controller.visualize_touches({ {{0,0}, 1} });

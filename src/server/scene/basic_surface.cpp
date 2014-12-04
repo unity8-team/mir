@@ -25,6 +25,7 @@
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
+#include "mir/graphics/buffer_accessor.h"
 #include "mir/graphics/cursor_image.h"
 
 #include "mir/scene/scene_report.h"
@@ -120,6 +121,7 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<SurfaceConfigurator> const& configurator,
     std::shared_ptr<mg::CursorImage> const& cursor_image,
+    std::shared_ptr<mg::BufferAccessor> const& buffer_accessor,
     std::shared_ptr<SceneReport> const& report) :
     surface_name(name),
     surface_rect(rect),
@@ -134,6 +136,7 @@ ms::BasicSurface::BasicSurface(
     input_sender(input_sender),
     configurator(configurator),
     cursor_image_(cursor_image),
+    buffer_accessor(buffer_accessor),
     report(report)
 {
     initialize_attributes();
@@ -590,6 +593,7 @@ struct CursorImageFromBuffer : public mg::CursorImage
     void const* pixels;
 };
 }
+
 namespace mir
 {
 namespace scene

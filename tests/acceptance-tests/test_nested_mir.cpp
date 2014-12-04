@@ -129,9 +129,9 @@ struct NativePlatformAdapter : mg::NativePlatform
         return ipc_ops;
     }
 
-    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
+    std::shared_ptr<mg::BufferAccessor> make_buffer_accessor() override
     {
-        return adaptee->make_buffer_writer();
+        return adaptee->make_buffer_accessor();
     }
     
     std::shared_ptr<mg::Platform> const adaptee;

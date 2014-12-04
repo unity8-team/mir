@@ -23,6 +23,7 @@
 
 #include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
+#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 #include "mir_test_doubles/stub_input_sender.h"
 
@@ -55,6 +56,7 @@ struct SurfaceComposition : Test
             create_input_sender(),
             create_surface_configurator(),
             create_cursor_image(),
+            std::make_shared<mtd::StubBufferAccessor>(),
             mr::null_scene_report());
 
     }

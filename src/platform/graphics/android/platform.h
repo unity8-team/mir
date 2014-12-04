@@ -48,7 +48,7 @@ public:
         std::shared_ptr<graphics::GLProgramFactory> const&,
         std::shared_ptr<graphics::GLConfig> const& /*gl_config*/) override;
     std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const override;
-    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
+    std::shared_ptr<graphics::BufferAccessor> make_buffer_accessor() override;
     EGLNativeDisplayType egl_native_display() const override;
 
 private:

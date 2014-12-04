@@ -30,7 +30,7 @@ namespace graphics
 {
 class GraphicBufferAllocator;
 class Buffer;
-class BufferWriter;
+class BufferAccessor;
 class Renderable;
 }
 namespace input
@@ -45,7 +45,7 @@ class TouchspotController : public TouchVisualizer
 {
 public:
     TouchspotController(std::shared_ptr<graphics::GraphicBufferAllocator> const& allocator,
-        std::shared_ptr<graphics::BufferWriter> const& writer,
+        std::shared_ptr<graphics::BufferAccessor> const& accessor,
         std::shared_ptr<input::Scene> const& scene);
 
     virtual ~TouchspotController() = default;

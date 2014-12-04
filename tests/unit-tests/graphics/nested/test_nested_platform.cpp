@@ -57,7 +57,7 @@ public:
         return {};
     }
 
-    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
+    std::shared_ptr<mg::BufferAccessor> make_buffer_accessor() override
     {
         return {};
     }

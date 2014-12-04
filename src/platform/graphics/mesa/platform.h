@@ -51,7 +51,7 @@ public:
 
     /* From Platform */
     std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator() override;
-    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
+    std::shared_ptr<graphics::BufferAccessor> make_buffer_accessor() override;
     std::shared_ptr<graphics::Display> create_display(
         std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
         std::shared_ptr<GLProgramFactory> const& program_factory,

@@ -16,7 +16,11 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+#ifndef MIR_GRAPHICS_BUFFER_ACCESSOR_H_
+#define MIR_GRAPHICS_BUFFER_ACCESSOR_H_
+
 #include <cstddef>
+#include <functional>
 
 namespace mir
 {
@@ -24,21 +28,25 @@ namespace graphics
 {
 class Buffer;
 
-/// An interface provided by the graphics platform allowing for writing untiled pixel data into buffers.
-class BufferWriter
+/// An interface provided by the graphics platform allowing for writing and reading untiled pixel data to and from buffers.
+class BufferAccessor
 {
 public:
-    virtual ~BufferWriter() = default;
+    virtual ~BufferAccessor() = default;
 
     // Expects data to be an unstrided array containing (buffer.width * buffer.height) pixels. Likewise
     // it is expected that buffer and data match in pixel format.
     virtual void write(Buffer& buffer, unsigned char const* data, size_t size) = 0;
+    
+    virtual void read(Buffer& buffer, std::function<void(unsigned char const*)> const& do_with_data) = 0;
 
 protected:
-    BufferWriter() = default;
-    BufferWriter(BufferWriter const&) = delete;
-    BufferWriter& operator=(BufferWriter const&) = delete;
+    BufferAccessor() = default;
+    BufferAccessor(BufferAccessor const&) = delete;
+    BufferAccessor& operator=(BufferAccessor const&) = delete;
 };
 
 }
 }
+
+#endif // MIR_GRAPHICS_BUFFER_ACCESSOR_H_

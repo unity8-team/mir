@@ -76,6 +76,7 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
                 the_input_sender(),
                 the_surface_configurator(),
                 the_default_cursor_image(),
+                the_buffer_accessor(),
                 the_scene_report());
         });
 }

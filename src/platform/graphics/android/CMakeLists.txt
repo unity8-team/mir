@@ -34,7 +34,7 @@ add_library(mirplatformgraphicsandroidobjects OBJECT
   real_hwc_wrapper.cpp
   hwc_fallback_gl_renderer.cpp
   ipc_operations.cpp
-  buffer_writer.cpp
+  buffer_accessor.cpp
 )
 add_library(mirplatformgraphicsandroid SHARED
   $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>

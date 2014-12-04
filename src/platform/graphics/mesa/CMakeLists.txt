@@ -32,7 +32,7 @@ add_library(mirplatformgraphicsmesaobjects OBJECT
   shm_buffer.cpp
   bypass.cpp
   ipc_operations.cpp
-  buffer_writer.cpp
+  buffer_accessor.cpp
   nested_authentication.cpp
 )
 
