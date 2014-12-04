@@ -26,6 +26,7 @@ namespace mir
 {
 
 namespace shell { class DisplayLayout; }
+namespace geometry { struct Point; }
 
 namespace scene
 {
@@ -58,6 +59,7 @@ public:
     void raise(std::weak_ptr<Surface> const& surface) override;
 
     int configure_surface(Surface&, MirSurfaceAttrib, int) override;
+    void move_surface(Surface&, geometry::Point const&);
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;

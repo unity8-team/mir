@@ -93,6 +93,9 @@ struct StubSurfaceCoordinator : public ms::SurfaceCoordinator
     {
         return val;
     }
+    void move_surface(ms::Surface&, mir::geometry::Point const&) override
+    {
+    }
 };
 
 struct ApplicationSession : public testing::Test

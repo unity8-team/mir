@@ -402,7 +402,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                     }
                     else
                     { // Move surface (by mouse or 3 fingers)
-                        surf->move_to(old_pos + drag);
+                        surface_coordinator->move_surface(*surf, old_pos + drag);
                     }
 
                     if (fingers == 3)

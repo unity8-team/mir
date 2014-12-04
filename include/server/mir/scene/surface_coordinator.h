@@ -25,6 +25,9 @@
 
 namespace mir
 {
+
+namespace geometry { struct Point; }
+
 namespace scene
 {
 class Surface;
@@ -41,6 +44,7 @@ public:
 
     virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
     virtual int configure_surface(Surface&, MirSurfaceAttrib, int) = 0;
+    virtual void move_surface(Surface&, geometry::Point const&) = 0;
 
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) = 0;
 protected:

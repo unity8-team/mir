@@ -52,3 +52,8 @@ int msh::SurfaceCoordinatorWrapper::configure_surface(ms::Surface& surface,
     return wrapped->configure_surface(surface, attrib, value);
 }
 
+void msh::SurfaceCoordinatorWrapper::move_surface(ms::Surface& surface,
+                                                  geometry::Point const& pos)
+{
+    wrapped->move_surface(surface, pos);
+}

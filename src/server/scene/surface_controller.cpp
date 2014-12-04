@@ -112,3 +112,23 @@ void ms::SurfaceController::set_state(Surface& surface,
     }
 }
 
+void ms::SurfaceController::move_surface(Surface& surface,
+                                         geometry::Point const& pos)
+{
+    // TODO: Make these surface operations atomic (LP: #1395957)
+
+    switch (surface.state())
+    {
+    case mir_surface_state_maximized:
+    case mir_surface_state_fullscreen:
+        configure_surface(surface, mir_surface_attrib_state,
+                          mir_surface_state_restored);
+        break;
+    case mir_surface_state_vertmaximized:
+        surface.move_to({pos.x, surface.top_left().y});
+        break;
+    default:
+        surface.move_to(pos);
+        break;
+    }
+}
