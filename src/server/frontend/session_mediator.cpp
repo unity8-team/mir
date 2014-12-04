@@ -276,6 +276,8 @@ void mf::SessionMediator::exchange_buffer(
         surface_tracker.buffer_from(buffer_id),
         [this, buffer_stream_id, lock, response, done](mg::Buffer* new_buffer)
         {
+            printf("Completing buffer swap\n");
+
             lock->unlock();
 
             if (surface_tracker.track_buffer(buffer_stream_id, new_buffer))
@@ -511,9 +513,12 @@ void mf::SessionMediator::configure_cursor(
         }
         else if (cursor_request->has_buffer_stream_id())
         {
+            printf("Has buffer stream id\n");
             auto const& stream_id = mf::BufferStreamId(cursor_request->buffer_stream_id().value());
             auto stream = session->get_buffer_stream(stream_id);
+            printf("Setting buffer stream \n");
             surface->set_cursor_stream(stream);
+            printf("Set buffer stream \n");
         }
         else
         {
@@ -712,7 +717,6 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
     mg::BufferProperties props(stream_size,
         static_cast<MirPixelFormat>(request->pixel_format()),
         usage);
-                         
     
     auto const buffer_stream_id = session->create_buffer_stream(props);
     auto stream = session->get_buffer_stream(buffer_stream_id);

@@ -560,10 +560,9 @@ struct FramePostObserver : public ms::NullSurfaceObserver
         : exec_on_post(exec)
     {
     }
-    void frame_posted(int frames_available)
+    void frame_posted(int /* frames_available */)
     {
-        if (frames_available)
-            exec_on_post();
+        exec_on_post();
     }
     std::function<void()> const exec_on_post;
 };
@@ -601,7 +600,8 @@ struct CursorStreamImageAdapter
         : surface(surface),
           stream(stream)
     {
-        post_cursor_image_from_current_buffer();
+// TODO: Enable remember the deadlock....
+//        post_cursor_image_from_current_buffer();
         observer = std::make_shared<FramePostObserver>([&](){
                 post_cursor_image_from_current_buffer();
             });
@@ -615,9 +615,12 @@ struct CursorStreamImageAdapter
 
     void post_cursor_image_from_current_buffer()
     {
+        printf("Trying to post image with most recent buffer \n");
         stream->with_most_recent_buffer_do([&](mg::Buffer &buffer) 
         {
-            surface.set_cursor_image(std::make_shared<CursorImageFromBuffer>(buffer));
+            printf("Got buffer \n");
+            surface.set_cursor_from_buffer(buffer);
+            printf("SEt image \n");
         });
     }
     
@@ -629,14 +632,25 @@ struct CursorStreamImageAdapter
 }
 }
 
+// Don't reset the adapter
+void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer)
+{
+    auto image = std::make_shared<CursorImageFromBuffer>(buffer);
+
+    {
+        std::unique_lock<std::mutex> lock(guard);
+
+        cursor_image_ = image;
+    }
+
+    observers.cursor_image_set_to(*image);
+}
+
 void ms::BasicSurface::set_cursor_stream(std::shared_ptr<mf::BufferStream> const& stream)
 {
     std::unique_lock<std::mutex> lock(guard);
     
-    {
-        std::unique_lock<std::mutex> lock(guard);
-        cursor_stream_adapter = std::make_shared<ms::CursorStreamImageAdapter>(*this, stream);
-    }
+    cursor_stream_adapter = std::make_shared<ms::CursorStreamImageAdapter>(*this, stream);
 }
     
 

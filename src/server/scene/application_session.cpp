@@ -101,23 +101,37 @@ struct SimpleBufferStream : public mf::BufferStream
     SimpleBufferStream(std::shared_ptr<mc::BufferStream> const& buffer_stream)
         : buffer_stream(buffer_stream)
     {
+        buffer_stream->allow_framedropping(true);
+        comp_buffer = buffer_stream->lock_compositor_buffer(this);
     }
 
     void swap_buffers(mg::Buffer* old_buffer, std::function<void(mg::Buffer* new_buffer)> complete)
     {
         if (old_buffer)
+        {
+            printf("Releasing old client buffer \n");
             buffer_stream->release_client_buffer(old_buffer);
-        
-        if (observer)
-            observer->frame_posted(buffer_stream->buffers_ready_for_compositor());
+
+            comp_buffer = buffer_stream->lock_compositor_buffer(this);
+
+            if (observer)
+                {
+                    printf("Notifying observer \n");
+                observer->frame_posted(1); // TODO
+}
+
+            comp_buffer.reset();
+        }
 
         buffer_stream->acquire_client_buffer(complete);
+
     }
     
     void with_most_recent_buffer_do(std::function<void(mg::Buffer&)> const& exec)
     {
-        auto buf = buffer_stream->lock_compositor_buffer(this);
-        exec(*buf);
+        printf("Acquiring compositor buf \n");
+        exec(*comp_buffer);
+        printf("Releasing compositor buf \n");
     }
     
     void add_observer(std::shared_ptr<ms::SurfaceObserver> const& new_observer) override
@@ -139,6 +153,8 @@ struct SimpleBufferStream : public mf::BufferStream
     std::shared_ptr<mc::BufferStream> const buffer_stream;
 
     std::shared_ptr<ms::SurfaceObserver> observer;
+    
+    std::shared_ptr<mg::Buffer> comp_buffer;
 };
 }
 

@@ -415,10 +415,15 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
     {
         std::unique_lock<decltype(mutex)> lock(mutex);
         setting.mutable_surfaceid()->CopyFrom(surface.id());
-        if (cursor && cursor->name != mir_disabled_cursor_name)
-            setting.set_name(cursor->name.c_str());
-        else if (cursor && cursor->stream != nullptr)
+        if (cursor && cursor->stream != nullptr)
+        {
+            printf("Foobarbaz\n");
             setting.mutable_buffer_stream_id()->CopyFrom(cursor->stream->protobuf_id());
+        }
+        else if (cursor && cursor->name != mir_disabled_cursor_name)
+        {
+            setting.set_name(cursor->name.c_str());
+        }
     }
     
     configure_cursor_wait_handle.expect_result();
