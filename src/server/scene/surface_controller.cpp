@@ -123,27 +123,21 @@ void ms::SurfaceController::drag_surface(Surface& surface,
 
     bool unsnap = false;
     auto old_pos = surface.top_left();
-
-    // Local = current relative coordinate of the cursor in the surface
-    // FIXME: Missing Point::operator-()
-    int local_x = cursor.x.as_int() - old_pos.x.as_int();
-    int local_y = cursor.y.as_int() - old_pos.y.as_int();
-    int dx = local_x - grab.dx.as_int();
-    int dy = local_y - grab.dy.as_int();
-
-    auto new_pos = old_pos + geometry::Displacement{dx,dy};
+    auto local = cursor - old_pos;
+    auto delta = local - grab;
+    auto new_pos = old_pos + delta;
 
     switch (surface.state())
     {
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
-        if ((dx*dx + dy*dy) >= sqr_snap_distance)
+        if (delta.length_squared() >= sqr_snap_distance)
             unsnap = true;
         else
             new_pos = old_pos;
         break;
     case mir_surface_state_vertmaximized:
-        if ((dy*dy) >= sqr_snap_distance)
+        if (abs(delta.dy.as_int()) >= snap_distance)
             unsnap = true;
         else
             new_pos.y = old_pos.y;
