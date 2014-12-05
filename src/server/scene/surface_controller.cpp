@@ -118,20 +118,17 @@ void ms::SurfaceController::drag_surface(Surface& surface,
                                          geometry::Displacement& grab,
                                          geometry::Point const& cursor)
 {
-    int const snap_distance = 30; // TODO: configurable
-    int const sqr_snap_distance = snap_distance * snap_distance;
-
+    int const snap_distance = 50; // TODO: configurable
     bool unsnap = false;
     auto old_pos = surface.top_left();
-    auto local = cursor - old_pos;
-    auto delta = local - grab;
+    auto delta = (cursor - old_pos) - grab;
     auto new_pos = old_pos + delta;
 
     switch (surface.state())
     {
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
-        if (delta.length_squared() >= sqr_snap_distance)
+        if (delta.length_squared() >= (snap_distance * snap_distance))
             unsnap = true;
         else
             new_pos = old_pos;
