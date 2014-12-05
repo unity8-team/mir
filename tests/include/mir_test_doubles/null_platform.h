@@ -51,7 +51,7 @@ class NullPlatform : public graphics::Platform
         return std::make_shared<graphics::PlatformIPCPackage>();
     }
 
-    std::shared_ptr<graphics::BufferAccessor> make_buffer_accessor() override
+    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override
     {
         return nullptr;
     }

@@ -41,14 +41,12 @@ ms::SurfaceAllocator::SurfaceAllocator(
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<SurfaceConfigurator> const& configurator,
     std::shared_ptr<mg::CursorImage> const& default_cursor_image,
-    std::shared_ptr<mg::BufferAccessor> const& buffer_accessor,
     std::shared_ptr<SceneReport> const& report) :
     buffer_stream_factory(stream_factory),
     input_factory(input_factory),
     input_sender(input_sender),
     configurator(configurator),
     default_cursor_image(default_cursor_image),
-    buffer_accessor(buffer_accessor),
     report(report)
 {
 }
@@ -72,7 +70,6 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
         input_sender,
         configurator,
         default_cursor_image,
-        buffer_accessor,
         report);
 
     return surface;

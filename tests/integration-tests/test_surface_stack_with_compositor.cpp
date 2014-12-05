@@ -25,7 +25,6 @@
 #include "src/server/compositor/multi_threaded_compositor.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_buffer_stream.h"
-#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/stub_renderer.h"
 #include "mir_test_doubles/stub_display_buffer.h"
@@ -137,7 +136,6 @@ struct SurfaceStackCompositor : public testing::Test
             std::shared_ptr<mtd::StubInputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            std::make_shared<mtd::StubBufferAccessor>(),
             null_scene_report)}
     {
         using namespace testing;

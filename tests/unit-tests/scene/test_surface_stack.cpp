@@ -126,7 +126,6 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            nullptr,
             report);
 
         stub_surface2 = std::make_shared<ms::BasicSurface>(
@@ -138,7 +137,6 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            nullptr,
             report);
 
         stub_surface3 = std::make_shared<ms::BasicSurface>(
@@ -150,7 +148,6 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            nullptr,
             report);
     }
 
@@ -311,7 +308,6 @@ TEST_F(SurfaceStack, generate_elementelements)
             std::shared_ptr<mir::input::InputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            nullptr,
             report);
 
         surfaces.emplace_back(surface);
@@ -442,7 +438,6 @@ TEST_F(SurfaceStack, scene_elements_hold_snapshot_of_positioning_info)
             std::shared_ptr<mir::input::InputSender>(),
             std::make_shared<mtd::NullSurfaceConfigurator>(),
             std::shared_ptr<mg::CursorImage>(),
-            nullptr,
             report);
 
         surfaces.emplace_back(surface);
@@ -477,7 +472,6 @@ TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
         std::shared_ptr<mir::input::InputSender>(),
         std::make_shared<mtd::NullSurfaceConfigurator>(),
         std::shared_ptr<mg::CursorImage>(),
-        nullptr,
         report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
@@ -509,7 +503,6 @@ TEST_F(SurfaceStack, generates_scene_elements_that_allow_only_one_buffer_acquisi
         std::shared_ptr<mir::input::InputSender>(),
         std::make_shared<mtd::NullSurfaceConfigurator>(),
         std::shared_ptr<mg::CursorImage>(),
-        nullptr,
         report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
@@ -530,7 +523,6 @@ struct MockConfigureSurface : public ms::BasicSurface
             {{},{}},
             true,
             std::make_shared<mtd::StubBufferStream>(),
-            {},
             {},
             {},
             {},

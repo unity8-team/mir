@@ -75,7 +75,6 @@ struct DemoCompositor : testing::Test
         std::shared_ptr<mir::input::InputSender>(),
         std::make_shared<mtd::NullSurfaceConfigurator>(),
         std::shared_ptr<mir::graphics::CursorImage>(),
-        nullptr,
         mir::report::null_scene_report()};
 
     me::DemoCompositor demo_compositor{

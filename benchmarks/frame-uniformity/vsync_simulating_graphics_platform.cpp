@@ -18,12 +18,11 @@
 
 #include "vsync_simulating_graphics_platform.h"
 
-#include "mir/graphics/buffer_accessor.h"
+#include "mir/graphics/buffer_writer.h"
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test_doubles/stub_display.h"
 
 #include <chrono>
@@ -36,6 +35,13 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
+
+struct StubBufferWriter : public mg::BufferWriter
+{
+    void write(mg::Buffer&, unsigned char const*, size_t) override
+    {
+    }
+};
 
 class StubIpcOps : public mg::PlatformIpcOperations
 {
@@ -115,9 +121,9 @@ std::shared_ptr<mg::GraphicBufferAllocator> VsyncSimulatingPlatform::create_buff
     return std::make_shared<mtd::StubBufferAllocator>();
 }
 
-std::shared_ptr<mg::BufferAccessor> VsyncSimulatingPlatform::make_buffer_accessor()
+std::shared_ptr<mg::BufferWriter> VsyncSimulatingPlatform::make_buffer_writer()
 {
-    return std::make_shared<mtd::StubBufferAccessor>();
+    return std::make_shared<StubBufferWriter>();
 }
     
 std::shared_ptr<mg::Display> VsyncSimulatingPlatform::create_display(

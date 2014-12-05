@@ -21,7 +21,7 @@
 #include "native_platform.h"
 
 #include "buffer_allocator.h"
-#include "buffer_accessor.h"
+#include "buffer_writer.h"
 #include "mir/graphics/buffer_ipc_message.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/nested_context.h"
@@ -101,9 +101,9 @@ void mgm::NativePlatform::finish_internal_native_display()
     native_display.reset();
 }
 
-std::shared_ptr<mg::BufferAccessor> mgm::NativePlatform::make_buffer_accessor()
+std::shared_ptr<mg::BufferWriter> mgm::NativePlatform::make_buffer_writer()
 {
-    return std::make_shared<mgm::BufferAccessor>();
+    return std::make_shared<mgm::BufferWriter>();
 }
 
 std::shared_ptr<mg::PlatformIpcOperations> mgm::NativePlatform::make_ipc_operations() const

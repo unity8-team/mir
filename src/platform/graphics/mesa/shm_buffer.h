@@ -25,8 +25,6 @@
 #include "mir/geometry/size.h"
 #include "mir_toolkit/common.h"
 
-#include <functional>
-
 namespace mir
 {
 namespace graphics
@@ -52,7 +50,7 @@ public:
     bool can_bypass() const override;
 
     void write(unsigned char const* data, size_t size);
-    void read(std::function<void(unsigned char const*)> const& do_with_data);
+    void read(std::function<void(unsigned char const*)> const& do_with_pixels);
 
 private:
     ShmBuffer(ShmBuffer const&) = delete;

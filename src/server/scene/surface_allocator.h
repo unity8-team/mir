@@ -31,7 +31,6 @@ class InputSender;
 namespace graphics
 {
 class CursorImage;
-class BufferAccessor;
 }
 namespace scene
 {
@@ -47,7 +46,6 @@ public:
                      std::shared_ptr<input::InputSender> const& input_sender,
                      std::shared_ptr<SurfaceConfigurator> const& configurator,
                      std::shared_ptr<graphics::CursorImage> const& default_cursor_image,
-                     std::shared_ptr<graphics::BufferAccessor> const& buffer_accessor,
                      std::shared_ptr<SceneReport> const& report);
 
     std::shared_ptr<Surface> create_surface(SurfaceCreationParameters const& params) override;
@@ -58,7 +56,6 @@ private:
     std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> const default_cursor_image;
-    std::shared_ptr<graphics::BufferAccessor> const buffer_accessor;
     std::shared_ptr<SceneReport> const report;
 };
 

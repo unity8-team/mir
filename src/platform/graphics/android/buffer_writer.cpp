@@ -17,7 +17,7 @@
  *   Robert Carr <robert.carr@canonical.com>
  */
 
-#include "buffer_accessor.h"
+#include "buffer_writer.h"
 #include "buffer.h"
 
 #include "mir/graphics/android/android_native_buffer.h"
@@ -32,14 +32,14 @@
 namespace mg = mir::graphics;
 namespace mga = mg::android;
 
-mga::BufferAccessor::BufferAccessor()
+mga::BufferWriter::BufferWriter()
 {
     auto err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, (hw_module_t const **)(&hw_module));
     if (err < 0)
         BOOST_THROW_EXCEPTION(std::runtime_error("Could not open hardware module"));
 }
 
-void mga::BufferAccessor::write(mg::Buffer& buffer, unsigned char const* data, size_t size)
+void mga::BufferWriter::write(mg::Buffer& buffer, unsigned char const* data, size_t size)
 {
     auto buffer_size = buffer.size();
     auto bpp = MIR_BYTES_PER_PIXEL(buffer.pixel_format());
@@ -67,12 +67,4 @@ void mga::BufferAccessor::write(mg::Buffer& buffer, unsigned char const* data, s
     }
     
     hw_module->unlock(hw_module, handle->handle());
-}
-
-void mga::BufferAccessor::read(mg::Buffer& buffer, std::function<void(unsigned char const*)> const& do_with_data)
-{
-    // TODO: Impl
-    (void)buffer;
-    (void)do_with_data;
-    BOOST_THROW_EXCEPTION(std::runtime_error("Not yet supported"));
 }

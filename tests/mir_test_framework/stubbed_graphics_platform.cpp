@@ -19,11 +19,11 @@
 #include "stubbed_graphics_platform.h"
 
 #include "mir/graphics/buffer_ipc_message.h"
-#include "mir/graphics/buffer_accessor.h"
+
 #include "mir/graphics/native_platform.h"
+#include "mir/graphics/buffer_writer.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_buffer_accessor.h"
 #include "mir_test_doubles/stub_display.h"
 
 #ifdef ANDROID
@@ -189,9 +189,16 @@ std::shared_ptr<mg::Display> mtf::StubGraphicPlatform::create_display(
     return std::make_shared<mtd::StubDisplay>(display_rects);
 }
 
-std::shared_ptr<mg::BufferAccessor> mtf::StubGraphicPlatform::make_buffer_accessor()
+std::shared_ptr<mg::BufferWriter> mtf::StubGraphicPlatform::make_buffer_writer()
 {
-    return std::make_shared<mtd::StubBufferAccessor>();
+    struct NullWriter : mg::BufferWriter
+    {
+        void write(mg::Buffer& /* buffer */,
+            unsigned char const* /* data */, size_t /* size */) override
+        {
+        }
+    };
+    return std::make_shared<NullWriter>();
 }
 
 namespace

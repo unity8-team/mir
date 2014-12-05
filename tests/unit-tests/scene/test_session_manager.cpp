@@ -101,7 +101,6 @@ struct SessionManagerSetup : public testing::Test
         std::shared_ptr<mi::InputSender>(),
         std::shared_ptr<ms::SurfaceConfigurator>(),
         std::shared_ptr<mg::CursorImage>(),
-        nullptr,
         mir::report::null_scene_report());
     mtd::MockSurfaceCoordinator surface_coordinator;
     mtd::StubBufferStreamFactory buffer_stream_factory;

@@ -39,7 +39,7 @@ public:
     virtual ~NativePlatform();
 
     std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() override;
-    std::shared_ptr<graphics::BufferAccessor> make_buffer_accessor() override;
+    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
     std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const override;
     
     static std::shared_ptr<InternalNativeDisplay> internal_native_display();

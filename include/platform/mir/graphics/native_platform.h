@@ -36,7 +36,7 @@ class PlatformIPCPackage;
 class InternalClient;
 class BufferIpcMessage;
 class Buffer;
-class BufferAccessor;
+class BufferWriter;
 class DisplayReport;
 class NestedContext;
 
@@ -49,7 +49,7 @@ public:
 
     virtual std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const = 0;
 
-    virtual std::shared_ptr<BufferAccessor> make_buffer_accessor() = 0;
+    virtual std::shared_ptr<BufferWriter> make_buffer_writer() = 0;
 
     virtual ~NativePlatform() = default;
     NativePlatform(NativePlatform const&) = delete;

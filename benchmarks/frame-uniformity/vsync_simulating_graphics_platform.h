@@ -31,7 +31,7 @@ public:
     ~VsyncSimulatingPlatform() = default;
     
     std::shared_ptr<mir::graphics::GraphicBufferAllocator> create_buffer_allocator();
-    std::shared_ptr<mir::graphics::BufferAccessor> make_buffer_accessor();
+    std::shared_ptr<mir::graphics::BufferWriter> make_buffer_writer();
     
     std::shared_ptr<mir::graphics::Display> create_display(
         std::shared_ptr<mir::graphics::DisplayConfigurationPolicy> const& initial_conf_policy,
