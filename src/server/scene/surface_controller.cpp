@@ -122,36 +122,37 @@ void ms::SurfaceController::drag_surface(Surface& surface,
     int const sqr_snap_distance = snap_distance * snap_distance;
 
     bool unsnap = false;
-    auto pos = surface.top_left();
+    auto old_pos = surface.top_left();
 
     // Local = current relative coordinate of the cursor in the surface
     // FIXME: Missing Point::operator-()
-    int local_x = cursor.x.as_int() - pos.x.as_int();
-    int local_y = cursor.y.as_int() - pos.y.as_int();
-
-    // Delta = the drag gesture vector
+    int local_x = cursor.x.as_int() - old_pos.x.as_int();
+    int local_y = cursor.y.as_int() - old_pos.y.as_int();
     int dx = local_x - grab.dx.as_int();
     int dy = local_y - grab.dy.as_int();
+
+    auto new_pos = old_pos + geometry::Displacement{dx,dy};
 
     switch (surface.state())
     {
     case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
-        unsnap = ((dx*dx + dy*dy) >= sqr_snap_distance);
+        if ((dx*dx + dy*dy) >= sqr_snap_distance)
+            unsnap = true;
+        else
+            new_pos = old_pos;
         break;
     case mir_surface_state_vertmaximized:
         if ((dy*dy) >= sqr_snap_distance)
             unsnap = true;
         else
-            surface.move_to({pos.x.as_int() + dx, pos.y});
+            new_pos.y = old_pos.y;
         break;
     case mir_surface_state_restored:
         {
-        surface.move_to(pos + geometry::Displacement{dx,dy});
-
 #if 0
         // FIXME LP: #1398294
-        geometry::Rectangle workarea{pos, surface.size()};
+        geometry::Rectangle workarea{old_pos, surface.size()};
         display_layout->size_to_output(workarea);  // TODO implement workarea
     
         // Drag to top of screen: maximize
@@ -179,13 +180,6 @@ void ms::SurfaceController::drag_surface(Surface& surface,
         configure_surface(surface, mir_surface_attrib_state,
                           mir_surface_state_restored);
 
-        /*
-         * As the surface shrinks back to its original size on unsnap, this
-         * could leave the cursor outside of it while still dragging. So we
-         * fix this by moving the "grab" position such that the cursor is
-         * grabbing the centre.
-         */
-        auto new_pos = pos + geometry::Displacement{dx,dy};
         geometry::Rectangle restored{new_pos, surface.size()};
         if (!restored.contains(cursor))
         {
@@ -193,6 +187,7 @@ void ms::SurfaceController::drag_surface(Surface& surface,
                     restored.size.height.as_int()/2};
             new_pos = cursor - grab;
         }
-        surface.move_to(new_pos);
     }
+
+    surface.move_to(new_pos);
 }
