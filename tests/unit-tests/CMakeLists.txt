@@ -80,6 +80,7 @@ target_link_libraries(
 
   mir-test
   mir-test-doubles
+  mir-test-doubles-libinput
   mir-test-doubles-platform
   mir-test-framework
 

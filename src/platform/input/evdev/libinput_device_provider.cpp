@@ -18,6 +18,8 @@
 
 #include "libinput_device_provider.h"
 #include "evdev_device_detection.h"
+#include "libinput_wrapper.h"
+#include "libinput_device.h"
 
 #include "mir/input/input_device.h"
 #include "mir/input/device_class.h"
@@ -30,6 +32,10 @@
 
 namespace mi = mir::input;
 namespace mie = mi::evdev;
+
+mie::LibInputDeviceProvider::LibInputDeviceProvider()
+    : lib(std::make_shared<mie::LibInputWrapper>())
+{}
 
 mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) const
 {
@@ -56,6 +62,6 @@ mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) cons
 std::unique_ptr<mi::InputDevice> mie::LibInputDeviceProvider::create_device(char const* device) const
 {
     (void)device;
-    return std::unique_ptr<mi::InputDevice>();
+    return std::unique_ptr<mie::LibInputDevice>();
 }
 

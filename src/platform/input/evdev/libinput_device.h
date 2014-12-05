@@ -16,10 +16,12 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_EVDEV_LIBINPUT_DEVICE_PROVIDER_H_
-#define MIR_INPUT_EVDEV_LIBINPUT_DEVICE_PROVIDER_H_
+#ifndef MIR_INPUT_EVDEV_LIBINPUT_DEVICE_H_
+#define MIR_INPUT_EVDEV_LIBINPUT_DEVICE_H_
 
-#include "input_device_provider.h"
+#include "mir/input/input_device.h"
+
+struct libinput_device;
 
 namespace mir
 {
@@ -29,18 +31,20 @@ namespace evdev
 {
 class LibInputWrapper;
 
-class LibInputDeviceProvider : public InputDeviceProvider
+class LibInputDevice : public input::InputDevice
 {
 public:
-    LibInputDeviceProvider();
-    Priority probe_device(char const* device) const override;
-    std::unique_ptr<InputDevice> create_device(char const* device) const override;
+    LibInputDevice(std::shared_ptr<LibInputWrapper> const& lib, char const* path);
+    ~LibInputDevice();
+    void enable_input_events(Multiplexer& registry, EventSink& sink) override;
+    void disable_input_events(Multiplexer& registry) override;
 private:
-    std::shared_ptr<LibInputWrapper> lib;
+    std::string path;
+    std::unique_ptr<::libinput_device,libinput_device*(*)(::libinput_device*)> dev;
+    std::shared_ptr<LibInputWrapper> const lib;
 };
-
 }
 }
 }
 
-#endif // MIR_INPUT_LIBINPUT_INPUT_DEVICE_PROVIDER_H_
+#endif

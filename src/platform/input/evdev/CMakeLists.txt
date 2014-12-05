@@ -1,8 +1,12 @@
+include_directories(${LIBINPUT_CFLAGS})
+
 add_library(mirplatforminputevdevobjects OBJECT
     android_device_provider.cpp
     evdev_device_detection.cpp
     evdev_input_device_factory.cpp
+    libinput_device.cpp
     libinput_device_provider.cpp
+    libinput_wrapper.cpp
     platform.cpp
     )
 
@@ -20,4 +24,5 @@ set_target_properties(
 target_link_libraries(mirplatforminputevdev
   mirplatform
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
+  ${LIBINPUT_LDFLAGS} ${LIBINPUT_LIBRARIES}
 )

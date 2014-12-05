@@ -26,6 +26,7 @@
 #include "mir_test_doubles/mock_main_loop.h"
 #include "mir_test_doubles/mock_input_device_registry.h"
 #include "mir_test_doubles/mock_input_multiplexer.h"
+#include "mir_test_doubles/mock_libinput.h"
 #include "mir_test_framework/udev_environment.h"
 
 #include <thread>
@@ -51,6 +52,7 @@ public:
     {
     }
     mir_test_framework::UdevEnvironment env; // has to be created before platform
+    mtd::MockLibInput mock_libinput;
     std::unique_ptr<mie::Platform> platform;
     ::testing::NiceMock<mtd::MockMultiplexer> mock_multiplexer;
     std::shared_ptr<::testing::NiceMock<mtd::MockInputDeviceRegistry>> mock_registry =

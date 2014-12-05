@@ -18,6 +18,7 @@
 
 #include "src/platform/input/evdev/libinput_device_provider.h"
 #include "mir_test_framework/udev_environment.h"
+#include "mir_test_doubles/mock_libinput.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -29,6 +30,7 @@ namespace mtf = mir_test_framework;
 struct LibInput : public ::testing::TestWithParam<std::tuple<char const*, char const*, mie::Priority>>
 {
     mtf::UdevEnvironment env;
+    mir::test::doubles::MockLibInput input;
 };
 
 TEST_P(LibInput, device_probing_yields_expected_priority)

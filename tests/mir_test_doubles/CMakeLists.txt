@@ -62,6 +62,14 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
 )
 
+
+add_library(mir-test-doubles-libinput STATIC mock_libinput.cpp)
+target_link_libraries(mir-test-doubles-libinput 
+    ${GMOCK_LIBRARY}
+    ${GMOCK_MAIN_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    )
+
 add_library(
   mir-test-doubles-platform STATIC
   ${MIR_TEST_DOUBLES_PLATFORM_SRCS})

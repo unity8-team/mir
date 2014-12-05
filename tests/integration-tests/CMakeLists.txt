@@ -87,6 +87,7 @@ target_link_libraries(
 
   mir-test
   mir-test-framework
+  mir-test-doubles-libinput
   mir-test-doubles
   mirclient-debug-extension
 

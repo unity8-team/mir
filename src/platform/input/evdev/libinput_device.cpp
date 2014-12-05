@@ -16,31 +16,29 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_EVDEV_LIBINPUT_DEVICE_PROVIDER_H_
-#define MIR_INPUT_EVDEV_LIBINPUT_DEVICE_PROVIDER_H_
+#include "libinput_device.h"
+#include "libinput_wrapper.h"
 
-#include "input_device_provider.h"
+#include "mir/input/multiplexer.h"
+#include <libinput.h>
 
-namespace mir
-{
-namespace input
-{
-namespace evdev
-{
-class LibInputWrapper;
+namespace mie = mir::input::evdev;
 
-class LibInputDeviceProvider : public InputDeviceProvider
+mie::LibInputDevice::LibInputDevice(std::shared_ptr<mie::LibInputWrapper> const& lib, char const* path)
+    : path(path), dev(nullptr,&libinput_device_unref), lib(lib)
 {
-public:
-    LibInputDeviceProvider();
-    Priority probe_device(char const* device) const override;
-    std::unique_ptr<InputDevice> create_device(char const* device) const override;
-private:
-    std::shared_ptr<LibInputWrapper> lib;
-};
-
-}
-}
 }
 
-#endif // MIR_INPUT_LIBINPUT_INPUT_DEVICE_PROVIDER_H_
+mie::LibInputDevice::~LibInputDevice() = default;
+
+void mie::LibInputDevice::enable_input_events(Multiplexer& registry, EventSink& sink)
+{
+    dev = lib->add_device(path);
+    lib->enable_input_processing(registry, dev.get(), sink);
+}
+
+void mie::LibInputDevice::disable_input_events(Multiplexer& registry)
+{
+    lib->disable_input_processing(registry, dev.get());
+    dev.reset();
+}
