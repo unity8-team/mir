@@ -57,6 +57,8 @@ public:
     //the fences associated with the buffer. You must close these fences
     std::shared_ptr<NativeBuffer> native_buffer_handle() const override;
 
+    void read(std::function<void(unsigned char const*)> const& do_with_data) override;
+
 private:
     typedef std::pair<EGLDisplay, EGLContext> DispContextPair;
     std::map<DispContextPair,EGLImageKHR> egl_image_map;

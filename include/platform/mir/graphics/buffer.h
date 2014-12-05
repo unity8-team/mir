@@ -44,6 +44,8 @@ public:
     virtual void gl_bind_to_texture() = 0;
     /* TODO: remove this function, as it is specific to the mesa platform */
     virtual bool can_bypass() const = 0;
+    
+    virtual void read(std::function<void(unsigned char const*)> const& do_with_data) = 0;
 
 protected:
     Buffer() = default;

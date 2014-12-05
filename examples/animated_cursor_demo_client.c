@@ -47,7 +47,7 @@ MirBufferStream* make_cursor_stream(MirConnection *connection, MirSurface *surfa
 {
     // TODO: Constants
     MirBufferStream* stream = mir_connection_create_buffer_stream_sync(connection,
-      24, 24, mir_pixel_format_argb_8888, mir_buffer_usage_hardware);
+      24, 24, mir_pixel_format_argb_8888, mir_buffer_usage_software);
     
     MirCursorConfiguration* conf = mir_cursor_configuration_from_buffer_stream(stream);
     mir_wait_for(mir_surface_configure_cursor(surface, conf));
@@ -72,6 +72,8 @@ int main(int argc, char *argv[])
 
     while (mir_eglapp_running())
     {
+        // TODO: Remove once cursor-is-a-renderable enables vsync here.
+        sleep(1);
         animate_cursor(stream);
     }
 

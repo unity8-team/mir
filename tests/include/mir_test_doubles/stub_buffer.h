@@ -101,6 +101,8 @@ public:
 
     virtual bool can_bypass() const override { return true; }
 
+    void read(std::function<void(unsigned char const*)> const&) override {}
+
     std::shared_ptr<graphics::NativeBuffer> const native_buffer;
     geometry::Size const buf_size;
     MirPixelFormat const buf_pixel_format;

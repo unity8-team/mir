@@ -705,13 +705,13 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
 
     
     // TODO: Add method to report
-    
     mg::BufferUsage usage = mg::BufferUsage::undefined;
     auto client_usage = request->buffer_usage();
     if (client_usage == mir_buffer_usage_hardware)
         usage = mg::BufferUsage::hardware;
     else
-        usage = mg::BufferUsage::software;
+    usage = mg::BufferUsage::software;
+    // TODO: Fix
 
     auto stream_size = geom::Size{geom::Width{request->width()}, geom::Height{request->height()}};
     mg::BufferProperties props(stream_size,

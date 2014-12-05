@@ -154,7 +154,6 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
 
     receive_any_file_descriptors_for(surface);
     receive_any_file_descriptors_for(buffer);
-    receive_any_file_descriptors_for(buffer_stream);
     receive_any_file_descriptors_for(platform);
     receive_any_file_descriptors_for(socket_fd);
     complete->Run();

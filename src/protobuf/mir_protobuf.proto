@@ -130,8 +130,6 @@ message BufferStream {
     optional Buffer buffer = 2;
     optional int32 pixel_format = 3;
     optional int32 buffer_usage = 4;
-    repeated sint32 fd = 5;
-    optional int32 fds_on_side_channel = 6;
     
     optional string error = 127;
 }

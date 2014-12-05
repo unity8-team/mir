@@ -136,3 +136,9 @@ std::shared_ptr<mg::NativeBuffer> mga::Buffer::native_buffer_handle() const
     lk.release();
     return native_resource;
 }
+
+void mga::Buffer::read(std::function<void(unsigned char const*)> const& do_with_data)
+{
+    (void) do_with_data;
+    BOOST_THROW_EXCEPTION(std::runtime_error("NOt yet supported"));
+}

@@ -37,6 +37,8 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include <string.h>
+
 namespace mc = mir::compositor;
 namespace ms = mir::scene;
 namespace mf = mir::frontend;
@@ -572,17 +574,27 @@ struct FramePostObserver : public ms::NullSurfaceObserver
 struct CursorImageFromBuffer : public mg::CursorImage
 {
     CursorImageFromBuffer(mg::Buffer &buffer)
+        : buffer_size(buffer.size())
     {
-        (void) buffer;
+        buffer.read([&](unsigned char const* buffer_pixels)
+            {
+                size_t buffer_size_bytes = buffer_size.width.as_int() * buffer_size.height.as_int()
+                    * MIR_BYTES_PER_PIXEL(buffer.pixel_format());
+                pixels = std::unique_ptr<unsigned char[]>(
+                    new unsigned char[buffer_size_bytes]
+                );
+                // TODO: Improve safety?
+                memcpy(pixels.get(), buffer_pixels, buffer_size_bytes); 
+            });
     }
     void const* as_argb_8888() const
     {
-        return pixels;
+        return pixels.get();
     }
 
     geom::Size size() const
     {
-        return geom::Size();
+        return buffer_size;
     }
 
     geom::Displacement hotspot() const
@@ -590,7 +602,8 @@ struct CursorImageFromBuffer : public mg::CursorImage
         return geom::Displacement();
     }
 
-    void const* pixels;
+    geom::Size const buffer_size;
+    std::unique_ptr<unsigned char[]> pixels;
 };
 }
 
@@ -619,12 +632,9 @@ struct CursorStreamImageAdapter
 
     void post_cursor_image_from_current_buffer()
     {
-        printf("Trying to post image with most recent buffer \n");
         stream->with_most_recent_buffer_do([&](mg::Buffer &buffer) 
         {
-            printf("Got buffer \n");
             surface.set_cursor_from_buffer(buffer);
-            printf("SEt image \n");
         });
     }
     
@@ -636,7 +646,6 @@ struct CursorStreamImageAdapter
 }
 }
 
-// Don't reset the adapter
 void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer)
 {
     auto image = std::make_shared<CursorImageFromBuffer>(buffer);

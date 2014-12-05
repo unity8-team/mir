@@ -86,3 +86,8 @@ bool mc::TemporaryBuffer::can_bypass() const
 {
     return buffer->can_bypass();
 }
+
+void mc::TemporaryBuffer::read(std::function<void(unsigned char const*)> const& do_with_data)
+{
+    buffer->read(do_with_data);
+}

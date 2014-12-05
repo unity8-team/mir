@@ -67,6 +67,8 @@ struct MockBuffer : public graphics::Buffer
     MOCK_CONST_METHOD0(id, graphics::BufferID());
 
     MOCK_CONST_METHOD0(can_bypass, bool());
+    
+    MOCK_METHOD1(read, void(std::function<void(unsigned char const*)> const&));
 };
 
 }
