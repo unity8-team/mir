@@ -34,13 +34,7 @@ class PlacementStrategy;
 class SurfaceStackModel;
 class SurfaceFactory;
 
-/**
- * SurfaceController is the default implementation of SurfaceCoodinator.
- * Its role is to coodinate Surface operations with external data that a
- * Surface object in isolation does not have access to. e.g. "snapping"
- * on movement to the edges of other windows (TODO). Or providing sizing
- * information for fullscreen/maximized states.
- */
+/// Will grow up to provide synchronization of model updates
 class SurfaceController : public SurfaceCoordinator
 {
 public:
