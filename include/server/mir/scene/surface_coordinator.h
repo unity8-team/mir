@@ -45,7 +45,7 @@ public:
     virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
     virtual int configure_surface(Surface&, MirSurfaceAttrib, int) = 0;
     virtual void drag_surface(Surface& surf,
-                              geometry::Displacement const& grab,
+                              geometry::Displacement& grab,
                               geometry::Point const& cursor) = 0;
 
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) = 0;

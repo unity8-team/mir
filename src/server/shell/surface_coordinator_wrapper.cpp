@@ -53,7 +53,7 @@ int msh::SurfaceCoordinatorWrapper::configure_surface(ms::Surface& surface,
 }
 
 void msh::SurfaceCoordinatorWrapper::drag_surface(ms::Surface& surface,
-                              geometry::Displacement const& grab,
+                              geometry::Displacement& grab,
                               geometry::Point const& cursor)
 {
     wrapped->drag_surface(surface, grab, cursor);

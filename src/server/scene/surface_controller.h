@@ -60,7 +60,7 @@ public:
 
     int configure_surface(Surface&, MirSurfaceAttrib, int) override;
     void drag_surface(Surface& surf,
-                      geometry::Displacement const& grab,
+                      geometry::Displacement& grab,
                       geometry::Point const& cursor) override;
 
 private:

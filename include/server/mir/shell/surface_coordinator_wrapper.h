@@ -37,7 +37,7 @@ public:
     void raise(std::weak_ptr<scene::Surface> const& surface) override;
     int configure_surface(scene::Surface&, MirSurfaceAttrib, int) override;
     void drag_surface(scene::Surface& surf,
-                      geometry::Displacement const& grab,
+                      geometry::Displacement& grab,
                       geometry::Point const& cursor) override;
 
     void remove_surface(std::weak_ptr<scene::Surface> const& surface) override;

@@ -93,7 +93,7 @@ struct StubSurfaceCoordinator : public ms::SurfaceCoordinator
     {
         return val;
     }
-    void drag_surface(ms::Surface&, mir::geometry::Displacement const&,
+    void drag_surface(ms::Surface&, mir::geometry::Displacement&,
                       mir::geometry::Point const&) override
     {
     }
