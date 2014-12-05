@@ -44,9 +44,10 @@ d0442a5d5d88a4be6e3e1f99e433c1c43a86bfce  include/platform/mir/graphics/gl_conte
 84c063346b3bd51b4624d9f940008d4c3f8be066  include/platform/mir/graphics/renderable.h
 190bfc2d93092fd7990abefe424fbc322abede6a  include/platform/mir/input/device_class.h
 362b44f0b94a0ddbca80b3f78fb506a3657aa21a  include/platform/mir/input/event_sink.h
-b27b73499a038f2d86e6a8f55bca8834accc5b37  include/platform/mir/input/input_device.h
+07cb2bd158d326c71e08941dcf62409141d6e37a  include/platform/mir/input/input_device.h
 4f17d5e7b69448ececbc07dee3653a1f0f4dfc89  include/platform/mir/input/input_device_registry.h
 675190edf3f4bfb5fa64fe47dd93a52bb6776920  include/platform/mir/input/multiplexer.h
+8018253a18d1e22946fa1022d69c7363b48ca63f  include/platform/mir/input/.multiplexer.h.swp
 58c06fa4ea9722671c59b2688d9eed5395baa745  include/platform/mir/input/platform.h
 abeb45a8c6bfc81a12136f25e455e9803c32c10e  include/platform/mir/options/configuration.h
 47007c783c174f8e94d332c4b13c6b01358b48fb  include/platform/mir/options/default_configuration.h
