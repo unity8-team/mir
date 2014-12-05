@@ -149,28 +149,8 @@ void ms::SurfaceController::drag_surface(Surface& surface,
             new_pos.y = old_pos.y;
         break;
     case mir_surface_state_restored:
-        {
-#if 0
-        // FIXME LP: #1398294
-        geometry::Rectangle workarea{old_pos, surface.size()};
-        display_layout->size_to_output(workarea);  // TODO implement workarea
-    
-        // Drag to top of screen: maximize
-        if (cursor.y <= workarea.top_left.y)
-        {
-            configure_surface(surface, mir_surface_attrib_state,
-                              mir_surface_state_maximized);
-        }
-    
-        // Drag to bottom: vertmaximize
-        if (cursor.y.as_int() >= workarea.bottom_right().y.as_int() - 1)
-        {
-            configure_surface(surface, mir_surface_attrib_state,
-                              mir_surface_state_vertmaximized);
-        }
-#endif
+        // TODO compare cursor to screen edges and (semi)maximize as appropriate
         break;
-        }
     default:
         break;
     }
