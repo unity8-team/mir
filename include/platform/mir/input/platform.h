@@ -50,6 +50,8 @@ enum class PlatformPriority : uint32_t
  * A platform implementation is supposed to handle device occurance events by
  * openning new device and register them at the servers InputDeviceRegistry.
  * Likewise the InputDeviceRegistry shall be informed about removed input devices.
+ *
+ * The actual processing of events is controlled through the mir::input::InputDevice interface.
  */
 class Platform
 {
@@ -60,13 +62,14 @@ public:
     /*!
      * Request the platform to start monitoring for devices.
      *
-     * The \a input_device_registry should be informed about input device changes using the MainLoop \a loop.
+     * \param input_device_registry should be informed about available input devices
+     * \param trigger_registry should be used to register event sources that may indicate a changes of the available devices
      */
-    virtual void start_monitor_devices(Multiplexer& loop, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) = 0;
+    virtual void start_monitor_devices(Multiplexer& trigger_registry, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) = 0;
     /*!
      * Request the platform to stop monitoring for devices.
      */
-    virtual void stop_monitor_devices(Multiplexer& loop) = 0;
+    virtual void stop_monitor_devices(Multiplexer& trigger_registry) = 0;
 
 private:
     Platform(Platform const&) = delete;

@@ -35,9 +35,10 @@ public:
     InputDevice() = default;
     virtual ~InputDevice() = default;
 
-    virtual void enable_input_events(Multiplexer& trigger_registry, EventSink&) = 0;
+    virtual void enable_input_events(Multiplexer& trigger_registry, EventSink& destination) = 0;
     virtual void disable_input_events(Multiplexer& trigger_registry) = 0;
-    // add devie info here..
+
+    // TODO methods to query device description
 protected:
     InputDevice(InputDevice const&) = delete;
     InputDevice& operator=(InputDevice const&) = delete;
