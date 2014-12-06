@@ -78,7 +78,7 @@ private:
 
 
 
-extern "C" typedef std::unique_ptr<Platform>(*CreatePlatofrm)(
+extern "C" typedef std::unique_ptr<Platform>(*CreatePlatform)(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<InputReport> const& report);
