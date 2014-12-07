@@ -32,7 +32,7 @@ class EmergencyCleanupRegistry;
 
 namespace input
 {
-class Multiplexer;
+class InputEventHandlerRegister;
 class InputDevice;
 class InputReport;
 class InputDeviceRegistry;
@@ -65,11 +65,11 @@ public:
      * \param input_device_registry should be informed about available input devices
      * \param trigger_registry should be used to register event sources that may indicate a changes of the available devices
      */
-    virtual void start_monitor_devices(Multiplexer& trigger_registry, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) = 0;
+    virtual void start_monitor_devices(InputEventHandlerRegister& trigger_registry, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) = 0;
     /*!
      * Request the platform to stop monitoring for devices.
      */
-    virtual void stop_monitor_devices(Multiplexer& trigger_registry) = 0;
+    virtual void stop_monitor_devices(InputEventHandlerRegister& trigger_registry) = 0;
 
 private:
     Platform(Platform const&) = delete;
