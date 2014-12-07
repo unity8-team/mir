@@ -41,7 +41,9 @@ public:
 
     void enable_input_processing(Multiplexer& mplex, ::libinput_device *dev, EventSink& sink);
     void disable_input_processing(Multiplexer& mplex, ::libinput_device *dev);
-    std::unique_ptr<::libinput_device,::libinput_device*(*)(::libinput_device*)> add_device(std::string const& path);
+
+    typedef ::libinput_device*(*DeviceDeleter)(::libinput_device*);
+    std::unique_ptr<::libinput_device,DeviceDeleter> add_device(std::string const& path);
 private:
     void handle_devices();
     LibInputWrapper(LibInputWrapper const&) = delete;

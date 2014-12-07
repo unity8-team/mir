@@ -50,9 +50,13 @@ mie::LibInputWrapper::LibInputWrapper()
 {
 }
 
-std::unique_ptr<::libinput_device,::libinput_device*(*)(::libinput_device*)> mie::LibInputWrapper::add_device(std::string const& path)
+std::unique_ptr<::libinput_device,mie::LibInputWrapper::DeviceDeleter> mie::LibInputWrapper::add_device(std::string const& path)
 {
-    return std::unique_ptr<::libinput_device,::libinput_device*(*)(::libinput_device*)>(::libinput_path_add_device(lib.get(), path.c_str()), libinput_device_unref);
+    auto added_device = ::libinput_path_add_device(lib.get(), path.c_str());
+    return std::unique_ptr<::libinput_device,DeviceDeleter>(
+        ::libinput_device_ref(added_device),
+        libinput_device_unref
+);
 }
 
 void mie::LibInputWrapper::enable_input_processing(Multiplexer& mplex, ::libinput_device *dev, EventSink& sink)
@@ -68,9 +72,7 @@ void mie::LibInputWrapper::enable_input_processing(Multiplexer& mplex, ::libinpu
         });
 
     if (end(active_devices) == existing_pos)
-    {
         active_devices.push_back(std::make_pair(dev, &sink));
-    }
 
     if (start_libinput_listening)
         mplex.register_fd_handler({libinput_get_fd(lib.get())}, this,
