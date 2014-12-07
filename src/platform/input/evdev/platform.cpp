@@ -22,7 +22,7 @@
 #include "libinput_device_provider.h"
 #include "mir/udev/wrapper.h"
 
-#include "mir/input/multiplexer.h"
+#include "mir/input/input_event_handler_register.h"
 #include "mir/input/input_device_registry.h"
 #include "mir/input/input_device.h"
 
@@ -49,7 +49,7 @@ mie::Platform::Platform(std::shared_ptr<InputReport> const& report,
     this->monitor->enable();
 }
 
-void mie::Platform::start_monitor_devices(mi::Multiplexer& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
+void mie::Platform::start_monitor_devices(mi::InputEventHandlerRegister& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
 {
     this->input_device_registry = input_device_registry;
 
@@ -73,7 +73,7 @@ void mie::Platform::start_monitor_devices(mi::Multiplexer& execution, std::share
                 );
         });
 
-    execution.enqueue_action([this](){ scan_for_devices();});
+    execution.register_handler([this](){ scan_for_devices();});
 }
 
 void mie::Platform::scan_for_devices()
@@ -136,7 +136,7 @@ void mie::Platform::device_changed(mu::Device const& /*dev*/)
 {
 }
 
-void mie::Platform::stop_monitor_devices(mi::Multiplexer& execution)
+void mie::Platform::stop_monitor_devices(mi::InputEventHandlerRegister& execution)
 {
     execution.unregister_fd_handler(this);
 }

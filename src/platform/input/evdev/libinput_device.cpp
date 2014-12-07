@@ -19,7 +19,7 @@
 #include "libinput_device.h"
 #include "libinput_wrapper.h"
 
-#include "mir/input/multiplexer.h"
+#include "mir/input/input_event_handler_register.h"
 #include <libinput.h>
 
 namespace mie = mir::input::evdev;
@@ -31,13 +31,13 @@ mie::LibInputDevice::LibInputDevice(std::shared_ptr<mie::LibInputWrapper> const&
 
 mie::LibInputDevice::~LibInputDevice() = default;
 
-void mie::LibInputDevice::enable_input_events(Multiplexer& registry, EventSink& sink)
+void mie::LibInputDevice::enable_input_events(InputEventHandlerRegister& registry, EventSink& sink)
 {
     dev = lib->add_device(path);
     lib->enable_input_processing(registry, dev.get(), sink);
 }
 
-void mie::LibInputDevice::disable_input_events(Multiplexer& registry)
+void mie::LibInputDevice::disable_input_events(InputEventHandlerRegister& registry)
 {
     lib->disable_input_processing(registry, dev.get());
     dev.reset();

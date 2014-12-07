@@ -19,7 +19,7 @@
 #include "libinput_wrapper.h"
 #include "libinput.h"
 
-#include "mir/input/multiplexer.h"
+#include "mir/input/input_event_handler_register.h"
 
 #include <algorithm>
 
@@ -59,7 +59,7 @@ std::unique_ptr<::libinput_device,mie::LibInputWrapper::DeviceDeleter> mie::LibI
 );
 }
 
-void mie::LibInputWrapper::enable_input_processing(Multiplexer& mplex, ::libinput_device *dev, EventSink& sink)
+void mie::LibInputWrapper::enable_input_processing(InputEventHandlerRegister& mplex, ::libinput_device *dev, EventSink& sink)
 {
     bool start_libinput_listening = active_devices.empty();
 
@@ -79,7 +79,7 @@ void mie::LibInputWrapper::enable_input_processing(Multiplexer& mplex, ::libinpu
                                   [this](int /*fd*/){handle_devices();});
 }
 
-void mie::LibInputWrapper::disable_input_processing(Multiplexer& mplex, ::libinput_device *dev)
+void mie::LibInputWrapper::disable_input_processing(InputEventHandlerRegister& mplex, ::libinput_device *dev)
 {
     bool stop_libinput_listening = active_devices.empty();
 

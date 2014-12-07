@@ -20,7 +20,7 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_INPUT_MULTIPLEXER_H_
 #define MIR_TEST_DOUBLES_MOCK_INPUT_MULTIPLEXER_H_
 
-#include "mir/input/multiplexer.h"
+#include "mir/input/input_event_handler_register.h"
 
 #include <gmock/gmock.h>
 
@@ -31,7 +31,7 @@ namespace test
 namespace doubles
 {
 
-class MockMultiplexer : public input::Multiplexer
+class MockInputEventHandlerRegister : public input::InputEventHandlerRegister
 {
 public:
     void register_fd_handler(
@@ -47,11 +47,11 @@ public:
             std::function<void(int)> const& handler));
 
     MOCK_METHOD1(unregister_fd_handler, void(void const* owner));
-    void enqueue_action(std::function<void()> const&& action) override
+    void register_handler(std::function<void()> const&& handler) override
     {
-        enqueue_action_(action);
+        register_handler_(handler);
     }
-    MOCK_METHOD1(enqueue_action_, void(std::function<void()> const& action));
+    MOCK_METHOD1(register_handler_, void(std::function<void()> const& handler));
 };
 
 }

@@ -19,32 +19,21 @@
 #include "src/platform/input/evdev/libinput_device.h"
 #include "src/platform/input/evdev/libinput_wrapper.h"
 
-#include "mir/input/multiplexer.h"
+#include "mir/input/input_event_handler_register.h"
 #include "mir/input/input_device_registry.h"
 #include "mir/input/event_sink.h"
 #include "mir_test_doubles/mock_libinput.h"
+#include "mir_test_doubles/mock_input_event_handler_register.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace mi = mir::input;
 namespace mie = mi::evdev;
+namespace mtd = mir::test::doubles;
 
 namespace
 {
-
-class StubMultiplexer : public mi::Multiplexer
-{
-public:
-    void register_fd_handler(
-        std::initializer_list<int>,
-        void const*,
-        std::function<void(int)> const&&) override {}
-
-    void unregister_fd_handler(void const*) override {}
-
-    void enqueue_action(std::function<void()> const&&) override {}
-};
 
 class StubInputDeviceRegistry : public mi::InputDeviceRegistry
 {
@@ -62,7 +51,7 @@ public:
 struct LibInputDevice : public ::testing::Test
 {
     mir::test::doubles::MockLibInput mock_libinput;
-    StubMultiplexer stub_registry;
+    mtd::MockInputEventHandlerRegister mock_registry;
     StubEventSink stub_sink;
     std::shared_ptr<mie::LibInputWrapper> wrapper;
 
@@ -100,5 +89,5 @@ TEST_F(LibInputDevice, creates_and_unrefs_libinput_device_from_path)
     EXPECT_CALL(mock_libinput, libinput_device_unref(fake_device))
         .Times(1);
     mie::LibInputDevice dev(wrapper, path);
-    dev.enable_input_events(stub_registry, stub_sink);
+    dev.enable_input_events(mock_registry, stub_sink);
 }
