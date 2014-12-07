@@ -137,14 +137,14 @@ TEST_F(EvdevPlatform, registers_to_event_handler_register_on_start)
 {
     using namespace ::testing;
     EXPECT_CALL(mock_event_handler_register, register_fd_handler_(_,_,_));
-    platform->start_monitor_devices(mock_event_handler_register, mock_registry);
+    platform->start(mock_event_handler_register, mock_registry);
 }
 
 TEST_F(EvdevPlatform, unregisters_to_event_handler_register_on_stop)
 {
     using namespace ::testing;
     EXPECT_CALL(mock_event_handler_register, unregister_fd_handler(_));
-    platform->stop_monitor_devices(mock_event_handler_register);
+    platform->stop(mock_event_handler_register);
 }
 
 TEST_P(EvdevPlatformDeviceEvents, finds_device_on_start)
@@ -153,7 +153,7 @@ TEST_P(EvdevPlatformDeviceEvents, finds_device_on_start)
     env.add_standard_device(GetParam());
 
     EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
-    platform->start_monitor_devices(mock_event_handler_register, mock_registry);
+    platform->start(mock_event_handler_register, mock_registry);
 
     process_pending();
 }
@@ -162,7 +162,7 @@ TEST_P(EvdevPlatformDeviceEvents, adds_device_on_hotplug)
 {
     using namespace ::testing;
     EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
-    platform->start_monitor_devices(mock_event_handler_register, mock_registry);
+    platform->start(mock_event_handler_register, mock_registry);
     process_pending();
 
     env.add_standard_device(GetParam());
@@ -175,7 +175,7 @@ TEST_P(EvdevPlatformDeviceEvents, removes_device_on_hotplug)
     using namespace ::testing;
     EXPECT_CALL(*mock_registry, add_device(_)).Times(1);
     EXPECT_CALL(*mock_registry, remove_device(_)).Times(1);
-    platform->start_monitor_devices(mock_event_handler_register, mock_registry);
+    platform->start(mock_event_handler_register, mock_registry);
     env.add_standard_device(GetParam());
 
     process_pending();

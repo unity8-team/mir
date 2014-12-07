@@ -49,7 +49,7 @@ mie::Platform::Platform(std::shared_ptr<InputReport> const& report,
     this->monitor->enable();
 }
 
-void mie::Platform::start_monitor_devices(mi::InputEventHandlerRegister& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
+void mie::Platform::start(mi::InputEventHandlerRegister& execution, std::shared_ptr<InputDeviceRegistry> const& input_device_registry)
 {
     this->input_device_registry = input_device_registry;
 
@@ -136,7 +136,7 @@ void mie::Platform::device_changed(mu::Device const& /*dev*/)
 {
 }
 
-void mie::Platform::stop_monitor_devices(mi::InputEventHandlerRegister& execution)
+void mie::Platform::stop(mi::InputEventHandlerRegister& execution)
 {
     execution.unregister_fd_handler(this);
 }

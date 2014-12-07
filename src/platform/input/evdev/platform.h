@@ -41,8 +41,8 @@ public:
              std::unique_ptr<udev::Context> udev_context,
              std::unique_ptr<udev::Monitor> monitor,
              std::shared_ptr<InputDeviceFactory> const& factory);
-    void start_monitor_devices(InputEventHandlerRegister& loop, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) override;
-    void stop_monitor_devices(InputEventHandlerRegister& loop) override;
+    void start(InputEventHandlerRegister& loop, std::shared_ptr<InputDeviceRegistry> const& input_device_registry) override;
+    void stop(InputEventHandlerRegister& loop) override;
 
 private:
     void scan_for_devices();
