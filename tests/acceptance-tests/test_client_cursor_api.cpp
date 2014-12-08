@@ -25,6 +25,7 @@
 #include "mir_test_framework/fake_event_hub_server_configuration.h"
 #include "mir_test_framework/declarative_placement_strategy.h"
 #include "mir_test_framework/using_stub_client_platform.h"
+#include "mir_test_framework/any_surface.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test/spin_wait.h"
@@ -121,17 +122,8 @@ struct CursorClient
                 auto const connection =
                     mir_connect_sync(connect_string.c_str(), client_name.c_str());
 
-                MirSurfaceParameters const request_params =
-                {
-                    client_name.c_str(),
-                    // For this fixture, we force geometry on server side
-                    0, 0,
-                    mir_pixel_format_abgr_8888,
-                    mir_buffer_usage_hardware,
-                    mir_display_output_id_invalid
-                };
                 auto const surface =
-                    mir_connection_create_surface_sync(connection, &request_params);
+                    mtf::make_any_surface(connection);
 
                 mir_surface_swap_buffers_sync(surface);
 
