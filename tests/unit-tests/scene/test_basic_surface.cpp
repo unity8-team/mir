@@ -788,3 +788,25 @@ TEST_F(BasicSurfaceTest, notifies_of_client_close_request)
 
     surface.request_client_surface_close();
 }
+
+TEST_F(BasicSurfaceTest, restored_state_actually_restores_size_and_position)
+{
+    geom::Rectangle const restored{{12,34}, {56,78}},
+                          maximized{{64,24}, {1856,1176}};
+
+    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
+    surface.resize(restored.size);
+    surface.move_to(restored.top_left);
+    EXPECT_EQ(restored.size, surface.size());
+    EXPECT_EQ(restored.top_left, surface.top_left());
+
+    surface.configure(mir_surface_attrib_state, mir_surface_state_maximized);
+    surface.resize(maximized.size);
+    surface.move_to(maximized.top_left);
+    EXPECT_EQ(maximized.size, surface.size());
+    EXPECT_EQ(maximized.top_left, surface.top_left());
+
+    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
+    EXPECT_EQ(restored.size, surface.size());
+    EXPECT_EQ(restored.top_left, surface.top_left());
+}
