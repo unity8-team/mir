@@ -164,8 +164,6 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
 {
     {
         std::unique_lock<std::mutex> lk(guard);
-        if (top_left == surface_rect.top_left)
-            return;
         surface_rect.top_left = top_left;
     }
     observers.moved_to(top_left);
