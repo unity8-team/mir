@@ -16,12 +16,15 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir_toolkit/mir_buffer_stream.h"
+#include "surfaceless_buffer_stream.h"
+
 #include "mir_buffer_stream.h"
 #include "mir_connection.h"
 
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
+
+namespace mcl = mir::client;
 
 namespace
 {
@@ -37,15 +40,15 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
     if (!MirConnection::is_valid(connection))
         return nullptr;
 
-    MirBufferStream* buffer_stream = nullptr;
+    mcl::SurfacelessBufferStream* buffer_stream = nullptr;
 
     try
     {
         auto const client_platform = connection->get_client_platform();
         mir::geometry::Size const size{width, height};
 
-        std::unique_ptr<MirBufferStream> buffer_stream_uptr{
-            new MirBufferStream{connection,
+        std::unique_ptr<mcl::SurfacelessBufferStream> buffer_stream_uptr{
+            new mcl::SurfacelessBufferStream{connection,
                 size,
                 pixel_format, buffer_usage,
                 connection->display_server(),
@@ -71,7 +74,8 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
 
 void mir_buffer_stream_release_sync(MirBufferStream* buffer_stream)
 {
-    buffer_stream->release(null_callback, nullptr)->wait_for_all();
+    // TODO: Fix
+//    buffer_stream->release(null_callback, nullptr)->wait_for_all();
     delete buffer_stream;
 }
 

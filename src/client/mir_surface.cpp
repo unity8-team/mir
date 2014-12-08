@@ -417,7 +417,6 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
         setting.mutable_surfaceid()->CopyFrom(surface.id());
         if (cursor && cursor->stream != nullptr)
         {
-            printf("Foobarbaz\n");
             setting.mutable_buffer_stream_id()->CopyFrom(cursor->stream->protobuf_id());
         }
         else if (cursor && cursor->name != mir_disabled_cursor_name)

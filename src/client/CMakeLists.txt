@@ -69,7 +69,7 @@ add_library(mirclientobjects OBJECT
   mir_screencast.cpp
   mir_screencast_api.cpp
   mir_cursor_api.cpp
-  mir_buffer_stream.cpp
+  surfaceless_buffer_stream.cpp
   mir_buffer_stream_api.cpp
   mir_prompt_session.cpp
   mir_prompt_session_api.cpp

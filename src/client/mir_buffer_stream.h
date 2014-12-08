@@ -41,73 +41,33 @@ class MemoryRegion;
 }
 }
 
-struct MirBufferStream : public mir::client::ClientSurface
+class MirBufferStream : public mir::client::ClientSurface
 {
 public:
-    MirBufferStream(
-        MirConnection *connection,
-        mir::geometry::Size const& size,
-        MirPixelFormat pixel_format,
-        MirBufferUsage buffer_usage,
-        mir::protobuf::DisplayServer& server,
-        std::shared_ptr<mir::client::EGLNativeWindowFactory> const& egl_native_window_factory,
-        std::shared_ptr<mir::client::ClientBufferFactory> const& factory,
-        mir_buffer_stream_callback callback, void* context);
-    ~MirBufferStream();
+    virtual ~MirBufferStream() = default;
 
-    MirWaitHandle* creation_wait_handle();
-    bool valid();
+    virtual bool valid() = 0;
 
-    MirWaitHandle* release(
-        mir_buffer_stream_callback callback, void* context);
+    virtual MirWaitHandle* next_buffer(
+        mir_buffer_stream_callback callback, void* context) = 0;
 
-    MirWaitHandle* next_buffer(
-        mir_buffer_stream_callback callback, void* context);
+    virtual EGLNativeWindowType egl_native_window() = 0;
 
-    EGLNativeWindowType egl_native_window();
+    virtual void get_cpu_region(MirGraphicsRegion& region) = 0;
 
     /* mir::client::ClientSurface */
-    MirSurfaceParameters get_parameters() const;
-    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
-    void request_and_wait_for_next_buffer();
-    void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+    MirSurfaceParameters get_parameters() const = 0;
+    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer() = 0;
+    void request_and_wait_for_next_buffer() = 0;
+    void request_and_wait_for_configure(MirSurfaceAttrib a, int value) = 0;
     
-    MirNativeBuffer* get_current_buffer_package();
-    
-    mir::protobuf::BufferStreamId protobuf_id() const;
+    virtual mir::protobuf::BufferStreamId protobuf_id() const = 0;
+    virtual MirNativeBuffer* get_current_buffer_package() = 0;
 
-    void get_cpu_region(MirGraphicsRegion& region);
-
-private:
-    void process_buffer(mir::protobuf::Buffer const& buffer);
-    void buffer_stream_created(
-        mir_buffer_stream_callback callback, void* context);
-    void released(
-        mir_buffer_stream_callback callback, void* context);
-    void next_buffer_received(
-        mir_buffer_stream_callback callback, void* context);
-    
-    MirConnection *connection;
-    
-    mir::geometry::Size size;
-    MirPixelFormat pixel_format;
-    MirBufferUsage buffer_usage;
-
-    mir::protobuf::DisplayServer& server;
-    std::shared_ptr<mir::client::EGLNativeWindowFactory> const egl_native_window_factory;
-    mir::client::ClientBufferDepository buffer_depository;
-    std::shared_ptr<EGLNativeWindowType> egl_native_window_;
-
-    mir::protobuf::BufferStream protobuf_buffer_stream;
-    mir::protobuf::Buffer protobuf_buffer;
-    mir::protobuf::Void protobuf_void;
-
-    MirWaitHandle create_buffer_stream_wait_handle;
-    MirWaitHandle release_wait_handle;
-    MirWaitHandle next_buffer_wait_handle;
-
-    void release_cpu_region();
-    std::shared_ptr<mir::client::MemoryRegion> secured_region;
+protected:
+    MirBufferStream() = default;
+    MirBufferStream(MirBufferStream const&) = delete;
+    MirBufferStream& operator=(MirBufferStream const&) = delete;
 };
 
 #endif /* MIR_CLIENT_MIR_BUFFER_STREAM_H_ */

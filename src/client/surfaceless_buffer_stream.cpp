@@ -17,7 +17,7 @@
  *              Robert Carr <robert.carr@canonical.com>
  */
 
-#include "mir_buffer_stream.h"
+#include "surfaceless_buffer_stream.h"
 #include "mir_connection.h"
 #include "egl_native_window_factory.h"
 #include "client_buffer.h"
@@ -74,7 +74,7 @@ void populate_buffer_package(
 }
 
 // TODO: This class probably needs some mutexing
-MirBufferStream::MirBufferStream(
+mcl::SurfacelessBufferStream::SurfacelessBufferStream(
     MirConnection *allocating_connection,
     geom::Size const& size,
     MirPixelFormat pixel_format,
@@ -108,26 +108,26 @@ MirBufferStream::MirBufferStream(
         &parameters,
         &protobuf_buffer_stream,
         google::protobuf::NewCallback(
-            this, &MirBufferStream::buffer_stream_created,
+            this, &mcl::SurfacelessBufferStream::buffer_stream_created,
             callback, context));
 }
 
-MirBufferStream::~MirBufferStream()
+mcl::SurfacelessBufferStream::~SurfacelessBufferStream()
 {
     release_cpu_region();
 }
 
-MirWaitHandle* MirBufferStream::creation_wait_handle()
+MirWaitHandle* mcl::SurfacelessBufferStream::creation_wait_handle()
 {
     return &create_buffer_stream_wait_handle;
 }
 
-bool MirBufferStream::valid()
+bool mcl::SurfacelessBufferStream::valid()
 {
     return !protobuf_buffer_stream.has_error();
 }
 
-MirSurfaceParameters MirBufferStream::get_parameters() const
+MirSurfaceParameters mcl::SurfacelessBufferStream::get_parameters() const
 {
     return MirSurfaceParameters{
         "",
@@ -138,7 +138,7 @@ MirSurfaceParameters MirBufferStream::get_parameters() const
         mir_display_output_id_invalid};
 }
 
-MirNativeBuffer* MirBufferStream::get_current_buffer_package()
+MirNativeBuffer* mcl::SurfacelessBufferStream::get_current_buffer_package()
 {
     auto platform = connection->get_client_platform();
     auto buffer = get_current_buffer();
@@ -146,12 +146,12 @@ MirNativeBuffer* MirBufferStream::get_current_buffer_package()
     return platform->convert_native_buffer(handle.get());
 }
 
-std::shared_ptr<mcl::ClientBuffer> MirBufferStream::get_current_buffer()
+std::shared_ptr<mcl::ClientBuffer> mcl::SurfacelessBufferStream::get_current_buffer()
 {
     return buffer_depository.current_buffer();
 }
 
-MirWaitHandle* MirBufferStream::release(
+MirWaitHandle* mcl::SurfacelessBufferStream::release(
         mir_buffer_stream_callback callback, void* context)
 {
     mir::protobuf::BufferStreamId buffer_stream_id;
@@ -163,12 +163,12 @@ MirWaitHandle* MirBufferStream::release(
         &buffer_stream_id,
         &protobuf_void,
         google::protobuf::NewCallback(
-            this, &MirBufferStream::released, callback, context));
+            this, &mcl::SurfacelessBufferStream::released, callback, context));
 
     return &release_wait_handle;
 }
 
-MirWaitHandle* MirBufferStream::next_buffer(
+MirWaitHandle* mcl::SurfacelessBufferStream::next_buffer(
     mir_buffer_stream_callback callback, void* context)
 {
     release_cpu_region();
@@ -184,27 +184,27 @@ MirWaitHandle* MirBufferStream::next_buffer(
         &request,
         &protobuf_buffer,
         google::protobuf::NewCallback(
-            this, &MirBufferStream::next_buffer_received,
+            this, &mcl::SurfacelessBufferStream::next_buffer_received,
             callback, context));
 
     return &next_buffer_wait_handle;
 }
 
-EGLNativeWindowType MirBufferStream::egl_native_window()
+EGLNativeWindowType mcl::SurfacelessBufferStream::egl_native_window()
 {
     return *egl_native_window_;
 }
 
-void MirBufferStream::request_and_wait_for_next_buffer()
+void mcl::SurfacelessBufferStream::request_and_wait_for_next_buffer()
 {
     next_buffer(null_callback, nullptr)->wait_for_all();
 }
 
-void MirBufferStream::request_and_wait_for_configure(MirSurfaceAttrib, int)
+void mcl::SurfacelessBufferStream::request_and_wait_for_configure(MirSurfaceAttrib, int)
 {
 }
 
-void MirBufferStream::process_buffer(mir::protobuf::Buffer const& buffer)
+void mcl::SurfacelessBufferStream::process_buffer(mir::protobuf::Buffer const& buffer)
 {
     auto buffer_package = std::make_shared<MirBufferPackage>();
     populate_buffer_package(*buffer_package, buffer);
@@ -221,7 +221,7 @@ void MirBufferStream::process_buffer(mir::protobuf::Buffer const& buffer)
     }
 }
 
-void MirBufferStream::buffer_stream_created(
+void mcl::SurfacelessBufferStream::buffer_stream_created(
     mir_buffer_stream_callback callback, void* context)
 {
     if (!protobuf_buffer_stream.has_error())
@@ -234,14 +234,14 @@ void MirBufferStream::buffer_stream_created(
     create_buffer_stream_wait_handle.result_received();
 }
 
-void MirBufferStream::released(
+void mcl::SurfacelessBufferStream::released(
     mir_buffer_stream_callback callback, void* context)
 {
     callback(this, context);
     release_wait_handle.result_received();
 }
 
-void MirBufferStream::next_buffer_received(
+void mcl::SurfacelessBufferStream::next_buffer_received(
     mir_buffer_stream_callback callback, void* context)
 {
     process_buffer(protobuf_buffer);
@@ -250,12 +250,12 @@ void MirBufferStream::next_buffer_received(
     next_buffer_wait_handle.result_received();
 }
 
-mir::protobuf::BufferStreamId MirBufferStream::protobuf_id() const
+mir::protobuf::BufferStreamId mcl::SurfacelessBufferStream::protobuf_id() const
 {
     return protobuf_buffer_stream.id();
 }
 
-void MirBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
+void mcl::SurfacelessBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
 {
     auto buffer = buffer_depository.current_buffer();
 
@@ -267,7 +267,7 @@ void MirBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
     region_out.vaddr = secured_region->vaddr.get();
 }
 
-void MirBufferStream::release_cpu_region()
+void mcl::SurfacelessBufferStream::release_cpu_region()
 {
     secured_region.reset();
 }
