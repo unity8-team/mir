@@ -399,6 +399,12 @@ TEST_F(BasicSurfaceTest, default_invisible_surface_doesnt_get_input)
     EXPECT_FALSE(surface.input_area_contains({50,50}));
     post_a_frame(surface);
     EXPECT_TRUE(surface.input_area_contains({50,50}));
+
+    // And when minimized, input is no longer accepted
+    surface.configure(mir_surface_attrib_state, mir_surface_state_minimized);
+    EXPECT_FALSE(surface.input_area_contains({50,50}));
+    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
+    EXPECT_TRUE(surface.input_area_contains({50,50}));
 }
 
 TEST_F(BasicSurfaceTest, set_input_region)
