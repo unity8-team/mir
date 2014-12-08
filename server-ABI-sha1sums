@@ -95,7 +95,7 @@ ee94083f10f890e24c0e0bbdb94842e2dd788deb  include/server/mir/scene/session_liste
 7f5f26000fd2312373817d05c488a6a950a47c82  include/server/mir/scene/snapshot.h
 5bab4dc0a6488b8b9d47e958c6bab94f1dcf2c57  include/server/mir/scene/surface_buffer_access.h
 bbc9e2e2bb71634cd6f1c5c0430093e10e74fa23  include/server/mir/scene/surface_configurator.h
-3116898ac4f63d8c864de6a2d94fd70f4696f952  include/server/mir/scene/surface_coordinator.h
+86b088326ce44e3ad95eb51093e9766ed336bdae  include/server/mir/scene/surface_coordinator.h
 dd8f054f786b9746d9e513f2656e931234b5283a  include/server/mir/scene/surface_creation_parameters.h
 24d59fc6f0245769f607d93b41a8d5e6cf9949b4  include/server/mir/scene/surface.h
 587e22d751656ce2d9536afdf5659276ff9bbc46  include/server/mir/scene/surface_observer.h
@@ -109,6 +109,6 @@ b74342d8ffab489405a4e12fce0c257ac9f8596c  include/server/mir/shell/focus_setter.
 f8d415af54b4a477338fb9dbe20db01aa4544029  include/server/mir/shell/host_lifecycle_event_listener.h
 4f50c37bb8e36a1aa4918af6aa01b0f032ed0984  include/server/mir/shell/input_targeter.h
 de7d7ad64da45b4c5dedef8eaa1d720c9f307f4c  include/server/mir/shell/session_coordinator_wrapper.h
-f22d9dda4c24c2eb3ae75f5084917c41633682e7  include/server/mir/shell/surface_coordinator_wrapper.h
+abbac2bb92860a5e580d8efc8f410ac94ce5a412  include/server/mir/shell/surface_coordinator_wrapper.h
 1b8c2a763c8f5f00b737c3a187db2304676f8076  include/server/mir/time/alarm.h
 a134c7b86e9c3b191f1004abe7bbdceed8ac42ee  include/server/mir/time/timer.h
