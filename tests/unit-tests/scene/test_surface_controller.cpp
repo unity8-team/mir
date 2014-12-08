@@ -222,11 +222,15 @@ TEST_F(SurfaceController, drag_surface)
 {
     using namespace ::testing;
 
-    geom::Rectangle const restored{{12,34}, {67,89}};
+    geom::Rectangle const restored{{12,34}, {67,89}},
+                          fullscreen{{0,0}, {1366,768}};
     geom::Displacement const original_grab{33,5},
                              short_drag{5,-8},
                              long_y_drag{-14,+62},
                              long_drag{-54,+32};
+
+    EXPECT_CALL(mock_display_layout, size_to_output(_))
+        .WillRepeatedly(SetArgReferee<0>(fullscreen));
 
     ms::SurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
@@ -311,4 +315,53 @@ TEST_F(SurfaceController, drag_surface)
     // Long drag of a vertmaximized surface: Unsnaps and moves it; X and Y
     EXPECT_EQ(prev_pos+long_y_drag, surface.top_left());
     EXPECT_EQ(prev_size, surface.size());
+}
+
+TEST_F(SurfaceController, cursor_stays_on_surface_after_unsnap)
+{
+    using namespace ::testing;
+
+    geom::Rectangle const restored{{12,34}, {67,89}},
+                          fullscreen{{0,0}, {1366,768}};
+    geom::Displacement const long_y_drag{-14,+62};
+    geom::Point cursor{20, 500};
+
+    EXPECT_CALL(mock_display_layout, size_to_output(_))
+        .WillRepeatedly(SetArgReferee<0>(fullscreen));
+
+    ms::SurfaceController controller(
+        mt::fake_shared(mock_surface_allocator),
+        mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
+        mt::fake_shared(model));
+
+    mtd::StubSceneSurface surface(restored);
+
+    geom::Rectangle const old_rect{surface.top_left(), surface.size()};
+    EXPECT_FALSE(old_rect.contains(cursor));
+
+    // Drag while vertmaximized
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_vertmaximized);
+    auto prev_pos = surface.top_left();
+    auto grab = cursor - prev_pos;
+    auto old_cursor = cursor;
+    cursor = dragged_cursor(surface, grab, long_y_drag);
+    controller.drag_surface(surface, grab, cursor);
+
+    // Expect the cursor only moves the exact amount the user moved it
+    EXPECT_EQ(old_cursor+long_y_drag, cursor);
+
+    // The surface needs to warp to a new position such that the cursor holding
+    // it is still over the surface
+    geom::Rectangle const new_rect{surface.top_left(), surface.size()};
+    EXPECT_TRUE(new_rect.contains(cursor));
+
+#if 0 // FIXME: Missing restore from BasicSurface
+    // Subject to change: Also verify the surface warped to centre on cursor
+    geom::Point middle = surface.top_left() +
+                         geom::Displacement{surface.size().width.as_int()/2,
+                                            surface.size().height.as_int()/2};
+    EXPECT_EQ(middle, cursor);
+#endif
 }
