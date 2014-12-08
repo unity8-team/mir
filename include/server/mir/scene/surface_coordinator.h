@@ -27,7 +27,6 @@
 
 namespace mir
 {
-
 namespace scene
 {
 class Surface;
