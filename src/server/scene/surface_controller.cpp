@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
+ *              Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
 #include "surface_controller.h"

@@ -34,7 +34,17 @@ class PlacementStrategy;
 class SurfaceStackModel;
 class SurfaceFactory;
 
-/// Will grow up to provide synchronization of model updates
+/**
+ * SurfaceController is the default implementation of SurfaceCoordinator.
+ * It provides a significant set of default window management behaviours that
+ * we expect many shells will want to reuse. Surface objects by themselves
+ * are designed to be self-contained an unaware of their surroundings, so
+ * SurfaceController/Coordinator has an important job to fill in the blanks
+ * such as telling a surface how to go full screen, maximize, or (in future)
+ * how to snap to an adjacent surface.
+ *   SurfaceController must provide all the window management logic that a
+ * Surface object by itself can't fulfil.
+ */
 class SurfaceController : public SurfaceCoordinator
 {
 public:

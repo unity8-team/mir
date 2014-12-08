@@ -75,6 +75,19 @@ public:
     void client_surface_close_requested() override;
 };
 
+/**
+ * BasicSurface implements the common aspects of a Surface we don't expect
+ * to ever change between shells. This includes a very small amount of
+ * window management policy that doesn't depend on any external information:
+ *  - state restored moves and resizes the surface to its former position.
+ *  - state minimized makes the surface invisible to rendering and input.
+ * Other aspects of WM policy that may change between shells, or that
+ * depend on external information (like display/shell layout and other
+ * surfaces) is explicitly omitted here. In this way BasicSurface remains
+ * entirely introspective and self-contained. Although in future the WM
+ * related logic here (state_, type_) could move into some ShellSurface class
+ * for easy customization.
+ */
 class BasicSurface : public Surface
 {
 public:
