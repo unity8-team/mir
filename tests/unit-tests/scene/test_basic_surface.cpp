@@ -383,6 +383,24 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
     }
 }
 
+TEST_F(BasicSurfaceTest, default_invisible_surface_doesnt_get_input)
+{
+    ms::BasicSurface surface{
+        name,
+        geom::Rectangle{{0,0}, {100,100}},
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
+        stub_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report};
+
+    EXPECT_FALSE(surface.input_area_contains({50,50}));
+    post_a_frame(surface);
+    EXPECT_TRUE(surface.input_area_contains({50,50}));
+}
+
 TEST_F(BasicSurfaceTest, set_input_region)
 {
     std::vector<geom::Rectangle> const rectangles = {
