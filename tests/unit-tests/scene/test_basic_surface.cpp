@@ -85,6 +85,17 @@ struct StubSurfaceConfigurator : ms::SurfaceConfigurator
     void attribute_set(ms::Surface const&, MirSurfaceAttrib, int) override { }
 };
 
+void post_a_frame(ms::BasicSurface& surface)
+{
+    /*
+     * Make sure there's a frame ready. Otherwise visible()==false and the
+     * input_area will never report it containing anything for all the tests
+     * that use it.
+     */
+    mtd::StubBuffer buffer;
+    surface.swap_buffers(&buffer, [&](mir::graphics::Buffer*){});
+}
+
 struct BasicSurfaceTest : public testing::Test
 {
     std::string const name{"aa"};
@@ -113,15 +124,12 @@ struct BasicSurfaceTest : public testing::Test
         stub_configurator,
         std::shared_ptr<mg::CursorImage>(),
         report};
-};
 
-void post_a_frame(ms::BasicSurface& surface)
-{
-    // Make sure there's a frame ready. Otherwise visible()==false and the
-    // input_area will never report it containing anything.
-    mtd::StubBuffer buffer;
-    surface.swap_buffers(&buffer, [&](mir::graphics::Buffer*){});
-}
+    BasicSurfaceTest()
+    {
+        post_a_frame(surface);
+    }
+};
 
 }
 
@@ -272,7 +280,19 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
     mir::graphics::Buffer* buffer = nullptr;
     auto const callback = [&](mir::graphics::Buffer* new_buffer) { buffer = new_buffer; };
 
-    //not visible by default  -  FIXME: This assumes no other tests ran yet
+    // Must be a fresh surface to guarantee no frames posted yet...
+    ms::BasicSurface surface{
+        name,
+        rect,
+        false,
+        mock_buffer_stream,
+        std::shared_ptr<mi::InputChannel>(),
+        stub_input_sender,
+        stub_configurator,
+        std::shared_ptr<mg::CursorImage>(),
+        report};
+
+    //not visible by default
     EXPECT_FALSE(surface.visible());
 
     surface.set_hidden(false);
@@ -371,7 +391,6 @@ TEST_F(BasicSurfaceTest, set_input_region)
     };
 
     surface.add_observer(observer);
-    post_a_frame(surface);
 
     surface.set_input_region(rectangles);
 
@@ -405,7 +424,6 @@ TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to
 {
     geom::Rectangle const new_rect{rect.top_left,{10,10}};
     surface.resize(new_rect.size);
-    post_a_frame(surface);
 
     for (auto x = new_rect.top_left.x.as_int() - 1;
          x <= new_rect.top_right().x.as_int();
@@ -433,7 +451,6 @@ TEST_F(BasicSurfaceTest, updates_default_input_region_when_surface_is_resized_to
 {
     geom::Rectangle const new_rect{rect.top_left,{2,2}};
     surface.resize(new_rect.size);
-    post_a_frame(surface);
 
     for (auto x = rect.top_left.x.as_int() - 1;
          x <= rect.top_right().x.as_int();
@@ -462,8 +479,6 @@ TEST_F(BasicSurfaceTest, restores_default_input_region_when_setting_empty_input_
     std::vector<geom::Rectangle> const rectangles = {
         {{geom::X{0}, geom::Y{0}}, {geom::Width{1}, geom::Height{1}}}, //region0
     };
-
-    post_a_frame(surface);
 
     surface.set_input_region(rectangles);
     EXPECT_FALSE(surface.input_area_contains(rect.bottom_right() - geom::Displacement{1,1}));
