@@ -127,8 +127,10 @@ void ms::SurfaceController::drag_surface(Surface& surface,
 
     switch (surface.state())
     {
-    case mir_surface_state_maximized:
     case mir_surface_state_fullscreen:
+        new_pos = old_pos;
+        break;
+    case mir_surface_state_maximized:
         if (delta.length_squared() >= (snap_distance * snap_distance))
             unsnap = true;
         else

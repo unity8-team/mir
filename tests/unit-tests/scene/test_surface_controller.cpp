@@ -274,8 +274,23 @@ TEST_F(SurfaceController, drag_surface)
     EXPECT_EQ(prev_pos+long_drag, surface.top_left());
     EXPECT_EQ(prev_size, surface.size());
 
-    // Drag while fullscreen: TODO figure out preferred behaviour. At the
-    // moment it's just identical to maximized.
+    // Drag while fullscreen
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_fullscreen);
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, short_drag));
+    // Short drag of a fullscreen surface: Does nothing
+    EXPECT_EQ(prev_pos, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, long_drag));
+    // Long drag of a fullscreen surface: Does nothing
+    EXPECT_EQ(prev_pos, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
 
     // Drag while vertmaximized
     controller.configure_surface(surface, mir_surface_attrib_state,
