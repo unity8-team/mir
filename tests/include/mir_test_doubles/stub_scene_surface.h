@@ -75,7 +75,7 @@ public:
 
     float alpha() const override { return 0.0f;}
     MirSurfaceType type() const override { return mir_surface_type_normal; }
-    MirSurfaceState state() const override { return mir_surface_state_unknown; }
+    MirSurfaceState state() const override { return state_; }
 
     void hide() override {}
     void show() override {}
@@ -106,11 +106,17 @@ public:
 
     bool supports_input() const override { return true;}
     int client_input_fd() const override { return fd;}
-    int configure(MirSurfaceAttrib, int v) override { return v; }
+    int configure(MirSurfaceAttrib s, int v) override
+    {
+        if (s == mir_surface_attrib_state)
+            state_ = static_cast<MirSurfaceState>(v);
+        return v;
+    }
     int query(MirSurfaceAttrib) override { return 0; }
     void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override {}
 
 private:
+    MirSurfaceState state_ = mir_surface_state_unknown;
     geometry::Rectangle rect;
 };
 

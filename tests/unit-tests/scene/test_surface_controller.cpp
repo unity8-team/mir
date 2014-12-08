@@ -78,7 +78,15 @@ struct SurfaceController : testing::Test
         ON_CALL(placement_strategy, place(_, _)).WillByDefault(ReturnArg<1>());
     }
 };
+
+geom::Point dragged_cursor(ms::Surface const& s,
+                           geom::Displacement const& grab,
+                           geom::Displacement const& delta)
+{
+    return s.top_left() + delta + grab;
 }
+
+} // namespace
 
 TEST_F(SurfaceController, add_and_remove_surface)
 {
@@ -199,13 +207,93 @@ TEST_F(SurfaceController, sets_states)
     EXPECT_EQ(fullscreen.size, surface.size());
     EXPECT_EQ(fullscreen.top_left, surface.top_left());
 
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_restored);
 #if 0
     // This does nothing. Restoration is implemented in BasicSurface, which
     // while convenient is not completely consistent. See BasicSurfaceTest
     // for tests of mir_surface_state_restored.
-    controller.configure_surface(surface, mir_surface_attrib_state,
-                                 mir_surface_state_restored);
     EXPECT_EQ(restored.size, surface.size());
     EXPECT_EQ(restored.top_left, surface.top_left());
 #endif
+}
+
+TEST_F(SurfaceController, drag_surface)
+{
+    using namespace ::testing;
+
+    geom::Rectangle const restored{{12,34}, {67,89}};
+    geom::Displacement const original_grab{33,5},
+                             short_drag{5,-8},
+                             long_y_drag{-14,+62},
+                             long_drag{-54,+32};
+
+    ms::SurfaceController controller(
+        mt::fake_shared(mock_surface_allocator),
+        mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
+        mt::fake_shared(model));
+
+    mtd::StubSceneSurface surface(restored);
+
+    // Drag while "restored"
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_restored);
+    auto grab = original_grab;
+    auto prev_pos = surface.top_left();
+    auto prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, short_drag));
+    // Short drag of a restored surface: always works
+    EXPECT_EQ(prev_pos+short_drag, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+    grab = original_grab;
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, long_drag));
+    // Long drag of a restored surface: always works
+    EXPECT_EQ(prev_pos+long_drag, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+
+    // Drag while maximized
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_maximized);
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, short_drag));
+    // Short drag of a maximized surface: Does nothing
+    EXPECT_EQ(prev_pos, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, long_drag));
+    // Long drag of a maximized surface: Unsnaps and moves it
+    EXPECT_EQ(prev_pos+long_drag, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+
+    // Drag while fullscreen: TODO figure out preferred behaviour. At the
+    // moment it's just identical to maximized.
+
+    // Drag while vertmaximized
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_vertmaximized);
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, short_drag));
+    // Short drag of a vertmaximized surface: Moves X but not Y
+    geom::Point const short_drag_vertmaximized{
+        prev_pos.x.as_int()+short_drag.dx.as_int(), prev_pos.y};
+    EXPECT_EQ(short_drag_vertmaximized, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
+    prev_pos = surface.top_left();
+    prev_size = surface.size();
+    controller.drag_surface(surface, grab,
+                            dragged_cursor(surface, grab, long_y_drag));
+    // Long drag of a vertmaximized surface: Unsnaps and moves it; X and Y
+    EXPECT_EQ(prev_pos+long_y_drag, surface.top_left());
+    EXPECT_EQ(prev_size, surface.size());
 }
