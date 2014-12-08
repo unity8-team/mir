@@ -16,8 +16,6 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-// TODO: Eliminate redundancy between this file and stub_session.h
-
 #ifndef MIR_TEST_DOUBLES_STUB_SCENE_SESSION_H_
 #define MIR_TEST_DOUBLES_STUB_SCENE_SESSION_H_
 

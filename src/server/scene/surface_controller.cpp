@@ -140,7 +140,7 @@ void ms::SurfaceController::drag_surface(Surface& surface,
             new_pos.y = old_pos.y;
         break;
     case mir_surface_state_restored:
-        // TODO compare cursor to screen edges and (semi)maximize as appropriate
+        // TODO compare cursor to screen edges and semi/maximize as appropriate
         break;
     default:
         break;
