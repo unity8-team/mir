@@ -40,6 +40,15 @@ public:
     int fd;
     mir::input::InputReceptionMode input_mode{mir::input::InputReceptionMode::normal};
 
+    StubSceneSurface()
+    {
+    }
+
+    StubSceneSurface(geometry::Rectangle r)
+        : rect(r)
+    {
+    }
+
     StubSceneSurface(int fd)
         : channel(std::make_shared<StubInputChannel>(fd)), fd(fd)
     {
@@ -56,9 +65,9 @@ public:
     }
 
     std::string name() const override { return {}; }
-    geometry::Point top_left() const override { return {}; }
-    geometry::Size client_size() const override { return {};}
-    geometry::Size size() const override { return {}; }
+    geometry::Point top_left() const override { return rect.top_left; }
+    geometry::Size client_size() const override { return size();}
+    geometry::Size size() const override { return rect.size; }
     geometry::Rectangle input_bounds() const override { return {{},{}}; }
     bool input_area_contains(mir::geometry::Point const&) const override { return false; }
 
@@ -70,11 +79,11 @@ public:
 
     void hide() override {}
     void show() override {}
-    void move_to(geometry::Point const&) override {}
+    void move_to(geometry::Point const& p) override { rect.top_left = p; }
     void take_input_focus(std::shared_ptr<shell::InputTargeter> const&) override {}
     void set_input_region(std::vector<geometry::Rectangle> const&) override {}
     void allow_framedropping(bool) override {}
-    void resize(geometry::Size const&) override {}
+    void resize(geometry::Size const& s) override { rect.size = s; }
     void set_transformation(glm::mat4 const&) override {}
     void set_alpha(float) override {}
     void set_orientation(MirOrientation) {}
@@ -97,9 +106,12 @@ public:
 
     bool supports_input() const override { return true;}
     int client_input_fd() const override { return fd;}
-    int configure(MirSurfaceAttrib, int) override { return 0; }
+    int configure(MirSurfaceAttrib, int v) override { return v; }
     int query(MirSurfaceAttrib) override { return 0; }
     void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override {}
+
+private:
+    geometry::Rectangle rect;
 };
 
 }

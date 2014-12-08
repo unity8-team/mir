@@ -25,6 +25,7 @@
 
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_display_layout.h"
+#include "mir_test_doubles/stub_scene_surface.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
@@ -63,7 +64,7 @@ struct MockSurfaceStackModel : public ms::SurfaceStackModel
 struct SurfaceController : testing::Test
 {
     MockPlacementStrategy placement_strategy;
-    mtd::MockSurface mock_surface;
+    testing::NiceMock<mtd::MockSurface> mock_surface;
     std::shared_ptr<ms::Surface> const expect_surface = mt::fake_shared(mock_surface);
     testing::NiceMock<MockSurfaceAllocator> mock_surface_allocator;
     testing::NiceMock<mtd::MockDisplayLayout> mock_display_layout;
@@ -156,4 +157,55 @@ TEST_F(SurfaceController, forwards_create_surface_parameters_from_placement_stra
     EXPECT_CALL(mock_surface_allocator, create_surface(placed_params));
 
     controller.add_surface(params, &session);
+}
+
+TEST_F(SurfaceController, sets_states)
+{
+    using namespace ::testing;
+
+    geom::Rectangle const restored{{12,34}, {67,89}},
+                          fullscreen{{0,0}, {1366,768}},
+                          maximized(fullscreen),  // TODO will be different
+                          vertmaximized{{restored.top_left.x,
+                                         maximized.top_left.y},
+                                        {restored.size.width,
+                                         maximized.size.height}};
+
+    ms::SurfaceController controller(
+        mt::fake_shared(mock_surface_allocator),
+        mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
+        mt::fake_shared(model));
+
+    EXPECT_CALL(mock_display_layout, size_to_output(_))
+        .WillRepeatedly(SetArgReferee<0>(fullscreen));
+
+    mtd::StubSceneSurface surface(restored);
+    ASSERT_EQ(restored.top_left, surface.top_left());
+    ASSERT_EQ(restored.size, surface.size());
+
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_vertmaximized);
+    EXPECT_EQ(vertmaximized.size, surface.size());
+    EXPECT_EQ(vertmaximized.top_left, surface.top_left());
+
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_maximized);
+    EXPECT_EQ(maximized.size, surface.size());
+    EXPECT_EQ(maximized.top_left, surface.top_left());
+
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_fullscreen);
+    EXPECT_EQ(fullscreen.size, surface.size());
+    EXPECT_EQ(fullscreen.top_left, surface.top_left());
+
+#if 0
+    // This does nothing. Restoration is implemented in BasicSurface, which
+    // while convenient is not completely consistent. See BasicSurfaceTest
+    // for tests of mir_surface_state_restored.
+    controller.configure_surface(surface, mir_surface_attrib_state,
+                                 mir_surface_state_restored);
+    EXPECT_EQ(restored.size, surface.size());
+    EXPECT_EQ(restored.top_left, surface.top_left());
+#endif
 }
