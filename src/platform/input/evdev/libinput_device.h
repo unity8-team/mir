@@ -36,8 +36,8 @@ class LibInputDevice : public input::InputDevice
 public:
     LibInputDevice(std::shared_ptr<LibInputWrapper> const& lib, char const* path);
     ~LibInputDevice();
-    void enable_input_events(InputEventHandlerRegister& registry, EventSink& sink) override;
-    void disable_input_events(InputEventHandlerRegister& registry) override;
+    void start(InputEventHandlerRegister& registry, EventSink& sink) override;
+    void stop(InputEventHandlerRegister& registry) override;
 private:
     std::string path;
     std::unique_ptr<::libinput_device,libinput_device*(*)(::libinput_device*)> dev;

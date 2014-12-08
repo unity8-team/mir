@@ -31,14 +31,14 @@ mie::LibInputDevice::LibInputDevice(std::shared_ptr<mie::LibInputWrapper> const&
 
 mie::LibInputDevice::~LibInputDevice() = default;
 
-void mie::LibInputDevice::enable_input_events(InputEventHandlerRegister& registry, EventSink& sink)
+void mie::LibInputDevice::start(InputEventHandlerRegister& registry, EventSink& sink)
 {
     dev = lib->add_device(path);
-    lib->enable_input_processing(registry, dev.get(), sink);
+    lib->start_device(registry, dev.get(), sink);
 }
 
-void mie::LibInputDevice::disable_input_events(InputEventHandlerRegister& registry)
+void mie::LibInputDevice::stop(InputEventHandlerRegister& registry)
 {
-    lib->disable_input_processing(registry, dev.get());
+    lib->stop_device(registry, dev.get());
     dev.reset();
 }

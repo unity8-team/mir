@@ -39,8 +39,8 @@ public:
     LibInputWrapper();
     ~LibInputWrapper();
 
-    void enable_input_processing(InputEventHandlerRegister& mplex, ::libinput_device *dev, EventSink& sink);
-    void disable_input_processing(InputEventHandlerRegister& mplex, ::libinput_device *dev);
+    void start_device(InputEventHandlerRegister& mplex, ::libinput_device *dev, EventSink& sink);
+    void stop_device(InputEventHandlerRegister& mplex, ::libinput_device *dev);
 
     typedef ::libinput_device*(*DeviceDeleter)(::libinput_device*);
     std::unique_ptr<::libinput_device,DeviceDeleter> add_device(std::string const& path);

@@ -29,14 +29,23 @@ namespace input
 class InputEventHandlerRegister;
 class EventSink;
 
+/**
+ * Represents an input device.
+ */
 class InputDevice
 {
 public:
     InputDevice() = default;
     virtual ~InputDevice() = default;
 
-    virtual void enable_input_events(InputEventHandlerRegister& trigger_registry, EventSink& destination) = 0;
-    virtual void disable_input_events(InputEventHandlerRegister& trigger_registry) = 0;
+    /*!
+     * Allow the input device to provide its input events to the given EventSink
+     */
+    virtual void start(InputEventHandlerRegister& registry, EventSink& destination) = 0;
+    /*!
+     * Stop the input device from sending input events.
+     */
+    virtual void stop(InputEventHandlerRegister& registry) = 0;
 
     // TODO methods to query device description
 protected:
