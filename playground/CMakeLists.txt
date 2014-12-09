@@ -9,8 +9,4 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/examples/
 )
 
-add_library(playgroundserverconfig STATIC
-    server_configuration.cpp
-)
-
 add_subdirectory(demo-shell/)
