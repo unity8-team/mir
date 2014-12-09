@@ -16,7 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "surface_tracker.h"
+#include "buffer_stream_tracker.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/buffer_id.h"
 #include <boost/throw_exception.hpp>
@@ -25,12 +25,12 @@
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 
-mf::SurfaceTracker::SurfaceTracker(size_t client_cache_size) :
+mf::BufferStreamTracker::BufferStreamTracker(size_t client_cache_size) :
     client_cache_size{client_cache_size}
 {
 }
 
-bool mf::SurfaceTracker::track_buffer(SurfaceId surface_id, mg::Buffer* buffer)
+bool mf::BufferStreamTracker::track_buffer(BufferStreamId surface_id, mg::Buffer* buffer)
 {
     auto& tracker = client_buffer_tracker[surface_id];
     if (!tracker)
@@ -51,7 +51,7 @@ bool mf::SurfaceTracker::track_buffer(SurfaceId surface_id, mg::Buffer* buffer)
     return already_tracked;
 }
 
-void mf::SurfaceTracker::remove_surface(SurfaceId surface_id)
+void mf::BufferStreamTracker::remove_stream(BufferStreamId surface_id)
 {
     auto it = client_buffer_tracker.find(surface_id);
     if (it != client_buffer_tracker.end())
@@ -62,7 +62,7 @@ void mf::SurfaceTracker::remove_surface(SurfaceId surface_id)
         client_buffer_resource.erase(last_buffer_it);
 }
 
-mg::Buffer* mf::SurfaceTracker::last_buffer(SurfaceId surface_id) const
+mg::Buffer* mf::BufferStreamTracker::last_buffer(BufferStreamId surface_id) const
 {
     auto it = client_buffer_resource.find(surface_id);
     if (it != client_buffer_resource.end())
@@ -72,7 +72,7 @@ mg::Buffer* mf::SurfaceTracker::last_buffer(SurfaceId surface_id) const
         return nullptr;
 }
 
-mg::Buffer* mf::SurfaceTracker::buffer_from(mg::BufferID buffer_id) const
+mg::Buffer* mf::BufferStreamTracker::buffer_from(mg::BufferID buffer_id) const
 {
     for (auto const& tracker : client_buffer_tracker)
     {

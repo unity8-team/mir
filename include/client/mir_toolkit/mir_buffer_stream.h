@@ -116,7 +116,7 @@ void mir_buffer_stream_get_graphics_region(
  *   \param [in] buffer_stream The buffer stream
  *   \return                   An EGLNativeWindowType that the client can use
  */
-MirEGLNativeWindowType mir_buffer_stream_egl_native_window(MirBufferStream *buffer_stream);
+MirEGLNativeWindowType mir_buffer_stream_get_egl_native_window(MirBufferStream *buffer_stream);
 
 #ifdef __cplusplus
 }

@@ -141,14 +141,7 @@ struct SimpleBufferStream : public mf::BufferStream
     
     void with_most_recent_buffer_do(std::function<void(mg::Buffer&)> const& exec)
     {
-        try {
-        printf("Acquiring compositor buf \n");
         exec(*comp_buffer);
-        printf("Releasing compositor buf \n");
-        } catch (std::exception const& ex)
-            {
-                printf("Oh no: %s \n", ex.what());
-            }
     }
     
     void add_observer(std::shared_ptr<ms::SurfaceObserver> const& new_observer) override
@@ -162,9 +155,13 @@ struct SimpleBufferStream : public mf::BufferStream
     
     void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& remove_observer)
     {
-        // TODO:
         (void) remove_observer;
         observer.reset();
+    }
+
+    MirPixelFormat pixel_format() const override
+    {
+        return buffer_stream->get_stream_pixel_format();
     }
     
     std::shared_ptr<mc::BufferStream> const buffer_stream;

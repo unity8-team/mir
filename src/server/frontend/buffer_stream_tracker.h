@@ -16,8 +16,8 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#ifndef MIR_FRONTEND_SURFACE_TRACKER_H_
-#define MIR_FRONTEND_SURFACE_TRACKER_H_
+#ifndef MIR_FRONTEND_BUFFER_STREAM_TRACKER_H_
+#define MIR_FRONTEND_BUFFER_STREAM_TRACKER_H_
 
 #include "mir/frontend/surface_id.h"
 #include "client_buffer_tracker.h"
@@ -34,12 +34,12 @@ class Buffer;
 namespace frontend
 {
 
-class SurfaceTracker
+class BufferStreamTracker
 {
 public:
-    SurfaceTracker(size_t client_cache_size);
-    SurfaceTracker(SurfaceTracker const&) = delete;
-    SurfaceTracker& operator=(SurfaceTracker const&) = delete;
+    BufferStreamTracker(size_t client_cache_size);
+    BufferStreamTracker(BufferStreamTracker const&) = delete;
+    BufferStreamTracker& operator=(BufferStreamTracker const&) = delete;
 
     /* track a buffer as associated with a surface
      * \warning the buffer must correspond to a single surface_id
@@ -48,9 +48,9 @@ public:
      * \returns          true if the buffer is already tracked
      *                   false if the buffer is not tracked
      */
-    bool track_buffer(SurfaceId surface_id, graphics::Buffer* buffer);
+    bool track_buffer(BufferStreamId surface_id, graphics::Buffer* buffer);
     /* removes the surface id from all tracking */
-    void remove_surface(SurfaceId);
+    void remove_stream(BufferStreamId);
 
     /* Access the buffer resource that the id corresponds to.
        TODO: should really be a weak or shared ptr */
@@ -58,17 +58,17 @@ public:
 
 private:
     size_t const client_cache_size;
-    std::unordered_map<SurfaceId, std::shared_ptr<ClientBufferTracker>> client_buffer_tracker;
+    std::unordered_map<BufferStreamId, std::shared_ptr<ClientBufferTracker>> client_buffer_tracker;
 
 //TODO: deprecate below this line once exchange_buffer is the normal way to request a new buffer
 public:
-    /* accesses the last buffer given to track_buffer() for the given SurfaceId */
-    graphics::Buffer* last_buffer(SurfaceId) const;
+    /* accesses the last buffer given to track_buffer() for the given BufferStreamId */
+    graphics::Buffer* last_buffer(BufferStreamId) const;
 private:
-    std::unordered_map<SurfaceId, graphics::Buffer*> client_buffer_resource;
+    std::unordered_map<BufferStreamId, graphics::Buffer*> client_buffer_resource;
 };
 
 }
 }
 
-#endif // MIR_FRONTEND_SURFACE_TRACKER_H_
+#endif // MIR_FRONTEND_BUFFER_STREAM_TRACKER_H_

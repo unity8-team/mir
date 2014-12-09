@@ -184,7 +184,8 @@ void mir_surface_set_event_handler(MirSurface* surface,
 
 MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface* surface)
 {
-    return reinterpret_cast<MirEGLNativeWindowType>(surface->egl_native_window());
+    return reinterpret_cast<MirEGLNativeWindowType>(
+        mir_buffer_stream_get_egl_native_window(mir_surface_get_buffer_stream(surface)));
 }
 
 bool mir_surface_is_valid(MirSurface* surface)
@@ -204,38 +205,47 @@ void mir_surface_get_parameters(MirSurface* surface, MirSurfaceParameters* param
 
 MirPlatformType mir_surface_get_platform_type(MirSurface* surface)
 {
-    return surface->platform_type();
+    return mir_buffer_stream_get_platform_type(mir_surface_get_buffer_stream(surface));
 }
 
 void mir_surface_get_current_buffer(MirSurface* surface, MirNativeBuffer** buffer_package_out)
 {
-    *buffer_package_out = surface->get_current_buffer_package();
+    mir_buffer_stream_get_current_buffer(mir_surface_get_buffer_stream(surface), buffer_package_out);
 }
 
 void mir_surface_get_graphics_region(MirSurface* surface, MirGraphicsRegion* graphics_region)
 {
-    surface->get_cpu_region(*graphics_region);
+    mir_buffer_stream_get_graphics_region(mir_surface_get_buffer_stream(surface), graphics_region);
+}
+
+namespace
+{
+void buffer_to_surface_thunk(MirBufferStream *stream, void *context)
+{
+    auto cb = static_cast<std::function<void(MirBufferStream*)>*>(context);
+    (*cb)(stream);
+}
 }
 
 MirWaitHandle* mir_surface_swap_buffers(
     MirSurface* surface,
     mir_surface_callback callback,
     void* context)
-try
 {
-    // TODO: Fix
-    return surface->next_buffer((mir_buffer_stream_callback)callback, context);
-}
-catch (std::exception const&)
-{
-    return nullptr;
+    auto shim_callback = new std::function<void(MirBufferStream*)>;
+    *shim_callback = [callback, context, shim_callback] (MirBufferStream *stream)
+    {
+        auto surface = dynamic_cast<MirSurface*>(stream);
+        callback(surface, context);
+        delete shim_callback;
+    };
+    return mir_buffer_stream_swap_buffers(mir_surface_get_buffer_stream(surface),
+       buffer_to_surface_thunk, shim_callback);
 }
 
 void mir_surface_swap_buffers_sync(MirSurface* surface)
 {
-    mir_wait_for(mir_surface_swap_buffers(surface,
-        reinterpret_cast<mir_surface_callback>(assign_result),
-        nullptr));
+    mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
 }
 
 MirWaitHandle* mir_surface_release(

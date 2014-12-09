@@ -45,7 +45,7 @@
 #include "mir/fd.h"
 
 #include "mir/geometry/rectangles.h"
-#include "surface_tracker.h"
+#include "buffer_stream_tracker.h"
 #include "client_buffer_tracker.h"
 #include "protobuf_buffer_packer.h"
 
@@ -89,7 +89,7 @@ mf::SessionMediator::SessionMediator(
     connection_context(connection_context),
     cursor_images(cursor_images),
     translator{translator},
-    surface_tracker{static_cast<size_t>(client_buffer_cache_size)}
+    buffer_stream_tracker{static_cast<size_t>(client_buffer_cache_size)}
 {
 }
 
@@ -148,12 +148,12 @@ void mf::SessionMediator::advance_buffer(
     BufferStream& stream,
     std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete)
 {
-    auto client_buffer = surface_tracker.last_buffer(stream_id);
+    auto client_buffer = buffer_stream_tracker.last_buffer(stream_id);
     stream.swap_buffers(
         client_buffer, 
         [this, stream_id, complete](mg::Buffer* new_buffer)
         {
-            if (surface_tracker.track_buffer(stream_id, new_buffer))
+            if (buffer_stream_tracker.track_buffer(stream_id, new_buffer))
                 complete(new_buffer, mg::BufferIpcMsgType::update_msg);
             else
                 complete(new_buffer, mg::BufferIpcMsgType::full_msg);
@@ -262,7 +262,7 @@ void mf::SessionMediator::exchange_buffer(
     mg::BufferID const buffer_id{static_cast<uint32_t>(request->buffer().buffer_id())};
 
     mfd::ProtobufBufferPacker request_msg{const_cast<mir::protobuf::Buffer*>(&request->buffer())};
-    ipc_operations->unpack_buffer(request_msg, *surface_tracker.last_buffer(buffer_stream_id));
+    ipc_operations->unpack_buffer(request_msg, *buffer_stream_tracker.last_buffer(buffer_stream_id));
 
     auto const lock = std::make_shared<std::unique_lock<std::mutex>>(session_mutex);
     auto const session = weak_session.lock();
@@ -273,14 +273,14 @@ void mf::SessionMediator::exchange_buffer(
 
     auto const& stream = session->get_buffer_stream(buffer_stream_id);
     stream->swap_buffers(
-        surface_tracker.buffer_from(buffer_id),
+        buffer_stream_tracker.buffer_from(buffer_id),
         [this, buffer_stream_id, lock, response, done](mg::Buffer* new_buffer)
         {
             printf("Completing buffer swap\n");
 
             lock->unlock();
 
-            if (surface_tracker.track_buffer(buffer_stream_id, new_buffer))
+            if (buffer_stream_tracker.track_buffer(buffer_stream_id, new_buffer))
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::update_msg);
             else
                 pack_protobuf_buffer(*response, new_buffer, mg::BufferIpcMsgType::full_msg);
@@ -308,7 +308,7 @@ void mf::SessionMediator::release_surface(
         auto const id = SurfaceId(request->value());
 
         session->destroy_surface(id);
-        surface_tracker.remove_surface(id);
+        buffer_stream_tracker.remove_stream(id);
     }
 
     // TODO: We rely on this sending responses synchronously.
@@ -720,12 +720,10 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
     auto stream = session->get_buffer_stream(buffer_stream_id);
     
     response->mutable_id()->set_value(buffer_stream_id.as_value());
-    // TODO: Need to respond with pixel format
-//    response->set_pixel_format(stream->get_stream_pixel_format());
+    response->set_pixel_format(stream->pixel_format());
 
-    // TODO proper buffer usage and stream
+    // TODO: Is it guaranteed we get the buffer usage we want?
     response->set_buffer_usage(request->buffer_usage());
-    response->set_buffer_usage(request->pixel_format());
 
     advance_buffer(buffer_stream_id, *stream,
         [lock, this, response, done, session]
@@ -756,9 +754,8 @@ void mf::SessionMediator::release_buffer_stream(google::protobuf::RpcController*
         auto const id = BufferStreamId(request->value());
 
         session->destroy_buffer_stream(id);
-        surface_tracker.remove_surface(id);
+        buffer_stream_tracker.remove_stream(id);
     }
 
-    // TODO: We rely on this sending responses synchronously.
     done->Run();
 }

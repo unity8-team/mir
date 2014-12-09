@@ -226,6 +226,7 @@ void mcl::SurfacelessBufferStream::buffer_stream_created(
 {
     if (!protobuf_buffer_stream.has_error())
     {
+        pixel_format = static_cast<MirPixelFormat>(protobuf_buffer_stream.pixel_format());
         egl_native_window_ = egl_native_window_factory->create_egl_native_window(this);
         process_buffer(protobuf_buffer_stream.buffer());
     }

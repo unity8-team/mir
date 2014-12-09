@@ -120,7 +120,7 @@ void mir_buffer_stream_get_graphics_region(
     return buffer_stream->get_cpu_region(*graphics_region);
 }
 
-MirEGLNativeWindowType mir_buffer_stream_egl_native_window(MirBufferStream* buffer_stream)
+MirEGLNativeWindowType mir_buffer_stream_get_egl_native_window(MirBufferStream* buffer_stream)
 {
     return reinterpret_cast<MirEGLNativeWindowType>(buffer_stream->egl_native_window());
 }
