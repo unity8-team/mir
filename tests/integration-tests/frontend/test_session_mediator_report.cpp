@@ -42,6 +42,8 @@ struct MockSessionMediatorReport : mf::SessionMediatorReport
     MOCK_METHOD1(session_disconnect_called, void (std::string const&));
     MOCK_METHOD2(session_start_prompt_session_called, void (std::string const&, pid_t));
     MOCK_METHOD1(session_stop_prompt_session_called, void (std::string const&));
+    MOCK_METHOD1(session_create_buffer_stream_called, void (std::string const&));
+    MOCK_METHOD1(session_release_buffer_stream_called, void (std::string const&));
 
     void session_drm_auth_magic_called(const std::string&) override {};
     void session_configure_surface_called(std::string const&) override {};

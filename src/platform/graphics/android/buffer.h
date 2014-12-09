@@ -32,6 +32,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <hardware/gralloc.h>
+
 namespace mir
 {
 namespace graphics
@@ -66,6 +68,8 @@ private:
     std::mutex mutable content_lock;
     std::shared_ptr<NativeBuffer> native_buffer;
     std::shared_ptr<EGLExtensions> egl_extensions;
+
+    gralloc_module_t const* hw_module;
 };
 
 }

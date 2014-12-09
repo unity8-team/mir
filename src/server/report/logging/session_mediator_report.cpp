@@ -100,3 +100,13 @@ void mrl::SessionMediatorReport::session_error(
 {
     log->log(ml::Severity::error, std::string(method) + " - session_error(\"" + app_name + "\"):\n" + what, component);
 }
+
+void mrl::SessionMediatorReport::session_create_buffer_stream_called(std::string const& app_name)
+{
+    log->log(ml::Severity::informational, "session_create_buffer_stream(\"" + app_name + "\")", component);
+}
+
+void mrl::SessionMediatorReport::session_release_buffer_stream_called(std::string const& app_name)
+{
+    log->log(ml::Severity::informational, "session_release_buffer_stream(\"" + app_name + "\")", component);
+}

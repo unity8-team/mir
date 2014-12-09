@@ -701,15 +701,18 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
     if (session.get() == nullptr)
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid application session"));
 
+    report->session_create_surface_called(session->name());
     
-    // TODO: Add method to report
     mg::BufferUsage usage = mg::BufferUsage::undefined;
     auto client_usage = request->buffer_usage();
     if (client_usage == mir_buffer_usage_hardware)
+    {
         usage = mg::BufferUsage::hardware;
+    }
     else
-    usage = mg::BufferUsage::software;
-    // TODO: Fix
+    {
+        usage = mg::BufferUsage::software;
+    }
 
     auto stream_size = geom::Size{geom::Width{request->width()}, geom::Height{request->height()}};
     mg::BufferProperties props(stream_size,
@@ -750,6 +753,8 @@ void mf::SessionMediator::release_buffer_stream(google::protobuf::RpcController*
 
         if (session.get() == nullptr)
             BOOST_THROW_EXCEPTION(std::logic_error("Invalid application session"));
+
+        report->session_create_surface_called(session->name());
 
         auto const id = BufferStreamId(request->value());
 

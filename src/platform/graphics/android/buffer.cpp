@@ -38,6 +38,9 @@ mga::Buffer::Buffer(std::shared_ptr<NativeBuffer> const& buffer_handle,
     : native_buffer(buffer_handle),
       egl_extensions(extensions)
 {
+    auto err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, (hw_module_t const **)(&hw_module));
+    if (err < 0)
+        BOOST_THROW_EXCEPTION(std::runtime_error("Could not open hardware module"));
 }
 
 mga::Buffer::~Buffer()
@@ -139,6 +142,20 @@ std::shared_ptr<mg::NativeBuffer> mga::Buffer::native_buffer_handle() const
 
 void mga::Buffer::read(std::function<void(unsigned char const*)> const& do_with_data)
 {
-    (void) do_with_data;
-    BOOST_THROW_EXCEPTION(std::runtime_error("NOt yet supported"));
+    auto const& handle = native_buffer_handle();
+    auto buffer_size = size();
+    
+    unsigned char* vaddr;
+    int usage = GRALLOC_USAGE_SW_READ_OFTEN;
+    int width = buffer_size.width.as_uint32_t();
+    int height = buffer_size.height.as_uint32_t();
+    int top = 0;
+    int left = 0;
+    if ( hw_module->lock(hw_module, handle->handle(),
+        usage, top, left, width, height, reinterpret_cast<void**>(&vaddr)) )
+        BOOST_THROW_EXCEPTION(std::runtime_error("error securing buffer for client cpu use"));
+
+    do_with_data(vaddr);
+    
+    hw_module->unlock(hw_module, handle->handle());
 }
