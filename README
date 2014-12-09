@@ -3,7 +3,7 @@ This repo contains a QPA plugin to make Qt a Mir server.
 Handy way to grab dependencies is with:
 $ sudo mk-build-deps -ir debian/control
 
-To use, compile and install (builing in a "build" subdir as an example):
+To use, compile and install (building in a "build" subdir as an example):
 $ mkdir build
 $ cd build
 $ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ../
