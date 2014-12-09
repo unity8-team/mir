@@ -87,7 +87,9 @@ public:
     void consume(MirEvent const&) override {}
 
     void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& /* image */) {}
-    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& /* image */) {}
+    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& /* image */,
+        geometry::Displacement const& /* displacement */) {}
+
     std::shared_ptr<graphics::CursorImage> cursor_image() const { return {}; }
 
     void request_client_surface_close() override {}

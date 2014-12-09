@@ -570,8 +570,9 @@ struct FramePostObserver : public ms::NullSurfaceObserver
 };
 struct CursorImageFromBuffer : public mg::CursorImage
 {
-    CursorImageFromBuffer(mg::Buffer &buffer)
-        : buffer_size(buffer.size())
+    CursorImageFromBuffer(mg::Buffer &buffer, geom::Displacement const& hotspot)
+        : buffer_size(buffer.size()),
+          hotspot_(hotspot)
     {
         buffer.read([&](unsigned char const* buffer_pixels)
             {
@@ -596,10 +597,12 @@ struct CursorImageFromBuffer : public mg::CursorImage
 
     geom::Displacement hotspot() const
     {
-        return geom::Displacement();
+        return hotspot_;
     }
 
     geom::Size const buffer_size;
+    geom::Displacement const hotspot_;
+
     std::unique_ptr<unsigned char[]> pixels;
 };
 }
@@ -609,11 +612,13 @@ namespace scene
 {
 struct CursorStreamImageAdapter
 {
-    CursorStreamImageAdapter(ms::BasicSurface &surface, std::shared_ptr<mf::BufferStream> const& stream)
+    CursorStreamImageAdapter(ms::BasicSurface &surface, std::shared_ptr<mf::BufferStream> const& stream,
+        geom::Displacement const& hotspot)
         : surface(surface),
-          stream(stream)
+          stream(stream),
+          hotspot(hotspot)
     {
-// TODO: Enable remember the deadlock....
+// TODO: Enable remember the deadlock....e.g. make sure a buffer is available
 //        post_cursor_image_from_current_buffer();
         observer = std::make_shared<FramePostObserver>([&](){
                 post_cursor_image_from_current_buffer();
@@ -630,7 +635,7 @@ struct CursorStreamImageAdapter
     {
         stream->with_most_recent_buffer_do([&](mg::Buffer &buffer) 
         {
-            surface.set_cursor_from_buffer(buffer);
+            surface.set_cursor_from_buffer(buffer, hotspot);
         });
     }
     
@@ -638,13 +643,14 @@ struct CursorStreamImageAdapter
 
     std::shared_ptr<mf::BufferStream> const stream;
     std::shared_ptr<FramePostObserver> observer;
+    geom::Displacement const hotspot;
 };
 }
 }
 
-void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer)
+void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer, geom::Displacement const& hotspot)
 {
-    auto image = std::make_shared<CursorImageFromBuffer>(buffer);
+    auto image = std::make_shared<CursorImageFromBuffer>(buffer, hotspot);
 
     {
         std::unique_lock<std::mutex> lock(guard);
@@ -655,11 +661,12 @@ void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer)
     observers.cursor_image_set_to(*image);
 }
 
-void ms::BasicSurface::set_cursor_stream(std::shared_ptr<mf::BufferStream> const& stream)
+void ms::BasicSurface::set_cursor_stream(std::shared_ptr<mf::BufferStream> const& stream, 
+    geom::Displacement const& hotspot)
 {
     std::unique_lock<std::mutex> lock(guard);
     
-    cursor_stream_adapter = std::make_shared<ms::CursorStreamImageAdapter>(*this, stream);
+    cursor_stream_adapter = std::make_shared<ms::CursorStreamImageAdapter>(*this, stream, hotspot);
 }
     
 

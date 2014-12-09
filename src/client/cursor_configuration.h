@@ -28,10 +28,12 @@ struct MirBufferStream;
 struct MirCursorConfiguration 
 {
     MirCursorConfiguration(char const* name);
-    MirCursorConfiguration(MirBufferStream const* stream);
+    MirCursorConfiguration(MirBufferStream const* stream, int hotspot_x, int hotspot_y);
 
     std::string name;
     MirBufferStream const* stream;
+    int hotspot_x;
+    int hotspot_y;
 };
 
 #endif // MIR_CLIENT_CURSOR_CONFIGURATION_H_

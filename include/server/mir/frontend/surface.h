@@ -23,6 +23,7 @@
 #include "mir/frontend/buffer_stream.h"
 
 #include "mir/geometry/size.h"
+#include "mir/geometry/displacement.h"
 #include "mir_toolkit/common.h"
 
 #include <memory>
@@ -58,7 +59,8 @@ public:
     virtual int query(MirSurfaceAttrib attrib) = 0;
 
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) = 0;
-    virtual void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream) = 0;
+    virtual void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream,
+        geometry::Displacement const& hotspot) = 0;
     
 protected:
     Surface() = default;

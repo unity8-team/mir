@@ -39,13 +39,17 @@ char const* const mir_hsplit_resize_cursor_name = "hsplit-resize";
 
 MirCursorConfiguration::MirCursorConfiguration(char const* name) :
     name{name ? name : std::string()},
-    stream(nullptr)
+    stream(nullptr),
+    hotspot_x(-1),
+    hotspot_y(-1)
 {
 }
 
-MirCursorConfiguration::MirCursorConfiguration(MirBufferStream const* stream) :
+MirCursorConfiguration::MirCursorConfiguration(MirBufferStream const* stream, int x, int y) :
     name{},
-    stream(stream)
+    stream(stream),
+    hotspot_x(x),
+    hotspot_y(y)
 {
 }
 
@@ -66,11 +70,12 @@ MirCursorConfiguration* mir_cursor_configuration_from_name(char const* name)
     }
 }
 
-MirCursorConfiguration* mir_cursor_configuration_from_buffer_stream(MirBufferStream const* stream)
+MirCursorConfiguration* mir_cursor_configuration_from_buffer_stream(MirBufferStream const* stream,
+    int hotspot_x, int hotspot_y)
 {
     try 
     {
-        return new MirCursorConfiguration(stream);
+        return new MirCursorConfiguration(stream, hotspot_x, hotspot_y);
     }
     catch (...)
     {

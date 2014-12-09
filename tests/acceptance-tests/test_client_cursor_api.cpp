@@ -416,12 +416,13 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
         void setup_cursor(MirSurface* surface) override
         {
-            // TODO: Connection?
+            // TODO: Test for hotspot
+            int hotspot_x = 1, hotspot_y = 2;
             // TODO: Cleanup constants?
             auto stream = mir_connection_create_surfaceless_buffer_stream_sync(
                 connection, 24, 24, mir_pixel_format_argb_8888,
                 mir_buffer_usage_software);
-            auto conf = mir_cursor_configuration_from_buffer_stream(stream);
+            auto conf = mir_cursor_configuration_from_buffer_stream(stream, hotspot_x, hotspot_y);
 
             mir_wait_for(mir_surface_configure_cursor(surface, conf));
             

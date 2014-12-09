@@ -144,8 +144,10 @@ public:
     void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) override;
     std::shared_ptr<graphics::CursorImage> cursor_image() const override;
     
-    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream) override;
-    void set_cursor_from_buffer(graphics::Buffer &buffer);
+    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& stream,
+        geometry::Displacement const& hotspot) override;
+    void set_cursor_from_buffer(graphics::Buffer &buffer,
+        geometry::Displacement const& hotspot);
 
     void request_client_surface_close() override;
 

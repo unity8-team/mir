@@ -514,8 +514,9 @@ void mf::SessionMediator::configure_cursor(
         else if (cursor_request->has_buffer_stream_id())
         {
             auto const& stream_id = mf::BufferStreamId(cursor_request->buffer_stream_id().value());
+            auto hotspot = geom::Displacement{cursor_request->hotspot_x(), cursor_request->hotspot_y()};
             auto stream = session->get_buffer_stream(stream_id);
-            surface->set_cursor_stream(stream);
+            surface->set_cursor_stream(stream, hotspot);
         }
         else
         {

@@ -418,6 +418,8 @@ MirWaitHandle* MirSurface::configure_cursor(MirCursorConfiguration const* cursor
         if (cursor && cursor->stream != nullptr)
         {
             setting.mutable_buffer_stream_id()->CopyFrom(cursor->stream->protobuf_id());
+            setting.set_hotspot_x(cursor->hotspot_x);
+            setting.set_hotspot_y(cursor->hotspot_x);
         }
         else if (cursor && cursor->name != mir_disabled_cursor_name)
         {

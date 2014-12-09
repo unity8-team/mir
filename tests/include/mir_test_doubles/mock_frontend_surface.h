@@ -64,7 +64,8 @@ struct MockFrontendSurface : public frontend::Surface
     MOCK_CONST_METHOD0(client_input_fd, int());
     
     MOCK_METHOD1(set_cursor_image, void(std::shared_ptr<graphics::CursorImage> const&));
-    MOCK_METHOD1(set_cursor_stream, void(std::shared_ptr<frontend::BufferStream> const&));
+    MOCK_METHOD2(set_cursor_stream, void(std::shared_ptr<frontend::BufferStream> const&,
+        geometry::Displacement const&));
 
     MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));
     MOCK_METHOD1(query, int(MirSurfaceAttrib));
