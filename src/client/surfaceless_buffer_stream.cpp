@@ -122,7 +122,7 @@ MirWaitHandle* mcl::SurfacelessBufferStream::creation_wait_handle()
     return &create_buffer_stream_wait_handle;
 }
 
-bool mcl::SurfacelessBufferStream::valid()
+bool mcl::SurfacelessBufferStream::is_valid()
 {
     return !protobuf_buffer_stream.has_error();
 }
@@ -270,4 +270,10 @@ void mcl::SurfacelessBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
 void mcl::SurfacelessBufferStream::release_cpu_region()
 {
     secured_region.reset();
+}
+
+MirPlatformType mcl::SurfacelessBufferStream::platform_type()
+{
+    auto platform = connection->get_client_platform();
+    return platform->platform_type();
 }

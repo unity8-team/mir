@@ -33,7 +33,7 @@ void null_callback(MirBufferStream*, void*) {}
 
 // TODO: Add async variant?
 
-MirBufferStream* mir_connection_create_buffer_stream_sync(
+MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(
     MirConnection* connection,
     int width, int height, MirPixelFormat pixel_format, MirBufferUsage buffer_usage)
 {
@@ -58,7 +58,7 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
 
         buffer_stream_uptr->creation_wait_handle()->wait_for_all();
 
-        if (buffer_stream_uptr->valid())
+        if (buffer_stream_uptr->is_valid())
         {
             buffer_stream = buffer_stream_uptr.get();
             buffer_stream_uptr.release();
@@ -72,10 +72,10 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
     return buffer_stream;
 }
 
-void mir_buffer_stream_release_sync(MirBufferStream* buffer_stream)
+void mir_surfaceless_buffer_stream_release_sync(MirBufferStream* buffer_stream)
 {
-    // TODO: Fix
-//    buffer_stream->release(null_callback, nullptr)->wait_for_all();
+    auto stream = dynamic_cast<mcl::SurfacelessBufferStream*>(buffer_stream);
+    stream->release(null_callback, nullptr)->wait_for_all();
     delete buffer_stream;
 }
 
@@ -123,4 +123,9 @@ void mir_buffer_stream_get_graphics_region(
 MirEGLNativeWindowType mir_buffer_stream_egl_native_window(MirBufferStream* buffer_stream)
 {
     return reinterpret_cast<MirEGLNativeWindowType>(buffer_stream->egl_native_window());
+}
+
+MirPlatformType mir_buffer_stream_get_platform_type(MirBufferStream* buffer_stream)
+{
+    return buffer_stream->platform_type();
 }

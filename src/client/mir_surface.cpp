@@ -215,7 +215,7 @@ void MirSurface::release_cpu_region()
     secured_region.reset();
 }
 
-MirWaitHandle* MirSurface::next_buffer(mir_surface_callback callback, void * context)
+MirWaitHandle* MirSurface::next_buffer(mir_buffer_stream_callback callback, void * context)
 {
     std::unique_lock<decltype(mutex)> lock(mutex);
     release_cpu_region();
@@ -313,7 +313,7 @@ void MirSurface::created(mir_surface_callback callback, void * context)
     create_wait_handle.result_received();
 }
 
-void MirSurface::new_buffer(mir_surface_callback callback, void * context)
+void MirSurface::new_buffer(mir_buffer_stream_callback callback, void * context)
 {
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
@@ -401,7 +401,7 @@ void MirSurface::populate(MirBufferPackage& buffer_package)
     }
 }
 
-EGLNativeWindowType MirSurface::generate_native_window()
+EGLNativeWindowType MirSurface::egl_native_window()
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
 
@@ -600,7 +600,7 @@ MirPlatformType MirSurface::platform_type()
 
 void MirSurface::request_and_wait_for_next_buffer()
 {
-    next_buffer(null_callback, nullptr)->wait_for_all();
+    next_buffer((mir_buffer_stream_callback)null_callback, nullptr)->wait_for_all();
 }
 
 void MirSurface::request_and_wait_for_configure(MirSurfaceAttrib a, int value)
@@ -613,4 +613,11 @@ MirOrientation MirSurface::get_orientation() const
     std::lock_guard<decltype(mutex)> lock(mutex);
 
     return orientation;
+}
+
+mir::protobuf::BufferStreamId MirSurface::protobuf_id() const
+{
+    mir::protobuf::BufferStreamId id;
+    id.set_value(surface.id().value());
+    return id;
 }

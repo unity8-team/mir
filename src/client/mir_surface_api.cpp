@@ -184,7 +184,7 @@ void mir_surface_set_event_handler(MirSurface* surface,
 
 MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface* surface)
 {
-    return reinterpret_cast<MirEGLNativeWindowType>(surface->generate_native_window());
+    return reinterpret_cast<MirEGLNativeWindowType>(surface->egl_native_window());
 }
 
 bool mir_surface_is_valid(MirSurface* surface)
@@ -223,7 +223,8 @@ MirWaitHandle* mir_surface_swap_buffers(
     void* context)
 try
 {
-    return surface->next_buffer(callback, context);
+    // TODO: Fix
+    return surface->next_buffer((mir_buffer_stream_callback)callback, context);
 }
 catch (std::exception const&)
 {
@@ -434,4 +435,9 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface* surface, MirCursorConfig
     }
 
     return result;
+}
+
+MirBufferStream* mir_surface_get_buffer_stream(MirSurface *surface)
+{
+    return surface;
 }

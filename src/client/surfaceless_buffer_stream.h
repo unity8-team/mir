@@ -56,7 +56,7 @@ public:
     ~SurfacelessBufferStream();
 
     MirWaitHandle* creation_wait_handle();
-    bool valid();
+    bool is_valid();
 
     MirWaitHandle* release(
         mir_buffer_stream_callback callback, void* context);
@@ -77,6 +77,8 @@ public:
     mir::protobuf::BufferStreamId protobuf_id() const;
 
     void get_cpu_region(MirGraphicsRegion& region);
+    
+    MirPlatformType platform_type();
 
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);

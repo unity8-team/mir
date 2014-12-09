@@ -513,12 +513,9 @@ void mf::SessionMediator::configure_cursor(
         }
         else if (cursor_request->has_buffer_stream_id())
         {
-            printf("Has buffer stream id\n");
             auto const& stream_id = mf::BufferStreamId(cursor_request->buffer_stream_id().value());
             auto stream = session->get_buffer_stream(stream_id);
-            printf("Setting buffer stream \n");
             surface->set_cursor_stream(stream);
-            printf("Set buffer stream \n");
         }
         else
         {

@@ -46,8 +46,6 @@ class MirBufferStream : public mir::client::ClientSurface
 public:
     virtual ~MirBufferStream() = default;
 
-    virtual bool valid() = 0;
-
     virtual MirWaitHandle* next_buffer(
         mir_buffer_stream_callback callback, void* context) = 0;
 
@@ -63,6 +61,7 @@ public:
     
     virtual mir::protobuf::BufferStreamId protobuf_id() const = 0;
     virtual MirNativeBuffer* get_current_buffer_package() = 0;
+    virtual MirPlatformType platform_type() = 0;
 
 protected:
     MirBufferStream() = default;

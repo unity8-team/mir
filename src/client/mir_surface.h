@@ -26,7 +26,7 @@
 #include "mir/graphics/native_buffer.h"
 #include "client_buffer_depository.h"
 #include "mir_wait_handle.h"
-#include "mir_client_surface.h"
+#include "mir_buffer_stream.h"
 #include "client_platform.h"
 
 #include <memory>
@@ -66,7 +66,7 @@ struct MirSurfaceSpec
     bool fullscreen;
 };
 
-struct MirSurface : public mir::client::ClientSurface
+struct MirSurface : public MirBufferStream
 {
 public:
     MirSurface(MirSurface const &) = delete;
@@ -100,7 +100,7 @@ public:
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;
-    MirWaitHandle* next_buffer(mir_surface_callback callback, void * context);
+    MirWaitHandle* next_buffer(mir_buffer_stream_callback callback, void * context);
     MirWaitHandle* get_create_wait_handle();
 
     MirNativeBuffer* get_current_buffer_package();
@@ -108,7 +108,7 @@ public:
     std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
     uint32_t get_current_buffer_id() const;
     void get_cpu_region(MirGraphicsRegion& region);
-    EGLNativeWindowType generate_native_window();
+    EGLNativeWindowType egl_native_window();
 
     MirWaitHandle* configure(MirSurfaceAttrib a, int value);
 
@@ -130,6 +130,8 @@ public:
     /* mir::client::ClientSurface */
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+    
+    mir::protobuf::BufferStreamId protobuf_id() const;
 
     static bool is_valid(MirSurface* query);
 private:
@@ -140,7 +142,7 @@ private:
     void process_incoming_buffer();
     void populate(MirBufferPackage& buffer_package);
     void created(mir_surface_callback callback, void * context);
-    void new_buffer(mir_surface_callback callback, void * context);
+    void new_buffer(mir_buffer_stream_callback callback, void * context);
     MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf) const;
     void release_cpu_region();
 

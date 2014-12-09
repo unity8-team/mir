@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-MirBufferStream* mir_connection_create_buffer_stream_sync(MirConnection *connection,
+MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(MirConnection *connection,
     int width, int height,
     MirPixelFormat format,
     MirBufferUsage buffer_usage);
@@ -46,7 +46,7 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(MirConnection *connect
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_buffer_stream_release(
+MirWaitHandle *mir_surfaceless_buffer_stream_release(
     MirBufferStream * buffer_stream,
     mir_buffer_stream_callback callback,
     void *context);
@@ -56,9 +56,16 @@ MirWaitHandle *mir_buffer_stream_release(
  * for the operation to complete.
  *   \param [in] buffer stream  The buffer stream to be released
  */
-void mir_buffer_stream_release_sync(MirBufferStream *buffer_stream);
+void mir_surfaceless_buffer_stream_release_sync(MirBufferStream *buffer_stream);
 
-// TODO: Add get_platform_type
+/**
+ * Get the underlying platform type so the buffer obtained in "raw" representation
+ * in mir_buffer_stream_get_current_buffer() can be understood
+ *   \pre                     The surface is valid
+ *   \param [in] surface      The surface
+ *   \return                  One of mir_platform_type_android or mir_platform_type_gbm
+ */
+MirPlatformType mir_buffer_stream_get_platform_type(MirBufferStream *stream);
 
 /**
  * Retreive the current buffer in "raw" representation.

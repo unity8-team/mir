@@ -408,6 +408,14 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface *surface, MirCursorConfig
  */
 MirOrientation mir_surface_get_orientation(MirSurface *surface);
 
+/**
+ * Return the buffer stream associated with a surface. May be used
+ * with the mir_buffer_stream_* family of functions in <mir_toolkit/mir_buffer_stream.h>
+ *   \param [in] surface The surface
+ *   \return             The buffer stream
+ */
+MirBufferStream* mir_surface_get_buffer_stream(MirSurface *surface);
+
 #ifdef __cplusplus
 }
 /**@}*/

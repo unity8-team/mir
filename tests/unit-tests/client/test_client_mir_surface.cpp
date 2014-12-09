@@ -348,6 +348,10 @@ void null_surface_callback(MirSurface*, void*)
 {
 }
 
+void null_stream_callback(MirBufferStream*, void*)
+{
+}
+
 void null_event_callback(MirSurface*, MirEvent const*, void*)
 {
 }
@@ -501,7 +505,7 @@ TEST_F(MirClientSurfaceTest, next_buffer_wait_handle_really_blocks)
 
     auto const surface = create_surface_with(unresponsive_server, stub_buffer_factory);
 
-    auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    auto buffer_wait_handle = surface->next_buffer(&null_stream_callback, nullptr);
 
     auto expected_end = std::chrono::steady_clock::now() + pause_time;
     buffer_wait_handle->wait_for_pending(pause_time);
@@ -522,7 +526,7 @@ TEST_F(MirClientSurfaceTest, client_buffer_created_on_next_buffer)
 
     EXPECT_CALL(*mock_buffer_factory, create_buffer(_,_,_))
         .Times(1);
-    auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    auto buffer_wait_handle = surface->next_buffer(&null_stream_callback, nullptr);
     buffer_wait_handle->wait_for_all();
 }
 
@@ -604,7 +608,7 @@ TEST_F(MirClientSurfaceTest, returns_current_buffer)
     EXPECT_THAT(creation_buffer,
                 Eq(stub_buffer_factory->last_created_buffer));
 
-    auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    auto buffer_wait_handle = surface->next_buffer(&null_stream_callback, nullptr);
     buffer_wait_handle->wait_for_all();
     auto const next_buffer = surface->get_current_buffer();
     EXPECT_THAT(next_buffer,
@@ -619,7 +623,7 @@ TEST_F(MirClientSurfaceTest, surface_resizes_with_latest_buffer)
 
     auto const surface = create_and_wait_for_surface_with(*client_comm_channel, stub_buffer_factory);
 
-    auto buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    auto buffer_wait_handle = surface->next_buffer(&null_stream_callback, nullptr);
     buffer_wait_handle->wait_for_all();
 
     int new_width = mock_server_tool->width_sent += 12;
@@ -629,7 +633,7 @@ TEST_F(MirClientSurfaceTest, surface_resizes_with_latest_buffer)
     EXPECT_THAT(before.width, Ne(new_width));
     EXPECT_THAT(before.height, Ne(new_height));
 
-    buffer_wait_handle = surface->next_buffer(&null_surface_callback, nullptr);
+    buffer_wait_handle = surface->next_buffer(&null_stream_callback, nullptr);
     buffer_wait_handle->wait_for_all();
 
     auto const& after = surface->get_parameters();
