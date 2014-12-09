@@ -20,6 +20,7 @@
 #define MIR_CLIENT_MIR_SCREENCAST_H_
 
 #include "mir_client_surface.h"
+#include "mir_buffer_stream.h"
 #include "mir_wait_handle.h"
 #include "client_buffer_depository.h"
 #include "mir_toolkit/client_types.h"
@@ -36,13 +37,15 @@ namespace client
 {
 class ClientBufferFactory;
 class EGLNativeWindowFactory;
+class MemoryRegion;
 }
 }
 
-struct MirScreencast : public mir::client::ClientSurface
+struct MirScreencast : public MirBufferStream
 {
 public:
     MirScreencast(
+        MirConnection *connection,
         mir::geometry::Rectangle const& region,
         mir::geometry::Size const& size,
         MirPixelFormat pixel_format,
@@ -50,6 +53,7 @@ public:
         std::shared_ptr<mir::client::EGLNativeWindowFactory> const& egl_native_window_factory,
         std::shared_ptr<mir::client::ClientBufferFactory> const& factory,
         mir_screencast_callback callback, void* context);
+    ~MirScreencast();
 
     MirWaitHandle* creation_wait_handle();
     bool valid();
@@ -58,7 +62,7 @@ public:
         mir_screencast_callback callback, void* context);
 
     MirWaitHandle* next_buffer(
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
 
     EGLNativeWindowType egl_native_window();
 
@@ -68,6 +72,11 @@ public:
     void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
 
+    mir::protobuf::BufferStreamId protobuf_id() const;
+    MirNativeBuffer* get_current_buffer_package();
+    MirPlatformType platform_type();
+    void get_cpu_region(MirGraphicsRegion& region);
+
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);
     void screencast_created(
@@ -75,7 +84,9 @@ private:
     void released(
         mir_screencast_callback callback, void* context);
     void next_buffer_received(
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
+    
+    MirConnection *connection;
 
     mir::protobuf::DisplayServer& server;
     mir::geometry::Size const output_size;
@@ -91,6 +102,9 @@ private:
     MirWaitHandle create_screencast_wait_handle;
     MirWaitHandle release_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
+
+    void release_cpu_region();
+    std::shared_ptr<mir::client::MemoryRegion> secured_region;
 };
 
 #endif /* MIR_CLIENT_MIR_SCREENCAST_H_ */

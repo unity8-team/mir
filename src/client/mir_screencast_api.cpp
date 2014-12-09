@@ -54,6 +54,7 @@ MirScreencast* mir_connection_create_screencast_sync(
 
         std::unique_ptr<MirScreencast> screencast_uptr{
             new MirScreencast{
+                connection,
                 region,
                 size,
                 parameters->pixel_format,
@@ -86,5 +87,10 @@ void mir_screencast_release_sync(MirScreencast* screencast)
 
 MirEGLNativeWindowType mir_screencast_egl_native_window(MirScreencast* screencast)
 {
-    return reinterpret_cast<MirEGLNativeWindowType>(screencast->egl_native_window());
+    return mir_buffer_stream_get_egl_native_window(mir_screencast_get_buffer_stream(screencast));
+}
+
+MirBufferStream* mir_screencast_get_buffer_stream(MirScreencast* screencast)
+{
+    return screencast;
 }

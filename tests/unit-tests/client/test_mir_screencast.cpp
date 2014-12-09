@@ -223,7 +223,17 @@ void mock_callback_func(MirScreencast* screencast, void* context)
     mock_cb->call(screencast, context);
 }
 
+void mock_bs_callback_func(MirBufferStream* stream, void* context)
+{
+    auto mock_cb = static_cast<MockCallback*>(context);
+    mock_cb->call(stream, context);
+}
+
 void null_callback_func(MirScreencast*, void*)
+{
+}
+
+void null_bs_callback_func(MirBufferStream*, void*)
 {
 }
 
@@ -261,6 +271,7 @@ TEST_F(MirScreencastTest, creates_screencast_on_construction)
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -286,6 +297,7 @@ TEST_F(MirScreencastTest, releases_screencast_on_release)
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -312,6 +324,7 @@ TEST_F(MirScreencastTest, requests_screencast_buffer_on_next_buffer)
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -319,7 +332,7 @@ TEST_F(MirScreencastTest, requests_screencast_buffer_on_next_buffer)
         stub_client_buffer_factory,
         null_callback_func, nullptr};
 
-    screencast.next_buffer(null_callback_func, nullptr);
+    screencast.next_buffer(null_bs_callback_func, nullptr);
 }
 
 TEST_F(MirScreencastTest, executes_callback_on_creation)
@@ -330,6 +343,7 @@ TEST_F(MirScreencastTest, executes_callback_on_creation)
     EXPECT_CALL(mock_cb, call(_, &mock_cb));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -345,6 +359,7 @@ TEST_F(MirScreencastTest, executes_callback_on_release)
     using namespace testing;
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -366,6 +381,7 @@ TEST_F(MirScreencastTest, executes_callback_on_next_buffer)
     using namespace testing;
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -378,7 +394,7 @@ TEST_F(MirScreencastTest, executes_callback_on_next_buffer)
     MockCallback mock_cb;
     EXPECT_CALL(mock_cb, call(&screencast, &mock_cb));
 
-    auto wh = screencast.next_buffer(mock_callback_func, &mock_cb);
+    auto wh = screencast.next_buffer(mock_bs_callback_func, &mock_cb);
     wh->wait_for_all();
 }
 
@@ -389,6 +405,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             default_region,
             invalid_size,
             default_pixel_format, stub_server,
@@ -399,6 +416,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             invalid_region,
             default_size,
             default_pixel_format, stub_server,
@@ -409,6 +427,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             default_region,
             default_size,
             mir_pixel_format_invalid, stub_server,
@@ -421,6 +440,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 TEST_F(MirScreencastTest, returns_correct_surface_parameters)
 {
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -462,6 +482,7 @@ TEST_F(MirScreencastTest, uses_buffer_message_from_server)
         .WillOnce(Return(client_buffer1));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -497,6 +518,7 @@ TEST_F(MirScreencastTest, returns_current_client_buffer)
         .WillOnce(Return(client_buffer2));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -508,7 +530,7 @@ TEST_F(MirScreencastTest, returns_current_client_buffer)
 
     EXPECT_EQ(client_buffer1, screencast.get_current_buffer());
 
-    auto wh = screencast.next_buffer(null_callback_func, nullptr);
+    auto wh = screencast.next_buffer(null_bs_callback_func, nullptr);
     wh->wait_for_all();
 
     EXPECT_EQ(client_buffer2, screencast.get_current_buffer());
@@ -519,6 +541,7 @@ TEST_F(MirScreencastTest, gets_egl_native_window)
     using namespace testing;
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -541,6 +564,7 @@ TEST_F(MirScreencastTest, is_invalid_if_server_create_screencast_fails)
         .WillOnce(DoAll(SetCreateError(), RunClosure()));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -563,6 +587,7 @@ TEST_F(MirScreencastTest, calls_callback_on_creation_failure)
     EXPECT_CALL(mock_cb, call(_,&mock_cb));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,

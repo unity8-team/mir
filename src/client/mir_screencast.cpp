@@ -17,6 +17,9 @@
  */
 
 #include "mir_screencast.h"
+#include "mir_connection.h"
+#include "client_buffer.h"
+
 #include "mir/frontend/client_constants.h"
 #include "mir_toolkit/mir_native_buffer.h"
 #include "egl_native_window_factory.h"
@@ -29,7 +32,7 @@ namespace geom = mir::geometry;
 namespace
 {
 
-void null_callback(MirScreencast*, void*) {}
+void null_bs_callback(MirBufferStream*, void*) {}
 
 void populate_buffer_package(
     MirBufferPackage& buffer_package,
@@ -69,6 +72,7 @@ void populate_buffer_package(
 }
 
 MirScreencast::MirScreencast(
+    MirConnection *allocating_connection,
     geom::Rectangle const& region,
     geom::Size const& size,
     MirPixelFormat pixel_format,
@@ -76,7 +80,8 @@ MirScreencast::MirScreencast(
     std::shared_ptr<mcl::EGLNativeWindowFactory> const& egl_native_window_factory,
     std::shared_ptr<mcl::ClientBufferFactory> const& factory,
     mir_screencast_callback callback, void* context)
-    : server(server),
+    : connection(allocating_connection),
+      server(server),
       output_size{size},
       output_format{pixel_format},
       egl_native_window_factory{egl_native_window_factory},
@@ -110,6 +115,11 @@ MirScreencast::MirScreencast(
         google::protobuf::NewCallback(
             this, &MirScreencast::screencast_created,
             callback, context));
+}
+
+MirScreencast::~MirScreencast()
+{
+    release_cpu_region();
 }
 
 MirWaitHandle* MirScreencast::creation_wait_handle()
@@ -156,8 +166,10 @@ MirWaitHandle* MirScreencast::release(
 }
 
 MirWaitHandle* MirScreencast::next_buffer(
-    mir_screencast_callback callback, void* context)
+    mir_buffer_stream_callback callback, void* context)
 {
+    release_cpu_region();
+
     mir::protobuf::ScreencastId screencast_id;
     screencast_id.set_value(protobuf_screencast.screencast_id().value());
 
@@ -180,7 +192,7 @@ EGLNativeWindowType MirScreencast::egl_native_window()
 
 void MirScreencast::request_and_wait_for_next_buffer()
 {
-    next_buffer(null_callback, nullptr)->wait_for_all();
+    next_buffer(null_bs_callback, nullptr)->wait_for_all();
 }
 
 void MirScreencast::request_and_wait_for_configure(MirSurfaceAttrib, int)
@@ -225,10 +237,48 @@ void MirScreencast::released(
 }
 
 void MirScreencast::next_buffer_received(
-    mir_screencast_callback callback, void* context)
+    mir_buffer_stream_callback callback, void* context)
 {
     process_buffer(protobuf_buffer);
 
     callback(this, context);
     next_buffer_wait_handle.result_received();
+}
+
+mir::protobuf::BufferStreamId MirScreencast::protobuf_id() const
+{
+    mir::protobuf::BufferStreamId id;
+    id.set_value(protobuf_screencast.screencast_id().value());
+    return id;
+}
+
+MirPlatformType MirScreencast::platform_type()
+{
+    auto platform = connection->get_client_platform();
+    return platform->platform_type();
+}
+
+MirNativeBuffer* MirScreencast::get_current_buffer_package()
+{
+    auto platform = connection->get_client_platform();
+    auto buffer = get_current_buffer();
+    auto handle = buffer->native_buffer_handle();
+    return platform->convert_native_buffer(handle.get());
+}
+
+void MirScreencast::get_cpu_region(MirGraphicsRegion& region_out)
+{
+    auto buffer = buffer_depository.current_buffer();
+
+    secured_region = buffer->secure_for_cpu_write();
+    region_out.width = secured_region->width.as_uint32_t();
+    region_out.height = secured_region->height.as_uint32_t();
+    region_out.stride = secured_region->stride.as_uint32_t();
+    region_out.pixel_format = secured_region->format;
+    region_out.vaddr = secured_region->vaddr.get();
+}
+
+void MirScreencast::release_cpu_region()
+{
+    secured_region.reset();
 }

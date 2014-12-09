@@ -56,6 +56,14 @@ void mir_screencast_release_sync(
 MirEGLNativeWindowType mir_screencast_egl_native_window(
     MirScreencast *screencast);
 
+/**
+ * Return the buffer stream associated with a screencast. May be used
+ * with the mir_buffer_stream_* family of functions in <mir_toolkit/mir_buffer_stream.h>
+ *   \param [in] screencast The screencast
+ *   \return             The buffer stream
+ */
+MirBufferStream* mir_screencast_get_buffer_stream(MirScreencast* screencast);
+
 #ifdef __cplusplus
 }
 /**@}*/
