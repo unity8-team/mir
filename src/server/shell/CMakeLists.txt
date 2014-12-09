@@ -7,6 +7,7 @@ set(
   default_configuration.cpp
   session_coordinator_wrapper.cpp
   surface_coordinator_wrapper.cpp
+  surface.cpp
 )
 
 add_library(
