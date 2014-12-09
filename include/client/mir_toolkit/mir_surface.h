@@ -198,6 +198,9 @@ void mir_surface_set_event_handler(MirSurface *surface,
                                    MirEventDelegate const *event_handler);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] surface  The surface
  *   \return              An EGLNativeWindowType that the client can use
@@ -232,6 +235,9 @@ char const *mir_surface_get_error_message(MirSurface *surface);
 void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Get the underlying platform type so the buffer obtained in "raw" representation
  * in mir_surface_get_current_buffer() can be understood
  *   \pre                     The surface is valid
@@ -241,6 +247,9 @@ void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *param
 MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Get a surface's buffer in "raw" representation.
  *   \pre                         The surface is valid
  *   \param [in] surface          The surface
@@ -249,6 +258,9 @@ MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
 void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Get a surface's graphics_region, i.e., map the graphics buffer to main
  * memory.
  *   \pre                          The surface is valid
@@ -260,6 +272,9 @@ void mir_surface_get_graphics_region(
     MirGraphicsRegion *graphics_region);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Advance a surface's buffer. The returned handle remains valid until the next
  * call to mir_surface_swap_buffers, until the surface has been released or the
  * connection to the server has been released.
@@ -278,6 +293,9 @@ MirWaitHandle *mir_surface_swap_buffers(
     void *context);
 
 /**
+ * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
+ * mir_buffer_stream_* function.
+ *
  * Advance a surface's buffer as in mir_surface_swap_buffers(), but also wait
  * for the operation to complete.
  *   \param [in] surface  The surface whose buffer to advance
