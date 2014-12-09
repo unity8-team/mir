@@ -16,19 +16,19 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#ifndef MIR_SHELL_SURFACE_H_
-#define MIR_SHELL_SURFACE_H_
+#ifndef MIR_SCENE_SURFACE_WRAPPER_H_
+#define MIR_SCENE_SURFACE_WRAPPER_H_
 
 #include "mir/scene/surface.h"
 #include <memory>
 
-namespace mir { namespace shell {
+namespace mir { namespace scene {
 
-class Surface : public scene::Surface
+class SurfaceWrapper : public scene::Surface
 {
 public:
-    Surface(std::shared_ptr<scene::Surface> const& impl);
-    virtual ~Surface();
+    SurfaceWrapper(std::shared_ptr<Surface> const& impl);
+    virtual ~SurfaceWrapper();
 
     virtual std::shared_ptr<mir::input::InputChannel> input_channel() const override;
     virtual mir::input::InputReceptionMode reception_mode() const override;
@@ -53,8 +53,8 @@ public:
     virtual void set_alpha(float) override;
     virtual void set_orientation(MirOrientation) override;
     virtual void force_requests_to_complete() override;
-    virtual void add_observer(std::shared_ptr<scene::SurfaceObserver> const&) override;
-    virtual void remove_observer(std::weak_ptr<scene::SurfaceObserver> const&) override;
+    virtual void add_observer(std::shared_ptr<SurfaceObserver> const&) override;
+    virtual void remove_observer(std::weak_ptr<SurfaceObserver> const&) override;
     virtual void set_reception_mode(input::InputReceptionMode mode) override;
     virtual void consume(MirEvent const&) override;
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const&) override;
@@ -69,9 +69,9 @@ public:
     virtual void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override;
 
 protected:
-    std::shared_ptr<scene::Surface> const surface;
+    std::shared_ptr<Surface> const surface;
 };
 
-}} // namespace mir::shell
+}} // namespace mir::scene
 
-#endif // MIR_SHELL_SURFACE_H_
+#endif // MIR_SCENE_SURFACE_WRAPPER_H_
