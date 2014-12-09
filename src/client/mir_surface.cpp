@@ -510,6 +510,7 @@ void MirSurface::on_configured()
         case mir_surface_attrib_focus:
         case mir_surface_attrib_swapinterval:
         case mir_surface_attrib_dpi:
+        case mir_surface_attrib_preferred_orientation:
             if (configure_result.has_ivalue())
                 attrib_cache[a] = configure_result.ivalue();
             else
@@ -622,4 +623,9 @@ mir::protobuf::BufferStreamId MirSurface::protobuf_id() const
     mir::protobuf::BufferStreamId id;
     id.set_value(surface.id().value());
     return id;
+}
+
+MirWaitHandle* MirSurface::set_preferred_orientation(MirOrientationMode mode)
+{
+    return configure(mir_surface_attrib_preferred_orientation, mode);
 }

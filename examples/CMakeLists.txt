@@ -132,15 +132,6 @@ target_link_libraries(mir_demo_standalone_render_to_fb
     ${Boost_LIBRARIES}
 )
 
-add_executable(mir_demo_standalone_input_filter
-  demo_input_filter.cpp
-)
-
-target_link_libraries(mir_demo_standalone_input_filter
-  mirserver
-  exampleserverconfig
-)
-
 set (INSTALL_DEMOS
   mir_demo_client_basic
   mir_demo_client_flicker
@@ -154,7 +145,6 @@ set (INSTALL_DEMOS
   mir_demo_client_display_config
   mir_demo_client_progressbar
   mir_demo_client_prompt_session
-  mir_demo_standalone_input_filter
   mir_demo_standalone_render_to_fb
 )
 
