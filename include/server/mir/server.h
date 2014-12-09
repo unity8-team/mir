@@ -27,10 +27,24 @@
 
 namespace mir
 {
-namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
+namespace compositor { class Compositor; class CompositorReport; class DisplayBufferCompositorFactory; }
 namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
-namespace graphics { class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
+namespace graphics
+{
+class Platform;
+class Display;
+class GLConfig;
+class GLProgramFactory;
+class DisplayConfigurationPolicy;
+}
+namespace input
+{
+class CompositeEventFilter;
+class CursorListener;
+class InputDispatcher;
+class Scene;
+class TouchVisualizer;
+}
 namespace logging { class Logger; }
 namespace options { class Option; }
 namespace shell { class FocusController; class FocusSetter; class DisplayLayout; class HostLifecycleEventListener; }
@@ -279,6 +293,9 @@ public:
     /// \return the composite event filter.
     auto the_composite_event_filter() const -> std::shared_ptr<input::CompositeEventFilter>;
 
+    /// \return the compositor report.
+    auto the_compositor_report() const -> std::shared_ptr<compositor::CompositorReport>;
+
     /// \return the cursor listener.
     auto the_cursor_listener() const -> std::shared_ptr<input::CursorListener>;
 
@@ -291,8 +308,14 @@ public:
     /// \return the GL config.
     auto the_gl_config() const -> std::shared_ptr<graphics::GLConfig>;
 
+    /// \return the GL program factory.
+    auto the_gl_program_factory() const -> std::shared_ptr<graphics::GLProgramFactory>;
+
     /// \return the graphics platform.
     auto the_graphics_platform() const -> std::shared_ptr<graphics::Platform>;
+
+    /// \return the input scene
+    auto the_input_scene() const -> std::shared_ptr<input::Scene>;
 
     /// \return the main loop.
     auto the_main_loop() const -> std::shared_ptr<MainLoop>;

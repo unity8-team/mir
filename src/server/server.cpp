@@ -67,10 +67,13 @@ namespace ml = mir::logging;
 #define FOREACH_ACCESSOR(MACRO)\
     MACRO(the_compositor)\
     MACRO(the_composite_event_filter)\
+    MACRO(the_compositor_report)\
     MACRO(the_display)\
     MACRO(the_focus_controller)\
     MACRO(the_gl_config)\
+    MACRO(the_gl_program_factory)\
     MACRO(the_graphics_platform)\
+    MACRO(the_input_scene)\
     MACRO(the_main_loop)\
     MACRO(the_prompt_session_listener)\
     MACRO(the_session_authorizer)\

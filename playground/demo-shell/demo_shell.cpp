@@ -21,8 +21,10 @@
 #include "demo_compositor.h"
 #include "window_manager.h"
 #include "fullscreen_placement_strategy.h"
-#include "../server_configuration.h"
+#include "example_input_event_filter.h"
+#include "example_display_configuration_policy.h"
 
+#include "mir/server.h"
 #include "mir/options/default_configuration.h"
 #include "mir/run_mir.h"
 #include "mir/report_exception.h"
@@ -48,6 +50,14 @@ namespace mir
 {
 namespace examples
 {
+class NestedLifecycleEventListener : public msh::HostLifecycleEventListener
+{
+public:
+    virtual void lifecycle_event_occurred(MirLifecycleState state) override
+    {
+        printf("Lifecycle event occurred : state = %d\n", state);
+    }
+};
 
 class DisplayBufferCompositorFactory : public mc::DisplayBufferCompositorFactory
 {
@@ -71,104 +81,62 @@ private:
     std::shared_ptr<mg::GLProgramFactory> const gl_program_factory;
     std::shared_ptr<mc::CompositorReport> const report;
 };
-
-class DemoServerConfiguration : public mir::examples::ServerConfiguration
-{
-public:
-    DemoServerConfiguration(int argc, char const* argv[],
-                            std::initializer_list<std::shared_ptr<mi::EventFilter>> const& filter_list)
-      : ServerConfiguration([argc, argv]
-        {
-            auto result = std::make_shared<mo::DefaultConfiguration>(argc, argv);
-
-            namespace po = boost::program_options;
-
-            result->add_options()
-                ("fullscreen-surfaces", "Make all surfaces fullscreen");
-
-            return result;
-        }()),
-        filter_list(filter_list)
-    {
-    }
-
-
-    std::shared_ptr<compositor::DisplayBufferCompositorFactory> the_display_buffer_compositor_factory() override
-    {
-        return display_buffer_compositor_factory(
-            [this]()
-            {
-                return std::make_shared<me::DisplayBufferCompositorFactory>(
-                    the_gl_program_factory(),
-                    the_compositor_report());
-            });
-    }
-
-    std::shared_ptr<ms::PlacementStrategy> the_placement_strategy() override
-    {
-        return shell_placement_strategy(
-            [this]() -> std::shared_ptr<ms::PlacementStrategy>
-            {
-                if (the_options()->is_set("fullscreen-surfaces"))
-                    return std::make_shared<me::FullscreenPlacementStrategy>(the_shell_display_layout());
-                else
-                    return DefaultServerConfiguration::the_placement_strategy();
-            });
-    }
-
-    std::shared_ptr<mi::CompositeEventFilter> the_composite_event_filter() override
-    {
-        auto composite_filter = ServerConfiguration::the_composite_event_filter();
-        for (auto const& filter : filter_list)
-            composite_filter->append(filter);
-
-        return composite_filter;
-    }
-
-    class NestedLifecycleEventListener : public msh::HostLifecycleEventListener
-    {
-    public:
-        virtual void lifecycle_event_occurred(MirLifecycleState state) override
-        {
-            printf("Lifecycle event occurred : state = %d\n", state);
-        }
-    };
-
-    std::shared_ptr<msh::HostLifecycleEventListener> the_host_lifecycle_event_listener() override
-    {
-       return host_lifecycle_event_listener(
-           []()
-           {
-               return std::make_shared<NestedLifecycleEventListener>();
-           });
-    }
-
-private:
-    std::vector<std::shared_ptr<mi::EventFilter>> const filter_list;
-};
-
 }
 }
 
 int main(int argc, char const* argv[])
 try
 {
-    auto wm = std::make_shared<me::WindowManager>();
-    me::DemoServerConfiguration config(argc, argv, {wm});
+    mir::Server server;
 
-    mir::run_mir(config, [&config, &wm](mir::DisplayServer&)
+    auto const quit_filter = me::make_quit_filter_for(server);
+    me::add_display_configuration_options_to(server);
+
+    auto const wm = std::make_shared<me::WindowManager>();
+    server.add_init_callback([&]
+        {
+            server.the_composite_event_filter()->append(wm);
+        });
+
+    server.override_the_host_lifecycle_event_listener([]
+       {
+           return std::make_shared<me::NestedLifecycleEventListener>();
+       });
+
+    server.add_configuration_option("fullscreen-surfaces", "Make all surfaces fullscreen", mir::OptionType::null);
+    server.override_the_placement_strategy([&]()
+        -> std::shared_ptr<ms::PlacementStrategy>
+        {
+            if (server.get_options()->is_set("fullscreen-surfaces"))
+                return std::make_shared<me::FullscreenPlacementStrategy>(server.the_shell_display_layout());
+            else
+                return std::shared_ptr<ms::PlacementStrategy>{};
+        });
+
+    server.override_the_display_buffer_compositor_factory([&]
+        {
+            return std::make_shared<me::DisplayBufferCompositorFactory>(
+                server.the_gl_program_factory(),
+                server.the_compositor_report());
+        });
+
+    server.add_init_callback([&]
         {
             // We use this strange two stage initialization to avoid a circular dependency between the EventFilters
             // and the SessionStore
-            wm->set_focus_controller(config.the_focus_controller());
-            wm->set_display(config.the_display());
-            wm->set_compositor(config.the_compositor());
-            wm->set_input_scene(config.the_input_scene());
+            wm->set_focus_controller(server.the_focus_controller());
+            wm->set_display(server.the_display());
+            wm->set_compositor(server.the_compositor());
+            wm->set_input_scene(server.the_input_scene());
         });
-    return 0;
+
+    server.set_command_line(argc, argv);
+    server.apply_settings();
+    server.run();
+    return server.exited_normally() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 catch (...)
 {
-    mir::report_exception(std::cerr);
-    return 1;
+    mir::report_exception();
+    return EXIT_FAILURE;
 }
