@@ -96,9 +96,9 @@ mf::SurfaceId ms::ApplicationSession::create_surface(const SurfaceCreationParame
 
 namespace
 {
-struct SimpleBufferStream : public mf::BufferStream
+struct SurfacelessBufferStream : public mf::BufferStream
 {
-    SimpleBufferStream(std::shared_ptr<mc::BufferStream> const& buffer_stream)
+    SurfacelessBufferStream(std::shared_ptr<mc::BufferStream> const& buffer_stream)
         : buffer_stream(buffer_stream)
     {
         buffer_stream->allow_framedropping(true);
@@ -106,32 +106,15 @@ struct SimpleBufferStream : public mf::BufferStream
 
     void swap_buffers(mg::Buffer* old_buffer, std::function<void(mg::Buffer* new_buffer)> complete)
     {
-        printf("Swapping buffers \n");
         if (old_buffer)
         {
-            printf("With old buffer \n");
-            try 
-            {
-                buffer_stream->release_client_buffer(old_buffer);
-
-                comp_buffer = buffer_stream->lock_compositor_buffer(this);
-            }
-            catch (std::exception const& ex)
-                {
-                    printf("Exception: %s \n", ex.what());
-}
-
-            printf("Checking for observer\n");
+            buffer_stream->release_client_buffer(old_buffer);
+            
+            comp_buffer = buffer_stream->lock_compositor_buffer(this);
             if (observer)
-                {
-                    printf("Notifying observer \n");
-                observer->frame_posted(1); // TODO
-                }
-            else
-                {
-                    printf("But somehow its gone\n");
-                }
-
+            {
+                observer->frame_posted(buffer_stream->buffers_ready_for_compositor());
+            }
             comp_buffer.reset();
         }
 
@@ -153,9 +136,8 @@ struct SimpleBufferStream : public mf::BufferStream
         observer = new_observer;
     }
     
-    void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& remove_observer)
+    void remove_observer(std::weak_ptr<ms::SurfaceObserver> const& /* observer */)
     {
-        (void) remove_observer;
         observer.reset();
     }
 
@@ -175,14 +157,13 @@ struct SimpleBufferStream : public mf::BufferStream
 mf::BufferStreamId ms::ApplicationSession::create_buffer_stream(mg::BufferProperties const& buffer_props)
 {
     auto const id = static_cast<mf::BufferStreamId>(next_id());
+    auto stream = std::make_shared<SurfacelessBufferStream>(buffer_stream_factory->create_buffer_stream(buffer_props));
     
-    auto stream = std::make_shared<SimpleBufferStream>(buffer_stream_factory->create_buffer_stream(buffer_props));
-    
-    // TODO: Observers, etc?
     {
         std::unique_lock<std::mutex> lock(surfaces_mutex);
         streams[id] = stream;
     }
+
     return id;
 }
 
