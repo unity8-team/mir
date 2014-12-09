@@ -16,11 +16,10 @@ target_link_libraries(eglapp
   ${GLESv2_LIBRARIES}
 )
 
-add_executable(animated_cursor_demo_client
+add_executable(mir_demo_client_animated_cursor
   animated_cursor_demo_client.c
-
 )
-target_link_libraries(animated_cursor_demo_client
+target_link_libraries(mir_demo_client_animated_cursor
   eglapp
 )
 add_executable(mir_demo_client_eglflash
