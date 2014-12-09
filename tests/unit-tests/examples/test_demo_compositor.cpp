@@ -16,7 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "playground/demo-shell/demo_compositor.h"
+#include "examples/demo-shell/demo_compositor.h"
 
 #include "mir/geometry/rectangle.h"
 #include "mir/compositor/scene_element.h"

@@ -1,3 +1,7 @@
+include_directories(
+  ${PROJECT_SOURCE_DIR}/examples/
+)
+
 add_library(demo-shell STATIC
   demo_compositor.cpp
   demo_renderer.cpp
