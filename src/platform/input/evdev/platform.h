@@ -16,6 +16,9 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
+#ifndef MIR_INPUT_EVDEV_PLATFORM_H_
+#define MIR_INPUT_EVDEV_PLATFORM_H_
+
 #include "mir/input/platform.h"
 #include <vector>
 
@@ -59,9 +62,8 @@ private:
     auto find_device(char const* devnode) -> decltype(devices)::iterator;
 };
 
+}
+}
+}
 
-std::unique_ptr<Platform> create_evdev_input_platform(std::shared_ptr<InputReport> const& report);
-
-}
-}
-}
+#endif

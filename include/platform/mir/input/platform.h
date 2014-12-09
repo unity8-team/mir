@@ -48,7 +48,7 @@ enum class PlatformPriority : uint32_t
  * Input Platform is used to discover and access available input devices.
  *
  * A platform implementation is supposed to handle device occurance events by
- * openning new device and register them at the servers InputDeviceRegistry.
+ * opening new device and register them at the server's InputDeviceRegistry.
  * Likewise the InputDeviceRegistry shall be informed about removed input devices.
  *
  * The actual processing of events is controlled through the mir::input::InputDevice interface.
@@ -76,8 +76,6 @@ private:
     Platform& operator=(Platform const&) = delete;
 };
 
-
-
 extern "C" typedef std::unique_ptr<Platform>(*CreatePlatform)(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
@@ -93,7 +91,7 @@ extern "C" typedef std::unique_ptr<Platform>(*CreatePlatform)(
  *
  * \ingroup platform_enablement
  */
-extern "C" std::unique_ptr<Platform> create_input_platform(
+extern "C" std::unique_ptr<Platform> create_platform(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<InputReport> const& report);
@@ -108,7 +106,7 @@ extern "C" typedef void(*AddPlatformOptions)(
  *
  * \ingroup platform_enablement
  */
-extern "C" void add_input_platform_options(
+extern "C" void add_platform_options(
     boost::program_options::options_description& config);
 extern "C" typedef PlatformPriority(*ProbePlatform)(
     std::shared_ptr<options::Option> const& options);
@@ -122,7 +120,7 @@ extern "C" typedef PlatformPriority(*ProbePlatform)(
  *
  * \ingroup platform_enablement
  */
-extern "C" PlatformPriority probe_input_platform(
+extern "C" PlatformPriority probe_platform(
     std::shared_ptr<options::Option> const& options);
 }
 }

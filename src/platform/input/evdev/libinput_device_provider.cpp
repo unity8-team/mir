@@ -50,7 +50,13 @@ mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) cons
     if (device_classes == DeviceClass::unknown)
         return Priority::unsupported;
 
-    return Priority::supported;
+    if (contains(device_classes, DeviceClass::cursor))
+        return Priority::supported;
+
+    if (contains(device_classes, DeviceClass::keyboard))
+        return Priority::supported;
+
+    return Priority::unsupported;
 }
 
 std::unique_ptr<mi::InputDevice> mie::LibInputDeviceProvider::create_device(char const* device) const

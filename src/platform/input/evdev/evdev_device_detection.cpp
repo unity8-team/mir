@@ -124,7 +124,6 @@ mir::input::DeviceClass evaluate_device_class(DeviceInfo const& info)
         ABS_TILT_X, ABS_TILT_Y
         });
 
-
     if (has_keys || has_gamepad_buttons)
         classes = classes | mi::DeviceClass::keyboard;
 

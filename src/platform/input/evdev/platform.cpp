@@ -141,7 +141,9 @@ void mie::Platform::stop(mi::InputEventHandlerRegister& execution)
     execution.unregister_fd_handler(this);
 }
 
-std::unique_ptr<mie::Platform> mie::create_evdev_input_platform(
+extern "C" std::unique_ptr<mi::Platform> create_platform(
+    std::shared_ptr<mo::Option> const& /*options*/,
+    std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mi::InputReport> const& report)
 {
     std::unique_ptr<mu::Context> ctx{new mu::Context};
@@ -157,22 +159,14 @@ std::unique_ptr<mie::Platform> mie::create_evdev_input_platform(
         );
 }
 
-extern "C" std::unique_ptr<mi::Platform> create_input_platform(
-    std::shared_ptr<mo::Option> const& /*options*/,
-    std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
-    std::shared_ptr<mi::InputReport> const& report)
-{
-    return std::move( mie::create_evdev_input_platform(report) );
-}
 
-
-extern "C" void add_input_platform_options(
+extern "C" void add_platform_options(
     boost::program_options::options_description& /*config*/)
 {
     // no options to add yet
 }
 
-extern "C" mi::PlatformPriority probe_input_platform(
+extern "C" mi::PlatformPriority probe_platform(
     std::shared_ptr<mo::Option> const& options)
 {
     if (options->is_set(host_socket_opt))

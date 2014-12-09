@@ -22,11 +22,13 @@
 
 #include "mir/input/input_device.h"
 #include "mir/udev/wrapper.h"
+#include "mir/shared_library.h"
 
 #include "mir_test_doubles/mock_main_loop.h"
 #include "mir_test_doubles/mock_input_device_registry.h"
 #include "mir_test_doubles/mock_input_event_handler_register.h"
 #include "mir_test_framework/udev_environment.h"
+#include "mir_test_framework/executable_path.h"
 
 #include <thread>
 #include <chrono>
@@ -39,6 +41,7 @@ namespace mi = mir::input;
 namespace mie = mi::evdev;
 namespace mr = mir::report;
 namespace mtd = mir::test::doubles;
+namespace mtf = mir_test_framework;
 
 namespace
 {
@@ -47,11 +50,18 @@ struct EvdevPlatformBase
 {
 public:
     EvdevPlatformBase()
-        : platform(mie::create_evdev_input_platform(mr::null_input_report()))
+        : platform_lib(mtf::library_path() + "/server-modules/input-evdev.so"),
+        platform(platform_lib.load_function<mi::CreatePlatform>("create_platform", MIR_SERVER_INPUT_PLATFORM_VERSION)
+            (
+                std::shared_ptr<mir::options::Option>(),
+                std::shared_ptr<mir::EmergencyCleanupRegistry>(),
+                mr::null_input_report()
+            ))
     {
     }
-    mir_test_framework::UdevEnvironment env; // has to be created before platform
-    std::unique_ptr<mie::Platform> platform;
+    mir::SharedLibrary platform_lib;
+    mtf::UdevEnvironment env; // has to be created before platform
+    std::unique_ptr<mi::Platform> platform;
     ::testing::NiceMock<mtd::MockInputEventHandlerRegister> mock_event_handler_register;
     std::shared_ptr<::testing::NiceMock<mtd::MockInputDeviceRegistry>> mock_registry =
         std::make_shared<::testing::NiceMock<mtd::MockInputDeviceRegistry>>();
