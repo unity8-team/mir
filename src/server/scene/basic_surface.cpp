@@ -162,7 +162,7 @@ std::string ms::BasicSurface::name() const
 void ms::BasicSurface::move_to(geometry::Point const& top_left)
 {
     {
-        std::unique_lock<std::mutex> lk(guard);
+        std::unique_lock<std::recursive_mutex> lk(guard);
         surface_rect.top_left = top_left;
     }
     observers.moved_to(top_left);
@@ -170,14 +170,14 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
 
 float ms::BasicSurface::alpha() const
 {
-    std::unique_lock<std::mutex> lk(guard);
+    std::unique_lock<std::recursive_mutex> lk(guard);
     return surface_alpha;
 }
 
 void ms::BasicSurface::set_hidden(bool hide)
 {
     {
-        std::unique_lock<std::mutex> lk(guard);
+        std::unique_lock<std::recursive_mutex> lk(guard);
         hidden = hide;
     }
     observers.hidden_set_to(hide);
@@ -185,7 +185,7 @@ void ms::BasicSurface::set_hidden(bool hide)
 
 mir::geometry::Size ms::BasicSurface::size() const
 {
-    std::unique_lock<std::mutex> lk(guard);
+    std::unique_lock<std::recursive_mutex> lk(guard);
     return surface_rect.size;
 }
 
@@ -206,7 +206,7 @@ void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(m
     {
         surface_buffer_stream->release_client_buffer(old_buffer);
         {
-            std::unique_lock<std::mutex> lk(guard);
+            std::unique_lock<std::recursive_mutex> lk(guard);
             first_frame_posted = true;
         }
 
@@ -247,7 +247,7 @@ std::shared_ptr<mi::InputChannel> ms::BasicSurface::input_channel() const
 
 void ms::BasicSurface::set_input_region(std::vector<geom::Rectangle> const& input_rectangles)
 {
-    std::unique_lock<std::mutex> lock(guard);
+    std::unique_lock<std::recursive_mutex> lock(guard);
     custom_input_rectangles = input_rectangles;
 }
 
@@ -270,7 +270,7 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
 
     // Now the buffer stream has successfully resized, update the state second;
     {
-        std::unique_lock<std::mutex> lock(guard);
+        std::unique_lock<std::recursive_mutex> lock(guard);
         surface_rect.size = new_size;
     }
     observers.resized_to(new_size);
@@ -278,22 +278,22 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
 
 geom::Point ms::BasicSurface::top_left() const
 {
-    std::unique_lock<std::mutex> lk(guard);
+    std::unique_lock<std::recursive_mutex> lk(guard);
     return surface_rect.top_left;
 }
 
 geom::Rectangle ms::BasicSurface::input_bounds() const
 {
-    std::unique_lock<std::mutex> lk(guard);
+    std::unique_lock<std::recursive_mutex> lk(guard);
 
     return surface_rect;
 }
 
 bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
 {
-    std::unique_lock<std::mutex> lock(guard);
+    std::unique_lock<std::recursive_mutex> lock(guard);
 
-    if (!visible(lock))
+    if (!visible())
         return false;
 
     // Restrict to bounding rectangle
@@ -321,7 +321,7 @@ bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
 void ms::BasicSurface::set_alpha(float alpha)
 {
     {
-        std::unique_lock<std::mutex> lk(guard);
+        std::unique_lock<std::recursive_mutex> lk(guard);
         surface_alpha = alpha;
     }
     observers.alpha_set_to(alpha);
@@ -335,7 +335,7 @@ void ms::BasicSurface::set_orientation(MirOrientation orientation)
 void ms::BasicSurface::set_transformation(glm::mat4 const& t)
 {
     {
-        std::unique_lock<std::mutex> lk(guard);
+        std::unique_lock<std::recursive_mutex> lk(guard);
         transformation_matrix = t;
     }
     observers.transformation_set_to(t);
@@ -343,12 +343,7 @@ void ms::BasicSurface::set_transformation(glm::mat4 const& t)
 
 bool ms::BasicSurface::visible() const
 {
-    std::unique_lock<std::mutex> lk(guard);
-    return visible(lk); 
-}
-
-bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
-{
+    std::unique_lock<std::recursive_mutex> lk(guard);
     return !hidden && first_frame_posted;
 }
 
@@ -360,7 +355,7 @@ mi::InputReceptionMode ms::BasicSurface::reception_mode() const
 void ms::BasicSurface::set_reception_mode(mi::InputReceptionMode mode)
 {
     {
-        std::lock_guard<std::mutex> lk(guard);
+        std::lock_guard<std::recursive_mutex> lk(guard);
         input_mode = mode;
     }
     observers.reception_mode_set_to(mode);
@@ -376,13 +371,13 @@ void ms::BasicSurface::with_most_recent_buffer_do(
 
 MirSurfaceType ms::BasicSurface::type() const
 {    
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     return type_;
 }
 
 MirSurfaceType ms::BasicSurface::set_type(MirSurfaceType t)
 {
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     
     if (t < 0 || t > mir_surface_types)
     {
@@ -403,7 +398,7 @@ MirSurfaceType ms::BasicSurface::set_type(MirSurfaceType t)
 
 MirSurfaceState ms::BasicSurface::state() const
 {
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     return state_;
 }
 
@@ -412,7 +407,7 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
     if (s < mir_surface_state_unknown || s > mir_surface_states)
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface state."));
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (state_ != s)
     {
         state_ = s;
@@ -431,7 +426,7 @@ int ms::BasicSurface::set_swap_interval(int interval)
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid swapinterval"));
     }
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (swapinterval_ != interval)
     {
         swapinterval_ = interval;
@@ -453,7 +448,7 @@ MirSurfaceFocusState ms::BasicSurface::set_focus_state(MirSurfaceFocusState new_
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid focus state."));
     }
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (focus_ != new_state)
     {
         focus_ = new_state;
@@ -472,7 +467,7 @@ MirOrientationMode ms::BasicSurface::set_preferred_orientation(MirOrientationMod
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid orientation mode"));
     }
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (pref_orientation_mode != new_orientation_mode)
     {
         pref_orientation_mode = new_orientation_mode;
@@ -528,7 +523,7 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
 
 int ms::BasicSurface::query(MirSurfaceAttrib attrib)
 {
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     switch (attrib)
     {
         case mir_surface_attrib_type: return type_;
@@ -556,7 +551,7 @@ void ms::BasicSurface::show()
 void ms::BasicSurface::set_cursor_image(std::shared_ptr<mg::CursorImage> const& image)
 {
     {
-        std::unique_lock<std::mutex> lock(guard);
+        std::unique_lock<std::recursive_mutex> lock(guard);
         cursor_image_ = image;
     }
 
@@ -566,7 +561,7 @@ void ms::BasicSurface::set_cursor_image(std::shared_ptr<mg::CursorImage> const& 
 
 std::shared_ptr<mg::CursorImage> ms::BasicSurface::cursor_image() const
 {
-    std::unique_lock<std::mutex> lock(guard);
+    std::unique_lock<std::recursive_mutex> lock(guard);
     return cursor_image_;
 }
 
@@ -577,7 +572,7 @@ void ms::BasicSurface::request_client_surface_close()
 
 int ms::BasicSurface::dpi() const
 {
-    std::unique_lock<std::mutex> lock(guard);
+    std::unique_lock<std::recursive_mutex> lock(guard);
     return dpi_;
 }
 
@@ -588,7 +583,7 @@ int ms::BasicSurface::set_dpi(int new_dpi)
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid DPI value"));
     }
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (dpi_ != new_dpi)
     {
         dpi_ = new_dpi;
@@ -607,7 +602,7 @@ MirSurfaceVisibility ms::BasicSurface::set_visibility(MirSurfaceVisibility new_v
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid visibility value"));
     }
 
-    std::unique_lock<std::mutex> lg(guard);
+    std::unique_lock<std::recursive_mutex> lg(guard);
     if (visibility_ != new_visibility)
     {
         visibility_ = new_visibility;
@@ -706,7 +701,7 @@ private:
 
 std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const* compositor_id) const
 {
-    std::unique_lock<std::mutex> lk(guard);
+    std::unique_lock<std::recursive_mutex> lk(guard);
 
     return std::unique_ptr<mg::Renderable>(
         new SurfaceSnapshot(
@@ -714,7 +709,7 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
             compositor_id,
             surface_rect,
             transformation_matrix,
-            visible(lk),
+            visible(),
             surface_alpha,
             nonrectangular, 
             this));

@@ -151,7 +151,6 @@ public:
     int dpi() const;
 
 private:
-    bool visible(std::unique_lock<std::mutex>&) const;
     MirSurfaceType set_type(MirSurfaceType t);  // Use configure() to make public changes
     MirSurfaceState set_state(MirSurfaceState s);
     int set_dpi(int);
@@ -161,7 +160,7 @@ private:
     MirOrientationMode set_preferred_orientation(MirOrientationMode mode);
 
     SurfaceObservers observers;
-    std::mutex mutable guard;
+    std::recursive_mutex mutable guard;
     std::string const surface_name;
     geometry::Rectangle surface_rect;
     glm::mat4 transformation_matrix;
