@@ -7,10 +7,10 @@ add_library(mirplatforminputevdevobjects OBJECT
     libinput_device.cpp
     libinput_device_provider.cpp
     libinput_wrapper.cpp
-    platform.cpp
     )
 
 add_library(mirplatforminputevdev SHARED
+  platform.cpp
   $<TARGET_OBJECTS:mirplatforminputevdevobjects>
 )
 
@@ -18,6 +18,7 @@ set_target_properties(
   mirplatforminputevdev PROPERTIES
   OUTPUT_NAME input-evdev
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/server-modules
+  PREFIX ""
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/../symbols.map"
 )
 

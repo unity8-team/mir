@@ -43,7 +43,7 @@ public:
      */
     virtual void start(InputEventHandlerRegister& registry, EventSink& destination) = 0;
     /*!
-     * Stop the input device from sending input events.
+     * Stop the input device from sending input events, to the EventSink.
      */
     virtual void stop(InputEventHandlerRegister& registry) = 0;
 

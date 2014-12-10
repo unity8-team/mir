@@ -1,5 +1,7 @@
 include(CMakeDependentOption)
 
+add_definitions(-DMIR_SERVER_INPUT_PLATFORM_VERSION="${MIR_SERVER_INPUT_PLATFORM_VERSION}")
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}

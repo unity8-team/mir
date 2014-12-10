@@ -52,6 +52,10 @@ set_target_properties(mirplatform
 
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+set(MIR_SERVER_INPUT_PLATFORM_VERSION "MIR_INPUT_PLATFORM_1")
+set(MIR_SERVER_INPUT_PLATFORM_VERSION ${MIR_SERVER_INPUT_PLATFORM_VERSION} PARENT_SCOPE)
+add_definitions(-DMIR_SERVER_INPUT_PLATFORM_VERSION="${MIR_SERVER_INPUT_PLATFORM_VERSION}")
+
 add_subdirectory(graphics/)
 add_subdirectory(input/evdev)
 add_subdirectory(options)
