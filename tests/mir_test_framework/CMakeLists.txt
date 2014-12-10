@@ -34,6 +34,7 @@ set(
   udev_environment.cpp
   declarative_placement_strategy.cpp
   fake_event_hub_server_configuration.cpp
+  any_surface.cpp
 )
 
 list(APPEND TEST_FRAMEWORK_SRCS
@@ -87,7 +88,6 @@ add_library(
 
 target_link_libraries(mirplatformstub 
   mir-test-doubles
-  mir-test
 )
 
 set_target_properties(mirplatformstub
