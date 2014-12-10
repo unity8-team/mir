@@ -399,12 +399,6 @@ TEST_F(BasicSurfaceTest, default_invisible_surface_doesnt_get_input)
     EXPECT_FALSE(surface.input_area_contains({50,50}));
     post_a_frame(surface);
     EXPECT_TRUE(surface.input_area_contains({50,50}));
-
-    // And when minimized, input is no longer accepted
-    surface.configure(mir_surface_attrib_state, mir_surface_state_minimized);
-    EXPECT_FALSE(surface.input_area_contains({50,50}));
-    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
-    EXPECT_TRUE(surface.input_area_contains({50,50}));
 }
 
 TEST_F(BasicSurfaceTest, set_input_region)
@@ -787,26 +781,4 @@ TEST_F(BasicSurfaceTest, notifies_of_client_close_request)
     surface.add_observer(mt::fake_shared(mock_surface_observer));
 
     surface.request_client_surface_close();
-}
-
-TEST_F(BasicSurfaceTest, restored_state_actually_restores_size_and_position)
-{
-    geom::Rectangle const restored{{12,34}, {56,78}},
-                          maximized{{64,24}, {1856,1176}};
-
-    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
-    surface.resize(restored.size);
-    surface.move_to(restored.top_left);
-    EXPECT_EQ(restored.size, surface.size());
-    EXPECT_EQ(restored.top_left, surface.top_left());
-
-    surface.configure(mir_surface_attrib_state, mir_surface_state_maximized);
-    surface.resize(maximized.size);
-    surface.move_to(maximized.top_left);
-    EXPECT_EQ(maximized.size, surface.size());
-    EXPECT_EQ(maximized.top_left, surface.top_left());
-
-    surface.configure(mir_surface_attrib_state, mir_surface_state_restored);
-    EXPECT_EQ(restored.size, surface.size());
-    EXPECT_EQ(restored.top_left, surface.top_left());
 }
