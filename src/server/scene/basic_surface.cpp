@@ -599,7 +599,6 @@ struct CursorImageFromBuffer : public mg::CursorImage
                 pixels = std::unique_ptr<unsigned char[]>(
                     new unsigned char[buffer_size_bytes]
                 );
-                // TODO: Improve safety?
                 memcpy(pixels.get(), buffer_pixels, buffer_size_bytes); 
             });
     }
@@ -636,8 +635,7 @@ struct CursorStreamImageAdapter
           stream(stream),
           hotspot(hotspot)
     {
-// TODO: Enable remember the deadlock....e.g. make sure a buffer is available
-//        post_cursor_image_from_current_buffer();
+        post_cursor_image_from_current_buffer();
         observer = std::make_shared<FramePostObserver>([&](){
                 post_cursor_image_from_current_buffer();
             });

@@ -16,8 +16,6 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-// TODO: Privatize
-
 #ifndef MIR_FRONTEND_BUFFER_STREAM_H_
 #define MIR_FRONTEND_BUFFER_STREAM_H_
 

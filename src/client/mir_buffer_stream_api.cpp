@@ -31,8 +31,6 @@ namespace
 void null_callback(MirBufferStream*, void*) {}
 }
 
-// TODO: Add async variant?
-
 MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(
     MirConnection* connection,
     int width, int height, MirPixelFormat pixel_format, MirBufferUsage buffer_usage)

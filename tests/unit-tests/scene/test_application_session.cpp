@@ -363,7 +363,6 @@ TEST_F(ApplicationSession, process_id)
     EXPECT_THAT(app_session.process_id(), Eq(session_pid));
 }
 
-// TODO: TEst that get surface fails on surface ids
 TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
 {
     using namespace ::testing;

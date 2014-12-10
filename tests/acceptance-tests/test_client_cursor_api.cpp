@@ -409,6 +409,8 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_without_cursor_motion)
 TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 {
     using namespace ::testing;
+    
+    static int hotspot_x = 1, hotspot_y = 1;
 
     struct BufferStreamClient : CursorClient
     {
@@ -416,9 +418,6 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
         void setup_cursor(MirSurface* surface) override
         {
-            // TODO: Test for hotspot
-            int hotspot_x = 1, hotspot_y = 2;
-            // TODO: Cleanup constants?
             auto stream = mir_connection_create_surfaceless_buffer_stream_sync(
                 connection, 24, 24, mir_pixel_format_argb_8888,
                 mir_buffer_usage_software);
@@ -428,7 +427,6 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
             
             mir_cursor_configuration_destroy(conf);            
             
-            // TODO: It would be cool to fill the cursor with something :p
             mir_buffer_stream_swap_buffers_sync(stream);
             mir_buffer_stream_swap_buffers_sync(stream);
             mir_buffer_stream_swap_buffers_sync(stream);
@@ -444,7 +442,6 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
     {
         InSequence seq;
-        // Once for each submitted buffer.
         EXPECT_CALL(test_server_config().cursor, show(_)).Times(2);
         EXPECT_CALL(test_server_config().cursor, show(_)).Times(1)
             .WillOnce(mt::WakeUp(&expectations_satisfied));

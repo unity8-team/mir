@@ -101,6 +101,5 @@ void mgm::ShmBuffer::write(unsigned char const* data, size_t data_size)
 
 void mgm::ShmBuffer::read(std::function<void(unsigned char const*)> const& do_with_pixels)
 {
-    // TODO: Locking?
     do_with_pixels(static_cast<unsigned char const*>(pixels));
 }

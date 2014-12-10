@@ -174,7 +174,6 @@ MirWaitHandle* mcl::SurfacelessBufferStream::next_buffer(
     release_cpu_region();
 
     mir::protobuf::BufferRequest request;
-    // TODO: Update to be BufferStream ID and use cast in surface instead
     request.mutable_id()->set_value(protobuf_buffer_stream.id().value());
     request.mutable_buffer()->set_buffer_id(buffer_depository.current_buffer_id());
 

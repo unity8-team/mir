@@ -40,7 +40,6 @@ class ClientBufferFactory;
 class EGLNativeWindowFactory;
 class MemoryRegion;
 
-// TODO: Overrides
 struct SurfacelessBufferStream : public MirBufferStream
 {
 public:
@@ -62,23 +61,23 @@ public:
         mir_buffer_stream_callback callback, void* context);
 
     MirWaitHandle* next_buffer(
-        mir_buffer_stream_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context) override;
 
-    EGLNativeWindowType egl_native_window();
+    EGLNativeWindowType egl_native_window() override;
 
     /* mir::client::ClientSurface */
-    MirSurfaceParameters get_parameters() const;
-    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
-    void request_and_wait_for_next_buffer();
-    void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+    MirSurfaceParameters get_parameters() const override;
+    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer() override;
+    void request_and_wait_for_next_buffer() override;
+    void request_and_wait_for_configure(MirSurfaceAttrib a, int value) override;
     
-    MirNativeBuffer* get_current_buffer_package();
+    MirNativeBuffer* get_current_buffer_package() override;
     
-    mir::protobuf::BufferStreamId protobuf_id() const;
+    mir::protobuf::BufferStreamId protobuf_id() const override;
 
-    void get_cpu_region(MirGraphicsRegion& region);
+    void get_cpu_region(MirGraphicsRegion& region) override;
     
-    MirPlatformType platform_type();
+    MirPlatformType platform_type() override;
 
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);

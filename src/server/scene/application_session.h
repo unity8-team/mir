@@ -107,8 +107,7 @@ private:
 
     typedef std::map<frontend::SurfaceId, std::shared_ptr<frontend::BufferStream>> BufferStreams;
 
-    // TODO: Update mutex name
-    std::mutex mutable surfaces_mutex;
+    std::mutex mutable surfaces_and_streams_mutex;
     Surfaces surfaces;
     BufferStreams streams;
 };
