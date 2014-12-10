@@ -13,17 +13,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored By: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored By: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TEST_FRAMEWORK_STUB_GRAPHICS_PLATFORM_OPERATION_H_
-#define MIR_TEST_FRAMEWORK_STUB_GRAPHICS_PLATFORM_OPERATION_H_
+#include "mir_test_framework/any_surface.h"
 
-namespace mir_test_framework
+namespace mtf = mir_test_framework;
+
+namespace 
 {
-
-enum class StubGraphicsPlatformOperation : unsigned int { add = 13 };
-
+    int width = 783;
+    int height = 691;
+    MirPixelFormat format = mir_pixel_format_abgr_8888;
 }
 
-#endif
+MirSurface* mtf::make_any_surface(MirConnection *connection)
+{
+    auto spec = mir_connection_create_spec_for_normal_surface(connection,
+        width, height, format);
+    auto surface = mir_surface_create_sync(spec);
+    mir_surface_spec_release(spec);
+    
+    return surface;
+}
