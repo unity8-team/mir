@@ -31,6 +31,8 @@
 
 #include <EGL/eglplatform.h>
 
+#include <mutex>
+
 namespace mir
 {
 namespace protobuf { class DisplayServer; }
@@ -80,6 +82,8 @@ public:
     MirPlatformType platform_type() override;
 
 private:
+    mutable std::mutex mutex;
+
     void process_buffer(mir::protobuf::Buffer const& buffer);
     void buffer_stream_created(
         mir_buffer_stream_callback callback, void* context);

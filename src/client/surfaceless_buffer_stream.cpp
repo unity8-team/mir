@@ -73,7 +73,6 @@ void populate_buffer_package(
 
 }
 
-// TODO: This class probably needs some mutexing
 mcl::SurfacelessBufferStream::SurfacelessBufferStream(
     MirConnection *allocating_connection,
     geom::Size const& size,
@@ -124,11 +123,15 @@ MirWaitHandle* mcl::SurfacelessBufferStream::creation_wait_handle()
 
 bool mcl::SurfacelessBufferStream::is_valid()
 {
+    std::lock_guard<std::mutex> lg(mutex);
+
     return !protobuf_buffer_stream.has_error();
 }
 
 MirSurfaceParameters mcl::SurfacelessBufferStream::get_parameters() const
 {
+    std::lock_guard<std::mutex> lg(mutex);
+
     return MirSurfaceParameters{
         "",
         size.width.as_int(),
@@ -140,6 +143,8 @@ MirSurfaceParameters mcl::SurfacelessBufferStream::get_parameters() const
 
 MirNativeBuffer* mcl::SurfacelessBufferStream::get_current_buffer_package()
 {
+    std::lock_guard<std::mutex> lg(mutex);
+
     auto platform = connection->get_client_platform();
     auto buffer = get_current_buffer();
     auto handle = buffer->native_buffer_handle();
@@ -154,6 +159,8 @@ std::shared_ptr<mcl::ClientBuffer> mcl::SurfacelessBufferStream::get_current_buf
 MirWaitHandle* mcl::SurfacelessBufferStream::release(
         mir_buffer_stream_callback callback, void* context)
 {
+    std::lock_guard<std::mutex> lg(mutex);
+
     mir::protobuf::BufferStreamId buffer_stream_id;
     buffer_stream_id.set_value(protobuf_buffer_stream.id().value());
 
@@ -173,6 +180,8 @@ MirWaitHandle* mcl::SurfacelessBufferStream::next_buffer(
 {
     release_cpu_region();
 
+    std::lock_guard<std::mutex> lg(mutex);
+
     mir::protobuf::BufferRequest request;
     request.mutable_id()->set_value(protobuf_buffer_stream.id().value());
     request.mutable_buffer()->set_buffer_id(buffer_depository.current_buffer_id());
@@ -191,6 +200,8 @@ MirWaitHandle* mcl::SurfacelessBufferStream::next_buffer(
 
 EGLNativeWindowType mcl::SurfacelessBufferStream::egl_native_window()
 {
+    std::lock_guard<std::mutex> lg(mutex);
+
     return *egl_native_window_;
 }
 
@@ -223,11 +234,16 @@ void mcl::SurfacelessBufferStream::process_buffer(mir::protobuf::Buffer const& b
 void mcl::SurfacelessBufferStream::buffer_stream_created(
     mir_buffer_stream_callback callback, void* context)
 {
+
+    {
+    std::lock_guard<std::mutex> lg(mutex);
+
     if (!protobuf_buffer_stream.has_error())
     {
         pixel_format = static_cast<MirPixelFormat>(protobuf_buffer_stream.pixel_format());
         egl_native_window_ = egl_native_window_factory->create_egl_native_window(this);
         process_buffer(protobuf_buffer_stream.buffer());
+    }
     }
 
     callback(this, context);
@@ -269,6 +285,7 @@ void mcl::SurfacelessBufferStream::get_cpu_region(MirGraphicsRegion& region_out)
 
 void mcl::SurfacelessBufferStream::release_cpu_region()
 {
+    std::lock_guard<std::mutex> lg(mutex);
     secured_region.reset();
 }
 
