@@ -20,6 +20,7 @@
 #include "surface_stack_model.h"
 #include "mir/scene/surface_factory.h"
 #include "mir/scene/surface.h"
+#include "mir/scene/managed_surface.h"
 #include "mir/scene/placement_strategy.h"
 
 namespace ms = mir::scene;
@@ -34,13 +35,19 @@ ms::SurfaceController::SurfaceController(
 {
 }
 
+std::shared_ptr<ms::Surface> ms::SurfaceController::wrap_surface(
+    std::shared_ptr<ms::Surface> const& raw)
+{
+    return std::make_shared<ManagedSurface>(raw);
+}
+
 std::shared_ptr<ms::Surface> ms::SurfaceController::add_surface(
     SurfaceCreationParameters const& params,
     Session* session)
 {
     auto placed_params = placement_strategy->place(*session, params);
 
-    auto const surface = surface_factory->create_surface(placed_params);
+    auto const surface = wrap_surface(surface_factory->create_surface(placed_params));
     surface_stack->add_surface(surface, placed_params.depth, placed_params.input_mode);
     return surface;
 }

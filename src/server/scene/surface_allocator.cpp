@@ -20,7 +20,6 @@
 #include "mir/scene/buffer_stream_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
-#include "mir/scene/managed_surface.h"
 #include "basic_surface.h"
 
 namespace geom=mir::geometry;
@@ -62,7 +61,7 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
 
     bool nonrectangular = has_alpha(params.pixel_format);
     auto input_channel = input_factory->make_input_channel();
-    auto const basic = std::make_shared<BasicSurface>(
+    auto const surface = std::make_shared<BasicSurface>(
         params.name,
         actual_size,
         nonrectangular,
@@ -72,9 +71,6 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
         configurator,
         default_cursor_image,
         report);
-
-    // TODO: Introduce a factory for this:
-    auto surface = std::make_shared<ManagedSurface>(basic);
 
     return surface;
 }

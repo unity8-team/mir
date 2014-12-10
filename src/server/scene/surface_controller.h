@@ -47,6 +47,19 @@ public:
 
     void raise(std::weak_ptr<Surface> const& surface) override;
 
+    /**
+     * wrap_surface allows you wrap ("decorate") a surface in your own
+     * window management policy-enforcing class. This facility is provided
+     * in SurfaceController instead of the SurfaceFactory so that you still
+     * have the option of discarding Mir's default window management policy
+     * (from ManagedSurface) and can access the raw underlying Surface
+     * object freely without any policy constraints. This design also means
+     * your wrapped Surface class only needs a simple single argument to
+     * construct (see SurfaceWrapper or inherit from ManagedSurface).
+     */
+    virtual std::shared_ptr<Surface>
+        wrap_surface(std::shared_ptr<Surface> const& raw);
+
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;
     std::shared_ptr<PlacementStrategy> const placement_strategy;
