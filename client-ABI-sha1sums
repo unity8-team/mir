@@ -1,5 +1,5 @@
 afd66e984f4f8c0303fd25fb6fea32fa47bbd37f  include/client/mir_toolkit/debug/surface.h
-af06f10faddb35513f770a0c2e6e9ffddc1d993f  include/client/mir_toolkit/mir_buffer_stream.h
+daf7962d815fda413454063adca2c477872efddc  include/client/mir_toolkit/mir_buffer_stream.h
 b53736bcb22ddc09aab8275cfdd05c109fdd0f12  include/client/mir_toolkit/mir_client_library_drm.h
 1c7ba2a61cf5143ca8b070c77a8abf8eea81a0f4  include/client/mir_toolkit/mir_client_library.h
 626fbcc008539c5f1713d8f6eef8c2acc4929af9  include/client/mir_toolkit/mir_connection.h
@@ -9,7 +9,7 @@ b53736bcb22ddc09aab8275cfdd05c109fdd0f12  include/client/mir_toolkit/mir_client_
 066c6d86c4abe7fa9dd47483fb0013d78e9b4c81  include/client/mir_toolkit/mir_surface.h
 b141c4d79802ad626d969249c0004744e5c2a525  include/client/mir_toolkit/mir_wait.h
 c367f5c9285936820fbd50961827d6ce58fb7ff4  include/client/mir_toolkit/version.h
-de3c9227feab3e1757bcc6033e64511a3fdbaf1e  include/common/mir_toolkit/client_types.h
+c812b1d50ef4daea0c7ebc2a004fec0fd9b1916d  include/common/mir_toolkit/client_types.h
 3e85c6d9dd1dca9767ea8bdf13ea6bbd1cb11c30  include/common/mir_toolkit/common.h
 fce4c1a9e0d037244f7e9e96ea2d8eaab4fc404c  include/common/mir_toolkit/cursors.h
 d71dddf6c4275ee423d3e0fa204e3b77b4d87401  include/common/mir_toolkit/event.h
