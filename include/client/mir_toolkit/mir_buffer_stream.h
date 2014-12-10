@@ -29,6 +29,20 @@
 extern "C" {
 #endif
 
+/**
+ * Create a new buffer stream unattached to a surface. The resulting buffer stream may be used
+ * with mir_cursor_configuration_from_buffer_stream in order to post images to the system
+ * cursor.
+ *
+ * \param [in] connection               A valid connection
+ * \param [in] width                    Requested buffer width
+ * \param [in] height                   Requested buffer height
+ * \param [in] buffer_usage             Requested buffer usage, use mir_buffer_usage_software
+ *                                      for cursor image streams
+ *
+ * \return                              The new buffer stream. This is guaranteed non-null, but may be invalid
+ *                                      in the case of error.
+ */
 MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(MirConnection *connection,
     int width, int height,
     MirPixelFormat format,
@@ -101,7 +115,7 @@ MirWaitHandle *mir_buffer_stream_swap_buffers(
 void mir_buffer_stream_swap_buffers_sync(MirBufferStream *buffer_stream);
 
 /**
- * Get a buffer stream's graphics region, i.e., map the graphics buffer to main
+ * Retrieve a buffer stream's graphics region, e.g. map the graphics buffer to main
  * memory.
  *   \pre                          The buffer stream is valid
  *   \param [in] buffer stream     The buffer stream
@@ -112,7 +126,7 @@ void mir_buffer_stream_get_graphics_region(
     MirGraphicsRegion *graphics_region);
 
 /**
- * Get a window type which may be used by EGL.
+ * Retrieve a window type which may be used by EGL.
  *   \param [in] buffer_stream The buffer stream
  *   \return                   An EGLNativeWindowType that the client can use
  */
