@@ -25,4 +25,5 @@ ADD_LIBRARY(
   rendering_tracker.cpp
   default_coordinate_translator.cpp
   surface_wrapper.cpp
+  managed_surface.cpp
 )

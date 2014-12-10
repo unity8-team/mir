@@ -20,7 +20,7 @@
 #include "mir/scene/buffer_stream_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
-#include "mir/scene/surface_wrapper.h"
+#include "mir/scene/managed_surface.h"
 #include "basic_surface.h"
 
 namespace geom=mir::geometry;
@@ -74,7 +74,7 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
         report);
 
     // TODO: Introduce a factory for this:
-    auto surface = std::make_shared<SurfaceWrapper>(basic);
+    auto surface = std::make_shared<ManagedSurface>(basic);
 
     return surface;
 }
