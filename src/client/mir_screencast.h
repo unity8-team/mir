@@ -41,7 +41,7 @@ class MemoryRegion;
 }
 }
 
-struct MirScreencast : public MirBufferStream
+struct MirScreencast : public MirBufferStream, public mir::client::ClientSurface
 {
 public:
     MirScreencast(

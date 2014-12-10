@@ -42,7 +42,7 @@ class ClientBufferFactory;
 class EGLNativeWindowFactory;
 class MemoryRegion;
 
-struct SurfacelessBufferStream : public MirBufferStream
+struct SurfacelessBufferStream : public MirBufferStream, public ClientSurface
 {
 public:
     SurfacelessBufferStream(

@@ -28,6 +28,7 @@
 #include "mir_wait_handle.h"
 #include "mir_buffer_stream.h"
 #include "client_platform.h"
+#include "mir_client_surface.h"
 
 #include <memory>
 #include <functional>
@@ -66,7 +67,7 @@ struct MirSurfaceSpec
     bool fullscreen;
 };
 
-struct MirSurface : public MirBufferStream
+struct MirSurface : public MirBufferStream, public mir::client::ClientSurface
 {
 public:
     MirSurface(MirSurface const &) = delete;

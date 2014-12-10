@@ -19,7 +19,6 @@
 #ifndef MIR_CLIENT_MIR_BUFFER_STREAM_H_
 #define MIR_CLIENT_MIR_BUFFER_STREAM_H_
 
-#include "mir_client_surface.h"
 #include "mir_wait_handle.h"
 #include "client_buffer_depository.h"
 #include "mir_toolkit/client_types.h"
@@ -41,7 +40,7 @@ class MemoryRegion;
 }
 }
 
-class MirBufferStream : public mir::client::ClientSurface
+class MirBufferStream
 {
 public:
     virtual ~MirBufferStream() = default;
@@ -53,12 +52,6 @@ public:
 
     virtual void get_cpu_region(MirGraphicsRegion& region) = 0;
 
-    /* mir::client::ClientSurface */
-    MirSurfaceParameters get_parameters() const = 0;
-    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer() = 0;
-    void request_and_wait_for_next_buffer() = 0;
-    void request_and_wait_for_configure(MirSurfaceAttrib a, int value) = 0;
-    
     virtual mir::protobuf::BufferStreamId protobuf_id() const = 0;
     virtual MirNativeBuffer* get_current_buffer_package() = 0;
     virtual MirPlatformType platform_type() = 0;
