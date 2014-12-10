@@ -6,7 +6,7 @@ $ sudo mk-build-deps -ir debian/control
 To use, compile and install (building in a "build" subdir as an example):
 $ mkdir build
 $ cd build
-$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr ../
+$ cmake -DCMAKE_INSTALL_PREFIX=/usr ../
 $ make
 $ sudo make install
 
