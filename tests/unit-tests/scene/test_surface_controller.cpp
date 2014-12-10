@@ -81,10 +81,30 @@ TEST_F(SurfaceController, add_and_remove_surface)
 {
     using namespace ::testing;
 
-    ms::SurfaceController controller(
+    class MockSurfaceController : public ms::SurfaceController
+    {
+    public:
+        MockSurfaceController(
+            std::shared_ptr<ms::SurfaceFactory> const& surface_factory,
+            std::shared_ptr<ms::PlacementStrategy> const& placement_strategy,
+            std::shared_ptr<ms::SurfaceStackModel> const& surface_stack)
+            : ms::SurfaceController(surface_factory,
+                                    placement_strategy,
+                                    surface_stack)
+        {
+        }
+
+        MOCK_METHOD1(wrap_surface, std::shared_ptr<ms::Surface>(
+                                     std::shared_ptr<ms::Surface> const&));
+    };
+
+    MockSurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
         mt::fake_shared(placement_strategy),
         mt::fake_shared(model));
+
+    EXPECT_CALL(controller, wrap_surface(expect_surface))
+        .WillOnce(Return(expect_surface));
 
     InSequence seq;
     EXPECT_CALL(placement_strategy, place(_, _)).Times(1);
