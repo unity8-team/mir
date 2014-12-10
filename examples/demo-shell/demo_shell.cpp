@@ -20,9 +20,9 @@
 
 #include "demo_compositor.h"
 #include "window_manager.h"
-#include "fullscreen_placement_strategy.h"
-#include "example_input_event_filter.h"
-#include "example_display_configuration_policy.h"
+#include "server_example_fullscreen_placement_strategy.h"
+#include "server_example_input_event_filter.h"
+#include "server_example_display_configuration_policy.h"
 
 #include "mir/server.h"
 #include "mir/options/option.h"
@@ -98,19 +98,6 @@ auto make_window_manager_for(Server& server)
         });
 
     return wm;
-}
-
-void add_fullscreen_option_to(Server& server)
-{
-    server.add_configuration_option("fullscreen-surfaces", "Make all surfaces fullscreen", mir::OptionType::null);
-    server.override_the_placement_strategy([&]()
-        -> std::shared_ptr<ms::PlacementStrategy>
-        {
-            if (server.get_options()->is_set("fullscreen-surfaces"))
-                return std::make_shared<me::FullscreenPlacementStrategy>(server.the_shell_display_layout());
-            else
-                return std::shared_ptr<ms::PlacementStrategy>{};
-        });
 }
 }
 }
