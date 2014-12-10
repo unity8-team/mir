@@ -29,6 +29,12 @@ ManagedSurface::~ManagedSurface()
 {
 }
 
-// TODO: Implement default window management policy here
+// A trivial example of window management policy:
+bool ManagedSurface::visible() const
+{
+    return surface->visible();
+}
+
+// TODO: More default window management policy here
 
 }} // namespace mir::scene

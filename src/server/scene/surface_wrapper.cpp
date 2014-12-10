@@ -99,6 +99,11 @@ void SurfaceWrapper::show()
     surface->show();
 }
 
+bool SurfaceWrapper::visible() const
+{
+    return surface->visible();
+}
+
 void SurfaceWrapper::move_to(geometry::Point const& p)
 {
     surface->move_to(p);

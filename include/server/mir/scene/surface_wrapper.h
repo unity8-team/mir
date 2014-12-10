@@ -44,6 +44,7 @@ public:
     virtual MirSurfaceState state() const override;
     virtual void hide() override;
     virtual void show() override;
+    virtual bool visible() const override;
     virtual void move_to(geometry::Point const&) override;
     virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const&) override;
     virtual void set_input_region(std::vector<geometry::Rectangle> const&) override;
