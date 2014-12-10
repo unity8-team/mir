@@ -119,7 +119,6 @@ struct SurfacelessBufferStream : public mf::BufferStream
         }
 
         buffer_stream->acquire_client_buffer(complete);
-
     }
     
     void with_most_recent_buffer_do(std::function<void(mg::Buffer&)> const& exec)

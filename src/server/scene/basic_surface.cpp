@@ -677,6 +677,14 @@ void ms::BasicSurface::set_cursor_from_buffer(mg::Buffer& buffer, geom::Displace
     observers.cursor_image_set_to(*image);
 }
 
+
+// In order to set the cursor image from a buffer stream, we use an adapter pattern,
+// which observes buffers from the stream and copies them 1 by 1 to cursor images.
+// We must be careful, when setting a new cursor image with ms::BasicSurface::set_cursor_image
+// we need to reset the stream adapter (to halt the observation and allow the new static image 
+// to be set). Likewise from the adapter we must use set_cursor_from_buffer as 
+// opposed to the public set_cursor_from_image in order to avoid resetting the stream
+// adapter.
 void ms::BasicSurface::set_cursor_stream(std::shared_ptr<mf::BufferStream> const& stream, 
     geom::Displacement const& hotspot)
 {

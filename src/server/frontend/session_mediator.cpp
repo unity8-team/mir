@@ -276,8 +276,6 @@ void mf::SessionMediator::exchange_buffer(
         buffer_stream_tracker.buffer_from(buffer_id),
         [this, buffer_stream_id, lock, response, done](mg::Buffer* new_buffer)
         {
-            printf("Completing buffer swap\n");
-
             lock->unlock();
 
             if (buffer_stream_tracker.track_buffer(buffer_stream_id, new_buffer))

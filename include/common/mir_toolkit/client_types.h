@@ -83,8 +83,8 @@ typedef void (*mir_surface_callback)(MirSurface *surface, void *client_context);
  *  - mir_buffer_stream_swap_buffers
  *  - mir_buffer_stream_release
  *   \param [in] buffer_stream             the buffer_stream being updated
- *   \param [in,out] client_context  context provided by client in calling
- *                                   mir_connect
+ *   \param [in,out] client_context        context provided by client when supplying callback
+ *
  */
 typedef void (*mir_buffer_stream_callback)(MirBufferStream *buffer_stream, void *client_context);
 

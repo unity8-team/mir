@@ -229,9 +229,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
          * buffer so release it
          */
         if (!contains(current_compositor_buffer, buffers_sent_to_compositor))
-            {
             buffer_to_release = current_compositor_buffer;
-            }
 
         /* The current compositor buffer is
          * being changed, the new one has no users yet

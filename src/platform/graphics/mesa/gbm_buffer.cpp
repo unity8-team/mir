@@ -145,8 +145,7 @@ bool mgm::GBMBuffer::can_bypass() const
     return bo_flags & GBM_BO_USE_SCANOUT;
 }
 
-void mgm::GBMBuffer::read(std::function<void(unsigned char const*)> const& do_with_data)
+void mgm::GBMBuffer::read(std::function<void(unsigned char const*)> const& /* do_with_data */)
 {
-    (void) do_with_data;
     BOOST_THROW_EXCEPTION(std::runtime_error("Direct access only supported to software allocated buffers on mesa platform"));
 }

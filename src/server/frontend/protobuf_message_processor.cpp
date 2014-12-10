@@ -57,12 +57,12 @@ namespace frontend
 {
 namespace detail
 {
-template<> struct result_ptr_t<::mir::protobuf::Buffer>     { typedef ::mir::protobuf::Buffer* type; };
+template<> struct result_ptr_t<::mir::protobuf::Buffer>           { typedef ::mir::protobuf::Buffer* type; };
 template<> struct result_ptr_t<::mir::protobuf::BufferStream>     { typedef ::mir::protobuf::BufferStream* type; };
-template<> struct result_ptr_t<::mir::protobuf::Connection> { typedef ::mir::protobuf::Connection* type; };
-template<> struct result_ptr_t<::mir::protobuf::Surface>    { typedef ::mir::protobuf::Surface* type; };
-template<> struct result_ptr_t<::mir::protobuf::Screencast> { typedef ::mir::protobuf::Screencast* type; };
-template<> struct result_ptr_t<mir::protobuf::SocketFD>     { typedef ::mir::protobuf::SocketFD* type; };
+template<> struct result_ptr_t<::mir::protobuf::Connection>       { typedef ::mir::protobuf::Connection* type; };
+template<> struct result_ptr_t<::mir::protobuf::Surface>          { typedef ::mir::protobuf::Surface* type; };
+template<> struct result_ptr_t<::mir::protobuf::Screencast>       { typedef ::mir::protobuf::Screencast* type; };
+template<> struct result_ptr_t<mir::protobuf::SocketFD>           { typedef ::mir::protobuf::SocketFD* type; };
 
 //The exchange_buffer and next_buffer calls can complete on a different thread than the
 //one the invocation was called on. Make sure to preserve the result resource. 
@@ -314,7 +314,6 @@ void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id,
 
 void mfd::ProtobufMessageProcessor::send_response(::google::protobuf::uint32 id, mir::protobuf::BufferStream* response)
 {
-    printf("Sending buffer stream response\n");
     if (response->has_buffer())
         sender->send_response(id, response, {extract_fds_from(response->mutable_buffer())});
     else
