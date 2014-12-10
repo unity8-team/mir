@@ -86,24 +86,17 @@ TEST_F(LibInputDevice, start_creates_and_unrefs_libinput_device_from_path)
         .Times(1);
     EXPECT_CALL(mock_libinput, libinput_device_ref(fake_device))
         .Times(1);
-    EXPECT_CALL(mock_libinput, libinput_device_unref(fake_device))
-        .Times(1);
     mie::LibInputDevice dev(wrapper, path);
     dev.start(mock_registry, stub_sink);
 }
 
-TEST_F(LibInputDevice, stop_creates_and_unrefs_libinput_device_from_path)
+TEST_F(LibInputDevice, stop_unrefs_libinput_device)
 {
     using namespace ::testing;
-    // according to manual libinput_path_add_device creates a temporary device with a ref count 0.
-    // hence it needs a manual ref call
     char const* path = "/path/to/dev";
-    EXPECT_CALL(mock_libinput, libinput_path_add_device(fake_input,StrEq(path)))
-        .Times(1);
-    EXPECT_CALL(mock_libinput, libinput_device_ref(fake_device))
-        .Times(1);
     EXPECT_CALL(mock_libinput, libinput_device_unref(fake_device))
         .Times(1);
     mie::LibInputDevice dev(wrapper, path);
     dev.start(mock_registry, stub_sink);
+    dev.stop(mock_registry);
 }
