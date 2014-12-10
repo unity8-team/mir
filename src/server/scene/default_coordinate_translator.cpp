@@ -26,7 +26,7 @@ namespace ms = mir::scene;
 geom::Point ms::DefaultCoordinateTranslator::surface_to_screen(std::shared_ptr<mf::Surface> surface, int32_t x,
                                                                int32_t y)
 {
-    auto const scene_surface = std::dynamic_pointer_cast<ms::BasicSurface>(surface);
+    auto const scene_surface = std::dynamic_pointer_cast<ms::Surface>(surface);
 
     return geom::Point{x + scene_surface->top_left().x.as_int(), y + scene_surface->top_left().y.as_int()};
 }
