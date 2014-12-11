@@ -59,7 +59,9 @@ public:
      * (from ManagedSurface) and can access the raw underlying Surface
      * object freely without any policy constraints. This design also means
      * your wrapped Surface class only needs a simple single argument to
-     * construct (see SurfaceWrapper or inherit from ManagedSurface).
+     * construct.
+     * TODO: Move this up to SurfaceCoordinator (or some bespoke factory)
+     *       in the public API later.
      */
     virtual std::shared_ptr<Surface>
         wrap_surface(std::shared_ptr<Surface> const& raw);
