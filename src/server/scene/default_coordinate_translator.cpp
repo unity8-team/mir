@@ -17,7 +17,7 @@
  */
 
 #include "default_coordinate_translator.h"
-#include "basic_surface.h"
+#include "mir/scene/surface.h"
 
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
