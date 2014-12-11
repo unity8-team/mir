@@ -69,7 +69,7 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
         new_win = restore_rect;
         break;
     case mir_surface_state_minimized:
-        // but more importantly, save restore_rect (below)
+        // See below
         break;
     default:
         abort();
@@ -79,6 +79,11 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
     if (desired != mir_surface_state_restored &&
         state() == mir_surface_state_restored)
         restore_rect = old_win;
+
+    if (desired == mir_surface_state_minimized)
+        hide();
+    else
+        show();
 
     if (new_win != old_win)
     {

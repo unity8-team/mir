@@ -349,12 +349,7 @@ bool ms::BasicSurface::visible() const
 
 bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
 {
-    return !hidden &&
-           first_frame_posted &&
-           state_ != mir_surface_state_minimized;
-
-    // TODO: ^^^ Move minimized logic into ManagedSurface::visible() once
-    //       SurfaceSnapshot allows for it (see below).
+    return !hidden && first_frame_posted;
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const
@@ -641,10 +636,6 @@ void ms::BasicSurface::remove_observer(std::weak_ptr<SurfaceObserver> const& obs
 namespace
 {
 //This class avoids locking for long periods of time by copying (or lazy-copying)
-// TODO: This needs to go away or move to a higher level. Because it uses
-//       attributes that might be overridden by ManagedSurface in future.
-//       Although it's only an issue for overridden getters (not setters)
-//       so not an immediate problem.
 class SurfaceSnapshot : public mg::Renderable
 {
 public:
