@@ -16,7 +16,7 @@
  * Authored by: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#include "mir/scene/managed_surface.h"
+#include "managed_surface.h"
 
 namespace mir { namespace scene {
 

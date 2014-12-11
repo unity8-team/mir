@@ -20,9 +20,9 @@
 #include "surface_stack_model.h"
 #include "mir/scene/surface_factory.h"
 #include "mir/scene/surface.h"
-#include "mir/scene/managed_surface.h"
 #include "mir/scene/placement_strategy.h"
 #include "mir/shell/display_layout.h"
+#include "managed_surface.h"
 
 namespace ms = mir::scene;
 
