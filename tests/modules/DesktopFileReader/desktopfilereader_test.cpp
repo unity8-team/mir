@@ -41,7 +41,7 @@ TEST(DesktopFileReader, testReadsDesktopFile)
     using namespace ::testing;
     setLocale("C");
 
-    QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
+    QFileInfo fileInfo(QString(TEST_SOURCE_DIR) + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
     DesktopFileReader *reader = readerFactory.createInstance("calculator", fileInfo);
 
@@ -66,7 +66,7 @@ TEST(DesktopFileReader, testReadsLocalizedDesktopFile)
     using namespace ::testing;
     setLocale("de");
 
-    QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
+    QFileInfo fileInfo(QString(TEST_SOURCE_DIR) + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
     DesktopFileReader *reader = readerFactory.createInstance("calculator", fileInfo);
 
@@ -91,7 +91,7 @@ TEST(DesktopFileReader, testMissingDesktopFile)
     using namespace ::testing;
     setLocale("C");
 
-    QFileInfo fileInfo(QDir::currentPath() + "/missing.desktop");
+    QFileInfo fileInfo(QString(TEST_SOURCE_DIR) + "/missing.desktop");
     DesktopFileReader::Factory readerFactory;
     DesktopFileReader *reader = readerFactory.createInstance("calculator", fileInfo);
 
@@ -116,7 +116,7 @@ TEST(DesktopFileReader, testUTF8Characters)
     using namespace ::testing;
     setLocale("zh_CN");
 
-    QFileInfo fileInfo(QDir::currentPath() + "/calculator.desktop");
+    QFileInfo fileInfo(QString(TEST_SOURCE_DIR) + "/calculator.desktop");
     DesktopFileReader::Factory readerFactory;
     DesktopFileReader *reader = readerFactory.createInstance("calculator", fileInfo);
 

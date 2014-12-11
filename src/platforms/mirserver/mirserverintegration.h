@@ -28,6 +28,7 @@
 
 class Display;
 class NativeInterface;
+class MirServer;
 class QMirServer;
 
 namespace qtmir {

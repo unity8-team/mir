@@ -30,6 +30,8 @@ public:
     {
     public:
         Factory() = default;
+        virtual ~Factory() = default;
+
         Factory(const Factory&) = delete;
 
         Factory& operator=(const Factory&) = delete;

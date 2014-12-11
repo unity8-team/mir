@@ -116,6 +116,13 @@ static const uint32_t KeyTable[] = {
     XKB_KEY_XF86PowerOff,            Qt::Key_PowerOff,
     XKB_KEY_XF86PowerDown,           Qt::Key_PowerDown,
 
+    /* Bluetooth / Wired headset multimedia keys */
+    XKB_KEY_XF86AudioPlay,           Qt::Key_MediaPlay,
+    XKB_KEY_XF86AudioPrev,           Qt::Key_MediaPrevious,
+    XKB_KEY_XF86AudioNext,           Qt::Key_MediaNext,
+    XKB_KEY_XF86AudioPause,          Qt::Key_MediaPause,
+    XKB_KEY_XF86AudioMedia,          Qt::Key_MediaTogglePlayPause,
+
     0,                          0
 };
 
