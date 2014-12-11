@@ -25,17 +25,17 @@ namespace mir
 {
 namespace graphics
 {
-class NestedContext;
+class GuestContext;
 namespace mesa
 {
 class NestedAuthentication : public DRMAuthentication
 {
 public:
-    NestedAuthentication(std::shared_ptr<NestedContext> const& nested_context);
+    NestedAuthentication(std::shared_ptr<GuestContext> const& nested_context);
     void auth_magic(drm_magic_t magic) override;
     mir::Fd authenticated_fd() override;
 private:
-    std::shared_ptr<NestedContext> const nested_context;
+    std::shared_ptr<GuestContext> const nested_context;
 };
 }
 }

@@ -29,7 +29,7 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
-struct MockNestedContext : mg::NestedContext
+struct MockGuestContext : mg::GuestContext
 {
     MOCK_METHOD0(platform_fd_items, std::vector<int>());
     MOCK_METHOD1(drm_auth_magic, void(int magic));
@@ -43,7 +43,7 @@ struct NestedAuthentication : public ::testing::Test
     }
 
     ::testing::NiceMock<mtd::MockDRM> mock_drm;
-    MockNestedContext mock_nested_context;
+    MockGuestContext mock_nested_context;
     mgm::NestedAuthentication auth{mt::fake_shared(mock_nested_context)};
 };
 }

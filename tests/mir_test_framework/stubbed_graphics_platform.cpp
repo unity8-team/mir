@@ -206,7 +206,7 @@ std::unique_ptr<std::vector<geom::Rectangle>> chosen_display_rects;
 struct GuestPlatformAdapter : mg::Platform
 {
     GuestPlatformAdapter(
-        std::shared_ptr<mg::NestedContext> const& context,
+        std::shared_ptr<mg::GuestContext> const& context,
         std::shared_ptr<mg::Platform> const& adaptee) :
         context(context),
         adaptee(adaptee),
@@ -242,7 +242,7 @@ struct GuestPlatformAdapter : mg::Platform
         return adaptee->egl_native_display();
     }
 
-    std::shared_ptr<mg::NestedContext> const context;
+    std::shared_ptr<mg::GuestContext> const context;
     std::shared_ptr<mg::Platform> const adaptee;
     std::shared_ptr<mg::PlatformIpcOperations> const ipc_ops;
 };
@@ -272,7 +272,7 @@ extern "C" std::shared_ptr<mg::Platform> create_host_platform(
 
 extern "C" std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const&,
-    std::shared_ptr<mg::NestedContext> const& context)
+    std::shared_ptr<mg::GuestContext> const& context)
 {
     auto graphics_platform = the_graphics_platform.lock();
     return std::make_shared<GuestPlatformAdapter>(context, graphics_platform);

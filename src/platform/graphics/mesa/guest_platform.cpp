@@ -39,7 +39,7 @@
 namespace mg = mir::graphics;
 namespace mgm = mg::mesa;
 
-mgm::GuestPlatform::GuestPlatform(std::shared_ptr<NestedContext> const& nested_context_arg)
+mgm::GuestPlatform::GuestPlatform(std::shared_ptr<GuestContext> const& nested_context_arg)
 {
     //TODO: a bit of round-about initialization to clean up here
     nested_context = nested_context_arg;
@@ -57,7 +57,7 @@ std::shared_ptr<mg::GraphicBufferAllocator> mgm::GuestPlatform::create_buffer_al
 
 extern "C" std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const&,
-    std::shared_ptr<mg::NestedContext> const& nested_context)
+    std::shared_ptr<mg::GuestContext> const& nested_context)
 {
     return std::make_shared<mgm::GuestPlatform>(nested_context);
 }

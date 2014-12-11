@@ -152,7 +152,7 @@ extern "C" std::shared_ptr<mg::Platform> mg::create_host_platform(
 
 extern "C" std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const& display_report,
-    std::shared_ptr<mg::NestedContext> const&)
+    std::shared_ptr<mg::GuestContext> const&)
 {
     //TODO: remove nullptr parameter once platform classes are sorted.
     //      mg::NativePlatform cannot create a display anyways, so it doesnt need a  display builder

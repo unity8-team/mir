@@ -28,19 +28,19 @@ namespace mir
 namespace graphics
 {
 
-class NestedContext
+class GuestContext
 {
 public:
-    virtual ~NestedContext() = default;
+    virtual ~GuestContext() = default;
 
     virtual std::vector<int> platform_fd_items() = 0;
     virtual void drm_auth_magic(int magic) = 0;
     virtual void drm_set_gbm_device(struct gbm_device* dev) = 0;
 
 protected:
-    NestedContext() = default;
-    NestedContext(NestedContext const&) = delete;
-    NestedContext& operator=(NestedContext const&) = delete;
+    GuestContext() = default;
+    GuestContext(GuestContext const&) = delete;
+    GuestContext& operator=(GuestContext const&) = delete;
 };
 
 }

@@ -36,7 +36,7 @@ class InternalNativeDisplay;
 class GuestPlatform : public graphics::Platform
 {
 public:
-    GuestPlatform(std::shared_ptr<NestedContext> const& nested_context_arg);
+    GuestPlatform(std::shared_ptr<GuestContext> const& nested_context_arg);
 
     std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() override;
     std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
@@ -49,7 +49,7 @@ public:
     EGLNativeDisplayType egl_native_display() const override;
 
 private:
-    std::shared_ptr<NestedContext> nested_context;
+    std::shared_ptr<GuestContext> nested_context;
     helpers::GBMHelper gbm;
     std::shared_ptr<PlatformIpcOperations> ipc_ops;
 };

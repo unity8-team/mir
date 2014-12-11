@@ -51,7 +51,7 @@ class GLConfig;
 class GLProgramFactory;
 class PlatformIpcOperations;
 class BufferWriter;
-class NestedContext;
+class GuestContext;
 
 /**
  * \defgroup platform_enablement Mir platform enablement
@@ -130,10 +130,10 @@ extern "C" std::shared_ptr<Platform> create_host_platform(
  */
 extern "C" typedef std::shared_ptr<Platform>(*CreateGuestPlatform)(
     std::shared_ptr<DisplayReport> const& report,
-    std::shared_ptr<NestedContext> const& nested_context);
+    std::shared_ptr<GuestContext> const& nested_context);
 extern "C" std::shared_ptr<Platform> create_guest_platform(
     std::shared_ptr<DisplayReport> const& report,
-    std::shared_ptr<NestedContext> const& nested_context);
+    std::shared_ptr<GuestContext> const& nested_context);
 
 /**
  * Function prototype used to add platform specific options to the platform-independant server options.

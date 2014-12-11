@@ -66,11 +66,11 @@ mir::DefaultServerConfiguration::wrap_display_configuration_policy(
 
 namespace
 {
-//TODO: what is the point of NestedContext if its just the same as mgn:HostConnection?
-class MirConnectionNestedContext : public mg::NestedContext
+//TODO: what is the point of GuestContext if its just the same as mgn:HostConnection?
+class MirConnectionGuestContext : public mg::GuestContext
 {
 public:
-    MirConnectionNestedContext(std::shared_ptr<mgn::HostConnection> const& connection)
+    MirConnectionGuestContext(std::shared_ptr<mgn::HostConnection> const& connection)
         : connection{connection}
     {
     }
@@ -108,7 +108,7 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
             {
                 return create_guest_platform(
                     the_display_report(),
-                    std::make_shared<MirConnectionNestedContext>(the_host_connection()));
+                    std::make_shared<MirConnectionGuestContext>(the_host_connection()));
             }
             else
             {

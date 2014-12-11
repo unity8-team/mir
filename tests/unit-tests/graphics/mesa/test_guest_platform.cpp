@@ -40,7 +40,7 @@ namespace geom = mir::geometry;
 namespace
 {
 
-struct MockNestedContext : public mg::NestedContext
+struct MockGuestContext : public mg::GuestContext
 {
     MOCK_METHOD0(platform_fd_items, std::vector<int>());
     MOCK_METHOD1(drm_auth_magic, void(int));
@@ -61,7 +61,7 @@ public:
 protected:
     ::testing::NiceMock<mtd::MockDRM> mock_drm;
     ::testing::NiceMock<mtd::MockGBM> mock_gbm;
-    ::testing::NiceMock<MockNestedContext> mock_nested_context;
+    ::testing::NiceMock<MockGuestContext> mock_nested_context;
 };
 
 }

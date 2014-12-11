@@ -23,7 +23,7 @@
 
 namespace mgm = mir::graphics::mesa;
 
-mgm::NestedAuthentication::NestedAuthentication(std::shared_ptr<NestedContext> const& nested_context) :
+mgm::NestedAuthentication::NestedAuthentication(std::shared_ptr<GuestContext> const& nested_context) :
     nested_context{nested_context}
 {
 }
