@@ -1,4 +1,6 @@
 /*
+ * Surface Management, formerly known as Window Management 
+ * ~~~
  * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -42,8 +44,8 @@ int ManagedSurface::configure(MirSurfaceAttrib attrib, int value)
 
 void ManagedSurface::set_state(MirSurfaceState desired)
 {
-    // TODO: Make all this an atomic operation (LP: #1395957)
-    geometry::Rectangle new_win, old_win{top_left(), size()};
+    // TODO: Eventually this whole function should be atomic (LP: #1395957)
+    geometry::Rectangle old_win{top_left(), size()}, new_win = old_win;
 
     auto fullscreen = old_win;
     display_layout->size_to_output(fullscreen);
@@ -60,18 +62,13 @@ void ManagedSurface::set_state(MirSurfaceState desired)
         new_win = workarea;
         break;
     case mir_surface_state_vertmaximized:
-        new_win.top_left.x = old_win.top_left.x;
         new_win.top_left.y = workarea.top_left.y;
-        new_win.size.width = old_win.size.width;
         new_win.size.height = workarea.size.height;
         break;
     case mir_surface_state_restored:
         new_win = restore_rect;
         break;
     case mir_surface_state_minimized:
-        // TODO: Move the last remaining minimize logic out of BasicSurface
-        //       and into here, once SurfaceSnapshot allows for it.
-        new_win = old_win;
         // but more importantly, save restore_rect (below)
         break;
     default:
@@ -83,7 +80,7 @@ void ManagedSurface::set_state(MirSurfaceState desired)
         state() == mir_surface_state_restored)
         restore_rect = old_win;
 
-    if (old_win != new_win)
+    if (new_win != old_win)
     {
         resize(new_win.size);
         move_to(new_win.top_left);
