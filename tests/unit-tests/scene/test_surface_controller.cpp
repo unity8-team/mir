@@ -63,7 +63,7 @@ struct MockSurfaceStackModel : public ms::SurfaceStackModel
 struct SurfaceController : testing::Test
 {
     MockPlacementStrategy placement_strategy;
-    mtd::MockSurface mock_surface;
+    testing::NiceMock<mtd::MockSurface> mock_surface;
     std::shared_ptr<ms::Surface> const expect_surface = mt::fake_shared(mock_surface);
     testing::NiceMock<MockSurfaceAllocator> mock_surface_allocator;
     testing::NiceMock<mtd::MockDisplayLayout> mock_display_layout;
@@ -75,6 +75,8 @@ struct SurfaceController : testing::Test
         using namespace ::testing;
         ON_CALL(mock_surface_allocator, create_surface(_)).WillByDefault(Return(expect_surface));
         ON_CALL(placement_strategy, place(_, _)).WillByDefault(ReturnArg<1>());
+        ON_CALL(mock_surface, size())
+            .WillByDefault(Return(geom::Size{12,34}));
     }
 };
 }
