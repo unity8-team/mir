@@ -20,8 +20,9 @@
 
 namespace mir { namespace scene {
 
-ManagedSurface::ManagedSurface(std::shared_ptr<Surface> const& raw)
-    : SurfaceWrapper(raw)
+ManagedSurface::ManagedSurface(std::shared_ptr<Surface> const& raw,
+                       std::shared_ptr<shell::DisplayLayout> const& layout)
+    : SurfaceWrapper(raw), display_layout(layout)
 {
 }
 

@@ -20,6 +20,7 @@
 #define MIR_SCENE_MANAGED_SURFACE_H_
 
 #include "mir/scene/surface_wrapper.h"
+#include "mir/shell/display_layout.h"
 #include <memory>
 
 namespace mir { namespace scene {
@@ -27,10 +28,14 @@ namespace mir { namespace scene {
 class ManagedSurface : public SurfaceWrapper
 {
 public:
-    ManagedSurface(std::shared_ptr<Surface> const&);
+    ManagedSurface(std::shared_ptr<Surface> const&,
+                   std::shared_ptr<shell::DisplayLayout> const&);
     virtual ~ManagedSurface();
 
     // TODO: Overrides for default window management policy
+
+private:
+    std::shared_ptr<shell::DisplayLayout> const display_layout;
 };
 
 }} // namespace mir::scene

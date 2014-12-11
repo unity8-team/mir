@@ -41,7 +41,7 @@ ms::SurfaceController::SurfaceController(
 std::shared_ptr<ms::Surface> ms::SurfaceController::wrap_surface(
     std::shared_ptr<ms::Surface> const& raw)
 {
-    return std::make_shared<ManagedSurface>(raw);
+    return std::make_shared<ManagedSurface>(raw, display_layout);
 }
 
 std::shared_ptr<ms::Surface> ms::SurfaceController::add_surface(
