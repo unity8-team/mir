@@ -18,7 +18,7 @@
 #define MIRSERVERCONFIGURATION_H
 
 #include <QObject>
-#include <mir/default_server_configuration.h>
+#include <mir/server.h>
 
 class QtEventFeeder;
 class SessionListener;
@@ -26,7 +26,9 @@ class SessionAuthorizer;
 class SurfaceConfigurator;
 class PromptSessionListener;
 
-class MirServerConfiguration : public QObject, public mir::DefaultServerConfiguration
+// We use virtual inheritance of mir::Server to facilitate derived classes (e.g. testing)
+// calling initialization functions before MirServerConfiguration is constructed.
+class MirServerConfiguration : public QObject, public virtual mir::Server
 {
     Q_OBJECT
 
@@ -38,18 +40,6 @@ class MirServerConfiguration : public QObject, public mir::DefaultServerConfigur
 public:
     MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
     ~MirServerConfiguration() = default;
-
-    /* mir specific */
-    std::shared_ptr<mir::compositor::Compositor> the_compositor() override;
-    std::shared_ptr<mir::scene::PlacementStrategy> the_placement_strategy() override;
-    std::shared_ptr<mir::scene::SessionListener> the_session_listener() override;
-    std::shared_ptr<mir::scene::PromptSessionListener> the_prompt_session_listener() override;
-    std::shared_ptr<mir::scene::SurfaceConfigurator> the_surface_configurator() override;
-    std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
-    std::shared_ptr<mir::input::InputDispatcher> the_input_dispatcher() override;
-    std::shared_ptr<mir::graphics::GLConfig> the_gl_config() override;
-    std::shared_ptr<mir::ServerStatusListener> the_server_status_listener() override;
-    std::shared_ptr<mir::shell::FocusSetter> the_shell_focus_setter() override;
 
     /* qt specific */
     // getters

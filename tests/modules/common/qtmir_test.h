@@ -41,31 +41,36 @@ using namespace qtmir;
 
 namespace qtmir {
 
-class FakeMirServerConfiguration: public MirServerConfiguration
+// Initialization of mir::Server needed for by tests
+class TestMirServerInit : virtual mir::Server
 {
-    typedef testing::NiceMock<mir::scene::MockPromptSessionManager> StubPromptSessionManager;
 public:
-    FakeMirServerConfiguration()
-    : MirServerConfiguration(0, nullptr)
-    , mock_prompt_session_manager(std::make_shared<StubPromptSessionManager>())
+    TestMirServerInit()
     {
+        override_the_prompt_session_manager(
+            [this]{ return the_mock_prompt_session_manager(); });
     }
 
-    std::shared_ptr<ms::PromptSessionManager> the_prompt_session_manager() override
-    {
-        return prompt_session_manager([this]()
-           ->std::shared_ptr<ms::PromptSessionManager>
-           {
-               return the_mock_prompt_session_manager();
-           });
-    }
-
-    std::shared_ptr<StubPromptSessionManager> the_mock_prompt_session_manager()
+    std::shared_ptr<mir::scene::MockPromptSessionManager> the_mock_prompt_session_manager()
     {
         return mock_prompt_session_manager;
     }
 
-    std::shared_ptr<StubPromptSessionManager> mock_prompt_session_manager;
+private:
+    typedef testing::NiceMock<mir::scene::MockPromptSessionManager> StubPromptSessionManager;
+    std::shared_ptr<StubPromptSessionManager> const mock_prompt_session_manager
+        {std::make_shared<StubPromptSessionManager>()};
+};
+
+class FakeMirServerConfiguration: private TestMirServerInit, public MirServerConfiguration
+{
+public:
+    FakeMirServerConfiguration()
+    : MirServerConfiguration(0, nullptr)
+    {
+    }
+
+    using TestMirServerInit::the_mock_prompt_session_manager;
 };
 
 } // namespace qtmir

@@ -42,7 +42,6 @@
 // Mir
 #include <mir/graphics/display.h>
 #include <mir/graphics/display_buffer.h>
-#include <mir/main_loop.h>
 
 // std
 #include <csignal>
@@ -178,17 +177,6 @@ void MirServerIntegration::initialize()
 
     for (QPlatformScreen *screen : m_display->screens())
         screenAdded(screen);
-
-    // install signal handler into the Mir event loop
-    auto mainLoop = m_mirConfig->the_main_loop();
-
-    mainLoop->register_signal_handler(
-    {SIGINT, SIGTERM},
-    [&](int)
-    {
-        qDebug() << "Signal caught by Mir, stopping Mir server..";
-        QCoreApplication::quit();
-    });
 
     m_clipboard->setupDBusService();
 }

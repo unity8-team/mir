@@ -22,28 +22,37 @@
 #include <QThread>
 #include <QSharedPointer>
 
-// Mir
-#include <mir/display_server.h>
-
 // local
 #include "mirserverconfiguration.h"
 
-// Wrap mir::DisplayServer with QObject, so it can be controlled via QThread
-class MirServerWorker : public QObject, public mir::DisplayServer
+#include <condition_variable>
+#include <mutex>
+
+// Wrap mir::Server with QObject, so it can be controlled via QThread
+class MirServerWorker : public QObject
 {
     Q_OBJECT
 
 public:
     MirServerWorker(const QSharedPointer<MirServerConfiguration> &config)
-        : mir::DisplayServer(*config.data())
+        : config(config)
     {}
+
+    bool wait_for_mir_startup();
 
 Q_SIGNALS:
     void stopped();
 
 public Q_SLOTS:
-    void run() { mir::DisplayServer::run(); Q_EMIT stopped(); }
-    void stop() { mir::DisplayServer::stop(); }
+    void run();
+    void stop() { config->stop(); }
+
+private:
+    std::mutex mutex;
+    std::condition_variable started_cv;
+    bool mir_running{false};
+
+    const QSharedPointer<MirServerConfiguration> config;
 };
 
 
