@@ -53,6 +53,22 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
     // TODO: Shell should define workarea to exclude panels/launchers/docks
     auto workarea = fullscreen;
 
+    auto old_state = state();
+    if (old_state != desired)
+    {
+        switch (old_state)
+        {
+        case mir_surface_state_minimized:
+            show();
+            break;
+        case mir_surface_state_restored:
+            restore_rect = old_win;
+            break;
+        default:
+            break;
+        }
+    }
+
     switch (desired)
     {
     case mir_surface_state_fullscreen:
@@ -69,21 +85,11 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
         new_win = restore_rect;
         break;
     case mir_surface_state_minimized:
-        // See below
+        hide();
         break;
     default:
-        abort();
         break;
     }
-
-    if (desired != mir_surface_state_restored &&
-        state() == mir_surface_state_restored)
-        restore_rect = old_win;
-
-    if (desired == mir_surface_state_minimized)
-        hide();
-    else
-        show();
 
     if (new_win != old_win)
     {
