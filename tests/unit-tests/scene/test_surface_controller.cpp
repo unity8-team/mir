@@ -77,6 +77,8 @@ struct SurfaceController : testing::Test
         ON_CALL(placement_strategy, place(_, _)).WillByDefault(ReturnArg<1>());
         ON_CALL(mock_surface, size())
             .WillByDefault(Return(geom::Size{12,34}));
+        ON_CALL(mock_surface, top_left())
+            .WillByDefault(Return(geom::Point{56,78}));
     }
 };
 }
