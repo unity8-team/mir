@@ -31,7 +31,6 @@ public:
     virtual ~ManagedSurface();
 
     // TODO: Overrides for default window management policy
-    bool visible() const override;
 };
 
 }} // namespace mir::scene

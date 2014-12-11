@@ -637,7 +637,9 @@ namespace
 {
 //This class avoids locking for long periods of time by copying (or lazy-copying)
 // TODO: This needs to go away or move to a higher level. Because it uses
-//       parameters that may be overridden by ManagedSurface in future.
+//       attributes that might be overridden by ManagedSurface in future.
+//       Although it's only an issue for overridden getters (not setters)
+//       so not an immediate problem.
 class SurfaceSnapshot : public mg::Renderable
 {
 public:

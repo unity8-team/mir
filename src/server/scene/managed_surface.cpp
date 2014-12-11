@@ -29,13 +29,6 @@ ManagedSurface::~ManagedSurface()
 {
 }
 
-// A trivial example of window management policy:
-bool ManagedSurface::visible() const
-{
-    return SurfaceWrapper::visible() &&
-           SurfaceWrapper::state() != mir_surface_state_minimized;
-}
-
 // TODO: More default window management policy here
 
 }} // namespace mir::scene
