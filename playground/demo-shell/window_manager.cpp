@@ -128,6 +128,24 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
+void me::WindowManager::toggle(MirSurfaceState state)
+{
+    if (auto const app = focus_controller->focussed_application().lock())
+    {
+        if (auto const surf = app->default_surface())
+            toggle(*surf, state);
+    }
+}
+
+void me::WindowManager::toggle(scene::Surface& surface, MirSurfaceState state)
+{
+    auto new_state = state;
+    if (new_state == surface.state())
+        new_state = mir_surface_state_restored;
+
+    surface.configure(mir_surface_attrib_state, new_state);
+}
+
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
@@ -146,6 +164,26 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             focus_controller->focus_next();
             return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F9)
+        {
+            toggle(mir_surface_state_minimized);
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F10)
+        {
+            toggle(mir_surface_state_maximized);
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F11)
+        {
+            toggle(mir_surface_state_fullscreen);
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F12)
+        {
+            toggle(mir_surface_state_vertmaximized);
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||
