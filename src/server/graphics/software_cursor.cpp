@@ -26,7 +26,6 @@
 #include "mir/input/scene.h"
 
 #include <mutex>
-#include <atomic>
 
 namespace mg = mir::graphics;
 namespace mi = mir::input;
@@ -70,12 +69,12 @@ public:
 
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        std::lock_guard<std::mutex> lock{buffer_mutex};
         return buffer_;
     }
 
     geom::Rectangle screen_position() const override
     {
+        std::lock_guard<std::mutex> lock{position_mutex};
         return {position, buffer_->size()};
     }
 
@@ -106,18 +105,14 @@ public:
 
     void move_to(geom::Point new_position)
     {
+        std::lock_guard<std::mutex> lock{position_mutex};
         position = new_position;
-    }
-
-    std::unique_lock<std::mutex> lock_buffer()
-    {
-        return std::unique_lock<std::mutex>{buffer_mutex};
     }
 
 private:
     std::shared_ptr<mg::Buffer> const buffer_;
-    mutable std::mutex buffer_mutex;
-    std::atomic<geom::Point> position;
+    mutable std::mutex position_mutex;
+    geom::Point position;
 };
 
 mg::SoftwareCursor::SoftwareCursor(
@@ -190,13 +185,6 @@ auto mg::SoftwareCursor::create_renderable_for(CursorImage const& cursor_image)
         cursor_image.size().width.as_uint32_t() *
         cursor_image.size().height.as_uint32_t() *
         MIR_BYTES_PER_PIXEL(format);
-
-    std::unique_lock<std::mutex> lock;
-
-    // If we are reusing the buffer we need to lock it to ensure it's not
-    // used while being updated
-    if (renderable && renderable->buffer() == new_renderable->buffer())
-        lock = renderable->lock_buffer();
 
     // TODO: The buffer pixel format may not be argb_8888, leading to
     // incorrect cursor colors. We need to transform the data to match
