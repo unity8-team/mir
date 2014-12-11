@@ -36,13 +36,15 @@ ManagedSurface::~ManagedSurface()
 
 int ManagedSurface::configure(MirSurfaceAttrib attrib, int value)
 {
-    if (attrib == mir_surface_attrib_state)
-        set_state(static_cast<MirSurfaceState>(value));
+    int new_value = value;
 
-    return SurfaceWrapper::configure(attrib, value);
+    if (attrib == mir_surface_attrib_state)
+        new_value = set_state(static_cast<MirSurfaceState>(value));
+
+    return SurfaceWrapper::configure(attrib, new_value);
 }
 
-void ManagedSurface::set_state(MirSurfaceState desired)
+MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
 {
     // TODO: Eventually this whole function should be atomic (LP: #1395957)
     geometry::Rectangle old_win{top_left(), size()}, new_win = old_win;
@@ -85,6 +87,10 @@ void ManagedSurface::set_state(MirSurfaceState desired)
         resize(new_win.size);
         move_to(new_win.top_left);
     }
+
+    // TODO: In future the desired state may be rejected based on other
+    //       factors such as surface type.
+    return desired;
 }
 
 // TODO: More default window management policy here

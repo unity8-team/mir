@@ -42,7 +42,7 @@ private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
     geometry::Rectangle restore_rect;
 
-    void set_state(MirSurfaceState state);
+    MirSurfaceState set_state(MirSurfaceState state);
 };
 
 }} // namespace mir::scene
