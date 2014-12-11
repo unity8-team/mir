@@ -24,6 +24,7 @@
 #include "mir_test_doubles/stub_scene_session.h"
 
 #include "mir_test_doubles/mock_surface.h"
+#include "mir_test_doubles/mock_display_layout.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
@@ -65,6 +66,7 @@ struct SurfaceController : testing::Test
     mtd::MockSurface mock_surface;
     std::shared_ptr<ms::Surface> const expect_surface = mt::fake_shared(mock_surface);
     testing::NiceMock<MockSurfaceAllocator> mock_surface_allocator;
+    testing::NiceMock<mtd::MockDisplayLayout> mock_display_layout;
     MockSurfaceStackModel model;
     mtd::StubSceneSession session;
 
@@ -77,7 +79,7 @@ struct SurfaceController : testing::Test
 };
 }
 
-TEST_F(SurfaceController, add_and_remove_surface)
+TEST_F(SurfaceController, add_wrap_and_remove_surface)
 {
     using namespace ::testing;
 
@@ -87,9 +89,11 @@ TEST_F(SurfaceController, add_and_remove_surface)
         MockSurfaceController(
             std::shared_ptr<ms::SurfaceFactory> const& surface_factory,
             std::shared_ptr<ms::PlacementStrategy> const& placement_strategy,
+            std::shared_ptr<msh::DisplayLayout> const& display_layout,
             std::shared_ptr<ms::SurfaceStackModel> const& surface_stack)
             : ms::SurfaceController(surface_factory,
                                     placement_strategy,
+                                    display_layout,
                                     surface_stack)
         {
         }
@@ -101,6 +105,7 @@ TEST_F(SurfaceController, add_and_remove_surface)
     MockSurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
         mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
         mt::fake_shared(model));
 
     EXPECT_CALL(controller, wrap_surface(expect_surface))
@@ -125,6 +130,7 @@ TEST_F(SurfaceController, raise_surface)
     ms::SurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
         mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
         mt::fake_shared(model));
 
     EXPECT_CALL(model, raise(_)).Times(1);
@@ -141,6 +147,7 @@ TEST_F(SurfaceController, offers_create_surface_parameters_to_placement_strategy
     ms::SurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
         mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
         mt::fake_shared(model));
 
     auto params = ms::a_surface();
@@ -159,6 +166,7 @@ TEST_F(SurfaceController, forwards_create_surface_parameters_from_placement_stra
     ms::SurfaceController controller(
         mt::fake_shared(mock_surface_allocator),
         mt::fake_shared(placement_strategy),
+        mt::fake_shared(mock_display_layout),
         mt::fake_shared(model));
 
     auto params = ms::a_surface();
