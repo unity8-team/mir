@@ -21,7 +21,7 @@
 namespace mir { namespace scene {
 
 SurfaceWrapper::SurfaceWrapper(std::shared_ptr<Surface> const& impl)
-    : surface(impl)
+    : raw_surface(impl)
 {
 }
 
@@ -31,194 +31,194 @@ SurfaceWrapper::~SurfaceWrapper()
 
 std::shared_ptr<mir::input::InputChannel> SurfaceWrapper::input_channel() const
 {
-    return surface->input_channel();
+    return raw_surface->input_channel();
 }
 
 mir::input::InputReceptionMode SurfaceWrapper::reception_mode() const
 {
-    return surface->reception_mode();
+    return raw_surface->reception_mode();
 }
 
 std::string SurfaceWrapper::name() const
 {
-    return surface->name();
+    return raw_surface->name();
 }
 
 geometry::Point SurfaceWrapper::top_left() const
 {
-    return surface->top_left();
+    return raw_surface->top_left();
 }
 
 geometry::Size SurfaceWrapper::client_size() const
 {
-    return surface->client_size();
+    return raw_surface->client_size();
 }
 
 geometry::Size SurfaceWrapper::size() const
 {
-    return surface->size();
+    return raw_surface->size();
 }
 
 geometry::Rectangle SurfaceWrapper::input_bounds() const
 {
-    return surface->input_bounds();
+    return raw_surface->input_bounds();
 }
 
 bool SurfaceWrapper::input_area_contains(mir::geometry::Point const& p) const
 {
-    return surface->input_area_contains(p);
+    return raw_surface->input_area_contains(p);
 }
 
 std::unique_ptr<graphics::Renderable> SurfaceWrapper::compositor_snapshot(void const* id) const
 {
-    return surface->compositor_snapshot(id);
+    return raw_surface->compositor_snapshot(id);
 }
 
 float SurfaceWrapper::alpha() const
 {
-    return surface->alpha();
+    return raw_surface->alpha();
 }
 
 MirSurfaceType SurfaceWrapper::type() const
 {
-    return surface->type();
+    return raw_surface->type();
 }
 
 MirSurfaceState SurfaceWrapper::state() const
 {
-    return surface->state();
+    return raw_surface->state();
 }
 
 void SurfaceWrapper::hide()
 {
-    surface->hide();
+    raw_surface->hide();
 }
 
 void SurfaceWrapper::show()
 {
-    surface->show();
+    raw_surface->show();
 }
 
 bool SurfaceWrapper::visible() const
 {
-    return surface->visible();
+    return raw_surface->visible();
 }
 
 void SurfaceWrapper::move_to(geometry::Point const& p)
 {
-    surface->move_to(p);
+    raw_surface->move_to(p);
 }
 
 void SurfaceWrapper::take_input_focus(std::shared_ptr<shell::InputTargeter> const& t)
 {
-    surface->take_input_focus(t);
+    raw_surface->take_input_focus(t);
 }
 
 void SurfaceWrapper::set_input_region(std::vector<geometry::Rectangle> const& r)
 {
-    surface->set_input_region(r);
+    raw_surface->set_input_region(r);
 }
 
 void SurfaceWrapper::allow_framedropping(bool b)
 {
-    surface->allow_framedropping(b);
+    raw_surface->allow_framedropping(b);
 }
 
 void SurfaceWrapper::resize(geometry::Size const& s)
 {
-    surface->resize(s);
+    raw_surface->resize(s);
 }
 
 void SurfaceWrapper::set_transformation(glm::mat4 const& t)
 {
-    surface->set_transformation(t);
+    raw_surface->set_transformation(t);
 }
 
 void SurfaceWrapper::set_alpha(float a)
 {
-    surface->set_alpha(a);
+    raw_surface->set_alpha(a);
 }
 
 void SurfaceWrapper::set_orientation(MirOrientation orientation)
 {
-    surface->set_orientation(orientation);
+    raw_surface->set_orientation(orientation);
 }
 
 void SurfaceWrapper::force_requests_to_complete()
 {
-    surface->force_requests_to_complete();
+    raw_surface->force_requests_to_complete();
 }
 
 void SurfaceWrapper::add_observer(std::shared_ptr<SurfaceObserver> const& ob)
 {
-    surface->add_observer(ob);
+    raw_surface->add_observer(ob);
 }
 
 void SurfaceWrapper::remove_observer(std::weak_ptr<SurfaceObserver> const& ob)
 {
-    surface->remove_observer(ob);
+    raw_surface->remove_observer(ob);
 }
 
 void SurfaceWrapper::set_reception_mode(input::InputReceptionMode mode)
 {
-    surface->set_reception_mode(mode);
+    raw_surface->set_reception_mode(mode);
 }
 
 void SurfaceWrapper::consume(MirEvent const& e)
 {
-    surface->consume(e);
+    raw_surface->consume(e);
 }
 
 void SurfaceWrapper::set_cursor_image(std::shared_ptr<graphics::CursorImage> const& i)
 {
-    surface->set_cursor_image(i);
+    raw_surface->set_cursor_image(i);
 }
 
 std::shared_ptr<graphics::CursorImage> SurfaceWrapper::cursor_image() const
 {
-    return surface->cursor_image();
+    return raw_surface->cursor_image();
 }
 
 void SurfaceWrapper::request_client_surface_close()
 {
-    surface->request_client_surface_close();
+    raw_surface->request_client_surface_close();
 }
 
 MirPixelFormat SurfaceWrapper::pixel_format() const
 {
-    return surface->pixel_format();
+    return raw_surface->pixel_format();
 }
 
 void SurfaceWrapper::swap_buffers(graphics::Buffer* old_buffer,
                            std::function<void(graphics::Buffer*)> callback)
 {
-    surface->swap_buffers(old_buffer, callback);
+    raw_surface->swap_buffers(old_buffer, callback);
 }
 
 bool SurfaceWrapper::supports_input() const
 {
-    return surface->supports_input();
+    return raw_surface->supports_input();
 }
 
 int SurfaceWrapper::client_input_fd() const
 {
-    return surface->client_input_fd();
+    return raw_surface->client_input_fd();
 }
 
 int SurfaceWrapper::configure(MirSurfaceAttrib a, int v)
 {
-    return surface->configure(a, v);
+    return raw_surface->configure(a, v);
 }
 
 int SurfaceWrapper::query(MirSurfaceAttrib a)
 {
-    return surface->query(a);
+    return raw_surface->query(a);
 }
 
 void SurfaceWrapper::with_most_recent_buffer_do(
     std::function<void(graphics::Buffer&)> const& callback)
 {
-    surface->with_most_recent_buffer_do(callback);
+    raw_surface->with_most_recent_buffer_do(callback);
 }
 
 }} // namespace mir::scene

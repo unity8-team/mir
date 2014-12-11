@@ -70,7 +70,7 @@ public:
     virtual void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override;
 
 protected:
-    std::shared_ptr<Surface> const surface;
+    std::shared_ptr<Surface> const raw_surface;
 };
 
 }} // namespace mir::scene
