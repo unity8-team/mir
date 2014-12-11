@@ -103,7 +103,7 @@ e5e4dd7bcaf186810043fa0f05be42d7e49b0843  include/server/mir/scene/surface_coord
 dd8f054f786b9746d9e513f2656e931234b5283a  include/server/mir/scene/surface_creation_parameters.h
 7da48dbedb4430ce322a50ef8f4e93ce08bdf147  include/server/mir/scene/surface.h
 587e22d751656ce2d9536afdf5659276ff9bbc46  include/server/mir/scene/surface_observer.h
-c0f8fc9bc7141401e319a4635d14ca2fa92fd4a4  include/server/mir/scene/surface_wrapper.h
+54356fd4593dfcf6c599655e84a522cbd6ee845b  include/server/mir/scene/surface_wrapper.h
 7ef3e99901168cda296d74d05a979f47bf9c3ff1  include/server/mir/server_action_queue.h
 8d83a51c278b8b71866d2178d9b6387c1f91a7d0  include/server/mir/server_configuration.h
 e56a255135af4099001b7e31f76530b40d3bd7fa  include/server/mir/server.h
