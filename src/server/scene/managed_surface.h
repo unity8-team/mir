@@ -21,6 +21,7 @@
 
 #include "mir/scene/surface_wrapper.h"
 #include "mir/shell/display_layout.h"
+#include "mir_toolkit/common.h"
 #include <memory>
 
 namespace mir { namespace scene {
@@ -32,10 +33,14 @@ public:
                    std::shared_ptr<shell::DisplayLayout> const&);
     virtual ~ManagedSurface();
 
-    // TODO: Overrides for default window management policy
+    int configure(MirSurfaceAttrib attrib, int value) override;
+
+    // TODO: More overrides for default window management policy
 
 private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
+
+    void set_state(MirSurfaceState state);
 };
 
 }} // namespace mir::scene
