@@ -23,7 +23,7 @@
 #include <QSharedPointer>
 
 // local
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 
 #include <condition_variable>
 #include <mutex>
@@ -34,8 +34,8 @@ class MirServerWorker : public QObject
     Q_OBJECT
 
 public:
-    MirServerWorker(const QSharedPointer<MirServerConfiguration> &config)
-        : config(config)
+    MirServerWorker(const QSharedPointer<MirServer> &server)
+        : server(server)
     {}
 
     bool wait_for_mir_startup();
@@ -45,14 +45,14 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void run();
-    void stop() { config->stop(); }
+    void stop() { server->stop(); }
 
 private:
     std::mutex mutex;
     std::condition_variable started_cv;
     bool mir_running{false};
 
-    const QSharedPointer<MirServerConfiguration> config;
+    const QSharedPointer<MirServer> server;
 };
 
 
@@ -61,7 +61,7 @@ class QMirServer: public QObject
     Q_OBJECT
 
 public:
-    QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject* parent=0);
+    QMirServer(const QSharedPointer<MirServer> &config, QObject* parent=0);
     ~QMirServer();
 
 Q_SIGNALS:

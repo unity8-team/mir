@@ -26,7 +26,7 @@
 #include <Unity/Application/sessionmanager.h>
 #include <Unity/Application/taskcontroller.h>
 #include <Unity/Application/proc_info.h>
-#include <mirserverconfiguration.h>
+#include <mirserver.h>
 
 #include "mock_application_controller.h"
 #include "mock_desktop_file_reader.h"
@@ -62,11 +62,11 @@ private:
         {std::make_shared<StubPromptSessionManager>()};
 };
 
-class FakeMirServerConfiguration: private TestMirServerInit, public MirServerConfiguration
+class FakeMirServer: private TestMirServerInit, public MirServer
 {
 public:
-    FakeMirServerConfiguration()
-    : MirServerConfiguration(0, nullptr)
+    FakeMirServer()
+    : MirServer(0, nullptr)
     {
     }
 
@@ -81,8 +81,8 @@ class QtMirTest : public ::testing::Test
 {
 public:
     QtMirTest()
-        : mirConfig{
-            QSharedPointer<FakeMirServerConfiguration> (new FakeMirServerConfiguration)
+        : mirServer{
+            QSharedPointer<FakeMirServer> (new FakeMirServer)
         }
         , taskController{
               QSharedPointer<TaskController> (
@@ -95,7 +95,7 @@ public:
               )
         }
         , applicationManager{
-            mirConfig,
+            mirServer,
             taskController,
             QSharedPointer<DesktopFileReader::Factory>(
                 &desktopFileReaderFactory,
@@ -103,11 +103,11 @@ public:
             QSharedPointer<ProcInfo>(&procInfo,[](ProcInfo *){})
         }
         , sessionManager{
-            mirConfig,
+            mirServer,
             &applicationManager,
         }
         , surfaceManager{
-            mirConfig,
+            mirServer,
             &sessionManager
         }
     {
@@ -146,7 +146,7 @@ public:
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<FakeMirServerConfiguration> mirConfig;
+    QSharedPointer<FakeMirServer> mirServer;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
     SessionManager sessionManager;

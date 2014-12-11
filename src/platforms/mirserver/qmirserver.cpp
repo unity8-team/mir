@@ -27,7 +27,7 @@
 
 void MirServerWorker::run()
 {
-    auto const main_loop = config->the_main_loop();
+    auto const main_loop = server->the_main_loop();
     // By enqueuing the notification code in the main loop, we are
     // ensuring that the server has really and fully started before
     // leaving wait_for_startup().
@@ -40,7 +40,7 @@ void MirServerWorker::run()
             started_cv.notify_one();
         });
 
-    config->run();
+    server->run();
     Q_EMIT stopped();
 }
 
@@ -51,9 +51,9 @@ bool MirServerWorker::wait_for_mir_startup()
     return mir_running;
 }
 
-QMirServer::QMirServer(const QSharedPointer<MirServerConfiguration> &config, QObject *parent)
+QMirServer::QMirServer(const QSharedPointer<MirServer> &server, QObject *parent)
     : QObject(parent)
-    , m_mirServer(new MirServerWorker(config))
+    , m_mirServer(new MirServerWorker(server))
 {
     m_mirServer->moveToThread(&m_mirThread);
 

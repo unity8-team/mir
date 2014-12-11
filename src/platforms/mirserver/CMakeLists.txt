@@ -47,7 +47,7 @@ set(MIRSERVER_QPA_PLUGIN_SRC
     surfaceconfigurator.cpp
     promptsessionlistener.cpp
     mirplacementstrategy.cpp
-    mirserverconfiguration.cpp
+    mirserver.cpp
     mirserverstatuslistener.cpp
     display.cpp
     screen.cpp

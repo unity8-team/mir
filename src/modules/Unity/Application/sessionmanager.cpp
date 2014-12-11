@@ -24,7 +24,7 @@
 
 // QPA mirserver
 #include "nativeinterface.h"
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "logging.h"
@@ -78,7 +78,7 @@ SessionManager* SessionManager::singleton()
         SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
         PromptSessionListener *promptSessionListener = static_cast<PromptSessionListener*>(nativeInterface->nativeResourceForIntegration("PromptSessionListener"));
 
-        the_session_manager = new SessionManager(nativeInterface->m_mirConfig, ApplicationManager::singleton());
+        the_session_manager = new SessionManager(nativeInterface->m_mirServer, ApplicationManager::singleton());
 
         connectToSessionListener(the_session_manager, sessionListener);
         connectToPromptSessionListener(the_session_manager, promptSessionListener);
@@ -87,11 +87,11 @@ SessionManager* SessionManager::singleton()
 }
 
 SessionManager::SessionManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        const QSharedPointer<MirServer>& mirServer,
         ApplicationManager* applicationManager,
         QObject *parent)
     : SessionModel(parent)
-    , m_mirConfig(mirConfig)
+    , m_mirServer(mirServer)
     , m_applicationManager(applicationManager)
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::SessionManager - this=" << this;
@@ -119,7 +119,7 @@ void SessionManager::onSessionStarting(std::shared_ptr<mir::scene::Session> cons
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onSessionStarting - sessionName=" <<  session->name().c_str();
 
     Session* qmlSession = new Session(session,
-                                       m_mirConfig->the_prompt_session_manager());
+                                       m_mirServer->the_prompt_session_manager());
     insert(0, qmlSession);
 
     Application* application = m_applicationManager->findApplicationWithSession(session);
@@ -152,7 +152,7 @@ void SessionManager::onPromptSessionStarting(const std::shared_ptr<ms::PromptSes
 {
     qCDebug(QTMIR_SESSIONS) << "SessionManager::onPromptSessionStarting - promptSession=" << promptSession.get();
 
-    std::shared_ptr<mir::scene::Session> appSession = m_mirConfig->the_prompt_session_manager()->application_for(promptSession);
+    std::shared_ptr<mir::scene::Session> appSession = m_mirServer->the_prompt_session_manager()->application_for(promptSession);
     SessionInterface *qmlAppSession = findSession(appSession.get());
     if (qmlAppSession) {
         m_mirPromptToSessionHash[promptSession.get()] = qmlAppSession;

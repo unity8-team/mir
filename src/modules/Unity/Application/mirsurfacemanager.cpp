@@ -29,7 +29,7 @@
 
 // QPA mirserver
 #include "nativeinterface.h"
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "sessionlistener.h"
 #include "surfaceconfigurator.h"
 #include "logging.h"
@@ -72,7 +72,7 @@ MirSurfaceManager* MirSurfaceManager::singleton()
         SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
         SurfaceConfigurator *surfaceConfigurator = static_cast<SurfaceConfigurator*>(nativeInterface->nativeResourceForIntegration("SessionConfigurator"));
 
-        the_surface_manager = new MirSurfaceManager(nativeInterface->m_mirConfig, SessionManager::singleton());
+        the_surface_manager = new MirSurfaceManager(nativeInterface->m_mirServer, SessionManager::singleton());
 
         connectToSessionListener(the_surface_manager, sessionListener);
         connectToSurfaceConfigurator(the_surface_manager, surfaceConfigurator);
@@ -81,11 +81,11 @@ MirSurfaceManager* MirSurfaceManager::singleton()
 }
 
 MirSurfaceManager::MirSurfaceManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        const QSharedPointer<MirServer>& mirServer,
         SessionManager* sessionManager,
         QObject *parent)
     : MirSurfaceItemModel(parent)
-    , m_mirConfig(mirConfig)
+    , m_mirServer(mirServer)
     , m_sessionManager(sessionManager)
 {
     qCDebug(QTMIR_SURFACES) << "MirSurfaceManager::MirSurfaceManager - this=" << this;
