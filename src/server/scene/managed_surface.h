@@ -21,6 +21,7 @@
 
 #include "mir/scene/surface_wrapper.h"
 #include "mir/shell/display_layout.h"
+#include "mir/geometry/rectangle.h"
 #include "mir_toolkit/common.h"
 #include <memory>
 
@@ -39,6 +40,7 @@ public:
 
 private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
+    geometry::Rectangle restore_rect;
 
     void set_state(MirSurfaceState state);
 };

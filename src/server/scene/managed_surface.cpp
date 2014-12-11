@@ -22,7 +22,9 @@ namespace mir { namespace scene {
 
 ManagedSurface::ManagedSurface(std::shared_ptr<Surface> const& raw,
                        std::shared_ptr<shell::DisplayLayout> const& layout)
-    : SurfaceWrapper(raw), display_layout(layout)
+    : SurfaceWrapper(raw)
+    , display_layout(layout)
+    , restore_rect{raw->top_left(), raw->size()}
 {
 }
 
@@ -32,28 +34,21 @@ ManagedSurface::~ManagedSurface()
 
 int ManagedSurface::configure(MirSurfaceAttrib attrib, int value)
 {
-    int new_value = SurfaceWrapper::configure(attrib, value);
-
     if (attrib == mir_surface_attrib_state)
-        set_state(static_cast<MirSurfaceState>(new_value));
+        set_state(static_cast<MirSurfaceState>(value));
 
-    return new_value;
+    return SurfaceWrapper::configure(attrib, value);
 }
 
 void ManagedSurface::set_state(MirSurfaceState desired)
 {
-    if (desired == mir_surface_state_minimized ||
-        desired == mir_surface_state_restored)
-        return;
-
     // TODO: Make all this an atomic operation (LP: #1395957)
-
     geometry::Rectangle new_win, old_win{top_left(), size()};
 
     auto fullscreen = old_win;
     display_layout->size_to_output(fullscreen);
 
-    // TODO: Limit workarea to exclude panels/launchers defined by the shell
+    // TODO: Shell should define workarea to exclude panels/launchers/docks
     auto workarea = fullscreen;
 
     switch (desired)
@@ -70,10 +65,21 @@ void ManagedSurface::set_state(MirSurfaceState desired)
         new_win.size.width = old_win.size.width;
         new_win.size.height = workarea.size.height;
         break;
-    default:
+    case mir_surface_state_restored:
+        new_win = restore_rect;
+        break;
+    case mir_surface_state_minimized:
+        // TODO
         new_win = old_win;
         break;
+    default:
+        abort();
+        break;
     }
+
+    if (desired != mir_surface_state_restored &&
+        state() == mir_surface_state_restored)
+        restore_rect = old_win;
 
     if (old_win != new_win)
     {
