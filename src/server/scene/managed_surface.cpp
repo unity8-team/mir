@@ -69,8 +69,10 @@ void ManagedSurface::set_state(MirSurfaceState desired)
         new_win = restore_rect;
         break;
     case mir_surface_state_minimized:
-        // TODO
+        // TODO: Move the last remaining minimize logic out of BasicSurface
+        //       and into here, once SurfaceSnapshot allows for it.
         new_win = old_win;
+        // but more importantly, save restore_rect (below)
         break;
     default:
         abort();

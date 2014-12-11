@@ -349,7 +349,9 @@ bool ms::BasicSurface::visible() const
 
 bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
 {
-    return !hidden && first_frame_posted;
+    return !hidden &&
+           first_frame_posted &&
+           state_ != mir_surface_state_minimized;
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const
