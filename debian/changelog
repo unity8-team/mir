@@ -1,3 +1,15 @@
+qtmir (0.4.4+15.04.20141211-0ubuntu1) vivid; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Alan Griffiths ]
+  * Migration of qtmir from the legacy Mir API
+  * Refactor to better reflect the code structure following new-migrate-
+    to-mir-Server-API
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 11 Dec 2014 16:55:53 +0000
+
 qtmir (0.4.4+15.04.20141205-0ubuntu1) vivid; urgency=low
 
   [ CI Train Bot ]
