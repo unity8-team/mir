@@ -79,7 +79,7 @@ struct SurfaceController : testing::Test
 };
 }
 
-TEST_F(SurfaceController, add_wrap_and_remove_surface)
+TEST_F(SurfaceController, add_and_remove_surface)
 {
     using namespace ::testing;
 
