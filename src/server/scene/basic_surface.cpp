@@ -352,6 +352,9 @@ bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
     return !hidden &&
            first_frame_posted &&
            state_ != mir_surface_state_minimized;
+
+    // TODO: ^^^ Move minimized logic into ManagedSurface::visible() once
+    //       SurfaceSnapshot allows for it (see below).
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const
