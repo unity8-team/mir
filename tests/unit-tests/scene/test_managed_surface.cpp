@@ -119,3 +119,34 @@ TEST_F(ManagedSurfaceTest, goes_vertmaximized_and_restores)
     surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
 }
 
+TEST_F(ManagedSurfaceTest, goes_minimized_and_restores)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    InSequence seq;
+    EXPECT_CALL(*mock_basic_surface, hide());
+    EXPECT_CALL(*mock_basic_surface, show());
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_minimized);
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+}
+
+TEST_F(ManagedSurfaceTest, multistate_restores_to_original)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+    Rectangle const restored{surf.top_left(), surf.size()};
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_vertmaximized);
+    surf.move_to({surf.top_left().x.as_int() + 5, surf.top_left().y});
+    EXPECT_NE(restored.top_left, surf.top_left());
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_fullscreen);
+    EXPECT_EQ(fullscreen.top_left, surf.top_left());
+    EXPECT_EQ(fullscreen.size, surf.size());
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+    EXPECT_EQ(restored.top_left, surf.top_left());
+    EXPECT_EQ(restored.size, surf.size());
+}
+
+
