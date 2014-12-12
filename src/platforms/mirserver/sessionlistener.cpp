@@ -15,8 +15,11 @@
  */
 
 #include "sessionlistener.h"
+#include "surfaceobserver.h"
 #include "logging.h"
 #include "tracepoints.h" // generated from tracepoints.tp
+
+#include <mir/scene/surface.h>
 
 namespace ms = mir::scene;
 
@@ -68,7 +71,9 @@ void SessionListener::surface_created(ms::Session& session, std::shared_ptr<ms::
     tracepoint(qtmirserver, surfaceCreated);
     qCDebug(QTMIR_MIR_MESSAGES) << "SessionListener::surface_created - this=" << this << "session=" << &session
                                    << "surface=" << surface.get();
-    Q_EMIT sessionCreatedSurface(&session, surface);
+    std::shared_ptr<SurfaceObserver> surfaceObserver = std::make_shared<SurfaceObserver>();
+    surface->add_observer(surfaceObserver);
+    Q_EMIT sessionCreatedSurface(&session, surface, surfaceObserver);
 }
 
 void SessionListener::destroying_surface(ms::Session& session, std::shared_ptr<ms::Surface> const& surface)

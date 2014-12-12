@@ -21,6 +21,7 @@
 
 #include "mir/scene/session_listener.h"
 #include "mir/scene/session.h"
+#include "mir/scene/surface_observer.h"
 
 class SessionListener : public QObject, public mir::scene::SessionListener
 {
@@ -43,7 +44,7 @@ Q_SIGNALS:
     void sessionFocused(std::shared_ptr<mir::scene::Session> const& session);
     void sessionUnfocused();
 
-    void sessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
+    void sessionCreatedSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&, std::shared_ptr<mir::scene::SurfaceObserver> const&);
     void sessionDestroyingSurface(mir::scene::Session const*, std::shared_ptr<mir::scene::Surface> const&);
 };
 
