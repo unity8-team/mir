@@ -93,8 +93,8 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
 
     if (new_win != old_win)
     {
-        resize(new_win.size);
         move_to(new_win.top_left);
+        resize(new_win.size);
     }
 
     // TODO: In future the desired state may be rejected based on other

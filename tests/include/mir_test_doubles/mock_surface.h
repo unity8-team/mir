@@ -63,6 +63,8 @@ struct MockSurface : public scene::BasicSurface
     MOCK_CONST_METHOD0(size, geometry::Size());
     MOCK_METHOD1(resize, void(geometry::Size const&));
 
+    MOCK_CONST_METHOD0(state, MirSurfaceState());
+
     MOCK_CONST_METHOD0(pixel_format, MirPixelFormat());
 
     MOCK_CONST_METHOD0(supports_input, bool());
