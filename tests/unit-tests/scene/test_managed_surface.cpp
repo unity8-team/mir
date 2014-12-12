@@ -61,7 +61,13 @@ struct ManagedSurfaceTest : public Test
         ON_CALL(*mock_basic_surface, state())
             .WillByDefault(ReturnPointee(&state_));
         ON_CALL(*mock_basic_surface, configure(mir_surface_attrib_state, _))
-            .WillByDefault(SaveArg<1>((int*)&state_));
+            .WillByDefault(Invoke(
+                [this](MirSurfaceAttrib, int v) -> int
+                {
+                    state_ = (MirSurfaceState)v;
+                    return v;
+                }
+            ));
     }
 };
 
