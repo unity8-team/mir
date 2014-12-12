@@ -61,10 +61,8 @@ struct MockSurface : public scene::BasicSurface
 
     MOCK_METHOD1(move_to, void(geometry::Point const&));
     MOCK_CONST_METHOD0(top_left, geometry::Point());
-
     MOCK_METHOD1(resize, void(geometry::Size const&));
     MOCK_CONST_METHOD0(size, geometry::Size());
-
     MOCK_CONST_METHOD0(pixel_format, MirPixelFormat());
 
     MOCK_CONST_METHOD0(supports_input, bool());

@@ -53,13 +53,12 @@ public:
 
     /**
      * wrap_surface allows you wrap ("decorate") a surface in your own
-     * window management policy-enforcing class. This facility is provided
-     * in SurfaceController instead of the SurfaceFactory so that you still
-     * have the option of discarding Mir's default window management policy
-     * (from ManagedSurface) and can access the raw underlying Surface
-     * object freely without any policy constraints. This design also means
-     * your wrapped Surface class only needs a simple single argument to
-     * construct.
+     * window management policy-enforcing class. It's important to keep
+     * the wrapping stage out of SurfaceFactory, so that a shell may choose
+     * to both partly reuse the default wrapper (ManagedSurface) for
+     * window management logic while also retaining access to the underlying
+     * BasicSurface if it wants to do anything that would be disallowed by
+     * the default policy of ManagedSurface.
      * TODO: Move this up to SurfaceCoordinator (or some bespoke factory)
      *       in the public API later.
      */
