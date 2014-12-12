@@ -36,8 +36,6 @@ public:
 
     int configure(MirSurfaceAttrib attrib, int value) override;
 
-    // TODO: More overrides for default window management policy
-
 private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;
     geometry::Rectangle restore_rect;

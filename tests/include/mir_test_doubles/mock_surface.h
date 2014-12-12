@@ -57,13 +57,13 @@ struct MockSurface : public scene::BasicSurface
     MOCK_METHOD0(force_requests_to_complete, void());
     MOCK_METHOD0(advance_client_buffer, std::shared_ptr<graphics::Buffer>());
 
-    MOCK_CONST_METHOD0(top_left, geometry::Point());
-    MOCK_METHOD1(move_to, void(geometry::Point const&));
-
-    MOCK_CONST_METHOD0(size, geometry::Size());
-    MOCK_METHOD1(resize, void(geometry::Size const&));
-
     MOCK_CONST_METHOD0(state, MirSurfaceState());
+
+    MOCK_METHOD1(move_to, void(geometry::Point const&));
+    MOCK_CONST_METHOD0(top_left, geometry::Point());
+
+    MOCK_METHOD1(resize, void(geometry::Size const&));
+    MOCK_CONST_METHOD0(size, geometry::Size());
 
     MOCK_CONST_METHOD0(pixel_format, MirPixelFormat());
 

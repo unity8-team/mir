@@ -63,10 +63,10 @@ struct MockSurfaceStackModel : public ms::SurfaceStackModel
 struct SurfaceController : testing::Test
 {
     MockPlacementStrategy placement_strategy;
+    testing::NiceMock<mtd::MockDisplayLayout> mock_display_layout;
     testing::NiceMock<mtd::MockSurface> mock_surface;
     std::shared_ptr<ms::Surface> const expect_surface = mt::fake_shared(mock_surface);
     testing::NiceMock<MockSurfaceAllocator> mock_surface_allocator;
-    testing::NiceMock<mtd::MockDisplayLayout> mock_display_layout;
     MockSurfaceStackModel model;
     mtd::StubSceneSession session;
 

@@ -102,6 +102,4 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
     return desired;
 }
 
-// TODO: More default window management policy here
-
 }} // namespace mir::scene
