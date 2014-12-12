@@ -180,7 +180,7 @@ TEST_F(ManagedSurfaceTest, maximized_cant_move)
     EXPECT_EQ(maximized.size, surf.size());
 }
 
-TEST_F(ManagedSurfaceTest, vermaximized_can_move_only_horizontally)
+TEST_F(ManagedSurfaceTest, vertmaximized_can_move_only_horizontally)
 {
     ManagedSurface surf(mock_basic_surface, mock_display_layout);
 
