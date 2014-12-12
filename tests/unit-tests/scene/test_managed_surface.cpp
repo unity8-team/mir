@@ -37,6 +37,7 @@ struct ManagedSurfaceTest : public Test
     MirSurfaceState state_ = mir_surface_state_restored;
     Rectangle position{{12,34}, {56,78}};
 
+    Rectangle const random_place{{31,41}, {59,26}};
     Rectangle const fullscreen{{0,0}, {1366,768}};
     Rectangle const maximized{fullscreen}; // will be different in future
 
@@ -147,4 +148,62 @@ TEST_F(ManagedSurfaceTest, multistate_restores_to_original)
     surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
     EXPECT_EQ(restored.top_left, surf.top_left());
     EXPECT_EQ(restored.size, surf.size());
+}
+
+TEST_F(ManagedSurfaceTest, fullscreen_cant_move)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    ASSERT_NE(fullscreen, restored);
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_fullscreen);
+    surf.move_to(random_place.top_left);
+    surf.resize(random_place.size);
+    ASSERT_NE(random_place, fullscreen);
+    EXPECT_EQ(fullscreen.top_left, surf.top_left());
+    EXPECT_EQ(fullscreen.size, surf.size());
+}
+
+TEST_F(ManagedSurfaceTest, maximized_cant_move)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    ASSERT_NE(maximized, restored);
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_maximized);
+    surf.move_to(random_place.top_left);
+    surf.resize(random_place.size);
+    ASSERT_NE(random_place, maximized);
+    EXPECT_EQ(maximized.top_left, surf.top_left());
+    EXPECT_EQ(maximized.size, surf.size());
+}
+
+TEST_F(ManagedSurfaceTest, vermaximized_can_move_only_horizontally)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_vertmaximized);
+    surf.move_to(random_place.top_left);
+    surf.resize(random_place.size);
+    EXPECT_EQ(random_place.top_left.x, surf.top_left().x);
+    EXPECT_EQ(maximized.top_left.y, surf.top_left().y);
+    EXPECT_EQ(random_place.size.width, surf.size().width);
+    EXPECT_EQ(maximized.size.height, surf.size().height);
+}
+
+TEST_F(ManagedSurfaceTest, restored_can_move_freely)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    EXPECT_NE(restored, random_place);
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+    surf.move_to(random_place.top_left);
+    surf.resize(random_place.size);
+
+    EXPECT_EQ(random_place.top_left, surf.top_left());
+    EXPECT_EQ(random_place.size, surf.size());
 }

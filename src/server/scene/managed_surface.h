@@ -35,6 +35,8 @@ public:
     virtual ~ManagedSurface();
 
     int configure(MirSurfaceAttrib attrib, int value) override;
+    void move_to(geometry::Point const&) override;
+    void resize(geometry::Size const&) override;
 
 private:
     std::shared_ptr<shell::DisplayLayout> const display_layout;

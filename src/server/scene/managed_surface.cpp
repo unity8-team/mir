@@ -93,13 +93,59 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
 
     if (new_win != old_win)
     {
-        move_to(new_win.top_left);
-        resize(new_win.size);
+        /*
+         * Important: Call to parent class move_to/resize functions.
+         * We don't want policy enforcement of this class getting in the way
+         * here because our own versions will switch based on current state(),
+         * which is incorrect behaviour for the 'desired' new state.
+         */
+        SurfaceWrapper::move_to(new_win.top_left);
+        SurfaceWrapper::resize(new_win.size);
     }
 
     // TODO: In future the desired state may be rejected based on other
     //       factors such as surface type.
     return desired;
+}
+
+void ManagedSurface::move_to(geometry::Point const& desired)
+{
+    // TODO: Eventually this whole function should be atomic (LP: #1395957)
+    auto new_pos = desired;
+
+    switch (state())
+    {
+        case mir_surface_state_fullscreen:
+        case mir_surface_state_maximized:
+            return;
+        case mir_surface_state_vertmaximized:
+            new_pos.y = top_left().y;
+            break;
+        default:
+            break;
+    }
+
+    SurfaceWrapper::move_to(new_pos);
+}
+
+void ManagedSurface::resize(geometry::Size const& desired)
+{
+    // TODO: Eventually this whole function should be atomic (LP: #1395957)
+    auto new_size = desired;
+
+    switch (state())
+    {
+        case mir_surface_state_fullscreen:
+        case mir_surface_state_maximized:
+            return;
+        case mir_surface_state_vertmaximized:
+            new_size.height = size().height;
+            break;
+        default:
+            break;
+    }
+
+    SurfaceWrapper::resize(new_size);
 }
 
 }} // namespace mir::scene
