@@ -33,6 +33,7 @@ SessionListener::SessionListener(QObject *parent) :
     // need to register type to send over threads with signal/slot
     qRegisterMetaType<std::shared_ptr<ms::Session>>("std::shared_ptr<mir::scene::Session>");
     qRegisterMetaType<std::shared_ptr<ms::Surface>>("std::shared_ptr<mir::scene::Surface>");
+    qRegisterMetaType<std::shared_ptr<ms::SurfaceObserver>>("std::shared_ptr<mir::scene::SurfaceObserver>");
 }
 
 SessionListener::~SessionListener()
