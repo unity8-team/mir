@@ -36,7 +36,9 @@ struct ManagedSurfaceTest : public Test
         mock_basic_surface{std::make_shared<NiceMock<MockSurface>>()};
     MirSurfaceState state_ = mir_surface_state_restored;
     Rectangle position{{12,34}, {56,78}};
+
     Rectangle const fullscreen{{0,0}, {1366,768}};
+    Rectangle const maximized{fullscreen}; // will be different in future
 
     void SetUp()
     {
@@ -44,7 +46,7 @@ struct ManagedSurfaceTest : public Test
             .WillByDefault(SetArgReferee<0>(fullscreen));
 
         // This could be served better by a FakeSurface later, but this
-        // requires less code for now...
+        // requires less code for now.
         ON_CALL(*mock_basic_surface, size())
             .WillByDefault(ReturnPointee(&position.size));
         ON_CALL(*mock_basic_surface, resize(_))
@@ -62,7 +64,7 @@ struct ManagedSurfaceTest : public Test
     }
 };
 
-TEST_F(ManagedSurfaceTest, goes_fullscreen)
+TEST_F(ManagedSurfaceTest, goes_fullscreen_and_restores)
 {
     ManagedSurface surf(mock_basic_surface, mock_display_layout);
 
@@ -76,6 +78,44 @@ TEST_F(ManagedSurfaceTest, goes_fullscreen)
     EXPECT_CALL(*mock_basic_surface, resize(restored.size));
 
     surf.configure(mir_surface_attrib_state, mir_surface_state_fullscreen);
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+}
+
+TEST_F(ManagedSurfaceTest, goes_maximized_and_restores)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    ASSERT_NE(maximized, restored);
+
+    InSequence seq;
+    EXPECT_CALL(*mock_basic_surface, move_to(maximized.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(maximized.size));
+    EXPECT_CALL(*mock_basic_surface, move_to(restored.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(restored.size));
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_maximized);
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+}
+
+TEST_F(ManagedSurfaceTest, goes_vertmaximized_and_restores)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    ASSERT_NE(maximized, restored);
+
+    Rectangle const vertmaximized{
+        {restored.top_left.x, maximized.top_left.y},
+        {restored.size.width, maximized.size.height} };
+
+    InSequence seq;
+    EXPECT_CALL(*mock_basic_surface, move_to(vertmaximized.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(vertmaximized.size));
+    EXPECT_CALL(*mock_basic_surface, move_to(restored.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(restored.size));
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_vertmaximized);
     surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
 }
 
