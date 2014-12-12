@@ -148,5 +148,3 @@ TEST_F(ManagedSurfaceTest, multistate_restores_to_original)
     EXPECT_EQ(restored.top_left, surf.top_left());
     EXPECT_EQ(restored.size, surf.size());
 }
-
-
