@@ -1,3 +1,14 @@
+qtmir (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Update README and readd option to disable building tests
+
+  [ Gerry Boland ]
+  * Emit SIGSTOP when AppMan fully initialized, when Mir is ready is too
+    soon (LP: #1394208)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Dec 2014 08:27:44 +0000
+
 qtmir (0.4.4+15.04.20141211-0ubuntu1) vivid; urgency=low
 
   [ Ubuntu daily release ]
