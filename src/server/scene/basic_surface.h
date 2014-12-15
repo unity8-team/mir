@@ -151,6 +151,9 @@ public:
     int dpi() const;
 
 private:
+    typedef std::unique_lock<std::recursive_mutex> Lock;
+    Lock get_lock() const;
+
     MirSurfaceType set_type(MirSurfaceType t);  // Use configure() to make public changes
     MirSurfaceState set_state(MirSurfaceState s);
     int set_dpi(int);
