@@ -30,6 +30,8 @@ mtd::MockLibInput::MockLibInput()
     using namespace testing;
     assert(global_libinput == NULL && "Only one mock object per process is allowed");
     global_libinput = this;
+
+    ON_CALL(*this, libinput_device_ref(_)).WillByDefault(ReturnArg<0>());
 }
 
 mtd::MockLibInput::~MockLibInput()

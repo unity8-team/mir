@@ -19,6 +19,8 @@
 #ifndef MIR_INPUT_EVDEV_LIBINPUT_WRAPPER_H_
 #define MIR_INPUT_EVDEV_LIBINPUT_WRAPPER_H_
 
+#include "mir_toolkit/event.h"
+
 #include <memory>
 #include <vector>
 
@@ -33,24 +35,27 @@ class InputEventHandlerRegister;
 class EventSink;
 namespace evdev
 {
+class LibInputDevice;
+
 class LibInputWrapper
 {
 public:
     LibInputWrapper();
     ~LibInputWrapper();
 
-    void start_device(InputEventHandlerRegister& mplex, ::libinput_device *dev, EventSink& sink);
-    void stop_device(InputEventHandlerRegister& mplex, ::libinput_device *dev);
+    void start_device(InputEventHandlerRegister& mplex, LibInputDevice* device);
+    void stop_device(InputEventHandlerRegister& mplex, LibInputDevice* device);
 
-    typedef ::libinput_device*(*DeviceDeleter)(::libinput_device*);
-    std::unique_ptr<::libinput_device,DeviceDeleter> add_device(std::string const& path);
+    typedef libinput_device*(*DeviceDeleter)(libinput_device*);
+    std::unique_ptr<libinput_device,DeviceDeleter> add_device(std::string const& path);
 private:
     void handle_devices();
     LibInputWrapper(LibInputWrapper const&) = delete;
     LibInputWrapper& operator=(LibInputWrapper const&) = delete;
 
-    std::unique_ptr<::libinput,::libinput*(*)(::libinput*)> lib;
-    std::vector<std::pair<::libinput_device*,EventSink*>> active_devices;
+    std::unique_ptr<libinput,libinput*(*)(libinput*)> lib;
+    std::vector<LibInputDevice*> active_devices;
+    auto find_device(libinput_device* dev) -> decltype(active_devices.begin());
 };
 }
 }

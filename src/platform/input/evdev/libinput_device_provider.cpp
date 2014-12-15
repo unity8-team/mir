@@ -67,7 +67,6 @@ mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) cons
 
 std::unique_ptr<mi::InputDevice> mie::LibInputDeviceProvider::create_device(char const* device) const
 {
-    (void)device;
-    return std::unique_ptr<mie::LibInputDevice>();
+    return std::unique_ptr<mie::LibInputDevice>(new LibInputDevice(lib, device));
 }
 

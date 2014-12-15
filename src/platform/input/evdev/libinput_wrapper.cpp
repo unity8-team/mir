@@ -17,16 +17,17 @@
  */
 
 #include "libinput_wrapper.h"
+#include "libinput_device.h"
 #include "libinput.h"
 
 #include "mir/input/input_event_handler_register.h"
-
-#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include <algorithm>
 
 namespace mie = mir::input::evdev;
 
@@ -59,69 +60,54 @@ std::unique_ptr<::libinput_device,mie::LibInputWrapper::DeviceDeleter> mie::LibI
 );
 }
 
-void mie::LibInputWrapper::start_device(InputEventHandlerRegister& mplex, ::libinput_device *dev, EventSink& sink)
+void mie::LibInputWrapper::start_device(InputEventHandlerRegister& mplex, mie::LibInputDevice *dev)
 {
     bool start_libinput_listening = active_devices.empty();
 
-    auto existing_pos = find_if(
-        begin(active_devices),
-        end(active_devices),
-        [dev](decltype(active_devices)::value_type const& item)
-        {
-            return item.first == dev;
-        });
+    auto existing_pos = find_device(dev->device());
 
     if (end(active_devices) == existing_pos)
-        active_devices.push_back(std::make_pair(dev, &sink));
+        active_devices.push_back(dev);
 
     if (start_libinput_listening)
         mplex.register_fd_handler({libinput_get_fd(lib.get())}, this,
                                   [this](int /*fd*/){handle_devices();});
 }
 
-void mie::LibInputWrapper::stop_device(InputEventHandlerRegister& mplex, ::libinput_device *dev)
+void mie::LibInputWrapper::stop_device(InputEventHandlerRegister& mplex, LibInputDevice* dev)
 {
-    bool stop_libinput_listening = active_devices.empty();
+    bool devices_available = !active_devices.empty();
 
     active_devices.erase(
-        remove_if(
+        remove(
             begin(active_devices),
             end(active_devices),
-            [dev](decltype(active_devices)::value_type const& item)
-            {
-                return item.first == dev;
-            }),
+            dev),
         end(active_devices));
 
-
-    if (stop_libinput_listening)
+    if (devices_available && active_devices.empty())
         mplex.unregister_fd_handler(this);
 }
 
 void mie::LibInputWrapper::handle_devices()
 {
     libinput_dispatch(lib.get());
-    libinput_event * event;
 
-    while(nullptr != (event = libinput_get_event(lib.get())))
+    for (std::unique_ptr<libinput_event, void (*)(libinput_event*)> event{libinput_get_event(lib.get()),
+                                                                          libinput_event_destroy};
+         event.get(); event.reset(libinput_get_event(lib.get())))
     {
-        switch(libinput_event_get_type(event))
-        {
-        case LIBINPUT_EVENT_KEYBOARD_KEY:
-        case LIBINPUT_EVENT_POINTER_MOTION:
-        case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
-        case LIBINPUT_EVENT_POINTER_BUTTON:
-        case LIBINPUT_EVENT_POINTER_AXIS:
-        case LIBINPUT_EVENT_TOUCH_DOWN:
-        case LIBINPUT_EVENT_TOUCH_UP:
-        case LIBINPUT_EVENT_TOUCH_MOTION:
-        case LIBINPUT_EVENT_TOUCH_CANCEL:
-        case LIBINPUT_EVENT_TOUCH_FRAME:
-        default:
-            break;
-        }
-        libinput_event_destroy(event);
+        auto active_device = find_device(libinput_event_get_device(event.get()));
+
+        if (end(active_devices) != active_device)
+            (*active_device)->process_event(event.get());
     }
+}
+
+auto mie::LibInputWrapper::find_device(libinput_device* dev) -> decltype(active_devices.begin())
+{
+    return find_if(begin(active_devices), end(active_devices), [dev](LibInputDevice* item)
+                   { return item->device() == dev;});
 }
 
 mie::LibInputWrapper::~LibInputWrapper() = default;

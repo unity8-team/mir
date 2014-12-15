@@ -28,6 +28,7 @@ namespace input
 {
 class InputEventHandlerRegister;
 class EventSink;
+class CursorFilter;
 
 /**
  * Represents an input device.
@@ -46,6 +47,8 @@ public:
      * Stop the input device from sending input events, to the EventSink.
      */
     virtual void stop(InputEventHandlerRegister& registry) = 0;
+
+    virtual void set_cursor_filter(std::shared_ptr<CursorFilter> filter) = 0;
 
     // TODO methods to query device description
 protected:

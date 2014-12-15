@@ -20,8 +20,12 @@
 #define MIR_INPUT_EVDEV_LIBINPUT_DEVICE_H_
 
 #include "mir/input/input_device.h"
+#include "mir_toolkit/event.h"
 
 struct libinput_device;
+struct libinput_event;
+struct libinput_event_keyboard;
+struct libinput_event_touch;
 
 namespace mir
 {
@@ -38,10 +42,21 @@ public:
     ~LibInputDevice();
     void start(InputEventHandlerRegister& registry, EventSink& sink) override;
     void stop(InputEventHandlerRegister& registry) override;
+    void set_cursor_filter(std::shared_ptr<CursorFilter> filter) override;
+    libinput_device* device() const;
+    void process_event(libinput_event* event);
 private:
     std::string path;
     std::unique_ptr<::libinput_device,libinput_device*(*)(::libinput_device*)> dev;
     std::shared_ptr<LibInputWrapper> const lib;
+    EventSink *sink;
+
+    struct PointerState;
+    struct KeyboardState;
+    std::unique_ptr<PointerState> pointer;
+    std::unique_ptr<KeyboardState> keyboard;
+    PointerState& get_pointer();
+    KeyboardState& get_keyboard();
 };
 }
 }
