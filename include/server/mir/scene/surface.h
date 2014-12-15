@@ -43,6 +43,12 @@ class Surface :
     public SurfaceBufferAccess
 {
 public:
+    struct Frame
+    {
+        geometry::Height top, bottom;
+        geometry::Width left, right;
+    };
+
     // resolve ambiguous member function names
 
     std::string name() const override = 0;
