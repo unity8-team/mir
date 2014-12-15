@@ -23,6 +23,7 @@
 #include "mir/input/surface.h"
 #include "mir/scene/surface_buffer_access.h"
 #include "mir/frontend/surface.h"
+#include "mir/geometry/length.h"
 
 #include <vector>
 
@@ -45,8 +46,7 @@ class Surface :
 public:
     struct Frame
     {
-        geometry::Height top, bottom;
-        geometry::Width left, right;
+        geometry::Length left, right, top, bottom;
     };
 
     // resolve ambiguous member function names
@@ -61,6 +61,10 @@ public:
     virtual geometry::Point top_left() const = 0;
     /// Size of the surface including window frame (if any)
     virtual geometry::Size size() const = 0;
+
+    /// Set the frame thickness for each side. This determines the
+    /// client rectangle offset relative to top_left().
+    virtual void set_frame(Frame const&) = 0;
 
     virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const = 0;
 

@@ -195,6 +195,12 @@ mir::geometry::Size ms::BasicSurface::client_size() const
     return size();
 }
 
+void ms::BasicSurface::set_frame(Frame const& f)
+{
+    std::unique_lock<std::mutex> lk(guard);
+    frame = f;
+}
+
 MirPixelFormat ms::BasicSurface::pixel_format() const
 {
     return surface_buffer_stream->get_stream_pixel_format();

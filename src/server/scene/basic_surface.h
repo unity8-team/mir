@@ -99,6 +99,8 @@ public:
     geometry::Size size() const override;
     geometry::Size client_size() const override;
 
+    void set_frame(Frame const& f) override;
+
     MirPixelFormat pixel_format() const override;
 
     std::shared_ptr<graphics::Buffer> snapshot_buffer() const;
@@ -164,6 +166,7 @@ private:
     std::mutex mutable guard;
     std::string const surface_name;
     geometry::Rectangle surface_rect;
+    Frame frame;  // defaults to zeros
     glm::mat4 transformation_matrix;
     float surface_alpha;
     bool first_frame_posted;
@@ -183,7 +186,7 @@ private:
     MirSurfaceState state_ = mir_surface_state_restored;
     int swapinterval_ = 1;
     MirSurfaceFocusState focus_ = mir_surface_unfocused;
-    int dpi_ = 0;
+    int dpi_ = 96;
     MirSurfaceVisibility visibility_ = mir_surface_visibility_exposed;
     MirOrientationMode pref_orientation_mode = mir_orientation_mode_any;
 };

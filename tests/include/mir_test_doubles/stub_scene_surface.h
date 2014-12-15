@@ -59,6 +59,7 @@ public:
     geometry::Point top_left() const override { return {}; }
     geometry::Size client_size() const override { return {};}
     geometry::Size size() const override { return {}; }
+    void set_frame(Frame const&) override {}
     geometry::Rectangle input_bounds() const override { return {{},{}}; }
     bool input_area_contains(mir::geometry::Point const&) const override { return false; }
 
