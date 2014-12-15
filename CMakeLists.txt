@@ -72,6 +72,9 @@ endif()
 
 include_directories(include)
 include_directories(android/include)
+include_directories(
+  ${MIRCLIENT_INCLUDE_DIRS}
+)
 
 add_subdirectory(data/)
 add_subdirectory(doc/)

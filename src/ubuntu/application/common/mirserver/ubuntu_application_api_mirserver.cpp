@@ -65,6 +65,13 @@ u_application_instance_run(UApplicationInstance *instance)
     (void) instance;
 }
 
+MirConnection*
+u_application_instance_get_mir_connection(UApplicationInstance *instance)
+{
+    (void) instance;
+    return nullptr;
+}
+
 void ua_ui_set_clipboard_content(void* content, size_t content_size)
 {
     // TODO<mir,papi>: Implement. Probably need more arguments?

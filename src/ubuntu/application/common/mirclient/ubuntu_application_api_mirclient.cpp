@@ -141,6 +141,13 @@ u_application_instance_run(UApplicationInstance *instance)
     (void) instance;
 }
 
+MirConnection*
+u_application_instance_get_mir_connection(UApplicationInstance *u_instance)
+{
+    auto instance = uamc::Instance::from_u_application_instance(u_instance);
+    return instance->connection();
+}
+
 void ua_ui_set_clipboard_content(void* /*content*/, size_t /*content_size*/)
 {
     // TODO<papi>: Fix API and implement it

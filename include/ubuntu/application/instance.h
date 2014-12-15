@@ -25,6 +25,8 @@
 #include <ubuntu/application/description.h>
 #include <ubuntu/application/options.h>
 
+#include <mir_toolkit/mir_client_library.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -85,7 +87,16 @@ extern "C" {
     UBUNTU_DLL_PUBLIC void
     u_application_instance_run(
         UApplicationInstance *instance);
-
+    
+    /**
+     * \brief Return the MirConnection associated with an application instance.
+     * \ingroup application_support
+     * \param[in] instance The instance from which to retreive the MirConnection
+     */
+    UBUNTU_DLL_PUBLIC MirConnection*
+    u_application_instance_get_mir_connection(
+        UApplicationInstance *instance);
+    
 #ifdef __cplusplus
 }
 #endif
