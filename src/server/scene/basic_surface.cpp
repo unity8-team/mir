@@ -189,10 +189,28 @@ mir::geometry::Size ms::BasicSurface::size() const
     return surface_rect.size;
 }
 
+mir::geometry::Size ms::BasicSurface::client_size_for(
+    geometry::Size const& frame_size) const
+{
+    // TODO: Implement dpi_ from the surface placement and monitor layout.
+    //       It's presently zero...
+    float const dpi = dpi_ ? dpi_ : 96.0f;
+
+    geom::Width w{frame_size.width.as_int() -
+                  frame.left.as_pixels(dpi) -
+                  frame.right.as_pixels(dpi)};
+
+    geom::Height h{frame_size.height.as_int() -
+                   frame.top.as_pixels(dpi) -
+                   frame.bottom.as_pixels(dpi)};
+
+    return {w, h};
+}
+
 mir::geometry::Size ms::BasicSurface::client_size() const
 {
-    // TODO: In future when decorated, client_size() would be smaller than size
-    return size();
+    std::unique_lock<std::mutex> lk(guard);
+    return client_size_for(surface_rect.size);
 }
 
 void ms::BasicSurface::set_frame(Frame const& f)
@@ -272,11 +290,12 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
      * not predictable here. Such critical exceptions would arise from
      * the platform buffer allocator as a runtime_error via:
      */
-    surface_buffer_stream->resize(new_size);
-
-    // Now the buffer stream has successfully resized, update the state second;
     {
         std::unique_lock<std::mutex> lock(guard);
+
+        surface_buffer_stream->resize(client_size_for(new_size));
+
+        // Now the buffer stream has successfully resized, update the state second;
         surface_rect.size = new_size;
     }
     observers.resized_to(new_size);
@@ -719,6 +738,7 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
             surface_buffer_stream,
             compositor_id,
             surface_rect,
+            // TODO: Pass in frame as pixels
             transformation_matrix,
             visible(lk),
             surface_alpha,

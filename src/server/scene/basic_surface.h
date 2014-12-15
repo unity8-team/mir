@@ -161,6 +161,7 @@ private:
     int set_swap_interval(int);
     MirSurfaceFocusState set_focus_state(MirSurfaceFocusState f);
     MirOrientationMode set_preferred_orientation(MirOrientationMode mode);
+    geometry::Size client_size_for(geometry::Size const& frame_size) const;
 
     SurfaceObservers observers;
     std::mutex mutable guard;
@@ -186,7 +187,7 @@ private:
     MirSurfaceState state_ = mir_surface_state_restored;
     int swapinterval_ = 1;
     MirSurfaceFocusState focus_ = mir_surface_unfocused;
-    int dpi_ = 96;
+    int dpi_ = 0;
     MirSurfaceVisibility visibility_ = mir_surface_visibility_exposed;
     MirOrientationMode pref_orientation_mode = mir_orientation_mode_any;
 };
