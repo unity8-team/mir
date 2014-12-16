@@ -17,16 +17,16 @@
 #ifndef SESSIONOBSERVER_H
 #define SESSIONOBSERVER_H
 
+#include <QObject>
 #include <mir/scene/surface_observer.h>
 
-class QObject;
+class SurfaceObserver : public QObject, public mir::scene::SurfaceObserver {
+    Q_OBJECT
 
-class SurfaceObserver : public mir::scene::SurfaceObserver {
 public:
     SurfaceObserver();
 
     void setListener(QObject *listener);
-    bool framesPosted() const;
 
     void attrib_changed(MirSurfaceAttrib, int) override {}
     void resized_to(mir::geometry::Size const&) override {}
@@ -41,6 +41,10 @@ public:
     void reception_mode_set_to(mir::input::InputReceptionMode) override {}
     void cursor_image_set_to(mir::graphics::CursorImage const&) override {}
     void orientation_set_to(MirOrientation) override {}
+
+Q_SIGNALS:
+    void framesPosted();
+
 private:
     QObject *m_listener;
     bool m_framesPosted;

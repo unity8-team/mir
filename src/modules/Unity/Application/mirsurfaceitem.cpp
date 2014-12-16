@@ -252,6 +252,7 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     m_surfaceObserver = observer;
     SurfaceObserver *so = dynamic_cast<SurfaceObserver *>(observer.get());
     if (so) {
+        connect(so, &SurfaceObserver::framesPosted, this, &MirSurfaceItem::surfaceDamaged);
         so->setListener(this);
     }
 

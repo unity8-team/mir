@@ -27,18 +27,13 @@ SurfaceObserver::SurfaceObserver()
 void SurfaceObserver::setListener(QObject *listener) {
     m_listener = listener;
     if (m_framesPosted) {
-        QMetaObject::invokeMethod(m_listener, "surfaceDamaged", Qt::QueuedConnection);
+        Q_EMIT framesPosted();
     }
-}
-
-bool SurfaceObserver::framesPosted() const
-{
-    return m_framesPosted;
 }
 
 void SurfaceObserver::frame_posted(int /*frames_available*/) {
     m_framesPosted = true;
     if (m_listener) {
-        QMetaObject::invokeMethod(m_listener, "surfaceDamaged", Qt::QueuedConnection);
+        Q_EMIT framesPosted();
     }
 }
