@@ -21,7 +21,6 @@
 
 #include "mir/graphics/buffer_ipc_message.h"
 
-#include "mir/graphics/native_platform.h"
 #include "mir/graphics/buffer_writer.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
