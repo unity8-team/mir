@@ -33,6 +33,8 @@
 
 #include "session_interface.h"
 
+class SurfaceObserver;
+
 namespace qtmir {
 
 class MirSurfaceManager;
@@ -55,7 +57,7 @@ class MirSurfaceItem : public QQuickItem
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                             SessionInterface* session,
-                            std::shared_ptr<mir::scene::SurfaceObserver> observer,
+                            std::shared_ptr<SurfaceObserver> observer,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 

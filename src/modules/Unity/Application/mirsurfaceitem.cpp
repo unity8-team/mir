@@ -236,7 +236,7 @@ public Q_SLOTS:
 
 MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                                SessionInterface* session,
-                               std::shared_ptr<mir::scene::SurfaceObserver> observer,
+                               std::shared_ptr<SurfaceObserver> observer,
                                QQuickItem *parent)
     : QQuickItem(parent)
     , m_surface(surface)
@@ -250,10 +250,9 @@ MirSurfaceItem::MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
     qCDebug(QTMIR_SURFACES) << "MirSurfaceItem::MirSurfaceItem";
 
     m_surfaceObserver = observer;
-    SurfaceObserver *so = dynamic_cast<SurfaceObserver *>(observer.get());
-    if (so) {
-        connect(so, &SurfaceObserver::framesPosted, this, &MirSurfaceItem::surfaceDamaged);
-        so->setListener(this);
+    if (observer) {
+        connect(observer.get(), &SurfaceObserver::framesPosted, this, &MirSurfaceItem::surfaceDamaged);
+        observer->setListener(this);
     }
 
     setSmooth(true);
