@@ -17,7 +17,6 @@
  */
 
 #include "src/server/graphics/software_cursor.h"
-#include "mir/graphics/buffer_writer.h"
 #include "mir/graphics/cursor_image.h"
 #include "mir/graphics/renderable.h"
 
@@ -36,11 +35,6 @@ namespace geom = mir::geometry;
 
 namespace
 {
-
-struct MockBufferWriter : mg::BufferWriter
-{
-    MOCK_METHOD3(write, void(mg::Buffer& buffer, unsigned char const* data, size_t size));
-};
 
 struct MockInputScene : mtd::StubInputScene
 {
@@ -84,12 +78,10 @@ struct SoftwareCursor : testing::Test
     StubCursorImage stub_cursor_image{{3,4}};
     StubCursorImage another_stub_cursor_image{{10,9}};
     mtd::StubBufferAllocator stub_buffer_allocator;
-    testing::NiceMock<MockBufferWriter> mock_buffer_writer;
     testing::NiceMock<MockInputScene> mock_input_scene;
 
     mg::SoftwareCursor cursor{
         mt::fake_shared(stub_buffer_allocator),
-        mt::fake_shared(mock_buffer_writer),
         mt::fake_shared(mock_input_scene)};
 };
 
@@ -206,23 +198,14 @@ TEST_F(SoftwareCursor, creates_renderable_with_filled_buffer)
 {
     using namespace testing;
 
-    size_t const image_size =
-        4 * stub_cursor_image.size().width.as_uint32_t() *
-        stub_cursor_image.size().height.as_uint32_t();
-    auto const image_data =
-        static_cast<unsigned char const*>(stub_cursor_image.as_argb_8888());
-
     std::shared_ptr<mg::Renderable> cursor_renderable;
-    mg::Buffer* cursor_buffer;
 
-    EXPECT_CALL(mock_buffer_writer, write(_, image_data, image_size)).
-        WillOnce(SavePointerToArg<0>(&cursor_buffer));
     EXPECT_CALL(mock_input_scene, add_input_visualization(_)).
         WillOnce(SaveArg<0>(&cursor_renderable));
 
     cursor.show(stub_cursor_image);
 
-    EXPECT_THAT(cursor_renderable->buffer().get(), Eq(cursor_buffer));
+    EXPECT_TRUE(cursor_renderable->buffer().get() != nullptr);
 }
 
 TEST_F(SoftwareCursor, does_not_hide_or_move_when_already_hidden)

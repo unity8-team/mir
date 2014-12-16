@@ -26,12 +26,11 @@ add_library(mirplatformgraphicsmesaobjects OBJECT
   kms_page_flipper.cpp
   linux_virtual_terminal.cpp
   drm_close_threadsafe.cpp
-  native_platform.cpp
+  guest_platform.cpp
   anonymous_shm_file.cpp
   shm_buffer.cpp
   bypass.cpp
   ipc_operations.cpp
-  buffer_writer.cpp
   nested_authentication.cpp
 )
 

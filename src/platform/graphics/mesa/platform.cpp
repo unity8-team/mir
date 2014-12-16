@@ -17,13 +17,12 @@
  */
 
 #include "platform.h"
-#include "native_platform.h"
+#include "guest_platform.h"
 #include "buffer_allocator.h"
 #include "display.h"
 #include "linux_virtual_terminal.h"
 #include "ipc_operations.h"
 #include "mir/graphics/platform_ipc_operations.h"
-#include "buffer_writer.h"
 #include "mir/options/option.h"
 #include "mir/graphics/native_buffer.h"
 #include "mir/emergency_cleanup_registry.h"
@@ -155,11 +154,6 @@ std::shared_ptr<mg::PlatformIpcOperations> mgm::Platform::make_ipc_operations() 
     return std::make_shared<mgm::IpcOperations>(drm);
 }
 
-std::shared_ptr<mg::BufferWriter> mgm::Platform::make_buffer_writer()
-{
-    return std::make_shared<mgm::BufferWriter>();
-}
-
 EGLNativeDisplayType mgm::Platform::egl_native_display() const
 {
     return gbm.device;
@@ -170,7 +164,7 @@ mgm::BypassOption mgm::Platform::bypass_option() const
     return bypass_option_;
 }
 
-extern "C" std::shared_ptr<mg::Platform> mg::create_platform(
+extern "C" std::shared_ptr<mg::Platform> mg::create_host_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<DisplayReport> const& report)

@@ -30,7 +30,6 @@ namespace input { class Scene; }
 namespace graphics
 {
 class GraphicBufferAllocator;
-class BufferWriter;
 class Renderable;
 
 namespace detail
@@ -43,7 +42,6 @@ class SoftwareCursor : public Cursor
 public:
     SoftwareCursor(
         std::shared_ptr<GraphicBufferAllocator> const& allocator,
-        std::shared_ptr<BufferWriter> const& buffer_writer,
         std::shared_ptr<input::Scene> const& scene);
     ~SoftwareCursor();
 
@@ -56,7 +54,6 @@ private:
         CursorImage const& cursor_image);
 
     std::shared_ptr<GraphicBufferAllocator> const allocator;
-    std::shared_ptr<BufferWriter> const buffer_writer;
     std::shared_ptr<input::Scene> const scene;
     MirPixelFormat const format;
     std::mutex guard;

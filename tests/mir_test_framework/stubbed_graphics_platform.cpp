@@ -17,13 +17,14 @@
  */
 
 #include "stubbed_graphics_platform.h"
+#include "mir_test_framework/stub_graphics_platform_operation.h"
 
 #include "mir/graphics/buffer_ipc_message.h"
-#include "mir/graphics/buffer_writer.h"
-#include "mir/graphics/native_platform.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_display.h"
+#include "mir/fd.h"
+#include "mir_test/pipe.h"
 
 #ifdef ANDROID
 #include "mir_test_doubles/stub_android_native_buffer.h"
@@ -32,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <system_error>
 #include <boost/exception/errinfo_errno.hpp>
@@ -149,10 +151,57 @@ class StubIpcOps : public mg::PlatformIpcOperations
         return std::make_shared<mg::PlatformIPCPackage>();
     }
 
-    mg::PlatformIPCPackage platform_operation(
-         unsigned int const, mg::PlatformIPCPackage const&) override
+    mg::PlatformOperationMessage platform_operation(
+         unsigned int const opcode, mg::PlatformOperationMessage const& message) override
     {
-        return mg::PlatformIPCPackage();
+        mg::PlatformOperationMessage reply;
+
+        if (opcode == static_cast<unsigned int>(mtf::StubGraphicsPlatformOperation::add))
+        {
+            if (message.data.size() != 2 * sizeof(int))
+            {
+                BOOST_THROW_EXCEPTION(
+                    std::runtime_error("Invalid parameters for 'add' platform operation"));
+            }
+
+            auto const int_data = reinterpret_cast<int const*>(message.data.data());
+
+            reply.data.resize(sizeof(int));
+            *(reinterpret_cast<int*>(reply.data.data())) = int_data[0] + int_data[1];
+        }
+        else if (opcode == static_cast<unsigned int>(mtf::StubGraphicsPlatformOperation::echo_fd))
+        {
+            if (message.fds.size() != 1)
+            {
+                BOOST_THROW_EXCEPTION(
+                    std::runtime_error("Invalid parameters for 'echo_fd' platform operation"));
+            }
+
+            mir::Fd const request_fd{message.fds[0]};
+            char request_char{0};
+            if (read(request_fd, &request_char, 1) != 1)
+            {
+                BOOST_THROW_EXCEPTION(
+                    std::runtime_error("Failed to read character from request fd in 'echo_fd' operation"));
+            }
+
+            mir::test::Pipe pipe;
+
+            if (write(pipe.write_fd(), &request_char, 1) != 1)
+            {
+                BOOST_THROW_EXCEPTION(
+                    std::runtime_error("Failed to write to pipe in 'echo_fd' operation"));
+            }
+
+            reply.fds.push_back(dup(pipe.read_fd()));
+        }
+        else
+        {
+            BOOST_THROW_EXCEPTION(
+                std::runtime_error("Invalid platform operation"));
+        }
+
+        return reply;
     }
 };
 }
@@ -188,25 +237,13 @@ std::shared_ptr<mg::Display> mtf::StubGraphicPlatform::create_display(
     return std::make_shared<mtd::StubDisplay>(display_rects);
 }
 
-std::shared_ptr<mg::BufferWriter> mtf::StubGraphicPlatform::make_buffer_writer()
-{
-    struct NullWriter : mg::BufferWriter
-    {
-        void write(mg::Buffer& /* buffer */,
-            unsigned char const* /* data */, size_t /* size */) override
-        {
-        }
-    };
-    return std::make_shared<NullWriter>();
-}
-
 namespace
 {
 std::unique_ptr<std::vector<geom::Rectangle>> chosen_display_rects;
 
-struct NativePlatformAdapter : mg::NativePlatform
+struct GuestPlatformAdapter : mg::Platform
 {
-    NativePlatformAdapter(
+    GuestPlatformAdapter(
         std::shared_ptr<mg::NestedContext> const& context,
         std::shared_ptr<mg::Platform> const& adaptee) :
         context(context),
@@ -225,9 +262,17 @@ struct NativePlatformAdapter : mg::NativePlatform
         return ipc_ops;
     }
 
-    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
+    std::shared_ptr<mg::Display> create_display(
+        std::shared_ptr<mg::DisplayConfigurationPolicy> const& initial_conf_policy,
+        std::shared_ptr<mg::GLProgramFactory> const& gl_program_factory,
+        std::shared_ptr<mg::GLConfig> const& gl_config) override
     {
-        return adaptee->make_buffer_writer();
+        return adaptee->create_display(initial_conf_policy, gl_program_factory, gl_config);
+    }
+
+    EGLNativeDisplayType egl_native_display() const override
+    {
+        return adaptee->egl_native_display();
     }
 
     std::shared_ptr<mg::NestedContext> const context;
@@ -238,7 +283,7 @@ struct NativePlatformAdapter : mg::NativePlatform
 std::weak_ptr<mg::Platform> the_graphics_platform{};
 }
 
-extern "C" std::shared_ptr<mg::Platform> create_platform(
+extern "C" std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mg::DisplayReport> const& /*report*/)
@@ -258,12 +303,12 @@ extern "C" std::shared_ptr<mg::Platform> create_platform(
     return result;
 }
 
-extern "C" std::shared_ptr<mg::NativePlatform> create_native_platform(
+extern "C" std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const&,
     std::shared_ptr<mg::NestedContext> const& context)
 {
     auto graphics_platform = the_graphics_platform.lock();
-    return std::make_shared<NativePlatformAdapter>(context, graphics_platform);
+    return std::make_shared<GuestPlatformAdapter>(context, graphics_platform);
 }
 
 extern "C" void add_platform_options(

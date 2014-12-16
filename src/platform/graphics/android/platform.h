@@ -20,7 +20,6 @@
 #define MIR_GRAPHICS_ANDROID_PLATFORM_H_
 
 #include "mir/graphics/platform.h"
-#include "mir/graphics/native_platform.h"
 #include "device_quirks.h"
 
 namespace mir
@@ -34,7 +33,7 @@ class GraphicBufferAllocator;
 class FramebufferFactory;
 class DisplayBufferBuilder;
 
-class Platform : public graphics::Platform, public NativePlatform
+class Platform : public graphics::Platform
 {
 public:
     Platform(
@@ -48,7 +47,6 @@ public:
         std::shared_ptr<graphics::GLProgramFactory> const&,
         std::shared_ptr<graphics::GLConfig> const& /*gl_config*/) override;
     std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const override;
-    std::shared_ptr<graphics::BufferWriter> make_buffer_writer() override;
     EGLNativeDisplayType egl_native_display() const override;
 
 private:

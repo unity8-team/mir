@@ -19,7 +19,6 @@
 #include "software_cursor.h"
 #include "mir/graphics/cursor_image.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
-#include "mir/graphics/buffer_writer.h"
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/buffer_properties.h"
@@ -117,10 +116,8 @@ private:
 
 mg::SoftwareCursor::SoftwareCursor(
     std::shared_ptr<mg::GraphicBufferAllocator> const& allocator,
-    std::shared_ptr<mg::BufferWriter> const& buffer_writer,
     std::shared_ptr<mi::Scene> const& scene)
     : allocator{allocator},
-      buffer_writer{buffer_writer},
       scene{scene},
       format{get_8888_format(allocator->supported_pixel_formats())},
       hotspot{0,0}
@@ -189,8 +186,7 @@ auto mg::SoftwareCursor::create_renderable_for(CursorImage const& cursor_image)
     // TODO: The buffer pixel format may not be argb_8888, leading to
     // incorrect cursor colors. We need to transform the data to match
     // the buffer pixel format.
-    buffer_writer->write(
-        *new_renderable->buffer(),
+    new_renderable->buffer()->write(
         static_cast<unsigned char const*>(cursor_image.as_argb_8888()),
         pixels_size);
 
