@@ -53,7 +53,8 @@ fdeafce95e418315e67116b798ffee8eb2af9b3b  include/platform/mir/input/input_devic
 15d7e4f4ff497bff764fa882743379ce54366f5c  include/platform/mir/input/.input_device.h.swp
 4f17d5e7b69448ececbc07dee3653a1f0f4dfc89  include/platform/mir/input/input_device_registry.h
 b59d7132b9f4360ef4cf5af4ed0255c00f897dc7  include/platform/mir/input/input_event_handler_register.h
-08d8e9c981061c3100b6f3f4a8a35cbf04cf4d99  include/platform/mir/input/platform.h
+4e502d4a5fdff4ed1a65ba1f0183113f787285ab  include/platform/mir/input/input_report.h
+897648fdf3531bd57830454f8e9c775a6b53aa0d  include/platform/mir/input/platform.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 f4030e400baf8baa9c38e7c6ec6b4a5ad7134aeb  include/server/mir/compositor/compositor.h
 a9f284ba4b05d58fd3eeb628d1f56fe4ac188526  include/server/mir/compositor/compositor_id.h

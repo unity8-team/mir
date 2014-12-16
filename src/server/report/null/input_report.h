@@ -35,6 +35,9 @@ public:
     InputReport() = default;
     virtual ~InputReport() noexcept(true) = default;
 
+    void open_input_device(char const* device_node) override;
+    void failure_opening_input_device(char const* device_node) override;
+
     void received_event_from_kernel(int64_t when, int type, int code, int value);
 
     void published_key_event(int dest_fd, uint32_t seq_id, int64_t event_time);

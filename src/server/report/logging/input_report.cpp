@@ -107,6 +107,24 @@ const char* mrl::InputReport::component()
     return s;
 }
 
+void mrl::InputReport::open_input_device(char const* device)
+{
+    std::stringstream ss;
+
+    ss << "Opened input device: " << device;
+
+    logger->log(ml::Severity::informational, ss.str(), component());
+}
+
+void mrl::InputReport::failure_opening_input_device(char const* device)
+{
+    std::stringstream ss;
+
+    ss << "Failed to open input device: " << device;
+
+    logger->log(ml::Severity::error, ss.str(), component());
+}
+
 void mrl::InputReport::received_event_from_kernel(int64_t when, int type, int code, int value)
 {
     std::stringstream ss;
