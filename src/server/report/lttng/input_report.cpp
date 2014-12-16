@@ -24,6 +24,16 @@
 #define TRACEPOINT_PROBE_DYNAMIC_LINKAGE
 #include "input_report_tp.h"
 
+void mir::report::lttng::InputReport::open_input_device(char const* device)
+{
+    mir_tracepoint(mir_server_input, opened_input_device, device);
+}
+
+void mir::report::lttng::InputReport::failure_opening_input_device(char const* device)
+{
+    mir_tracepoint(mir_server_input, failure_opening_input_device, device);
+}
+
 void mir::report::lttng::InputReport::received_event_from_kernel(int64_t when, int type, int code, int value)
 {
     mir_tracepoint(mir_server_input, received_event_from_kernel, when, type, code, value);

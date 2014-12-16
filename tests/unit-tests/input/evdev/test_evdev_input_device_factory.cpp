@@ -25,6 +25,8 @@
 #include <mir_test/gmock_fixes.h>
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 namespace mi = mir::input;
 namespace mie = mi::evdev;
 
@@ -53,7 +55,10 @@ TEST(EvdevInputDeviceFactory, probes_all_providers)
 
     mie::EvdevInputDeviceFactory factory({a, b});
 
-    factory.create_device("stub_dev");
+    EXPECT_THROW(
+        {
+            factory.create_device("stub_dev");
+        }, std::runtime_error);
 }
 
 TEST(EvdevInputDeviceFactory, creates_device_on_supported_provider)

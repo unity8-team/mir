@@ -37,6 +37,7 @@ set(
   test_thread_safe_list.cpp
   test_fatal.cpp
   test_fd.cpp
+  test_find_best.cpp
   test_shared_library_prober.cpp
 )
 

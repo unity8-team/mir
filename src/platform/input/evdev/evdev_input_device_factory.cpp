@@ -20,7 +20,10 @@
 #include "evdev_input_device_factory.h"
 #include "input_device_provider.h"
 
+#include "mir/find_best.h"
 #include "mir/input/input_device.h"
+
+#include <stdexcept>
 
 namespace mi = mir::input;
 namespace mie = mi::evdev;
@@ -32,21 +35,24 @@ mie::EvdevInputDeviceFactory::EvdevInputDeviceFactory(std::initializer_list<std:
 
 std::unique_ptr<mi::InputDevice> mie::EvdevInputDeviceFactory::create_device(char const* device)
 {
-    auto best_prio = Priority::unsupported;
-    InputDeviceProvider* best_provider = nullptr;
-
-    for (auto& provider : providers)
-    {
-        auto prio = provider->probe_device(device);
-        if (prio > best_prio)
+    auto best_provider = find_best(
+        providers,
+        [device](std::shared_ptr<InputDeviceProvider> const& provider) -> Priority
         {
-            best_prio = prio;
-            best_provider = provider.get();
-        }
-    }
+            try
+            {
+                return provider->probe_device(device);
+            }
+            catch(...)
+            {
+                return Priority::unsupported;
+            }
+        },
+        Priority::unsupported
+        );
 
-    if (best_provider != nullptr)
-	return std::move(best_provider->create_device(device));
+    if (best_provider != end(providers))
+	return std::move((*best_provider)->create_device(device));
 
-    return std::unique_ptr<mi::InputDevice>();
+    throw std::runtime_error("Failed to open input device");
 }

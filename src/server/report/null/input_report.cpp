@@ -20,6 +20,14 @@
 
 namespace mrn = mir::report::null;
 
+void mrn::InputReport::open_input_device(char const* /* device */)
+{
+}
+
+void mrn::InputReport::failure_opening_input_device(char const* /* device */)
+{
+}
+
 void mrn::InputReport::received_event_from_kernel(int64_t /* when */, int /* type */, int /* code */, int /* value */)
 {
 }

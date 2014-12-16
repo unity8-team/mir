@@ -25,6 +25,7 @@
 #include "mir/input/input_event_handler_register.h"
 #include "mir/input/input_device_registry.h"
 #include "mir/input/input_device.h"
+#include "mir/input/input_report.h"
 
 namespace mi = mir::input;
 namespace mo = mir::options;
@@ -99,13 +100,14 @@ void mie::Platform::device_added(mu::Device const& dev)
     try
     {
         input_dev = input_device_factory->create_device(dev.devnode());
+        report->open_input_device(dev.devnode());
+        input_device_registry->add_device(input_dev);
+        devices.emplace_back(dev.devnode(), input_dev);
     } catch(...)
     {
-        // report creation failure
+        report->failure_opening_input_device(dev.devnode());
     }
 
-    input_device_registry->add_device(input_dev);
-    devices.emplace_back(dev.devnode(), input_dev);
 }
 
 void mie::Platform::device_removed(mu::Device const& dev)
@@ -141,7 +143,7 @@ void mie::Platform::stop(mi::InputEventHandlerRegister& execution)
     execution.unregister_fd_handler(this);
 }
 
-extern "C" std::unique_ptr<mi::Platform> create_platform(
+extern "C" std::unique_ptr<mi::Platform> create_input_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mi::InputReport> const& report)
@@ -160,16 +162,16 @@ extern "C" std::unique_ptr<mi::Platform> create_platform(
 }
 
 
-extern "C" void add_platform_options(
+extern "C" void add_input_platform_options(
     boost::program_options::options_description& /*config*/)
 {
     // no options to add yet
 }
 
-extern "C" mi::PlatformPriority probe_platform(
-    std::shared_ptr<mo::Option> const& options)
+extern "C" mi::PlatformPriority probe_input_platform(
+    mo::Option const& options)
 {
-    if (options->is_set(host_socket_opt))
+    if (options.is_set(host_socket_opt))
     {
         return mi::PlatformPriority::unsupported;
     }
