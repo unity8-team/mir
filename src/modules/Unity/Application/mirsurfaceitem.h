@@ -177,7 +177,7 @@ private:
 
     QMirSurfaceTextureProvider *m_textureProvider;
 
-    std::shared_ptr<mir::scene::SurfaceObserver> m_surfaceObserver;
+    std::shared_ptr<SurfaceObserver> m_surfaceObserver;
 
     QTimer m_frameDropperTimer;
 
