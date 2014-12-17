@@ -100,6 +100,8 @@ public:
     virtual void gl_bind_to_texture() override {}
 
     virtual bool can_bypass() const override { return true; }
+    
+    void write(unsigned char const*, size_t) { }
 
     void read(std::function<void(unsigned char const*)> const&) override {}
 

@@ -149,3 +149,8 @@ void mgm::GBMBuffer::read(std::function<void(unsigned char const*)> const& /* do
 {
     BOOST_THROW_EXCEPTION(std::runtime_error("Direct access only supported to software allocated buffers on mesa platform"));
 }
+
+void mgm::GBMBuffer::write(unsigned char const* /* pixels */, size_t /* size */)
+{
+    BOOST_THROW_EXCEPTION(std::runtime_error("Direct write to GBM hardware allocated buffer not supported"));
+}

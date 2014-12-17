@@ -46,6 +46,7 @@ public:
     virtual bool can_bypass() const = 0;
     
     virtual void read(std::function<void(unsigned char const*)> const& do_with_data) = 0;
+    virtual void write(unsigned char const* pixels, size_t size) = 0;
 
 protected:
     Buffer() = default;

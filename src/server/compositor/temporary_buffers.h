@@ -44,6 +44,7 @@ public:
     bool can_bypass() const override;
     
     void read(std::function<void(unsigned char const*)> const& do_with_data) override;
+    void write (unsigned char const* data, size_t size) override;
 
 protected:
     explicit TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buffer);

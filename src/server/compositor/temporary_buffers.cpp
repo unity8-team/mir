@@ -19,6 +19,9 @@
 #include "buffer_bundle.h"
 #include "temporary_buffers.h"
 
+#include <boost/throw_exception.hpp>
+#include <stdexcept>
+
 namespace mc=mir::compositor;
 namespace mg=mir::graphics;
 namespace geom=mir::geometry;
@@ -90,4 +93,10 @@ bool mc::TemporaryBuffer::can_bypass() const
 void mc::TemporaryBuffer::read(std::function<void(unsigned char const*)> const& do_with_data)
 {
     buffer->read(do_with_data);
+}
+
+void mc::TemporaryBuffer::write(unsigned char const*, size_t)
+{
+    BOOST_THROW_EXCEPTION(
+        std::runtime_error("Write to temporary buffer snapshot is ill advised and indicates programmer error"));
 }
