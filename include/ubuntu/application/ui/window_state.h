@@ -16,6 +16,11 @@
  * Authored by: Gerry Boland <gerry.boland@canonical.com>
  */
 
+/*
+ * DEPRECATED: In favor of u_application_instance_get_mir_connection
+ * and the mir client library
+ */
+
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
 #define UBUNTU_APPLICATION_UI_WINDOW_STATE_H_
 
