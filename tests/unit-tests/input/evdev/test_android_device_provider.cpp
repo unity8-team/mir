@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/android_device_provider.h"
+#include "src/platforms/evdev/android_device_provider.h"
 #include "mir_test_framework/udev_environment.h"
 
 #include <gmock/gmock.h>

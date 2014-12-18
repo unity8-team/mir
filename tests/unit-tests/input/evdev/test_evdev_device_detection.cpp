@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/evdev_device_detection.h"
+#include "src/platforms/evdev/evdev_device_detection.h"
 #include "mir/input/device_class.h"
 
 #include "mir_test_framework/udev_environment.h"

@@ -17,8 +17,8 @@
  *              Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/evdev_input_device_factory.h"
-#include "src/platform/input/evdev/input_device_provider.h"
+#include "src/platforms/evdev/evdev_input_device_factory.h"
+#include "src/platforms/evdev/input_device_provider.h"
 
 #include "mir/input/input_device.h"
 
