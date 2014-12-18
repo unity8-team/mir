@@ -8,7 +8,6 @@ Build-Depends: cmake,
 # We rely on C++11 features, and to prevent from ABI breaks
 # in libstdc++ causing us issues, we explicitly select a G++
 # version.
-               g++-4.9,
                google-mock (>= 1.6.0+svn437),
                libboost-system-dev,
                libfontconfig1-dev,
