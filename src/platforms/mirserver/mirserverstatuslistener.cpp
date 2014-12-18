@@ -34,12 +34,4 @@ void MirServerStatusListener::resumed()
 
 void MirServerStatusListener::started()
 {
-    // Emit signal to notify Upstart that Mir is ready to receive client connections
-    // see http://upstart.ubuntu.com/cookbook/#expect-stop
-    // FIXME: should not be qtmir's job, instead should notify the user of this library
-    // that they should emit this signal, perhaps by posting an event to the
-    // QMirServerApplication event loop when it comes up
-    if (qgetenv("UNITY_MIR_EMITS_SIGSTOP") == "1") {
-        raise(SIGSTOP);
-    }
 }

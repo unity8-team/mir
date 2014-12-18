@@ -144,10 +144,14 @@ endif()
 add_definitions(-DQT_NO_KEYWORDS)
 
 # Tests
-include(CTest)
-enable_testing()
+if (NOT NO_TESTS)
+    include(CTest)
+    enable_testing()
+    add_subdirectory(tests)
+else()
+    message(STATUS "Tests disabled")
+endif()
 
 
 # add subdirectories to build
 add_subdirectory(src)
-add_subdirectory(tests)

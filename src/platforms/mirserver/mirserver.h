@@ -14,11 +14,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIRSERVERCONFIGURATION_H
-#define MIRSERVERCONFIGURATION_H
+#ifndef MIRSERVER_H
+#define MIRSERVER_H
 
 #include <QObject>
-#include <mir/default_server_configuration.h>
+#include <mir/server.h>
 
 class QtEventFeeder;
 class SessionListener;
@@ -26,7 +26,9 @@ class SessionAuthorizer;
 class SurfaceConfigurator;
 class PromptSessionListener;
 
-class MirServerConfiguration : public QObject, public mir::DefaultServerConfiguration
+// We use virtual inheritance of mir::Server to facilitate derived classes (e.g. testing)
+// calling initialization functions before MirServer is constructed.
+class MirServer : public QObject, private virtual mir::Server
 {
     Q_OBJECT
 
@@ -36,20 +38,20 @@ class MirServerConfiguration : public QObject, public mir::DefaultServerConfigur
     Q_PROPERTY(PromptSessionListener* promptSessionListener READ promptSessionListener CONSTANT)
 
 public:
-    MirServerConfiguration(int argc, char const* argv[], QObject* parent = 0);
-    ~MirServerConfiguration() = default;
+    MirServer(int argc, char const* argv[], QObject* parent = 0);
+    ~MirServer() = default;
 
     /* mir specific */
-    std::shared_ptr<mir::compositor::Compositor> the_compositor() override;
-    std::shared_ptr<mir::scene::PlacementStrategy> the_placement_strategy() override;
-    std::shared_ptr<mir::scene::SessionListener> the_session_listener() override;
-    std::shared_ptr<mir::scene::PromptSessionListener> the_prompt_session_listener() override;
-    std::shared_ptr<mir::scene::SurfaceConfigurator> the_surface_configurator() override;
-    std::shared_ptr<mir::frontend::SessionAuthorizer> the_session_authorizer() override;
-    std::shared_ptr<mir::input::InputDispatcher> the_input_dispatcher() override;
-    std::shared_ptr<mir::graphics::GLConfig> the_gl_config() override;
-    std::shared_ptr<mir::ServerStatusListener> the_server_status_listener() override;
-    std::shared_ptr<mir::shell::FocusSetter> the_shell_focus_setter() override;
+    using mir::Server::run;
+    using mir::Server::stop;
+    using mir::Server::the_display;
+    using mir::Server::the_gl_config;
+    using mir::Server::the_main_loop;
+    using mir::Server::the_prompt_session_listener;
+    using mir::Server::the_prompt_session_manager;
+    using mir::Server::the_session_authorizer;
+    using mir::Server::the_session_listener;
+    using mir::Server::the_surface_configurator;
 
     /* qt specific */
     // getters
@@ -62,4 +64,4 @@ private:
     std::shared_ptr<QtEventFeeder> m_qtEventFeeder;
 };
 
-#endif // MIRSERVERCONFIGURATION_H
+#endif // MIRSERVER_H
