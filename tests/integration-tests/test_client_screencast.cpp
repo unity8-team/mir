@@ -109,7 +109,7 @@ TEST_F(Screencast, contacts_server_screencast_for_create_and_release)
 
     auto screencast = mir_connection_create_screencast_sync(connection, &default_screencast_params);
     ASSERT_NE(nullptr, screencast);
-    mir_screencast_release_sync(screencast);
+    mir_buffer_stream_release_sync(screencast);
 }
 
 TEST_F(Screencast, contacts_server_screencast_with_provided_params)
@@ -138,7 +138,7 @@ TEST_F(Screencast, contacts_server_screencast_with_provided_params)
     auto screencast = mir_connection_create_screencast_sync(connection, &default_screencast_params);
     ASSERT_NE(nullptr, screencast);
 
-    mir_screencast_release_sync(screencast);
+    mir_buffer_stream_release_sync(screencast);
 }
 
 TEST_F(Screencast, gets_valid_egl_native_window)
@@ -157,10 +157,10 @@ TEST_F(Screencast, gets_valid_egl_native_window)
     auto screencast = mir_connection_create_screencast_sync(connection, &default_screencast_params);
     ASSERT_NE(nullptr, screencast);
 
-    auto egl_native_window = mir_screencast_egl_native_window(screencast);
+    auto egl_native_window = mir_buffer_stream_get_egl_native_window(screencast);
     EXPECT_NE(MirEGLNativeWindowType(), egl_native_window);
 
-    mir_screencast_release_sync(screencast);
+    mir_buffer_stream_release_sync(screencast);
 }
 
 TEST_F(Screencast, fails_on_client_when_server_request_fails)

@@ -158,9 +158,9 @@ TEST_F(TestClientBufferStreamAPI, client_creating_buffer_stream_receives_stream_
         [&](MirConnection *connection)
         {
             MirBufferStream *stream = 
-                mir_connection_create_surfaceless_buffer_stream_sync(connection, width, height, format, buffer_usage);
+                mir_connection_create_buffer_stream_sync(connection, width, height, format, buffer_usage);
             EXPECT_NE(MirEGLNativeWindowType(), mir_buffer_stream_get_egl_native_window(stream));
-            mir_surfaceless_buffer_stream_release_sync(stream);
+            mir_buffer_stream_release_sync(stream);
         });
 
     EXPECT_CALL(config.buffer_stream, client_acquired(_)).Times(1);
@@ -184,13 +184,13 @@ TEST_F(TestClientBufferStreamAPI, swapping_exchanges_buffer_with_server_side_str
         [&](MirConnection *connection)
         {
             MirBufferStream *stream = 
-                mir_connection_create_surfaceless_buffer_stream_sync(connection, width, height, format, buffer_usage);
+                mir_connection_create_buffer_stream_sync(connection, width, height, format, buffer_usage);
             
             mir_buffer_stream_swap_buffers_sync(stream);
             mir_buffer_stream_swap_buffers_sync(stream);
             mir_buffer_stream_swap_buffers_sync(stream);
 
-            mir_surfaceless_buffer_stream_release_sync(stream);
+            mir_buffer_stream_release_sync(stream);
         });
 
     InSequence seq;

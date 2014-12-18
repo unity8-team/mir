@@ -79,7 +79,7 @@ MirScreencast::MirScreencast(
     mir::protobuf::DisplayServer& server,
     std::shared_ptr<mcl::EGLNativeWindowFactory> const& egl_native_window_factory,
     std::shared_ptr<mcl::ClientBufferFactory> const& factory,
-    mir_screencast_callback callback, void* context)
+    mir_buffer_stream_callback callback, void* context)
     : connection(allocating_connection),
       server(server),
       output_size{size},
@@ -149,7 +149,7 @@ std::shared_ptr<mcl::ClientBuffer> MirScreencast::get_current_buffer()
 }
 
 MirWaitHandle* MirScreencast::release(
-        mir_screencast_callback callback, void* context)
+        mir_buffer_stream_callback callback, void* context)
 {
     mir::protobuf::ScreencastId screencast_id;
     screencast_id.set_value(protobuf_screencast.screencast_id().value());
@@ -217,7 +217,7 @@ void MirScreencast::process_buffer(mir::protobuf::Buffer const& buffer)
 }
 
 void MirScreencast::screencast_created(
-    mir_screencast_callback callback, void* context)
+    mir_buffer_stream_callback callback, void* context)
 {
     if (!protobuf_screencast.has_error())
     {
@@ -230,7 +230,7 @@ void MirScreencast::screencast_created(
 }
 
 void MirScreencast::released(
-    mir_screencast_callback callback, void* context)
+    mir_buffer_stream_callback callback, void* context)
 {
     callback(this, context);
     release_wait_handle.result_received();

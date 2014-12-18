@@ -98,6 +98,10 @@ public:
         mir_surface_callback callback,
         void *context);
 
+    MirWaitHandle* release(
+        mir_buffer_stream_callback callback,
+        void *context) { (void) callback; (void) context; return nullptr; }// TODO: Probably throws?;
+
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;

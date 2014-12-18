@@ -52,14 +52,14 @@ public:
         mir::protobuf::DisplayServer& server,
         std::shared_ptr<mir::client::EGLNativeWindowFactory> const& egl_native_window_factory,
         std::shared_ptr<mir::client::ClientBufferFactory> const& factory,
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
     ~MirScreencast();
 
     MirWaitHandle* creation_wait_handle();
     bool valid();
 
     MirWaitHandle* release(
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
 
     MirWaitHandle* next_buffer(
         mir_buffer_stream_callback callback, void* context);
@@ -80,9 +80,9 @@ public:
 private:
     void process_buffer(mir::protobuf::Buffer const& buffer);
     void screencast_created(
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
     void released(
-        mir_screencast_callback callback, void* context);
+        mir_buffer_stream_callback callback, void* context);
     void next_buffer_received(
         mir_buffer_stream_callback callback, void* context);
     

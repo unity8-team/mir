@@ -186,7 +186,7 @@ double get_capture_rate_limit(MirDisplayConfiguration const& display_config, Mir
 
 struct EGLSetup
 {
-    EGLSetup(MirConnection* connection, MirScreencast* screencast)
+    EGLSetup(MirConnection* connection, MirBufferStream* screencast)
     {
         static EGLint const attribs[] = {
             EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -207,7 +207,7 @@ struct EGLSetup
 
         auto native_window =
             reinterpret_cast<EGLNativeWindowType>(
-                mir_screencast_egl_native_window(screencast));
+                mir_buffer_stream_get_egl_native_window(screencast));
 
         egl_display = eglGetDisplay(native_display);
 
@@ -412,7 +412,7 @@ try
 
     auto const screencast = mir::raii::deleter_for(
         mir_connection_create_screencast_sync(connection.get(), &params),
-        [](MirScreencast* s) { if (s) mir_screencast_release_sync(s); });
+        [](MirBufferStream* s) { if (s) mir_buffer_stream_release_sync(s); });
 
     if (screencast == nullptr)
         throw std::runtime_error("Failed to create screencast");

@@ -412,7 +412,7 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
         void setup_cursor(MirSurface* surface) override
         {
-            auto stream = mir_connection_create_surfaceless_buffer_stream_sync(
+            auto stream = mir_connection_create_buffer_stream_sync(
                 connection, 24, 24, mir_pixel_format_argb_8888,
                 mir_buffer_usage_software);
             auto conf = mir_cursor_configuration_from_buffer_stream(stream, hotspot_x, hotspot_y);
@@ -425,7 +425,7 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
             mir_buffer_stream_swap_buffers_sync(stream);
             mir_buffer_stream_swap_buffers_sync(stream);
 
-            mir_surfaceless_buffer_stream_release_sync(stream);
+            mir_buffer_stream_release_sync(stream);
         }
     };
 

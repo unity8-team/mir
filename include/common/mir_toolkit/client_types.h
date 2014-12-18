@@ -48,7 +48,6 @@ typedef struct MirSurface MirSurface;
 typedef struct MirSurfaceSpec MirSurfaceSpec;
 typedef struct MirBufferStream MirBufferStream;
 typedef struct MirBufferStreamSpec MirBufferStreamSpec;
-typedef struct MirScreencast MirScreencast;
 typedef struct MirPromptSession MirPromptSession;
 
 /**
@@ -329,13 +328,6 @@ typedef struct MirScreencastParameters
      */
     MirPixelFormat pixel_format;
 } MirScreencastParameters;
-
-/**
- * Callback to be passed when calling MirScreencast functions.
- *   \param [in] screencast          the screencast being updated
- *   \param [in,out] client_context  context provided by the client
- */
-typedef void (*mir_screencast_callback)(MirScreencast *screencast, void *client_context);
 
 /**
  * Callback member of MirPromptSession for handling of prompt sessions.

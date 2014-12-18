@@ -52,12 +52,13 @@ bool mir_buffer_stream_is_valid(MirBufferStream *buffer_stream);
  * \return                              The new buffer stream. This is guaranteed non-null, but may be invalid
  *                                      in the case of error.
  */
-MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(MirConnection *connection,
+MirBufferStream* mir_connection_create_buffer_stream_sync(MirConnection *connection,
     int width, int height,
     MirPixelFormat format,
     MirBufferUsage buffer_usage);
 
 /**
+ * TODO: Notes about BS owned by server
  * Release the supplied stream and any associated buffer. The returned wait
  * handle remains valid until the connection to the server is released.
  *   \warning callback could be called from another thread. You must do any
@@ -69,7 +70,7 @@ MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(MirConnect
  *   \param [in,out] context  User data passed to the callback function
  *   \return                  A handle that can be passed to mir_wait_for
  */
-MirWaitHandle *mir_surfaceless_buffer_stream_release(
+MirWaitHandle *mir_buffer_stream_release(
     MirBufferStream * buffer_stream,
     mir_buffer_stream_callback callback,
     void *context);
@@ -79,7 +80,7 @@ MirWaitHandle *mir_surfaceless_buffer_stream_release(
  * for the operation to complete.
  *   \param [in] buffer stream  The buffer stream to be released
  */
-void mir_surfaceless_buffer_stream_release_sync(MirBufferStream *buffer_stream);
+void mir_buffer_stream_release_sync(MirBufferStream *buffer_stream);
 
 /**
  * Get the underlying platform type so the buffer obtained in "raw" representation

@@ -33,7 +33,7 @@ namespace
 void null_callback(MirBufferStream*, void*) {}
 }
 
-MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(
+MirBufferStream* mir_connection_create_buffer_stream_sync(
     MirConnection* connection,
     int width, int height, MirPixelFormat pixel_format, MirBufferUsage buffer_usage)
 {
@@ -72,10 +72,11 @@ MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(
     return buffer_stream;
 }
 
-void mir_surfaceless_buffer_stream_release_sync(MirBufferStream* buffer_stream)
+// TODO: Ass asynv release
+void mir_buffer_stream_release_sync(MirBufferStream* buffer_stream)
 {
-    auto stream = dynamic_cast<mcl::SurfacelessBufferStream*>(buffer_stream);
-    stream->release(null_callback, nullptr)->wait_for_all();
+    // TODO: Add handling of surface errors
+    buffer_stream->release(null_callback, nullptr)->wait_for_all();
     delete buffer_stream;
 }
 

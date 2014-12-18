@@ -217,23 +217,13 @@ struct MockCallback
     MOCK_METHOD2(call, void(void*, void*));
 };
 
-void mock_callback_func(MirScreencast* screencast, void* context)
-{
-    auto mock_cb = static_cast<MockCallback*>(context);
-    mock_cb->call(screencast, context);
-}
-
-void mock_bs_callback_func(MirBufferStream* stream, void* context)
+void mock_callback_func(MirBufferStream* stream, void* context)
 {
     auto mock_cb = static_cast<MockCallback*>(context);
     mock_cb->call(stream, context);
 }
 
-void null_callback_func(MirScreencast*, void*)
-{
-}
-
-void null_bs_callback_func(MirBufferStream*, void*)
+void null_callback_func(MirBufferStream*, void*)
 {
 }
 
@@ -332,7 +322,7 @@ TEST_F(MirScreencastTest, requests_screencast_buffer_on_next_buffer)
         stub_client_buffer_factory,
         null_callback_func, nullptr};
 
-    screencast.next_buffer(null_bs_callback_func, nullptr);
+    screencast.next_buffer(null_callback_func, nullptr);
 }
 
 TEST_F(MirScreencastTest, executes_callback_on_creation)
@@ -394,7 +384,7 @@ TEST_F(MirScreencastTest, executes_callback_on_next_buffer)
     MockCallback mock_cb;
     EXPECT_CALL(mock_cb, call(&screencast, &mock_cb));
 
-    auto wh = screencast.next_buffer(mock_bs_callback_func, &mock_cb);
+    auto wh = screencast.next_buffer(mock_callback_func, &mock_cb);
     wh->wait_for_all();
 }
 
@@ -530,7 +520,7 @@ TEST_F(MirScreencastTest, returns_current_client_buffer)
 
     EXPECT_EQ(client_buffer1, screencast.get_current_buffer());
 
-    auto wh = screencast.next_buffer(null_bs_callback_func, nullptr);
+    auto wh = screencast.next_buffer(null_callback_func, nullptr);
     wh->wait_for_all();
 
     EXPECT_EQ(client_buffer2, screencast.get_current_buffer());

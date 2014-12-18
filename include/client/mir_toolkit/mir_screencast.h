@@ -37,32 +37,9 @@ extern "C" {
  *   \param [in] parameters  The screencast parameters
  *   \return                 The resulting screencast
  */
-MirScreencast *mir_connection_create_screencast_sync(
+MirBufferStream *mir_connection_create_screencast_sync(
     MirConnection *connection,
     MirScreencastParameters *parameters);
-
-/**
- * Release the specified screencast.
- *   \param [in] screencast  The screencast to be released
- */
-void mir_screencast_release_sync(
-    MirScreencast *screencast);
-
-/**
- * Get a window type that can be used by EGL.
- *   \param [in] screencast  The screencast
- *   \return                 An EGLNativeWindowType that the client can use
- */
-MirEGLNativeWindowType mir_screencast_egl_native_window(
-    MirScreencast *screencast);
-
-/**
- * Return the buffer stream associated with a screencast. May be used
- * with the mir_buffer_stream_* family of functions in <mir_toolkit/mir_buffer_stream.h>
- *   \param [in] screencast The screencast
- *   \return             The buffer stream
- */
-MirBufferStream* mir_screencast_get_buffer_stream(MirScreencast* screencast);
 
 #ifdef __cplusplus
 }

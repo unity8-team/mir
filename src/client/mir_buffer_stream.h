@@ -45,6 +45,9 @@ class MirBufferStream
 public:
     virtual ~MirBufferStream() = default;
 
+    virtual MirWaitHandle* release(
+        mir_buffer_stream_callback callback, void* context) = 0;
+
     virtual MirWaitHandle* next_buffer(
         mir_buffer_stream_callback callback, void* context) = 0;
 

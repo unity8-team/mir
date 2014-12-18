@@ -26,10 +26,10 @@
 
 namespace
 {
-void null_callback(MirScreencast*, void*) {}
+void null_callback(MirBufferStream*, void*) {}
 }
 
-MirScreencast* mir_connection_create_screencast_sync(
+MirBufferStream* mir_connection_create_screencast_sync(
     MirConnection* connection,
     MirScreencastParameters* parameters)
 {
@@ -76,21 +76,5 @@ MirScreencast* mir_connection_create_screencast_sync(
         return nullptr;
     }
 
-    return screencast;
-}
-
-void mir_screencast_release_sync(MirScreencast* screencast)
-{
-    screencast->release(null_callback, nullptr)->wait_for_all();
-    delete screencast;
-}
-
-MirEGLNativeWindowType mir_screencast_egl_native_window(MirScreencast* screencast)
-{
-    return mir_buffer_stream_get_egl_native_window(mir_screencast_get_buffer_stream(screencast));
-}
-
-MirBufferStream* mir_screencast_get_buffer_stream(MirScreencast* screencast)
-{
     return screencast;
 }
