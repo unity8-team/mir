@@ -121,7 +121,7 @@ MirWaitHandle* mcl::SurfacelessBufferStream::creation_wait_handle()
     return &create_buffer_stream_wait_handle;
 }
 
-bool mcl::SurfacelessBufferStream::is_valid()
+bool mcl::SurfacelessBufferStream::valid()
 {
     std::lock_guard<std::mutex> lg(mutex);
 

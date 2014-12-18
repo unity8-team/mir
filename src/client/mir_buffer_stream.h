@@ -55,7 +55,7 @@ public:
     virtual mir::protobuf::BufferStreamId protobuf_id() const = 0;
     virtual MirNativeBuffer* get_current_buffer_package() = 0;
     virtual MirPlatformType platform_type() = 0;
-
+    
 protected:
     MirBufferStream() = default;
     MirBufferStream(MirBufferStream const&) = delete;

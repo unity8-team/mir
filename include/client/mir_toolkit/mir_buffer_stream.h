@@ -30,6 +30,15 @@ extern "C" {
 #endif
 
 /**
+ * Test for a valid buffer stream
+ *
+ * \param [in] buffer_stream  The buffer stream
+ * \return                 True if the supplied buffer_stream is valid, or
+ *                         false otherwise.
+ */
+bool mir_buffer_stream_is_valid(MirBufferStream *buffer_stream);
+
+/**
  * Create a new buffer stream unattached to a surface. The resulting buffer stream may be used
  * with mir_cursor_configuration_from_buffer_stream in order to post images to the system
  * cursor.

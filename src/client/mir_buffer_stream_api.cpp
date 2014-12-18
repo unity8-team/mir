@@ -19,6 +19,8 @@
 #include "surfaceless_buffer_stream.h"
 
 #include "mir_buffer_stream.h"
+#include "mir_screencast.h"
+#include "mir_surface.h"
 #include "mir_connection.h"
 
 #include <stdexcept>
@@ -56,7 +58,7 @@ MirBufferStream* mir_connection_create_surfaceless_buffer_stream_sync(
 
         buffer_stream_uptr->creation_wait_handle()->wait_for_all();
 
-        if (buffer_stream_uptr->is_valid())
+        if (buffer_stream_uptr->valid())
         {
             buffer_stream = buffer_stream_uptr.get();
             buffer_stream_uptr.release();
@@ -126,4 +128,18 @@ MirEGLNativeWindowType mir_buffer_stream_get_egl_native_window(MirBufferStream* 
 MirPlatformType mir_buffer_stream_get_platform_type(MirBufferStream* buffer_stream)
 {
     return buffer_stream->platform_type();
+}
+
+bool mir_buffer_stream_is_valid(MirBufferStream *buffer_stream)
+{
+    auto surface = dynamic_cast<MirSurface*>(buffer_stream);
+    if (surface)
+        return MirSurface::is_valid(surface);
+    auto screencast = dynamic_cast<MirScreencast*>(buffer_stream);
+    if(screencast)
+        return screencast->valid();
+    auto bs = dynamic_cast<mcl::SurfacelessBufferStream*>(buffer_stream);
+    if(bs)
+        return bs->valid();
+    return false;
 }

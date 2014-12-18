@@ -57,7 +57,7 @@ public:
     ~SurfacelessBufferStream();
 
     MirWaitHandle* creation_wait_handle();
-    bool is_valid();
+    bool valid();
 
     MirWaitHandle* release(
         mir_buffer_stream_callback callback, void* context);
