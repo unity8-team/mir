@@ -1,3 +1,68 @@
+qtmir (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Update README and readd option to disable building tests
+
+  [ Gerry Boland ]
+  * Emit SIGSTOP when AppMan fully initialized, when Mir is ready is too
+    soon (LP: #1394208)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Dec 2014 08:27:44 +0000
+
+qtmir (0.4.4+15.04.20141211-0ubuntu1) vivid; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Alan Griffiths ]
+  * Migration of qtmir from the legacy Mir API
+  * Refactor to better reflect the code structure following new-migrate-
+    to-mir-Server-API
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 11 Dec 2014 16:55:53 +0000
+
+qtmir (0.4.4+15.04.20141205-0ubuntu1) vivid; urgency=low
+
+  [ CI Train Bot ]
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+
+  [ Ricardo Salveti de Araujo ]
+  * qteventfeeder: adding bt and wired headset multimedia keys (LP:
+    #1398427)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 05 Dec 2014 11:04:29 +0000
+
+qtmir (0.4.4+15.04.20141203-0ubuntu1) vivid; urgency=low
+
+  [ Gerry Boland ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+  * Fix build with Qt5.4 (LP: #1394884)
+
+  [ Michał Sawicz ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Robert Carr ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Alberto Aguirre ]
+  * Select mirclient backend for platform-api instead of mirserver.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 03 Dec 2014 10:07:12 +0000
+
+qtmir (0.4.4+15.04.20141124-0ubuntu1) vivid; urgency=low
+
+  [ Alberto Aguirre ]
+  * No-change rebuild againts mir 0.9.0
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 24 Nov 2014 23:07:01 +0000
+
 qtmir (0.4.4+15.04.20141110-0ubuntu2) vivid; urgency=medium
 
   * No-change rebuild against Qt 5.3.2.

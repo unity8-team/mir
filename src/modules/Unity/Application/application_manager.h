@@ -39,7 +39,7 @@ namespace mir {
     }
 }
 
-class MirServerConfiguration;
+class MirServer;
 
 namespace qtmir {
 
@@ -80,7 +80,7 @@ public:
     static ApplicationManager* singleton();
 
     explicit ApplicationManager(
-            const QSharedPointer<MirServerConfiguration> &mirConfig,
+            const QSharedPointer<MirServer> &mirServer,
             const QSharedPointer<TaskController> &taskController,
             const QSharedPointer<DesktopFileReader::Factory> &desktopFileReaderFactory,
             const QSharedPointer<ProcInfo> &processInfo,
@@ -149,7 +149,7 @@ private:
 
     Application* findApplicationWithPromptSession(const mir::scene::PromptSession* promptSession);
 
-    QSharedPointer<MirServerConfiguration> m_mirConfig;
+    QSharedPointer<MirServer> m_mirServer;
 
     QList<Application*> m_applications;
     Application* m_focusedApplication;

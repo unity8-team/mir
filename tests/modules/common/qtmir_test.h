@@ -26,7 +26,7 @@
 #include <Unity/Application/sessionmanager.h>
 #include <Unity/Application/taskcontroller.h>
 #include <Unity/Application/proc_info.h>
-#include <mirserverconfiguration.h>
+#include <mirserver.h>
 
 #include "mock_application_controller.h"
 #include "mock_desktop_file_reader.h"
@@ -41,31 +41,36 @@ using namespace qtmir;
 
 namespace qtmir {
 
-class FakeMirServerConfiguration: public MirServerConfiguration
+// Initialization of mir::Server needed for by tests
+class TestMirServerInit : virtual mir::Server
 {
-    typedef testing::NiceMock<mir::scene::MockPromptSessionManager> StubPromptSessionManager;
 public:
-    FakeMirServerConfiguration()
-    : MirServerConfiguration(0, nullptr)
-    , mock_prompt_session_manager(std::make_shared<StubPromptSessionManager>())
+    TestMirServerInit()
     {
+        override_the_prompt_session_manager(
+            [this]{ return the_mock_prompt_session_manager(); });
     }
 
-    std::shared_ptr<ms::PromptSessionManager> the_prompt_session_manager() override
-    {
-        return prompt_session_manager([this]()
-           ->std::shared_ptr<ms::PromptSessionManager>
-           {
-               return the_mock_prompt_session_manager();
-           });
-    }
-
-    std::shared_ptr<StubPromptSessionManager> the_mock_prompt_session_manager()
+    std::shared_ptr<mir::scene::MockPromptSessionManager> the_mock_prompt_session_manager()
     {
         return mock_prompt_session_manager;
     }
 
-    std::shared_ptr<StubPromptSessionManager> mock_prompt_session_manager;
+private:
+    typedef testing::NiceMock<mir::scene::MockPromptSessionManager> StubPromptSessionManager;
+    std::shared_ptr<StubPromptSessionManager> const mock_prompt_session_manager
+        {std::make_shared<StubPromptSessionManager>()};
+};
+
+class FakeMirServer: private TestMirServerInit, public MirServer
+{
+public:
+    FakeMirServer()
+    : MirServer(0, nullptr)
+    {
+    }
+
+    using TestMirServerInit::the_mock_prompt_session_manager;
 };
 
 } // namespace qtmir
@@ -76,8 +81,8 @@ class QtMirTest : public ::testing::Test
 {
 public:
     QtMirTest()
-        : mirConfig{
-            QSharedPointer<FakeMirServerConfiguration> (new FakeMirServerConfiguration)
+        : mirServer{
+            QSharedPointer<FakeMirServer> (new FakeMirServer)
         }
         , taskController{
               QSharedPointer<TaskController> (
@@ -90,7 +95,7 @@ public:
               )
         }
         , applicationManager{
-            mirConfig,
+            mirServer,
             taskController,
             QSharedPointer<DesktopFileReader::Factory>(
                 &desktopFileReaderFactory,
@@ -98,11 +103,11 @@ public:
             QSharedPointer<ProcInfo>(&procInfo,[](ProcInfo *){})
         }
         , sessionManager{
-            mirConfig,
+            mirServer,
             &applicationManager,
         }
         , surfaceManager{
-            mirConfig,
+            mirServer,
             &sessionManager
         }
     {
@@ -141,7 +146,7 @@ public:
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
-    QSharedPointer<FakeMirServerConfiguration> mirConfig;
+    QSharedPointer<FakeMirServer> mirServer;
     QSharedPointer<TaskController> taskController;
     ApplicationManager applicationManager;
     SessionManager sessionManager;
