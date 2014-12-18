@@ -17,12 +17,12 @@
  */
 
 #include "mir/graphics/android/sync_fence.h"
-#include "src/platform/graphics/android/hwc_fb_device.h"
-#include "src/platform/graphics/android/hwc_device.h"
-#include "src/platform/graphics/android/hwc_wrapper.h"
-#include "src/platform/graphics/android/hwc_layerlist.h"
-#include "src/platform/graphics/android/hwc_vsync_coordinator.h"
-#include "src/platform/graphics/android/hwc_configuration.h"
+#include "src/platforms/android/hwc_fb_device.h"
+#include "src/platforms/android/hwc_device.h"
+#include "src/platforms/android/hwc_wrapper.h"
+#include "src/platforms/android/hwc_layerlist.h"
+#include "src/platforms/android/hwc_vsync_coordinator.h"
+#include "src/platforms/android/hwc_configuration.h"
 #include "mir_test_doubles/mock_hwc_composer_device_1.h"
 #include "mir_test_doubles/mock_hwc_vsync_coordinator.h"
 #include "mir_test_doubles/mock_hwc_device_wrapper.h"
@@ -163,12 +163,6 @@ TYPED_TEST(HWCCommon, callback_calls_hwcvsync)
 
     callbacks->self = nullptr;
     callbacks->hooks.vsync(&callbacks->hooks, 0, 0);
-}
-
-TYPED_TEST(HWCCommon, set_orientation)
-{
-    auto device = this->make_display_device();
-    EXPECT_FALSE(device->apply_orientation(mir_orientation_left));
 }
 
 TYPED_TEST(HWCCommon, first_power_on_is_not_fatal) //lp:1345533
