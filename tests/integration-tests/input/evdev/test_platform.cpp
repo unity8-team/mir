@@ -16,9 +16,9 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/platform.h"
+#include "src/platforms/evdev/platform.h"
 #include "src/server/report/null_report_factory.h"
-#include "src/platform/input/evdev/input_device_factory.h"
+#include "src/platforms/evdev/input_device_factory.h"
 
 #include "mir/input/input_device.h"
 #include "mir/udev/wrapper.h"

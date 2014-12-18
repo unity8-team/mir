@@ -19,7 +19,7 @@ set_target_properties(
   OUTPUT_NAME input-evdev
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/server-modules
   PREFIX ""
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/../symbols.map"
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${input_platform_symbol_map}"
 )
 
 target_link_libraries(mirplatforminputevdev

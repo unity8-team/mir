@@ -16,8 +16,8 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/libinput_wrapper.h"
-#include "src/platform/input/evdev/libinput_device.h"
+#include "src/platforms/evdev/libinput_wrapper.h"
+#include "src/platforms/evdev/libinput_device.h"
 
 #include "mir/input/event_sink.h"
 #include "mir_test_doubles/mock_libinput.h"

@@ -16,7 +16,7 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "src/platform/input/evdev/libinput_device_provider.h"
+#include "src/platforms/evdev/libinput_device_provider.h"
 #include "mir_test_framework/udev_environment.h"
 #include "mir_test_doubles/mock_libinput.h"
 
