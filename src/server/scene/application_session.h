@@ -85,6 +85,9 @@ public:
     frontend::BufferStreamId create_buffer_stream(graphics::BufferProperties const& properties);
     void destroy_buffer_stream(frontend::BufferStreamId stream);
 
+    void suspend_prompt_session() override;
+    void resume_prompt_session() override;
+
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
     ApplicationSession& operator=(ApplicationSession const&) = delete;

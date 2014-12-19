@@ -21,6 +21,8 @@
 #include "mir_connection.h"
 #include "mir/raii.h"
 
+#include "api_helpers.h"
+
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -71,8 +73,9 @@ MirBufferStream* mir_connection_create_screencast_sync(
             screencast_uptr.release();
         }
     }
-    catch (std::exception const&)
+    catch (std::exception const& ex)
     {
+        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 
