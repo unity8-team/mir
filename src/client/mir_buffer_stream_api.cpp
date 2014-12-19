@@ -16,6 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "MirBufferStreamAPI"
+
 #include "surfaceless_buffer_stream.h"
 
 #include "mir_buffer_stream.h"
