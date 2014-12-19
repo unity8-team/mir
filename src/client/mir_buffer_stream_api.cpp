@@ -23,6 +23,8 @@
 #include "mir_surface.h"
 #include "mir_connection.h"
 
+#include "api_helpers.h"
+
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -64,8 +66,9 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
             buffer_stream_uptr.release();
         }
     }
-    catch (std::exception const&)
+    catch (std::exception const& ex)
     {
+        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 
@@ -74,15 +77,24 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(
 
 // TODO: Ass asynv release
 void mir_buffer_stream_release_sync(MirBufferStream* buffer_stream)
+try
 {
-    // TODO: Add handling of surface errors
     buffer_stream->release(null_callback, nullptr)->wait_for_all();
     delete buffer_stream;
 }
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+}
 
 void mir_buffer_stream_get_current_buffer(MirBufferStream* buffer_stream, MirNativeBuffer** buffer_package_out)
+try
 {
     *buffer_package_out = buffer_stream->get_current_buffer_package();
+}
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 MirWaitHandle* mir_buffer_stream_swap_buffers(
@@ -93,8 +105,9 @@ try
 {
     return buffer_stream->next_buffer(callback, context);
 }
-catch (std::exception const&)
+catch (std::exception const& ex)
 {
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return nullptr;
 }
 
@@ -117,18 +130,35 @@ void mir_buffer_stream_swap_buffers_sync(MirBufferStream* buffer_stream)
 void mir_buffer_stream_get_graphics_region(
     MirBufferStream *buffer_stream,
     MirGraphicsRegion *graphics_region)
+try
 {
-    return buffer_stream->get_cpu_region(*graphics_region);
+    buffer_stream->get_cpu_region(*graphics_region);
+}
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 MirEGLNativeWindowType mir_buffer_stream_get_egl_native_window(MirBufferStream* buffer_stream)
+try
 {
     return reinterpret_cast<MirEGLNativeWindowType>(buffer_stream->egl_native_window());
 }
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    return MirEGLNativeWindowType();
+}
 
 MirPlatformType mir_buffer_stream_get_platform_type(MirBufferStream* buffer_stream)
+try
 {
     return buffer_stream->platform_type();
+}
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    return MirPlatformType();
 }
 
 bool mir_buffer_stream_is_valid(MirBufferStream *buffer_stream)
