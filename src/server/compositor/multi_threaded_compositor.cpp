@@ -30,6 +30,7 @@
 #include "mir/raii.h"
 #include "mir/thread_name.h"
 
+#include <unistd.h>
 #include <thread>
 #include <condition_variable>
 
@@ -39,6 +40,60 @@ namespace ms = mir::scene;
 
 namespace
 {
+
+int const max_bufferqueue_depth = 5;
+int const min_idle_delay = 5;
+
+class WakeLock
+{
+public:
+    WakeLock()
+    {
+        snprintf(name, sizeof name, "Mir_%d_%p", getpid(), (void*)this);
+        lock();
+    }
+    
+    ~WakeLock()
+    {
+        set_lock(false);
+    }
+
+    void lock()
+    {
+        if (count == 0)
+            set_lock(true);
+        ++count;
+    }
+
+    void unlock()
+    {
+        if (count > 0)
+        {
+            --count;
+            if (count <= 0)
+                set_lock(false);
+        }
+    }
+
+private:
+    int count = 0;
+    char name[64] = {};
+
+    void set_lock(bool locked)
+    {
+        fprintf(stderr, "set_lock %s\n", locked ? "LOCKED" : "UNLOCKED");
+        char path[64];
+        snprintf(path, sizeof path, "/sys/power/wake_%slock",
+                 locked ? "" : "un");
+        // This will only work as root, and a sufficiently new enough kernel.
+        // We don't care if it fails because everything will still work...
+        if (FILE* f = fopen(path, "r+"))
+        {
+            fprintf(f, "%s\n", name);
+            fclose(f);
+        }
+    }
+};
 
 class ApplyIfUnwinding
 {
@@ -127,11 +182,18 @@ public:
             [this,&display_buffer_compositor]{scene->register_compositor(display_buffer_compositor.get());},
             [this,&display_buffer_compositor]{scene->unregister_compositor(display_buffer_compositor.get());});
 
+        WakeLock wake;
         std::unique_lock<std::mutex> lock{run_mutex};
         while (running)
         {
             /* Wait until compositing has been scheduled or we are stopped */
-            run_cv.wait(lock, [&]{ return (frames_scheduled > 0) || !running; });
+            while (frames_scheduled <= 0 && running)
+            {
+                // Idling now. You can insert other idle-mode features here.
+                wake.unlock();
+                run_cv.wait(lock);
+                wake.lock();
+            }
 
             /*
              * Check if we are running before compositing, since we may have
@@ -161,10 +223,11 @@ public:
         mir::terminate_with_current_exception();
     }
 
-    void schedule_compositing(int num_frames)
+    void schedule_compositing()
     {
         std::lock_guard<std::mutex> lock{run_mutex};
 
+        int const num_frames = std::max(max_bufferqueue_depth, min_idle_delay);
         if (num_frames > frames_scheduled)
         {
             frames_scheduled = num_frames;
@@ -210,11 +273,11 @@ mc::MultiThreadedCompositor::MultiThreadedCompositor(
     observer = std::make_shared<ms::LegacySceneChangeNotification>(
     [this]()
     {
-        schedule_compositing(1);
+        schedule_compositing();
     },
-    [this](int num)
+    [this](int)
     {
-        schedule_compositing(num);
+        schedule_compositing();
     });
 }
 
@@ -223,13 +286,13 @@ mc::MultiThreadedCompositor::~MultiThreadedCompositor()
     stop();
 }
 
-void mc::MultiThreadedCompositor::schedule_compositing(int num)
+void mc::MultiThreadedCompositor::schedule_compositing()
 {
     std::unique_lock<std::mutex> lk(state_guard);
 
     report->scheduled();
     for (auto& f : thread_functors)
-        f->schedule_compositing(num);
+        f->schedule_compositing();
 }
 
 void mc::MultiThreadedCompositor::start()
@@ -259,7 +322,7 @@ void mc::MultiThreadedCompositor::start()
     if (compose_on_start)
     {
         lk.unlock();
-        schedule_compositing(1);
+        schedule_compositing();
     }
 }
 
