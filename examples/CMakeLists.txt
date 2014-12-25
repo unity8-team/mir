@@ -149,23 +149,6 @@ target_link_libraries(mir_demo_standalone_render_to_fb
     ${Boost_LIBRARIES}
 )
 
-set (INSTALL_DEMOS
-  mir_demo_client_basic
-  mir_demo_client_flicker
-  mir_demo_client_scroll
-  mir_demo_client_eglflash
-  mir_demo_client_egltriangle
-  mir_demo_client_eglplasma
-  mir_demo_client_eglcounter
-  mir_demo_client_fingerpaint
-  mir_demo_client_multiwin
-  mir_demo_client_display_config
-  mir_demo_client_progressbar
-  mir_demo_client_prompt_session
-  mir_demo_standalone_render_to_fb
-)
-
-install(TARGETS ${INSTALL_DEMOS} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 mir_add_wrapped_executable(mir_demo_server
   server_example.cpp
