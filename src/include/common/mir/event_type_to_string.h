@@ -13,29 +13,18 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_CLIENT_ANDROID_CLIENT_PLATFORM_FACTORY_H_
-#define MIR_CLIENT_ANDROID_CLIENT_PLATFORM_FACTORY_H_
+#ifndef MIR_EVENT_TYPE_TO_STRING_H_
+#define MIR_EVENT_TYPE_TO_STRING_H_
 
-#include "../client_platform_factory.h"
+#include <string>
+#include "mir_toolkit/client_types.h"
 
 namespace mir
 {
-namespace client
-{
-namespace android
-{
-
-class ClientPlatformFactory : public client::ClientPlatformFactory
-{
-public:
-    std::shared_ptr<ClientPlatform> create_client_platform(ClientContext* context) override;
-};
-
-}
-}
+std::string event_type_to_string(MirEventType t);
 }
 
-#endif /* MIR_CLIENT_ANDROID_CLIENT_PLATFORM_FACTORY_H_ */
+#endif // MIR_EVENT_TYPE_TO_STRING_H_
