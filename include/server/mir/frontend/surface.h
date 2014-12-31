@@ -33,7 +33,6 @@ namespace mir
 namespace graphics
 {
 class Buffer;
-class InternalSurface;
 class CursorImage;
 }
 
