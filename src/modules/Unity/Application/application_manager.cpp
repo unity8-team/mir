@@ -26,7 +26,7 @@
 #include "tracepoints.h" // generated from tracepoints.tp
 
 // mirserver
-#include "mirserverconfiguration.h"
+#include "mirserver.h"
 #include "nativeinterface.h"
 #include "sessionlistener.h"
 #include "sessionauthorizer.h"
@@ -43,6 +43,8 @@
 // Qt
 #include <QGuiApplication>
 #include <QDebug>
+#include <QByteArray>
+#include <QDir>
 
 // std
 #include <csignal>
@@ -59,13 +61,13 @@ namespace qtmir
 namespace {
 
 // FIXME: AppManager should not implement policy based on display geometry, shell should do that
-bool forceAllAppsIntoMainStage(const QSharedPointer<MirServerConfiguration> &mirConfig)
+bool forceAllAppsIntoMainStage(const QSharedPointer<MirServer> &mirServer)
 {
     const int tabletModeMinimimWithGU = 100;
 
     // Obtain display size
     mir::geometry::Rectangles view_area;
-    mirConfig->the_display()->for_each_display_buffer(
+    mirServer->the_display()->for_each_display_buffer(
         [&view_area](const mir::graphics::DisplayBuffer & db)
         {
             view_area.add(db.view_area());
@@ -139,7 +141,7 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
         return nullptr;
     }
 
-    auto mirConfig = nativeInterface->m_mirConfig;
+    auto mirServer = nativeInterface->m_mirServer;
 
     SessionListener *sessionListener = static_cast<SessionListener*>(nativeInterface->nativeResourceForIntegration("SessionListener"));
     SessionAuthorizer *sessionAuthorizer = static_cast<SessionAuthorizer*>(nativeInterface->nativeResourceForIntegration("SessionAuthorizer"));
@@ -155,7 +157,7 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
     // of the QSharedPointer, and a double-delete results. Trying QQmlEngine::setObjectOwnership on the
     // object no effect, which it should. Need to investigate why.
     ApplicationManager* appManager = new ApplicationManager(
-                                             mirConfig,
+                                             mirServer,
                                              taskController,
                                              fileReaderFactory,
                                              procInfo
@@ -164,6 +166,15 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
     connectToSessionListener(appManager, sessionListener);
     connectToSessionAuthorizer(appManager, sessionAuthorizer);
     connectToTaskController(appManager, taskController.data());
+
+    // Emit signal to notify Upstart that Mir is ready to receive client connections
+    // see http://upstart.ubuntu.com/cookbook/#expect-stop
+    // FIXME: should not be qtmir's job, instead should notify the user of this library
+    // that they should emit this signal, perhaps by posting an event to the
+    // QMirServerApplication event loop when it comes up
+    if (qgetenv("UNITY_MIR_EMITS_SIGSTOP") == "1") {
+        raise(SIGSTOP);
+    }
 
     return appManager;
 }
@@ -180,13 +191,13 @@ ApplicationManager* ApplicationManager::singleton()
 }
 
 ApplicationManager::ApplicationManager(
-        const QSharedPointer<MirServerConfiguration>& mirConfig,
+        const QSharedPointer<MirServer>& mirServer,
         const QSharedPointer<TaskController>& taskController,
         const QSharedPointer<DesktopFileReader::Factory>& desktopFileReaderFactory,
         const QSharedPointer<ProcInfo>& procInfo,
         QObject *parent)
     : ApplicationManagerInterface(parent)
-    , m_mirConfig(mirConfig)
+    , m_mirServer(mirServer)
     , m_focusedApplication(nullptr)
     , m_mainStageApplication(nullptr)
     , m_sideStageApplication(nullptr)
@@ -522,7 +533,7 @@ void ApplicationManager::onProcessStarting(const QString &appId)
         }
 
         // override stage if necessary (i.e. side stage invalid on phone)
-        if (application->stage() == Application::SideStage && forceAllAppsIntoMainStage(m_mirConfig))
+        if (application->stage() == Application::SideStage && forceAllAppsIntoMainStage(m_mirServer))
             application->setStage(Application::MainStage);
 
         add(application);
@@ -821,6 +832,20 @@ void ApplicationManager::onSessionStopping(std::shared_ptr<ms::Session> const& s
                 || application->state() == Application::Running) {
             m_dbusWindowStack->WindowDestroyed(0, application->appId());
             remove(application);
+           
+            // (ricmm) -- To be on the safe side, better wipe the application QML compile cache if it crashes on startup
+            QString path(QDir::homePath() + QStringLiteral("/.cache/QML/Apps/"));
+            QDir dir(path);
+            QStringList apps = dir.entryList();
+            for (int i = 0; i < apps.size(); i++) {
+                if (apps.at(i).contains(application->appId())) {
+                    qCDebug(QTMIR_APPLICATIONS) << "ApplicationManager::onSessionStopping appId=" << apps.at(i) << " Wiping QML Cache";
+                    dir.cd(apps.at(i));
+                    dir.removeRecursively();
+                    break;
+                }
+            }
+
             delete application;
 
             if (application == m_focusedApplication) {

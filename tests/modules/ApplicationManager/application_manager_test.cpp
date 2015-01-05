@@ -19,7 +19,7 @@
 #include <condition_variable>
 #include <QSignalSpy>
 
-#include <applicationscreenshotprovider.h>
+#include <Unity/Application/applicationscreenshotprovider.h>
 
  #include "mock_surface.h"
  #include "qtmir_test.h"
@@ -56,15 +56,39 @@ TEST_F(ApplicationManagerTests, SuspendingAndResumingARunningApplicationResultsI
 
     EXPECT_CALL(desktopFileReaderFactory, createInstance(_, _)).Times(1);
 
-    EXPECT_CALL(processController, sigStopProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(processController, sigContinueProcessGroupForPid(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessUnlikelyToBeKilled(_)).Times(1);
-    EXPECT_CALL(oomController, ensureProcessLikelyToBeKilled(_)).Times(1);
-
     auto application = applicationManager.startApplication(
                 appId,
                 ApplicationManager::NoFlag,
                 QStringList());
+
+    // FIXME - this is doesn't really excerise the actualt behaviour since suspend/resume should be
+    // controlled by state changes. Requires using suspend timer.
+    QMetaObject::invokeMethod(application, "onSessionSuspended");
+    QMetaObject::invokeMethod(application, "onSessionResumed");
+}
+
+TEST_F(ApplicationManagerTests, SuspendingAndResumingDashResultsInOomScoreAdjustment)
+{
+    using namespace ::testing;
+
+    quint64 procId = 5921;
+    std::shared_ptr<mir::scene::Surface> aSurface(nullptr);
+    QByteArray cmdLine( "/usr/bin/app1 --desktop_file_hint=unity8-dash");
+
+    EXPECT_CALL(procInfo,command_line(procId))
+        .Times(1)
+        .WillOnce(Return(cmdLine));
+
+    ON_CALL(appController,appIdHasProcessId(_,_)).WillByDefault(Return(false));
+
+    bool authed = true;
+
+    std::shared_ptr<mir::scene::Session> session = std::make_shared<MockSession>("Oo", procId);
+    applicationManager.authorizeSession(procId, authed);
+    onSessionStarting(session);
+
+    auto application = applicationManager.findApplication("unity8-dash");
+    applicationManager.onSessionCreatedSurface(session.get(), aSurface);
 
     // FIXME - this is doesn't really excerise the actualt behaviour since suspend/resume should be
     // controlled by state changes. Requires using suspend timer.
@@ -95,12 +119,6 @@ TEST_F(ApplicationManagerTests, DISABLED_FocusingRunningApplicationResultsInOomS
         onSessionStarting( mirSession );
 
         EXPECT_NE(nullptr, application);
-
-        appIds.insert(appId);
-        auto it = appController.children.find(appId);
-        if (it != appController.children.end())
-            EXPECT_CALL(oomController,
-                        ensureProcessUnlikelyToBeKilled(it->pid())).Times(1);
     }
 
     for (auto appId : appIds)
@@ -140,7 +158,7 @@ TEST_F(ApplicationManagerTests,bug_case_1240400_second_dialer_app_fails_to_autho
     applicationManager.authorizeSession(secondProcId, authed);
     applicationManager.onProcessStarting(dialer_app_id);
 
-    EXPECT_EQ(false,authed);
+    EXPECT_FALSE(authed);
     EXPECT_EQ(app,applicationManager.findApplication(dialer_app_id));
 }
 
@@ -463,7 +481,7 @@ TEST_F(ApplicationManagerTests,suspended_suspends_focused_app_and_marks_it_unfoc
     applicationManager.setSuspended(true);
 
     EXPECT_EQ(Application::Suspended, the_app->state());
-    EXPECT_EQ(false, the_app->focused());
+    EXPECT_FALSE(the_app->focused());
 
     applicationManager.setSuspended(false);
 
@@ -504,7 +522,7 @@ TEST_F(ApplicationManagerTests,suspended_suspends_starting_app_when_it_gets_read
 
     // And given that the AppManager is suspended now, this should go to suspended too
     EXPECT_EQ(Application::Suspended, the_app->state());
-    EXPECT_EQ(false, the_app->focused());
+    EXPECT_FALSE(the_app->focused());
 
     applicationManager.setSuspended(false);
 

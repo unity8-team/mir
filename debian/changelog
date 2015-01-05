@@ -1,3 +1,133 @@
+qtmir (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=low
+
+  [ Daniel d'Andrada ]
+  * Update README and readd option to disable building tests
+
+  [ Gerry Boland ]
+  * Emit SIGSTOP when AppMan fully initialized, when Mir is ready is too
+    soon (LP: #1394208)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 15 Dec 2014 08:27:44 +0000
+
+qtmir (0.4.4+15.04.20141211-0ubuntu1) vivid; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Alan Griffiths ]
+  * Migration of qtmir from the legacy Mir API
+  * Refactor to better reflect the code structure following new-migrate-
+    to-mir-Server-API
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 11 Dec 2014 16:55:53 +0000
+
+qtmir (0.4.4+15.04.20141205-0ubuntu1) vivid; urgency=low
+
+  [ CI Train Bot ]
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+  * Resync trunk
+
+  [ Ricardo Salveti de Araujo ]
+  * qteventfeeder: adding bt and wired headset multimedia keys (LP:
+    #1398427)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 05 Dec 2014 11:04:29 +0000
+
+qtmir (0.4.4+15.04.20141203-0ubuntu1) vivid; urgency=low
+
+  [ Gerry Boland ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+  * Fix build with Qt5.4 (LP: #1394884)
+
+  [ Michał Sawicz ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Robert Carr ]
+  * Port qmake->cmake to enable sbuild usage for crosscompiling.
+
+  [ Alberto Aguirre ]
+  * Select mirclient backend for platform-api instead of mirserver.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 03 Dec 2014 10:07:12 +0000
+
+qtmir (0.4.4+15.04.20141124-0ubuntu1) vivid; urgency=low
+
+  [ Alberto Aguirre ]
+  * No-change rebuild againts mir 0.9.0
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 24 Nov 2014 23:07:01 +0000
+
+qtmir (0.4.4+15.04.20141110-0ubuntu2) vivid; urgency=medium
+
+  * No-change rebuild against Qt 5.3.2.
+
+ -- Timo Jyrinki <timo-jyrinki@ubuntu.com>  Mon, 10 Nov 2014 16:50:43 +0200
+
+qtmir (0.4.4+15.04.20141110-0ubuntu1) vivid; urgency=low
+
+  [ Michael Zanetti ]
+  * Use QSGDefaultImageNode instead of QSGSimpleTexture to gain surface
+    manipulation features such as antialiasing (LP: #1351559)
+
+  [ josharenson ]
+  * Add support for enabling/disabling orientation sensor based on
+    screen power state. (LP: #1375297)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 10 Nov 2014 09:41:58 +0000
+
+qtmir (0.4.4+15.04.20141030.2-0ubuntu1) vivid; urgency=low
+
+  [ Ted Gould ]
+  * Use UAL pause/resume functions for stopping/continuing all tasks in
+    the cgroup (LP: #1379786)
+
+  [ Timo Jyrinki ]
+  * Add libmtdev-dev build dependency (LP: #1379152) (LP: #1379152)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 Oct 2014 21:48:30 +0000
+
+qtmir (0.4.4+15.04.20141030.1-0ubuntu1) vivid; urgency=low
+
+  [ Ricardo Mendoza ]
+  * Clean up QML Compilation cache if application fails to start
+    correctly.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 30 Oct 2014 11:55:27 +0000
+
+qtmir (0.4.4+14.10.20141013-0ubuntu1) utopic; urgency=medium
+
+  [ Daniel d'Andrada ]
+  * Turn UbuntuKeyboardInfo into a QML singleton
+
+  [ Gerry Boland ]
+  * Rewrite DesktopFileReader to use GDesktopAppInfo, enables reading
+    localized keys (LP: #1350360)
+
+  [ Michał Sawicz ]
+  * Ensure unity8-dash is less likely to be killed than other background
+    apps. (LP: #1379296)
+
+  [ Robert Carr ]
+  * Pass key auto-repeat flag through QtEventFeeder.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 13 Oct 2014 10:08:04 +0000
+
+qtmir (0.4.3+14.10.20141010-0ubuntu1) utopic; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * Rebuild for Mir 0.8.0.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 10 Oct 2014 16:33:24 +0000
+
 qtmir (0.4.3+14.10.20141006-0ubuntu1) utopic; urgency=low
 
   [ Michael Zanetti ]

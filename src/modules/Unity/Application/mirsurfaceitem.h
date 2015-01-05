@@ -33,7 +33,6 @@
 #include <mir_toolkit/common.h>
 
 #include "session_interface.h"
-#include "ubuntukeyboardinfo.h"
 
 namespace qtmir {
 
@@ -198,8 +197,6 @@ private:
     Qt::ScreenOrientation m_orientation; //FIXME -  have to save the state as Mir has no getter for it (bug:1357429)
 
     QMirSurfaceTextureProvider *m_textureProvider;
-
-    static UbuntuKeyboardInfo *m_ubuntuKeyboardInfo;
 
     std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
 

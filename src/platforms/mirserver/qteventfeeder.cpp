@@ -116,6 +116,13 @@ static const uint32_t KeyTable[] = {
     XKB_KEY_XF86PowerOff,            Qt::Key_PowerOff,
     XKB_KEY_XF86PowerDown,           Qt::Key_PowerDown,
 
+    /* Bluetooth / Wired headset multimedia keys */
+    XKB_KEY_XF86AudioPlay,           Qt::Key_MediaPlay,
+    XKB_KEY_XF86AudioPrev,           Qt::Key_MediaPrevious,
+    XKB_KEY_XF86AudioNext,           Qt::Key_MediaNext,
+    XKB_KEY_XF86AudioPause,          Qt::Key_MediaPause,
+    XKB_KEY_XF86AudioMedia,          Qt::Key_MediaTogglePlayPause,
+
     0,                          0
 };
 
@@ -264,13 +271,15 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
     char s[2];
     int keyCode = translateKeysym(xk_sym, s, sizeof(s));
     QString text = QString::fromLatin1(s);
+    
+    bool is_auto_rep = event.repeat_count > 0;
 
     QPlatformInputContext* context = QGuiApplicationPrivate::platformIntegration()->inputContext();
     if (context) {
         // TODO: consider event.repeat_count
         QKeyEvent qKeyEvent(keyType, keyCode, modifiers,
                             event.scan_code, event.key_code, event.modifiers,
-                            text);
+                            text, is_auto_rep);
         qKeyEvent.setTimestamp(timestamp);
         if (context->filterEvent(&qKeyEvent)) {
             // key event filtered out by input context
@@ -279,7 +288,7 @@ void QtEventFeeder::dispatchKey(MirKeyEvent const& event)
     }
 
     mQtWindowSystem->handleExtendedKeyEvent(timestamp, keyType, keyCode, modifiers,
-            event.scan_code, event.key_code, event.modifiers, text);
+            event.scan_code, event.key_code, event.modifiers, text, is_auto_rep);
 }
 
 void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)

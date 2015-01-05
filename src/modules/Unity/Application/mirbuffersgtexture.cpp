@@ -88,7 +88,11 @@ bool MirBufferSGTexture::hasAlphaChannel() const
 
 void MirBufferSGTexture::bind()
 {
+#if QT_VERSION < QT_VERSION_CHECK(5, 4, 0)
     bool profileFrames = qsg_render_timing || QQuickProfiler::enabled;
+#else
+    bool profileFrames = qsg_render_timing || QQuickProfiler::profilingSceneGraph();
+#endif
     if (profileFrames)
         qsg_renderer_timer.start();
 
@@ -107,7 +111,11 @@ void MirBufferSGTexture::bind()
                (int) qsg_renderer_timer.elapsed());
     }
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 4, 0)
     Q_QUICK_SG_PROFILE1(QQuickProfiler::SceneGraphTexturePrepare, (
+#else
+    Q_QUICK_SG_PROFILE(QQuickProfiler::SceneGraphTexturePrepare, (
+#endif
             bindTime,  // bind (all this does)
             0,  // convert (not relevant)
             0,  // swizzle (not relevant)

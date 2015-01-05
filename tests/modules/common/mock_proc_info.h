@@ -34,4 +34,4 @@ struct MockProcInfo : public qtmir::ProcInfo
 };
 }
 
-#endif // MOCK_OOM_CONTROLLER_H
+#endif // MOCK_PROC_INFO_H

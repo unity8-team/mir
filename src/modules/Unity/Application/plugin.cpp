@@ -29,6 +29,8 @@
 // qtmir
 #include "logging.h"
 
+using namespace qtmir;
+
 static QObject* applicationManagerSingleton(QQmlEngine* engine, QJSEngine* scriptEngine) {
     Q_UNUSED(engine);
     Q_UNUSED(scriptEngine);
@@ -50,6 +52,15 @@ static QObject* sessionManagerSingleton(QQmlEngine* engine, QJSEngine* scriptEng
     Q_UNUSED(scriptEngine);
     return qtmir::SessionManager::singleton();
 }
+
+namespace {
+QObject* ubuntuKeyboardInfoSingleton(QQmlEngine* /*engine*/, QJSEngine* /*scriptEngine*/) {
+    if (!UbuntuKeyboardInfo::instance()) {
+        new UbuntuKeyboardInfo;
+    }
+    return UbuntuKeyboardInfo::instance();
+}
+} // anonymous namespace
 
 class UnityApplicationPlugin : public QQmlExtensionPlugin {
     Q_OBJECT
@@ -84,7 +95,8 @@ class UnityApplicationPlugin : public QQmlExtensionPlugin {
                     uri, 0, 1, "MirSurfaceItem", "MirSurfaceItem can't be instantiated from QML");
         qmlRegisterUncreatableType<qtmir::Session>(
                     uri, 0, 1, "Session", "Session can't be instantiated from QML");
-        qmlRegisterType<qtmir::UbuntuKeyboardInfo>(uri, 0, 1, "UbuntuKeyboardInfo");
+        qmlRegisterSingletonType<qtmir::UbuntuKeyboardInfo>(
+                uri, 0, 1, "UbuntuKeyboardInfo", ubuntuKeyboardInfoSingleton);
     }
 
     virtual void initializeEngine(QQmlEngine *engine, const char *uri)
