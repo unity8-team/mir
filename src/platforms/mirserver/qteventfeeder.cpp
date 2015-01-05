@@ -330,7 +330,6 @@ void QtEventFeeder::dispatchMotion(MirMotionEvent const& event)
         touchPoint.id = event.pointer_coordinates[i].id;
         touchPoint.normalPosition = QPointF(kX / kWindowGeometry.width(), kY / kWindowGeometry.height());
         touchPoint.area = QRectF(kX - (kW / 2.0), kY - (kH / 2.0), kW, kH);
-        qDebug() << "JOSH: " << "Width: " << kW << " Height: " << "kH";
         touchPoint.pressure = kP / kMaxPressure;
         touchPoint.state = Qt::TouchPointMoved;
 
