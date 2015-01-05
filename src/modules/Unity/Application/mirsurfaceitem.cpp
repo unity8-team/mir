@@ -185,8 +185,8 @@ bool fillInMirEvent(MirEvent &mirEvent,
             pointer.raw_y =  touchPoint.rawScreenPositions().at(0).y();
         }
 
-        pointer.touch_major = 0.;
-        pointer.touch_minor = 0.;
+        pointer.touch_major = touchPoint.rect().width();
+        pointer.touch_minor = touchPoint.rect().height();
         pointer.size = 0.;
         pointer.pressure = touchPoint.pressure();
         pointer.orientation = 0.;
