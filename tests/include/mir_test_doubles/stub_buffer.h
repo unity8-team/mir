@@ -101,7 +101,7 @@ public:
 
     virtual bool can_bypass() const override { return true; }
     
-    void write(unsigned char const*, size_t) { }
+    void write(unsigned char const*, size_t) override { }
 
     void read(std::function<void(unsigned char const*)> const&) override {}
 
