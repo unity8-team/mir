@@ -185,10 +185,12 @@ static void redraw(MirSurface *surface, const MirGraphicsRegion *canvas)
 {
     MirGraphicsRegion backbuffer;
 
-    mir_surface_get_graphics_region(surface, &backbuffer);
+    mir_buffer_stream_get_graphics_region(mir_surface_get_buffer_stream(surface),
+       &backbuffer);
+
     clear_region(&backbuffer, background);
     copy_region(&backbuffer, canvas);
-    mir_surface_swap_buffers_sync(surface);
+    mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
 }
 
 int main(int argc, char *argv[])

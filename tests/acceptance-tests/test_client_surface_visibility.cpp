@@ -115,7 +115,7 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 
         // Swap enough buffers to ensure compositor threads are into run loop
         for (auto i = 0; i != 11; ++i)
-            mir_surface_swap_buffers_sync(surface);
+            mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
     }
 
     void TearDown() override
@@ -139,7 +139,7 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 
         server.the_surface_coordinator()->raise(server_surface(1));
 
-        mir_surface_swap_buffers_sync(second_surface);
+        mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(second_surface));
     }
 
     std::shared_ptr<ms::Surface> server_surface(size_t index)

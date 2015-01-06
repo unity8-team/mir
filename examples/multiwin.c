@@ -120,9 +120,10 @@ static void draw_window(Window *win)
 {
     MirGraphicsRegion region;
 
-    mir_surface_get_graphics_region(win->surface, &region);
+    mir_buffer_stream_get_graphics_region(mir_surface_get_buffer_stream(win->surface),
+            &region);
     clear_region(&region, &win->fill);
-    mir_surface_swap_buffers_sync(win->surface);
+    mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(win->surface));
 }
 
 static char const *socket_file = NULL;

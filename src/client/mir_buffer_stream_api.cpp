@@ -25,7 +25,7 @@
 #include "mir_surface.h"
 #include "mir_connection.h"
 
-#include "api_helpers.h"
+#include "uncaught.h"
 
 #include <stdexcept>
 #include <boost/throw_exception.hpp>

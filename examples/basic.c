@@ -74,9 +74,9 @@ static void surface_create_callback(MirSurface *new_surface, void *context)
 }
 
 // Callback to update MirDemoState on swap_buffers
-static void surface_swap_buffers_callback(MirSurface* surface, void *context)
+static void surface_swap_buffers_callback(MirBufferStream* stream, void *context)
 {
-    (void) surface;
+    (void) stream;
     (void) context;
 }
 
@@ -156,12 +156,16 @@ int demo_client(const char* server, int buffer_swap_count)
         {
             ///\internal [get_current_buffer_tag]
             MirNativeBuffer* buffer_package = NULL;
-            mir_surface_get_current_buffer(mcd.surface, &buffer_package);
+            mir_buffer_stream_get_current_buffer(
+                mir_surface_get_buffer_stream(mcd.surface), &buffer_package);
             assert(buffer_package != NULL);
-            if (mir_platform_type_gbm == mir_surface_get_platform_type(mcd.surface))
+            MirPlatformType type = 
+                mir_buffer_stream_get_platform_type(mir_surface_get_buffer_stream(mcd.surface));
+            if (type == mir_platform_type_gbm)
             {
                 // Interpret buffer_package as MirBufferPackage
-            } else if (mir_platform_type_android == mir_surface_get_platform_type(mcd.surface))
+            } 
+            else if (type == mir_platform_type_android)
             {
                 // Interpret buffer_package as ANativeWindowBuffer
             }
@@ -170,7 +174,8 @@ int demo_client(const char* server, int buffer_swap_count)
         }
 
         ///\internal [swap_buffers_tag]
-        mir_wait_for(mir_surface_swap_buffers(mcd.surface, surface_swap_buffers_callback, &mcd));
+        mir_wait_for(mir_buffer_stream_swap_buffers(mir_surface_get_buffer_stream(mcd.surface),
+            surface_swap_buffers_callback, &mcd));
         ///\internal [swap_buffers_tag]
     }
 

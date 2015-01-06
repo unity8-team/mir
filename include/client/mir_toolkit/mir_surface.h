@@ -208,14 +208,12 @@ void mir_surface_set_event_handler(MirSurface *surface,
                                    MirEventDelegate const *event_handler);
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Get a window type that can be used for OpenGL ES 2.0 acceleration.
  *   \param [in] surface  The surface
  *   \return              An EGLNativeWindowType that the client can use
  */
-MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface);
+MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface *surface) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_egl_native_window.")));
 
 /**
  * Test for a valid surface
@@ -245,32 +243,25 @@ char const *mir_surface_get_error_message(MirSurface *surface);
 void mir_surface_get_parameters(MirSurface *surface, MirSurfaceParameters *parameters);
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Get the underlying platform type so the buffer obtained in "raw" representation
  * in mir_surface_get_current_buffer() can be understood
  *   \pre                     The surface is valid
  *   \param [in] surface      The surface
  *   \return                  One of mir_platform_type_android or mir_platform_type_gbm
  */
-MirPlatformType mir_surface_get_platform_type(MirSurface *surface);
+MirPlatformType mir_surface_get_platform_type(MirSurface *surface) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_get_platform_type.")));
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Get a surface's buffer in "raw" representation.
  *   \pre                         The surface is valid
  *   \param [in] surface          The surface
  *   \param [out] buffer_package  Structure to be populated
  */
-void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package);
+void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffer_package) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_current_buffer.")));
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Get a surface's graphics_region, i.e., map the graphics buffer to main
  * memory.
  *   \pre                          The surface is valid
@@ -279,12 +270,10 @@ void mir_surface_get_current_buffer(MirSurface *surface, MirNativeBuffer **buffe
  */
 void mir_surface_get_graphics_region(
     MirSurface *surface,
-    MirGraphicsRegion *graphics_region);
+    MirGraphicsRegion *graphics_region) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_get_graphics_region.")));
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Advance a surface's buffer. The returned handle remains valid until the next
  * call to mir_surface_swap_buffers, until the surface has been released or the
  * connection to the server has been released.
@@ -300,17 +289,16 @@ void mir_surface_get_graphics_region(
 MirWaitHandle *mir_surface_swap_buffers(
     MirSurface *surface,
     mir_surface_callback callback,
-    void *context);
+    void *context) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_swap_buffers.")));
 
 /**
- * DEPRECATED: Prefer mir_surface_get_buffer_stream and the corresponding
- * mir_buffer_stream_* function.
- *
  * Advance a surface's buffer as in mir_surface_swap_buffers(), but also wait
  * for the operation to complete.
  *   \param [in] surface  The surface whose buffer to advance
  */
-void mir_surface_swap_buffers_sync(MirSurface *surface);
+void mir_surface_swap_buffers_sync(MirSurface *surface) __attribute__((__deprecated__(
+    "Use mir_surface_get_buffer_stream and mir_buffer_stream_swap_buffers_sync.")));
 
 /**
  * Release the supplied surface and any associated buffer. The returned wait
