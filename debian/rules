@@ -14,7 +14,7 @@ override_dh_clean:
 	dh_clean
 
 override_dh_auto_configure:
-	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR)
+	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR) -DCMAKE_INSTALL_PREFIX=$(TMP1_DIR)/usr/ -DUSE_OPENGLES=1
 
 override_dh_auto_build:
 	dh_auto_build -B$(ANDROID_DIR)
