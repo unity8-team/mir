@@ -62,6 +62,8 @@ struct MockSession : public Session
 
     void start_prompt_session() override {};
     void stop_prompt_session() override {};
+    void suspend_prompt_session() override {};
+    void resume_prompt_session() override {};
 
 private:
     std::string m_sessionName;
