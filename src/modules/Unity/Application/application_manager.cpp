@@ -161,9 +161,9 @@ ApplicationManager* ApplicationManager::Factory::Factory::create()
     ApplicationManager* appManager = new ApplicationManager(
                                              mirServer,
                                              taskController,
+                                             sharedWakelock,
                                              fileReaderFactory,
-                                             procInfo,
-                                             sharedWakelock
+                                             procInfo
                                          );
 
     connectToSessionListener(appManager, sessionListener);
@@ -196,9 +196,9 @@ ApplicationManager* ApplicationManager::singleton()
 ApplicationManager::ApplicationManager(
         const QSharedPointer<MirServer>& mirServer,
         const QSharedPointer<TaskController>& taskController,
+        const QSharedPointer<SharedWakelock>& sharedWakelock,
         const QSharedPointer<DesktopFileReader::Factory>& desktopFileReaderFactory,
         const QSharedPointer<ProcInfo>& procInfo,
-        const QSharedPointer<SharedWakelock>& sharedWakelock,
         QObject *parent)
     : ApplicationManagerInterface(parent)
     , m_mirServer(mirServer)

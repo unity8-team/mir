@@ -24,6 +24,7 @@
 #include <Unity/Application/applicationcontroller.h>
 #include <Unity/Application/mirsurfacemanager.h>
 #include <Unity/Application/sessionmanager.h>
+#include <Unity/Application/sharedwakelock.h>
 #include <Unity/Application/taskcontroller.h>
 #include <Unity/Application/proc_info.h>
 #include <mirserver.h>
@@ -94,9 +95,13 @@ public:
                   )
               )
         }
+        , sharedWakelock{
+            QSharedPointer<SharedWakelock>(new SharedWakelock)
+        }
         , applicationManager{
             mirServer,
             taskController,
+            sharedWakelock,
             QSharedPointer<DesktopFileReader::Factory>(
                 &desktopFileReaderFactory,
                 [](DesktopFileReader::Factory*){}),
@@ -148,6 +153,7 @@ public:
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
     QSharedPointer<FakeMirServer> mirServer;
     QSharedPointer<TaskController> taskController;
+    QSharedPointer<SharedWakelock> sharedWakelock;
     ApplicationManager applicationManager;
     SessionManager sessionManager;
     MirSurfaceManager surfaceManager;
