@@ -19,6 +19,7 @@
 #include "application_manager.h"
 #include "desktopfilereader.h"
 #include "session.h"
+#include "sharedwakelock.h"
 #include "taskcontroller.h"
 
 // common
@@ -37,12 +38,14 @@ namespace qtmir
 {
 
 Application::Application(const QSharedPointer<TaskController>& taskController,
+                         const QSharedPointer<SharedWakelock>& sharedWakelock,
                          DesktopFileReader *desktopFileReader,
                          State state,
                          const QStringList &arguments,
                          ApplicationManager *parent)
     : ApplicationInfoInterface(desktopFileReader->appId(), parent)
     , m_taskController(taskController)
+    , m_sharedWakelock(sharedWakelock)
     , m_desktopData(desktopFileReader)
     , m_pid(0)
     , m_stage((m_desktopData->stageHint() == "SideStage") ? Application::SideStage : Application::MainStage)
@@ -316,6 +319,8 @@ void Application::setState(Application::State state)
 void Application::setFocused(bool focused)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setFocused - appId=" << appId() << "focused=" << focused;
+    m_sharedWakelock->acquire(this);
+
     if (m_focused != focused) {
         m_focused = focused;
         Q_EMIT focusedChanged(focused);
@@ -326,17 +331,20 @@ void Application::onSessionSuspended()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionSuspended - appId=" << appId();
     m_taskController->suspend(longAppId());
+    m_sharedWakelock->release(this);
 }
 
 void Application::onSessionResumed()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionResumed - appId=" << appId();
+    m_sharedWakelock->acquire(this);
     m_taskController->resume(longAppId());
 }
 
 void Application::respawn()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::respawn - appId=" << appId();
+    m_sharedWakelock->acquire(this);
     m_taskController->start(appId(), m_arguments);
 }
 

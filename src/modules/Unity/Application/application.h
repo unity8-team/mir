@@ -41,6 +41,7 @@ class ApplicationManager;
 class DesktopFileReader;
 class TaskController;
 class Session;
+class SharedWakelock;
 
 class Application : public unity::shell::application::ApplicationInfoInterface
 {
@@ -68,6 +69,7 @@ public:
     Q_DECLARE_FLAGS(SupportedOrientations, Orientation)
 
     Application(const QSharedPointer<TaskController>& taskController,
+                const QSharedPointer<SharedWakelock>& sharedWakelock,
                 DesktopFileReader *desktopFileReader,
                 State state,
                 const QStringList &arguments,
@@ -127,6 +129,7 @@ private:
     QColor colorFromString(const QString &colorString, const char *colorName) const;
 
     QSharedPointer<TaskController> m_taskController;
+    QSharedPointer<SharedWakelock> m_sharedWakelock;
     DesktopFileReader* m_desktopData;
     QString m_longAppId;
     qint64 m_pid;

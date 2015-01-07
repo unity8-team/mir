@@ -37,6 +37,7 @@ set(QMLMIRPLUGIN_SRC
     proc_info.cpp
     session.cpp
     sessionmanager.cpp
+    sharedwakelock.cpp
     upstart/applicationcontroller.cpp
     tracepoints.c
 # We need to run moc on these headers
