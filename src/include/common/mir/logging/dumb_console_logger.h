@@ -27,10 +27,11 @@ namespace logging
 {
 class DumbConsoleLogger : public Logger
 {
-public:
-
 protected:
     void log(Severity severity, const std::string& message, const std::string& component) override;
+    void set_level(Severity max_level) override;
+private:
+    Severity log_level = Severity::debug;
 };
 }
 }
