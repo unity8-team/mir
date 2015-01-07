@@ -21,7 +21,7 @@
 #include "display_configuration.h"
 #include "rpc/make_rpc_channel.h"
 #include "rpc/null_rpc_report.h"
-#include "mir/logging/dumb_console_logger.h"
+#include "mir/logging/logger.h"
 #include "mir/input/input_platform.h"
 #include "mir/input/null_input_receiver_report.h"
 #include "logging/rpc_report.h"
@@ -102,7 +102,12 @@ mcl::DefaultConnectionConfiguration::the_logger()
     return logger(
         []
         {
-            return std::make_shared<mir::logging::DumbConsoleLogger>();
+            auto ret = mir::logging::get_logger();  // Default process logger
+
+            // Ensure clients don't get polluted with Mir information/debug
+            // messages by default.
+            ret->set_level(mir::logging::Severity::error);
+            return ret;
         });
 }
 

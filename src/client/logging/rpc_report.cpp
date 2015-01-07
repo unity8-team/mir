@@ -36,6 +36,8 @@ std::string const component{"rpc"};
 mcll::RpcReport::RpcReport(std::shared_ptr<ml::Logger> const& logger)
     : logger{logger}
 {
+    // You asked for it. This logging report needs debug level.
+    logger->set_level(ml::Severity::debug);
 }
 
 void mcll::RpcReport::invocation_requested(

@@ -26,7 +26,7 @@
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 
-#include "mir/logging/dumb_console_logger.h"
+#include "mir/logging/logger.h"
 #include "mir/options/program_option.h"
 #include "mir/frontend/session_credentials.h"
 #include "mir/frontend/session_authorizer.h"
@@ -212,6 +212,6 @@ auto mir::DefaultServerConfiguration::the_logger()
     return logger(
         [this]() -> std::shared_ptr<ml::Logger>
         {
-            return std::make_shared<ml::DumbConsoleLogger>();
+            return ml::get_logger();  // Default process logger
         });
 }

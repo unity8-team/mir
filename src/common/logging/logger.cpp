@@ -28,8 +28,9 @@ namespace
 {
 std::mutex log_mutex;
 std::shared_ptr<ml::Logger> the_logger;
+}
 
-std::shared_ptr<ml::Logger> get_logger()
+std::shared_ptr<ml::Logger> ml::get_logger()
 {
     if (auto const result = the_logger)
     {
@@ -43,7 +44,6 @@ std::shared_ptr<ml::Logger> get_logger()
 
         return the_logger;
     }
-}
 }
 
 void ml::log(ml::Severity severity, const std::string& message, const std::string& component)

@@ -213,5 +213,6 @@ MIR_COMMON_3.1 {
       mir::log*char*;
       mir::logv*;
       mir::libraries_for_path*;
+      mir::logging::get_logger*;
     };
 } MIR_COMMON_3;

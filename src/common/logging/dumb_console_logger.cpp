@@ -28,6 +28,8 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
                                 const std::string& message,
                                 const std::string& component)
 {
+    if (severity > log_level)
+        return;
 
     static const char* lut[5] =
             {

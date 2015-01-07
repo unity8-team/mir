@@ -18,6 +18,7 @@
 #include "mir_test_framework/command_line_server_configuration.h"
 #include "mir/options/default_configuration.h"
 #include "mir/server.h"
+#include "mir/logging/logger.h"
 
 #include <gtest/gtest.h>
 
@@ -47,6 +48,10 @@ int main(int argc, char** argv)
 {
     // Override this standard gtest message
     std::cout << "Running main() from " << basename(__FILE__) << std::endl;
+
+    // Limit log output during tests to error messages only
+    mir::logging::get_logger()->set_level(mir::logging::Severity::error);
+
     ::testing::InitGoogleTest(&argc, argv);
 
     ::argv = const_cast<char const**>(argv);

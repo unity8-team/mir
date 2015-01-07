@@ -45,15 +45,20 @@ public:
                      const std::string& message,
                      const std::string& component) = 0;
 
+    void set_level(Severity max_level) { log_level = max_level; }
+
 protected:
     Logger() {}
     virtual ~Logger() = default;
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
+
+    Severity log_level = Severity::debug;
 };
 
 void log(Severity severity, const std::string& message, const std::string& component);
 void set_logger(std::shared_ptr<Logger> const& new_logger);
+std::shared_ptr<Logger> get_logger();
 
 }
 }
