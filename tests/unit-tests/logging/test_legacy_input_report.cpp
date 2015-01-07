@@ -17,7 +17,7 @@
  */
 
 #include "mir/report/legacy_input_report.h"
-#include "mir/logging/logger.h"
+#include "mir_test_doubles/mock_logger.h"
 
 #include <std/Log.h>
 
@@ -33,16 +33,9 @@ using testing::_;
 
 namespace
 {
-class MockLogger : public ml::Logger
-{
-public:
-    MOCK_METHOD3(log, void(ml::Severity severity, const std::string& message, const std::string& component));
-    ~MockLogger() noexcept(true) {}
-};
-
 struct InputReport : public testing::Test
 {
-    MockLogger     logger;
+    mir::test::doubles::MockLogger logger;
 
     InputReport()
     {

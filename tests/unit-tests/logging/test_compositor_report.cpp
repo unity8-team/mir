@@ -36,9 +36,12 @@ namespace
 class Recorder : public ml::Logger
 {
 public:
-    void log(ml::Severity, string const& message, string const&)
+    void log(ml::Severity, string const& message, string const&) override
     {
         last = message;
+    }
+    void set_level(ml::Severity) override
+    {
     }
     string const& last_message() const
     {
