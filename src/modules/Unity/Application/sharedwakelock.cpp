@@ -29,24 +29,28 @@ static const char wakelockString[] = "qtmir";
 class Wakelock
 {
 public:
-    Wakelock() noexcept {
-        write(wakelockPath);
-        qCDebug(QTMIR_APPLICATIONS) << "Wakelock acquired";
+    Wakelock() noexcept
+    {
+        if (write(wakelockPath))
+            qCDebug(QTMIR_SESSIONS) << "Wakelock acquired";
     }
-    virtual ~Wakelock() noexcept {
-        write(wakeunlockPath);
-        qCDebug(QTMIR_APPLICATIONS) << "Wakelock released";
+
+    virtual ~Wakelock() noexcept
+    {
+        if (write(wakeunlockPath))
+            qCDebug(QTMIR_SESSIONS) << "Wakelock released";
     }
 
 private:
-    void write(const char path[])
+    bool write(const char path[])
     {
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-            return;
+            return false;
 
         QTextStream out(&file);
         out << wakelockString;
+        return true;
     }
 
     Q_DISABLE_COPY(Wakelock)
