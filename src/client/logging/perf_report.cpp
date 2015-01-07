@@ -34,6 +34,8 @@ logging::PerfReport::PerfReport(
                          std::make_shared<mir::time::SteadyClock>())
     , logger(logger)
 {
+    // You asked for it...
+    logger->set_level(ml::Severity::informational);
 }
 
 void logging::PerfReport::display(const char *name, long fps100,
