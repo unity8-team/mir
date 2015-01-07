@@ -31,13 +31,13 @@ class SharedWakelock : public QObject
     Q_OBJECT
 public:
     SharedWakelock() noexcept;
-    virtual ~SharedWakelock() noexcept = default;
+    virtual ~SharedWakelock() noexcept;
 
     void acquire(const QObject *caller);
     void release(const QObject *caller);
 
 protected:
-    QScopedPointer<qtmir::Wakelock> m_wakelock;
+    Wakelock *m_wakelock;
     QSet<const QObject *> m_owners;
 
 private:

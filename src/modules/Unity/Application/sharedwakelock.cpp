@@ -15,6 +15,7 @@
  */
 
 #include "sharedwakelock.h"
+#include "logging.h"
 
 #include <QFile>
 #include <QTextStream>
@@ -28,8 +29,14 @@ static const char wakelockString[] = "qtmir";
 class Wakelock
 {
 public:
-    Wakelock() noexcept { write(wakelockPath); }
-    virtual ~Wakelock() noexcept { write(wakeunlockPath); }
+    Wakelock() noexcept {
+        write(wakelockPath);
+        qCDebug(QTMIR_APPLICATIONS) << "Wakelock acquired";
+    }
+    virtual ~Wakelock() noexcept {
+        write(wakeunlockPath);
+        qCDebug(QTMIR_APPLICATIONS) << "Wakelock released";
+    }
 
 private:
     void write(const char path[])
@@ -59,8 +66,16 @@ private:
  */
 
 SharedWakelock::SharedWakelock() noexcept
+    : m_wakelock(nullptr)
 {
 }
+
+SharedWakelock::~SharedWakelock() noexcept
+{
+    if (m_wakelock)
+        delete m_wakelock;
+}
+
 
 void SharedWakelock::acquire(const QObject *caller)
 {
@@ -73,8 +88,8 @@ void SharedWakelock::acquire(const QObject *caller)
         release(caller);
     });
 
-    if (m_wakelock.isNull()) {
-        m_wakelock.reset(new Wakelock); // creates new Wakelock
+    if (m_wakelock == nullptr) {
+        m_wakelock = new Wakelock;
     }
 
     m_owners.insert(caller);
@@ -86,8 +101,9 @@ void SharedWakelock::release(const QObject *caller)
         return;
     }
 
-    if (m_owners.empty()) {
-        m_wakelock.reset(); // deletes the Wakelock (if any)
+    if (m_owners.empty() && m_wakelock) {
+        delete m_wakelock;
+        m_wakelock = nullptr;
     }
 }
 
