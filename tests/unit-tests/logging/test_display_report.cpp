@@ -17,7 +17,7 @@
  */
 
 #include "src/server/report/logging/display_report.h"
-#include "mir_test_doubles/mock_logger.h"
+#include "mir/logging/logger.h"
 #include "mir_test_doubles/mock_egl.h"
 
 #include <gtest/gtest.h>
@@ -30,6 +30,13 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
+class MockLogger : public ml::Logger
+{
+public:
+    MOCK_METHOD3(log, void(ml::Severity severity, const std::string& message, const std::string& component));
+    ~MockLogger() noexcept(true) {}
+};
+
 struct DisplayReport : public testing::Test
 {
     DisplayReport()
@@ -38,10 +45,10 @@ struct DisplayReport : public testing::Test
 
     void SetUp()
     {
-        logger = std::make_shared<mtd::MockLogger>();
+        logger = std::make_shared<MockLogger>();
     }
 
-    std::shared_ptr<mtd::MockLogger> logger;
+    std::shared_ptr<MockLogger> logger;
     mtd::MockEGL mock_egl;
 };
 

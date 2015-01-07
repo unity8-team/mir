@@ -26,7 +26,6 @@
 #include "mir/time/steady_clock.h"
 #include "mir/glib_main_loop.h"
 
-#include "mir_test_doubles/mock_logger.h"
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "src/server/report/null_report_factory.h"
@@ -60,10 +59,16 @@ namespace mtd=mir::test::doubles;
 namespace mtf=mir_test_framework;
 namespace mr=mir::report;
 
-using MockLogger = mir::test::doubles::MockLogger;
-
 namespace
 {
+struct MockLogger : public ml::Logger
+{
+    MOCK_METHOD3(log,
+                 void(ml::Severity, const std::string&, const std::string&));
+
+    ~MockLogger() noexcept(true) {}
+};
+
 class MockEventRegister : public mg::EventHandlerRegister
 {
 public:

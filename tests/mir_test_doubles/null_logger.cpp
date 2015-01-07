@@ -26,7 +26,3 @@ char const* const mtd::logging_descr = "output log during tests";
 void mtd::NullLogger::log(mir::logging::Severity, const std::string&, const std::string&)
 {
 }
-
-void mtd::NullLogger::set_level(mir::logging::Severity)
-{
-}
