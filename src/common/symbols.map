@@ -1,4 +1,4 @@
-MIR_COMMON_3 {
+MIR_COMMON_4 {
  global: mir_*;
   extern "C++" {
 # The following symbols come from running a script over the generated docs. Vis:
@@ -198,21 +198,16 @@ MIR_COMMON_3 {
     typeinfo?for?mir::fd_reception_error;
     typeinfo?for?mir::socket_error;
     typeinfo?for?mir::socket_disconnected_error;
+
+    mir_event_get*;
+    mir_event_get*;
+    mir_input_event_get*;
+    mir_key_input_event_get*;
+    mir_touch_input_event_get*;
+    mir::log*char*;
+    mir::logv*;
+    mir::libraries_for_path*;
+    mir::logging::get_logger*;
   };
  local: *;
 };
-
-MIR_COMMON_3.1 {
-  global:
-    extern "C++" {
-      mir_event_get*;
-      mir_event_get*;
-      mir_input_event_get*;
-      mir_key_input_event_get*;
-      mir_touch_input_event_get*;
-      mir::log*char*;
-      mir::logv*;
-      mir::libraries_for_path*;
-      mir::logging::get_logger*;
-    };
-} MIR_COMMON_3;
