@@ -123,8 +123,9 @@ SharedWakelock::SharedWakelock() noexcept
 
 SharedWakelock::~SharedWakelock() noexcept
 {
-    if (m_wakelock)
+    if (m_wakelock) {
         delete m_wakelock;
+    }
 }
 
 
