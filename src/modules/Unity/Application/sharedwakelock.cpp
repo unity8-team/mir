@@ -48,7 +48,7 @@ public:
             acquireWakelock(true);
         }
 
-        // TODO - if shell crashed while it held a wakelock, that wakelock will remain. Try to detect
+        // TODO - if shell crashed while it held a wakelock, that wakelock may remain. Try to detect
         // that and take ownership of that cookie?
     }
 
