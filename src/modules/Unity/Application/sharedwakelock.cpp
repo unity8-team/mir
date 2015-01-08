@@ -28,6 +28,7 @@ const int POWERD_SYS_STATE_ACTIVE = 1; // copied from private header file powerd
 
 /**
  * @brief The Wakelock class - on creation acquires a system wakelock, on destruction releases it
+ * Designed in the spirit of RAII.
  */
 class Wakelock : public AbstractDBusServiceMonitor
 {
@@ -44,7 +45,6 @@ public:
         QDBusPendingCall pcall = dbusInterface()->asyncCall("requestSysState", "active", POWERD_SYS_STATE_ACTIVE);
 
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(pcall, this);
-
         QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
                          this, &Wakelock::wakeLockAcquired);
     }

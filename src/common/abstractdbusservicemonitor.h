@@ -60,6 +60,7 @@ protected:
     const QString m_service;
     const QString m_path;
     const QString m_interface;
+    const QDBusConnection m_busConnection;
     QDBusServiceWatcher* m_watcher;
     QDBusAbstractInterface* m_dbusInterface;
 };

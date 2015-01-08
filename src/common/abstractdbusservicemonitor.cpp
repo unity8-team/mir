@@ -47,16 +47,16 @@ AbstractDBusServiceMonitor::AbstractDBusServiceMonitor(const QString &service, c
     , m_service(service)
     , m_path(path)
     , m_interface(interface)
-    , m_watcher(new QDBusServiceWatcher(service,
-                                        (bus == SystemBus) ? QDBusConnection::systemBus()
-                                                           : QDBusConnection::sessionBus()))
+    , m_busConnection((bus == SystemBus) ? QDBusConnection::systemBus()
+                                         : QDBusConnection::sessionBus())
+    , m_watcher(new QDBusServiceWatcher(service, m_busConnection))
     , m_dbusInterface(nullptr)
 {
     connect(m_watcher, &QDBusServiceWatcher::serviceRegistered, this, &AbstractDBusServiceMonitor::createInterface);
     connect(m_watcher, &QDBusServiceWatcher::serviceUnregistered, this, &AbstractDBusServiceMonitor::destroyInterface);
 
     // Connect to the service if it's up already
-    QDBusConnectionInterface* sessionBus = QDBusConnection::sessionBus().interface();
+    QDBusConnectionInterface* sessionBus = m_busConnection.interface();
     QDBusReply<bool> reply = sessionBus->isServiceRegistered(m_service);
     if (reply.isValid() && reply.value()) {
         createInterface(m_service);
@@ -76,8 +76,7 @@ void AbstractDBusServiceMonitor::createInterface(const QString &)
         m_dbusInterface = nullptr;
     }
 
-    m_dbusInterface = new AsyncDBusInterface(m_service, m_path, m_interface,
-                                             QDBusConnection::sessionBus());
+    m_dbusInterface = new AsyncDBusInterface(m_service, m_path, m_interface, m_busConnection);
     Q_EMIT serviceAvailableChanged(true);
 }
 
