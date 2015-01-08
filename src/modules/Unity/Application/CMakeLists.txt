@@ -24,6 +24,7 @@ add_definitions(-DBYTE_ORDER=__BYTE_ORDER)
 set(QMLMIRPLUGIN_SRC
     application_manager.cpp
     application.cpp
+    ../../../common/abstractdbusservicemonitor.cpp
     ../../../common/debughelpers.cpp
     desktopfilereader.cpp
     plugin.cpp

@@ -15,46 +15,70 @@
  */
 
 #include "sharedwakelock.h"
+#include "abstractdbusservicemonitor.h"
 #include "logging.h"
 
-#include <QFile>
-#include <QTextStream>
+#include <QDBusAbstractInterface>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
 
 namespace qtmir {
 
-static const char wakelockPath[] = "/sys/power/wake_lock";
-static const char wakeunlockPath[] = "/sys/power/wake_unlock";
-static const char wakelockString[] = "qtmir";
+const int POWERD_SYS_STATE_ACTIVE = 1; // copied from private header file powerd.h
 
-class Wakelock
+/**
+ * @brief The Wakelock class - on creation acquires a system wakelock, on destruction releases it
+ */
+class Wakelock : public AbstractDBusServiceMonitor
 {
+    Q_OBJECT
 public:
     Wakelock() noexcept
+        : AbstractDBusServiceMonitor("com.canonical.powerd", "/com/canonical/powerd", "com.canonical.powerd", SystemBus)
     {
-        if (write(wakelockPath))
-            qCDebug(QTMIR_SESSIONS) << "Wakelock acquired";
+        if (!dbusInterface()) {
+            qWarning() << "com.canonical.powerd DBus interface not available";
+            return;
+        }
+
+        QDBusPendingCall pcall = dbusInterface()->asyncCall("requestSysState", "active", POWERD_SYS_STATE_ACTIVE);
+
+        QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(pcall, this);
+
+        QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                         this, &Wakelock::wakeLockAcquired);
     }
 
     virtual ~Wakelock() noexcept
     {
-        if (write(wakeunlockPath))
-            qCDebug(QTMIR_SESSIONS) << "Wakelock released";
+        if (!dbusInterface()) {
+            qWarning() << "com.canonical.powerd DBus interface not available";
+            return;
+        }
+
+        dbusInterface()->asyncCall("clearSysState", m_cookie);
+        qCDebug(QTMIR_SESSIONS) << "Wakelock released";
     }
 
 private:
-    bool write(const char path[])
+    Q_SLOT void wakeLockAcquired(QDBusPendingCallWatcher *call)
     {
-        QFile file(path);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-            return false;
-
-        QTextStream out(&file);
-        out << wakelockString;
-        return true;
+        QDBusPendingReply<QString> reply = *call;
+        if (reply.isError()) {
+            qCDebug(QTMIR_SESSIONS) << "Wakelock was not acquired";
+        } else {
+            m_cookie = reply.argumentAt<0>();
+            qCDebug(QTMIR_SESSIONS) << "Wakelock acquired";
+        }
+        call->deleteLater();
     }
+
+    QString m_cookie;
 
     Q_DISABLE_COPY(Wakelock)
 };
+
+#include "sharedwakelock.moc"
 
 /**
  * @brief SharedWakelock - allow a single wakelock instance to be shared between multiple owners
