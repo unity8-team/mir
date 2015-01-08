@@ -66,6 +66,20 @@ TEST(SharedWakelock, doubleAcquireBySameOwnerOnlyCreatesASingleWakelock)
     sharedWakelock.acquire(app1.data());
 }
 
+TEST(SharedWakelock, doubleAcquireThenReleaseBySameOwnerDestroysWakelock)
+{
+    using namespace ::testing;
+
+    testing::NiceMock<MockSharedWakelock> sharedWakelock;
+    QScopedPointer<QObject> app1(new QObject);
+
+    EXPECT_CALL(sharedWakelock, createWakelock()).Times(1).WillOnce(Return(new QObject));
+    sharedWakelock.acquire(app1.data());
+    sharedWakelock.acquire(app1.data());
+    sharedWakelock.release(app1.data());
+    EXPECT_FALSE(sharedWakelock.wakelockHeld());
+}
+
 TEST(SharedWakelock, acquireByDifferentOwnerOnlyCreatesASingleWakelock)
 {
     using namespace ::testing;
@@ -108,6 +122,24 @@ TEST(SharedWakelock, twoOwnersWhenBothReleaseWakelockReleased)
     sharedWakelock.release(app2.data());
     sharedWakelock.release(app1.data());
     EXPECT_FALSE(sharedWakelock.wakelockHeld());
+}
+
+TEST(SharedWakelock, doubleReleaseOfSingleOwnerIgnored)
+{
+    using namespace ::testing;
+
+    testing::NiceMock<MockSharedWakelock> sharedWakelock;
+    QScopedPointer<QObject> app1(new QObject);
+    QScopedPointer<QObject> app2(new QObject);
+
+    EXPECT_CALL(sharedWakelock, createWakelock()).Times(1).WillOnce(Return(new QObject));
+    sharedWakelock.acquire(app1.data());
+    sharedWakelock.acquire(app2.data());
+    sharedWakelock.release(app1.data());
+    EXPECT_TRUE(sharedWakelock.wakelockHeld());
+
+    sharedWakelock.release(app1.data());
+    EXPECT_TRUE(sharedWakelock.wakelockHeld());
 }
 
 TEST(SharedWakelock, nullOwnerAcquireIgnored)
