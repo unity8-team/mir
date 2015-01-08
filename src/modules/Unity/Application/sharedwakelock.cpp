@@ -47,6 +47,9 @@ public:
         } else {
             acquireWakelock(true);
         }
+
+        // TODO - if shell crashed while it held a wakelock, that wakelock will remain. Try to detect
+        // that and take ownership of that cookie?
     }
 
     virtual ~Wakelock() noexcept
@@ -79,7 +82,7 @@ private Q_SLOTS:
 
     void onWakeLockAcquired(QDBusPendingCallWatcher *call)
     {
-        if (m_cookie.isEmpty()) {
+        if (m_cookie.isEmpty()) { // don't overwrite existing cookie
             QDBusPendingReply<QString> reply = *call;
             if (reply.isError()) {
                 qCDebug(QTMIR_SESSIONS) << "Wakelock was NOT acquired, error:"
