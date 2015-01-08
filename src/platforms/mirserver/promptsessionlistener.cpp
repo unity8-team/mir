@@ -45,6 +45,18 @@ void PromptSessionListener::stopping(std::shared_ptr<ms::PromptSession> const& p
     Q_EMIT promptSessionStopping(prompt_session);
 }
 
+void PromptSessionListener::suspending(std::shared_ptr<ms::PromptSession> const& prompt_session)
+{
+    qCDebug(QTMIR_MIR_MESSAGES) << "PromptSessionListener::suspending - this=" << this << "prompt_session=" << prompt_session.get();
+    Q_EMIT promptSessionSuspending(prompt_session);
+}
+
+void PromptSessionListener::resuming(std::shared_ptr<ms::PromptSession> const& prompt_session)
+{
+    qCDebug(QTMIR_MIR_MESSAGES) << "PromptSessionListener::resuming - this=" << this << "prompt_session=" << prompt_session.get();
+    Q_EMIT promptSessionResuming(prompt_session);
+}
+
 void PromptSessionListener::prompt_provider_added(ms::PromptSession const& prompt_session,
                                                   std::shared_ptr<ms::Session> const& prompt_provider)
 {
