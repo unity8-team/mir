@@ -319,7 +319,7 @@ void Application::setState(Application::State state)
 void Application::setFocused(bool focused)
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::setFocused - appId=" << appId() << "focused=" << focused;
-    m_sharedWakelock->acquire(this);
+    holdWakelock(true);
 
     if (m_focused != focused) {
         m_focused = focused;
@@ -331,20 +331,20 @@ void Application::onSessionSuspended()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionSuspended - appId=" << appId();
     m_taskController->suspend(longAppId());
-    m_sharedWakelock->release(this);
+    holdWakelock(false);
 }
 
 void Application::onSessionResumed()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::onSessionResumed - appId=" << appId();
-    m_sharedWakelock->acquire(this);
+    holdWakelock(true);
     m_taskController->resume(longAppId());
 }
 
 void Application::respawn()
 {
     qCDebug(QTMIR_APPLICATIONS) << "Application::respawn - appId=" << appId();
-    m_sharedWakelock->acquire(this);
+    holdWakelock(true);
     m_taskController->start(appId(), m_arguments);
 }
 
@@ -361,6 +361,18 @@ Application::SupportedOrientations Application::supportedOrientations() const
 Session* Application::session() const
 {
     return m_session;
+}
+
+void Application::holdWakelock(bool enable) const
+{
+    if (appId() == "unity8-dash")
+        return;
+
+    if (enable) {
+        m_sharedWakelock->acquire(this);
+    } else {
+        m_sharedWakelock->release(this);
+    }
 }
 
 } // namespace qtmir
