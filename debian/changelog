@@ -1,3 +1,9 @@
+qtmir-gles (0.4.4+15.04.20150108.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Thu, 08 Jan 2015 08:59:06 -0600
+
 qtmir-gles (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=medium
 
   [ Michał Sawicz ]
