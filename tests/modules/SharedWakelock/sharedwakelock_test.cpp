@@ -27,7 +27,6 @@ using namespace qtmir;
 struct MockSharedWakelock : public SharedWakelock
 {
     MOCK_METHOD0(createWakelock, QObject*());
-    QObject* wakelock() { return m_wakelock.data(); }
     bool wakelockHeld() { return m_wakelock; }
 };
 }
@@ -129,4 +128,17 @@ TEST(SharedWakelock, nullOwnerReleaseIgnored)
 
     EXPECT_CALL(sharedWakelock, createWakelock()).Times(0);
     sharedWakelock.release(nullptr);
+}
+
+TEST(SharedWakelock, ifOwnerDestroyedWakelockReleased)
+{
+    using namespace ::testing;
+
+    testing::NiceMock<MockSharedWakelock> sharedWakelock;
+    QScopedPointer<QObject> app1(new QObject);
+
+    EXPECT_CALL(sharedWakelock, createWakelock()).Times(1).WillOnce(Return(new QObject));
+    sharedWakelock.acquire(app1.data());
+    app1.reset();
+    EXPECT_FALSE(sharedWakelock.wakelockHeld());
 }
