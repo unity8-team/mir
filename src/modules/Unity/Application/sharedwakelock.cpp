@@ -116,22 +116,15 @@ private:
  * Note a caller cannot have multiple shares of the wakelock. Multiple calls to acquire are ignored.
  */
 
-SharedWakelock::SharedWakelock() noexcept
-    : m_wakelock(nullptr)
+QObject* SharedWakelock::createWakelock()
 {
-}
-
-SharedWakelock::~SharedWakelock() noexcept
-{
-    if (m_wakelock) {
-        delete m_wakelock;
-    }
+    return new Wakelock;
 }
 
 
 void SharedWakelock::acquire(const QObject *caller)
 {
-    if (m_owners.contains(caller)) {
+    if (m_owners.contains(caller) || caller == nullptr) {
         return;
     }
 
@@ -140,8 +133,8 @@ void SharedWakelock::acquire(const QObject *caller)
         release(caller);
     });
 
-    if (m_wakelock == nullptr) {
-        m_wakelock = new Wakelock;
+    if (m_wakelock.isNull()) {
+        m_wakelock.reset(createWakelock());
     }
 
     m_owners.insert(caller);
@@ -149,13 +142,12 @@ void SharedWakelock::acquire(const QObject *caller)
 
 void SharedWakelock::release(const QObject *caller)
 {
-    if (!m_owners.remove(caller)) {
+    if (!m_owners.remove(caller) || caller == nullptr) {
         return;
     }
 
     if (m_owners.empty() && m_wakelock) {
-        delete m_wakelock;
-        m_wakelock = nullptr;
+        m_wakelock.reset();
     }
 }
 

@@ -21,23 +21,24 @@
 
 #include <QObject>
 #include <QSet>
+#include <QScopedPointer>
 
 namespace qtmir {
-
-class Wakelock;
 
 class SharedWakelock : public QObject
 {
     Q_OBJECT
 public:
-    SharedWakelock() noexcept;
-    virtual ~SharedWakelock() noexcept;
+    SharedWakelock() = default;
+    virtual ~SharedWakelock() noexcept = default;
 
     void acquire(const QObject *caller);
     void release(const QObject *caller);
 
 protected:
-    Wakelock *m_wakelock;
+    virtual QObject* createWakelock(); // override to test
+
+    QScopedPointer<QObject> m_wakelock;
     QSet<const QObject *> m_owners;
 
 private:
