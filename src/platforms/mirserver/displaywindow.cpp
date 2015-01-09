@@ -100,7 +100,8 @@ bool DisplayWindow::event(QEvent *event)
 
 void DisplayWindow::swapBuffers()
 {
-    m_displayBuffer->post_update();
+    m_displayBuffer->gl_swap_buffers();
+    m_displayBuffer->flip();
 }
 
 void DisplayWindow::makeCurrent()
