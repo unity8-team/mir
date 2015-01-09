@@ -107,7 +107,7 @@ private:
  * @brief SharedWakelock - allow a single wakelock instance to be shared between multiple owners
  *
  * QtMir has application management duties to perform even if display is off. To prevent device
- * going to deeep sleep before QtMir is ready, have QtMir register a system wakelock when it needs to.
+ * going to deep sleep before QtMir is ready, have QtMir register a system wakelock when it needs to.
  *
  * This class allows multiple objects to own the wakelock simultaneously. The wakelock is first
  * registered when acquire has been called by one caller. Multiple callers may then share the

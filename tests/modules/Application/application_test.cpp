@@ -30,7 +30,7 @@ public:
     {}
 };
 
-TEST_F(ApplicationTests, checkFocusAquiresWakeLock)
+TEST_F(ApplicationTests, checkFocusAcquiresWakeLock)
 {
     using namespace ::testing;
 
@@ -85,7 +85,7 @@ TEST_F(ApplicationTests, checkRespawnAcquiresWakeLock)
     app->setState(Session::State::Running);
 }
 
-TEST_F(ApplicationTests, checkDashFocusDoesNotAquireWakeLock)
+TEST_F(ApplicationTests, checkDashFocusDoesNotAcquireWakeLock)
 {
     using namespace ::testing;
 
