@@ -36,6 +36,7 @@
 #include "mock_focus_controller.h"
 #include "mock_prompt_session_manager.h"
 #include "mock_prompt_session.h"
+#include "mock_shared_wakelock.h"
 
 namespace ms = mir::scene;
 using namespace qtmir;
@@ -95,13 +96,10 @@ public:
                   )
               )
         }
-        , sharedWakelock{
-            QSharedPointer<SharedWakelock>(new SharedWakelock)
-        }
         , applicationManager{
             mirServer,
             taskController,
-            sharedWakelock,
+            QSharedPointer<MockSharedWakelock>(&sharedWakelock, [](MockSharedWakelock *){}),
             QSharedPointer<DesktopFileReader::Factory>(
                 &desktopFileReaderFactory,
                 [](DesktopFileReader::Factory*){}),
@@ -145,15 +143,14 @@ public:
         auto appSession = std::make_shared<mir::scene::MockSession>(appId.toStdString(), procId);
         sessionManager.onSessionStarting(appSession);
         return application;
-        return nullptr;
     }
 
     testing::NiceMock<testing::MockApplicationController> appController;
     testing::NiceMock<testing::MockProcInfo> procInfo;
     testing::NiceMock<testing::MockDesktopFileReaderFactory> desktopFileReaderFactory;
+    testing::NiceMock<testing::MockSharedWakelock> sharedWakelock;
     QSharedPointer<FakeMirServer> mirServer;
     QSharedPointer<TaskController> taskController;
-    QSharedPointer<SharedWakelock> sharedWakelock;
     ApplicationManager applicationManager;
     SessionManager sessionManager;
     MirSurfaceManager surfaceManager;

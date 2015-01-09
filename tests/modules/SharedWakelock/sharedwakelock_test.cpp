@@ -17,19 +17,13 @@
 
 #include <Unity/Application/sharedwakelock.h>
 
+#include "mock_shared_wakelock.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-namespace
-{
 using namespace qtmir;
-
-struct MockSharedWakelock : public SharedWakelock
-{
-    MOCK_METHOD0(createWakelock, QObject*());
-    bool wakelockHeld() { return m_wakelock; }
-};
-}
+using testing::MockSharedWakelock;
 
 TEST(SharedWakelock, acquireCreatesAWakelock)
 {
