@@ -30,6 +30,8 @@ public:
 
     void starting(std::shared_ptr<mir::scene::PromptSession> const& prompt_session) override;
     void stopping(std::shared_ptr<mir::scene::PromptSession> const& prompt_session) override;
+    void suspending(std::shared_ptr<mir::scene::PromptSession> const& prompt_session) override;
+    void resuming(std::shared_ptr<mir::scene::PromptSession> const& prompt_session) override;
 
     void prompt_provider_added(mir::scene::PromptSession const& prompt_session,
         std::shared_ptr<mir::scene::Session> const& prompt_provider) override;
@@ -39,6 +41,8 @@ public:
 Q_SIGNALS:
     void promptSessionStarting(std::shared_ptr<mir::scene::PromptSession> const& session);
     void promptSessionStopping(std::shared_ptr<mir::scene::PromptSession> const& session);
+    void promptSessionSuspending(std::shared_ptr<mir::scene::PromptSession> const& session);
+    void promptSessionResuming(std::shared_ptr<mir::scene::PromptSession> const& session);
 
     void promptProviderAdded(mir::scene::PromptSession const*, std::shared_ptr<mir::scene::Session> const&);
     void promptProviderRemoved(mir::scene::PromptSession const*, std::shared_ptr<mir::scene::Session> const&);

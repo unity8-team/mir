@@ -1,3 +1,16 @@
+qtmir (0.4.4+15.04.20150108.1-0ubuntu1) vivid; urgency=low
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+  [ Cemil Azizoglu ]
+  * Rebuild for Mir 0.10.
+
+  [ Nick Dedekind ]
+  * Compatibility for Mir 0.10.0
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 08 Jan 2015 14:18:06 +0000
+
 qtmir (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=low
 
   [ Daniel d'Andrada ]

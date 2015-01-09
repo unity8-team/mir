@@ -60,6 +60,7 @@ public:
     void reception_mode_set_to(mir::input::InputReceptionMode) override {}
     void cursor_image_set_to(mir::graphics::CursorImage const&) override {}
     void orientation_set_to(MirOrientation) override {}
+    void client_surface_close_requested() override {}
 private:
     QObject *m_listener;
 };
