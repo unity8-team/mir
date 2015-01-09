@@ -80,7 +80,8 @@ public:
 
     static ApplicationManager* singleton();
 
-    explicit ApplicationManager(const QSharedPointer<MirServer> &mirServer,
+    explicit ApplicationManager(
+            const QSharedPointer<MirServer> &mirServer,
             const QSharedPointer<TaskController> &taskController,
             const QSharedPointer<SharedWakelock> &sharedWakelock,
             const QSharedPointer<DesktopFileReader::Factory> &desktopFileReaderFactory,
