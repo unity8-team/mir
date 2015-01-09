@@ -129,9 +129,7 @@ void SharedWakelock::acquire(const QObject *caller)
     }
 
     // register a slot to remove itself from owners list if destroyed
-    QObject::connect(caller, &QObject::destroyed, this, [&](QObject *caller) {
-        release(caller);
-    });
+    QObject::connect(caller, &QObject::destroyed, this, &SharedWakelock::release);
 
     if (m_wakelock.isNull()) {
         m_wakelock.reset(createWakelock());

@@ -33,7 +33,7 @@ public:
     virtual ~SharedWakelock() noexcept = default;
 
     void acquire(const QObject *caller);
-    void release(const QObject *caller);
+    Q_SLOT void release(const QObject *caller);
 
 protected:
     virtual QObject* createWakelock(); // override to test
