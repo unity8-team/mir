@@ -213,17 +213,17 @@ TEST_F(SessionTests, SuspendPromptSessionWhenSessionSuspends)
     auto mirSession = std::make_shared<MockSession>(appId.toStdString(), procId);
     EXPECT_CALL(*mirSession, set_lifecycle_state(_));
 
-    auto session = std::make_shared<MockQtMirSession>(mirSession, mirConfig->the_prompt_session_manager());
+    auto session = std::make_shared<MockQtMirSession>(mirSession, mirServer->the_prompt_session_manager());
     session->setState(Session::State::Running);
 
     auto mirPromptSession = std::make_shared<ms::MockPromptSession>();
     session->appendPromptSession(mirPromptSession);
 
-    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), suspend_prompt_session(_)).Times(1);
+    EXPECT_CALL(*mirServer->the_mock_prompt_session_manager(), suspend_prompt_session(_)).Times(1);
 
     session->setState(Session::State::Suspended);
 
-    Mock::VerifyAndClear(mirConfig->the_mock_prompt_session_manager().get());
+    Mock::VerifyAndClear(mirServer->the_mock_prompt_session_manager().get());
 }
 
 TEST_F(SessionTests, ResumePromptSessionWhenSessionResumes)
@@ -236,16 +236,16 @@ TEST_F(SessionTests, ResumePromptSessionWhenSessionResumes)
     auto mirSession = std::make_shared<MockSession>(appId.toStdString(), procId);
     EXPECT_CALL(*mirSession, set_lifecycle_state(_));
 
-    auto session = std::make_shared<MockQtMirSession>(mirSession, mirConfig->the_prompt_session_manager());
+    auto session = std::make_shared<MockQtMirSession>(mirSession, mirServer->the_prompt_session_manager());
     session->setState(Session::State::Suspended);
 
     auto mirPromptSession = std::make_shared<ms::MockPromptSession>();
     session->appendPromptSession(mirPromptSession);
 
-    EXPECT_CALL(*mirConfig->the_mock_prompt_session_manager(), resume_prompt_session(_)).Times(1);
+    EXPECT_CALL(*mirServer->the_mock_prompt_session_manager(), resume_prompt_session(_)).Times(1);
 
     session->setState(Session::State::Running);
 
-    Mock::VerifyAndClear(mirConfig->the_mock_prompt_session_manager().get());
+    Mock::VerifyAndClear(mirServer->the_mock_prompt_session_manager().get());
 }
 
