@@ -47,7 +47,6 @@ int main(int argc, char** argv)
 {
     // Override this standard gtest message
     std::cout << "Running main() from " << basename(__FILE__) << std::endl;
-
     ::testing::InitGoogleTest(&argc, argv);
 
     ::argv = const_cast<char const**>(argv);
