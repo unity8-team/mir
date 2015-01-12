@@ -27,25 +27,13 @@
 #include "mir/logging/logger.h"
 #include "mir/report/legacy_input_report.h"
 #include "mir_test/fake_event_hub.h"
+#include "mir_test_doubles/null_logger.h"
 
 namespace ml = mir::logging;
 
 using std::string;
 using mir::input::android::FakeEventHub;
-
-namespace
-{
-class TestLogger : public ml::Logger
-{
-public:
-    void log(ml::Severity severity, const string& message, const string& component) override {
-        (void)severity;
-        (void)message;
-        (void)component;
-    }
-};
-}
-
+using mir::test::doubles::NullLogger;
 
 namespace android {
 
@@ -569,7 +557,7 @@ protected:
     sp<InstrumentedInputReader> mReader;
 
     virtual void SetUp() {
-        mir::report::legacy_input::initialize(std::make_shared<TestLogger>());
+        mir::report::legacy_input::initialize(std::make_shared<NullLogger>());
         mReader = new InstrumentedInputReader(mFakeEventHub, mFakePolicy, mFakeListener);
     }
 
@@ -790,7 +778,7 @@ protected:
     InputDevice* mDevice;
 
     virtual void SetUp() {
-        mir::report::legacy_input::initialize(std::make_shared<TestLogger>());
+        mir::report::legacy_input::initialize(std::make_shared<NullLogger>());
         mFakeEventHub = new FakeEventHub();
         mFakePolicy = new FakeInputReaderPolicy();
         mFakeListener = new FakeInputListener();
@@ -980,7 +968,7 @@ protected:
     InputDevice* mDevice;
 
     virtual void SetUp() {
-        mir::report::legacy_input::initialize(std::make_shared<TestLogger>());
+        mir::report::legacy_input::initialize(std::make_shared<NullLogger>());
         mFakeEventHub = new FakeEventHub();
         mFakePolicy = new FakeInputReaderPolicy();
         mFakeListener = new FakeInputListener();
