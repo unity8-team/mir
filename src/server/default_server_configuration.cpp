@@ -212,6 +212,11 @@ auto mir::DefaultServerConfiguration::the_logger()
     return logger(
         [this]() -> std::shared_ptr<ml::Logger>
         {
-            return ml::get_logger();  // Default process logger
+            auto ret = ml::get_logger(ml::Severity::debug);
+
+            // If the logger already existed, force it to log everything for
+            // servers...
+            ret->set_level(ml::Severity::debug);
+            return ret;
         });
 }

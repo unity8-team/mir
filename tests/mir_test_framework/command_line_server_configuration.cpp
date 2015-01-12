@@ -50,7 +50,11 @@ int main(int argc, char** argv)
     std::cout << "Running main() from " << basename(__FILE__) << std::endl;
 
     // Limit log output during tests to error messages only
-    mir::logging::get_logger()->set_level(mir::logging::Severity::error);
+    auto limit = mir::logging::Severity::error;
+    auto logger = mir::logging::get_logger(limit);
+    // limit would only have been applied if logger didn't exist yet. So now
+    // force it:
+    logger->set_level(limit);
 
     ::testing::InitGoogleTest(&argc, argv);
 

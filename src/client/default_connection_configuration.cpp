@@ -102,12 +102,9 @@ mcl::DefaultConnectionConfiguration::the_logger()
     return logger(
         []
         {
-            auto ret = mir::logging::get_logger();  // Default process logger
-
-            // Ensure clients don't get polluted with Mir information/debug
-            // messages by default.
-            ret->set_level(mir::logging::Severity::error);
-            return ret;
+            // As a client, we accept the current logger (if one exists),
+            // and if not, create one that is limited to errors or worse.
+            return mir::logging::get_logger(mir::logging::Severity::error);
         });
 }
 
