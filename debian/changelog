@@ -11,7 +11,6 @@ mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
         trusted prompt session (LP: #1355173)
       . a prompt session with an invalid application pid should be an error
         (LP: #1377968)
-      . [regression] mir package fails to build for arm64 (LP: #1379478)
 
  -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 12 Jan 2015 17:44:57 +0800
 
