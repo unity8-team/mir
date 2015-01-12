@@ -16,7 +16,7 @@
  * Authored by: Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#include "mir/logging/dumb_console_logger.h"
+#include "dumb_console_logger.h"
 #include "mir/logging/logger.h"
 
 #include <memory>

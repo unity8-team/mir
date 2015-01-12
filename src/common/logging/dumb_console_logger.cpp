@@ -16,7 +16,7 @@
  * Authored by: Thomas Voß <thomas.voss@canonical.com>
  */
 
-#include "mir/logging/dumb_console_logger.h"
+#include "dumb_console_logger.h"
 
 #include <iostream>
 #include <ctime>

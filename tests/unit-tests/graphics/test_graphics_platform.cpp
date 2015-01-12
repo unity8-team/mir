@@ -31,13 +31,11 @@
 #else
 #include "mir_test_doubles/mock_android_hw.h"
 #endif
-#include "mir/logging/dumb_console_logger.h"
 
 
 #include <gtest/gtest.h>
 
 namespace mg = mir::graphics;
-namespace ml = mir::logging;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 namespace mo = mir::options;
@@ -48,7 +46,7 @@ namespace mtf = mir_test_framework;
 class GraphicsPlatform : public ::testing::Test
 {
 public:
-    GraphicsPlatform() : logger(std::make_shared<ml::DumbConsoleLogger>())
+    GraphicsPlatform()
     {
         using namespace testing;
 
@@ -70,8 +68,6 @@ public:
     {
         return mtd::create_platform_with_null_dependencies();
     }
-
-    std::shared_ptr<ml::Logger> logger;
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
     ::testing::NiceMock<mtd::MockGL> mock_gl;
