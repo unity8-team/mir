@@ -1,3 +1,19 @@
+mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Bug fix release 0.8.1 (https://launchpad.net/mir/+milestone/0.8.1)
+    - ABI summary: Servers need rebuilding, but clients do not;
+      . Mirclient ABI unchanged at 8
+      . Mircommon ABI unchanged at 2
+      . Mirplatform ABI unchanged to 3
+      . Mirserver ABI bumped to 26.1 (due to breakage in LP: #1355173)
+    - Fixes bugs:
+      . Switching windows with a Trusted Prompt Session active loses the
+        trusted prompt session (LP: #1355173)
+      . a prompt session with an invalid application pid should be an error
+        (LP: #1377968)
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 12 Jan 2015 17:44:57 +0800
+
 mir (0.8.0+14.10.20141010-0ubuntu1) utopic; urgency=medium
 
   [ Daniel van Vugt ]
