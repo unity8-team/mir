@@ -210,6 +210,8 @@ mir::DisplayServer::~DisplayServer() = default;
 
 void mir::DisplayServer::run()
 {
+    // Servers should always log everything
+    mir::logging::get_logger()->raise_level(mir::logging::Severity::debug);
     mir::log_info("Mir version " MIR_VERSION);
 
     p->connector->start();
