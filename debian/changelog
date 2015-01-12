@@ -1,3 +1,9 @@
+mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Bump for trust-prompt-suspend backport.
+
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Mon, 12 Jan 2015 10:20:26 +0100
+
 mir (0.8.0+14.10.20141010-0ubuntu1) utopic; urgency=medium
 
   [ Daniel van Vugt ]
