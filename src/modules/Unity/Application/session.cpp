@@ -26,6 +26,7 @@
 
 // mir
 #include <mir/scene/session.h>
+#include <mir/scene/prompt_session.h>
 #include <mir/scene/prompt_session_manager.h>
 
 // Qt
@@ -223,7 +224,6 @@ void Session::setState(State state)
         {
         case Session::State::Suspended:
             if (m_state == Session::State::Running) {
-                stopPromptSessions();
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
                 m_suspendTimer->start(3000);
             }
@@ -252,6 +252,19 @@ void Session::setState(State state)
 
         m_state = state;
         Q_EMIT stateChanged(state);
+
+        foreachPromptSession([this, state](const std::shared_ptr<ms::PromptSession>& promptSession) {
+            switch (state) {
+                case Session::State::Suspended:
+                    m_promptSessionManager->suspend_prompt_session(promptSession);
+                    break;
+                case Session::State::Running:
+                    m_promptSessionManager->resume_prompt_session(promptSession);
+                    break;
+                default:
+                    break;
+            }
+        });
 
         foreachChildSession([state](SessionInterface* session) {
             session->setState(state);

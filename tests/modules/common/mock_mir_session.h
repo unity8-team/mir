@@ -31,7 +31,7 @@ namespace scene {
 struct MockSession : public Session
 {
     MockSession() {}
-    MockSession(std::string const& sessionName, pid_t processId) 
+    MockSession(std::string const& sessionName, pid_t processId)
         : m_sessionName(sessionName), m_sessionId(processId)
     {}
 
