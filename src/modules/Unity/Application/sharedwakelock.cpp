@@ -21,10 +21,12 @@
 #include <QDBusAbstractInterface>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
+#include <QFile>
 
 namespace qtmir {
 
 const int POWERD_SYS_STATE_ACTIVE = 1; // copied from private header file powerd.h
+const char cookieFile[] = "/tmp/qtmir_powerd_cookie";
 
 /**
  * @brief The Wakelock class - on creation acquires a system wakelock, on destruction releases it
@@ -44,16 +46,23 @@ public:
 
         if (!serviceAvailable()) {
             qWarning() << "com.canonical.powerd DBus interface not available, waiting for it";
+            return;
+        }
+
+        // WORKAROUND: if shell crashed while it held a wakelock, due to bug lp:1409722 powerd will not have released
+        // the wakelock for it. As workaround, we save the cookie to file and restore it if possible.
+        QFile cookie(cookieFile);
+        if (cookie.exists() && cookie.open(QFile::ReadOnly | QFile::Text)) {
+            m_cookie = cookie.readAll();
         } else {
             acquireWakelock(true);
         }
-
-        // TODO - if shell crashed while it held a wakelock, that wakelock may remain. Try to detect
-        // that and take ownership of that cookie?
     }
 
     virtual ~Wakelock() noexcept
     {
+        QFile::remove(cookieFile);
+
         if (!serviceAvailable()) {
             qWarning() << "com.canonical.powerd DBus interface not available";
             return;
@@ -70,6 +79,7 @@ private Q_SLOTS:
     {
         if (!available) {
             m_cookie.clear(); // clear cookie so that when powerd re-appears, new cookie will be set
+            QFile::remove(cookieFile);
             return;
         }
 
@@ -89,6 +99,12 @@ private Q_SLOTS:
                                         << QDBusError::errorString(reply.error().type());
             } else {
                 m_cookie = reply.argumentAt<0>();
+
+                // see WORKAROUND above for why we save cookie to disk
+                QFile cookie(cookieFile);
+                cookie.open(QFile::WriteOnly | QFile::Text);
+                cookie.write(m_cookie.toLatin1());
+
                 qCDebug(QTMIR_SESSIONS) << "Wakelock acquired" << m_cookie;
             }
         }
