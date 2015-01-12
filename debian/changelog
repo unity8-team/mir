@@ -1,5 +1,6 @@
-mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.8.1+15.04.20150112.2~rtm-0ubuntu1) 14.09; urgency=medium
 
+  [ Daniel van Vugt ]
   * Bug fix release 0.8.1 (https://launchpad.net/mir/+milestone/0.8.1)
     - ABI summary: Servers need rebuilding, but clients do not;
       . Mirclient ABI unchanged at 8
@@ -11,8 +12,218 @@ mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
         trusted prompt session (LP: #1355173)
       . a prompt session with an invalid application pid should be an error
         (LP: #1377968)
+  * mir_demo_client_basic: Don't assert on user errors like failing to
+    connect to a Mir server. It's much more useful to tell the user what
+    they did wrong than to automatically generate error reports and
+    duplicate apport bugs. (LP: #1331958) . (LP: #1331958)
+  * Enable "Project Butter" motion event resampling and prediction for a
+    more responsive touch experience. .
+  * When the server disconnects unexpectedly, give the client SIGHUP
+    instead of the present SIGTERM. The former is more appropriate
+    because it indicates: "Hangup detected on controlling terminal or
+    death of controlling process" [signal(7)] whereas SIGTERM is
+    reserved for more polite user-requested shutdowns. .
+  * Fix the common/shared source tree layout inconsistency. If it goes
+    in libmircommon then it should be called "common" and not "shared":
+  * Move mir::time::*Clock out of libmirserver and into libmircommon. It
+    will soon be used by libmirclient.
+  * Bump version to 0.8.0 as Mir 0.7.0 was released today.
+  * Remove dead code "kill_client_processes()" from mir_test_framework.
+  * Work around spurious SIGKILL delivered to clients by Valgrind during
+    tests. This is why CI is failing randomly (LP: #1364772) Actually
+    this workaround is nothing new. A quick grep shows we already use
+    the same hack in 13 other locations under tests/. . (LP: #1364772)
+  * Privatise (don't install) headers that are unused by clients, QtMir
+    or USC. This reduces the size of the public include/ tree from 377
+    to 121 files, and reduces the number of those that get installed
+    from 208 to 121.
+  * Bump the mircommon ABI to 2. We actually broke it in the Mir 0.7.0
+    release with symbols.map and didn't notice in time (LP: #1364890)
+    (LP: #1364890)
+  * Restore support for gcc-4.8/trusty (LP: #1366134) (LP: #1366134)
+  * Publish an internal header that QtMir recently started using:
+    mir/input/input_channel.h (LP: #1365934) . (LP: #1365934)
+  * Relax dependencies on libmirplatform2. Any binary package that uses
+    libmirplatform2 should already be ABI compatible with any version of
+    libmirplatform2. Assuming we maintain our ABIs correctly...
+    Minimising exact version requirements should minimise future package
+    upgrade problems. .
+  * Privatise more headers -- these are the ones unused by any external
+    projects but are used internally by the server code in examples/
+    only.
+  * Introducing a generic client performance report. Just turn it on:
+    env MIR_CLIENT_PERF_REPORT=log yourclient and you will get nice
+    useful performance information: [1409905806.508895] (II) perf:
+    eglappsurface: 60.21 FPS, render time 0.62ms, buffer lag 47.64ms (3
+    buffers) [1409905807.510868] (II) perf: eglappsurface: 59.94 FPS,
+    render time 0.13ms, buffer lag 49.96ms (3 buffers)
+    [1409905808.513115] (II) perf: eglappsurface: 59.88 FPS, render time
+    0.12ms, buffer lag 49.98ms (3 buffers) .
+  * Remove FPS output from examples/*. A more accurate and useful
+    measure of FPS is now available to all clients by: env
+    MIR_CLIENT_PERF_REPORT=log anyclient.
+  * Privatise shared_library_prober*.h until such time that some
+    external project needs them.
+  * examples: Restore the -q (quiet mode) option to eglapps and flicker.
+    It got deleted a little to hastily in r1906 when really it's still
+    useful and worth keeping. .
+  * Fix constructor syntax errors, which only just today g++ has decided
+    are fatal (LP: #1369389) (LP: #1369389)
+  * Introduce explicit driver ABI levels:    libmirplatformNdriver,
+    libmirclientMdriver
+  * Bump the server ABI to 26. We broke it in r1924.
+  * Build all platforms by default. No just Mesa. It's safe to do so,
+    and in fact we already do so in our Deb builds :) This way no one
+    can forget to fix Android build issues when working on desktop. .
+  * Fix jerky/stuttering event delivery that could happen inside nested
+    servers sometimes (LP: #1372300) (LP: #1372300)
+  * Reduced visible input lag by approx one frame (on 59-60Hz displays)*
+  * Avoid polling in a loop with timeout zero most of the time. That
+    will only waste CPU. (LP: #1373809) (LP: #1373809)
+  * demo shell: Keep colours consistent, regardless of the physical
+    pixel format of your framebuffer (LP: #1375660). (LP: #1375660)
+  * Fix executable bit on tools/*.sh (LP: #1376547). (LP: #1376547)
+  * Update ABI sha1sums. We re-exposed a bunch of headers in r1952 and
+    forgot to update the checksums. .
+  * Fix input receiver tests with mocked clocks accidentally taking real
+    time (not mocked time) to complete (LP: #1375211) . (LP: #1375211)
+  * integration-tests: Backport test enhancements from the "double"
+    branch that allow the tests to work in the presence of either triple
+    or double buffering. No ETA on when we might enable double
+    buffering, but it's good to have the tests ready.
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 12 Jan 2015 17:44:57 +0800
+  [ Cemil Azizoglu ]
+  * Remove file accidentally checked in
+  * Merge mir/ubuntu back to devel to resolve conflicts.
+  * Fix for LP: #1304873 (mir_unit_tests.MesaBufferAllocatorTest.* test
+    fails under sbuild chroot env). (LP: #1304873)
+  * Revert r1942.
+  * Revert r1955 which was failing jenkins.
+
+  [ Alexandros Frantzis ]
+  * client: Ensure our platform library stays loaded for as long as it
+    is needed by other objects. This avoids crashes observed on
+    mir_connect failure (LP: #1358191) (LP: #1358191)
+  * examples: Register the DemoCompositor with the Scene to properly
+    process visibility events (LP: #1359487). (LP: #1359487)
+  * tests: Ensure that the server has really and fully started after
+    calling ServerRunner::start_mir_server().
+  * tests: Explicitly depend on GMock target to avoid build races (LP:
+    #1362646). (LP: #1362646)
+  * scene: Throw when inactive compositor ids are passed to the
+    rendering tracker
+  * tests: Fix races in TestClientInput (LP: #1361757). (LP: #1361757)
+  * tests: Refactor the TestClientCursorAPI tests to simplify them and
+    fix races (LP: #1342567). (LP: #1342567)
+  * tests: Fix intermittent failure of
+    DemoPrivateProtobuf.client_calls_server (LP: #1367353). (LP:
+    #1367353)
+  * tests: Use perfect forwarding in AutoUnblockThread and
+    AutoJoinThread (LP: #1369389). (LP: #1369389)
+  * server: Work around unresponsive clients causing the server to hang
+    (LP: #1350207). (LP: #1350207)
+  * tests: Use precompiled headers for gtest/gmock and some common
+    system headers.
+  * nested: Ensure that the nested Platform object stays alive for at
+    least as long as the nested Display object needs it (LP: #1372276).
+    (LP: #1372276)
+  * tests: Fix SharedLibraryProber test runs on i386. (LP: #1375829)
+  * mesa: Use mir::Fd instead of custom fd handle type.
+  * cmake: Allow dumping the ABI using prebuilt libraries.
+
+  [ Alberto Aguirre ]
+  * Recycle compositor threads by using a thread pool (LP: #1362841).
+    (LP: #1362841)
+  * Fix license of basic_thread_pool.h header.
+  * Add a playground folder for demos that use private mir
+    functionality. Rename include.private to src/include Scrub examples
+    to remove some private header dependencies. .
+  * Add make targets to check abi compatibility against the last
+    official release.
+
+  [ Kevin DuBois ]
+  * docs: add a document detailing the useful tests to run and the
+    useful logs to collect when troubleshooting a new android chipset.
+  * correct the texture cache to not rely on 'invalid' buffer id's.
+  * frontend: Add ability to associate SurfaceId's with BufferId's. This
+    is in preparation for rpc (Buffer) exchange_buffer(Buffer) so the
+    frontend can correctly return the exchanged buffer to the
+    appropriate surface.
+  * android: preserve the registered callback hooks until the hwc device
+    has been closed. lp: #1364637. (LP: #1364637)
+  * frontend: add the stubs for the exchange_buffer rpc call
+  * reintroduce the headers needed by platform-api
+  * make the mir default for overlay match the USC default by turning on
+    the android overlay optimization by default. Also add a simple
+    overlay integration test.
+  * frontend: hook up the exchange_buffer message in the protobuf
+    message processor. Also include an integration test that has been
+    driving the server side of the exchange buffer work.
+  * frontend: log the exchange_buffer messages in the session-mediator-
+    report.
+  * Make the fd-sending code common so that it is accessible from the
+    client code.
+  * android: rename a few classes that were
+    mir::graphics::android::Android* to just be
+    mir::graphics::android::*.
+  * android: add a quirk that will prevent a device from opening the
+    gralloc device after it has been closed.
+  * frontend: platform: provide a way for the frontend to perform
+    platform specific actions upon receipt of buffer from the client.
+    Split out the 3 platform ipc operations into its own interface.
+  * Allow the platform to read the fd's and data from the buffer message
+    abstraction. This will let the platform to read from the buffer
+    messages coming back from the client.
+  * make the Fd reception code common to the server and the client (as
+    the server will need to receive code soon).
+  * fix arm64 package by adding arm64 to the shared library prober test
+    fixes: lp: #1379478 (LP: #1379478)
+
+  [ Andreas Pokorny ]
+  * Replace checks for MESA_drm_image with KHR_image_pixmap and disables
+    the checks
+  * Update cmake scripts to current version of gcovr We used to call
+    gcovr with -c 'some string' and -r source_dir, both parameter cause
+    trouble with gcovr 3.0 and later. -r source_dir means that gcovr
+    will not find any coverage files written through the test run. The
+    purpose of -c 'some string' seems to be rather descriptive. Older CI
+    results indicated that we were using gcovr-2.5-prerelease before and
+    gcovr 3.1 now. .
+
+  [ Robert Carr ]
+  * Add touchspot visualizations toggleable with --enable-touchspots.
+    (LP: #1323522)
+  * Ensure touchspots do not update the scene when disabled
+
+  [ Alan Griffiths ]
+  * tests: link the integration and unit tests against the server
+    objects.
+  * libmirserver: initial cut at symbol map for libmirserver.
+  * client, platform: ensure that plugins can resolve symbols in these
+    libraries
+  * client, platform: ensure that plugins can resolve symbols in these
+    libraries.
+  * tools: Provide some help text for process_doygen_xml.py.
+  * common: correct usage of compare_exchange_weak().
+  * Acceptance tests only use published headers as user code needs the
+    headers to use these features. (LP: #1375301)
+  * examples, playground: republish the "playground" examples that only
+    depend on features used in the acceptance tests.
+  * trusted prompt sessions: starting a prompt session with an invalid
+    application pid reports an error (LP: #1377968) (LP: #1377968)
+
+  [ Christopher James Halse Rogers ]
+  * Use std::system_error in preference to std::runtime_error for system
+    errors.
+  * Remove an obsolete workaround for a clang bug with the lttng
+    headers. Fixes LP: #1348472. (LP: #1348472)
+  * Add a helper to load all the shared libraries in a directory.
+  * Add versioned symbol loading support to SharedLibrary.
+  * Add the first cut of a guide for developers to the ELF symbol
+    versioning used in Mir DSOs.
+  * Use mir::Fd in client RPC code.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 12 Jan 2015 16:07:38 +0000
 
 mir (0.8.0+14.10.20141010-0ubuntu1) utopic; urgency=medium
 
