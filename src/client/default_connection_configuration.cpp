@@ -102,9 +102,9 @@ mcl::DefaultConnectionConfiguration::the_logger()
     return logger(
         []
         {
-            // As a client, we accept the current logger (if one exists),
-            // and if not, create one that is limited to errors or worse.
-            return mir::logging::get_logger(mir::logging::Severity::error);
+            auto ret = mir::logging::get_logger();
+            ret->raise_level(mir::logging::Severity::error);
+            return ret;
         });
 }
 

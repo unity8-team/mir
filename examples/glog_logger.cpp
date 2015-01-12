@@ -87,7 +87,8 @@ void mir::examples::GlogLogger::log(ml::Severity severity, std::string const& me
         << '[' << component << "] " << message;
 }
 
-void mir::examples::GlogLogger::set_level(ml::Severity severity)
+void mir::examples::GlogLogger::raise_level(ml::Severity severity)
 {
-    log_level = severity;
+    if (severity > log_level)
+        log_level = severity;
 }

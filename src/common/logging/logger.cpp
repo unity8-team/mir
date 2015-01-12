@@ -30,7 +30,7 @@ std::mutex log_mutex;
 std::shared_ptr<ml::Logger> the_logger;
 }
 
-std::shared_ptr<ml::Logger> ml::get_logger(ml::Severity default_max_level)
+std::shared_ptr<ml::Logger> ml::get_logger()
 {
     if (auto const result = the_logger)
     {
@@ -40,10 +40,7 @@ std::shared_ptr<ml::Logger> ml::get_logger(ml::Severity default_max_level)
     {
         std::lock_guard<decltype(log_mutex)> lock{log_mutex};
         if (!the_logger)
-        {
             the_logger = std::make_shared<ml::DumbConsoleLogger>();
-            the_logger->set_level(default_max_level);
-        }
 
         return the_logger;
     }
@@ -51,7 +48,7 @@ std::shared_ptr<ml::Logger> ml::get_logger(ml::Severity default_max_level)
 
 void ml::log(ml::Severity severity, const std::string& message, const std::string& component)
 {
-    auto const logger = get_logger(ml::Severity::error);
+    auto const logger = get_logger();
 
     logger->log(severity, message, component);
 }

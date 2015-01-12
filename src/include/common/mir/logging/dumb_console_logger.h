@@ -29,9 +29,9 @@ class DumbConsoleLogger : public Logger
 {
 protected:
     void log(Severity severity, const std::string& message, const std::string& component) override;
-    void set_level(Severity max_level) override;
+    void raise_level(Severity max_level) override;
 private:
-    Severity log_level = Severity::debug;
+    Severity log_level = Severity::critical;
 };
 }
 }

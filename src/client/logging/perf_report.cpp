@@ -35,7 +35,7 @@ logging::PerfReport::PerfReport(
     , logger(logger)
 {
     // You asked for it...
-    logger->set_level(ml::Severity::informational);
+    logger->raise_level(ml::Severity::informational);
 }
 
 void logging::PerfReport::display(const char *name, long fps100,

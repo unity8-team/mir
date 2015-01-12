@@ -45,7 +45,15 @@ public:
                      const std::string& message,
                      const std::string& component) = 0;
 
-    virtual void set_level(Severity max_level) = 0;
+    /**
+     * Raise the maximum log level allowed to be output.
+     * So that a process and multiple components can all share the same
+     * Logger, we need to guarantee every user's raise_level() specification
+     * is honoured. This is done by only allowing the log level to be raised
+     * and never reduced. A request to raise_level to a lower level has no
+     * effect.
+     */
+    virtual void raise_level(Severity max_level) = 0;
 
 protected:
     Logger() {}
@@ -56,7 +64,7 @@ protected:
 
 void log(Severity severity, const std::string& message, const std::string& component);
 void set_logger(std::shared_ptr<Logger> const& new_logger);
-std::shared_ptr<Logger> get_logger(Severity default_max_level);
+std::shared_ptr<Logger> get_logger();
 
 }
 }

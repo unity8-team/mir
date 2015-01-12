@@ -38,7 +38,7 @@ mcll::InputReceiverReport::InputReceiverReport(std::shared_ptr<ml::Logger> const
     : logger{logger}
 {
     // You asked for it. This logging report needs debug level.
-    logger->set_level(ml::Severity::debug);
+    logger->raise_level(ml::Severity::debug);
 }
 
 namespace

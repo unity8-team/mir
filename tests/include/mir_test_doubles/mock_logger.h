@@ -33,7 +33,7 @@ class MockLogger : public mir::logging::Logger
 {
 public:
     MOCK_METHOD3(log, void(mir::logging::Severity, const std::string&, const std::string&));
-    MOCK_METHOD1(set_level, void(mir::logging::Severity));
+    MOCK_METHOD1(raise_level, void(mir::logging::Severity));
     ~MockLogger() noexcept(true) {}
 };
 

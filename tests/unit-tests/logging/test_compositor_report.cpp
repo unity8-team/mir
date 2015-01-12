@@ -40,7 +40,7 @@ public:
     {
         last = message;
     }
-    void set_level(ml::Severity) override
+    void raise_level(ml::Severity) override
     {
     }
     string const& last_message() const

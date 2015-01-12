@@ -59,7 +59,8 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
         << "\n";
 }
 
-void ml::DumbConsoleLogger::set_level(ml::Severity max)
+void ml::DumbConsoleLogger::raise_level(ml::Severity max)
 {
-    log_level = max;
+    if (max > log_level)
+        log_level = max;
 }
