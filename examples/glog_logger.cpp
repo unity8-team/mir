@@ -70,6 +70,9 @@ mir::examples::GlogLogger::GlogLogger(
 
 void mir::examples::GlogLogger::log(ml::Severity severity, std::string const& message, std::string const& component)
 {
+    if (severity > log_level)
+        return;
+
     static int glog_level[] =
     {
         google::GLOG_FATAL,     // critical = 0,
@@ -82,4 +85,9 @@ void mir::examples::GlogLogger::log(ml::Severity severity, std::string const& me
     // Since we're not collecting __FILE__ or __LINE__ this is misleading
     google::LogMessage(__FILE__, __LINE__, glog_level[static_cast<int>(severity)]).stream()
         << '[' << component << "] " << message;
+}
+
+void mir::examples::GlogLogger::set_level(ml::Severity severity)
+{
+    log_level = severity;
 }

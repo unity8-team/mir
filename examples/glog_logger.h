@@ -36,6 +36,10 @@ private:
         mir::logging::Severity severity,
         std::string const& message,
         std::string const& component) override;
+
+    void set_level(mir::logging::Severity) override;
+
+    mir::logging::Severity log_level = mir::logging::Severity::debug;
 };
 }
 }

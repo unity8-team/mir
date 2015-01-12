@@ -20,6 +20,7 @@
 #include "mir/logging/logger.h"
 
 #include "mir_test/fake_shared.h"
+#include "mir_test_doubles/mock_logger.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -40,16 +41,9 @@ public:
     ~MockClock() noexcept(true) {}
 };
 
-class MockLogger : public ml::Logger
-{
-public:
-    MOCK_METHOD3(log, void(ml::Severity severity, const std::string& message, const std::string& component));
-    ~MockLogger() noexcept(true) {}
-};
-
 struct MessageProcessorReport : public Test
 {
-    MockLogger logger;
+    mir::test::doubles::MockLogger logger;
     MockClock clock;
 
     mir::report::logging::MessageProcessorReport report;
