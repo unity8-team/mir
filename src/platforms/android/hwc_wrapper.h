@@ -19,10 +19,14 @@
 #ifndef MIR_GRAPHICS_ANDROID_HWC_WRAPPER_H_
 #define MIR_GRAPHICS_ANDROID_HWC_WRAPPER_H_
 
+#include "mir/int_wrapper.h"
 #include "display_name.h"
-#include <hardware/hwcomposer.h>
 #include <array>
-#include <memory>
+#include <functional>
+#include <chrono>
+#include <vector>
+
+struct hwc_display_contents_1;
 
 namespace mir
 {
@@ -31,19 +35,32 @@ namespace graphics
 namespace android
 {
 
+struct ConfigIdTag;
+typedef IntWrapper<ConfigIdTag, uint32_t> ConfigId;
+
 struct HWCCallbacks;
 class HwcWrapper
 {
 public:
     virtual ~HwcWrapper() = default;
 
-    virtual void prepare(std::array<hwc_display_contents_1_t*, HWC_NUM_DISPLAY_TYPES> const&) const = 0;
-    virtual void set(std::array<hwc_display_contents_1_t*, HWC_NUM_DISPLAY_TYPES> const&) const = 0;
-    virtual void register_hooks(std::shared_ptr<HWCCallbacks> const& callbacks) = 0;
+    virtual void prepare(std::array<hwc_display_contents_1*, HWC_NUM_DISPLAY_TYPES> const&) const = 0;
+    virtual void set(std::array<hwc_display_contents_1*, HWC_NUM_DISPLAY_TYPES> const&) const = 0;
+    //receive vsync, invalidate, and hotplug events from the driver.
+    //As with the HWC api, these events MUST NOT call-back to the other functions in HwcWrapper. 
+    virtual void subscribe_to_events(
+        void const* subscriber,
+        std::function<void(DisplayName, std::chrono::nanoseconds)> const& vsync_callback,
+        std::function<void(DisplayName, bool)> const& hotplug_callback,
+        std::function<void()> const& invalidate_callback) = 0;
+    virtual void unsubscribe_from_events(void const* subscriber) noexcept = 0;
     virtual void vsync_signal_on(DisplayName) const = 0;
     virtual void vsync_signal_off(DisplayName) const = 0;
     virtual void display_on(DisplayName) const = 0;
     virtual void display_off(DisplayName) const = 0;
+    virtual std::vector<ConfigId> display_configs(DisplayName) const = 0;
+    virtual void display_attributes(
+        DisplayName, ConfigId, uint32_t const* attributes, int32_t* values) const = 0;
 
 protected:
     HwcWrapper() = default;
