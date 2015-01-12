@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -13,30 +13,18 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
+ * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "hwc_vsync.h"
-namespace mga=mir::graphics::android;
+#ifndef MIR_EVENT_TYPE_TO_STRING_H_
+#define MIR_EVENT_TYPE_TO_STRING_H_
 
-mga::HWCVsync::HWCVsync()
-    : vsync_occurred(false)
+#include <string>
+#include "mir_toolkit/client_types.h"
+
+namespace mir
 {
+std::string event_type_to_string(MirEventType t);
 }
 
-void mga::HWCVsync::wait_for_vsync()
-{
-    std::unique_lock<std::mutex> lk(vsync_wait_mutex);
-    vsync_occurred = false;
-    while(!vsync_occurred)
-    {
-        vsync_trigger.wait(lk);
-    }
-}
-
-void mga::HWCVsync::notify_vsync()
-{
-    std::unique_lock<std::mutex> lk(vsync_wait_mutex);
-    vsync_occurred = true;
-    vsync_trigger.notify_all();
-}
+#endif // MIR_EVENT_TYPE_TO_STRING_H_

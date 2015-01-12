@@ -21,8 +21,6 @@ add_library(mirplatformgraphicsandroidobjects OBJECT
   hwc_fb_device.cpp
   hwc_loggers.cpp
   hwc_device.cpp
-  hwc_common_device.cpp
-  hwc_vsync.cpp
   android_alloc_adaptor.cpp
   server_render_window.cpp
   resource_factory.cpp
@@ -34,7 +32,6 @@ add_library(mirplatformgraphicsandroidobjects OBJECT
   real_hwc_wrapper.cpp
   hwc_fallback_gl_renderer.cpp
   ipc_operations.cpp
-  buffer_writer.cpp
   hwc_blanking_control.cpp
 )
 add_library(mirplatformgraphicsandroid SHARED

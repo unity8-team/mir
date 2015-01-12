@@ -54,10 +54,13 @@ double calculate_vrefresh_hz(drmModeModeInfo const& mode)
         return 0.0;
 
     /* mode.clock is in KHz */
-    double vrefresh_hz = mode.clock * 1000.0 / (mode.htotal * mode.vtotal);
+    double hz = (mode.clock * 100000LL /
+                 ((long)mode.htotal * (long)mode.vtotal)
+                ) / 100.0;
 
-    /* Round to first decimal */
-    return round(vrefresh_hz * 10.0) / 10.0;
+    // Actually we don't need floating point at all for this...
+    // TODO: Consider converting our structs to fixed-point ints
+    return hz;
 }
 
 mg::DisplayConfigurationOutputType
@@ -262,3 +265,36 @@ mgm::RealKMSDisplayConfiguration::find_output_with_id(mg::DisplayConfigurationOu
                         });
 }
 
+// Compatibility means conf1 can be attained from conf2 (and vice versa)
+// without recreating the display buffers (e.g. conf1 and conf2 are identical
+// except one of the outputs of conf1 is rotated w.r.t. that of conf2). If
+// the two outputs differ in their power state, the display buffers would need
+// to be allocated/destroyed, and hence should not be considered compatible.
+bool mgm::compatible(mgm::RealKMSDisplayConfiguration const& conf1, mgm::RealKMSDisplayConfiguration const& conf2)
+{
+    bool compatible{(conf1.drm_fd         == conf2.drm_fd) &&
+                    (conf1.card           == conf2.card)   &&
+                    (conf1.outputs.size() == conf2.outputs.size())};
+
+    if (compatible)
+    {
+        unsigned int const count = conf1.outputs.size();
+
+        for (unsigned int i = 0; i < count; ++i)
+        {
+            compatible &= (conf1.outputs[i].power_mode == conf2.outputs[i].power_mode);
+            if (compatible)
+            {
+                auto clone = conf2.outputs[i];
+
+                // ignore difference in orientation
+                clone.orientation = conf1.outputs[i].orientation;
+                compatible &= (conf1.outputs[i] == clone);
+            }
+            else
+            	break;
+        }
+    }
+
+    return compatible;
+}

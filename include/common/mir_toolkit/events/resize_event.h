@@ -16,29 +16,38 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include <cstddef>
+#ifndef MIR_TOOLKIT_EVENTS_RESIZE_EVENT_H_
+#define MIR_TOOLKIT_EVENTS_RESIZE_EVENT_H_
 
-namespace mir
-{
-namespace graphics
-{
-class Buffer;
+#include <mir_toolkit/events/event.h>
 
-/// An interface provided by the graphics platform allowing for writing untiled pixel data into buffers.
-class BufferWriter
-{
-public:
-    virtual ~BufferWriter() = default;
+#ifdef __cplusplus
+/**
+ * \addtogroup mir_toolkit
+ * @{
+ */
+extern "C" {
+#endif
 
-    // Expects data to be an unstrided array containing (buffer.width * buffer.height) pixels. Likewise
-    // it is expected that buffer and data match in pixel format.
-    virtual void write(Buffer& buffer, unsigned char const* data, size_t size) = 0;
+/*
+ * Retrieve the new width reported by a given MirResizeEvent
+ * 
+ * \param[in] ev The resize event
+ * \return       The reported width
+ */
+int mir_resize_event_get_width(MirResizeEvent const* ev);
 
-protected:
-    BufferWriter() = default;
-    BufferWriter(BufferWriter const&) = delete;
-    BufferWriter& operator=(BufferWriter const&) = delete;
-};
+/*
+ * Retrieve the new height reported by a given MirResizeEvent
+ * 
+ * \param[in] ev The resize event
+ * \return       The reported height
+ */
+int mir_resize_event_get_height(MirResizeEvent const* ev);
 
+#ifdef __cplusplus
 }
-}
+/**@}*/
+#endif
+
+#endif /* MIR_TOOLKIT_RESIZE_EVENT_H_ */

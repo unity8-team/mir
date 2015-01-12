@@ -16,25 +16,30 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#include "buffer_writer.h"
+#ifndef MIR_TOOLKIT_EVENTS_ORIENTATION_EVENT_H_
+#define MIR_TOOLKIT_EVENTS_ORIENTATION_EVENT_H_
 
-#include "shm_buffer.h"
+#include <mir_toolkit/events/event.h>
 
-#include <boost/throw_exception.hpp>
-#include <stdexcept>
+#ifdef __cplusplus
+/**
+ * \addtogroup mir_toolkit
+ * @{
+ */
+extern "C" {
+#endif
 
-namespace mg = mir::graphics;
-namespace mgm = mir::graphics::mesa;
+/*
+ * Retrieve the new orientation reported by this MirOrientationEvent
+ *
+ * \param[in] ev The orientation event
+ * \return       The new orientation
+ */
+MirOrientation mir_orientation_event_get_direction(MirOrientationEvent const* ev);
 
-mgm::BufferWriter::BufferWriter()
-{
+#ifdef __cplusplus
 }
+/**@}*/
+#endif
 
-void mgm::BufferWriter::write(mg::Buffer& buffer, unsigned char const* data, size_t size)
-{
-    auto shm_buffer = dynamic_cast<mgm::ShmBuffer*>(&buffer);
-    if (!shm_buffer)
-        BOOST_THROW_EXCEPTION(std::logic_error("Direct CPU write is only supported to software allocated buffers on mesa platform"));
-    
-    shm_buffer->write(data, size);
-}
+#endif /* MIR_TOOLKIT_ORIENTATION_EVENT_H_ */
