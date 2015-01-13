@@ -9,7 +9,7 @@ Build-Depends: cmake,
 # in libstdc++ causing us issues, we explicitly select a G++
 # version. To allow cross-compiling to work, we also must
 # append :native to g++-4.9 so we don't try to run armhf g++
-# on an x86 CPU for eaxmple, when cross-compiling.
+# on an x86 CPU for example, when cross-compiling.
                g++-4.9:native,
                google-mock (>= 1.6.0+svn437),
                libboost-system-dev,
