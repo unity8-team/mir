@@ -11,6 +11,9 @@ mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
         trusted prompt session (LP: #1355173)
       . a prompt session with an invalid application pid should be an error
         (LP: #1377968)
+      . Crash: /usr/sbin/unity-system-compositor:*** Error in
+        `unity-system-compositor': free(): invalid pointer: ADDR ***
+        (LP: #1376324)
 
  -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 12 Jan 2015 17:44:57 +0800
 
