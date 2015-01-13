@@ -35,7 +35,7 @@ public:
         scene::Session* session) override;
 
     void raise(std::weak_ptr<scene::Surface> const& surface) override;
-
+    int configure_surface(scene::Surface&, MirSurfaceAttrib, int) override;
     void remove_surface(std::weak_ptr<scene::Surface> const& surface) override;
 
 protected:

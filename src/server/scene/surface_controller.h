@@ -30,7 +30,7 @@ class PlacementStrategy;
 class SurfaceStackModel;
 class SurfaceFactory;
 
-/// Will grow up to provide synchronization of model updates
+/// Will soon grow up to provide synchronization of model updates
 class SurfaceController : public SurfaceCoordinator
 {
 public:
@@ -46,6 +46,8 @@ public:
     void remove_surface(std::weak_ptr<Surface> const& surface) override;
 
     void raise(std::weak_ptr<Surface> const& surface) override;
+
+    int configure_surface(Surface&, MirSurfaceAttrib, int) override;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;

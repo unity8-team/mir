@@ -44,3 +44,10 @@ void msh::SurfaceCoordinatorWrapper::remove_surface(std::weak_ptr<ms::Surface> c
 {
     wrapped->remove_surface(surface);
 }
+
+int msh::SurfaceCoordinatorWrapper::configure_surface(ms::Surface& surface,
+                                                      MirSurfaceAttrib attrib,
+                                                      int value)
+{
+    return wrapped->configure_surface(surface, attrib, value);
+}

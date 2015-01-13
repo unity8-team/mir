@@ -89,6 +89,10 @@ struct StubSurfaceCoordinator : public ms::SurfaceCoordinator
     void remove_surface(std::weak_ptr<ms::Surface> const&) override
     {
     }
+    int configure_surface(ms::Surface&, MirSurfaceAttrib, int val) override
+    {
+        return val;
+    }
 };
 
 struct ApplicationSession : public testing::Test
