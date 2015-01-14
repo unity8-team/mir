@@ -1,3 +1,22 @@
+qtmir (0.4.4+15.04.20150114-0ubuntu1) vivid; urgency=low
+
+  [ Gerry Boland ]
+  * Depend on :native version of g++ to allow cross-compiling to work.
+    (LP: #1353855)
+
+  [ Michał Sawicz ]
+  * Declare the QByteArray in callDispatcher so it doesn't get deleted
+    before it's copied. (LP: #1408819)
+
+  [ Josh Arenson ]
+  * Assign touch events area to the correct values.
+
+  [ Albert Astals ]
+  * Move the creation of the surface observer to
+    SessionListener::surface_created
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 14 Jan 2015 09:07:53 +0000
+
 qtmir (0.4.4+15.04.20150109-0ubuntu1) vivid; urgency=low
 
   [ Ubuntu daily release ]
