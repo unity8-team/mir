@@ -60,6 +60,8 @@ MirSurfaceSpec* mir_connection_create_spec_for_normal_surface(MirConnection* con
  * the edge affinity hint to consider only horizontal or only vertical adjacency
  * edges in the given rectangle.
  *
+ * TODO TODO TODO TODO: Specify input and multiple-menu semantics
+ *
  * \param [in] connection   Connection the surface will be created on
  * \param [in] width        Requested width. The server is not guaranteed to
  *                          return a surface of this width.
