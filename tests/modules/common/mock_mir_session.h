@@ -31,7 +31,7 @@ namespace scene {
 struct MockSession : public Session
 {
     MockSession() {}
-    MockSession(std::string const& sessionName, pid_t processId) 
+    MockSession(std::string const& sessionName, pid_t processId)
         : m_sessionName(sessionName), m_sessionId(processId)
     {}
 
@@ -62,6 +62,8 @@ struct MockSession : public Session
 
     void start_prompt_session() override {};
     void stop_prompt_session() override {};
+    void suspend_prompt_session() override {};
+    void resume_prompt_session() override {};
 
 private:
     std::string m_sessionName;

@@ -47,6 +47,7 @@ struct MockSurface : public mir::scene::Surface
     MOCK_CONST_METHOD0(state, MirSurfaceState());
     MOCK_METHOD0(hide, void());
     MOCK_METHOD0(show, void());
+    MOCK_CONST_METHOD0(visible, bool());
     MOCK_METHOD1(move_to, void(geometry::Point const& top_left));
     MOCK_METHOD1(take_input_focus, void(std::shared_ptr<shell::InputTargeter> const& targeter));
     MOCK_METHOD1(set_input_region, void(std::vector<geometry::Rectangle> const& region));
@@ -62,6 +63,7 @@ struct MockSurface : public mir::scene::Surface
     MOCK_METHOD1(remove_observer, void(std::weak_ptr<SurfaceObserver> const& observer));
     MOCK_CONST_METHOD0(input_channel, std::shared_ptr<input::InputChannel>());
     MOCK_METHOD1(set_reception_mode, void(input::InputReceptionMode mode));
+    MOCK_METHOD0(request_client_surface_close, void());
 
     // from mir::input::surface
     MOCK_CONST_METHOD1(input_area_contains, bool(geometry::Point const& point));
