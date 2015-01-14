@@ -17,6 +17,7 @@
 #include "services.h"
 
 #include <QUrl>
+#include <QByteArray>
 
 #include <url-dispatcher.h>
 
@@ -32,7 +33,8 @@ bool Services::openDocument(const QUrl &url)
 
 bool Services::callDispatcher(const QUrl &qUrl)
 {
-    const char *url = qUrl.toEncoded().constData();
+    QByteArray encoded = qUrl.toEncoded();
+    const char *url = encoded.constData();
 
     url_dispatch_send(url, nullptr /*dispatch_callback*/, nullptr /*callback_data*/);
 
