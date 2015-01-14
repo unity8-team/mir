@@ -86,7 +86,7 @@ TEST(MirSurfaceItemTest, MissingTouchEnd)
         }));
 
 
-    MirSurfaceItem *surfaceItem = new MirSurfaceItem(mockSurface, mockSession);
+    MirSurfaceItem *surfaceItem = new MirSurfaceItem(mockSurface, mockSession, nullptr);
 
     ulong timestamp = 1234;
     QList<QTouchEvent::TouchPoint> touchPoints;

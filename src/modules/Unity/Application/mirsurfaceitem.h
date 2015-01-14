@@ -29,10 +29,11 @@
 
 // mir
 #include <mir/scene/surface.h>
-#include <mir/scene/surface_observer.h>
 #include <mir_toolkit/common.h>
 
 #include "session_interface.h"
+
+class SurfaceObserver;
 
 namespace qtmir {
 
@@ -40,30 +41,6 @@ class MirSurfaceManager;
 class QSGMirSurfaceNode;
 class QMirSurfaceTextureProvider;
 class Application;
-
-class MirSurfaceObserver : public mir::scene::SurfaceObserver {
-public:
-    MirSurfaceObserver();
-
-    void setListener(QObject *listener);
-
-    void attrib_changed(MirSurfaceAttrib, int) override {}
-    void resized_to(mir::geometry::Size const&) override {}
-    void moved_to(mir::geometry::Point const&) override {}
-    void hidden_set_to(bool) override {}
-
-    // Get new frame notifications from Mir, called from a Mir thread.
-    void frame_posted(int frames_available) override;
-
-    void alpha_set_to(float) override {}
-    void transformation_set_to(glm::mat4 const&) override {}
-    void reception_mode_set_to(mir::input::InputReceptionMode) override {}
-    void cursor_image_set_to(mir::graphics::CursorImage const&) override {}
-    void orientation_set_to(MirOrientation) override {}
-    void client_surface_close_requested() override {}
-private:
-    QObject *m_listener;
-};
 
 class MirSurfaceItem : public QQuickItem
 {
@@ -80,6 +57,7 @@ class MirSurfaceItem : public QQuickItem
 public:
     explicit MirSurfaceItem(std::shared_ptr<mir::scene::Surface> surface,
                             SessionInterface* session,
+                            std::shared_ptr<SurfaceObserver> observer,
                             QQuickItem *parent = 0);
     ~MirSurfaceItem();
 
@@ -199,7 +177,7 @@ private:
 
     QMirSurfaceTextureProvider *m_textureProvider;
 
-    std::shared_ptr<MirSurfaceObserver> m_surfaceObserver;
+    std::shared_ptr<SurfaceObserver> m_surfaceObserver;
 
     QTimer m_frameDropperTimer;
 

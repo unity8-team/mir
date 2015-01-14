@@ -45,6 +45,7 @@ set(MIRSERVER_QPA_PLUGIN_SRC
     sessionauthorizer.cpp
     sessionlistener.cpp
     surfaceconfigurator.cpp
+    surfaceobserver.cpp
     promptsessionlistener.cpp
     mirplacementstrategy.cpp
     mirserver.cpp
