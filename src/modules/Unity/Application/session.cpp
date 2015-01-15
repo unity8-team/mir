@@ -225,7 +225,7 @@ void Session::setState(State state)
         case Session::State::Suspended:
             if (m_state == Session::State::Running) {
                 session()->set_lifecycle_state(mir_lifecycle_state_will_suspend);
-                m_suspendTimer->start(3000);
+                m_suspendTimer->start(1500);
             }
             break;
         case Session::State::Running:
