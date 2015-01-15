@@ -159,5 +159,6 @@ mir::DefaultServerConfiguration::new_ipc_factory(
                 the_screencast(),
                 session_authorizer,
                 the_cursor_images(),
+                the_surface_coordinator(),
                 translator);
 }

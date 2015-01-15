@@ -115,15 +115,6 @@ std::shared_ptr<mf::Surface> ms::ApplicationSession::get_surface(mf::SurfaceId i
     return checked_find(id)->second;
 }
 
-int ms::ApplicationSession::configure_surface(mf::SurfaceId surface_id,
-                                              MirSurfaceAttrib attrib,
-                                              int value)
-{
-    std::unique_lock<std::mutex> lock(surfaces_mutex);
-    auto surface = checked_find(surface_id)->second;
-    return surface_coordinator->configure_surface(*surface, attrib, value);
-}
-
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
 {
     if (auto surface = default_surface())

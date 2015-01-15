@@ -39,6 +39,7 @@ mf::DefaultIpcFactory::DefaultIpcFactory(
     std::shared_ptr<Screencast> const& screencast,
     std::shared_ptr<SessionAuthorizer> const& session_authorizer,
     std::shared_ptr<mi::CursorImages> const& cursor_images,
+    std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
     std::shared_ptr<scene::CoordinateTranslator> const& translator) :
     shell(shell),
     no_prompt_shell(std::make_shared<NoPromptShell>(shell)),
@@ -50,6 +51,7 @@ mf::DefaultIpcFactory::DefaultIpcFactory(
     screencast(screencast),
     session_authorizer(session_authorizer),
     cursor_images(cursor_images),
+    surface_coordinator(surface_coordinator),
     translator{translator}
 {
 }

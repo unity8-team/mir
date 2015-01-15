@@ -388,7 +388,8 @@ void mf::SessionMediator::configure_surface(
 
         auto const id = mf::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
-        int newvalue = session->configure_surface(id, attrib, value);
+        auto const surface = session->get_surface(id);
+        int newvalue = surface->configure(attrib, value);
 
         response->set_ivalue(newvalue);
     }
