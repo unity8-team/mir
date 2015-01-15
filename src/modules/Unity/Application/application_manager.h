@@ -46,6 +46,7 @@ namespace qtmir {
 class DBusWindowStack;
 class MirSurfaceManager;
 class ProcInfo;
+class SharedWakelock;
 class TaskController;
 
 class ApplicationManager : public unity::shell::application::ApplicationManagerInterface
@@ -82,6 +83,7 @@ public:
     explicit ApplicationManager(
             const QSharedPointer<MirServer> &mirServer,
             const QSharedPointer<TaskController> &taskController,
+            const QSharedPointer<SharedWakelock> &sharedWakelock,
             const QSharedPointer<DesktopFileReader::Factory> &desktopFileReaderFactory,
             const QSharedPointer<ProcInfo> &processInfo,
             QObject *parent = 0);
@@ -160,6 +162,7 @@ private:
     QSharedPointer<TaskController> m_taskController;
     QSharedPointer<DesktopFileReader::Factory> m_desktopFileReaderFactory;
     QSharedPointer<ProcInfo> m_procInfo;
+    QSharedPointer<SharedWakelock> m_sharedWakelock;
     static ApplicationManager* the_application_manager;
     QList<pid_t> m_hiddenPIDs;
     bool m_suspended;
