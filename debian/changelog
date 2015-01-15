@@ -1,12 +1,13 @@
-mir (0.8.2-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.8.2+15.04.20150115~rtm-0ubuntu1) 14.09; urgency=medium
 
+  [ Daniel van Vugt ]
   * Bug fix release 0.8.2 (https://launchpad.net/mir/+milestone/0.8.2)
     - ABIs all unchanged. No downstream projects need rebuilding.
     - Fixes bug: Crash in /usr/sbin/unity-system-compositor:*** Error in
       `unity-system-compositor': free(): invalid pointer: ADDR ***
       (LP: #1376324)
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Thu, 15 Jan 2015 11:15:07 +0800
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 Jan 2015 15:55:24 +0000
 
 mir (0.8.1+15.04.20150112.2~rtm-0ubuntu1) 14.09; urgency=medium
 
