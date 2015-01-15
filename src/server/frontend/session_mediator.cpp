@@ -43,6 +43,7 @@
 #include "mir/frontend/screencast.h"
 #include "mir/frontend/prompt_session.h"
 #include "mir/scene/prompt_session_creation_parameters.h"
+#include "mir/scene/surface_coordinator.h"
 #include "mir/fd.h"
 
 #include "mir/geometry/rectangles.h"
@@ -75,6 +76,7 @@ mf::SessionMediator::SessionMediator(
     std::shared_ptr<Screencast> const& screencast,
     ConnectionContext const& connection_context,
     std::shared_ptr<mi::CursorImages> const& cursor_images,
+    std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
     std::shared_ptr<scene::CoordinateTranslator> const& translator) :
     client_pid_(0),
     shell(shell),
@@ -87,6 +89,7 @@ mf::SessionMediator::SessionMediator(
     screencast(screencast),
     connection_context(connection_context),
     cursor_images(cursor_images),
+    surface_coordinator(surface_coordinator),
     translator{translator},
     surface_tracker{static_cast<size_t>(client_buffer_cache_size)}
 {
@@ -389,7 +392,8 @@ void mf::SessionMediator::configure_surface(
         auto const id = mf::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
         auto const surface = session->get_surface(id);
-        int newvalue = surface->configure(attrib, value);
+        int newvalue = surface_coordinator->configure_surface(
+            *surface, attrib, value);
 
         response->set_ivalue(newvalue);
     }
