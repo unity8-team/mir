@@ -36,7 +36,6 @@ class CursorImages;
 namespace scene
 {
 class CoordinateTranslator;
-class SurfaceCoordinator;
 }
 
 namespace frontend
@@ -59,7 +58,6 @@ public:
         std::shared_ptr<Screencast> const& screencast,
         std::shared_ptr<SessionAuthorizer> const& session_authorizer,
         std::shared_ptr<input::CursorImages> const& cursor_images,
-        std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
         std::shared_ptr<scene::CoordinateTranslator> const& translator);
 
     std::shared_ptr<detail::DisplayServer> make_ipc_server(
@@ -91,7 +89,6 @@ private:
     std::shared_ptr<Screencast> const screencast;
     std::shared_ptr<SessionAuthorizer> const session_authorizer;
     std::shared_ptr<input::CursorImages> const cursor_images;
-    std::shared_ptr<scene::SurfaceCoordinator> const surface_coordinator;
     std::shared_ptr<scene::CoordinateTranslator> const translator;
 };
 }

@@ -47,7 +47,6 @@ class CursorImages;
 namespace scene
 {
 class CoordinateTranslator;
-class SurfaceCoordinator;
 }
 
 /// Frontend interface. Mediates the interaction between client
@@ -81,7 +80,6 @@ public:
         std::shared_ptr<Screencast> const& screencast,
         ConnectionContext const& connection_context,
         std::shared_ptr<input::CursorImages> const& cursor_images,
-        std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
         std::shared_ptr<scene::CoordinateTranslator> const& translator);
 
     ~SessionMediator() noexcept;
@@ -211,7 +209,6 @@ private:
     std::shared_ptr<Screencast> const screencast;
     ConnectionContext const connection_context;
     std::shared_ptr<input::CursorImages> const cursor_images;
-    std::shared_ptr<scene::SurfaceCoordinator> const surface_coordinator;
     std::shared_ptr<scene::CoordinateTranslator> const translator;
 
     SurfaceTracker surface_tracker;

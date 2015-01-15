@@ -55,6 +55,7 @@ public:
     frontend::SurfaceId create_surface(SurfaceCreationParameters const& params) override;
     void destroy_surface(frontend::SurfaceId surface) override;
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const override;
+    int configure_surface(frontend::SurfaceId, MirSurfaceAttrib, int) override;
 
     void take_snapshot(SnapshotCallback const& snapshot_taken) override;
     std::shared_ptr<Surface> default_surface() const override;

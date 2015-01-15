@@ -45,7 +45,6 @@
 #include "mir_test_doubles/stub_display_configuration.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/null_screencast.h"
-#include "mir_test_doubles/mock_surface_coordinator.h"
 #include "mir_test/display_config_matchers.h"
 #include "mir_test/fake_shared.h"
 #include "mir/frontend/connector.h"
@@ -232,20 +231,15 @@ struct SessionMediator : public ::testing::Test
             shell, mt::fake_shared(mock_ipc_operations), graphics_changer,
             surface_pixel_formats, report,
             std::make_shared<mtd::NullEventSink>(),
-            resource_cache, stub_screencast, &connector, nullptr,
-            mt::fake_shared(mock_surface_coordinator),
-            nullptr}
+            resource_cache, stub_screencast, &connector, nullptr, nullptr}
     {
         using namespace ::testing;
 
         ON_CALL(*shell, open_session(_, _, _)).WillByDefault(Return(stubbed_session));
-        ON_CALL(mock_surface_coordinator, configure_surface(_,_,_))
-            .WillByDefault(ReturnArg<2>());
     }
 
     MockConnector connector;
     testing::NiceMock<MockBufferPacker> mock_ipc_operations;
-    testing::NiceMock<mtd::MockSurfaceCoordinator> mock_surface_coordinator;
     std::shared_ptr<testing::NiceMock<mtd::MockShell>> const shell;
     std::shared_ptr<mf::DisplayChanger> const graphics_changer;
     std::vector<MirPixelFormat> const surface_pixel_formats;
@@ -293,9 +287,7 @@ TEST_F(SessionMediator, connect_calls_connect_handler)
         shell, mt::fake_shared(mock_ipc_operations), graphics_changer,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
-        resource_cache, stub_screencast, context, nullptr,
-        mt::fake_shared(mock_surface_coordinator),
-        nullptr};
+        resource_cache, stub_screencast, context, nullptr, nullptr};
 
     EXPECT_THAT(connects_handled_count, Eq(0));
 
@@ -400,9 +392,7 @@ TEST_F(SessionMediator, connect_packs_display_configuration)
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
         resource_cache, std::make_shared<mtd::NullScreencast>(),
-        nullptr, nullptr,
-        mt::fake_shared(mock_surface_coordinator),
-        nullptr);
+        nullptr, nullptr, nullptr);
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
     EXPECT_THAT(connection.display_configuration(), mt::DisplayConfigMatches(std::cref(config)));
@@ -604,9 +594,7 @@ TEST_F(SessionMediator, display_config_request)
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(), resource_cache,
         std::make_shared<mtd::NullScreencast>(),
-        nullptr, nullptr,
-        mt::fake_shared(mock_surface_coordinator),
-        nullptr};
+         nullptr, nullptr, nullptr};
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
 
@@ -859,9 +847,7 @@ TEST_F(SessionMediator, buffer_fd_resources_are_put_in_resource_cache)
         shell, mt::fake_shared(mock_ipc_operations), graphics_changer,
         surface_pixel_formats, report,
         std::make_shared<mtd::NullEventSink>(),
-        mt::fake_shared(mock_cache), stub_screencast, &connector, nullptr,
-        mt::fake_shared(mock_surface_coordinator),
-        nullptr};
+        mt::fake_shared(mock_cache), stub_screencast, &connector, nullptr, nullptr};
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.create_surface(nullptr, &surface_parameters, &surface_response, null_callback.get());
