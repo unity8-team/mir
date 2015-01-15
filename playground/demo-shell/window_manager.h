@@ -24,6 +24,7 @@
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/size.h"
 #include "mir/scene/surface.h"
+#include "demo_renderer.h"
 
 #include <memory>
 
@@ -78,6 +79,9 @@ private:
     float old_pinch_diam;
     int max_fingers;  // Maximum number of fingers touched during gesture
     int zoom_exponent = 0;
+    ColourEffect colour_effect = none;
+
+    void toggle(ColourEffect);
 };
 
 }

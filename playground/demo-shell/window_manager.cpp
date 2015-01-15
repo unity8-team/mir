@@ -146,6 +146,16 @@ void me::WindowManager::toggle(scene::Surface& surface, MirSurfaceState state)
     surface.configure(mir_surface_attrib_state, new_state);
 }
 
+void me::WindowManager::toggle(ColourEffect which)
+{
+    colour_effect = (colour_effect == which) ? none : which;
+    me::DemoCompositor::for_each([this](me::DemoCompositor& c)
+    {
+        c.set_colour_effect(colour_effect);
+    });
+    force_redraw();
+}
+
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
@@ -328,6 +338,16 @@ bool me::WindowManager::handle(MirEvent const& event)
             display->configure(*conf.get());
             compositor->start();
             return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_N)
+        {
+            toggle(inverse);
+        }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_C)
+        {
+            toggle(contrast);
         }
     }
     else if (event.type == mir_event_type_motion &&
