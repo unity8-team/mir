@@ -1,5 +1,6 @@
-mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.8.1+15.04.20150112.2~rtm-0ubuntu1) 14.09; urgency=medium
 
+  [ Daniel van Vugt ]
   * Bug fix release 0.8.1 (https://launchpad.net/mir/+milestone/0.8.1)
     - ABI summary: Servers need rebuilding, but clients do not;
       . Mirclient ABI unchanged at 8
@@ -12,7 +13,7 @@ mir (0.8.1-0ubuntu1) UNRELEASED; urgency=medium
       . a prompt session with an invalid application pid should be an error
         (LP: #1377968)
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 12 Jan 2015 17:44:57 +0800
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 12 Jan 2015 16:07:38 +0000
 
 mir (0.8.0+14.10.20141010-0ubuntu1) utopic; urgency=medium
 
