@@ -72,11 +72,11 @@ INSTANTIATE_TEST_CASE_P(InputDeviceProviderTest,
                             std::make_tuple(
                                 "usb-keyboard",
                                 "/dev/input/event14",
-                                mie::Priority::supported
+                                mie::Priority::unsupported
                                 ),
                             std::make_tuple(
                                 "laptop-keyboard",
                                 "/dev/input/event4",
-                                mie::Priority::supported
+                                mie::Priority::unsupported
                                 )
                             ));

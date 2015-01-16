@@ -54,7 +54,7 @@ mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) cons
         return Priority::supported;
 
     if (contains(device_classes, DeviceClass::keyboard))
-        return Priority::supported;
+        return Priority::unsupported;
 
     return Priority::unsupported;
 }
