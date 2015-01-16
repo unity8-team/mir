@@ -7,3 +7,4 @@ usr/lib/*/mir/tools/libmirclientlttng.so
 usr/lib/*/mir/tools/libmirserverlttng.so
 usr/lib/*/libmirplatformstub.so
 usr/lib/*/mir/client-platform/dummy.so
+usr/lib/*/mir/server-platform/input-evdev.so
