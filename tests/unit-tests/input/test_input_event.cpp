@@ -90,17 +90,25 @@ TEST(InputEvent, old_style_key_and_motion_events_are_input_events)
 
 TEST(InputEvent, modifier_families_are_inclusive)
 {
-    EXPECT_TRUE(mir_input_event_modifier_alt_left & mir_input_event_modifier_alt);
-    EXPECT_TRUE(mir_input_event_modifier_alt_right & mir_input_event_modifier_alt);
+    EXPECT_TRUE(mir_input_event_modifier_alt_left &
+                mir_input_event_modifier_alt);
+    EXPECT_TRUE(mir_input_event_modifier_alt_right &
+                mir_input_event_modifier_alt);
 
-    EXPECT_TRUE(mir_input_event_modifier_shift_left & mir_input_event_modifier_shift);
-    EXPECT_TRUE(mir_input_event_modifier_shift_right & mir_input_event_modifier_shift);
+    EXPECT_TRUE(mir_input_event_modifier_shift_left &
+                mir_input_event_modifier_shift);
+    EXPECT_TRUE(mir_input_event_modifier_shift_right &
+                mir_input_event_modifier_shift);
 
-    EXPECT_TRUE(mir_input_event_modifier_ctrl_left & mir_input_event_modifier_ctrl);
-    EXPECT_TRUE(mir_input_event_modifier_ctrl_right & mir_input_event_modifier_ctrl);
+    EXPECT_TRUE(mir_input_event_modifier_ctrl_left &
+                mir_input_event_modifier_ctrl);
+    EXPECT_TRUE(mir_input_event_modifier_ctrl_right &
+                mir_input_event_modifier_ctrl);
 
-    EXPECT_TRUE(mir_input_event_modifier_ctrl_left & mir_input_event_modifier_ctrl);
-    EXPECT_TRUE(mir_input_event_modifier_meta_right & mir_input_event_modifier_meta);
+    EXPECT_TRUE(mir_input_event_modifier_meta_left &
+                mir_input_event_modifier_meta);
+    EXPECT_TRUE(mir_input_event_modifier_meta_right &
+                mir_input_event_modifier_meta);
 }
 
 // MirInputEvent properties common to all events.
