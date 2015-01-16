@@ -244,8 +244,6 @@ MirInputEventModifiers old_modifiers_to_new(unsigned int old_modifier)
 {
     MirInputEventModifiers modifier = 0;
 
-    if (old_modifier & mir_key_modifier_none)
-        modifier |= mir_input_event_modifier_none;
     if (old_modifier & mir_key_modifier_alt)
         modifier |= mir_input_event_modifier_alt;
     if (old_modifier & mir_key_modifier_alt_left)
@@ -281,9 +279,7 @@ MirInputEventModifiers old_modifiers_to_new(unsigned int old_modifier)
     if (old_modifier & mir_key_modifier_scroll_lock)
         modifier |= mir_input_event_modifier_scroll_lock;
 
-    if (modifier)
-        return modifier;
-    return mir_input_event_modifier_none;
+    return modifier;
 }
 }
 MirInputEventModifiers mir_key_input_event_get_modifiers(MirKeyInputEvent const* kev)

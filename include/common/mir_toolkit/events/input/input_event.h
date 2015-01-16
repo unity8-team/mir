@@ -43,7 +43,7 @@ typedef enum {
  * Description of key modifier state.
  */
 typedef enum {
-    mir_input_event_modifier_none        = 1 << 0,
+    /* Unused                              1 << 0 */
     mir_input_event_modifier_alt         = 1 << 1,
     mir_input_event_modifier_alt_left    = 1 << 2,
     mir_input_event_modifier_alt_right   = 1 << 3,
