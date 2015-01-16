@@ -51,7 +51,7 @@ struct EvdevPlatformBase
 {
 public:
     EvdevPlatformBase()
-        : platform_lib(mtf::library_path() + "/server-modules/input-evdev.so"),
+        : platform_lib(mtf::server_platform("input-evdev.so")),
         platform(platform_lib.load_function<mi::CreatePlatform>("create_input_platform", MIR_SERVER_INPUT_PLATFORM_VERSION)
             (
                 std::shared_ptr<mir::options::Option>(),

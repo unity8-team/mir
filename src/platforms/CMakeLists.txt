@@ -1,3 +1,11 @@
+set(MIR_SERVER_PLATFORM_PATH
+  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/mir/server-platform
+)
+set(MIR_SERVER_PLATFORM_PATH
+  ${MIR_SERVER_PLATFORM_PATH}
+  PARENT_SCOPE
+)
+
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
 )
