@@ -22,7 +22,7 @@
 #include "mir_toolkit/event.h"
 
 #include <memory>
-#include <vector>
+#include <list>
 
 struct libinput;
 struct libinput_device;
@@ -54,7 +54,7 @@ private:
     LibInputWrapper& operator=(LibInputWrapper const&) = delete;
 
     std::unique_ptr<libinput,libinput*(*)(libinput*)> lib;
-    std::vector<LibInputDevice*> active_devices;
+    std::list<LibInputDevice*> active_devices;
     auto find_device(libinput_device* dev) -> decltype(active_devices.begin());
 };
 }

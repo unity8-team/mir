@@ -25,6 +25,7 @@
 #include <libinput.h>
 
 #include <cstring>
+#include <vector>
 #include <iostream>
 
 namespace mie = mir::input::evdev;
@@ -173,7 +174,7 @@ void mie::LibInputDevice::PointerState::set_filter(std::shared_ptr<CursorFilter>
 }
 
 mie::LibInputDevice::LibInputDevice(std::shared_ptr<mie::LibInputWrapper> const& lib, char const* path)
-    : path(path), dev(nullptr,&libinput_device_unref), lib(lib)
+    : path(path), dev(nullptr,&libinput_device_unref), lib(lib), sink{nullptr}
 {
 }
 
@@ -181,9 +182,9 @@ mie::LibInputDevice::~LibInputDevice() = default;
 
 void mie::LibInputDevice::start(InputEventHandlerRegister& registry, EventSink& sink)
 {
+    this->sink = &sink;
     dev = lib->add_device(path);
     lib->start_device(registry, this);
-    this->sink = &sink;
 }
 
 void mie::LibInputDevice::stop(InputEventHandlerRegister& registry)
