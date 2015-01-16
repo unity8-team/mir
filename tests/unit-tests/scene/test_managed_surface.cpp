@@ -126,6 +126,27 @@ TEST_F(ManagedSurfaceTest, goes_vertmaximized_and_restores)
     surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
 }
 
+TEST_F(ManagedSurfaceTest, goes_horizmaximized_and_restores)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    Rectangle const restored{surf.top_left(), surf.size()};
+    ASSERT_NE(maximized, restored);
+
+    Rectangle const horizmaximized{
+        {maximized.top_left.x, restored.top_left.y},
+        {maximized.size.width, restored.size.height} };
+
+    InSequence seq;
+    EXPECT_CALL(*mock_basic_surface, move_to(horizmaximized.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(horizmaximized.size));
+    EXPECT_CALL(*mock_basic_surface, move_to(restored.top_left));
+    EXPECT_CALL(*mock_basic_surface, resize(restored.size));
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_horizmaximized);
+    surf.configure(mir_surface_attrib_state, mir_surface_state_restored);
+}
+
 TEST_F(ManagedSurfaceTest, goes_minimized_and_restores)
 {
     ManagedSurface surf(mock_basic_surface, mock_display_layout);
@@ -197,6 +218,19 @@ TEST_F(ManagedSurfaceTest, vertmaximized_can_move_only_horizontally)
     EXPECT_EQ(maximized.top_left.y, surf.top_left().y);
     EXPECT_EQ(random_place.size.width, surf.size().width);
     EXPECT_EQ(maximized.size.height, surf.size().height);
+}
+
+TEST_F(ManagedSurfaceTest, horizmaximized_can_move_only_vertically)
+{
+    ManagedSurface surf(mock_basic_surface, mock_display_layout);
+
+    surf.configure(mir_surface_attrib_state, mir_surface_state_horizmaximized);
+    surf.move_to(random_place.top_left);
+    surf.resize(random_place.size);
+    EXPECT_EQ(maximized.top_left.x, surf.top_left().x);
+    EXPECT_EQ(random_place.top_left.y, surf.top_left().y);
+    EXPECT_EQ(maximized.size.width, surf.size().width);
+    EXPECT_EQ(random_place.size.height, surf.size().height);
 }
 
 TEST_F(ManagedSurfaceTest, restored_can_move_freely)
