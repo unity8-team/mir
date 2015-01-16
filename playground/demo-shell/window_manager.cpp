@@ -193,7 +193,11 @@ bool me::WindowManager::handle(MirEvent const& event)
         else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F12)
         {
-            toggle(mir_surface_state_vertmaximized);
+            MirSurfaceState state =
+                event.key.modifiers & mir_key_modifier_shift ?
+                mir_surface_state_horizmaximized :
+                mir_surface_state_vertmaximized;
+            toggle(state);
         }
         else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F4)

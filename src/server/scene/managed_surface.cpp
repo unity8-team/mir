@@ -81,6 +81,10 @@ MirSurfaceState ManagedSurface::set_state(MirSurfaceState desired)
         new_win.top_left.y = workarea.top_left.y;
         new_win.size.height = workarea.size.height;
         break;
+    case mir_surface_state_horizmaximized:
+        new_win.top_left.x = workarea.top_left.x;
+        new_win.size.width = workarea.size.width;
+        break;
     case mir_surface_state_restored:
         new_win = restore_rect;
         break;
@@ -121,6 +125,9 @@ void ManagedSurface::move_to(geometry::Point const& desired)
         case mir_surface_state_vertmaximized:
             new_pos.y = top_left().y;
             break;
+        case mir_surface_state_horizmaximized:
+            new_pos.x = top_left().x;
+            break;
         default:
             break;
     }
@@ -140,6 +147,9 @@ void ManagedSurface::resize(geometry::Size const& desired)
             return;
         case mir_surface_state_vertmaximized:
             new_size.height = size().height;
+            break;
+        case mir_surface_state_horizmaximized:
+            new_size.width = size().width;
             break;
         default:
             break;
