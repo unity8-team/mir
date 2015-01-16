@@ -372,6 +372,6 @@ INSTANTIATE_TEST_CASE_P(VariousPolicyFlags, InputTranslatorWithPolicyParam,
                                                                   mir_input_event_modifier_shift | mir_input_event_modifier_shift_left},
                                           PolicyFlagTestParameter{droidinput::POLICY_FLAG_VIRTUAL,
                                                                   mir_key_flag_virtual_hard_key,
-                                                                  mir_input_event_modifier_none}));
+                                                                  0}));
 
 
