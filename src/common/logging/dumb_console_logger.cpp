@@ -32,13 +32,13 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
         return;
 
     static const char* lut[5] =
-            {
-                "CC",
-                "EE",
-                "WW",
-                "II",
-                "DD"
-            };
+    {
+        "<CRITICAL> ",
+        "<ERROR> ",
+        "<WARNING> ",
+        "",
+        "<DEBUG> "
+    };
 
     std::ostream& out = severity < ml::Severity::informational ? std::cerr : std::cout;
 
@@ -50,9 +50,8 @@ void ml::DumbConsoleLogger::log(ml::Severity severity,
 
     out << "["
         << now
-        << "] ("
+        << "] "
         << lut[static_cast<int>(severity)]
-        << ") "
         << component
         << ": "
         << message
