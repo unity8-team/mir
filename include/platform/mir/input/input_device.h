@@ -27,7 +27,7 @@ namespace mir
 namespace input
 {
 class InputEventHandlerRegister;
-class EventSink;
+class InputSink;
 
 /**
  * Represents an input device.
@@ -39,11 +39,11 @@ public:
     virtual ~InputDevice() = default;
 
     /*!
-     * Allow the input device to provide its input events to the given EventSink
+     * Allow the input device to provide its input events to the given InputSink
      */
-    virtual void start(InputEventHandlerRegister& registry, EventSink& destination) = 0;
+    virtual void start(InputEventHandlerRegister& registry, InputSink& destination) = 0;
     /*!
-     * Stop the input device from sending input events, to the EventSink.
+     * Stop the input device from sending input events, to the InputSink.
      */
     virtual void stop(InputEventHandlerRegister& registry) = 0;
 

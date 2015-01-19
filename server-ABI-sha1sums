@@ -55,11 +55,11 @@ d1ba61e687d75103e9e7aa0409080214f56a990b  include/platform/mir/graphics/platform
 f0db0484b8ccc9091e73c80a2a200cb436b48bfb  include/platform/mir/graphics/platform_operation_message.h
 84c063346b3bd51b4624d9f940008d4c3f8be066  include/platform/mir/graphics/renderable.h
 190bfc2d93092fd7990abefe424fbc322abede6a  include/platform/mir/input/device_class.h
-362b44f0b94a0ddbca80b3f78fb506a3657aa21a  include/platform/mir/input/event_sink.h
-e23fcf9601ee26c2722b900f46bcb58f3c145a9f  include/platform/mir/input/input_device.h
+12ff36cfe9fd3e99614e9e315845a63156d2798a  include/platform/mir/input/input_device.h
 4f17d5e7b69448ececbc07dee3653a1f0f4dfc89  include/platform/mir/input/input_device_registry.h
 b59d7132b9f4360ef4cf5af4ed0255c00f897dc7  include/platform/mir/input/input_event_handler_register.h
 4e502d4a5fdff4ed1a65ba1f0183113f787285ab  include/platform/mir/input/input_report.h
+00a7d63dcd22107590497b57877c1893eed24d32  include/platform/mir/input/input_sink.h
 897648fdf3531bd57830454f8e9c775a6b53aa0d  include/platform/mir/input/platform.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 f4030e400baf8baa9c38e7c6ec6b4a5ad7134aeb  include/server/mir/compositor/compositor.h

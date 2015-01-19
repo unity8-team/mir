@@ -17,8 +17,8 @@
  *   Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_EVENT_SINK_H_
-#define MIR_INPUT_EVENT_SINK_H_
+#ifndef MIR_INPUT_INPUT_SINK_H_
+#define MIR_INPUT_INPUT_SINK_H_
 
 #include "mir_toolkit/event.h"
 
@@ -26,16 +26,16 @@ namespace mir
 {
 namespace input
 {
-class EventSink
+class InputSink
 {
 public:
-    EventSink() = default;
-    virtual ~EventSink() = default;
+    InputSink() = default;
+    virtual ~InputSink() = default;
     // TODO change to the new mir input event
     virtual void handle_input(MirEvent const& event) = 0;
 private:
-    EventSink(EventSink const&) = delete;
-    EventSink& operator=(EventSink const&) = delete;
+    InputSink(InputSink const&) = delete;
+    InputSink& operator=(InputSink const&) = delete;
 };
 }
 }
