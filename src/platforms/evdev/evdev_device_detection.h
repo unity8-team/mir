@@ -19,7 +19,7 @@
 #ifndef MIR_INPUT_EVDEV_DEVICE_DETECTION_H_
 #define MIR_INPUT_EVDEV_DEVICE_DETECTION_H_
 
-#include "mir/input/device_class.h"
+#include "mir/input/device_capability.h"
 
 namespace mir
 {
@@ -27,7 +27,7 @@ namespace input
 {
 namespace evdev
 {
-input::DeviceClass detect_device_class(char const* device);
+input::DeviceCapabilities detect_device_capabilities(char const* device);
 }
 }
 }

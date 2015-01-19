@@ -87,9 +87,9 @@ inline size_t get_num_bits(uint8_t const* array, std::initializer_list<size_t> b
     return ret;
 }
 
-mir::input::DeviceClass evaluate_device_class(DeviceInfo const& info)
+mi::DeviceCapabilities evaluate_device_capabilities(DeviceInfo const& info)
 {
-    mi::DeviceClass classes = mi::DeviceClass::unknown;
+    mi::DeviceCapabilities caps;
 
     auto const contains_non_zero = [](uint8_t const* array, int first, int last) -> bool
     {
@@ -125,29 +125,29 @@ mir::input::DeviceClass evaluate_device_class(DeviceInfo const& info)
         });
 
     if (has_keys || has_gamepad_buttons)
-        classes = classes | mi::DeviceClass::keyboard;
+        caps = caps | mi::DeviceCapability::keyboard;
 
     if (get_bit(info.key_bit_mask, BTN_MOUSE) && get_bit(info.rel_bit_mask, REL_X) && get_bit(info.rel_bit_mask, REL_Y))
-        classes = classes | mi::DeviceClass::cursor;
+        caps = caps | mi::DeviceCapability::pointer;
 
     if (finger_but_no_pen && !is_direct && (has_coordinates|| has_mt_coordinates))
-        classes = classes | mi::DeviceClass::touchpad;
+        caps = caps | mi::DeviceCapability::touchpad;
     else if (has_touch && ((has_mt_coordinates && !has_gamepad_buttons)
                            || has_coordinates))
-        classes = classes | mi::DeviceClass::touchscreen;
+        caps = caps | mi::DeviceCapability::touchscreen;
 
     if (has_joystick_axis || (!has_touch && has_coordinates))
-        classes = classes | mi::DeviceClass::joystick;
+        caps = caps | mi::DeviceCapability::joystick;
 
     if (has_gamepad_buttons)
-        classes = classes | mi::DeviceClass::gamepad;
+        caps = caps | mi::DeviceCapability::gamepad;
 
-    return classes;
+    return caps;
 }
 
 }
 
-mir::input::DeviceClass mie::detect_device_class(char const* device)
+mi::DeviceCapabilities mie::detect_device_capabilities(char const* device)
 {
     mir::Fd input_device(::open(device, O_RDONLY|O_NONBLOCK));
     if (input_device < 0)
@@ -158,6 +158,6 @@ mir::input::DeviceClass mie::detect_device_class(char const* device)
     DeviceInfo info;
 
     fill_device_info(info, input_device);
-    return evaluate_device_class(info);
+    return evaluate_device_capabilities(info);
 }
 

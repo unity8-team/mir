@@ -19,7 +19,7 @@
 #include "android_device_provider.h"
 #include "evdev_device_detection.h"
 
-#include "mir/input/device_class.h"
+#include "mir/input/device_capability.h"
 #include "mir/input/input_device.h"
 
 namespace mi = mir::input;
@@ -27,15 +27,15 @@ namespace mie = mi::evdev;
 
 mie::Priority mie::AndroidDeviceProvider::probe_device(char const* device) const
 {
-    auto device_classes = detect_device_class(device);
+    auto device_caps = detect_device_capabilities(device);
 
-    if (contains(device_classes, DeviceClass::touchscreen))
+    if (contains(device_caps, DeviceCapability::touchscreen))
         return Priority::best;
 
-    if (contains(device_classes, DeviceClass::touchpad))
+    if (contains(device_caps, DeviceCapability::touchpad))
         return Priority::unsupported;
 
-    if (device_classes == DeviceClass::unknown)
+    if (device_caps == DeviceCapability::unknown)
         return Priority::unsupported;
 
     return Priority::supported;

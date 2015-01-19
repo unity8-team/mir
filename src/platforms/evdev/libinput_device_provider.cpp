@@ -20,7 +20,7 @@
 #include "evdev_device_detection.h"
 
 #include "mir/input/input_device.h"
-#include "mir/input/device_class.h"
+#include "mir/input/device_capability.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -33,27 +33,27 @@ namespace mie = mi::evdev;
 
 mie::Priority mie::LibInputDeviceProvider::probe_device(char const* device) const
 {
-    auto device_classes = detect_device_class(device);
+    auto device_caps = detect_device_capabilities(device);
 
-    if (contains(device_classes, DeviceClass::joystick))
+    if (contains(device_caps, DeviceCapability::joystick))
         return Priority::unsupported;
 
-    if (contains(device_classes, DeviceClass::gamepad))
+    if (contains(device_caps, DeviceCapability::gamepad))
         return Priority::unsupported;
 
-    if (contains(device_classes, DeviceClass::touchscreen))
+    if (contains(device_caps, DeviceCapability::touchscreen))
         return Priority::unsupported;
 
-    if (contains(device_classes, DeviceClass::touchpad))
+    if (contains(device_caps, DeviceCapability::touchpad))
         return Priority::best;
 
-    if (device_classes == DeviceClass::unknown)
+    if (device_caps == DeviceCapability::unknown)
         return Priority::unsupported;
 
-    if (contains(device_classes, DeviceClass::cursor))
+    if (contains(device_caps, DeviceCapability::pointer))
         return Priority::supported;
 
-    if (contains(device_classes, DeviceClass::keyboard))
+    if (contains(device_caps, DeviceCapability::keyboard))
         return Priority::unsupported;
 
     return Priority::unsupported;

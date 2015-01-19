@@ -16,8 +16,10 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_INPUT_DEVICE_CLASS_H_
-#define MIR_INPUT_DEVICE_CLASS_H_
+#ifndef MIR_INPUT_DEVICE_CAPABILITY_H_
+#define MIR_INPUT_DEVICE_CAPABILITY_H_
+
+#include "mir/flags.h"
 
 #include <cstdint>
 
@@ -25,29 +27,22 @@ namespace mir
 {
 namespace input
 {
-enum class DeviceClass : uint32_t
+
+enum class DeviceCapability : uint32_t
 {
     unknown     = 0,
-    cursor      = 1<<1,
+    pointer     = 1<<1,
     keyboard    = 1<<2,
     touchpad    = 1<<3,
     touchscreen = 1<<4,
     gamepad     = 1<<5,
     joystick    = 1<<6,
-    switch_     = 1<<7, // better name needed
-    multitouch  = 1<<8, // multitouch capable
+    switch_     = 1<<7,
+    multitouch  = 1<<8,   // multitouch capable
     alpha_numeric = 1<<9 // enough keys for text entry
 };
 
-constexpr DeviceClass operator|(DeviceClass a, DeviceClass b)
-{
-    return DeviceClass(uint32_t(a)|uint32_t(b));
-}
-
-constexpr bool contains(DeviceClass a, DeviceClass b)
-{
-    return b == DeviceClass(uint32_t(a)&uint32_t(b));
-}
+using DeviceCapabilities = mir::Flags<DeviceCapability>;
 
 }
 }

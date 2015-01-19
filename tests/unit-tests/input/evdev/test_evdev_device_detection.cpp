@@ -17,7 +17,7 @@
  */
 
 #include "src/platforms/evdev/evdev_device_detection.h"
-#include "mir/input/device_class.h"
+#include "mir/input/device_capability.h"
 
 #include "mir_test_framework/udev_environment.h"
 
@@ -28,7 +28,7 @@ namespace mtf = mir_test_framework;
 namespace mi = mir::input;
 namespace mie = mi::evdev;
 
-struct EvdevDeviceDetection : public ::testing::TestWithParam<std::tuple<char const*, char const*, mi::DeviceClass>>
+struct EvdevDeviceDetection : public ::testing::TestWithParam<std::tuple<char const*, char const*, mi::DeviceCapabilities>>
 {
     mtf::UdevEnvironment env;
 };
@@ -38,46 +38,49 @@ TEST_P(EvdevDeviceDetection, evaluates_expected_input_class)
     using namespace testing;
     auto const& param = GetParam();
     env.add_standard_device(std::get<0>(param));
-    EXPECT_THAT(mie::detect_device_class((std::get<1>(param))),Eq(std::get<2>(param)));
+    EXPECT_THAT(mie::detect_device_capabilities((std::get<1>(param))),Eq(std::get<2>(param)));
 }
 
-INSTANTIATE_TEST_CASE_P(InputDeviceClassDetection,
+INSTANTIATE_TEST_CASE_P(InputDeviceCapabilityDetection,
                         EvdevDeviceDetection,
                         ::testing::Values(
                             std::make_tuple(
                                 "synaptics-touchpad",
                                 "/dev/input/event12",
-                                mi::DeviceClass::touchpad
+                                mi::DeviceCapability::touchpad
                                 ),
                             std::make_tuple(
                                 "laptop-keyboard",
                                 "/dev/input/event4",
-                                mi::DeviceClass::keyboard
+                                mi::DeviceCapability::keyboard
                                 ),
                             std::make_tuple(
                                 "usb-keyboard",
                                 "/dev/input/event14",
-                                mi::DeviceClass::keyboard
+                                mi::DeviceCapability::keyboard
                                 ),
                             std::make_tuple(
                                 "usb-mouse",
                                 "/dev/input/event13",
-                                mi::DeviceClass::cursor
+                                mi::DeviceCapability::pointer
                                 ),
                             std::make_tuple(
                                 "bluetooth-magic-trackpad",
                                 "/dev/input/event13",
-                                mi::DeviceClass::touchpad
+                                mi::DeviceCapability::touchpad
                                 ),
                             std::make_tuple(
                                 "mt-screen-detection", // device also reports available keys..
                                 "/dev/input/event4",
-                                mi::DeviceClass::touchscreen|mi::DeviceClass::keyboard
+                                mi::DeviceCapabilities{mi::DeviceCapability::touchscreen}|
+                                    mi::DeviceCapability::keyboard
                                 ),
                             std::make_tuple(
                                 "joystick-detection",
                                 "/dev/input/event13",
-                                mi::DeviceClass::joystick|mi::DeviceClass::gamepad|mi::DeviceClass::keyboard
+                                mi::DeviceCapabilities{mi::DeviceCapability::joystick}|
+                                    mi::DeviceCapability::gamepad|
+                                    mi::DeviceCapability::keyboard
                                 )
                             ));
 
