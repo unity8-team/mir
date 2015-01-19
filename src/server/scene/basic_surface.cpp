@@ -349,7 +349,9 @@ bool ms::BasicSurface::visible() const
 
 bool ms::BasicSurface::visible(std::unique_lock<std::mutex>&) const
 {
-    return !hidden && first_frame_posted;
+    return !hidden
+        && first_frame_posted
+        && state_ != mir_surface_state_hidden;  // not overridable (?)
 }
 
 mi::InputReceptionMode ms::BasicSurface::reception_mode() const
@@ -417,7 +419,6 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
     {
         state_ = s;
         lg.unlock();
-        set_hidden(s == mir_surface_state_hidden);
         
         observers.attrib_changed(mir_surface_attrib_state, s);
     }
