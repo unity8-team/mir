@@ -16,6 +16,6 @@ adb push build-android-arm/bin /home/phablet/mir/bin
 adb push build-android-arm/lib /home/phablet/mir/lib
 adb push build-android-arm/usr /home/phablet/mir/usr
 
-adb shell "LD_LIBRARY_PATH=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/:/home/phablet/mir/lib PATH=$PATH:/home/phablet/mir/usr/bin bash -c \"cd /home/phablet/mir/usr/bin ; umockdev-run /home/phablet/mir/bin/mir_unit_tests\""
-adb shell "LD_LIBRARY_PATH=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/:/home/phablet/mir/lib PATH=$PATH:/home/phablet/mir/usr/bin bash -c \"cd /home/phablet/mir/usr/bin ; umockdev-run /home/phablet/mir/bin/mir_integration_tests\""
-adb shell "LD_LIBRARY_PATH=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/:/home/phablet/mir/lib PATH=$PATH:/home/phablet/mir/usr/bin bash -c \"cd /home/phablet/mir/usr/bin ; umockdev-run /home/phablet/mir/bin/mir_acceptance_tests\""
+adb shell "LD_LIBRARY_PATH=/home/phablet/mir/lib LD_PRELOAD=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/libumockdev-preload.so.0.0.0 /home/phablet/mir/bin/mir_unit_tests"
+adb shell "LD_LIBRARY_PATH=/home/phablet/mir/lib LD_PRELOAD=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/libumockdev-preload.so.0.0.0 /home/phablet/mir/bin/mir_integration_tests"
+adb shell "LD_LIBRARY_PATH=/home/phablet/mir/lib LD_PRELOAD=/home/phablet/mir/usr/lib/arm-linux-gnueabihf/libumockdev-preload.so.0.0.0 /home/phablet/mir/bin/mir_acceptance_tests"
