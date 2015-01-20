@@ -1,7 +1,5 @@
 include(CMakeDependentOption)
 
-add_definitions(-DMIR_SERVER_INPUT_PLATFORM_VERSION="${MIR_SERVER_INPUT_PLATFORM_VERSION}")
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
@@ -10,7 +8,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
-  ${UMOCKDEV_INCLUDE_DIRS} 
 )
 
 protobuf_generate_cpp(
@@ -103,7 +100,6 @@ target_link_libraries(
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
   ${GMOCK_MAIN_LIBRARY}
-  ${UMOCKDEV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
@@ -128,5 +124,5 @@ CMAKE_DEPENDENT_OPTION(
   OFF)
 
 if (MIR_RUN_INTEGRATION_TESTS)
-  mir_discover_tests(mir_integration_tests LD_PRELOAD=libumockdev-preload.so.0)
+  mir_discover_tests(mir_integration_tests)
 endif (MIR_RUN_INTEGRATION_TESTS)

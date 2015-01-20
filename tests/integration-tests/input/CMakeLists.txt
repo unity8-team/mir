@@ -7,7 +7,6 @@ list(
 if(NOT MIR_TEST_PLATFORM STREQUAL "android")
   add_subdirectory(android)
 endif()
-add_subdirectory(evdev)
 
 set(
   INTEGRATION_TESTS_SRCS

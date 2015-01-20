@@ -104,23 +104,7 @@ add_custom_command(TARGET mir-test-framework POST_BUILD
   ${CMAKE_CURRENT_SOURCE_DIR}/udev_recordings ${CMAKE_BINARY_DIR}/bin/udev_recordings
   COMMENT "Copying umockdev recordings to build dir..."
 )
-install(FILES 
-    udev_recordings/bluetooth-magic-trackpad.ioctl
-    udev_recordings/bluetooth-magic-trackpad.umockdev
-    udev_recordings/joystick-detection.ioctl
-    udev_recordings/joystick-detection.umockdev
-    udev_recordings/laptop-keyboard.ioctl
-    udev_recordings/laptop-keyboard.umockdev
-    udev_recordings/mt-screen-detection.ioctl
-    udev_recordings/mt-screen-detection.umockdev
-    udev_recordings/synaptics-touchpad.ioctl
-    udev_recordings/synaptics-touchpad.umockdev
-    udev_recordings/usb-keyboard.ioctl
-    udev_recordings/usb-keyboard.umockdev
-    udev_recordings/usb-mouse.ioctl
-    udev_recordings/usb-mouse.umockdev
-    DESTINATION bin/udev_recordings/
-    )
+
 add_custom_command(TARGET mir-test-framework POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/testing-cursor-theme ${CMAKE_BINARY_DIR}/bin/testing-cursor-theme
