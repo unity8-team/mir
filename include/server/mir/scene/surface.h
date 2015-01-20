@@ -63,8 +63,13 @@ public:
     virtual geometry::Size size() const = 0;
 
     /// Set the frame thickness for each side. This determines the
-    /// client rectangle offset relative to top_left().
+    /// client rectangle offset relative to top_left(). And the client
+    /// rectangle is then size() minus the frame.
     virtual void set_frame(Frame const&) = 0;
+
+    /// TODO Define the invisible extents beyond size() that will be sensitive
+    ///      to input for window resizing.
+    // virtual void set_invisible_resize_frame(Frame const&) = 0;
 
     virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const = 0;
 
