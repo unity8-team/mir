@@ -42,6 +42,9 @@ namespace compositor
 {
 class Compositor;
 }
+
+namespace scene { class Surface; }
+
 namespace examples
 {
 
@@ -82,6 +85,11 @@ private:
     ColourEffect colour_effect = none;
 
     void toggle(ColourEffect);
+
+    enum {left_edge, hmiddle, right_edge} xedge = hmiddle;
+    enum {top_edge, vmiddle, bottom_edge} yedge = vmiddle;
+    void save_edges(scene::Surface& surf, geometry::Point const& p);
+    void resize(scene::Surface& surf, geometry::Point const& cursor) const;
 };
 
 }
