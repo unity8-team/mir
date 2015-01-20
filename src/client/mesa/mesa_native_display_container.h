@@ -19,7 +19,7 @@
 #ifndef MIR_CLIENT_MESA_MESA_NATIVE_DISPLAY_CONTAINER_H_
 #define MIR_CLIENT_MESA_MESA_NATIVE_DISPLAY_CONTAINER_H_
 
-#include "../egl_native_display_container.h"
+#include "mir/egl_native_display_container.h"
 
 #include "mir_toolkit/client_types.h"
 #include "mir_toolkit/mesa/native_display.h"
@@ -40,7 +40,7 @@ public:
     MesaNativeDisplayContainer();
     virtual ~MesaNativeDisplayContainer();
 
-    MirEGLNativeDisplayType create(MirConnection* connection);
+    MirEGLNativeDisplayType create(ClientContext* context);
     void release(MirEGLNativeDisplayType display);
 
     bool validate(MirEGLNativeDisplayType display) const;

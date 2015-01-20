@@ -34,7 +34,7 @@
 #include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test/fake_shared.h"
-#include "mir_test/client_event_matchers.h"
+#include "mir_test/event_matchers.h"
 
 #include "gmock_set_arg.h"
 #include <gmock/gmock.h>
@@ -75,6 +75,10 @@ TEST(SurfaceCreationParametersTest, default_creation_parameters)
     EXPECT_EQ(default_point, params.top_left);
     EXPECT_EQ(mg::BufferUsage::undefined, params.buffer_usage);
     EXPECT_EQ(mir_pixel_format_invalid, params.pixel_format);
+    EXPECT_FALSE(params.type.is_set());
+    EXPECT_FALSE(params.state.is_set());
+    EXPECT_FALSE(params.preferred_orientation.is_set());
+    EXPECT_FALSE(params.parent_id.is_set());
 
     EXPECT_EQ(ms::a_surface(), params);
 }
@@ -86,16 +90,30 @@ TEST(SurfaceCreationParametersTest, builder_mutators)
     mg::BufferUsage const usage{mg::BufferUsage::hardware};
     MirPixelFormat const format{mir_pixel_format_abgr_8888};
     std::string name{"surface"};
+    MirSurfaceState state{mir_surface_state_fullscreen};
+    MirSurfaceType type{mir_surface_type_dialog};
+    MirOrientationMode mode{mir_orientation_mode_landscape};
+    mf::SurfaceId surf_id{1000};
 
-    auto params = ms::a_surface().of_name(name)
-                                 .of_size(size)
-                                 .of_buffer_usage(usage)
-                                 .of_pixel_format(format);
+    auto params = ms::a_surface()
+        .of_name(name)
+        .of_size(size)
+        .of_buffer_usage(usage)
+        .of_pixel_format(format)
+        .of_type(type)
+        .with_parent_id(surf_id)
+        .with_preferred_orientation(mode)
+        .with_state(state);
 
     EXPECT_EQ(name, params.name);
     EXPECT_EQ(size, params.size);
     EXPECT_EQ(usage, params.buffer_usage);
     EXPECT_EQ(format, params.pixel_format);
+
+    EXPECT_EQ(type, params.type);
+    EXPECT_EQ(state, params.state);
+    EXPECT_EQ(mode, params.preferred_orientation);
+    EXPECT_EQ(surf_id, params.parent_id);
 }
 
 TEST(SurfaceCreationParametersTest, equality)
@@ -202,8 +220,8 @@ struct SurfaceCreation : public ::testing::Test
     
     std::string surface_name = "test_surfaceA";
     MirPixelFormat pf = mir_pixel_format_abgr_8888;
-    geom::Stride stride = geom::Stride{4 * size.width.as_uint32_t()};
     geom::Size size = geom::Size{43, 420};
+    geom::Stride stride = geom::Stride{4 * size.width.as_uint32_t()};
     geom::Rectangle rect = geom::Rectangle{geom::Point{geom::X{0}, geom::Y{0}}, size};
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     ms::BasicSurface surface;
@@ -468,7 +486,7 @@ TEST_F(SurfaceCreation, consume_calls_send_event)
     motion_event.type = mir_event_type_motion;
 
     EXPECT_CALL(mock_sender, send_event(mt::MirKeyEventMatches(key_event), _)).Times(1);
-    EXPECT_CALL(mock_sender, send_event(mt::MirMotionEventMatches(motion_event), _)).Times(1);
+    EXPECT_CALL(mock_sender, send_event(mt::MirTouchEventMatches(motion_event), _)).Times(1);
 
     surface.consume(key_event);
     surface.consume(motion_event);

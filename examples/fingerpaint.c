@@ -17,7 +17,7 @@
  */
 
 #include "mir_toolkit/mir_client_library.h"
-#include "mir_toolkit/input/input_event.h"
+#include "mir_toolkit/events/input/input_event.h"
 
 #include <stdio.h>
 #include <signal.h>
@@ -252,6 +252,19 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
             }
     
             redraw(surface, canvas);
+        }
+    }
+    else if (event_type == mir_event_type_close_surface)
+    {
+        static int closing = 0;
+
+        ++closing;
+        if (closing == 1)
+            printf("Sure you don't want to save your work?\n");
+        else if (closing > 1)
+        {
+            printf("Oh I forgot you can't save your work. Quitting now...\n");
+            running = 0;
         }
     }
     else if (event_type == mir_event_type_resize)

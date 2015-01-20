@@ -17,14 +17,14 @@
  */
 
 #include "mir/geometry/rectangle.h"
-#include "src/client/client_platform.h"
-#include "src/client/client_platform_factory.h"
+#include "mir/client_platform.h"
+#include "mir/client_platform_factory.h"
 #include "src/client/mir_connection.h"
 #include "src/client/default_connection_configuration.h"
 #include "src/client/rpc/mir_basic_rpc_channel.h"
 #include "src/client/display_configuration.h"
 #include "src/client/mir_surface.h"
-#include "src/client/client_buffer_factory.h"
+#include "mir/client_buffer_factory.h"
 
 #include "src/server/frontend/resource_cache.h" /* needed by test_server.h */
 #include "mir_test/test_protobuf_server.h"
@@ -504,8 +504,8 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
 {
     using namespace testing;
 
-    MirSurfaceParameters params;
-    params.name = __PRETTY_FUNCTION__;
+    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
+    params.surface_name = __PRETTY_FUNCTION__;
 
     MirEventDelegate const event_delegate = {
         &surface_event_callback,
@@ -542,8 +542,8 @@ TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_
 {
     using namespace testing;
 
-    MirSurfaceParameters params;
-    params.name = __PRETTY_FUNCTION__;
+    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
+    params.surface_name = __PRETTY_FUNCTION__;
 
     MirEventDelegate const event_delegate = {
         &surface_event_callback,
