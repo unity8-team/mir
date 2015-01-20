@@ -162,11 +162,12 @@ private:
     MirSurfaceFocusState set_focus_state(MirSurfaceFocusState f);
     MirOrientationMode set_preferred_orientation(MirOrientationMode mode);
     geometry::Size client_size_for(geometry::Size const& frame_size) const;
+    geometry::Point client_pos_for(geometry::Point const& frame_top_left) const;
 
     SurfaceObservers observers;
     std::mutex mutable guard;
     std::string const surface_name;
-    geometry::Rectangle surface_rect;
+    geometry::Rectangle surface_rect, client_rect;
     Frame frame;  // defaults to zeros
     glm::mat4 transformation_matrix;
     float surface_alpha;

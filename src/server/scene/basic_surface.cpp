@@ -120,6 +120,7 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<SceneReport> const& report) :
     surface_name(name),
     surface_rect(rect),
+    client_rect(rect),
     surface_alpha(1.0f),
     first_frame_posted(false),
     hidden(false),
@@ -164,6 +165,7 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
     {
         std::unique_lock<std::mutex> lk(guard);
         surface_rect.top_left = top_left;
+        client_rect.top_left = client_pos_for(top_left);
     }
     observers.moved_to(top_left);
 }
@@ -207,16 +209,31 @@ mir::geometry::Size ms::BasicSurface::client_size_for(
     return {w, h};
 }
 
+mir::geometry::Point ms::BasicSurface::client_pos_for(
+    geometry::Point const& frame_top_left) const
+{
+    // TODO: Implement dpi_ from the surface placement and monitor layout.
+    //       It's presently zero...
+    float const dpi = dpi_ ? dpi_ : 96.0f;
+
+    geom::X x{frame_top_left.x.as_int() + frame.left.as_pixels(dpi)};
+    geom::Y y{frame_top_left.y.as_int() + frame.top.as_pixels(dpi)};
+
+    return {x, y};
+}
+
 mir::geometry::Size ms::BasicSurface::client_size() const
 {
     std::unique_lock<std::mutex> lk(guard);
-    return client_size_for(surface_rect.size);
+    return client_rect.size;
 }
 
 void ms::BasicSurface::set_frame(Frame const& f)
 {
     std::unique_lock<std::mutex> lk(guard);
     frame = f;
+    client_rect.top_left = client_pos_for(surface_rect.top_left);
+    client_rect.size = client_size_for(surface_rect.size);
 }
 
 MirPixelFormat ms::BasicSurface::pixel_format() const
@@ -293,10 +310,12 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
     {
         std::unique_lock<std::mutex> lock(guard);
 
-        surface_buffer_stream->resize(client_size_for(new_size));
+        auto new_client_size = client_size_for(new_size);
+        surface_buffer_stream->resize(new_client_size);
 
         // Now the buffer stream has successfully resized, update the state second;
         surface_rect.size = new_size;
+        client_rect.size = new_client_size;
     }
     observers.resized_to(new_size);
 }
@@ -738,8 +757,7 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
         new SurfaceSnapshot(
             surface_buffer_stream,
             compositor_id,
-            surface_rect,
-            // TODO: Pass in frame as pixels
+            client_rect,
             transformation_matrix,
             visible(lk),
             surface_alpha,
