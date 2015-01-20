@@ -330,7 +330,7 @@ geom::Rectangle ms::BasicSurface::input_bounds() const
 {
     std::unique_lock<std::mutex> lk(guard);
 
-    return surface_rect;
+    return surface_rect;  // Includes frame. Is that correct?
 }
 
 bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
@@ -349,8 +349,8 @@ bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
         return true;
 
     // TODO: Perhaps creates some issues with transformation.
-    auto local_point = geom::Point{geom::X{point.x.as_uint32_t()-surface_rect.top_left.x.as_uint32_t()},
-                                   geom::Y{point.y.as_uint32_t()-surface_rect.top_left.y.as_uint32_t()}};
+    auto local_point = geom::Point{geom::X{point.x.as_uint32_t()-client_rect.top_left.x.as_uint32_t()},
+                                   geom::Y{point.y.as_uint32_t()-client_rect.top_left.y.as_uint32_t()}};
 
     for (auto const& rectangle : custom_input_rectangles)
     {
