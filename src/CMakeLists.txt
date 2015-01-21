@@ -5,6 +5,11 @@ set(MIRPLATFORM_ABI 6)
 # Add the platform implementations before exposing any private APIs
 add_subdirectory(platforms/)
 
+# required in common
+set(MIR_CLIENT_PLATFORM_PATH
+  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/mir/client-platform
+)
+
 # the src/include/... directories should be private to the implementation
 include_directories(${PROJECT_SOURCE_DIR}/src/include/common)
 set(MIR_GENERATED_INCLUDE_DIRECTORIES)
@@ -16,12 +21,6 @@ add_subdirectory(platform/)
 add_subdirectory(server/)
 add_subdirectory(client/)
 add_subdirectory(utils/)
-
-add_executable(wrapper wrapper.c)
-set_property(TARGET wrapper
-             APPEND_STRING PROPERTY COMPILE_FLAGS " -DEXECUTABLE_FORMAT=\\\".%s-uninstalled\\\"")
-set_property(TARGET wrapper
-             APPEND_STRING PROPERTY COMPILE_FLAGS " -D_BSD_SOURCE")
 
 set(
   MIR_GENERATED_INCLUDE_DIRECTORIES

@@ -11,6 +11,9 @@ MIR_COMMON_3 {
     mir_diagonal_resize_bottom_to_top_cursor_name*;
     mir_diagonal_resize_top_to_bottom_cursor_name*;
     mir_disabled_cursor_name*;
+    mir::default_server_platform_path*;
+    mir::default_client_platform_path*;
+    mir::executable_path*;
     mir::Fd::Fd*;
     mir::Fd::invalid*;
     mir::Fd::operator*;

@@ -4,7 +4,7 @@ add_library(demo-shell STATIC
   window_manager.cpp
 )
 
-mir_add_wrapped_executable(mir_proving_server
+mir_add_executable(mir_proving_server
   demo_shell.cpp
 )
 

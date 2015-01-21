@@ -7,7 +7,7 @@ include_directories(
   ${MIR_3RD_PARTY_INCLUDE_DIRECTORIES}
 )
 
-mir_add_wrapped_executable(input-reader-perf NOINSTALL
+mir_add_executable(input-reader-perf NOINSTALL
   input_reader_perf.cpp
 )
 

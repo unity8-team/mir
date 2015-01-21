@@ -1,4 +1,4 @@
-mir_add_wrapped_executable(mir_demo_standalone_render_surfaces
+mir_add_executable(mir_demo_standalone_render_surfaces
   render_surfaces.cpp
   buffer_render_target.cpp
   image_renderer.cpp
@@ -31,44 +31,44 @@ target_link_libraries(eglapp
   ${EGL_LIBRARIES}
   ${GLESv2_LIBRARIES}
 )
-mir_add_wrapped_executable(mir_demo_client_eglflash
+mir_add_executable(mir_demo_client_eglflash
   eglflash.c
 )
 target_link_libraries(mir_demo_client_eglflash
   eglapp
 )
-mir_add_wrapped_executable(mir_demo_client_egltriangle
+mir_add_executable(mir_demo_client_egltriangle
   egltriangle.c
 )
 target_link_libraries(mir_demo_client_egltriangle
   eglapp
 )
-mir_add_wrapped_executable(mir_demo_client_eglcounter
+mir_add_executable(mir_demo_client_eglcounter
   eglcounter.cpp
 )
 target_link_libraries(mir_demo_client_eglcounter
   eglapp
 )
-mir_add_wrapped_executable(mir_demo_client_eglplasma
+mir_add_executable(mir_demo_client_eglplasma
   eglplasma.c
 )
 target_link_libraries(mir_demo_client_eglplasma
   eglapp
 )
-mir_add_wrapped_executable(mir_demo_client_cursors
+mir_add_executable(mir_demo_client_cursors
   cursors_demo_client.c
 )
 target_link_libraries(mir_demo_client_cursors
   eglapp
 )
-mir_add_wrapped_executable(mir_demo_client_eglstateswitcher
+mir_add_executable(mir_demo_client_eglstateswitcher
   eglstateswitcher.c
 )
 target_link_libraries(mir_demo_client_eglstateswitcher
   eglapp
 )
 
-mir_add_wrapped_executable(mir_demo_client_basic
+mir_add_executable(mir_demo_client_basic
   basic.c
 )
 
@@ -80,22 +80,22 @@ target_link_libraries(mir_demo_client_basic
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
-mir_add_wrapped_executable(mir_demo_client_release_at_exit release_at_exit.c)
+mir_add_executable(mir_demo_client_release_at_exit release_at_exit.c)
 target_link_libraries(mir_demo_client_release_at_exit mirclient)
 
-mir_add_wrapped_executable(mir_demo_client_multiwin multiwin.c)
+mir_add_executable(mir_demo_client_multiwin multiwin.c)
 target_link_libraries(mir_demo_client_multiwin mirclient)
 
-mir_add_wrapped_executable(mir_demo_client_fingerpaint fingerpaint.c)
+mir_add_executable(mir_demo_client_fingerpaint fingerpaint.c)
 target_link_libraries(mir_demo_client_fingerpaint mirclient)
 
-mir_add_wrapped_executable(mir_demo_client_progressbar progressbar.c)
+mir_add_executable(mir_demo_client_progressbar progressbar.c)
 target_link_libraries(mir_demo_client_progressbar mirclient)
 
-mir_add_wrapped_executable(mir_demo_client_display_config demo_client_display_config.c)
+mir_add_executable(mir_demo_client_display_config demo_client_display_config.c)
 target_link_libraries(mir_demo_client_display_config eglapp)
 
-mir_add_wrapped_executable(mir_demo_client_flicker
+mir_add_executable(mir_demo_client_flicker
   flicker.c
 )
 
@@ -107,7 +107,7 @@ target_link_libraries(mir_demo_client_flicker
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
-mir_add_wrapped_executable(mir_demo_client_scroll
+mir_add_executable(mir_demo_client_scroll
   scroll.cpp
 )
 
@@ -123,7 +123,7 @@ target_link_libraries(mir_demo_client_scroll
 
 )
 
-mir_add_wrapped_executable(mir_demo_client_prompt_session prompt_session.c)
+mir_add_executable(mir_demo_client_prompt_session prompt_session.c)
 target_link_libraries(mir_demo_client_prompt_session mirclient)
 
 add_library(mirdraw STATIC graphics_utils.cpp)
@@ -136,7 +136,7 @@ include_directories(
   ${GLESv2_INCLUDE_DIRS}
 )
 
-mir_add_wrapped_executable(mir_demo_standalone_render_to_fb
+mir_add_executable(mir_demo_standalone_render_to_fb
     render_to_fb.cpp
 )
 
@@ -146,7 +146,7 @@ target_link_libraries(mir_demo_standalone_render_to_fb
     ${Boost_LIBRARIES}
 )
 
-mir_add_wrapped_executable(mir_demo_server
+mir_add_executable(mir_demo_server
   server_example.cpp
   glog_logger.cpp
   server_example_test_client.cpp
@@ -160,10 +160,10 @@ target_link_libraries(mir_demo_server
   ${Boost_LIBRARIES}
 )
 
-mir_add_wrapped_executable(mir_demo_server_minimal server_minimal.cpp)
+mir_add_executable(mir_demo_server_minimal server_minimal.cpp)
 target_link_libraries(mir_demo_server_minimal mirserver)
 
-mir_add_wrapped_executable(mir_demo_standalone_render_overlays
+mir_add_executable(mir_demo_standalone_render_overlays
     render_overlays.cpp
 )
 

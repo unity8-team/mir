@@ -2,6 +2,7 @@ include(CMakeDependentOption)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/src/include/common/
 )
 
 set(
@@ -43,7 +44,7 @@ endif()
 
 add_subdirectory(throwback)
 
-mir_add_wrapped_executable(
+mir_add_executable(
   mir_acceptance_tests
 
   ${SOURCES}

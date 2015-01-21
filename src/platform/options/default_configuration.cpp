@@ -21,6 +21,7 @@
 #include "mir/graphics/platform.h"
 #include "mir/default_configuration.h"
 #include "mir/abnormal_exit.h"
+#include "mir/executable_path.h"
 #include "mir/shared_library_prober.h"
 #include "mir/logging/null_shared_library_prober_report.h"
 #include "mir/graphics/platform_probe.h"
@@ -110,6 +111,9 @@ mo::DefaultConfiguration::DefaultConfiguration(
     using namespace options;
     namespace po = boost::program_options;
 
+    auto default_platform_path = default_server_platform_path();
+    auto server_path_description = "Directory to look for platform libraries (default: " + default_platform_path + ")";
+
     add_options()
         (host_socket_opt, po::value<std::string>(),
             "Host socket filename")
@@ -119,8 +123,8 @@ mo::DefaultConfiguration::DefaultConfiguration(
         (prompt_socket_opt, "Provide a \"..._trusted\" filename for prompt helper connections")
         (platform_graphics_lib, po::value<std::string>(),
             "Library to use for platform graphics support (default: autodetect)")
-        (platform_path, po::value<std::string>()->default_value(MIR_SERVER_PLATFORM_PATH),
-            "Directory to look for platform libraries (default: " MIR_SERVER_PLATFORM_PATH ")")
+        (platform_path, po::value<std::string>()->default_value(default_platform_path),
+            server_path_description.c_str())
         (enable_input_opt, po::value<bool>()->default_value(enable_input_default),
             "Enable input.")
         (compositor_report_opt, po::value<std::string>()->default_value(off_opt_value),
@@ -166,7 +170,7 @@ void mo::DefaultConfiguration::add_platform_options()
          po::value<std::string>(), "");
     program_options.add_options()
         (platform_path,
-         po::value<std::string>()->default_value(MIR_SERVER_PLATFORM_PATH),
+         po::value<std::string>()->default_value(default_server_platform_path()),
         "");
     mo::ProgramOption options;
     options.parse_arguments(program_options, argc, argv);

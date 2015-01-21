@@ -1,6 +1,6 @@
 project(mir_stress)
 
-mir_add_wrapped_executable(mir_stress
+mir_add_executable(mir_stress
   src/client.cpp
   src/mir-stress.cpp
   src/results.cpp

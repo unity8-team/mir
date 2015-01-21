@@ -34,6 +34,7 @@
 #include "connection_surface_map.h"
 #include "lifecycle_control.h"
 #include "mir/shared_library.h"
+#include "mir/executable_path.h"
 #include "mir/client_platform_factory.h"
 #include "probing_client_platform_factory.h"
 #include "mir_event_distributor.h"
@@ -122,7 +123,8 @@ mcl::DefaultConnectionConfiguration::the_client_platform_factory()
             else
             {
                 auto const platform_path_override = getenv("MIR_CLIENT_PLATFORM_PATH");
-                auto const platform_path = platform_path_override ? platform_path_override : MIR_CLIENT_PLATFORM_PATH;
+                auto const builtin_path = mir::default_client_platform_path();
+                auto const platform_path = platform_path_override ? platform_path_override : builtin_path.c_str();
                 platform_plugins = mir::libraries_for_path(platform_path, *the_shared_library_prober_report());
             }
 

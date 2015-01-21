@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,10 +20,11 @@
 #ifndef MIR_TEST_FRAMEWORK_EXECUTABLE_PATH_H_
 #define MIR_TEST_FRAMEWORK_EXECUTABLE_PATH_H_
 
-#include <string>
+#include "mir/executable_path.h"
+
 namespace mir_test_framework
 {
-std::string executable_path();
+using mir::executable_path;
 
 std::string library_path();
 std::string server_platform(std::string const& name);
