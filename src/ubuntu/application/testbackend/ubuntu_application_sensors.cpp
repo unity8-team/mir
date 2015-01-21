@@ -14,7 +14,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Martin Pitt <martin.pitti@ubuntu.com>
+ *              Ricardo Mendoza <ricardo.mendoza@canonical.com>
  */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <ubuntu/application/sensors/accelerometer.h>
 #include <ubuntu/application/sensors/proximity.h>
@@ -34,6 +40,9 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 using namespace std;
 
@@ -114,8 +123,20 @@ class SensorController
     }
 
     // Return TestSensor of given type, or NULL if it doesn't exist
-    TestSensor* get(ubuntu_sensor_type type)
+    TestSensor* get(ubuntu_sensor_type type, bool no_block = false)
     {
+        if (!no_block && dynamic) {
+            unique_lock<mutex> lk(create_mtx);
+            create_cv.wait(lk, [this, type]{
+                try {
+                    sensors.at(type).get();
+                    return true;
+                } catch (const out_of_range&) {
+                    cerr << "TestSensor WARNING: Requested sensor " << name_from_type(type) << " not yet created, blocking thread until create event received" << endl;        
+                    return false;
+                }
+            });
+        }
         try {
             return sensors.at(type).get();
         } catch (const out_of_range&) {
@@ -125,6 +146,7 @@ class SensorController
 
   private:
     SensorController();
+    bool fifo_take_command();
     bool next_command();
     bool process_create_command();
     void process_event_command();
@@ -144,8 +166,28 @@ class SensorController
         abort();
     }
 
+    static const char* name_from_type(ubuntu_sensor_type type)
+    {
+        if (type == ubuntu_sensor_type_light)
+            return "light";
+        if (type == ubuntu_sensor_type_proximity)
+            return "proximity";
+        if (type == ubuntu_sensor_type_accelerometer)
+            return "accelerometer";
+
+        return "ERROR_TYPE";
+    }
+
     map<ubuntu_sensor_type, shared_ptr<TestSensor>> sensors;
     ifstream data;
+    bool dynamic;
+    int fifo_fd;
+    bool block;
+    condition_variable comm_cv;
+    mutex mtx;
+    thread worker;
+    condition_variable create_cv;
+    mutex create_mtx;
 
     // current command/event
     string current_command;
@@ -155,31 +197,107 @@ class SensorController
 };
 
 SensorController::SensorController()
+    : dynamic(true),
+      fifo_fd(-1),
+      block(false)
 {
     const char* path = getenv("UBUNTU_PLATFORM_API_SENSOR_TEST");
+    if (path != NULL)
+        dynamic = false;
 
-    if (path == NULL) {
-        cerr << "TestSensor ERROR: Need $UBUNTU_PLATFORM_API_SENSOR_TEST to point to a data file\n";
-        abort();
+    if (dynamic) {
+        // create named pipe for event injection
+        stringstream ss;
+        ss << "/tmp/sensor-fifo-" << getpid();
+        string path = ss.str();
+        
+        int ret = mkfifo(path.c_str(), S_IFIFO | 0666);
+        if (ret < 0) {
+            cerr << "TestSensor ERROR: Failed to create named pipe at " << path << endl;
+            abort();
+        }
+
+        fifo_fd = open(path.c_str(), O_RDWR);
+        if (fifo_fd < 0) {
+            cerr << "TestSensor ERROR: Failed to open named pipe at " << path << endl;
+            abort();
+        }
+        cout << "TestSensor INFO: Setup for DYNAMIC event injection over named pipe " << path << endl;
+
+        worker = move(thread([this] {
+            while (fifo_take_command()) {
+                if (current_command.find("create") == string::npos)
+                    process_event_command();
+                else
+                    process_create_command();
+            }
+        }));
+    } else {
+        data.open(path);
+        if (!data.is_open()) {
+            cerr << "TestSensor ERROR: Failed to open data file " << path << ": " << strerror(errno) << endl;
+            abort();
+        }
+        
+        cout << "TestSensor INFO: Setup for STATIC event injection reading from " << path << endl;
+    
+        // process all "create" commands
+        while (next_command()) {
+            if (!process_create_command())
+                break;
+        }
+    
+        // start event processing
+        if (!data.eof())
+            process_event_command();
     }
+}
 
-    //cout << "SensorController ctor: opening " << path << endl;
+bool
+SensorController::fifo_take_command()
+{
+    char buf;
+    int size;
+    string tmp = "";
 
-    data.open(path);
-    if (!data.is_open()) {
-        cerr << "TestSensor ERROR: Failed to open data file " << path << ": " << strerror(errno) << endl;
-        abort();
-    }
+    // block until last event has fired
+    unique_lock<mutex> lk(mtx);
+    comm_cv.wait(lk, [this] { if (block) { return false; } else { block = true; return true; }});
 
-    // process all "create" commands
-    while (next_command()) {
-        if (!process_create_command())
+    tmp.clear();
+    while (read(fifo_fd, &buf, sizeof(char))) {
+        if (buf == '\n' || buf == '#')
             break;
+        tmp.append(1, buf);
     }
+    if (buf == '#') { // comment input (from piped file)
+        // consume rest of line
+        while (read(fifo_fd, &buf, sizeof(char))) {
+            if (buf == '\n')
+                break;
+        }
+        if (tmp.size() == 0) {
+            block = false;
+            return true;
+        }
+    }
+    //cout << "ricmm: tmp '" << tmp << endl;
 
-    // start event processing
-    if (!data.eof())
-        process_event_command();
+    tmp.erase(0, tmp.find_first_not_of(" \t"));
+    tmp.erase(tmp.find_last_not_of(" \t") + 1);
+    //cout << "ricmm: tmp '" << tmp << endl;
+
+    if (tmp.size() == 0)
+        return true;
+
+    // if create command, dont block
+    if (tmp.find("create") != string::npos)
+        block = false;
+
+    current_command = tmp;
+    //cout << "block=" << block << " ricmm: returning command '" << current_command << endl;
+
+    return true;
 }
 
 bool
@@ -211,9 +329,10 @@ SensorController::process_create_command()
     ss >> token;
     ubuntu_sensor_type type = type_from_name(token);
 
-    if (get(type) != NULL) {
+    if (get(type, true) != NULL) {
         cerr << "TestSensor ERROR: duplicate creation of sensor type " << token << endl;
-        abort();
+        //abort();
+        return false;
     }
 
     float min = 0, max = 0, resolution = 0;
@@ -232,9 +351,8 @@ SensorController::process_create_command()
         }
     }
 
-    //cout << "SensorController::process_create_command: type " << type << " min " << min << " max " << max << " res " << resolution << endl;
-
     sensors[type] = make_shared<TestSensor>(type, min, max, resolution);
+    create_cv.notify_all();
     return true;
 }
 
@@ -257,7 +375,7 @@ SensorController::process_event_command()
     string token;
     ss >> token;
     ubuntu_sensor_type type = type_from_name(token);
-    event_sensor = get(type);
+    event_sensor = get(type, true);
     if (event_sensor == NULL) {
         cerr << "TestSensor ERROR: sensor does not exist, you need to create it: " << token << endl;
         abort();
@@ -354,10 +472,15 @@ SensorController::on_timer(union sigval sval)
     }
 
     // read/process next event
-    if (sc.next_command())
-        sc.process_event_command();
-    else {
-        //cout << "TestSensor: script ended, no further commands\n";
+    if (sc.dynamic) {
+        sc.block = false;
+        sc.comm_cv.notify_one();
+    } else {
+        if (sc.next_command())
+            sc.process_event_command();
+        else {
+            //cout << "TestSensor: script ended, no further commands\n";
+        }
     }
 }
 

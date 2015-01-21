@@ -77,6 +77,19 @@ struct HIDDEN_SYMBOL ToBackend
 
         return path;
     }
+    
+    static const char* override_path()
+    {
+        // Hardcoded for the testbackend
+        const char *testlib = "test";
+        static char path[64];
+
+        strcpy(path, "libubuntu_application_api_");
+        strcat(path, testlib);
+        strcat(path, SO_SUFFIX);
+
+        return path;
+    }
 
     static void exit_module(const char* msg)
     {
@@ -100,7 +113,7 @@ struct HIDDEN_SYMBOL ToBackend
 };
 }
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToBackend>::instance().resolve_symbol(sym); }
+#define DLSYM(fptr, sym, module) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToBackend>::instance().resolve_symbol(sym, module); }
 
 #include <bridge_defs.h>
 

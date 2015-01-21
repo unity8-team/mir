@@ -42,14 +42,23 @@ class HIDDEN_SYMBOL Bridge
         return bridge; 
     }
 
-    void* resolve_symbol(const char* symbol) const
+    void* resolve_symbol(const char* symbol, const char* module = "") const
     {
-        return Scope::dlsym_fn(lib_handle, symbol);
+        static const char* test_modules = secure_getenv("UBUNTU_PLATFORM_API_TEST_OVERRIDE");
+        if (test_modules && strstr(test_modules, module)) {
+            fprintf(stderr, "Platform API: INFO: Overriding symbol '%s' with test version\n", symbol);
+            return Scope::dlsym_fn(lib_override_handle, symbol);
+        } else {
+            return Scope::dlsym_fn(lib_handle, symbol);
+        }
     }
 
   protected:
-    Bridge() : lib_handle(Scope::dlopen_fn(Scope::path(), RTLD_LAZY))
+    Bridge()
+        : lib_handle(Scope::dlopen_fn(Scope::path(), RTLD_LAZY))
     {
+        if (Scope::override_path())
+            lib_override_handle = (Scope::dlopen_fn(Scope::override_path(), RTLD_LAZY));
     }
 
     ~Bridge()
@@ -57,6 +66,7 @@ class HIDDEN_SYMBOL Bridge
     }
 
     void* lib_handle;
+    void* lib_override_handle;
 };
 }
 
