@@ -179,7 +179,7 @@ function (mir_add_executable TARGET)
 
   add_executable(${TARGET} ${ARGN})
 
-  if ("${modifier}" STREQUAL "NOINSTALL")
+  if (NOT "${modifier}" STREQUAL "NOINSTALL")
       install(TARGETS ${TARGET} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
 endfunction()
