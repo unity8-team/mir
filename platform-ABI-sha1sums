@@ -22,7 +22,7 @@ fce4c1a9e0d037244f7e9e96ea2d8eaab4fc404c  include/common/mir_toolkit/cursors.h
 f4d39e9893ce6308bddd83a49b90f0051f565323  include/common/mir_toolkit/event.h
 2507f2929415aa423f9551d3c595c439fe1c6efd  include/common/mir_toolkit/events/event_deprecated.h
 cb2358a701db2b9c8d9ba1c877f29f834af259a7  include/common/mir_toolkit/events/event.h
-caaf95ea6c02570ab733ade70aba2ecea810b3a7  include/common/mir_toolkit/events/input/input_event.h
+003b178a1d2418e03a13c54ca02353fa24beb1d6  include/common/mir_toolkit/events/input/input_event.h
 7748a12138474e9be218eeb8f14b372af0fcec7e  include/common/mir_toolkit/events/input/key_input_event.h
 489e8bae7c3e949ac449b09bd3bf554dae0e8986  include/common/mir_toolkit/events/input/pointer_input_event.h
 de7c23453e6d897296f32e49d9ba952a1baa0200  include/common/mir_toolkit/events/input/touch_input_event.h
@@ -53,7 +53,7 @@ d0442a5d5d88a4be6e3e1f99e433c1c43a86bfce  include/platform/mir/graphics/gl_conte
 d1ba61e687d75103e9e7aa0409080214f56a990b  include/platform/mir/graphics/platform_ipc_operations.h
 1b77fb3290af00dc7d1c11dcc5388972dacb9ec3  include/platform/mir/graphics/platform_ipc_package.h
 f0db0484b8ccc9091e73c80a2a200cb436b48bfb  include/platform/mir/graphics/platform_operation_message.h
-84c063346b3bd51b4624d9f940008d4c3f8be066  include/platform/mir/graphics/renderable.h
+f18876766861e5d4f5ca999dbd176fe1fc520594  include/platform/mir/graphics/renderable.h
 ab9801389eba1c35fcfb021fca667279244c26ac  include/platform/mir/input/device_capability.h
 12ff36cfe9fd3e99614e9e315845a63156d2798a  include/platform/mir/input/input_device.h
 4f17d5e7b69448ececbc07dee3653a1f0f4dfc89  include/platform/mir/input/input_device_registry.h
