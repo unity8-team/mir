@@ -18,6 +18,7 @@
  */
 
 #include "window_manager.h"
+#include "demo_compositor.h"
 
 #include "mir/shell/focus_controller.h"
 #include "mir/scene/session.h"
@@ -36,6 +37,7 @@ namespace me = mir::examples;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
+namespace mi = mir::input;
 
 namespace
 {
@@ -60,6 +62,18 @@ void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
 void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
+}
+
+void me::WindowManager::set_input_scene(std::shared_ptr<mi::Scene> const& s)
+{
+    input_scene = s;
+}
+
+void me::WindowManager::force_redraw()
+{
+    // This is clumsy, but the only option our architecture allows us for now
+    // Same hack as used in TouchspotController...
+    input_scene->emit_scene_changed();
 }
 
 namespace
@@ -114,6 +128,73 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
+
+void me::WindowManager::toggle(ColourEffect which)
+{
+    colour_effect = (colour_effect == which) ? none : which;
+    me::DemoCompositor::for_each([this](me::DemoCompositor& c)
+    {
+        c.set_colour_effect(colour_effect);
+    });
+    force_redraw();
+}
+
+void me::WindowManager::save_edges(scene::Surface& surf,
+                                   geometry::Point const& p)
+{
+    int width = surf.size().width.as_int();
+    int height = surf.size().height.as_int();
+
+    int left = surf.top_left().x.as_int();
+    int right = left + width;
+    int top = surf.top_left().y.as_int();
+    int bottom = top + height;
+
+    int leftish = left + width/3;
+    int rightish = right - width/3;
+    int topish = top + height/3;
+    int bottomish = bottom - height/3;
+
+    int click_x = p.x.as_int();
+    xedge = (click_x <= leftish) ? left_edge :
+            (click_x >= rightish) ? right_edge :
+            hmiddle;
+
+    int click_y = p.y.as_int();
+    yedge = (click_y <= topish) ? top_edge :
+            (click_y >= bottomish) ? bottom_edge :
+            vmiddle;
+}
+
+void me::WindowManager::resize(scene::Surface& surf,
+                               geometry::Point const& cursor) const
+{
+    int width = surf.size().width.as_int();
+    int height = surf.size().height.as_int();
+
+    int left = surf.top_left().x.as_int();
+    int right = left + width;
+    int top = surf.top_left().y.as_int();
+    int bottom = top + height;
+
+    geometry::Displacement drag = cursor - old_cursor;
+    int dx = drag.dx.as_int();
+    int dy = drag.dy.as_int();
+
+    if (xedge == left_edge && dx < width)
+        left = old_pos.x.as_int() + dx;
+    else if (xedge == right_edge)
+        right = old_pos.x.as_int() + old_size.width.as_int() + dx;
+    
+    if (yedge == top_edge && dy < height)
+        top = old_pos.y.as_int() + dy;
+    else if (yedge == bottom_edge)
+        bottom = old_pos.y.as_int() + old_size.height.as_int() + dy;
+
+    surf.move_to({left, top});
+    surf.resize({right-left, bottom-top});
+}
+
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
@@ -132,6 +213,21 @@ bool me::WindowManager::handle(MirEvent const& event)
         {
             focus_controller->focus_next();
             return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F4)
+        {
+            auto const app = focus_controller->focussed_application().lock();
+            if (app)
+            {
+                // Ask the app to close politely. It has the right to refuse.
+                auto const surf = app->default_surface();
+                if (surf)
+                {
+                    surf->request_client_surface_close();
+                    return true;
+                }
+            }
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
                   event.key.scan_code == KEY_P) ||
@@ -262,6 +358,16 @@ bool me::WindowManager::handle(MirEvent const& event)
             compositor->start();
             return true;
         }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_N)
+        {
+            toggle(inverse);
+        }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_C)
+        {
+            toggle(contrast);
+        }
     }
     else if (event.type == mir_event_type_motion &&
              focus_controller)
@@ -270,6 +376,33 @@ bool me::WindowManager::handle(MirEvent const& event)
 
         // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
         MirMotionAction action = static_cast<MirMotionAction>(event.motion.action & ~0xff00);
+
+        float new_zoom_mag = 0.0f;  // zero means unchanged
+
+        if (event.motion.modifiers & mir_key_modifier_meta &&
+            action == mir_motion_action_scroll)
+        {
+            zoom_exponent += event.motion.pointer_coordinates[0].vscroll;
+
+            // Negative exponents do work too, but disable them until
+            // there's a clear edge to the desktop.
+            if (zoom_exponent < 0)
+                zoom_exponent = 0;
+    
+            new_zoom_mag = powf(1.2f, zoom_exponent);
+            handled = true;
+        }
+
+        me::DemoCompositor::for_each(
+            [new_zoom_mag,&cursor](me::DemoCompositor& c)
+            {
+                if (new_zoom_mag > 0.0f)
+                    c.zoom(new_zoom_mag);
+                c.on_cursor_movement(cursor);
+            });
+
+        if (zoom_exponent || new_zoom_mag)
+            force_redraw();
 
         auto const app = focus_controller->focussed_application().lock();
 
@@ -297,6 +430,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                     action == mir_motion_action_pointer_down)
                 {
                     click = cursor;
+                    save_edges(*surf, click);
                     handled = true;
                 }
                 else if (event.motion.action == mir_motion_action_move &&
@@ -307,11 +441,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                     if (event.motion.button_state ==
                         mir_motion_button_tertiary)
                     {  // Resize by mouse middle button
-                        int width = old_size.width.as_int() +
-                                    drag.dx.as_int();
-                        int height = old_size.height.as_int() +
-                                     drag.dy.as_int();
-                        surf->resize({width, height});
+                        resize(*surf, cursor);
                     }
                     else
                     { // Move surface (by mouse or 3 fingers)

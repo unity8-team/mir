@@ -5,6 +5,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
 )
@@ -17,7 +18,9 @@ protobuf_generate_cpp(
 set(
   INTEGRATION_TESTS_SRCS
   test_surface_stack_with_compositor.cpp
+  test_client_screencast.cpp
   test_client_surface_swap_buffers.cpp
+  test_large_messages.cpp
   test_protobuf.cpp
   test_surfaceloop.cpp
   test_stale_frames.cpp
@@ -63,7 +66,7 @@ if(MIR_TEST_PLATFORM STREQUAL "mesa")
 endif()
 
 link_directories(${LIBRARY_OUTPUT_PATH})
-add_executable(
+mir_add_wrapped_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
   ${MIR_SERVER_OBJECTS}
@@ -123,8 +126,3 @@ CMAKE_DEPENDENT_OPTION(
 if (MIR_RUN_INTEGRATION_TESTS)
   mir_discover_tests(mir_integration_tests)
 endif (MIR_RUN_INTEGRATION_TESTS)
-
-install(
-    TARGETS mir_integration_tests
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)

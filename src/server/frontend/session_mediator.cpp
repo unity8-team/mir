@@ -37,6 +37,7 @@
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
+#include "mir/graphics/platform_operation_message.h"
 #include "mir/frontend/client_constants.h"
 #include "mir/frontend/event_sink.h"
 #include "mir/frontend/screencast.h"
@@ -174,12 +175,41 @@ void mf::SessionMediator::create_surface(
 
     report->session_create_surface_called(session->name());
 
-    auto const surf_id = session->create_surface(ms::SurfaceCreationParameters()
-        .of_name(request->surface_name())
+    auto params = ms::SurfaceCreationParameters()
         .of_size(request->width(), request->height())
         .of_buffer_usage(static_cast<graphics::BufferUsage>(request->buffer_usage()))
-        .of_pixel_format(static_cast<MirPixelFormat>(request->pixel_format()))
-        .with_output_id(graphics::DisplayConfigurationOutputId(request->output_id())));
+        .of_pixel_format(static_cast<MirPixelFormat>(request->pixel_format()));
+
+    if (request->has_surface_name())
+        params.of_name(request->surface_name());
+
+    if (request->has_output_id())
+        params.with_output_id(graphics::DisplayConfigurationOutputId(request->output_id()));
+
+    if (request->has_type())
+        params.of_type(static_cast<MirSurfaceType>(request->type()));
+
+    if (request->has_state())
+        params.with_state(static_cast<MirSurfaceState>(request->state()));
+
+    if (request->has_pref_orientation())
+        params.with_preferred_orientation(static_cast<MirOrientationMode>(request->pref_orientation()));
+
+    if (request->has_parent_id())
+        params.with_parent_id(SurfaceId{request->parent_id()});
+
+    if (request->has_attachment_rect())
+    {
+        params.with_attachment_rect(geom::Rectangle{
+            {request->attachment_rect().left(), request->attachment_rect().top()},
+            {request->attachment_rect().width(), request->attachment_rect().height()}
+        });
+    }
+
+    if (request->has_edge_attachment())
+        params.with_edge_attachment(static_cast<MirEdgeAttachment>(request->edge_attachment()));
+
+    auto const surf_id = shell->create_surface(session, params);
 
     auto surface = session->get_surface(surf_id);
     auto const& client_size = surface->client_size();
@@ -198,7 +228,7 @@ void mf::SessionMediator::create_surface(
         
         setting->mutable_surfaceid()->set_value(surf_id.as_value());
         setting->set_attrib(i);
-        setting->set_ivalue(surface->query(static_cast<MirSurfaceAttrib>(i)));
+        setting->set_ivalue(shell->get_surface_attribute(session, surf_id, static_cast<MirSurfaceAttrib>(i)));
     }
 
     advance_buffer(surf_id, *surface,
@@ -303,7 +333,7 @@ void mf::SessionMediator::release_surface(
 
         auto const id = SurfaceId(request->value());
 
-        session->destroy_surface(id);
+        shell->destroy_surface(session, id);
         surface_tracker.remove_surface(id);
     }
 
@@ -358,8 +388,7 @@ void mf::SessionMediator::configure_surface(
 
         auto const id = mf::SurfaceId(request->surfaceid().value());
         int value = request->ivalue();
-        auto const surface = session->get_surface(id);
-        int newvalue = surface->configure(attrib, value);
+        int newvalue = shell->set_surface_attribute(session, id, attrib, value);
 
         response->set_ivalue(newvalue);
     }
@@ -591,12 +620,22 @@ void mf::SessionMediator::drm_auth_magic(
 
     //TODO: the opcode should be provided as part of the request, and should be opaque to the server code.
     unsigned int const made_up_opcode{0};
-    mg::PlatformIPCPackage platform_request{{static_cast<int32_t>(request->magic())},{}};
+    mg::PlatformOperationMessage platform_request;
+
+    auto const magic = request->magic();
+    platform_request.data.resize(sizeof(int));
+    auto const data_ptr = reinterpret_cast<int*>(platform_request.data.data());
+    *data_ptr = magic;
+
     try
     {
         auto platform_response = ipc_operations->platform_operation(made_up_opcode, platform_request);
-        if (platform_response.ipc_data.size() > 0)
-            response->set_status_code(platform_response.ipc_data[0]);
+        if (platform_response.data.size() >= sizeof(int))
+        {
+            auto const status =
+                *reinterpret_cast<int const*>(platform_response.data.data());
+            response->set_status_code(status);
+        }
     }
     catch (std::exception const& e)
     {
@@ -606,6 +645,41 @@ void mf::SessionMediator::drm_auth_magic(
             response->set_status_code(*errno_ptr);
         else
             throw;
+    }
+
+    done->Run();
+}
+
+void mf::SessionMediator::platform_operation(
+    google::protobuf::RpcController* /*controller*/,
+    mir::protobuf::PlatformOperationMessage const* request,
+    mir::protobuf::PlatformOperationMessage* response,
+    google::protobuf::Closure* done)
+{
+    {
+        std::unique_lock<std::mutex> lock(session_mutex);
+        auto session = weak_session.lock();
+
+        if (session.get() == nullptr)
+            BOOST_THROW_EXCEPTION(std::logic_error("Invalid application session"));
+    }
+
+    mg::PlatformOperationMessage platform_request;
+    unsigned int const opcode = request->opcode();
+    platform_request.data.assign(request->data().begin(),
+                                 request->data().end());
+    platform_request.fds.assign(request->fd().begin(),
+                                request->fd().end());
+
+    auto const& platform_response = ipc_operations->platform_operation(opcode, platform_request);
+
+    response->set_opcode(opcode);
+    response->set_data(platform_response.data.data(),
+                       platform_response.data.size());
+    for (auto fd : platform_response.fds)
+    {
+        response->add_fd(fd);
+        resource_cache->save_fd(response, mir::Fd{fd});
     }
 
     done->Run();

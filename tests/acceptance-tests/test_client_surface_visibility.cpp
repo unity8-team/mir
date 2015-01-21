@@ -18,13 +18,10 @@
 
 #include "mir_toolkit/mir_client_library.h"
 
-#include "mir/compositor/scene.h"
 #include "mir/scene/surface.h"
 #include "mir/shell/surface_coordinator_wrapper.h"
-#include "mir/shell/focus_setter.h"
 
-#include "mir_test_framework/stubbed_server_configuration.h"
-#include "mir_test_framework/basic_client_server_fixture.h"
+#include "mir_test_framework/connected_client_with_a_surface.h"
 #include "mir_test/wait_condition.h"
 
 #include <mutex>
@@ -42,7 +39,6 @@ namespace geom = mir::geometry;
 
 namespace
 {
-
 class StoringSurfaceCoordinator : public msh::SurfaceCoordinatorWrapper
 {
 public:
@@ -62,119 +58,21 @@ public:
         return surfaces[index].lock();
     }
 
+    void raise(std::weak_ptr<ms::Surface> const& /*surface*/) override
+    {
+         // We get some racy "raise" requests from the DefaultFocusManagement
+         // so we ignore any raise requests that we don't issue ourselves
+    }
+
+    void raise(int index)
+    {
+         msh::SurfaceCoordinatorWrapper::raise(surface(index));
+    }
+
 private:
     std::vector<std::weak_ptr<ms::Surface>> surfaces;
 
 };
-
-class CompositorTrackingScene : public mc::Scene
-{
-public:
-    CompositorTrackingScene(std::shared_ptr<mc::Scene> const& wrapped_scene)
-        : wrapped_scene{wrapped_scene}
-    {
-    }
-
-    mc::SceneElementSequence scene_elements_for(mc::CompositorID id) override
-    {
-        return wrapped_scene->scene_elements_for(id);
-    }
-
-    void register_compositor(mc::CompositorID id) override
-    {
-        wrapped_scene->register_compositor(id);
-
-        std::lock_guard<std::mutex> lock{mutex};
-        ++registered_compositors;
-        compositor_registered.notify_one();
-    }
-
-    void unregister_compositor(mc::CompositorID id) override
-    {
-        wrapped_scene->unregister_compositor(id);
-    }
-
-    void add_observer(std::shared_ptr<ms::Observer> const& observer) override
-    {
-        wrapped_scene->add_observer(observer);
-    }
-
-    void remove_observer(std::weak_ptr<ms::Observer> const& observer) override
-    {
-        wrapped_scene->remove_observer(observer);
-    }
-
-    void wait_for_compositor_registration(int ncompositors)
-    {
-        std::unique_lock<std::mutex> lock{mutex};
-        compositor_registered.wait_for(
-            lock,
-            std::chrono::seconds{1},
-            [&] { return ncompositors == registered_compositors;});
-    }
-
-private:
-    std::mutex mutex;
-    std::condition_variable compositor_registered;
-    std::shared_ptr<mc::Scene> const wrapped_scene;
-    int registered_compositors = 0;
-};
-
-struct StubServerConfig : mtf::StubbedServerConfiguration
-{
-    StubServerConfig()
-        : mtf::StubbedServerConfiguration(
-              std::vector<geom::Rectangle>{
-                  {{0,0},{800,600}},
-                  {{800,0},{640,480}}}),
-          ncompositors{2}
-    {
-    }
-
-    std::shared_ptr<ms::SurfaceCoordinator> wrap_surface_coordinator(
-        std::shared_ptr<ms::SurfaceCoordinator> const& wrapped) override
-    {
-        return std::make_shared<StoringSurfaceCoordinator>(wrapped);
-    }
-
-    std::shared_ptr<msh::FocusSetter> the_shell_focus_setter() override
-    {
-        /*
-         * Use a null focus setter so that it doesn't change the surface
-         * order and introduce races to our tests.
-         */
-        struct NullFocusSetter : msh::FocusSetter
-        {
-            void set_focus_to(std::shared_ptr<ms::Session> const& ) override {}
-        };
-        return std::make_shared<NullFocusSetter>();
-    }
-
-    std::shared_ptr<mc::Scene> the_scene() override
-    {
-        return the_compositor_tracking_scene();
-    }
-
-    std::shared_ptr<CompositorTrackingScene> the_compositor_tracking_scene()
-    {
-        return scene(
-            [this]
-            {
-                return std::make_shared<CompositorTrackingScene>(
-                    mtf::StubbedServerConfiguration::the_scene());
-            });
-    }
-
-    void wait_for_compositors_to_start()
-    {
-        the_compositor_tracking_scene()->wait_for_compositor_registration(ncompositors);
-    }
-
-    mir::CachedPtr<CompositorTrackingScene> scene;
-    int const ncompositors;
-};
-
-using BasicFixture = mtf::BasicClientServerFixture<StubServerConfig>;
 
 struct MockVisibilityCallback
 {
@@ -194,79 +92,56 @@ void event_callback(MirSurface* surface, MirEvent const* event, void* ctx)
     }
 }
 
-struct MirSurfaceVisibilityEvent : BasicFixture
+struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 {
-    void SetUp()
+
+    void SetUp() override
     {
-        BasicFixture::SetUp();
+        server.wrap_surface_coordinator([&]
+            (std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)
+            {
+                auto const result = std::make_shared<StoringSurfaceCoordinator>(wrapped);
+                storing_surface_coordinator = result;
+                return result;
+            });
 
-        /*
-         * Bring system to a stable state to avoid test race conditions.
-         * For example, if compositor for pseudo-display A starts up
-         * first and we create the surface on pseudo-display B before
-         * B starts compositing, there is a chance that the surface will
-         * receive an occlusion event. This is fine in a production system
-         * but it messes up our testing expectations, so we want to ensure
-         * that all compositors are running when we create the surface.
-         */
-        server_configuration.wait_for_compositors_to_start();
-        client_create_surface();
-    }
-
-    void TearDown()
-    {
-        mir_surface_release_sync(surface);
-        if (second_surface)
-            mir_surface_release_sync(second_surface);
-
-        BasicFixture::TearDown();
-    }
-
-    void client_create_surface()
-    {
-        MirSurfaceParameters const request_params =
-        {
-            __PRETTY_FUNCTION__,
-            640, 480,
-            mir_pixel_format_abgr_8888,
-            mir_buffer_usage_hardware,
-            mir_display_output_id_invalid
-        };
-
-        surface = mir_connection_create_surface_sync(connection, &request_params);
-        ASSERT_TRUE(mir_surface_is_valid(surface));
+        mtf::ConnectedClientWithASurface::SetUp();
 
         MirEventDelegate delegate{&event_callback, &mock_visibility_callback};
         mir_surface_set_event_handler(surface, &delegate);
 
-        mir_surface_swap_buffers_sync(surface);
+        // Swap enough buffers to ensure compositor threads are into run loop
+        for (auto i = 0; i != 11; ++i)
+            mir_surface_swap_buffers_sync(surface);
+    }
+
+    void TearDown() override
+    {
+        // Don't call ConnectedClientWithASurface::TearDown() - the sequence matters
+        mir_surface_release_sync(surface);
+        if (second_surface)
+            mir_surface_release_sync(second_surface);
+
+        mtf::ConnectedClientHeadlessServer::TearDown();
     }
 
     void create_larger_surface_on_top()
     {
-        MirSurfaceParameters const request_params =
-        {
-            __PRETTY_FUNCTION__,
-            800, 600,
-            mir_pixel_format_bgr_888,
-            mir_buffer_usage_hardware,
-            mir_display_output_id_invalid
-        };
+        auto spec = mir_connection_create_spec_for_normal_surface(connection, 800, 600, mir_pixel_format_bgr_888);
 
-        second_surface = mir_connection_create_surface_sync(connection, &request_params);
+        second_surface = mir_surface_create_sync(spec);
         ASSERT_TRUE(mir_surface_is_valid(second_surface));
+    
+        mir_surface_spec_release(spec);
 
-        server_config().the_surface_coordinator()->raise(server_surface(1));
+        storing_surface_coordinator.lock()->raise(1);
 
         mir_surface_swap_buffers_sync(second_surface);
     }
 
     std::shared_ptr<ms::Surface> server_surface(size_t index)
     {
-        auto const storing_surface_coordinator =
-            std::dynamic_pointer_cast<StoringSurfaceCoordinator>(server_config().the_surface_coordinator());
-
-        return storing_surface_coordinator->surface(index);
+        return storing_surface_coordinator.lock()->surface(index);
     }
 
     void move_surface_off_screen()
@@ -281,7 +156,7 @@ struct MirSurfaceVisibilityEvent : BasicFixture
 
     void raise_surface_on_top()
     {
-        server_config().the_surface_coordinator()->raise(server_surface(0));
+        storing_surface_coordinator.lock()->raise(0);
     }
 
     void expect_surface_visibility_event_after(
@@ -291,6 +166,8 @@ struct MirSurfaceVisibilityEvent : BasicFixture
         using namespace testing;
 
         mt::WaitCondition event_received;
+
+        Mock::VerifyAndClearExpectations(&mock_visibility_callback);
 
         EXPECT_CALL(mock_visibility_callback, handle(surface, visibility))
             .WillOnce(DoAll(Invoke([&visibility](MirSurface *s, MirSurfaceVisibility)
@@ -305,9 +182,9 @@ struct MirSurfaceVisibilityEvent : BasicFixture
         Mock::VerifyAndClearExpectations(&mock_visibility_callback);
     }
 
-    MirSurface* surface = nullptr;
     MirSurface* second_surface = nullptr;
     testing::NiceMock<MockVisibilityCallback> mock_visibility_callback;
+    std::weak_ptr<StoringSurfaceCoordinator> storing_surface_coordinator;
 };
 
 }

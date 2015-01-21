@@ -19,9 +19,12 @@
 #ifndef MIR_CLIENT_ANDROID_NATIVE_DISPLAY_CONTAINER_H_
 #define MIR_CLIENT_ANDROID_NATIVE_DISPLAY_CONTAINER_H_
 
-#include "../egl_native_display_container.h"
+#include "mir/egl_native_display_container.h"
 
 #include "mir_toolkit/client_types.h"
+
+#include <unordered_set>
+#include <mutex>
 
 namespace mir
 {
@@ -36,14 +39,18 @@ public:
     AndroidNativeDisplayContainer();
     virtual ~AndroidNativeDisplayContainer();
 
-    MirEGLNativeDisplayType create(MirConnection* connection);
-    void release(MirEGLNativeDisplayType display);
+    MirEGLNativeDisplayType create(ClientContext* context) override;
+    void release(MirEGLNativeDisplayType display) override;
 
-    bool validate(MirEGLNativeDisplayType display) const;
+    bool validate(MirEGLNativeDisplayType display) const override;
 
 protected:
     AndroidNativeDisplayContainer(AndroidNativeDisplayContainer const&) = delete;
     AndroidNativeDisplayContainer& operator=(AndroidNativeDisplayContainer const&) = delete;
+
+private:
+    std::mutex mutable guard;
+    std::unordered_set<MirEGLNativeDisplayType> valid_displays;
 };
 
 }

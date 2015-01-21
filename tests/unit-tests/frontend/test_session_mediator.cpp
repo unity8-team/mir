@@ -27,6 +27,7 @@
 #include "mir/graphics/platform.h"
 #include "mir/graphics/platform_ipc_package.h"
 #include "mir/graphics/buffer_ipc_message.h"
+#include "mir/graphics/platform_operation_message.h"
 #include "mir/input/cursor_images.h"
 #include "mir/graphics/platform_ipc_operations.h"
 #include "src/server/scene/basic_surface.h"
@@ -126,7 +127,7 @@ struct MockBufferPacker : public mg::PlatformIpcOperations
     MOCK_CONST_METHOD2(unpack_buffer,
         void(mg::BufferIpcMessage&, mg::Buffer const&));
     MOCK_METHOD0(connection_ipc_package, std::shared_ptr<mg::PlatformIPCPackage>());
-    MOCK_METHOD2(platform_operation, mg::PlatformIPCPackage(unsigned int const, mg::PlatformIPCPackage const&));
+    MOCK_METHOD2(platform_operation, mg::PlatformOperationMessage(unsigned int const, mg::PlatformOperationMessage const&));
 };
 
 class StubbedSession : public mtd::StubSession
@@ -170,18 +171,18 @@ public:
         return surface;
     }
 
-    mf::SurfaceId create_surface(ms::SurfaceCreationParameters const& /* params */) override
+    mf::SurfaceId create_surface(ms::SurfaceCreationParameters const& /* params */)
     {
         mf::SurfaceId id{last_surface_id};
         if (mock_surfaces.end() == mock_surfaces.find(id))
         {
-            mock_surfaces[id] = create_mock_surface(); 
+            mock_surfaces[id] = create_mock_surface();
         }
         last_surface_id++;
         return id;
     }
 
-    void destroy_surface(mf::SurfaceId surface) override
+    void destroy_surface(mf::SurfaceId surface)
     {
         mock_surfaces.erase(surface);
     }
@@ -235,6 +236,12 @@ struct SessionMediator : public ::testing::Test
         using namespace ::testing;
 
         ON_CALL(*shell, open_session(_, _, _)).WillByDefault(Return(stubbed_session));
+
+        ON_CALL(*shell, create_surface( _, _)).WillByDefault(
+            WithArg<1>(Invoke(stubbed_session.get(), &StubbedSession::create_surface)));
+
+        ON_CALL(*shell, destroy_surface( _, _)).WillByDefault(
+            WithArg<1>(Invoke(stubbed_session.get(), &StubbedSession::destroy_surface)));
     }
 
     MockConnector connector;
@@ -869,8 +876,11 @@ TEST_F(SessionMediator, drm_auth_magic_calls_platform_operation_abstraction)
 
     int magic{0x3248};
     int test_response{4};
-    mg::PlatformIPCPackage response{{test_response}, {}};
-    mg::PlatformIPCPackage request;
+    mg::PlatformOperationMessage response;
+    response.data.resize(sizeof(int));
+    *(reinterpret_cast<int*>(response.data.data())) = test_response;
+
+    mg::PlatformOperationMessage request;
     drm_request.set_magic(magic);
 
     EXPECT_CALL(mock_ipc_operations, platform_operation(_, _))
@@ -881,8 +891,8 @@ TEST_F(SessionMediator, drm_auth_magic_calls_platform_operation_abstraction)
     mediator.drm_auth_magic(nullptr, &drm_request, &drm_response, null_callback.get());
     mediator.disconnect(nullptr, nullptr, nullptr, null_callback.get());
 
-    ASSERT_THAT(request.ipc_data.size(), Eq(1));
-    EXPECT_THAT(request.ipc_data[0], Eq(magic));
+    ASSERT_THAT(request.data.size(), Eq(sizeof(int)));
+    EXPECT_THAT(*(reinterpret_cast<int*>(request.data.data())), Eq(magic));
     EXPECT_THAT(drm_response.status_code(), Eq(test_response));
 }
 

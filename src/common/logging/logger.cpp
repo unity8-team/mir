@@ -46,11 +46,6 @@ std::shared_ptr<ml::Logger> get_logger()
 }
 }
 
-void ml::log(ml::Severity severity, const std::string& message)
-{
-    log(severity, message, "UnknownComponent");
-}
-
 void ml::log(ml::Severity severity, const std::string& message, const std::string& component)
 {
     auto const logger = get_logger();
@@ -66,3 +61,16 @@ void ml::set_logger(std::shared_ptr<Logger> const& new_logger)
         the_logger = new_logger;
     }
 }
+
+namespace mir
+{
+namespace logging
+{
+// For backwards compatibility (avoid breaking ABI)
+void log(ml::Severity severity, std::string const& message)
+{
+    ml::log(severity, message, "");
+}
+}
+}
+

@@ -20,8 +20,10 @@
 #define MIR_EXAMPLES_WINDOW_MANAGER_H_
 
 #include "mir/input/event_filter.h"
+#include "mir/input/scene.h"
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/size.h"
+#include "demo_renderer.h"
 
 #include <memory>
 
@@ -39,6 +41,9 @@ namespace compositor
 {
 class Compositor;
 }
+
+namespace scene { class Surface; }
+
 namespace examples
 {
 
@@ -51,6 +56,8 @@ public:
     void set_focus_controller(std::shared_ptr<shell::FocusController> const& focus_controller);
     void set_display(std::shared_ptr<graphics::Display> const& display);
     void set_compositor(std::shared_ptr<compositor::Compositor> const& compositor);
+    void set_input_scene(std::shared_ptr<input::Scene> const& scene);
+    void force_redraw();
     
     bool handle(MirEvent const& event) override;
 
@@ -62,6 +69,7 @@ private:
     std::shared_ptr<shell::FocusController> focus_controller;
     std::shared_ptr<graphics::Display> display;
     std::shared_ptr<compositor::Compositor> compositor;
+    std::shared_ptr<input::Scene> input_scene;
 
     geometry::Point click;
     geometry::Point old_pos;
@@ -69,6 +77,15 @@ private:
     geometry::Size old_size;
     float old_pinch_diam;
     int max_fingers;  // Maximum number of fingers touched during gesture
+    int zoom_exponent = 0;
+    ColourEffect colour_effect = none;
+
+    void toggle(ColourEffect);
+
+    enum {left_edge, hmiddle, right_edge} xedge = hmiddle;
+    enum {top_edge, vmiddle, bottom_edge} yedge = vmiddle;
+    void save_edges(scene::Surface& surf, geometry::Point const& p);
+    void resize(scene::Surface& surf, geometry::Point const& cursor) const;
 };
 
 }
