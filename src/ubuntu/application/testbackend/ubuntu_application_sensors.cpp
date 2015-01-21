@@ -146,6 +146,7 @@ class SensorController
 
   private:
     SensorController();
+    ~SensorController();
     bool fifo_take_command();
     bool next_command();
     bool process_create_command();
@@ -182,12 +183,14 @@ class SensorController
     ifstream data;
     bool dynamic;
     int fifo_fd;
+    string fifo_path;
     bool block;
     condition_variable comm_cv;
     mutex mtx;
     thread worker;
     condition_variable create_cv;
     mutex create_mtx;
+    bool exit;
 
     // current command/event
     string current_command;
@@ -199,7 +202,8 @@ class SensorController
 SensorController::SensorController()
     : dynamic(true),
       fifo_fd(-1),
-      block(false)
+      block(false),
+      exit(false)
 {
     const char* path = getenv("UBUNTU_PLATFORM_API_SENSOR_TEST");
     if (path != NULL)
@@ -209,20 +213,20 @@ SensorController::SensorController()
         // create named pipe for event injection
         stringstream ss;
         ss << "/tmp/sensor-fifo-" << getpid();
-        string path = ss.str();
+        fifo_path = ss.str();
         
-        int ret = mkfifo(path.c_str(), S_IFIFO | 0666);
+        int ret = mkfifo(fifo_path.c_str(), S_IFIFO | 0666);
         if (ret < 0) {
-            cerr << "TestSensor ERROR: Failed to create named pipe at " << path << endl;
+            cerr << "TestSensor ERROR: Failed to create named pipe at " << fifo_path << endl;
             abort();
         }
 
-        fifo_fd = open(path.c_str(), O_RDWR);
+        fifo_fd = open(fifo_path.c_str(), O_RDWR);
         if (fifo_fd < 0) {
-            cerr << "TestSensor ERROR: Failed to open named pipe at " << path << endl;
+            cerr << "TestSensor ERROR: Failed to open named pipe at " << fifo_path << endl;
             abort();
         }
-        cout << "TestSensor INFO: Setup for DYNAMIC event injection over named pipe " << path << endl;
+        cout << "TestSensor INFO: Setup for DYNAMIC event injection over named pipe " << fifo_path << endl;
 
         worker = move(thread([this] {
             while (fifo_take_command()) {
@@ -230,6 +234,9 @@ SensorController::SensorController()
                     process_event_command();
                 else
                     process_create_command();
+
+                if (exit)
+                    break;
             }
         }));
     } else {
@@ -250,6 +257,17 @@ SensorController::SensorController()
         // start event processing
         if (!data.eof())
             process_event_command();
+    }
+}
+
+SensorController::~SensorController()
+{
+    if (dynamic) {
+        exit = true;
+        if (worker.joinable())
+            worker.join();
+
+        unlink(fifo_path.c_str());
     }
 }
 
