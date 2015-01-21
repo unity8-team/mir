@@ -46,7 +46,7 @@ class HIDDEN_SYMBOL Bridge
     {
         static const char* test_modules = secure_getenv("UBUNTU_PLATFORM_API_TEST_OVERRIDE");
         if (test_modules && strstr(test_modules, module)) {
-            fprintf(stderr, "Platform API: INFO: Overriding symbol '%s' with test version\n", symbol);
+            printf("Platform API: INFO: Overriding symbol '%s' with test version\n", symbol);
             return Scope::dlsym_fn(lib_override_handle, symbol);
         } else {
             return Scope::dlsym_fn(lib_handle, symbol);

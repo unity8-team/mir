@@ -93,7 +93,7 @@ struct HIDDEN_SYMBOL ToBackend
 
     static void exit_module(const char* msg)
     {
-        printf("Ubuntu Platform API: %s -- Aborting\n", msg);
+        fprintf(stderr, "Ubuntu Platform API: %s -- Aborting\n", msg);
         abort();
     }
 
