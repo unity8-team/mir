@@ -349,7 +349,6 @@ SensorController::process_create_command()
 
     if (get(type, true) != NULL) {
         cerr << "TestSensor ERROR: duplicate creation of sensor type " << token << endl;
-        //abort();
         return false;
     }
 
