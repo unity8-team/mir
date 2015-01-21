@@ -299,11 +299,9 @@ SensorController::fifo_take_command()
             return true;
         }
     }
-    //cout << "ricmm: tmp '" << tmp << endl;
 
     tmp.erase(0, tmp.find_first_not_of(" \t"));
     tmp.erase(tmp.find_last_not_of(" \t") + 1);
-    //cout << "ricmm: tmp '" << tmp << endl;
 
     if (tmp.size() == 0)
         return true;
@@ -313,7 +311,6 @@ SensorController::fifo_take_command()
         block = false;
 
     current_command = tmp;
-    //cout << "block=" << block << " ricmm: returning command '" << current_command << endl;
 
     return true;
 }
