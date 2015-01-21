@@ -22,5 +22,3 @@ target_link_libraries(mirplatforminputevdev
   mirplatform
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
 )
-
-install(TARGETS mirplatforminputevdev LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PATH})
