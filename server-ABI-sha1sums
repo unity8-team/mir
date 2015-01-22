@@ -53,7 +53,7 @@ d0442a5d5d88a4be6e3e1f99e433c1c43a86bfce  include/platform/mir/graphics/gl_conte
 d1ba61e687d75103e9e7aa0409080214f56a990b  include/platform/mir/graphics/platform_ipc_operations.h
 1b77fb3290af00dc7d1c11dcc5388972dacb9ec3  include/platform/mir/graphics/platform_ipc_package.h
 f0db0484b8ccc9091e73c80a2a200cb436b48bfb  include/platform/mir/graphics/platform_operation_message.h
-22f66cf9b754ac69863955da9d801ed0eec7be0e  include/platform/mir/graphics/renderable.h
+48ee8461ccf0bbfc3c6bf2c0fb5de8bc679e857b  include/platform/mir/graphics/renderable.h
 b45f14082c4f8b29efaa1b13de795dcb29deb738  include/platform/mir/options/option.h
 f4030e400baf8baa9c38e7c6ec6b4a5ad7134aeb  include/server/mir/compositor/compositor.h
 a9f284ba4b05d58fd3eeb628d1f56fe4ac188526  include/server/mir/compositor/compositor_id.h
@@ -97,8 +97,8 @@ ee94083f10f890e24c0e0bbdb94842e2dd788deb  include/server/mir/scene/session_liste
 5bab4dc0a6488b8b9d47e958c6bab94f1dcf2c57  include/server/mir/scene/surface_buffer_access.h
 bbc9e2e2bb71634cd6f1c5c0430093e10e74fa23  include/server/mir/scene/surface_configurator.h
 e5e4dd7bcaf186810043fa0f05be42d7e49b0843  include/server/mir/scene/surface_coordinator.h
-8e3636b736700d72520709c8a61f5e85d9231d4c  include/server/mir/scene/surface_creation_parameters.h
-86c7c4089ed350f22a63923e91b8590739169c02  include/server/mir/scene/surface.h
+308d886cae96072a87ec1119fc31a66031727893  include/server/mir/scene/surface_creation_parameters.h
+aceccc0bdeea5c90d6c5ea17ed4ce6b5dc1b0ed4  include/server/mir/scene/surface.h
 587e22d751656ce2d9536afdf5659276ff9bbc46  include/server/mir/scene/surface_observer.h
 7ef3e99901168cda296d74d05a979f47bf9c3ff1  include/server/mir/server_action_queue.h
 9ebaf52d83b27063498eda8481dd4e53213e98f8  include/server/mir/server.h
