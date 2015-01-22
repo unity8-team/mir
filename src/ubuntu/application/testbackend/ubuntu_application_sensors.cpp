@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Canonical Ltd
+ * Copyright (C) 2013-2015 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -209,6 +209,7 @@ SensorController::SensorController()
     if (path != NULL)
         dynamic = false;
 
+    // Either we are using a named pipe (dynamic) or a static file for event injection
     if (dynamic) {
         // create named pipe for event injection
         stringstream ss;

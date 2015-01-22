@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2012-2015 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 3 as
@@ -19,7 +19,7 @@
 #ifndef BRIDGE_DEFS_H_
 #define BRIDGE_DEFS_H_
 
-// Must be included afterthe Bridge class is defined
+// Must be included after the Bridge class is defined
 
 #ifdef __cplusplus
 extern "C" {
