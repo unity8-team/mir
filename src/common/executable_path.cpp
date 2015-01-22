@@ -43,11 +43,9 @@ std::string mir::default_server_platform_path()
 {
     try
     {
-        auto base_path = executable_path();
-
-        for (auto const& path : {base_path + "/../lib/server-modules/", base_path + "/../lib/mir/server-platform/"})
-            if (boost::filesystem::exists(path))
-                return path;
+        auto inside_build_dir = executable_path() + "/../lib/server-modules/";
+        if (boost::filesystem::exists(inside_build_dir))
+            return inside_build_dir;
     }
     catch(boost::exception &)
     {
@@ -62,11 +60,10 @@ std::string mir::default_client_platform_path()
 {
     try
     {
-        auto base_path = executable_path();
+        auto inside_build_dir = executable_path() + "/../lib/client-modules/";
 
-        for (auto const& path : {base_path + "/../lib/client-modules/", base_path + "/../lib/mir/client-platform/"})
-            if (boost::filesystem::exists(path))
-                return path;
+        if (boost::filesystem::exists(inside_build_dir))
+                return inside_build_dir;
     }
     catch(boost::exception &)
     {
