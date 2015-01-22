@@ -31,21 +31,8 @@ add_definitions(-DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}/")
 add_definitions(-DCLIENT_PLATFORM_VERSION="${CLIENT_PLATFORM_VERSION}")
 add_definitions(-DMIR_LOGGING_COMPONENT_FALLBACK="mirclient")
 
-
 add_subdirectory(rpc/)
 add_subdirectory(lttng/)
-
-add_library(mirclient_platformimpl OBJECT
-  aging_buffer.cpp
-)
-
-if(MIR_BUILD_PLATFORM_ANDROID)
-add_subdirectory(android/)
-endif()
-
-if(MIR_BUILD_PLATFORM_MESA)
-add_subdirectory(mesa/)
-endif()
 
 add_library(mirclientobjects OBJECT
 
@@ -75,6 +62,10 @@ add_library(mirclientobjects OBJECT
   periodic_perf_report.cpp
   mir_platform_message_api.cpp
 )
+
+# Ensure protobuf C++ headers have been produced before
+# trying to compile mirclientobjects
+add_dependencies(mirclientobjects mirprotobuf)
 
 add_library(mirclient SHARED
 
