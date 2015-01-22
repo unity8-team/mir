@@ -52,34 +52,41 @@ extern "C" {
     typedef event_cb UAUiWindowEventCb;
 
     typedef void UAUiWindowProperties;
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiWindowProperties*
     ua_ui_window_properties_new_for_normal_window();
-   
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_destroy(
     	UAUiWindowProperties *properties);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_titlen(
     	UAUiWindowProperties *properties,
     	const char *title,
         size_t size);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC const char*
     ua_ui_window_properties_get_title(
     	UAUiWindowProperties *properties);
-  
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_role(
         UAUiWindowProperties *properties,
         UAUiWindowRole role);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiWindowRole
     ua_ui_window_properties_get_role(
         UAUiWindowProperties *properties);
 
     // Deprecated! Use ua_ui_window_properties_set_event_cb_and_ctx instead.
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_properties_set_input_cb_and_ctx(
         UAUiWindowProperties *properties,
@@ -87,12 +94,14 @@ extern "C" {
         void *ctx);
 
     UBUNTU_DLL_PUBLIC void
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     ua_ui_window_properties_set_event_cb_and_ctx(
         UAUiWindowProperties *properties,
         UAUiWindowEventCb cb,
         void *ctx);
 
     UBUNTU_DLL_PUBLIC void
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     ua_ui_window_properties_set_dimensions(
         UAUiWindowProperties *properties,
         uint32_t width,

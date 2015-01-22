@@ -41,19 +41,23 @@ extern "C" {
         U_USER_SESSION = 0,
         U_SYSTEM_SESSION = 1
     } UAUiSessionType;
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiSession*
     ua_ui_session_new_with_properties(
     	UAUiSessionProperties *properties);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiSessionProperties*
     ua_ui_session_properties_new();
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_session_properties_set_type(
         UAUiSessionProperties* properties,
         UAUiSessionType type);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_session_properties_set_remote_pid(
         UAUiSessionProperties* properties,

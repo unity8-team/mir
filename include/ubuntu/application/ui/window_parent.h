@@ -40,29 +40,36 @@ extern "C" {
     } UApplicationUiWindowParentType;
     
     typedef struct UApplicationUiWindowParent;
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_with_window(
     	UApplicationUiWindow *window);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_with_application(
     	UApplicationInstance *instance);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_for_session();
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowParent*
     u_application_ui_window_parent_new_for_system();
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     u_application_ui_window_parent_destroy(
     	UApplicationUiWindowParent *parent);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowParentType
     u_application_ui_window_parent_get_type(
     	UApplicationUiWindowParent *parent);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindow*
     u_application_ui_window_parent_get_parent_window(
     	UApplicationUiWindowParent *parent);

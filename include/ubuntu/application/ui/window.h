@@ -45,62 +45,75 @@ extern "C" {
     /*
         Ownership of properties is given to the returned UAUiWindow
     */
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiWindow*
     ua_ui_window_new_for_application_with_properties(
     	UApplicationInstance *instance,
     	UAUiWindowProperties *properties);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_destroy(
     	UAUiWindow *window);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiWindowId
     ua_ui_window_get_id(
     	UAUiWindow *window);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))    
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_get_size(
         UAUiWindow *window,
         uint32_t *width,
         uint32_t *height);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_move(
         UAUiWindow *window,
         uint32_t new_x,
         uint32_t new_y);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_resize(
     	UAUiWindow *window,
     	uint32_t new_width,
     	uint32_t new_height);
     
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_hide(
     	UAUiWindow *window);
     
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UStatus
     ua_ui_window_show(
     	UAUiWindow *window);
 
     // Deprecated. Prefer ua_ui_window_request_state.
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_fullscreen(
         UAUiWindow *window);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC EGLNativeWindowType
     ua_ui_window_get_native_type(
         UAUiWindow *window);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC int
     ua_ui_window_is_focused(
         UAUiWindow *window);
-    
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_window_request_state(
         UAUiWindow *window, UApplicationUiWindowState state);
 
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UApplicationUiWindowOrientation
     ua_ui_window_get_orientation(
         UAUiWindow *window);

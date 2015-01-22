@@ -34,6 +34,7 @@ extern "C" {
     /*
         FIXME: See ua_ui_get_clipboard_content
     */
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_set_clipboard_content(
         void* data,
@@ -50,6 +51,7 @@ extern "C" {
         contains. It should provide a mapping between mime types (as plain ascii strings)
         and their respective data so the user is able to interpret the contents properly.
     */
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC void
     ua_ui_get_clipboard_content(
         void** data,

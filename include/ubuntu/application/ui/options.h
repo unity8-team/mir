@@ -34,11 +34,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-   
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiFormFactor
     u_application_options_get_form_factor(
     	UApplicationOptions* options);
-   
+
+    __attribute__((__deprecated__("Use u_application_instance_get_mir_connection and the mir client library")))
     UBUNTU_DLL_PUBLIC UAUiStage
     u_application_options_get_stage(
     	UApplicationOptions* options);
