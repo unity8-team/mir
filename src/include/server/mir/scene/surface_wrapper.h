@@ -30,6 +30,10 @@ public:
     SurfaceWrapper(std::shared_ptr<Surface> const& impl);
     virtual ~SurfaceWrapper();
 
+    // This might look like a long list, but the beauty of this is that once
+    // you inherit from SurfaceWrapper, you will never have to remember
+    // or maintain all these. Just override the function you need...
+
     virtual std::shared_ptr<mir::input::InputChannel> input_channel() const override;
     virtual mir::input::InputReceptionMode reception_mode() const override;
     virtual std::string name() const override;
@@ -68,6 +72,7 @@ public:
     virtual int configure(MirSurfaceAttrib, int) override;
     virtual int query(MirSurfaceAttrib) override;
     virtual void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override;
+    virtual std::shared_ptr<Surface> parent() const override;
 
 protected:
     std::shared_ptr<Surface> const raw_surface;

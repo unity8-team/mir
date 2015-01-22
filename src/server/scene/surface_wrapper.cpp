@@ -221,4 +221,9 @@ void SurfaceWrapper::with_most_recent_buffer_do(
     raw_surface->with_most_recent_buffer_do(callback);
 }
 
+std::shared_ptr<Surface> SurfaceWrapper::parent() const
+{
+    return raw_surface->parent();
+}
+
 }} // namespace mir::scene
