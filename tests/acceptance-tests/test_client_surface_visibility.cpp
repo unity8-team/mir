@@ -20,6 +20,7 @@
 
 #include "mir/scene/surface.h"
 #include "mir/shell/surface_coordinator_wrapper.h"
+#include "mir/shell/focus_setter.h"
 
 #include "mir_test_framework/connected_client_with_a_surface.h"
 #include "mir_test/wait_condition.h"
@@ -39,6 +40,7 @@ namespace geom = mir::geometry;
 
 namespace
 {
+
 class StoringSurfaceCoordinator : public msh::SurfaceCoordinatorWrapper
 {
 public:
@@ -56,17 +58,6 @@ public:
     std::shared_ptr<ms::Surface> surface(int index)
     {
         return surfaces[index].lock();
-    }
-
-    void raise(std::weak_ptr<ms::Surface> const& /*surface*/) override
-    {
-         // We get some racy "raise" requests from the DefaultFocusManagement
-         // so we ignore any raise requests that we don't issue ourselves
-    }
-
-    void raise(int index)
-    {
-         msh::SurfaceCoordinatorWrapper::raise(surface(index));
     }
 
 private:
@@ -97,12 +88,24 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 
     void SetUp() override
     {
-        server.wrap_surface_coordinator([&]
+        server.wrap_surface_coordinator([]
             (std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)
             {
-                auto const result = std::make_shared<StoringSurfaceCoordinator>(wrapped);
-                storing_surface_coordinator = result;
-                return result;
+                return std::make_shared<StoringSurfaceCoordinator>(wrapped);
+            });
+
+        /*
+         * Use a null focus setter so that it doesn't change the surface
+         * order and introduce races to our tests.
+         */
+        server.override_the_shell_focus_setter([]
+            {
+                struct NullFocusSetter : msh::FocusSetter
+                {
+                    void set_focus_to(std::shared_ptr<ms::Session> const&) override {}
+                };
+
+                return std::make_shared<NullFocusSetter>();
             });
 
         mtf::ConnectedClientWithASurface::SetUp();
@@ -134,14 +137,17 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
     
         mir_surface_spec_release(spec);
 
-        storing_surface_coordinator.lock()->raise(1);
+        server.the_surface_coordinator()->raise(server_surface(1));
 
         mir_surface_swap_buffers_sync(second_surface);
     }
 
     std::shared_ptr<ms::Surface> server_surface(size_t index)
     {
-        return storing_surface_coordinator.lock()->surface(index);
+        auto const storing_surface_coordinator =
+            std::dynamic_pointer_cast<StoringSurfaceCoordinator>(server.the_surface_coordinator());
+
+        return storing_surface_coordinator->surface(index);
     }
 
     void move_surface_off_screen()
@@ -156,7 +162,7 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 
     void raise_surface_on_top()
     {
-        storing_surface_coordinator.lock()->raise(0);
+        server.the_surface_coordinator()->raise(server_surface(0));
     }
 
     void expect_surface_visibility_event_after(
@@ -184,7 +190,6 @@ struct MirSurfaceVisibilityEvent : mtf::ConnectedClientWithASurface
 
     MirSurface* second_surface = nullptr;
     testing::NiceMock<MockVisibilityCallback> mock_visibility_callback;
-    std::weak_ptr<StoringSurfaceCoordinator> storing_surface_coordinator;
 };
 
 }
