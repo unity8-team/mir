@@ -42,6 +42,11 @@ struct HIDDEN_SYMBOL ToHybris
         return cache;
     }
 
+    static const char* override_path()
+    {
+        return NULL;
+    }
+
     static void* dlopen_fn(const char* path, int flags)
     {
         return android_dlopen(path, flags);
@@ -56,6 +61,6 @@ struct HIDDEN_SYMBOL ToHybris
 
 #define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToHybris>::instance().resolve_symbol(sym); }
 
-#include <bridge_defs.h>
+#include <hybris_bridge_defs.h>
 
 #endif // HYBRIS_MODULE_H_
