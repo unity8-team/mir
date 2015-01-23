@@ -34,7 +34,7 @@ extern char const* const logging_descr;
 class NullLogger : public mir::logging::Logger
 {
 void log(mir::logging::Severity, const std::string&, const std::string&) override;
-void raise_level(mir::logging::Severity) override;
+void enable(mir::logging::Severity) override;
 };
 }
 }

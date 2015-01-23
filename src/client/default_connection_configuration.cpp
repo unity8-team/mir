@@ -103,7 +103,8 @@ mcl::DefaultConnectionConfiguration::the_logger()
         []
         {
             auto ret = mir::logging::get_logger();
-            ret->raise_level(mir::logging::Severity::error);
+            // Client logs show errors only by default
+            ret->enable(mir::logging::Severity::error);
             return ret;
         });
 }

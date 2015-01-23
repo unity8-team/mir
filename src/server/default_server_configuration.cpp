@@ -209,7 +209,8 @@ auto mir::DefaultServerConfiguration::the_logger()
         [this]() -> std::shared_ptr<ml::Logger>
         {
             auto ret = ml::get_logger();
-            ret->raise_level(ml::Severity::debug);
+            // Servers always log everything
+            ret->enable(ml::Severity::debug);
             return ret;
         });
 }

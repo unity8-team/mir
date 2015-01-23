@@ -27,6 +27,6 @@ void mtd::NullLogger::log(mir::logging::Severity, const std::string&, const std:
 {
 }
 
-void mtd::NullLogger::raise_level(mir::logging::Severity)
+void mtd::NullLogger::enable(mir::logging::Severity)
 {
 }

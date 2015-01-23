@@ -37,7 +37,7 @@ private:
         std::string const& message,
         std::string const& component) override;
 
-    void raise_level(mir::logging::Severity) override;
+    void enable(mir::logging::Severity) override;
 
     mir::logging::Severity log_level = mir::logging::Severity::debug;
 };

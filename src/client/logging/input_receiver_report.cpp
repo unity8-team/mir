@@ -37,8 +37,7 @@ std::string const component{"input-receiver"};
 mcll::InputReceiverReport::InputReceiverReport(std::shared_ptr<ml::Logger> const& logger)
     : logger{logger}
 {
-    // You asked for it. This logging report needs debug level.
-    logger->raise_level(ml::Severity::debug);
+    logger->enable(ml::Severity::informational);
 }
 
 namespace
@@ -125,5 +124,5 @@ void mcll::InputReceiverReport::received_event(
 
     format_event(ss, event);
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }

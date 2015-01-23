@@ -46,14 +46,13 @@ public:
                      const std::string& component) = 0;
 
     /**
-     * Raise the maximum log level allowed to be output.
+     * Raise the log verbosity level allowed to be output.
      * So that a process and multiple components can all share the same
-     * Logger, we need to guarantee every user's raise_level() specification
-     * is honoured. This is done by only allowing the log level to be raised
-     * and never reduced. A request to raise_level to a lower level has no
-     * effect.
+     * Logger, we need to guarantee every user's enable() request is honoured.
+     * This is done by only allowing the verbosity to be raised but never
+     * reduced.
      */
-    virtual void raise_level(Severity max_level) = 0;
+    virtual void enable(Severity max_level) = 0;
 
 protected:
     Logger() {}

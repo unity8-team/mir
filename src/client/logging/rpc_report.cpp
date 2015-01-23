@@ -36,8 +36,7 @@ std::string const component{"rpc"};
 mcll::RpcReport::RpcReport(std::shared_ptr<ml::Logger> const& logger)
     : logger{logger}
 {
-    // You asked for it. This logging report needs debug level.
-    logger->raise_level(ml::Severity::debug);
+    logger->enable(ml::Severity::informational);
 }
 
 void mcll::RpcReport::invocation_requested(
@@ -47,7 +46,7 @@ void mcll::RpcReport::invocation_requested(
     ss << "Invocation request: id: " << invocation.id()
        << " method_name: " << invocation.method_name();
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::invocation_succeeded(
@@ -57,7 +56,7 @@ void mcll::RpcReport::invocation_succeeded(
     ss << "Invocation succeeded: id: " << invocation.id()
        << " method_name: " << invocation.method_name();
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::invocation_failed(
@@ -87,7 +86,7 @@ void mcll::RpcReport::result_receipt_succeeded(
     std::stringstream ss;
     ss << "Result received: id: " << result.id();
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::result_receipt_failed(
@@ -106,7 +105,7 @@ void mcll::RpcReport::event_parsing_succeeded(
     /* TODO: Log more information about event */
     ss << "Event parsed";
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::event_parsing_failed(
@@ -134,7 +133,7 @@ void mcll::RpcReport::complete_response(
     std::stringstream ss;
     ss << "Complete response: id: " << result.id();
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::result_processing_failed(
@@ -156,7 +155,7 @@ void mcll::RpcReport::file_descriptors_received(
     for (auto f : fds)
         ss << f << " ";
 
-    logger->log(ml::Severity::debug, ss.str(), component);
+    logger->log(ml::Severity::informational, ss.str(), component);
 }
 
 void mcll::RpcReport::connection_failure(std::exception const& x)
