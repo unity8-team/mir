@@ -22,7 +22,6 @@
 #include "mir/client_buffer.h"
 #include "mir/client_platform.h"
 
-#include <unistd.h>
 #include <string.h>
 
 namespace mcl = mir::client;

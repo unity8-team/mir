@@ -15,9 +15,7 @@ include_directories(
 string(REPLACE "-pedantic" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 add_definitions(-D__GBM__)
 
-add_library(
-  mirplatformgraphicsmesaobjects OBJECT
-
+add_library(mirplatformgraphicsmesaobjects OBJECT
   platform.cpp
   buffer_allocator.cpp
   gbm_buffer.cpp
@@ -40,15 +38,18 @@ add_library(
   nested_authentication.cpp
 )
 
-add_library(
-  mirplatformgraphicsmesa MODULE
-
+add_library(mirplatformgraphicsmesa SHARED
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 
-target_link_libraries(
-  mirplatformgraphicsmesa
+set_target_properties(
+  mirplatformgraphicsmesa PROPERTIES
+  OUTPUT_NAME ${MIR_PLATFORM_DRIVER}
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/mesa
+  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${server_symbol_map}"
+)
 
+target_link_libraries(mirplatformgraphicsmesa
   mirplatform
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
@@ -57,14 +58,20 @@ target_link_libraries(
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
 
-set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/mir/${PLATFORM_DRIVER}/mesa)
 
-set_target_properties(
-  mirplatformgraphicsmesa PROPERTIES
-  OUTPUT_NAME graphics-mesa
-  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/server-modules
-  PREFIX ""
-  LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"
-)
+if (MIR_TEST_PLATFORM STREQUAL "mesa")
+  add_custom_command(TARGET mirplatformgraphicsmesa
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove ${MIR_PLATFORM_DRIVER_BINARY}
+    COMMAND ${CMAKE_COMMAND} -E create_symlink mesa/$<TARGET_FILE_NAME:mirplatformgraphicsmesa> ${MIR_PLATFORM_DRIVER_BINARY}
+    WORKING_DIRECTORY ${LIBRARY_OUTPUT_PATH}
+  )
 
-install(TARGETS mirplatformgraphicsmesa LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PATH})
+  install(CODE
+    "execute_process(
+       COMMAND ln -sf mir/${PLATFORM_DRIVER}/mesa/${MIR_PLATFORM_DRIVER_BINARY}
+       WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+     )"
+  )
+endif()

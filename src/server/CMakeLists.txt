@@ -11,9 +11,6 @@ include_directories(
   ${GLIB_INCLUDE_DIRS}
 )
 
-add_definitions(-DMIR_SERVER_PLATFORM_PATH="${MIR_SERVER_PLATFORM_PATH}")
-add_definitions(-DMIR_SERVER_GRAPHICS_PLATFORM_VERSION="${MIR_SERVER_GRAPHICS_PLATFORM_VERSION}")
-
 add_subdirectory(compositor/)
 add_subdirectory(graphics/)
 add_subdirectory(input/)
@@ -81,9 +78,8 @@ add_library(mirserver SHARED
 )
 
 target_link_libraries(mirserver LINK_PUBLIC
-
-  mirclient
   mirplatform
+  mirclient
   mircommon
   mirprotobuf
   3rd_party

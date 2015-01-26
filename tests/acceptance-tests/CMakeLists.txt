@@ -4,6 +4,10 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
 )
 
+add_definitions(
+  -DMIR_PLATFORM_DRIVER_BINARY="${MIR_PLATFORM_DRIVER_BINARY}"
+)
+
 set(
   SOURCES
 
@@ -63,9 +67,9 @@ target_link_libraries(
   mirplatform
 
   mir-test
-  mir-test-framework
   mir-test-doubles
   mir-test-doubles-platform
+  mir-test-framework
   3rd_party
 
   ${PROTOBUF_LIBRARIES}
