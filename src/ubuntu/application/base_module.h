@@ -28,7 +28,7 @@
  */
 
 #define API_VERSION_MAJOR   "2"
-#define API_VERSION_MINOR   "6"
+#define API_VERSION_MINOR   "7"
 #define API_VERSION_PATCH   "0"
 #define SO_SUFFIX ".so." API_VERSION_MAJOR "." API_VERSION_MINOR "." API_VERSION_PATCH
 
@@ -77,10 +77,23 @@ struct HIDDEN_SYMBOL ToBackend
 
         return path;
     }
+    
+    static const char* override_path()
+    {
+        // Hardcoded for the testbackend
+        const char *testlib = "test";
+        static char path[64];
+
+        strcpy(path, "libubuntu_application_api_");
+        strcat(path, testlib);
+        strcat(path, SO_SUFFIX);
+
+        return path;
+    }
 
     static void exit_module(const char* msg)
     {
-        printf("Ubuntu Platform API: %s -- Aborting\n", msg);
+        fprintf(stderr, "Ubuntu Platform API: %s -- Aborting\n", msg);
         abort();
     }
 
@@ -100,7 +113,7 @@ struct HIDDEN_SYMBOL ToBackend
 };
 }
 
-#define DLSYM(fptr, sym) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToBackend>::instance().resolve_symbol(sym); }
+#define DLSYM(fptr, sym, module) if (*(fptr) == NULL) { *((void**)fptr) = (void *) internal::Bridge<internal::ToBackend>::instance().resolve_symbol(sym, module); }
 
 #include <bridge_defs.h>
 
