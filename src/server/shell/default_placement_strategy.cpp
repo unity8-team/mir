@@ -43,8 +43,8 @@ ms::SurfaceCreationParameters msh::DefaultPlacementStrategy::place(
         mir_display_output_id_invalid};
     auto placed_parameters = request_parameters;
 
-    if (placed_parameters.attachment_rect.is_set())
-      placed_parameters.top_left = placed_parameters.attachment_rect.value().bottom_left();
+    if (placed_parameters.aux_rect.is_set())
+      placed_parameters.top_left = placed_parameters.aux_rect.value().bottom_left();
 
     geom::Rectangle rect{placed_parameters.top_left, placed_parameters.size};
 
