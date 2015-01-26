@@ -52,6 +52,16 @@ ms::SurfaceCreationParameters msh::DefaultPlacementStrategy::place(
         auto origin = parent->top_left();
         placed_parameters.top_left = placed_parameters.top_left + geom::DeltaX(origin.x.as_int());
         placed_parameters.top_left = placed_parameters.top_left + geom::DeltaY(origin.y.as_int());
+
+        auto depth = 1;
+
+        while (parent)
+        {
+            parent = parent->parent();
+            ++depth;
+        }
+
+        placed_parameters.of_depth(ms::DepthId(depth));
     }
 
     geom::Rectangle rect{placed_parameters.top_left, placed_parameters.size};
