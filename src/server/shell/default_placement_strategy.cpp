@@ -17,6 +17,7 @@
  */
 
 #include "default_placement_strategy.h"
+#include "mir/scene/surface.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/shell/display_layout.h"
 #include "mir/geometry/rectangle.h"
@@ -44,7 +45,14 @@ ms::SurfaceCreationParameters msh::DefaultPlacementStrategy::place(
     auto placed_parameters = request_parameters;
 
     if (placed_parameters.aux_rect.is_set())
-      placed_parameters.top_left = placed_parameters.aux_rect.value().bottom_left();
+        placed_parameters.top_left = placed_parameters.aux_rect.value().bottom_left();
+
+    if (auto parent = placed_parameters.parent.lock())
+    {
+        auto origin = parent->top_left();
+        placed_parameters.top_left = placed_parameters.top_left + geom::DeltaX(origin.x.as_int());
+        placed_parameters.top_left = placed_parameters.top_left + geom::DeltaY(origin.y.as_int());
+    }
 
     geom::Rectangle rect{placed_parameters.top_left, placed_parameters.size};
 
