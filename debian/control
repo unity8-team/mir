@@ -73,6 +73,7 @@ Depends: ${misc:Depends},
          libubuntu-application-api2,
          ubuntu-application-api2-touch (= ${binary:Version}),
          ubuntu-application-api2-desktop (= ${binary:Version}),
+         libmirclient-dev,
          ${misc:Depends},
 Suggests: libubuntu-application-api-doc,
 Description: Ubuntu Application API for system level capabilities (development)
