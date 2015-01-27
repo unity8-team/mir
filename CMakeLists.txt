@@ -78,6 +78,7 @@ pkg_check_modules(GIO gio-2.0)
 pkg_check_modules(GIO_UNIX gio-unix-2.0)
 pkg_check_modules(LTTNG lttng-ust)
 
+add_definitions(-DMIR_REQUIRE_DEPRECATED_EVENT_OPT_IN=1)
 
 # We expect this to be set via debian/rules for GLES builds
 if ("${USE_OPENGLES}" STREQUAL 1)

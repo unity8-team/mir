@@ -176,31 +176,15 @@ const char *mirSurfaceVisibilityToStr(int value)
     }
 }
 
-const char *mirMotionActionToStr(int value)
+const char *mirTouchActionToStr(MirTouchInputEventTouchAction action)
 {
-    switch (value) {
-    case mir_motion_action_move:
-        return "move";
-    case mir_motion_action_down:
-        return "down";
-    case mir_motion_action_up:
+    switch (action) {
+    case mir_touch_input_event_action_up:
         return "up";
-    case mir_motion_action_pointer_down:
-        return "pointer_down";
-    case mir_motion_action_cancel:
-        return "cancel";
-    case mir_motion_action_pointer_up:
-        return "pointer_up";
-    case mir_motion_action_outside:
-        return "outside";
-    case mir_motion_action_hover_move:
-        return "hover_move";
-    case mir_motion_action_scroll:
-        return "scroll";
-    case mir_motion_action_hover_enter:
-        return "hover_enter";
-    case mir_motion_action_hover_exit:
-        return "hover_exit";
+    case mir_touch_input_event_action_down:
+        return "down";
+    case mir_touch_input_event_action_change:
+        return "change";
     default:
         return "???";
     }
