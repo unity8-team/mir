@@ -19,7 +19,6 @@
 #include "mirserver.h"
 
 // local
-#include "focussetter.h"
 #include "mirglconfig.h"
 #include "mirplacementstrategy.h"
 #include "mirserverstatuslistener.h"
@@ -100,11 +99,6 @@ MirServer::MirServer(int argc, char const* argv[], QObject* parent)
     override_the_server_status_listener([]
         {
             return std::make_shared<MirServerStatusListener>();
-        });
-
-    override_the_shell_focus_setter([]
-        {
-            return std::make_shared<FocusSetter>();
         });
 
     set_terminator([&](int)
