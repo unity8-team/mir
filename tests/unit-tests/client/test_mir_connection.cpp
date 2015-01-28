@@ -764,3 +764,23 @@ TEST_F(MirConnectionTest, added_dispatchees_are_dispatched)
 
     EXPECT_TRUE(dispatched);
 }
+
+TEST_F(MirConnectionTest, removed_dispatchees_are_no_longer_dispatched)
+{
+    using namespace testing;
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::manual);
+
+    bool dispatched{false};
+    auto dispatchee = std::make_shared<mt::TestDispatchable>([&dispatched](){ dispatched = true; });
+
+    connection->add_dispatchee(dispatchee);
+    connection->remove_dispatchee(dispatchee);
+
+    dispatchee->trigger();
+
+    EXPECT_FALSE(mir::test::fd_is_readable(connection->watch_fd()));
+
+    connection->dispatch();
+
+    EXPECT_FALSE(dispatched);
+}

@@ -122,6 +122,7 @@ public:
     void dispatch();
 
     void add_dispatchee(std::shared_ptr<mir::dispatch::Dispatchable> const& dispatchee);
+    void remove_dispatchee(std::shared_ptr<mir::dispatch::Dispatchable> const& dispatchee);
 
     MirWaitHandle* drm_auth_magic(unsigned int magic,
                                   mir_drm_auth_magic_callback callback,
