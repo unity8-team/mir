@@ -40,6 +40,10 @@ namespace mtf = mir_test_framework;
 mtf::UdevEnvironment::UdevEnvironment()
     : recordings_path(mtf::executable_path() + "/udev_recordings")
 {
+    if (!umockdev_in_mock_environment())
+    {
+        BOOST_THROW_EXCEPTION((std::runtime_error{"Test not running under umockdev!"}));
+    }
     testbed = umockdev_testbed_new();
 }
 
