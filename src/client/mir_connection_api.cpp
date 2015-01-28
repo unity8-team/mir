@@ -167,12 +167,38 @@ MirConnection* mir_connect_sync(
 }
 
 MirConnection* mir_connect_with_manual_dispatch(
-        char const* /*server*/,
-        char const* /*app_name*/,
-        mir_connected_callback /*callback*/,
-        void* /*context*/)
+        char const* server,
+        char const* app_name,
+        mir_connected_callback callback,
+        void* context)
 {
-    return nullptr;
+    try
+    {
+        std::string sock;
+        if (server)
+            sock = server;
+        else
+        {
+            auto socket_env = getenv("MIR_SOCKET");
+            if (socket_env)
+                sock = socket_env;
+            else
+                sock = mir::default_server_socket;
+        }
+
+        mcl::DefaultConnectionConfiguration conf{sock};
+
+        std::unique_ptr<MirConnection> connection{new MirConnection(conf, DispatchType::manual)};
+        connection->connect(app_name, callback, context);
+        return connection.release();
+    }
+    catch (std::exception const& x)
+    {
+        MirConnection* error_connection = new MirConnection(x.what());
+        mcl::ErrorConnections::instance().insert(error_connection);
+        callback(error_connection, context);
+        return error_connection;
+    }
 }
 
 bool mir_connection_is_valid(MirConnection* connection)
