@@ -26,6 +26,7 @@
 #include <fcntl.h>
 
 #include <atomic>
+#include <valgrind/valgrind.h>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -187,6 +188,12 @@ TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relev
 TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
 {
     using namespace testing;
+
+    if (RUNNING_ON_VALGRIND)
+    {
+        // Sadly we can't mark this as inconclusive under valgrind.
+        return;
+    }
 
     auto first_dispatched = std::make_shared<mt::Signal>();
     auto second_dispatched = std::make_shared<mt::Signal>();
