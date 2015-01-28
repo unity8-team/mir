@@ -63,6 +63,31 @@ MirWaitHandle *mir_connect(
 MirConnection *mir_connect_sync(char const *server, char const *app_name);
 
 /**
+ * Request a connection to the Mir server.
+ *
+ * The client is responsible for handling event consumption via
+ * mir_connection_dispatch(). Events will be available when the fd returned
+ * by mir_connection_get_fd() becomes readable.
+ *
+ * All callbacks for this MirConnection and any objects created on it will be
+ * called from the thread calling mir_connection_dispatch().
+ *
+ * \param [in] server       A string specifying the server to connect to.
+ *                          Connection strings can either be path to the socket file on
+ *                          the filesystem, or an open file descriptor fd://
+ * \param [in] app_name     A name referring to the application
+ * \param [in] callback     Callback function to be invoked when request
+ *                          completes. mir_connection_is_valid() will return false
+ *                          until this callback has completed.
+ * \param [in,out] context  User data passed to the callback function
+ * \returns                 The resulting MirConnection
+ */
+MirConnection* mir_connect_with_manual_dispatch(char const* server,
+                                                char const* app_name,
+                                                mir_connected_callback callback,
+                                                void* context);
+
+/**
  * Test for a valid connection
  * \param [in] connection  The connection
  * \return                 True if the supplied connection is valid, or
@@ -85,6 +110,26 @@ char const *mir_connection_get_error_message(MirConnection *connection);
  *   \param [in] connection  The connection
  */
 void mir_connection_release(MirConnection *connection);
+
+/**
+ * \brief Get the notification fd for this connection
+ * \param [in] connection   The connection. This connection must have been created by
+ *                          mir_connect_with_manual_dispatch().
+ * \return                  A file descriptor that supports select/poll/epoll and similar
+ *                          APIs that becomes readable when there are events to dispatch,
+ *                          or -1 if \ref connection was not created by
+ *                          mir_connect_with_manual_dispatch();
+ */
+int mir_connection_get_fd(MirConnection* connection);
+
+/**
+ * \brief Dispatch a single pending event on the connection
+ * \param [in] connection   The connection. This connection must have been created by
+ *                          mir_connect_with_manual_dispatch().
+ * \note    It is an error to call this on a \ref connection not created by
+ *          mir_connect_with_manual_dispatch().
+ */
+void mir_connection_dispatch(MirConnection* connection);
 
 /**
  * Query platform-specific data and/or file descriptors that are required to

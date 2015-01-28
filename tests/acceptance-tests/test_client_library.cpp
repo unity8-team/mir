@@ -24,6 +24,7 @@
 #include "mir_test_framework/using_stub_client_platform.h"
 #include "mir_test_framework/stub_platform_helpers.h"
 #include "mir_test/validity_matchers.h"
+#include "mir_test/fd_utils.h"
 
 #include "src/include/client/mir/client_buffer.h"
 
@@ -53,6 +54,7 @@ namespace mf = mir::frontend;
 namespace mc = mir::compositor;
 namespace mcl = mir::client;
 namespace mtf = mir_test_framework;
+namespace mt = mir::test;
 namespace
 {
 struct ClientLibrary : mtf::HeadlessInProcessServer
@@ -837,4 +839,97 @@ TEST_F(ClientLibrary, DISABLED_can_create_buffer_usage_software_surface)
 
     mir_surface_release_sync(surface);
     mir_connection_release(connection);
+}
+
+TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
+{
+    struct TestData {
+        TestData()
+            : client_thread{pthread_self()},
+              buffers_swapped{false}
+        {
+        }
+
+        static void connection_ready(MirConnection* /*connection*/, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+            EXPECT_EQ(pthread_self(), data->client_thread);
+            data->connection_ready_called = true;
+        }
+
+        static void surface_created(MirSurface* surf, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+            EXPECT_EQ(pthread_self(), data->client_thread);
+            data->surf = surf;
+        }
+
+        static void swap_buffers_complete(MirSurface* /*surf*/, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+            EXPECT_EQ(pthread_self(), data->client_thread);
+            data->buffers_swapped = true;
+        }
+
+        pthread_t client_thread;
+        MirSurface* surf;
+        bool buffers_swapped;
+        bool connection_ready_called;
+    } data;
+
+    connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &TestData::connection_ready, &data);
+
+    ASSERT_THAT(connection, IsValid());
+
+    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_fd(connection)}};
+
+    int dispatch_count{0};
+
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    MirSurfaceParameters const request_params =
+    {
+        __PRETTY_FUNCTION__,
+        640, 480,
+        mir_pixel_format_abgr_8888,
+        mir_buffer_usage_hardware,
+        mir_display_output_id_invalid
+    };
+
+    auto surf_wh =
+            mir_connection_create_surface(connection, &request_params, &TestData::surface_created, &data);
+
+    dispatch_count = 0;
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    // This should now not block
+    mir_wait_for(surf_wh);
+
+    EXPECT_THAT(data.surf, IsValid());
+
+    auto swap_wh = mir_surface_swap_buffers(data.surf, TestData::swap_buffers_complete, &data);
+
+    dispatch_count = 0;
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    mir_wait_for(swap_wh);
+    EXPECT_TRUE(data.buffers_swapped);
 }

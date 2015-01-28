@@ -166,6 +166,15 @@ MirConnection* mir_connect_sync(
     return conn;
 }
 
+MirConnection* mir_connect_with_manual_dispatch(
+        char const* /*server*/,
+        char const* /*app_name*/,
+        mir_connected_callback /*callback*/,
+        void* /*context*/)
+{
+    return nullptr;
+}
+
 bool mir_connection_is_valid(MirConnection* connection)
 {
     return MirConnection::is_valid(connection);
@@ -186,6 +195,15 @@ void mir_connection_release(MirConnection* connection)
     {
         MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
+}
+
+int mir_connection_get_fd(MirConnection* /*connection*/)
+{
+    return -1;
+}
+
+void mir_connection_dispatch(MirConnection */*connection*/)
+{
 }
 
 void mir_connection_get_platform(
