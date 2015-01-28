@@ -197,13 +197,14 @@ void mir_connection_release(MirConnection* connection)
     }
 }
 
-int mir_connection_get_fd(MirConnection* /*connection*/)
+int mir_connection_get_fd(MirConnection* connection)
 {
-    return -1;
+    return connection->watch_fd();
 }
 
-void mir_connection_dispatch(MirConnection */*connection*/)
+void mir_connection_dispatch(MirConnection* connection)
 {
+    connection->dispatch();
 }
 
 void mir_connection_get_platform(

@@ -358,6 +358,13 @@ int MirConnection::watch_fd() const
     return eventloop ? -1 : std::dynamic_pointer_cast<md::Dispatchable>(channel)->watch_fd();
 }
 
+void MirConnection::dispatch()
+{
+    if (eventloop) abort();
+
+    std::dynamic_pointer_cast<md::Dispatchable>(channel)->dispatch(md::FdEvent::readable);
+}
+
 MirWaitHandle* MirConnection::drm_auth_magic(unsigned int magic,
                                              mir_drm_auth_magic_callback callback,
                                              void* context)

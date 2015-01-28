@@ -879,7 +879,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 
     connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &TestData::connection_ready, &data);
 
-    ASSERT_THAT(connection, IsValid());
+    ASSERT_THAT(connection, Ne(nullptr));
 
     auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_fd(connection)}};
 
