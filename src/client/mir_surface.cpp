@@ -153,7 +153,10 @@ MirSurface::~MirSurface()
 
     std::lock_guard<decltype(mutex)> lock(mutex);
 
-    input_thread.reset();
+    if (input_dispatcher)
+    {
+        connection->remove_dispatchee(input_dispatcher);
+    }
 
     for (auto i = 0, end = surface.fd_size(); i != end; ++i)
         close(surface.fd(i));
@@ -485,7 +488,11 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
 
-    input_thread.reset();
+    if (input_dispatcher)
+    {
+        connection->remove_dispatchee(input_dispatcher);
+        input_dispatcher.reset();
+    }
 
     if (delegate)
     {
@@ -495,9 +502,9 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 
         if (surface.fd_size() > 0 && handle_event_callback)
         {
-            auto input_dispatcher = input_platform->create_input_dispatcher(surface.fd(0),
-                                                                            handle_event_callback);
-            input_thread = std::make_shared<md::SimpleDispatchThread>(input_dispatcher);
+            input_dispatcher = input_platform->create_input_dispatcher(surface.fd(0),
+                                                                       handle_event_callback);
+            connection->add_dispatchee(input_dispatcher);
         }
     }
 }
