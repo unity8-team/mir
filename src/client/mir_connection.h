@@ -36,6 +36,8 @@
 
 #include "mir_wait_handle.h"
 
+#include "mir/fd.h"
+
 namespace mir
 {
 class SharedLibrary;
@@ -73,6 +75,8 @@ class Logger;
 namespace dispatch
 {
 class SimpleDispatchThread;
+class Dispatchable;
+class MultiplexingDispatchable;
 }
 }
 
@@ -114,7 +118,7 @@ public:
 
     MirWaitHandle* disconnect();
 
-    int watch_fd() const;
+    mir::Fd watch_fd() const;
     void dispatch();
 
     MirWaitHandle* drm_auth_magic(unsigned int magic,
@@ -207,6 +211,7 @@ private:
 
     std::shared_ptr<mir::client::EventHandlerRegister> const event_handler_register;
 
+    std::shared_ptr<mir::dispatch::MultiplexingDispatchable> const dispatcher;
     std::unique_ptr<mir::dispatch::SimpleDispatchThread> const eventloop;
 
     std::vector<int> extra_platform_data;

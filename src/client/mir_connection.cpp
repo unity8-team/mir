@@ -28,6 +28,7 @@
 #include "rpc/mir_basic_rpc_channel.h"
 #include "mir/dispatch/dispatchable.h"
 #include "mir/dispatch/simple_dispatch_thread.h"
+#include "mir/dispatch/multiplexing_dispatchable.h"
 #include "connection_configuration.h"
 #include "display_configuration.h"
 #include "connection_surface_map.h"
@@ -118,8 +119,9 @@ MirConnection::MirConnection(
         lifecycle_control(conf.the_lifecycle_control()),
         surface_map(conf.the_surface_map()),
         event_handler_register(conf.the_event_handler_register()),
+        dispatcher{std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{std::dynamic_pointer_cast<md::Dispatchable>(channel)})},
         eventloop{dispatch == DispatchType::automatic ?
-                      new md::SimpleDispatchThread{std::dynamic_pointer_cast<md::Dispatchable>(channel)} :
+                      new md::SimpleDispatchThread{dispatcher} :
                       nullptr
                   }
 {
@@ -353,16 +355,16 @@ void MirConnection::done_drm_auth_magic(mir_drm_auth_magic_callback callback,
     drm_auth_magic_wait_handle.result_received();
 }
 
-int MirConnection::watch_fd() const
+mir::Fd MirConnection::watch_fd() const
 {
-    return eventloop ? -1 : std::dynamic_pointer_cast<md::Dispatchable>(channel)->watch_fd();
+    return eventloop ? mir::Fd{} : dispatcher->watch_fd();
 }
 
 void MirConnection::dispatch()
 {
     if (eventloop) abort();
 
-    std::dynamic_pointer_cast<md::Dispatchable>(channel)->dispatch(md::FdEvent::readable);
+    dispatcher->dispatch(md::FdEvent::readable);
 }
 
 MirWaitHandle* MirConnection::drm_auth_magic(unsigned int magic,
