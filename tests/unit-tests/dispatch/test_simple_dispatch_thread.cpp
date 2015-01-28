@@ -183,3 +183,32 @@ TEST_F(SimpleDispatchThreadTest, only_calls_dispatch_with_remote_closed_when_rel
     watch_fd = mir::Fd{};
     EXPECT_FALSE(dispatched_closed->wait_for(std::chrono::seconds{1}));
 }
+
+TEST_F(SimpleDispatchThreadTest, dispatches_multiple_dispatchees_simultaneously)
+{
+    using namespace testing;
+
+    auto first_dispatched = std::make_shared<mt::Signal>();
+    auto second_dispatched = std::make_shared<mt::Signal>();
+
+    // Set up two dispatchables that can run given two threads of execution,
+    // but will deadlock if run sequentially.
+    auto first_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
+    {
+        first_dispatched->raise();
+        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{1}));
+    });
+    auto second_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
+    {
+        second_dispatched->raise();
+        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{1}));
+    });
+
+    auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
+    md::SimpleDispatchThread dispatcher{combined_dispatchable};
+
+    dispatcher.add_thread();
+
+    first_dispatchable->trigger();
+    second_dispatchable->trigger();
+}

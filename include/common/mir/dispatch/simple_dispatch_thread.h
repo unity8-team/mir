@@ -21,6 +21,10 @@
 
 #include <memory>
 #include <thread>
+#include <vector>
+#include <mutex>
+
+#include "mir/dispatch/multiplexing_dispatchable.h"
 #include "mir/fd.h"
 
 namespace mir
@@ -29,16 +33,24 @@ namespace dispatch
 {
 class Dispatchable;
 
-
 class SimpleDispatchThread
 {
 public:
     SimpleDispatchThread(std::shared_ptr<Dispatchable> const& dispatchee);
     ~SimpleDispatchThread() noexcept;
 
+    void add_thread();
+
 private:
-    Fd shutdown_fd;
-    std::thread eventloop;
+    static void dispatch_loop(Dispatchable& dispatcher);
+
+    Fd wakeup_fd;
+    Fd terminate_fd;
+    MultiplexingDispatchable dispatcher;
+
+    thread_local static bool running;
+    std::mutex thread_pool_mutex;
+    std::vector<std::thread> threadpool;
 };
 
 }

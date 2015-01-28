@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -18,9 +18,8 @@
 
 #include "mir/dispatch/simple_dispatch_thread.h"
 #include "mir/dispatch/dispatchable.h"
-#include "utils.h"
 
-#include <sys/epoll.h>
+#include <poll.h>
 #include <unistd.h>
 #include <system_error>
 #include <signal.h>
@@ -28,53 +27,14 @@
 
 namespace md = mir::dispatch;
 
+thread_local bool md::SimpleDispatchThread::running;
+
 namespace
 {
-
-void wait_for_events_forever(std::shared_ptr<md::Dispatchable> const& dispatchee, mir::Fd shutdown_fd)
+void clear_dummy_signal(mir::Fd const& fd)
 {
-    auto epoll_fd = mir::Fd{epoll_create1(0)};
-    if (epoll_fd == mir::Fd::invalid)
-    {
-        BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                 std::system_category(),
-                                                 "Failed to create epoll IO monitor"}));
-    }
-    epoll_event event;
-    memset(&event, 0, sizeof(event));
-
-    enum fd_names : uint32_t {
-        shutdown,
-        dispatchee_fd
-    };
-
-    // We only care when the shutdown pipe has been closed
-    event.data.u32 = fd_names::shutdown;
-    event.events = EPOLLRDHUP;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, shutdown_fd, &event);
-
-    // Ask the dispatchee what it events it's interested in...
-    event.data.u32 = fd_names::dispatchee_fd;
-    event.events = md::fd_event_to_epoll(dispatchee->relevant_events());
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, dispatchee->watch_fd(), &event);
-
-    for (;;)
-    {
-        epoll_wait(epoll_fd, &event, 1, -1);
-        if (event.data.u32 == fd_names::dispatchee_fd)
-        {
-            if (!dispatchee->dispatch(md::epoll_to_fd_event(event)))
-            {
-                // No need to keep looping, the Dispatchable's not going to produce any more events.
-                return;
-            }
-        }
-        else if (event.data.u32 == fd_names::shutdown)
-        {
-            // The only thing we do with the shutdown fd is to close it.
-            return;
-        }
-    }
+    char dummy;
+    ::read(fd, &dummy, sizeof(dummy));
 }
 
 }
@@ -88,29 +48,64 @@ md::SimpleDispatchThread::SimpleDispatchThread(std::shared_ptr<md::Dispatchable>
                                                  std::system_category(),
                                                  "Failed to create shutdown pipe for IO thread"}));
     }
-    shutdown_fd = mir::Fd{pipefds[1]};
+
+    wakeup_fd = mir::Fd{pipefds[1]};
     mir::Fd const terminate_fd = mir::Fd{pipefds[0]};
-    eventloop = std::thread{[dispatchee, terminate_fd]()
-                            {
-                                // Our IO threads must not receive any signals
-                                sigset_t all_signals;
-                                sigfillset(&all_signals);
 
-                                if (auto error = pthread_sigmask(SIG_BLOCK, &all_signals, NULL))
-                                    BOOST_THROW_EXCEPTION((
-                                                std::system_error{error,
-                                                                  std::system_category(),
-                                                                  "Failed to block signals on IO thread"}));
+    // We rely on exactly one thread at a time getting a shutdown message
+    dispatcher.add_watch(terminate_fd,
+                         [terminate_fd, this]()
+                         {
+                             clear_dummy_signal(terminate_fd);
+                             running = false;
+                         });
 
-                                wait_for_events_forever(dispatchee, terminate_fd);
-                            }};
+    // But our target dispatchable is welcome to be dispatched on as many threads
+    // as desired.
+    dispatcher.add_watch(dispatchee, md::DispatchReentrancy::reentrant);
+
+    threadpool.emplace_back(&dispatch_loop, std::ref(dispatcher));
 }
 
 md::SimpleDispatchThread::~SimpleDispatchThread() noexcept
 {
-    shutdown_fd = mir::Fd{};
-    if (eventloop.joinable())
+    std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
+    ::close(wakeup_fd);
+    for (auto& thread : threadpool)
     {
-        eventloop.join();
+        thread.join();
+    }
+}
+
+void md::SimpleDispatchThread::add_thread()
+{
+    std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
+    threadpool.emplace_back(&dispatch_loop, std::ref(dispatcher));
+}
+
+void md::SimpleDispatchThread::dispatch_loop(md::Dispatchable& dispatcher)
+{
+    sigset_t all_signals;
+    sigfillset(&all_signals);
+
+    if (auto error = pthread_sigmask(SIG_BLOCK, &all_signals, NULL))
+        BOOST_THROW_EXCEPTION((std::system_error{error,
+                                                 std::system_category(),
+                                                 "Failed to block signals on IO thread"}));
+
+    running = true;
+
+    struct pollfd waiter;
+    waiter.fd = dispatcher.watch_fd();
+    waiter.events = POLL_IN;
+    while (running)
+    {
+        if (poll(&waiter, 1, -1) < 0)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failed to wait for event"}));
+        }
+        dispatcher.dispatch(md::FdEvent::readable);
     }
 }
