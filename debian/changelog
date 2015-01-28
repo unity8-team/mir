@@ -1,4 +1,4 @@
-platform-api (2.8.0+15.04.20141126-0ubuntu1) vivid; urgency=medium
+platform-api (2.8.0) vivid; urgency=medium
 
   * Deprecate windowing system abstraction layer in favor of directly exposing MirConnection
 
