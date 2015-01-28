@@ -23,6 +23,7 @@
 #include <thread>
 #include <vector>
 #include <mutex>
+#include <condition_variable>
 
 #include "mir/dispatch/multiplexing_dispatchable.h"
 #include "mir/fd.h"
@@ -40,17 +41,26 @@ public:
     ~ThreadedDispatcher() noexcept;
 
     void add_thread();
+    void remove_thread();
 
 private:
-    static void dispatch_loop(Dispatchable& dispatcher);
+    static void dispatch_loop(ThreadedDispatcher& me);
 
-    Fd wakeup_fd;
-    Fd terminate_fd;
+    class ThreadShutdownRequestHandler;
+    friend class ThreadShutdownRequestHandler;
+
+    std::shared_ptr<ThreadShutdownRequestHandler> thread_exiter;
     MultiplexingDispatchable dispatcher;
 
     thread_local static bool running;
+
     std::mutex thread_pool_mutex;
     std::vector<std::thread> threadpool;
+
+    std::mutex terminating_thread_mutex;
+    std::condition_variable thread_terminating;
+    std::thread::id terminating_thread_id;
+
 };
 
 }

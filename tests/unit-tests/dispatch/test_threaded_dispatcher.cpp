@@ -212,3 +212,35 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
     first_dispatchable->trigger();
     second_dispatchable->trigger();
 }
+
+TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
+{
+    using namespace testing;
+
+    // Set up two dispatchables that will fail if run simultaneously
+    auto second_dispatched = std::make_shared<mt::Signal>();
+
+    auto first_dispatchable = std::make_shared<mt::TestDispatchable>([second_dispatched]()
+    {
+        EXPECT_FALSE(second_dispatched->wait_for(std::chrono::seconds{1}));
+    });
+    auto second_dispatchable = std::make_shared<mt::TestDispatchable>([second_dispatched]()
+    {
+        second_dispatched->raise();
+    });
+
+    auto combined_dispatchable = std::make_shared<md::MultiplexingDispatchable>();
+    combined_dispatchable->add_watch(first_dispatchable);
+    combined_dispatchable->add_watch(second_dispatchable);
+    md::ThreadedDispatcher dispatcher{combined_dispatchable};
+
+    dispatcher.add_thread();
+
+    first_dispatchable->trigger();
+    dispatcher.remove_thread();
+    second_dispatchable->trigger();
+
+    EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{2}));
+}
+
+
