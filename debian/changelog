@@ -1,3 +1,10 @@
+platform-api (2.7.0+15.04.20150128-0ubuntu1) vivid; urgency=low
+
+  [ You-Sheng Yang ]
+  * Check array boundary for KeyedVector .
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 28 Jan 2015 14:07:59 +0000
+
 platform-api (2.7.0+15.04.20150123-0ubuntu1) vivid; urgency=medium
 
   [ Ricardo Mendoza ]
