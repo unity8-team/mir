@@ -26,6 +26,7 @@
 #include "mir_test/validity_matchers.h"
 #include "mir_test/fd_utils.h"
 #include "mir_test_framework/udev_environment.h"
+#include "mir_test/signal.h"
 
 #include "src/include/client/mir/client_buffer.h"
 
@@ -1056,4 +1057,64 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     EXPECT_GE(dispatch_count, 1);
 
     EXPECT_TRUE(data.input_event_received);
+}
+
+namespace
+{
+struct SignalPair
+{
+    mir::test::Signal now_blocking;
+    mir::test::Signal event_received;
+};
+
+void notifying_event_handler(MirSurface*, MirEvent const*, void* ctx)
+{
+    auto signal_pair = *reinterpret_cast<std::shared_ptr<SignalPair>*>(ctx);
+    signal_pair->event_received.raise();
+}
+
+void blocking_surface_callback(MirSurface*, void* ctx)
+{
+    auto signal_pair = *reinterpret_cast<std::shared_ptr<SignalPair>*>(ctx);
+    signal_pair->now_blocking.raise();
+    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{1}));
+}
+}
+
+TEST_F(ClientLibrary, rpc_blocking_doesnt_block_event_delivery_with_auto_dispatch)
+{
+    using namespace testing;
+
+    connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+
+    ASSERT_THAT(connection, IsValid());
+
+    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
+                                                                      233, 355,
+                                                                      mir_pixel_format_argb_8888);
+
+    auto surf = mir_surface_create_sync(surface_spec);
+    mir_surface_spec_release(surface_spec);
+
+    EXPECT_THAT(surf, IsValid());
+
+    auto signal_pair = std::make_shared<SignalPair>();
+    MirEventDelegate const delegate = {
+        &notifying_event_handler,
+        &signal_pair
+    };
+    mir_surface_set_event_handler(surf, &delegate);
+
+    auto wh = mir_surface_swap_buffers(surf, &blocking_surface_callback, &signal_pair);
+
+    EXPECT_TRUE(signal_pair->now_blocking.wait_for(std::chrono::seconds{1}));
+    EXPECT_FALSE(signal_pair->event_received.raised());
+
+    mock_devices.load_device_evemu("laptop-keyboard-hello");
+
+    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{1}));
+
+    mir_wait_for(wh);
+    mir_surface_release_sync(surf);
+    mir_connection_release(connection);
 }
