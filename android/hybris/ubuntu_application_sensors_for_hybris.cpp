@@ -200,10 +200,11 @@ struct SensorService : public ubuntu::application::sensors::SensorService
         if (1 != thiz->sensor_event_queue->read(&event, 1))
             return error_and_abort;
 
-        Sensor::Ptr sensor = thiz->sensor_registry.valueFor(event.sensor);
-
-        if (sensor == NULL)
+        ssize_t i = thiz->sensor_registry.indexOfKey(event.sensor);
+        if (i < 0)
             return success_and_continue;
+
+        Sensor::Ptr sensor = thiz->sensor_registry.valueAt(i);
 
         static ubuntu::application::sensors::SensorReading::Ptr reading(
             new ubuntu::application::sensors::SensorReading());
