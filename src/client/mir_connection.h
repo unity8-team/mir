@@ -114,6 +114,8 @@ public:
 
     MirWaitHandle* disconnect();
 
+    int watch_fd() const;
+
     MirWaitHandle* drm_auth_magic(unsigned int magic,
                                   mir_drm_auth_magic_callback callback,
                                   void* context);
