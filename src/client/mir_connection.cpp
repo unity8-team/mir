@@ -370,11 +370,19 @@ void MirConnection::dispatch()
 void MirConnection::add_dispatchee(std::shared_ptr<mir::dispatch::Dispatchable> const& dispatchee)
 {
     dispatcher->add_watch(dispatchee);
+    if (eventloop)
+    {
+        eventloop->add_thread();
+    }
 }
 
 void MirConnection::remove_dispatchee(std::shared_ptr<mir::dispatch::Dispatchable> const& dispatchee)
 {
     dispatcher->remove_watch(dispatchee);
+    if (eventloop)
+    {
+        eventloop->remove_thread();
+    }
 }
 
 MirWaitHandle* MirConnection::drm_auth_magic(unsigned int magic,

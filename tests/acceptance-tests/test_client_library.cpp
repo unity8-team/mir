@@ -1067,17 +1067,24 @@ struct SignalPair
     mir::test::Signal event_received;
 };
 
-void notifying_event_handler(MirSurface*, MirEvent const*, void* ctx)
+void notifying_event_handler(MirSurface*, MirEvent const* ev, void* ctx)
 {
     auto signal_pair = *reinterpret_cast<std::shared_ptr<SignalPair>*>(ctx);
-    signal_pair->event_received.raise();
+    // We trigger an input event once we've noticed the surface callback is blocking
+    // so we need to only raise the flag on an input event; otherwise we may spuriously
+    // fail if we receive a surface event (like the focus event) before we hit
+    // the wait in blocking_surface_callback()
+    if (mir_event_get_type(ev) == mir_event_type_input)
+    {
+        signal_pair->event_received.raise();
+    }
 }
 
 void blocking_surface_callback(MirSurface*, void* ctx)
 {
     auto signal_pair = *reinterpret_cast<std::shared_ptr<SignalPair>*>(ctx);
     signal_pair->now_blocking.raise();
-    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{5}));
 }
 }
 
@@ -1107,12 +1114,12 @@ TEST_F(ClientLibrary, rpc_blocking_doesnt_block_event_delivery_with_auto_dispatc
 
     auto wh = mir_surface_swap_buffers(surf, &blocking_surface_callback, &signal_pair);
 
-    EXPECT_TRUE(signal_pair->now_blocking.wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(signal_pair->now_blocking.wait_for(std::chrono::seconds{5}));
     EXPECT_FALSE(signal_pair->event_received.raised());
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
-    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(signal_pair->event_received.wait_for(std::chrono::seconds{5}));
 
     mir_wait_for(wh);
     mir_surface_release_sync(surf);
