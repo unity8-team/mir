@@ -893,6 +893,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     }
     EXPECT_GE(dispatch_count, 1);
 
+    ASSERT_THAT(connection, IsValid());
+
     MirSurfaceParameters const request_params =
     {
         __PRETTY_FUNCTION__,
@@ -932,4 +934,108 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 
     mir_wait_for(swap_wh);
     EXPECT_TRUE(data.buffers_swapped);
+}
+
+TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
+{
+    using namespace testing;
+
+    struct TestData {
+        TestData()
+            : client_thread{pthread_self()},
+              event_received{false},
+              input_event_received{false}
+        {
+        }
+
+        static void connection_ready(MirConnection* /*connection*/, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+            EXPECT_THAT(pthread_self(), Eq(data->client_thread));
+        }
+
+        static void event_delegate(MirSurface* /*surf*/, MirEvent const* event, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+
+            EXPECT_THAT(pthread_self(), Eq(data->client_thread));
+            data->event_received = true;
+            if (mir_event_get_type(event) == mir_event_type_input)
+            {
+                data->input_event_received = true;
+            }
+        }
+
+        static void surface_created(MirSurface* surf, void* ctx)
+        {
+            auto data = reinterpret_cast<TestData*>(ctx);
+            EXPECT_THAT(pthread_self(), Eq(data->client_thread));
+            data->surf = surf;
+
+            MirEventDelegate const delegate = {
+                &TestData::event_delegate,
+                data
+            };
+            mir_surface_set_event_handler(data->surf, &delegate);
+        }
+
+
+        pthread_t client_thread;
+        bool event_received;
+        bool input_event_received;
+        MirSurface* surf;
+    } data;
+
+    connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &TestData::connection_ready, &data);
+
+    ASSERT_THAT(connection, Ne(nullptr));
+
+    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_fd(connection)}};
+
+    int dispatch_count{0};
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    ASSERT_THAT(connection, IsValid());
+
+    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
+                                                                      233, 355,
+                                                                      mir_pixel_format_argb_8888);
+
+    auto surf_wh = mir_surface_create(surface_spec, &TestData::surface_created, &data);
+
+    mir_surface_spec_release(surface_spec);
+
+    dispatch_count = 0;
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    // This should now not block
+    mir_wait_for(surf_wh);
+    EXPECT_THAT(data.surf, IsValid());
+
+    auto configure_wh = mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
+
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
+    mir_wait_for(configure_wh);
+
+    EXPECT_TRUE(data.event_received);
+    EXPECT_TRUE(data.input_event_received);
 }
