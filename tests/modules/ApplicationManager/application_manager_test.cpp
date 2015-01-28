@@ -15,6 +15,8 @@
  *
  */
 
+#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
+
 #include <thread>
 #include <condition_variable>
 #include <QSignalSpy>

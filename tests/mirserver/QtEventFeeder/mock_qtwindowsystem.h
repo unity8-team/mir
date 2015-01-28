@@ -34,6 +34,7 @@ public:
     MOCK_METHOD4(handleTouchEvent, void(ulong timestamp, QTouchDevice *device,
             const QList<struct QWindowSystemInterface::TouchPoint> &points,
             Qt::KeyboardModifiers mods));
+    MOCK_METHOD4(handleMouseEvent, void(ulong, QPointF, Qt::MouseButton, Qt::KeyboardModifiers));
 };
 
 namespace testing

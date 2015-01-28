@@ -15,6 +15,8 @@
  *
  */
 
+#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
