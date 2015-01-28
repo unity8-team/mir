@@ -2,6 +2,7 @@ include(CMakeDependentOption)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${UMOCKDEV_INCLUDE_DIRS}
 )
 
 set(

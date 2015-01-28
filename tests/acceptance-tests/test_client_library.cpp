@@ -25,6 +25,7 @@
 #include "mir_test_framework/stub_platform_helpers.h"
 #include "mir_test/validity_matchers.h"
 #include "mir_test/fd_utils.h"
+#include "mir_test_framework/udev_environment.h"
 
 #include "src/include/client/mir/client_buffer.h"
 
@@ -63,6 +64,12 @@ struct ClientLibrary : mtf::HeadlessInProcessServer
     MirConnection* connection = nullptr;
     MirSurface* surface  = nullptr;
     int buffers = 0;
+    mtf::UdevEnvironment mock_devices;
+
+    ClientLibrary()
+    {
+        mock_devices.add_standard_device("laptop-keyboard");
+    }
 
     static void connection_callback(MirConnection* connection, void* context)
     {
@@ -1037,5 +1044,16 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     mir_wait_for(configure_wh);
 
     EXPECT_TRUE(data.event_received);
+
+    mock_devices.load_device_evemu("laptop-keyboard-hello");
+
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    while(mt::fd_is_readable(fd))
+    {
+        dispatch_count++;
+        mir_connection_dispatch(connection);
+    }
+    EXPECT_GE(dispatch_count, 1);
+
     EXPECT_TRUE(data.input_event_received);
 }
