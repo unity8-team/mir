@@ -16,7 +16,7 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include "mir/dispatch/simple_dispatch_thread.h"
+#include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/dispatch/dispatchable.h"
 #include "mir/fd.h"
 #include "mir_test/pipe.h"
@@ -35,10 +35,10 @@ namespace mt = mir::test;
 
 namespace
 {
-class SimpleDispatchThreadTest : public ::testing::Test
+class ThreadedDispatcherTest : public ::testing::Test
 {
 public:
-    SimpleDispatchThreadTest()
+    ThreadedDispatcherTest()
     {
         mt::Pipe pipe{O_NONBLOCK};
         watch_fd = pipe.read_fd();
@@ -59,28 +59,28 @@ public:
 
 }
 
-TEST_F(SimpleDispatchThreadTest, calls_dispatch_when_fd_is_readable)
+TEST_F(ThreadedDispatcherTest, calls_dispatch_when_fd_is_readable)
 {
     using namespace testing;
 
     auto dispatched = std::make_shared<mt::Signal>();
     auto dispatchable = std::make_shared<mt::TestDispatchable>([dispatched]() { dispatched->raise(); });
 
-    md::SimpleDispatchThread dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{dispatchable};
 
     dispatchable->trigger();
 
     EXPECT_TRUE(dispatched->wait_for(std::chrono::seconds{1}));
 }
 
-TEST_F(SimpleDispatchThreadTest, stops_calling_dispatch_once_fd_is_not_readable)
+TEST_F(ThreadedDispatcherTest, stops_calling_dispatch_once_fd_is_not_readable)
 {
     using namespace testing;
 
     std::atomic<int> dispatch_count{0};
     auto dispatchable = std::make_shared<mt::TestDispatchable>([&dispatch_count]() { ++dispatch_count; });
 
-    md::SimpleDispatchThread dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{dispatchable};
 
     dispatchable->trigger();
 
@@ -89,7 +89,7 @@ TEST_F(SimpleDispatchThreadTest, stops_calling_dispatch_once_fd_is_not_readable)
     EXPECT_THAT(dispatch_count, Eq(1));
 }
 
-TEST_F(SimpleDispatchThreadTest, passes_dispatch_events_through)
+TEST_F(ThreadedDispatcherTest, passes_dispatch_events_through)
 {
     using namespace testing;
 
@@ -110,7 +110,7 @@ TEST_F(SimpleDispatchThreadTest, passes_dispatch_events_through)
     };
     auto dispatchable = std::make_shared<mt::TestDispatchable>(delegate, md::FdEvent::readable | md::FdEvent::remote_closed);
 
-    md::SimpleDispatchThread dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{dispatchable};
 
     dispatchable->trigger();
     EXPECT_TRUE(dispatched_with_only_readable->wait_for(std::chrono::seconds{1}));
@@ -119,7 +119,7 @@ TEST_F(SimpleDispatchThreadTest, passes_dispatch_events_through)
     EXPECT_TRUE(dispatched_with_hangup->wait_for(std::chrono::seconds{1}));
 }
 
-TEST_F(SimpleDispatchThreadTest, doesnt_call_dispatch_after_first_false_return)
+TEST_F(ThreadedDispatcherTest, doesnt_call_dispatch_after_first_false_return)
 {
     using namespace testing;
 
@@ -142,7 +142,7 @@ TEST_F(SimpleDispatchThreadTest, doesnt_call_dispatch_after_first_false_return)
     };
     auto dispatchable = std::make_shared<mt::TestDispatchable>(delegate);
 
-    md::SimpleDispatchThread dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{dispatchable};
 
     for (int i = 0; i < expected_count + 1; ++i)
     {
@@ -152,7 +152,7 @@ TEST_F(SimpleDispatchThreadTest, doesnt_call_dispatch_after_first_false_return)
     EXPECT_FALSE(dispatched_more_than_enough->wait_for(std::chrono::seconds{1}));
 }
 
-TEST_F(SimpleDispatchThreadTest, only_calls_dispatch_with_remote_closed_when_relevant)
+TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relevant)
 {
     using namespace testing;
 
@@ -175,7 +175,7 @@ TEST_F(SimpleDispatchThreadTest, only_calls_dispatch_with_remote_closed_when_rel
         return true;
     }));
 
-    md::SimpleDispatchThread dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{dispatchable};
 
     EXPECT_TRUE(dispatched_writable->wait_for(std::chrono::seconds{1}));
 
@@ -184,7 +184,7 @@ TEST_F(SimpleDispatchThreadTest, only_calls_dispatch_with_remote_closed_when_rel
     EXPECT_FALSE(dispatched_closed->wait_for(std::chrono::seconds{1}));
 }
 
-TEST_F(SimpleDispatchThreadTest, dispatches_multiple_dispatchees_simultaneously)
+TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
 {
     using namespace testing;
 
@@ -205,7 +205,7 @@ TEST_F(SimpleDispatchThreadTest, dispatches_multiple_dispatchees_simultaneously)
     });
 
     auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
-    md::SimpleDispatchThread dispatcher{combined_dispatchable};
+    md::ThreadedDispatcher dispatcher{combined_dispatchable};
 
     dispatcher.add_thread();
 

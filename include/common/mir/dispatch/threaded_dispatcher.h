@@ -33,11 +33,11 @@ namespace dispatch
 {
 class Dispatchable;
 
-class SimpleDispatchThread
+class ThreadedDispatcher
 {
 public:
-    SimpleDispatchThread(std::shared_ptr<Dispatchable> const& dispatchee);
-    ~SimpleDispatchThread() noexcept;
+    ThreadedDispatcher(std::shared_ptr<Dispatchable> const& dispatchee);
+    ~ThreadedDispatcher() noexcept;
 
     void add_thread();
 

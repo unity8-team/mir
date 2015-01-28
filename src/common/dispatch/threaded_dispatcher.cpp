@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -16,7 +16,7 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include "mir/dispatch/simple_dispatch_thread.h"
+#include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/dispatch/dispatchable.h"
 
 #include <poll.h>
@@ -27,19 +27,24 @@
 
 namespace md = mir::dispatch;
 
-thread_local bool md::SimpleDispatchThread::running;
+thread_local bool md::ThreadedDispatcher::running;
 
 namespace
 {
 void clear_dummy_signal(mir::Fd const& fd)
 {
     char dummy;
-    ::read(fd, &dummy, sizeof(dummy));
+    if (::read(fd, &dummy, sizeof(dummy) < sizeof(dummy)))
+    {
+        BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                 std::system_category(),
+                                                 "Failed to clear shutdown notification"}));
+    }
 }
 
 }
 
-md::SimpleDispatchThread::SimpleDispatchThread(std::shared_ptr<md::Dispatchable> const& dispatchee)
+md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> const& dispatchee)
 {
     int pipefds[2];
     if (pipe(pipefds) < 0)
@@ -67,23 +72,23 @@ md::SimpleDispatchThread::SimpleDispatchThread(std::shared_ptr<md::Dispatchable>
     threadpool.emplace_back(&dispatch_loop, std::ref(dispatcher));
 }
 
-md::SimpleDispatchThread::~SimpleDispatchThread() noexcept
+md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
-    ::close(wakeup_fd);
+    wakeup_fd = mir::Fd{};
     for (auto& thread : threadpool)
     {
         thread.join();
     }
 }
 
-void md::SimpleDispatchThread::add_thread()
+void md::ThreadedDispatcher::add_thread()
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
     threadpool.emplace_back(&dispatch_loop, std::ref(dispatcher));
 }
 
-void md::SimpleDispatchThread::dispatch_loop(md::Dispatchable& dispatcher)
+void md::ThreadedDispatcher::dispatch_loop(md::Dispatchable& dispatcher)
 {
     sigset_t all_signals;
     sigfillset(&all_signals);

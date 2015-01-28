@@ -74,7 +74,7 @@ class Logger;
 
 namespace dispatch
 {
-class SimpleDispatchThread;
+class ThreadedDispatcher;
 class Dispatchable;
 class MultiplexingDispatchable;
 }
@@ -215,7 +215,7 @@ private:
     std::shared_ptr<mir::client::EventHandlerRegister> const event_handler_register;
 
     std::shared_ptr<mir::dispatch::MultiplexingDispatchable> const dispatcher;
-    std::unique_ptr<mir::dispatch::SimpleDispatchThread> const eventloop;
+    std::unique_ptr<mir::dispatch::ThreadedDispatcher> const eventloop;
 
     std::vector<int> extra_platform_data;
     

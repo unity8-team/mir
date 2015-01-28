@@ -17,7 +17,7 @@
  */
 
 #include "mir/dispatch/multiplexing_dispatchable.h"
-#include "mir/dispatch/simple_dispatch_thread.h"
+#include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/fd.h"
 #include "mir_test/pipe.h"
 #include "mir_test/signal.h"
@@ -212,8 +212,8 @@ TEST(MultiplexingDispatchableTest, individual_dispatchee_is_not_concurrent)
     auto dispatcher = std::make_shared<md::MultiplexingDispatchable>();
     dispatcher->add_watch(dispatchee);
 
-    md::SimpleDispatchThread first_loop{dispatcher};
-    md::SimpleDispatchThread second_loop{dispatcher};
+    md::ThreadedDispatcher eventloop{dispatcher};
+    eventloop.add_thread();
 
     EXPECT_TRUE(second_dispatch->wait_for(std::chrono::seconds{5}));
 }
@@ -305,7 +305,7 @@ TEST(MultiplexingDispatchableTest, removal_is_threadsafe)
 
     dispatchee->trigger();
 
-    md::SimpleDispatchThread eventloop{dispatcher};
+    md::ThreadedDispatcher eventloop{dispatcher};
 
     EXPECT_TRUE(in_dispatch->wait_for(std::chrono::seconds{1}));
 
@@ -356,10 +356,10 @@ TEST(MultiplexingDispatchableTest, stress_test_threading)
 
     auto dispatcher = std::make_shared<md::MultiplexingDispatchable>();
 
-    std::vector<std::shared_ptr<md::SimpleDispatchThread>> eventloops;
+    auto event_dispatcher = std::make_shared<md::ThreadedDispatcher>(dispatcher);
     for (int i = 0 ; i < dispatchee_count + 5 ; ++i)
     {
-        eventloops.push_back(std::make_shared<md::SimpleDispatchThread>(dispatcher));
+        event_dispatcher->add_thread();
     }
 
     std::vector<std::shared_ptr<mt::Signal>> canary_tomb;
@@ -387,7 +387,7 @@ TEST(MultiplexingDispatchableTest, stress_test_threading)
 
     dispatchees.clear();
     dispatcher.reset();
-    eventloops.clear();
+    event_dispatcher.reset();
 
     for (auto headstone : canary_tomb)
     {

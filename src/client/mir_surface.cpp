@@ -25,7 +25,7 @@
 #include "cursor_configuration.h"
 #include "client_buffer_stream_factory.h"
 #include "mir_connection.h"
-#include "mir/dispatch/simple_dispatch_thread.h"
+#include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/input/input_platform.h"
 
 #include <cassert>

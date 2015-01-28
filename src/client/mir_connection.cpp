@@ -27,8 +27,8 @@
 #include "mir/client_platform_factory.h"
 #include "rpc/mir_basic_rpc_channel.h"
 #include "mir/dispatch/dispatchable.h"
-#include "mir/dispatch/simple_dispatch_thread.h"
 #include "mir/dispatch/multiplexing_dispatchable.h"
+#include "mir/dispatch/threaded_dispatcher.h"
 #include "connection_configuration.h"
 #include "display_configuration.h"
 #include "connection_surface_map.h"
@@ -121,7 +121,7 @@ MirConnection::MirConnection(
         event_handler_register(conf.the_event_handler_register()),
         dispatcher{std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{std::dynamic_pointer_cast<md::Dispatchable>(channel)})},
         eventloop{dispatch == DispatchType::automatic ?
-                      new md::SimpleDispatchThread{dispatcher} :
+                      new md::ThreadedDispatcher{dispatcher} :
                       nullptr
                   }
 {

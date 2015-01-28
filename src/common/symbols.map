@@ -216,10 +216,12 @@ MIR_COMMON_3.1 {
 MIR_COMMON_3.2 {
   global:
     extern "C++" {
-      mir::dispatch::SimpleDispatchThread::SimpleDispatchThread*;
-      mir::dispatch::SimpleDispatchThread::?SimpleDispatchThread*;
-      typeinfo?for?mir::dispatch::SimpleDispatchThread;
-      vtable?for?mir::dispatch::SimpleDispatchThread;
+      mir::dispatch::ThreadedDispatcher::ThreadedDispatcher*;
+      mir::dispatch::ThreadedDispatcher::?ThreadedDispatcher*;
+      mir::dispatch::ThreadedDispatcher::add_thread*;
+
+      typeinfo?for?mir::dispatch::ThreadedDispatcher;
+      vtable?for?mir::dispatch::ThreadedDispatcher;
 
       mir::dispatch::MultiplexingDispatchable::MultiplexingDispatchable*;
       mir::dispatch::MultiplexingDispatchable::?MultiplexingDispatchable*;
