@@ -99,8 +99,13 @@ MirConnection::MirConnection(std::string const& error_message) :
 {
 }
 
+MirConnection::MirConnection(mir::client::ConnectionConfiguration& conf) :
+    MirConnection(conf, DispatchType::automatic)
+{
+}
+
 MirConnection::MirConnection(
-    mir::client::ConnectionConfiguration& conf) :
+    mir::client::ConnectionConfiguration& conf, DispatchType dispatch) :
         deregisterer{this},
         channel(conf.the_rpc_channel()),
         server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
@@ -113,7 +118,10 @@ MirConnection::MirConnection(
         lifecycle_control(conf.the_lifecycle_control()),
         surface_map(conf.the_surface_map()),
         event_handler_register(conf.the_event_handler_register()),
-        eventloop{new md::SimpleDispatchThread{std::dynamic_pointer_cast<md::Dispatchable>(channel)}}
+        eventloop{dispatch == DispatchType::automatic ?
+                      new md::SimpleDispatchThread{std::dynamic_pointer_cast<md::Dispatchable>(channel)} :
+                      nullptr
+                  }
 {
     connect_result.set_error("connect not called");
     {
