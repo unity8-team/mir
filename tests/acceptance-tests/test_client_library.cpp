@@ -898,6 +898,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -921,6 +923,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -937,6 +941,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -1006,6 +1012,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -1025,6 +1033,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -1039,6 +1049,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
@@ -1053,6 +1065,8 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     {
         dispatch_count++;
         mir_connection_dispatch(connection);
+        // Hello, valgrind!
+        std::this_thread::yield();
     }
     EXPECT_GE(dispatch_count, 1);
 
