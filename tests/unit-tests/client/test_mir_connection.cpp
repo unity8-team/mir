@@ -36,6 +36,7 @@
 #include "mir_test/pipe.h"
 #include "mir_test/signal.h"
 #include "mir_test/fd_utils.h"
+#include "mir_test/test_dispatchable.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -735,4 +736,31 @@ TEST_F(MirConnectionTest, returns_pollable_watch_fd_when_using_manual_dispatch)
     fd_readable.events = POLLIN;
     fd_readable.fd = connection->watch_fd();
     EXPECT_TRUE(mt::std_call_succeeded(poll(&fd_readable, 1, 0)));
+}
+
+TEST_F(MirConnectionTest, can_add_dispatchables_to_connection)
+{
+    using namespace testing;
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::manual);
+
+    auto dispatchee = std::make_shared<mt::TestDispatchable>([](){});
+    connection->add_dispatchee(dispatchee);
+}
+
+TEST_F(MirConnectionTest, added_dispatchees_are_dispatched)
+{
+    using namespace testing;
+    auto connection = std::make_shared<MirConnection>(conf, DispatchType::manual);
+
+    bool dispatched{false};
+    auto dispatchee = std::make_shared<mt::TestDispatchable>([&dispatched](){ dispatched = true; });
+
+    connection->add_dispatchee(dispatchee);
+
+    dispatchee->trigger();
+
+    EXPECT_TRUE(mt::fd_is_readable(connection->watch_fd()));
+    connection->dispatch();
+
+    EXPECT_TRUE(dispatched);
 }
