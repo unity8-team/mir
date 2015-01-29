@@ -61,8 +61,8 @@ public:
     static const int MirEventActionPointerIndexMask;
     static const int MirEventActionPointerIndexShift;
 
-    void configuration_changed(int64_t when) override;
-    void device_reset(int32_t device_id, int64_t when) override;
+    void configuration_changed(std::chrono::nanoseconds when) override;
+    void device_reset(int32_t device_id, std::chrono::nanoseconds when) override;
     void dispatch(MirEvent const& event) override;
     void start() override;
     void stop() override;
