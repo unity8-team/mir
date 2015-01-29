@@ -223,7 +223,7 @@ void mir_connection_release(MirConnection* connection)
     }
 }
 
-int mir_connection_get_fd(MirConnection* connection)
+int mir_connection_get_event_fd(MirConnection* connection)
 {
     return connection->watch_fd();
 }

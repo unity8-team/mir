@@ -120,7 +120,7 @@ void mir_connection_release(MirConnection *connection);
  *                          or -1 if \ref connection was not created by
  *                          mir_connect_with_manual_dispatch();
  */
-int mir_connection_get_fd(MirConnection* connection);
+int mir_connection_get_event_fd(MirConnection* connection);
 
 /**
  * \brief Dispatch a single pending event on the connection

@@ -889,7 +889,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 
     ASSERT_THAT(connection, Ne(nullptr));
 
-    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_fd(connection)}};
+    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
 
     int dispatch_count{0};
 
@@ -1004,7 +1004,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 
     ASSERT_THAT(connection, Ne(nullptr));
 
-    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_fd(connection)}};
+    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
 
     int dispatch_count{0};
     ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
