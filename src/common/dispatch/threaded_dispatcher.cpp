@@ -93,9 +93,13 @@ public:
         }
 
         // ...now we wait for a thread to die and tell us its ID...
+        // We wait for a surprisingly long time because our threads are potentially blocked
+        // in client code that we don't control.
+        //
+        // If the client is entirely unresponsive for a whole minute, it deserves to die.
         std::unique_lock<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
         if (!thread_terminating.wait_for (lock,
-                                          std::chrono::seconds{1},
+                                          std::chrono::seconds{60},
                                           [this]() { return terminating_thread_id != std::thread::id{}; }))
         {
             BOOST_THROW_EXCEPTION((std::runtime_error{"Thread failed to shutdown"}));
