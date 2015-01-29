@@ -502,8 +502,8 @@ void MirSurface::set_event_handler(MirEventDelegate const* delegate)
 
         if (surface.fd_size() > 0 && handle_event_callback)
         {
-            input_dispatcher = input_platform->create_input_dispatcher(surface.fd(0),
-                                                                       handle_event_callback);
+            input_dispatcher = input_platform->create_input_receiver(surface.fd(0),
+                                                                     handle_event_callback);
             connection->add_dispatchee(input_dispatcher);
         }
     }

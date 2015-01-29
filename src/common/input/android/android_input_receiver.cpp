@@ -70,48 +70,18 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
 
     dispatcher.add_watch(timer_fd, [this]()
     {
-        // Disarm the timer
-        uint64_t dummy;
-        if (read(timer_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
-        {
-            BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                     std::system_category(),
-                                                     "Failed read from timer"}));
-        }
-
-        MirEvent e;
-        if (try_next_event(e))
-        {
-            handler(&e);
-        }
+        consume_wake_notification(timer_fd);
+        process_and_maybe_send_event();
     });
 
     dispatcher.add_watch(notify_receiver_fd, [this]()
     {
-        char dummy;
-        if (read(notify_receiver_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
-        {
-            BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                     std::system_category(),
-                                                     "Failed to consume notification"}));
-        }
-
-        MirEvent e;
-        if (try_next_event(e))
-        {
-            handler(&e);
-        }
+        consume_wake_notification(notify_receiver_fd);
+        process_and_maybe_send_event();
     });
 
     dispatcher.add_watch(mir::Fd{input_channel->getFd()},
-                         [this]()
-    {
-        MirEvent e;
-        if (try_next_event(e))
-        {
-            handler(&e);
-        }
-    });
+                         [this]() { process_and_maybe_send_event(); });
 }
 
 mircva::InputReceiver::InputReceiver(int fd,
@@ -159,8 +129,9 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 
 }
 
-bool mircva::InputReceiver::try_next_event(MirEvent &ev)
+void mircva::InputReceiver::process_and_maybe_send_event()
 {
+    MirEvent ev;
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
@@ -207,6 +178,8 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
 
         report->received_event(ev);
 
+        // Send the event on its merry way.
+        handler(&ev);
     }
     if (input_consumer->hasDeferredEvent())
     {
@@ -222,14 +195,29 @@ bool mircva::InputReceiver::try_next_event(MirEvent &ev)
             { 0, 0 },
             { 0, 1000000 /* 10⁶ ns is 1ms */}
         };
-        timerfd_settime(timer_fd, 0, &msec_delay, NULL);
+        if (timerfd_settime(timer_fd, 0, &msec_delay, NULL) < 0)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failed to arm timer"}));
+        }
     }
-   return result == droidinput::OK;
+}
+
+void mircva::InputReceiver::consume_wake_notification(mir::Fd const& fd)
+{
+    uint64_t dummy;
+    if (read(fd, &dummy, sizeof(dummy)) != sizeof(dummy))
+    {
+        BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                 std::system_category(),
+                                                 "Failed to consume notification"}));
+    }
 }
 
 void mircva::InputReceiver::wake()
 {
-    char dummy{0};
+    uint64_t dummy{0};
     if (write(notify_sender_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
     {
         BOOST_THROW_EXCEPTION((std::system_error{errno,
