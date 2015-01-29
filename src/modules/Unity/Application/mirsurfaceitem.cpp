@@ -53,6 +53,40 @@ namespace qtmir {
 
 namespace {
 
+// Would be better if QMouseEvent had nativeModifiers
+MirInputEventModifiers
+mir_modifiers_from_qt(Qt::KeyboardModifiers mods)
+{
+    MirInputEventModifiers m_mods = mir_input_event_modifier_none;
+    if (mods & Qt::ShiftModifier)
+        m_mods |= mir_input_event_modifier_shift;
+    if (mods & Qt::ControlModifier)
+        m_mods |= mir_input_event_modifier_ctrl;
+    if (mods & Qt::AltModifier)
+        m_mods |= mir_input_event_modifier_alt;
+    if (mods & Qt::MetaModifier)
+        m_mods |= mir_input_event_modifier_meta;
+
+    return m_mods;
+}
+
+mir::EventUPtr makeMirEvent(QMouseEvent *qtEvent, MirPointerInputEventAction action)
+{
+    auto timestamp = qtEvent->timestamp() * 1000000;
+    auto modifiers = mir_modifiers_from_qt(qtEvent->modifiers());
+
+    std::vector<MirPointerInputEventButton> buttons;
+    if (qtEvent->buttons() & Qt::LeftButton)
+        buttons.push_back(mir_pointer_input_button_primary);
+    if (qtEvent->buttons() & Qt::RightButton)
+        buttons.push_back(mir_pointer_input_button_secondary);
+    if (qtEvent->buttons() & Qt::MidButton)
+        buttons.push_back(mir_pointer_input_button_tertiary);
+
+    return mir::events::make_event(0 /*DeviceID */, timestamp, modifiers, action,
+                                   buttons, qtEvent->x(), qtEvent->y(), 0, 0);
+}
+
 mir::EventUPtr makeMirEvent(QKeyEvent *qtEvent)
 {
     MirKeyInputEventAction action = mir_key_input_event_action_down;
@@ -412,18 +446,20 @@ QSGNode *MirSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *
 
 void MirSurfaceItem::mousePressEvent(QMouseEvent *event)
 {
-    // TODO: Implement for desktop support
-    event->ignore();
+    auto ev = makeMirEvent(event, mir_pointer_input_event_action_button_down);
+    m_surface->consume(*ev);
 }
 
 void MirSurfaceItem::mouseMoveEvent(QMouseEvent *event)
 {
-    Q_UNUSED(event);
+    auto ev = makeMirEvent(event, mir_pointer_input_event_action_motion);
+    m_surface->consume(*ev);
 }
 
 void MirSurfaceItem::mouseReleaseEvent(QMouseEvent *event)
 {
-    Q_UNUSED(event);
+    auto ev = makeMirEvent(event, mir_pointer_input_event_action_button_up);
+    m_surface->consume(*ev);
 }
 
 void MirSurfaceItem::wheelEvent(QWheelEvent *event)
