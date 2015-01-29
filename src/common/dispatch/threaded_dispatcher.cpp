@@ -19,6 +19,8 @@
 #include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/dispatch/dispatchable.h"
 
+#include "mir/raii.h"
+
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
@@ -26,19 +28,17 @@
 #include <signal.h>
 #include <boost/exception/all.hpp>
 #include <algorithm>
+#include <unordered_map>
 
 namespace md = mir::dispatch;
-
-thread_local bool md::ThreadedDispatcher::running;
 
 class md::ThreadedDispatcher::ThreadShutdownRequestHandler : public md::Dispatchable
 {
 public:
-    ThreadShutdownRequestHandler(md::ThreadedDispatcher& dispatcher)
-        : dispatcher{dispatcher}
+    ThreadShutdownRequestHandler()
     {
         int pipefds[2];
-        if (pipe2(pipefds, O_NONBLOCK) < 0)
+        if (pipe2(pipefds, O_NONBLOCK | O_CLOEXEC) < 0)
         {
             BOOST_THROW_EXCEPTION((std::system_error{errno,
                                                      std::system_category(),
@@ -68,7 +68,8 @@ public:
                                                          "Failed to clear shutdown notification"}));
             }
         }
-        dispatcher.running = false;
+        std::lock_guard<decltype(running_flag_guard)> lock{running_flag_guard};
+        *running_flags.at(std::this_thread::get_id()) = false;
 
         // Even if the remote end has been closed we're still dispatchable -
         // we want the other dispatch threads to pick up the shutdown signal.
@@ -80,8 +81,9 @@ public:
         return md::FdEvent::readable | md::FdEvent::remote_closed;
     }
 
-    void terminate_one_thread()
+    std::thread::id terminate_one_thread()
     {
+        // First we tell a thread to die, any thread...
         char dummy{0};
         if (::write(terminate_write_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
         {
@@ -89,20 +91,64 @@ public:
                                                      std::system_category(),
                                                      "Failed to trigger thread shutdown"}));
         }
+
+        // ...now we wait for a thread to die and tell us its ID...
+        std::unique_lock<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
+        if (!thread_terminating.wait_for (lock,
+                                          std::chrono::seconds{1},
+                                          [this]() { return terminating_thread_id != std::thread::id{}; }))
+        {
+            BOOST_THROW_EXCEPTION((std::runtime_error{"Thread failed to shutdown"}));
+        }
+
+        auto killed_thread_id = terminating_thread_id;
+        terminating_thread_id = std::thread::id{};
+        return killed_thread_id;
     }
 
     void terminate_all_threads()
     {
         terminate_write_fd = mir::Fd{};
     }
+
+    void register_thread(bool& run_flag)
+    {
+        std::lock_guard<decltype(running_flag_guard)> lock{running_flag_guard};
+
+        running_flags[std::this_thread::get_id()] = &run_flag;
+    }
+
+    void unregister_thread()
+    {
+        {
+            std::lock_guard<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
+            terminating_thread_id = std::this_thread::get_id();
+        }
+        thread_terminating.notify_one();
+        {
+            std::lock_guard<decltype(running_flag_guard)> lock{running_flag_guard};
+
+            if (running_flags.erase(std::this_thread::get_id()) != 1)
+            {
+                BOOST_THROW_EXCEPTION((std::logic_error{"Attempted to unregister a not-registered thread"}));
+            }
+        }
+    }
+
 private:
-    md::ThreadedDispatcher& dispatcher;
     mir::Fd terminate_read_fd;
     mir::Fd terminate_write_fd;
+
+    std::mutex terminating_thread_mutex;
+    std::condition_variable thread_terminating;
+    std::thread::id terminating_thread_id;
+
+    std::mutex running_flag_guard;
+    std::unordered_map<std::thread::id, bool*> running_flags;
 };
 
 md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> const& dispatchee)
-    : thread_exiter{std::make_shared<ThreadShutdownRequestHandler>(std::ref(*this))}
+    : thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()}
 {
 
     // We rely on exactly one thread at a time getting a shutdown message
@@ -112,7 +158,7 @@ md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> con
     // as desired.
     dispatcher.add_watch(dispatchee, md::DispatchReentrancy::reentrant);
 
-    threadpool.emplace_back(&dispatch_loop, std::ref(*this));
+    threadpool.emplace_back(&dispatch_loop, std::ref(*thread_exiter), std::ref(dispatcher));
 }
 
 md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
@@ -130,39 +176,28 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 void md::ThreadedDispatcher::add_thread()
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
-    threadpool.emplace_back(&dispatch_loop, std::ref(*this));
+    threadpool.emplace_back(&dispatch_loop, std::ref(*thread_exiter), std::ref(dispatcher));
 }
 
 void md::ThreadedDispatcher::remove_thread()
 {
-    // First we wake a thread, we don't care which...
-    thread_exiter->terminate_one_thread();
+    auto terminated_thread_id = thread_exiter->terminate_one_thread();
 
-    // ...now we wait for a thread to die and tell us its ID...
-    std::unique_lock<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
-    if (!thread_terminating.wait_for (lock,
-                                      std::chrono::seconds{1},
-                                      [this]() { return terminating_thread_id != std::thread::id{}; }))
-    {
-        BOOST_THROW_EXCEPTION((std::runtime_error{"Thread failed to shutdown"}));
-    }
-
-    // ...finally, find that thread in our vector, join() it, then remove it.
+    // Find that thread in our vector, join() it, then remove it.
     std::lock_guard<decltype(thread_pool_mutex)> threadpool_lock{thread_pool_mutex};
 
     auto dying_thread = std::find_if(threadpool.begin(),
                                      threadpool.end(),
-                                     [this](std::thread const& candidate)
+                                     [this, &terminated_thread_id](std::thread const& candidate)
     {
-            return candidate.get_id() == terminating_thread_id;
+            return candidate.get_id() == terminated_thread_id;
     });
     dying_thread->join();
     threadpool.erase(dying_thread);
-
-    terminating_thread_id = std::thread::id{};
 }
 
-void md::ThreadedDispatcher::dispatch_loop(ThreadedDispatcher& me)
+void md::ThreadedDispatcher::dispatch_loop(ThreadShutdownRequestHandler& thread_register,
+                                           Dispatchable& dispatcher)
 {
     sigset_t all_signals;
     sigfillset(&all_signals);
@@ -172,10 +207,22 @@ void md::ThreadedDispatcher::dispatch_loop(ThreadedDispatcher& me)
                                                  std::system_category(),
                                                  "Failed to block signals on IO thread"}));
 
-    running = true;
+    // This does not have to be std::atomic<bool> because thread_register is guaranteed to
+    // only ever be dispatch()ed from one thread at a time.
+    bool running{true};
+
+    auto thread_registrar = mir::raii::paired_calls(
+    [&running, &thread_register]()
+    {
+        thread_register.register_thread(running);
+    },
+    [&thread_register]()
+    {
+        thread_register.unregister_thread();
+    });
 
     struct pollfd waiter;
-    waiter.fd = me.dispatcher.watch_fd();
+    waiter.fd = dispatcher.watch_fd();
     waiter.events = POLL_IN;
     while (running)
     {
@@ -185,12 +232,6 @@ void md::ThreadedDispatcher::dispatch_loop(ThreadedDispatcher& me)
                                                      std::system_category(),
                                                      "Failed to wait for event"}));
         }
-        me.dispatcher.dispatch(md::FdEvent::readable);
+        dispatcher.dispatch(md::FdEvent::readable);
     }
-
-    {
-        std::lock_guard<decltype(terminating_thread_mutex)> lock{me.terminating_thread_mutex};
-        me.terminating_thread_id = std::this_thread::get_id();
-    }
-    me.thread_terminating.notify_one();
 }

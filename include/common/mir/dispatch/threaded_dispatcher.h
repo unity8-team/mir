@@ -44,22 +44,17 @@ public:
     void remove_thread();
 
 private:
-    static void dispatch_loop(ThreadedDispatcher& me);
-
     class ThreadShutdownRequestHandler;
     friend class ThreadShutdownRequestHandler;
 
     std::shared_ptr<ThreadShutdownRequestHandler> thread_exiter;
     MultiplexingDispatchable dispatcher;
 
-    thread_local static bool running;
-
     std::mutex thread_pool_mutex;
     std::vector<std::thread> threadpool;
 
-    std::mutex terminating_thread_mutex;
-    std::condition_variable thread_terminating;
-    std::thread::id terminating_thread_id;
+    static void dispatch_loop(ThreadShutdownRequestHandler& thread_register,
+                              Dispatchable& dispatcher);
 
 };
 
