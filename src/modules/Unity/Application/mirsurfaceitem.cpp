@@ -109,14 +109,15 @@ mir::EventUPtr makeMirEvent(QKeyEvent *qtEvent)
                            qtEvent->nativeScanCode(),
                            qtEvent->nativeModifiers());
 }
-
-mir::EventUPtr makeMirEvent(const QList<QTouchEvent::TouchPoint> &qtTouchPoints,
+    
+mir::EventUPtr makeMirEvent(Qt::KeyboardModifiers qmods,
+                            const QList<QTouchEvent::TouchPoint> &qtTouchPoints,
                             Qt::TouchPointStates /* qtTouchPointStates */,
-    ulong qtTimestamp)
+                            ulong qtTimestamp)
 {
+    auto modifiers = mir_modifiers_from_qt(qmods);
     auto ev = mir::events::make_event(0, static_cast<int64_t>(qtTimestamp) * 1000000,
-                              // TODO: map QInputEvent::modifiers()
-                              0);
+                                      modifiers, 0);
    
     for (int i = 0; i < qtTouchPoints.count(); ++i) {
         auto touchPoint = qtTouchPoints.at(i);
@@ -527,6 +528,7 @@ void MirSurfaceItem::endCurrentTouchSequence(ulong timestamp)
 
 void MirSurfaceItem::validateAndDeliverTouchEvent(int eventType,
             ulong timestamp,
+            Qt::KeyboardModifiers mods,
             const QList<QTouchEvent::TouchPoint> &touchPoints,
             Qt::TouchPointStates touchPointStates)
 {
@@ -537,7 +539,7 @@ void MirSurfaceItem::validateAndDeliverTouchEvent(int eventType,
         endCurrentTouchSequence(timestamp);
     }
 
-    auto ev = makeMirEvent(touchPoints, touchPointStates, timestamp);
+    auto ev = makeMirEvent(mods, touchPoints, touchPointStates, timestamp);
     m_surface->consume(*ev);
 
     if (!m_lastTouchEvent) {
@@ -553,6 +555,7 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
 {
     bool accepted = processTouchEvent(event->type(),
             event->timestamp(),
+            event->modifiers(),
             event->touchPoints(),
             event->touchPointStates());
     event->setAccepted(accepted);
@@ -561,6 +564,7 @@ void MirSurfaceItem::touchEvent(QTouchEvent *event)
 bool MirSurfaceItem::processTouchEvent(
         int eventType,
         ulong timestamp,
+        Qt::KeyboardModifiers mods,
         const QList<QTouchEvent::TouchPoint> &touchPoints,
         Qt::TouchPointStates touchPointStates)
 {
@@ -568,7 +572,7 @@ bool MirSurfaceItem::processTouchEvent(
     if (type() == InputMethod && eventType == QEvent::TouchBegin) {
         // FIXME: Hack to get the VKB use case working while we don't have the proper solution in place.
         if (hasTouchInsideUbuntuKeyboard(touchPoints)) {
-            validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
+            validateAndDeliverTouchEvent(eventType, timestamp, mods, touchPoints, touchPointStates);
         } else {
             accepted = false;
         }
@@ -576,7 +580,7 @@ bool MirSurfaceItem::processTouchEvent(
     } else {
         // NB: If we are getting QEvent::TouchUpdate or QEvent::TouchEnd it's because we've
         // previously accepted the corresponding QEvent::TouchBegin
-        validateAndDeliverTouchEvent(eventType, timestamp, touchPoints, touchPointStates);
+        validateAndDeliverTouchEvent(eventType, timestamp, mods, touchPoints, touchPointStates);
     }
     return accepted;
 }

@@ -97,18 +97,18 @@ TEST(MirSurfaceItemTest, MissingTouchEnd)
     touchPoints[0].setId(0);
     touchPoints[0].setState(Qt::TouchPointPressed);
     surfaceItem->processTouchEvent(QEvent::TouchBegin,
-            timestamp, touchPoints, touchPoints[0].state());
+        timestamp, Qt::NoModifier, touchPoints, touchPoints[0].state());
 
     touchPoints[0].setState(Qt::TouchPointMoved);
     surfaceItem->processTouchEvent(QEvent::TouchUpdate,
-            timestamp + 10, touchPoints, touchPoints[0].state());
+        timestamp + 10, Qt::NoModifier, touchPoints, touchPoints[0].state());
 
     // Starting a new touch sequence (with touch 1) without ending the current one
     // (wich has touch 0).
     touchPoints[0].setId(1);
     touchPoints[0].setState(Qt::TouchPointPressed);
     surfaceItem->processTouchEvent(QEvent::TouchBegin,
-            timestamp + 20, touchPoints, touchPoints[0].state());
+        timestamp + 20, Qt::NoModifiertouchPoints, touchPoints[0].state());
     
     delete surfaceItem;
     delete mockSession;

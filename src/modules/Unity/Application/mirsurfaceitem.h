@@ -106,6 +106,7 @@ public:
     // to allow easy touch event injection from tests
     bool processTouchEvent(int eventType,
             ulong timestamp,
+            Qt::KeyboardModifiers modifiers,
             const QList<QTouchEvent::TouchPoint> &touchPoints,
             Qt::TouchPointStates touchPointStates);
 
@@ -164,6 +165,7 @@ private:
     void endCurrentTouchSequence(ulong timestamp);
     void validateAndDeliverTouchEvent(int eventType,
             ulong timestamp,
+            Qt::KeyboardModifiers modifiers,
             const QList<QTouchEvent::TouchPoint> &touchPoints,
             Qt::TouchPointStates touchPointStates);
 

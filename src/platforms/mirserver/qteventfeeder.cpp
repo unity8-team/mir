@@ -222,7 +222,7 @@ void QtEventFeeder::dispatch(MirEvent const& event)
 {
     auto type = mir_event_get_type(&event);
     if (type != mir_event_type_input)
-        return; // TODO: Assert?
+        return;
     auto iev = mir_event_get_input_event(&event);
     
     switch (mir_input_event_get_type(iev)) {
