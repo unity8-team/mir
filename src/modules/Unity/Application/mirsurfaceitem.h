@@ -190,6 +190,7 @@ private:
         TouchEvent &operator= (const QTouchEvent &qtEvent) {
             type = qtEvent.type();
             timestamp = qtEvent.timestamp();
+            modifiers = qtEvent.modifiers();
             touchPoints = qtEvent.touchPoints();
             touchPointStates = qtEvent.touchPointStates();
             return *this;
@@ -199,6 +200,7 @@ private:
 
         int type;
         ulong timestamp;
+        Qt::KeyboardModifiers modifiers;
         QList<QTouchEvent::TouchPoint> touchPoints;
         Qt::TouchPointStates touchPointStates;
     } *m_lastTouchEvent;
