@@ -67,7 +67,7 @@ MirConnection *mir_connect_sync(char const *server, char const *app_name);
  *
  * The client is responsible for handling event consumption via
  * mir_connection_dispatch(). Events will be available when the fd returned
- * by mir_connection_get_fd() becomes readable.
+ * by mir_connection_get_event_fd() becomes readable.
  *
  * All callbacks for this MirConnection and any objects created on it will be
  * called from the thread calling mir_connection_dispatch().
