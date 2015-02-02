@@ -302,7 +302,7 @@ TEST(PointerInputEventProperties, modifiers_taken_from_old_style_ev)
     old_ev.motion.modifiers = mir_key_modifier_shift;
     
     auto pointer_event = 
-        mir_input_event_get_pointer_input_event(mir_event_get_input_event(&old_ev));
+        mir_input_event_get_pointer_event(mir_event_get_input_event(&old_ev));
     EXPECT_EQ(mir_input_event_modifier_shift, mir_pointer_event_modifiers(pointer_event));
 }
 
@@ -328,7 +328,7 @@ TEST_P(MotionToPointerActionTest, old_style_action_translated_to_new_style)
     auto shift = 0 << MIR_EVENT_ACTION_POINTER_INDEX_SHIFT;
     old_ev.motion.action = (shift & MIR_EVENT_ACTION_POINTER_INDEX_MASK) | params.old_action;
     EXPECT_EQ(params.new_action,
-        mir_pointer_event_action(mir_input_event_get_pointer_input_event(mir_event_get_input_event(&old_ev))));
+        mir_pointer_event_action(mir_input_event_get_pointer_event(mir_event_get_input_event(&old_ev))));
 }
 
 INSTANTIATE_TEST_CASE_P(MotionPointerUpTest,
@@ -364,7 +364,7 @@ TEST(PointerInputEventProperties, button_state_translated)
     auto old_ev = a_motion_ev(AINPUT_SOURCE_MOUSE);
 
     old_ev.motion.button_state = mir_motion_button_primary;
-    auto pev = mir_input_event_get_pointer_input_event(mir_event_get_input_event(&old_ev));
+    auto pev = mir_input_event_get_pointer_event(mir_event_get_input_event(&old_ev));
     
     EXPECT_TRUE(mir_pointer_event_button_state(pev, mir_pointer_button_primary));
     EXPECT_FALSE(mir_pointer_event_button_state(pev, mir_pointer_button_secondary));
@@ -389,7 +389,7 @@ TEST(PointerInputEventProperties, axis_values_copied)
     old_ev.motion.pointer_coordinates[0].vscroll = vscroll;
     old_ev.motion.pointer_coordinates[0].hscroll = hscroll;
 
-    auto pev = mir_input_event_get_pointer_input_event(mir_event_get_input_event(&old_ev));
+    auto pev = mir_input_event_get_pointer_event(mir_event_get_input_event(&old_ev));
     EXPECT_EQ(x, mir_pointer_event_axis_value(pev, mir_pointer_axis_x));
     EXPECT_EQ(y, mir_pointer_event_axis_value(pev, mir_pointer_axis_y));
     EXPECT_EQ(vscroll, mir_pointer_event_axis_value(pev, mir_pointer_axis_vscroll));

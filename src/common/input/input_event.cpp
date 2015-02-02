@@ -488,7 +488,7 @@ float mir_touch_event_axis_value(MirTouchEvent const* event,
 }                                                                            
 
 /* Pointer event accessors */
-MirPointerEvent const* mir_input_event_get_pointer_input_event(MirInputEvent const* ev)
+MirPointerEvent const* mir_input_event_get_pointer_event(MirInputEvent const* ev)
 {
     if(mir_input_event_get_type(ev) != mir_input_event_type_pointer)
     {

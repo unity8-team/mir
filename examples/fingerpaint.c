@@ -227,7 +227,7 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
                     (mir_touch_event_action(tev, 0) == mir_touch_action_up);
             break;
         case mir_input_event_type_pointer:
-            pev = mir_input_event_get_pointer_input_event(input_event);
+            pev = mir_input_event_get_pointer_event(input_event);
             ended = mir_pointer_event_action(pev) ==
                     mir_pointer_action_button_up;
             touch_count = mir_pointer_event_button_state(pev,

@@ -111,7 +111,7 @@ TEST_F(InputEventBuilder, makes_valid_pointer_event)
     EXPECT_EQ(mir_event_type_input, mir_event_get_type(e));
     auto ie = mir_event_get_input_event(e);
     EXPECT_EQ(mir_input_event_type_pointer, mir_input_event_get_type(ie));
-    auto pev = mir_input_event_get_pointer_input_event(ie);
+    auto pev = mir_input_event_get_pointer_event(ie);
     EXPECT_EQ(modifiers, mir_pointer_event_modifiers(pev));
     EXPECT_EQ(action, mir_pointer_event_action(pev));
     EXPECT_TRUE(mir_pointer_event_button_state(pev, mir_pointer_button_back));

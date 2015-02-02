@@ -85,7 +85,7 @@ static void format_touch_event(std::stringstream &ss, MirInputEvent const* ev)
 
 static void format_pointer_event(std::stringstream &ss, MirInputEvent const* ev)
 {
-    auto pev = mir_input_event_get_pointer_input_event(ev);
+    auto pev = mir_input_event_get_pointer_event(ev);
 
     // TODO: Could be expanded
     ss << "MirPointerEvent {" << std::endl;

@@ -130,7 +130,7 @@ MirTouchEvent const* mir_input_event_get_touch_event(MirInputEvent const* ev);
  * \return          The MirPointerEvent or NULL if event type is not 
  *                  mir_input_event_type_pointer
  */
-MirPointerEvent const* mir_input_event_get_pointer_input_event(MirInputEvent const* ev);
+MirPointerEvent const* mir_input_event_get_pointer_event(MirInputEvent const* ev);
 
 #ifdef __cplusplus
 }

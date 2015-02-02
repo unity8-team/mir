@@ -85,7 +85,7 @@ inline MirPointerEvent const* maybe_pointer_event(MirEvent const* event)
     auto input_event = mir_event_get_input_event(event);
     if (mir_input_event_get_type(input_event) != mir_input_event_type_pointer)
         return nullptr;
-    return mir_input_event_get_pointer_input_event(input_event);
+    return mir_input_event_get_pointer_event(input_event);
 }
 /**
  * \}
