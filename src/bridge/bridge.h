@@ -57,7 +57,7 @@ class HIDDEN_SYMBOL Bridge
     Bridge()
         : lib_handle(Scope::dlopen_fn(Scope::path(), RTLD_LAZY))
     {
-        if (Scope::override_path())
+        if (Scope::override_path() && secure_getenv("UBUNTU_PLATFORM_API_TEST_OVERRIDE"))
             lib_override_handle = (Scope::dlopen_fn(Scope::override_path(), RTLD_LAZY));
     }
 
