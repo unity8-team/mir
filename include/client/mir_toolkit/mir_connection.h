@@ -119,6 +119,8 @@ void mir_connection_release(MirConnection *connection);
  *                          APIs that becomes readable when there are events to dispatch,
  *                          or -1 if \ref connection was not created by
  *                          mir_connect_with_manual_dispatch();
+ * \note    This fd is owned by the MirConnection. Do not close the fd yourself.
+ *          The fd remains valid until mir_connection_release() returns.
  */
 int mir_connection_get_event_fd(MirConnection* connection);
 
