@@ -37,8 +37,28 @@
 
 namespace mtf = mir_test_framework;
 
+namespace
+{
+std::string find_recording_path()
+{
+    std::initializer_list<std::string> candidates{mtf::executable_path() + "/udev_recordings", TEST_RECORDING_PATH};
+    for (auto candidate : candidates)
+    {
+        struct stat sb;
+        if (stat(candidate.c_str(), &sb) == 0)
+        {
+            if (S_ISDIR(sb.st_mode))
+            {
+                return candidate;
+            }
+        }
+    }
+    BOOST_THROW_EXCEPTION((std::runtime_error{"Failed to find udev recordings directory"}));
+}
+}
+
 mtf::UdevEnvironment::UdevEnvironment()
-    : recordings_path(mtf::executable_path() + "/udev_recordings")
+    : recordings_path{find_recording_path()}
 {
     if (!umockdev_in_mock_environment())
     {

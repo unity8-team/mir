@@ -14,6 +14,7 @@ include_directories(
 add_definitions(
     -DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}"
     -DMIR_SERVER_PLATFORM_PATH="${MIR_SERVER_PLATFORM_PATH}"
+    -DTEST_RECORDING_PATH="${CMAKE_INSTALL_PREFIX}/share/mir/udev_recordings"
     )
 
 set(
@@ -141,3 +142,5 @@ string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHAR
 install(TARGETS mirplatformgraphicsstub LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PATH})
 
 install(TARGETS mirclientplatformstub LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
+
+install(DIRECTORY udev_recordings DESTINATION ${CMAKE_INSTALL_PREFIX}/share/mir)
