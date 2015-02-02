@@ -81,6 +81,10 @@ MirConnection *mir_connect_sync(char const *server, char const *app_name);
  *                          until this callback has completed.
  * \param [in,out] context  User data passed to the callback function
  * \returns                 The resulting MirConnection
+ * \todo     Currently manual dispatch interacts awkwardly with *_sync() calls;
+ *           Synchronous calls do *not* automatically dispatch, so unless client
+ *           code has a separate thread running dispatch, any *_sync() call will
+ *           deadlock. This restriction will be fixed in a later release.
  */
 MirConnection* mir_connect_with_manual_dispatch(char const* server,
                                                 char const* app_name,
