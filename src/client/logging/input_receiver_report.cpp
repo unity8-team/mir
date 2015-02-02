@@ -88,9 +88,9 @@ static void format_pointer_event(std::stringstream &ss, MirInputEvent const* ev)
     auto pev = mir_input_event_get_pointer_input_event(ev);
 
     // TODO: Could be expanded
-    ss << "MirPointerInputEvent {" << std::endl;
+    ss << "MirPointerEvent {" << std::endl;
     ss << "  device_id: " << mir_input_event_get_device_id(ev) << std::endl;
-    ss << "  action: " << mir_pointer_input_event_get_action(pev) << std::endl;
+    ss << "  action: " << mir_pointer_event_action(pev) << std::endl;
     ss << "  event_time: " << ml::input_timestamp(std::chrono::nanoseconds(mir_input_event_get_event_time(ev))) << std::endl;
     ss << "}";
 }
