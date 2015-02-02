@@ -488,6 +488,14 @@ float mir_touch_event_axis_value(MirTouchEvent const* event,
 }                                                                            
 
 /* Pointer event accessors */
+
+// ABI-compatible with MIR_COMMON_3.1
+extern "C"
+MirPointerEvent const* mir_input_event_get_pointer_input_event(MirInputEvent const* ev)
+{
+    return mir_input_event_get_pointer_event(ev);
+}
+
 MirPointerEvent const* mir_input_event_get_pointer_event(MirInputEvent const* ev)
 {
     if(mir_input_event_get_type(ev) != mir_input_event_type_pointer)
@@ -500,10 +508,24 @@ MirPointerEvent const* mir_input_event_get_pointer_event(MirInputEvent const* ev
     return reinterpret_cast<MirPointerEvent const*>(ev);
 }
 
+// ABI-compatible with MIR_COMMON_3.1
+extern "C"
+MirInputEventModifiers mir_pointer_input_event_get_modifiers(MirPointerEvent const* pev)
+{    
+    return mir_pointer_event_modifiers(pev);
+}
+
 MirInputEventModifiers mir_pointer_event_modifiers(MirPointerEvent const* pev)
 {    
     auto const& old_mev = old_mev_from_new(pev);
     return old_modifiers_to_new(old_mev.modifiers);
+}
+
+// ABI-compatible with MIR_COMMON_3.1
+extern "C"
+MirPointerAction mir_pointer_input_event_get_action(MirPointerEvent const* pev)
+{
+    return mir_pointer_event_action(pev);
 }
 
 MirPointerAction mir_pointer_event_action(MirPointerEvent const* pev)
@@ -530,6 +552,14 @@ MirPointerAction mir_pointer_event_action(MirPointerEvent const* pev)
     }
 }
 
+// ABI-compatible with MIR_COMMON_3.1
+extern "C"
+bool mir_pointer_input_event_get_button_state(MirPointerEvent const* pev,
+    MirPointerButton button)
+{
+    return mir_pointer_event_button_state(pev, button);
+}
+
 bool mir_pointer_event_button_state(MirPointerEvent const* pev,
     MirPointerButton button)
 {
@@ -549,6 +579,13 @@ bool mir_pointer_event_button_state(MirPointerEvent const* pev,
    default:
        return false;
    }
+}
+
+// ABI-compatible with MIR_COMMON_3.1
+extern "C"
+float mir_pointer_input_event_get_axis_value(MirPointerEvent const* pev, MirPointerAxis axis)
+{
+    return mir_pointer_event_axis_value(pev, axis);
 }
 
 float mir_pointer_event_axis_value(MirPointerEvent const* pev, MirPointerAxis axis)
