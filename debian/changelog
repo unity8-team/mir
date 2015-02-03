@@ -1,3 +1,9 @@
+platform-api (2.8.0) UNRELEASED; urgency=medium
+
+  * Add -test module as dependency of base, and don't load unless needed.
+
+ -- Ricardo Mendoza <ricardo.mendoza@canonical.com>  Mon, 02 Feb 2015 12:48:29 +0100
+
 platform-api (2.7.0+15.04.20150128-0ubuntu1) vivid; urgency=low
 
   [ You-Sheng Yang ]
