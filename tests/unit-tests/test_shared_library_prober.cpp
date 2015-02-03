@@ -71,7 +71,7 @@ public:
 
 }
 
-TEST_F(SharedLibraryProber, ReturnsNonEmptyListForPathContainingLibraries)
+TEST_F(SharedLibraryProber, DISABLED_ReturnsNonEmptyListForPathContainingLibraries)
 {
     auto libraries = mir::libraries_for_path(library_path, null_report);
     EXPECT_GE(libraries.size(), 1);
@@ -153,7 +153,7 @@ MATCHER_P(FilenameMatches, path, "")
 }
 }
 
-TEST_F(SharedLibraryProber, LogsEachLibraryProbed)
+TEST_F(SharedLibraryProber, DISABLED_LogsEachLibraryProbed)
 {
     using namespace testing;
     NiceMock<MockSharedLibraryProberReport> report;
@@ -166,7 +166,7 @@ TEST_F(SharedLibraryProber, LogsEachLibraryProbed)
     mir::libraries_for_path(library_path, report);
 }
 
-TEST_F(SharedLibraryProber, LogsFailureForLoadFailure)
+TEST_F(SharedLibraryProber, DISABLED_LogsFailureForLoadFailure)
 {
     using namespace testing;
     NiceMock<MockSharedLibraryProberReport> report;
