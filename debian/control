@@ -150,6 +150,7 @@ Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+         ubuntu-application-api2-test,
 Description: Hybris implementation of the Platform API (runtime)
  This package provides the hybris implementation of the Platform API.
  .

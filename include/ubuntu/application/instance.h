@@ -100,7 +100,7 @@ extern "C" {
     UBUNTU_DLL_PUBLIC void
     u_application_instance_run(
         UApplicationInstance *instance);
-    
+
 #ifdef __cplusplus
 }
 #endif

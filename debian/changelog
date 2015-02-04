@@ -1,8 +1,16 @@
-platform-api (2.8.0) vivid; urgency=medium
+platform-api (2.9.0) UNRELEASED; urgency=medium
 
-  * Deprecate windowing system abstraction layer in favor of directly exposing MirConnection
+  *  Deprecate windowing system abstraction layer in favor of directly
+     exposing MirConnection.
 
- -- Robert Carr <robert.carr@canonical.com>  Mon, 26 Jan 2015 11:41:44 -0800
+ -- Robert Carr <robert.carr@canonical.com>  Wed, 04 Feb 2015 17:51:58 +0100
+
+platform-api (2.8.0+15.04.20150203-0ubuntu1) vivid; urgency=medium
+
+  [ Ricardo Mendoza ]
+  * Add -test module as dependency of base, and don't load unless needed.
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Tue, 03 Feb 2015 11:59:30 +0000
 
 platform-api (2.7.0+15.04.20150128-0ubuntu1) vivid; urgency=low
 
@@ -21,7 +29,7 @@ platform-api (2.7.0+15.04.20150123-0ubuntu1) vivid; urgency=medium
 platform-api (2.6.0+15.04.20141126-0ubuntu1) vivid; urgency=medium
 
   [ Alberto Aguirre ]
-  * Stub out mirserver backend
+  * Stub out mirserver backend 
 
  -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 26 Nov 2014 17:40:53 +0000
 
