@@ -80,7 +80,7 @@ mtf::StubbedServerConfiguration::StubbedServerConfiguration(
           namespace po = boost::program_options;
 
           result->add_options()
-                  (mtd::logging_opt, po::value<bool>()->default_value(false), mtd::logging_descr)
+                  (mtd::logging_opt, po::value<bool>()->default_value(true), mtd::logging_descr)
                   ("tests-use-real-graphics", po::value<bool>()->default_value(false), "Use real graphics in tests.")
                   ("tests-use-real-input", po::value<bool>()->default_value(false), "Use real input in tests.");
 

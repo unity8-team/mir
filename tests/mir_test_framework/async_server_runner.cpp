@@ -43,7 +43,7 @@ mtf::AsyncServerRunner::AsyncServerRunner()
 {
     configure_from_commandline(server);
 
-    server.add_configuration_option(mtd::logging_opt, mtd::logging_descr, false);
+    server.add_configuration_option(mtd::logging_opt, mtd::logging_descr, true);
     server.override_the_logger([&]()
         {
             std::shared_ptr<ml::Logger> result{};
