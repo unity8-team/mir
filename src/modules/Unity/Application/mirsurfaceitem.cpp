@@ -87,6 +87,15 @@ mir::EventUPtr makeMirEvent(QMouseEvent *qtEvent, MirPointerInputEventAction act
                                    buttons, qtEvent->x(), qtEvent->y(), 0, 0);
 }
 
+mir::EventUPtr makeMirEvent(QHoverEvent *qtEvent, MirPointerInputEventAction action)
+{
+    auto timestamp = qtEvent->timestamp() * 1000000;
+    auto modifiers = mir_modifiers_from_qt(qtEvent->modifiers());
+
+    return mir::events::make_event(0 /*DeviceID */, timestamp, modifiers, action,
+                                   {}, qtEvent->posF().x(), qtEvent->posF().y(), 0, 0);
+}
+
 mir::EventUPtr makeMirEvent(QKeyEvent *qtEvent)
 {
     MirKeyInputEventAction action = mir_key_input_event_action_down;
@@ -460,6 +469,18 @@ void MirSurfaceItem::mouseMoveEvent(QMouseEvent *event)
 void MirSurfaceItem::mouseReleaseEvent(QMouseEvent *event)
 {
     auto ev = makeMirEvent(event, mir_pointer_input_event_action_button_up);
+    m_surface->consume(*ev);
+}
+
+void MirSurfaceItem::hoverEnterEvent(QHoverEvent *event)
+{
+    auto ev = makeMirEvent(event, mir_pointer_input_event_action_enter);
+    m_surface->consume(*ev);
+}
+
+void MirSurfaceItem::hoverLeaveEvent(QHoverEvent *event)
+{
+    auto ev = makeMirEvent(event, mir_pointer_input_event_action_leave);
     m_surface->consume(*ev);
 }
 
