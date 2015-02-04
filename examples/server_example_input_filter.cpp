@@ -35,9 +35,9 @@ namespace
 void print_key_event(MirInputEvent const* ev)
 {
     auto event_time = mir_input_event_get_event_time(ev);
-    auto kev = mir_input_event_get_key_input_event(ev);
-    auto scan_code = mir_key_input_event_get_scan_code(kev);
-    auto key_code = mir_key_input_event_get_key_code(kev);
+    auto kev = mir_input_event_get_key_input(ev);
+    auto scan_code = mir_key_input_get_scan_code(kev);
+    auto key_code = mir_key_input_get_key_code(kev);
 
     std::cout << "Handling key event (time, scancode, keycode): " << event_time << " " <<
               scan_code << " " << key_code << std::endl;
@@ -46,17 +46,17 @@ void print_key_event(MirInputEvent const* ev)
 void print_touch_event(MirInputEvent const* ev)
 {
     auto event_time = mir_input_event_get_event_time(ev);
-    auto tev = mir_input_event_get_touch_input_event(ev);
-    auto tc = mir_touch_input_event_get_touch_count(tev);
+    auto tev = mir_input_event_get_touch_input(ev);
+    auto tc = mir_touch_input_get_touch_count(tev);
 
     std::cout << "Handline touch event time=" << event_time
               << " touch_count=" << tc << std::endl;
     for (unsigned i = 0; i < tc; i++)
     {
-        auto id = mir_touch_input_event_get_touch_id(tev, i);
-        auto px = mir_touch_input_event_get_touch_axis_value(tev, i, 
+        auto id = mir_touch_input_get_touch_id(tev, i);
+        auto px = mir_touch_input_get_touch_axis_value(tev, i, 
             mir_touch_input_axis_x);
-        auto py = mir_touch_input_event_get_touch_axis_value(tev, i, 
+        auto py = mir_touch_input_get_touch_axis_value(tev, i, 
             mir_touch_input_axis_y);
 
         std::cout << "  "

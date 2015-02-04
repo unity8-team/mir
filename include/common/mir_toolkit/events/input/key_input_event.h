@@ -16,8 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TOOLKIT_KEY_INPUT_EVENT_H_
-#define MIR_TOOLKIT_KEY_INPUT_EVENT_H_
+#ifndef MIR_TOOLKIT_KEY_INPUT_H_
+#define MIR_TOOLKIT_KEY_INPUT_H_
 
 #include <xkbcommon/xkbcommon.h>
 
@@ -32,20 +32,20 @@ extern "C" {
 /**
  * An event type describing a change in keyboard state
  */
-typedef struct MirKeyInputEvent MirKeyInputEvent;
+typedef struct MirKeyInput MirKeyInput;
 
 /**
  * Possible actions for changing key state
  */
 typedef enum {
     /* A key has gone down */
-    mir_key_input_event_action_up,
+    mir_key_input_action_up,
     /* A key has come up */
-    mir_key_input_event_action_down,
+    mir_key_input_action_down,
     /* System policy has triggered a key repeat on a key
        which was already down */
-    mir_key_input_event_action_repeat
-} MirKeyInputEventAction;
+    mir_key_input_action_repeat
+} MirKeyInputAction;
 
 /**
  * Retrieve the action which triggered a given key event.
@@ -53,7 +53,7 @@ typedef enum {
  *  \param [in] event The key event
  *  \return           The associated action
  */
-MirKeyInputEventAction mir_key_input_event_get_action(MirKeyInputEvent const* event);
+MirKeyInputAction mir_key_input_get_action(MirKeyInput const* event);
 
 /**
  * Retrieve the xkb mapped keycode associated with the key acted on.. May
@@ -62,7 +62,7 @@ MirKeyInputEventAction mir_key_input_event_get_action(MirKeyInputEvent const* ev
  *   \param [in] event The key event
  *   \return           The xkb_keysym
  */
-xkb_keysym_t mir_key_input_event_get_key_code(MirKeyInputEvent const* event);
+xkb_keysym_t mir_key_input_get_key_code(MirKeyInput const* event);
 
 /**
  * Retrieve the raw hardware scan code associated with the key acted on. May
@@ -71,7 +71,7 @@ xkb_keysym_t mir_key_input_event_get_key_code(MirKeyInputEvent const* event);
  *   \param [in] event The key event
  *   \return           The scancode
  */
-int mir_key_input_event_get_scan_code(MirKeyInputEvent const* event);
+int mir_key_input_get_scan_code(MirKeyInput const* event);
 
 /**
  * Retrieve the modifier keys pressed when the key action occured.
@@ -79,11 +79,11 @@ int mir_key_input_event_get_scan_code(MirKeyInputEvent const* event);
  *   \param [in] event The key event
  *   \return           The modifier mask
  */
-MirInputEventModifiers mir_key_input_event_get_modifiers(MirKeyInputEvent const* event);
+MirInputModifiers mir_key_input_get_modifiers(MirKeyInput const* event);
 
 #ifdef __cplusplus
 }
 /**@}*/
 #endif
 
-#endif /* MIR_TOOLKIT_KEY_INPUT_EVENT_H_ */
+#endif /* MIR_TOOLKIT_KEY_INPUT_H_ */

@@ -62,7 +62,7 @@ typedef enum {
     mir_input_event_modifier_num_lock    = 1 << 16,
     mir_input_event_modifier_scroll_lock = 1 << 17
 } MirInputEventModifier;
-typedef unsigned int MirInputEventModifiers;
+typedef unsigned int MirInputModifiers;
 
 #ifdef __cplusplus
 }
@@ -106,31 +106,31 @@ int64_t mir_input_event_get_event_time(MirInputEvent const* ev);
 MirInputEventType mir_input_event_get_type(MirInputEvent const* ev);
 
 /*
- * Retrieve the MirKeyInputEvent associated with a given input event.
+ * Retrieve the MirKeyInput associated with a given input event.
  *
  * \param[in] event The input event
- * \return          The MirKeyInputEvent or NULL if event type is not 
+ * \return          The MirKeyInput or NULL if event type is not 
  *                  mir_input_event_type_key
  */
-MirKeyInputEvent const* mir_input_event_get_key_input_event(MirInputEvent const* ev);
+MirKeyInput const* mir_input_event_get_key_input(MirInputEvent const* ev);
 
 /*
- * Retrieve the MirTouchInputEvent associated with a given input event.
+ * Retrieve the MirTouchInput associated with a given input event.
  *
  * \param[in] event The input event
- * \return          The MirTouchInputEvent or NULL if event type is not 
+ * \return          The MirTouchInput or NULL if event type is not 
  *                  mir_input_event_type_touch
  */
-MirTouchInputEvent const* mir_input_event_get_touch_input_event(MirInputEvent const* ev);
+MirTouchInput const* mir_input_event_get_touch_input(MirInputEvent const* ev);
 
 /*
- * Retrieve the MirPointerInputEvent associated with a given input event.
+ * Retrieve the MirPointerInput associated with a given input event.
  *
  * \param[in] event The input event
- * \return          The MirPointerInputEvent or NULL if event type is not 
+ * \return          The MirPointerInput or NULL if event type is not 
  *                  mir_input_event_type_pointer
  */
-MirPointerInputEvent const* mir_input_event_get_pointer_input_event(MirInputEvent const* ev);
+MirPointerInput const* mir_input_event_get_pointer_input(MirInputEvent const* ev);
 
 #ifdef __cplusplus
 }

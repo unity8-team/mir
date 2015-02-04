@@ -16,8 +16,8 @@
  * Authored by: Robert Carr <robert.carr@canonical.com>
  */
 
-#ifndef MIR_TOOLKIT_POINTER_INPUT_EVENT_H_
-#define MIR_TOOLKIT_POINTER_INPUT_EVENT_H_
+#ifndef MIR_TOOLKIT_POINTER_INPUT_H_
+#define MIR_TOOLKIT_POINTER_INPUT_H_
 
 #include <stdbool.h>
 
@@ -32,23 +32,23 @@ extern "C" {
 /**
  * An event type describing a change in pointer device state.
  */
-typedef struct MirPointerInputEvent MirPointerInputEvent;
+typedef struct MirPointerInput MirPointerInput;
 
 /**
  * Possible pointer actions
  */
 typedef enum {
     /* A pointer button has come up */
-    mir_pointer_input_event_action_button_up = 0,
+    mir_pointer_input_action_button_up = 0,
     /* A pointer button has gone down */
-    mir_pointer_input_event_action_button_down = 1,
+    mir_pointer_input_action_button_down = 1,
     /* The pointer has entered the surface to which this event was delivered */
-    mir_pointer_input_event_action_enter = 2,
+    mir_pointer_input_action_enter = 2,
     /* The pointer has left the surface to which this event was delivered */
-    mir_pointer_input_event_action_leave = 3,
+    mir_pointer_input_action_leave = 3,
     /* Axis values have changed for the pointer */
-    mir_pointer_input_event_action_motion = 4
-} MirPointerInputEventAction;
+    mir_pointer_input_action_motion = 4
+} MirPointerInputAction;
 
 /**
  * Identifiers for pointer axis
@@ -62,7 +62,7 @@ typedef enum {
     mir_pointer_input_axis_vscroll = 2,
 /* Relative axis containing ticks reported by the horizontal scroll wheel */
     mir_pointer_input_axis_hscroll = 3
-} MirPointerInputEventAxis;
+} MirPointerInputAxis;
 
 /* 
  * Identifiers for pointer buttons
@@ -73,7 +73,7 @@ typedef enum {
     mir_pointer_input_button_tertiary  = 3,
     mir_pointer_input_button_back      = 4,
     mir_pointer_input_button_forward   = 5
-} MirPointerInputEventButton;
+} MirPointerInputButton;
 
 /**
  * Retrieve the modifier keys pressed when the pointer action occured.
@@ -81,7 +81,7 @@ typedef enum {
  *   \param [in] event The pointer event
  *   \return           The modifier mask
  */
-MirInputEventModifiers mir_pointer_input_event_get_modifiers(MirPointerInputEvent const* event);
+MirInputModifiers mir_pointer_input_get_modifiers(MirPointerInput const* event);
 
 /**
  * Retrieve the action which occured to generate a given pointer event.
@@ -89,7 +89,7 @@ MirInputEventModifiers mir_pointer_input_event_get_modifiers(MirPointerInputEven
  *  \param [in] event       The pointer event
  *  \return                 Action performed by the pointer
  */
-MirPointerInputEventAction mir_pointer_input_event_get_action(MirPointerInputEvent const* event);
+MirPointerInputAction mir_pointer_input_get_action(MirPointerInput const* event);
 
 /**
  * Retrieve the state of a given pointer button when the action occurred.
@@ -99,8 +99,8 @@ MirPointerInputEventAction mir_pointer_input_event_get_action(MirPointerInputEve
  *
  * \return                   Whether the given button is depressed
  */
-bool mir_pointer_input_event_get_button_state(MirPointerInputEvent const* event,
-    MirPointerInputEventButton button);
+bool mir_pointer_input_get_button_state(MirPointerInput const* event,
+    MirPointerInputButton button);
 
 /**
  * Retrieve the axis value reported by a given pointer event.
@@ -109,12 +109,12 @@ bool mir_pointer_input_event_get_button_state(MirPointerInputEvent const* event,
  *  \param [in] axis        The axis to retreive a value from
  *  \return                 The value of the given axis
  */
-float mir_pointer_input_event_get_axis_value(MirPointerInputEvent const* event, 
-    MirPointerInputEventAxis axis);
+float mir_pointer_input_get_axis_value(MirPointerInput const* event, 
+    MirPointerInputAxis axis);
 
 #ifdef __cplusplus
 }
 /**@}*/
 #endif
 
-#endif /* MIR_TOOLKIT_POINTER_INPUT_EVENT_H_ */
+#endif /* MIR_TOOLKIT_POINTER_INPUT_H_ */

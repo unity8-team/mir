@@ -95,20 +95,20 @@ mir::EventUPtr mev::make_event(mf::SurfaceId const& surface_id)
 
 namespace
 {
-MirKeyAction old_action_from_new(MirKeyInputEventAction action)
+MirKeyAction old_action_from_new(MirKeyInputAction action)
 {
     switch (action)
     {
-    case mir_key_input_event_action_repeat:
-    case mir_key_input_event_action_up:
+    case mir_key_input_action_repeat:
+    case mir_key_input_action_up:
         return mir_key_action_up;
-    case mir_key_input_event_action_down:
+    case mir_key_input_action_down:
         return mir_key_action_down;
     default:
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid key action"));
     }
 }
-MirKeyModifier old_modifiers_from_new(MirInputEventModifiers modifiers)
+MirKeyModifier old_modifiers_from_new(MirInputModifiers modifiers)
 {
     int old_modifiers = mir_key_modifier_none;
 
@@ -154,8 +154,8 @@ MirKeyModifier old_modifiers_from_new(MirInputEventModifiers modifiers)
 }
 
 mir::EventUPtr mev::make_event(MirInputDeviceId device_id, int64_t timestamp,
-    MirKeyInputEventAction action, xkb_keysym_t key_code,
-    int scan_code, MirInputEventModifiers modifiers)
+    MirKeyInputAction action, xkb_keysym_t key_code,
+    int scan_code, MirInputModifiers modifiers)
 {
     MirEvent *e = new MirEvent;
     memset(e, 0, sizeof (MirEvent));
@@ -165,7 +165,7 @@ mir::EventUPtr mev::make_event(MirInputDeviceId device_id, int64_t timestamp,
     kev.device_id = device_id;
     kev.event_time = timestamp;
     kev.action = old_action_from_new(action);
-    if (action == mir_key_input_event_action_repeat)
+    if (action == mir_key_input_action_repeat)
         kev.repeat_count = 1;
     kev.key_code = key_code;
     kev.scan_code = scan_code;
@@ -206,7 +206,7 @@ enum
 }
 
 mir::EventUPtr mev::make_event(MirInputDeviceId device_id, int64_t timestamp,
-    MirInputEventModifiers modifiers)
+    MirInputModifiers modifiers)
 {
     MirEvent *e = new MirEvent;
     memset(e, 0, sizeof (MirEvent));
@@ -227,12 +227,12 @@ namespace
 int const MIR_EVENT_ACTION_POINTER_INDEX_MASK = 0xff00;
 int const MIR_EVENT_ACTION_POINTER_INDEX_SHIFT = 8;
 
-void update_action_mask(MirMotionEvent &mev, MirTouchInputEventTouchAction action)
+void update_action_mask(MirMotionEvent &mev, MirTouchInputTouchAction action)
 {
     int new_mask = (mev.pointer_count - 1) << MIR_EVENT_ACTION_POINTER_INDEX_SHIFT;
-    if (action == mir_touch_input_event_action_up)
+    if (action == mir_touch_input_action_up)
         new_mask = (new_mask & MIR_EVENT_ACTION_POINTER_INDEX_MASK) | mir_motion_action_pointer_up;
-    else if (action == mir_touch_input_event_action_down)
+    else if (action == mir_touch_input_action_down)
         new_mask = (new_mask & MIR_EVENT_ACTION_POINTER_INDEX_MASK) | mir_motion_action_pointer_down;
     else
         new_mask = mir_motion_action_move;
@@ -246,7 +246,7 @@ void update_action_mask(MirMotionEvent &mev, MirTouchInputEventTouchAction actio
     mev.action = new_mask;
 }
 
-MirMotionToolType old_tooltype_from_new(MirTouchInputEventTouchTooltype tooltype)
+MirMotionToolType old_tooltype_from_new(MirTouchInputTouchTooltype tooltype)
 {
    switch (tooltype)
    {
@@ -262,8 +262,8 @@ MirMotionToolType old_tooltype_from_new(MirTouchInputEventTouchTooltype tooltype
 }
 }
 
-void mev::add_touch(MirEvent &event, MirTouchInputEventTouchId touch_id, MirTouchInputEventTouchAction action,
-    MirTouchInputEventTouchTooltype tooltype, float x_axis_value, float y_axis_value,
+void mev::add_touch(MirEvent &event, MirTouchInputTouchId touch_id, MirTouchInputTouchAction action,
+    MirTouchInputTouchTooltype tooltype, float x_axis_value, float y_axis_value,
     float pressure_value, float touch_major_value, float touch_minor_value, float size_value)
 {
     auto& mev = event.motion;
@@ -282,19 +282,19 @@ void mev::add_touch(MirEvent &event, MirTouchInputEventTouchId touch_id, MirTouc
 
 namespace
 {
-MirMotionAction old_action_from_pointer_action(MirPointerInputEventAction action)
+MirMotionAction old_action_from_pointer_action(MirPointerInputAction action)
 {
     switch (action)
     {
-    case mir_pointer_input_event_action_button_up:
+    case mir_pointer_input_action_button_up:
         return mir_motion_action_up;
-    case mir_pointer_input_event_action_button_down:
+    case mir_pointer_input_action_button_down:
         return mir_motion_action_down;
-    case mir_pointer_input_event_action_enter:
+    case mir_pointer_input_action_enter:
         return mir_motion_action_hover_enter;
-    case mir_pointer_input_event_action_leave:
+    case mir_pointer_input_action_leave:
         return mir_motion_action_hover_exit;
-    case mir_pointer_input_event_action_motion:
+    case mir_pointer_input_action_motion:
         return mir_motion_action_move;
     default:
         BOOST_THROW_EXCEPTION(std::logic_error("Invalid pointer action"));
@@ -303,8 +303,8 @@ MirMotionAction old_action_from_pointer_action(MirPointerInputEventAction action
 }
 
 mir::EventUPtr mev::make_event(MirInputDeviceId device_id, int64_t timestamp,
-    MirInputEventModifiers modifiers, MirPointerInputEventAction action,
-    std::vector<MirPointerInputEventButton> const& buttons_pressed,
+    MirInputModifiers modifiers, MirPointerInputAction action,
+    std::vector<MirPointerInputButton> const& buttons_pressed,
     float x_axis_value, float y_axis_value,
     float hscroll_value, float vscroll_value)
 {

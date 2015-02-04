@@ -212,8 +212,8 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         static float max_pressure = 1.0f;
 
         MirInputEvent const* input_event = mir_event_get_input_event(event);
-        MirTouchInputEvent const* tev = NULL;
-        MirPointerInputEvent const* pev = NULL;
+        MirTouchInput const* tev = NULL;
+        MirPointerInput const* pev = NULL;
         unsigned touch_count = 0;
         bool ended = false;
         MirInputEventType type = mir_input_event_get_type(input_event);
@@ -221,17 +221,17 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         switch (type)
         {
         case mir_input_event_type_touch:
-            tev = mir_input_event_get_touch_input_event(input_event);
-            touch_count = mir_touch_input_event_get_touch_count(tev);
+            tev = mir_input_event_get_touch_input(input_event);
+            touch_count = mir_touch_input_get_touch_count(tev);
             ended = touch_count == 1 &&
-                    (mir_touch_input_event_get_touch_action(tev, 0) ==
-                     mir_touch_input_event_action_up);
+                    (mir_touch_input_get_touch_action(tev, 0) ==
+                     mir_touch_input_action_up);
             break;
         case mir_input_event_type_pointer:
-            pev = mir_input_event_get_pointer_input_event(input_event);
-            ended = mir_pointer_input_event_get_action(pev) ==
-                mir_pointer_input_event_action_button_up;
-            touch_count = mir_pointer_input_event_get_button_state(pev,
+            pev = mir_input_event_get_pointer_input(input_event);
+            ended = mir_pointer_input_get_action(pev) ==
+                mir_pointer_input_action_button_up;
+            touch_count = mir_pointer_input_get_button_state(pev,
                                mir_pointer_input_button_primary) ? 1 : 0;
         default:
             break;
@@ -259,21 +259,21 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
 
                 if (tev != NULL)
                 {
-                    x = mir_touch_input_event_get_touch_axis_value(tev, p,
+                    x = mir_touch_input_get_touch_axis_value(tev, p,
                         mir_touch_input_axis_x);
-                    y = mir_touch_input_event_get_touch_axis_value(tev, p,
+                    y = mir_touch_input_get_touch_axis_value(tev, p,
                         mir_touch_input_axis_y);
-                    float size = mir_touch_input_event_get_touch_axis_value(
+                    float size = mir_touch_input_get_touch_axis_value(
                         tev, p, mir_touch_input_axis_size);
-                    pressure = mir_touch_input_event_get_touch_axis_value(tev,
+                    pressure = mir_touch_input_get_touch_axis_value(tev,
                         p, mir_touch_input_axis_pressure);
                     radius = size * 50.0f + 1.0f;
                 }
                 else if (pev != NULL)
                 {
-                    x = mir_pointer_input_event_get_axis_value(pev,
+                    x = mir_pointer_input_get_axis_value(pev,
                         mir_pointer_input_axis_x);
-                    y = mir_pointer_input_event_get_axis_value(pev,
+                    y = mir_pointer_input_get_axis_value(pev,
                         mir_pointer_input_axis_y);
                     pressure = 0.5f;
                     radius = 5;

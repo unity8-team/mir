@@ -93,28 +93,28 @@ MirEvent const* old_ev_from_new(MirInputEvent const* ev)
     return reinterpret_cast<MirEvent const*>(ev);
 }
 
-MirKeyEvent const& old_kev_from_new(MirKeyInputEvent const* ev)
+MirKeyEvent const& old_kev_from_new(MirKeyInput const* ev)
 {
     auto old_ev = reinterpret_cast<MirEvent const*>(ev);
     expect_old_event_type(old_ev, mir_event_type_key);
     return old_ev->key;
 }
 
-MirMotionEvent const& old_mev_from_new(MirTouchInputEvent const* ev)
+MirMotionEvent const& old_mev_from_new(MirTouchInput const* ev)
 {
     auto old_ev = reinterpret_cast<MirEvent const*>(ev);
     expect_old_event_type(old_ev, mir_event_type_motion);
     return old_ev->motion;
 }
 
-MirMotionEvent const& old_mev_from_new(MirPointerInputEvent const* ev)
+MirMotionEvent const& old_mev_from_new(MirPointerInput const* ev)
 {
     auto old_ev = reinterpret_cast<MirEvent const*>(ev);
     expect_old_event_type(old_ev, mir_event_type_motion);
     return old_ev->motion;
 }
 
-// Differentiate between MirTouchInputEvents and MirPointerInputEvents based on old device class
+// Differentiate between MirTouchInputs and MirPointerInputs based on old device class
 MirInputEventType type_from_device_class(int32_t source_class)
 {
     switch (source_class)
@@ -195,7 +195,7 @@ int64_t mir_input_event_get_event_time(MirInputEvent const* ev)
 
 /* Key event accessors */
 
-MirKeyInputEvent const* mir_input_event_get_key_input_event(MirInputEvent const* ev)
+MirKeyInput const* mir_input_event_get_key_input(MirInputEvent const* ev)
 {
     if (mir_input_event_get_type(ev) != mir_input_event_type_key)
     {
@@ -204,10 +204,10 @@ MirKeyInputEvent const* mir_input_event_get_key_input_event(MirInputEvent const*
         abort();
     }
     
-    return reinterpret_cast<MirKeyInputEvent const*>(ev);
+    return reinterpret_cast<MirKeyInput const*>(ev);
 }
 
-MirKeyInputEventAction mir_key_input_event_get_action(MirKeyInputEvent const* kev)
+MirKeyInputAction mir_key_input_get_action(MirKeyInput const* kev)
 {
     auto const& old_kev = old_kev_from_new(kev);
     
@@ -215,26 +215,26 @@ MirKeyInputEventAction mir_key_input_event_get_action(MirKeyInputEvent const* ke
     {
     case mir_key_action_down:
         if (old_kev.repeat_count != 0)
-            return mir_key_input_event_action_repeat;
+            return mir_key_input_action_repeat;
         else
-            return mir_key_input_event_action_down;
+            return mir_key_input_action_down;
     case mir_key_action_up:
-        return mir_key_input_event_action_up;
+        return mir_key_input_action_up;
     default:
         // TODO:? This means we got key_action_multiple which I dont think is 
         // actually emitted yet (and never will be as in the future it would fall under text
         // event in the new model).
-        return mir_key_input_event_action_down;
+        return mir_key_input_action_down;
     }
 }
 
-xkb_keysym_t mir_key_input_event_get_key_code(MirKeyInputEvent const* kev)
+xkb_keysym_t mir_key_input_get_key_code(MirKeyInput const* kev)
 {
     auto const& old_kev = old_kev_from_new(kev);
     return old_kev.key_code;
 }
 
-int mir_key_input_event_get_scan_code(MirKeyInputEvent const* kev)
+int mir_key_input_get_scan_code(MirKeyInput const* kev)
 {
     auto const& old_kev = old_kev_from_new(kev);
     return old_kev.scan_code;
@@ -242,9 +242,9 @@ int mir_key_input_event_get_scan_code(MirKeyInputEvent const* kev)
 
 namespace
 {
-MirInputEventModifiers old_modifiers_to_new(unsigned int old_modifier)
+MirInputModifiers old_modifiers_to_new(unsigned int old_modifier)
 {
-    MirInputEventModifiers modifier = 0;
+    MirInputModifiers modifier = 0;
 
     if (old_modifier & mir_key_modifier_none)
         modifier |= mir_input_event_modifier_none;
@@ -288,20 +288,20 @@ MirInputEventModifiers old_modifiers_to_new(unsigned int old_modifier)
     return mir_input_event_modifier_none;
 }
 }
-MirInputEventModifiers mir_key_input_event_get_modifiers(MirKeyInputEvent const* kev)
+MirInputModifiers mir_key_input_get_modifiers(MirKeyInput const* kev)
 {    
     auto const& old_kev = old_kev_from_new(kev);
     return old_modifiers_to_new(old_kev.modifiers);
 }
 /* Touch event accessors */
 
-MirInputEventModifiers mir_touch_input_event_get_modifiers(MirTouchInputEvent const* tev)
+MirInputModifiers mir_touch_input_get_modifiers(MirTouchInput const* tev)
 {    
     auto const& old_mev = old_mev_from_new(tev);
     return old_modifiers_to_new(old_mev.modifiers);
 }
 
-MirTouchInputEvent const* mir_input_event_get_touch_input_event(MirInputEvent const* ev)
+MirTouchInput const* mir_input_event_get_touch_input(MirInputEvent const* ev)
 {
     if(mir_input_event_get_type(ev) != mir_input_event_type_touch)
     {
@@ -310,16 +310,16 @@ MirTouchInputEvent const* mir_input_event_get_touch_input_event(MirInputEvent co
         abort();
     }
 
-    return reinterpret_cast<MirTouchInputEvent const*>(ev);
+    return reinterpret_cast<MirTouchInput const*>(ev);
 }
 
-unsigned int mir_touch_input_event_get_touch_count(MirTouchInputEvent const* event)
+unsigned int mir_touch_input_get_touch_count(MirTouchInput const* event)
 {
     auto const& old_mev = reinterpret_cast<MirEvent const*>(event)->motion;
     return old_mev.pointer_count;
 }
 
-MirTouchInputEventTouchId mir_touch_input_event_get_touch_id(MirTouchInputEvent const* event, size_t touch_index)
+MirTouchInputTouchId mir_touch_input_get_touch_id(MirTouchInput const* event, size_t touch_index)
 {
     auto const& old_mev = old_mev_from_new(event);
 
@@ -332,7 +332,7 @@ MirTouchInputEventTouchId mir_touch_input_event_get_touch_id(MirTouchInputEvent 
     return old_mev.pointer_coordinates[touch_index].id;
 }
 
-MirTouchInputEventTouchAction mir_touch_input_event_get_touch_action(MirTouchInputEvent const* event, size_t touch_index)
+MirTouchInputTouchAction mir_touch_input_get_touch_action(MirTouchInput const* event, size_t touch_index)
 {
     auto const& old_mev = old_mev_from_new(event);
 
@@ -350,25 +350,25 @@ MirTouchInputEventTouchAction mir_touch_input_event_get_touch_action(MirTouchInp
     // For the next two cases we could assert pc=1...because a gesture must
     // be starting or ending.
     case mir_motion_action_down:
-        return mir_touch_input_event_action_down;
+        return mir_touch_input_action_down;
     case mir_motion_action_up:
-        return mir_touch_input_event_action_up;
+        return mir_touch_input_action_up;
     // We can't tell which touches have actually moved without tracking state
     // so we report all touchpoints as changed.
     case mir_motion_action_move:
     case mir_motion_action_hover_move:
-        return mir_touch_input_event_action_change;
+        return mir_touch_input_action_change;
     // All touch points are handled at once so we don't know the index
     case mir_motion_action_pointer_down:
         if (touch_index == masked_index)
-            return mir_touch_input_event_action_down;
+            return mir_touch_input_action_down;
         else
-            return mir_touch_input_event_action_change;
+            return mir_touch_input_action_change;
     case mir_motion_action_pointer_up:
         if (touch_index == masked_index)
-            return mir_touch_input_event_action_up;
+            return mir_touch_input_action_up;
         else
-            return mir_touch_input_event_action_change;
+            return mir_touch_input_action_change;
     // TODO: How to deal with these?
     case mir_motion_action_cancel:
     case mir_motion_action_outside:
@@ -376,11 +376,11 @@ MirTouchInputEventTouchAction mir_touch_input_event_get_touch_action(MirTouchInp
     case mir_motion_action_hover_enter:
     case mir_motion_action_hover_exit:
     default:
-        return mir_touch_input_event_action_change;
+        return mir_touch_input_action_change;
     }
 }
 
-MirTouchInputEventTouchTooltype mir_touch_input_event_get_touch_tooltype(MirTouchInputEvent const* event,
+MirTouchInputTouchTooltype mir_touch_input_get_touch_tooltype(MirTouchInput const* event,
     size_t touch_index)
 {
     auto const& old_mev = old_mev_from_new(event);
@@ -405,8 +405,8 @@ MirTouchInputEventTouchTooltype mir_touch_input_event_get_touch_tooltype(MirTouc
     }
 }
 
-float mir_touch_input_event_get_touch_axis_value(MirTouchInputEvent const* event,
-    size_t touch_index, MirTouchInputEventTouchAxis axis)
+float mir_touch_input_get_touch_axis_value(MirTouchInput const* event,
+    size_t touch_index, MirTouchInputTouchAxis axis)
 {
     auto const& old_mev = old_mev_from_new(event);
 
@@ -437,7 +437,7 @@ float mir_touch_input_event_get_touch_axis_value(MirTouchInputEvent const* event
 }                                                                            
 
 /* Pointer event accessors */
-MirPointerInputEvent const* mir_input_event_get_pointer_input_event(MirInputEvent const* ev)
+MirPointerInput const* mir_input_event_get_pointer_input(MirInputEvent const* ev)
 {
     if(mir_input_event_get_type(ev) != mir_input_event_type_pointer)
     {
@@ -446,16 +446,16 @@ MirPointerInputEvent const* mir_input_event_get_pointer_input_event(MirInputEven
         abort();
     }
 
-    return reinterpret_cast<MirPointerInputEvent const*>(ev);
+    return reinterpret_cast<MirPointerInput const*>(ev);
 }
 
-MirInputEventModifiers mir_pointer_input_event_get_modifiers(MirPointerInputEvent const* pev)
+MirInputModifiers mir_pointer_input_get_modifiers(MirPointerInput const* pev)
 {    
     auto const& old_mev = old_mev_from_new(pev);
     return old_modifiers_to_new(old_mev.modifiers);
 }
 
-MirPointerInputEventAction mir_pointer_input_event_get_action(MirPointerInputEvent const* pev)
+MirPointerInputAction mir_pointer_input_get_action(MirPointerInput const* pev)
 {    
     auto const& old_mev = old_mev_from_new(pev);
     auto masked_action = old_mev.action & MIR_EVENT_ACTION_MASK;
@@ -463,24 +463,24 @@ MirPointerInputEventAction mir_pointer_input_event_get_action(MirPointerInputEve
     {
     case mir_motion_action_up:
     case mir_motion_action_pointer_up:
-        return mir_pointer_input_event_action_button_up;
+        return mir_pointer_input_action_button_up;
     case mir_motion_action_down:
     case mir_motion_action_pointer_down:
-        return mir_pointer_input_event_action_button_down;
+        return mir_pointer_input_action_button_down;
     case mir_motion_action_hover_enter:
-        return mir_pointer_input_event_action_enter;
+        return mir_pointer_input_action_enter;
     case mir_motion_action_hover_exit:
-        return mir_pointer_input_event_action_leave;
+        return mir_pointer_input_action_leave;
     case mir_motion_action_move:
     case mir_motion_action_hover_move:
     case mir_motion_action_outside:
     default:
-        return mir_pointer_input_event_action_motion;
+        return mir_pointer_input_action_motion;
     }
 }
 
-bool mir_pointer_input_event_get_button_state(MirPointerInputEvent const* pev,
-    MirPointerInputEventButton button)
+bool mir_pointer_input_get_button_state(MirPointerInput const* pev,
+    MirPointerInputButton button)
 {
    auto const& old_mev = old_mev_from_new(pev);
    switch (button)
@@ -500,7 +500,7 @@ bool mir_pointer_input_event_get_button_state(MirPointerInputEvent const* pev,
    }
 }
 
-float mir_pointer_input_event_get_axis_value(MirPointerInputEvent const* pev, MirPointerInputEventAxis axis)
+float mir_pointer_input_get_axis_value(MirPointerInput const* pev, MirPointerInputAxis axis)
 {
    auto const& old_mev = old_mev_from_new(pev);
    switch (axis)
