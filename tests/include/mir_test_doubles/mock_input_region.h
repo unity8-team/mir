@@ -35,6 +35,7 @@ namespace doubles
 class MockInputRegion : public input::InputRegion
 {
 public:
+    MOCK_METHOD2(override_orientation, void(uint32_t, MirOrientation));
     MOCK_METHOD0(bounding_rectangle, geometry::Rectangle());
     MOCK_METHOD1(confine, void(geometry::Point&));
 };

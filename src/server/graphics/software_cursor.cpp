@@ -21,10 +21,14 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/renderable.h"
+#include "mir/graphics/display.h"
+#include "mir/graphics/display_buffer.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/input/scene.h"
 
 #include <mutex>
+#include <sstream>
+#include <iostream>
 
 namespace mg = mir::graphics;
 namespace mi = mir::input;
@@ -32,6 +36,21 @@ namespace geom = mir::geometry;
 
 namespace
 {
+geom::Displacement transform(geom::Rectangle const& rect, geom::Displacement const& vector, MirOrientation orientation)
+{
+    switch(orientation)
+    {
+    case mir_orientation_left:
+        return {vector.dy.as_int(), rect.size.width.as_int() -vector.dx.as_int()};
+    case mir_orientation_inverted:
+        return {rect.size.width.as_int() -vector.dx.as_int(), rect.size.height.as_int() - vector.dy.as_int()};
+    case mir_orientation_right:
+        return {rect.size.height.as_int() -vector.dy.as_int(), vector.dx.as_int()};
+    default:
+    case mir_orientation_normal:
+        return vector;
+    }
+}
 
 MirPixelFormat get_8888_format(std::vector<MirPixelFormat> const& formats)
 {
@@ -59,6 +78,14 @@ public:
         : buffer_{buffer},
           position{position}
     {
+        auto const* env = getenv("GRID_UNIT_PX");
+        if (env)
+        {
+            std::stringstream gu_parse(std::string{env});
+            float value;
+            if (gu_parse >> value)
+                scale = value/8.0f; // guess to transform gu into a scale that turns 32x32 icon into a readable size
+        }
     }
 
     mg::Renderable::ID id() const override
@@ -82,9 +109,42 @@ public:
         return 1.0;
     }
 
+    void set_scale(float scale)
+    {
+        this->scale = scale;
+    }
+
+    void set_orientation(MirOrientation orientation)
+    {
+        this->orientation = orientation;
+    }
+
     glm::mat4 transformation() const override
     {
-        return glm::mat4();
+        switch(orientation)
+        {
+        case  mir_orientation_left:
+            return glm::mat4( 0, -scale, 0, 0,
+                             scale, 0, 0, 0,
+                              0, 0, 1, 0,
+                              0, 0, 0, 1);
+        case  mir_orientation_inverted:
+            return glm::mat4(-scale, 0, 0, 0,
+                             0, -scale, 0, 0,
+                             0, 0, 1, 0,
+                             0, 0, 0, 1);
+        case  mir_orientation_right:
+            return glm::mat4( 0,scale, 0, 0,
+                              -scale, 0, 0, 0,
+                              0, 0, 1, 0,
+                              0, 0, 0, 1);
+        default:
+        case  mir_orientation_normal:
+            return glm::mat4(scale, 0, 0, 0,
+                             0, scale, 0, 0,
+                             0, 0, 1, 0,
+                             0, 0, 0, 1);
+        }
     }
 
     bool shaped() const override
@@ -97,26 +157,30 @@ public:
         return 1;
     }
 
-    void move_to(geom::Point new_position)
+    void move_to(geom::Displacement new_position)
     {
         std::lock_guard<std::mutex> lock{position_mutex};
-        position = new_position;
+        position = geom::Point{new_position.dx.as_int(), new_position.dy.as_int()};
     }
 
 private:
     std::shared_ptr<mg::Buffer> const buffer_;
     mutable std::mutex position_mutex;
     geom::Point position;
+    float scale{1.0f};
+    MirOrientation orientation{mir_orientation_normal};
 };
 
 mg::SoftwareCursor::SoftwareCursor(
+    std::shared_ptr<mg::Display> const& display,
     std::shared_ptr<mg::GraphicBufferAllocator> const& allocator,
     std::shared_ptr<mi::Scene> const& scene)
     : allocator{allocator},
       scene{scene},
       format{get_8888_format(allocator->supported_pixel_formats())},
       visible(false),
-      hotspot{0,0}
+      hotspot{0,0},
+      display{display}
 {
 }
 
@@ -134,7 +198,35 @@ void mg::SoftwareCursor::show()
             visible = needs_scene_change = true;
     }
     if (needs_scene_change && renderable)
+    {
+        update_visualization(renderable);
         scene->add_input_visualization(renderable);
+    }
+}
+
+void mg::SoftwareCursor::update_visualization(std::shared_ptr<detail::CursorRenderable> cursor)
+{
+    if (!cursor)
+        return;
+    uint32_t display_id = 0;
+    display->for_each_display_buffer(
+        [cursor,&display_id,this](DisplayBuffer const& buffer)
+        {
+            MirOrientation overridden = overrides.get_orientation(display_id, buffer.orientation());
+
+            auto extents = overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation());
+
+            if (!extents.contains(position))
+                return;
+
+            // this is actually wrong
+            auto displacement = transform(extents, position - geometry::Point{0,0}, overridden);
+
+            cursor->move_to(displacement - hotspot);
+            cursor->set_orientation(overridden);
+
+            ++display_id;
+        });
 }
 
 void mg::SoftwareCursor::show(CursorImage const& cursor_image)
@@ -161,6 +253,7 @@ void mg::SoftwareCursor::show(CursorImage const& cursor_image)
         renderable = new_renderable;
         hotspot = cursor_image.hotspot();
     }
+    update_visualization(new_renderable);
 
     if (old_renderable)
         scene->remove_input_visualization(old_renderable);
@@ -223,11 +316,19 @@ void mg::SoftwareCursor::move_to(geometry::Point position)
     {
         std::lock_guard<std::mutex> lg{guard};
 
+        this->position = position;
+
         if (!renderable)
             return;
 
-        renderable->move_to(position - hotspot);
+        update_visualization(renderable);
     }
 
     scene->emit_scene_changed();
+}
+
+void mg::SoftwareCursor::override_orientation(uint32_t screen, MirOrientation orientation)
+{
+    // there is no cache invalidation in this hack
+    overrides.add_override(screen, orientation);
 }

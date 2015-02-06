@@ -8,6 +8,7 @@ fe0275d9c64e7a2d99990382d04b1fe956d7b7e4  include/common/mir/frontend/surface_id
 dd2eb355262622f08280e63dbc2680068fe81d9e  include/common/mir/geometry/displacement.h
 283cb0ecf9d544300681fc2ab86bec568e2d20ff  include/common/mir/geometry/forward.h
 bfd87d9fb800c1c1b528c00185570abac569caf2  include/common/mir/geometry/length.h
+7c2bef3a35675a35ac45d6f737900b772c9176fc  include/common/mir/geometry/overrides.h
 d954464ef2d20c2876db68c94512a443186da09b  include/common/mir/geometry/point.h
 dc7c62d3916eec025e8e7deaf57e06077ce38928  include/common/mir/geometry/rectangle.h
 41446a309ee25148a9b1a66ebee205c57e014a8f  include/common/mir/geometry/rectangles.h
@@ -42,7 +43,7 @@ f623dcf3c2ed134c1be20106eb54bcccc84af462  include/common/mir_toolkit/events/prom
 990c2c78f68214a54a1f92aa223813548af42998  include/platform/mir/graphics/buffer.h
 5875f13f5b029a4b5291e9baec3ae434b72be27c  include/platform/mir/graphics/buffer_id.h
 748f5c2aab11189aa02c4a89ab900561548e7304  include/platform/mir/graphics/buffer_properties.h
-7679e5e821353054ac2e16aa61995555ceda3d75  include/platform/mir/graphics/cursor.h
+f0c0c135cf4afd127a07ec23bb3c3eef5b1abf2c  include/platform/mir/graphics/cursor.h
 fe2b5f13ccd3ec6b78d90d3abbb7d88b48238578  include/platform/mir/graphics/cursor_image.h
 c2fee623b2fbe55e3eefed051ab7e58f11c240ad  include/platform/mir/graphics/display_buffer.h
 f53a0020b8f1bd4a941a201eb26271cffee0a7dd  include/platform/mir/graphics/display_configuration.h

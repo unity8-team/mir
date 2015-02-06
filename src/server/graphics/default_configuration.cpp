@@ -180,6 +180,7 @@ mir::DefaultServerConfiguration::the_cursor()
                 mir::log_info("Using software cursor");
 
                 auto const cursor = std::make_shared<mg::SoftwareCursor>(
+                    the_display(), // hack
                     the_buffer_allocator(),
                     the_input_scene());
 

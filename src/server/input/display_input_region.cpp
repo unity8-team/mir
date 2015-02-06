@@ -33,14 +33,22 @@ mi::DisplayInputRegion::DisplayInputRegion(
 {
 }
 
+void mi::DisplayInputRegion::override_orientation(uint32_t display_id, MirOrientation orientation)
+{
+    overrides.add_override(display_id, orientation);
+}
+
 geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 {
     geom::Rectangles rectangles;
+    uint32_t display_id = 0;
 
     display->for_each_display_buffer(
-        [&rectangles](mg::DisplayBuffer const& buffer)
+        [&rectangles,this,display_id](mg::DisplayBuffer const& buffer)
         {
-            rectangles.add(buffer.view_area());
+            rectangles.add(
+                overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation())
+                );
         });
 
     return rectangles.bounding_rectangle();

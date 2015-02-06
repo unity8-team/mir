@@ -69,6 +69,7 @@ namespace mo = mir::options;
     MACRO(the_cursor_listener)\
     MACRO(the_cursor)\
     MACRO(the_display)\
+    MACRO(the_input_region)\
     MACRO(the_focus_controller)\
     MACRO(the_gl_config)\
     MACRO(the_graphics_platform)\

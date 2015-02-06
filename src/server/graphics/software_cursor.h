@@ -22,6 +22,7 @@
 #include "mir/graphics/cursor.h"
 #include "mir_toolkit/client_types.h"
 #include "mir/geometry/displacement.h"
+#include "mir/geometry/overrides.h"
 #include <mutex>
 
 namespace mir
@@ -29,6 +30,7 @@ namespace mir
 namespace input { class Scene; }
 namespace graphics
 {
+class Display;
 class GraphicBufferAllocator;
 class Renderable;
 
@@ -41,6 +43,7 @@ class SoftwareCursor : public Cursor
 {
 public:
     SoftwareCursor(
+        std::shared_ptr<mir::graphics::Display> const& display,
         std::shared_ptr<GraphicBufferAllocator> const& allocator,
         std::shared_ptr<input::Scene> const& scene);
     ~SoftwareCursor();
@@ -49,10 +52,13 @@ public:
     void show(CursorImage const& cursor_image) override;
     void hide() override;
     void move_to(geometry::Point position) override;
+    void override_orientation(uint32_t screen, MirOrientation) override;
 
 private:
     std::shared_ptr<detail::CursorRenderable> create_renderable_for(
         CursorImage const& cursor_image);
+
+    void update_visualization(std::shared_ptr<detail::CursorRenderable> renderable);
 
     std::shared_ptr<GraphicBufferAllocator> const allocator;
     std::shared_ptr<input::Scene> const scene;
@@ -60,7 +66,10 @@ private:
     std::mutex guard;
     std::shared_ptr<detail::CursorRenderable> renderable;
     bool visible;
+    geometry::Point position;
     geometry::Displacement hotspot;
+    geometry::Overrides overrides;
+    std::shared_ptr<mir::graphics::Display> display;
 };
 
 }
