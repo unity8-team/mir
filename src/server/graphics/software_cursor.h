@@ -56,7 +56,7 @@ public:
 
 private:
     std::shared_ptr<detail::CursorRenderable> create_renderable_for(
-        CursorImage const& cursor_image);
+        CursorImage const& cursor_image, geometry::Point position);
 
     void update_visualization(std::shared_ptr<detail::CursorRenderable> renderable);
 
