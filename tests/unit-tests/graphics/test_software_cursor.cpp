@@ -315,6 +315,7 @@ TEST_F(SoftwareCursor, new_buffer_on_each_show)
         .Times(3)
         .WillRepeatedly(testing::Return(std::make_shared<mtd::StubBuffer>()));;
     mg::SoftwareCursor cursor{
+        mt::fake_shared(stub_display),
         mt::fake_shared(mock_allocator),
         mt::fake_shared(mock_input_scene)};
     cursor.show(another_stub_cursor_image);
