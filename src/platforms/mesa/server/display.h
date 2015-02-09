@@ -23,6 +23,7 @@
 #include "real_kms_output_container.h"
 #include "real_kms_display_configuration.h"
 #include "display_helpers.h"
+#include "display_buffer.h"
 
 #include <mutex>
 
@@ -90,7 +91,7 @@ private:
     std::shared_ptr<DisplayReport> const listener;
     mir::udev::Monitor monitor;
     helpers::EGLHelper shared_egl;
-    std::vector<std::unique_ptr<DisplayBuffer>> display_buffers;
+    std::vector<std::unique_ptr<DisplayGroup>> display_groups;
     RealKMSOutputContainer output_container;
     mutable RealKMSDisplayConfiguration current_display_configuration;
     

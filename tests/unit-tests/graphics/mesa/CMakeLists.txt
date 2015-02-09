@@ -17,6 +17,7 @@ list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_bypass.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_ipc_operations.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_nested_authentication.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_display_group.cpp
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 

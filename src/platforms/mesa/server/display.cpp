@@ -118,8 +118,8 @@ void mgm::Display::for_each_display_group(
 {
     std::lock_guard<std::mutex> lg{configuration_mutex};
 
-    for (auto& db_ptr : display_buffers)
-        f(*db_ptr);
+    for (auto& dg_ptr : display_groups)
+        f(*dg_ptr);
 }
 
 std::unique_ptr<mg::DisplayConfiguration> mgm::Display::configuration() const
@@ -149,7 +149,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
         // before it's fully constructed, to force proper initialization.
         bool const comp{(&conf != &current_display_configuration) &&
                         compatible(kms_conf, current_display_configuration)};
-        std::vector<std::unique_ptr<DisplayBuffer>> display_buffers_new;
+        std::vector<std::unique_ptr<DisplayGroup>> display_groups_new;
 
         if (!comp)
         {
@@ -161,8 +161,8 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
              * sure we wait for all pending page flips to finish before the
              * display_buffers_new are created and take control of the outputs.
              */
-            for (auto& db : display_buffers)
-                db->wait_for_page_flip();
+            for (auto& dg : display_groups)
+                dg->wait_for_page_flip();
 
             /* Reset the state of all outputs */
             kms_conf.for_each_output([&](DisplayConfigurationOutput const& conf_output)
@@ -176,7 +176,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 
         /* Set up used outputs */
         OverlappingOutputGrouping grouping{conf};
-        auto group_idx = 0;
+//        auto group_idx = 0;
 
         grouping.for_each_group([&](OverlappingOutputGroup const& group)
         {
@@ -207,7 +207,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 
             if (comp)
             {
-                display_buffers[group_idx++]->set_orientation(orientation, bounding_rect);
+//                display_groups[group_idx++]->set_orientation(orientation, bounding_rect);
             }
             else
             {
@@ -221,8 +221,8 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 
                 auto surface = platform->gbm.create_scanout_surface(width, height);
 
-                std::unique_ptr<DisplayBuffer> db{
-                    new DisplayBuffer{platform, listener,
+                std::unique_ptr<DisplayGroup> dg{
+                    new DisplayGroup{platform, listener,
                                       kms_outputs,
                                       std::move(surface),
                                       bounding_rect,
@@ -230,12 +230,12 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
                                       *gl_config,
                                       shared_egl.context()}};
 
-                display_buffers_new.push_back(std::move(db));
+                display_groups_new.push_back(std::move(dg));
             }
         });
 
         if (!comp)
-            display_buffers = std::move(display_buffers_new);
+            display_groups = std::move(display_groups_new);
 
         /* Store applied configuration */
         current_display_configuration = kms_conf;
@@ -307,7 +307,7 @@ void mgm::Display::resume()
          * we need to reset the CRTCs. For active displays we schedule a CRTC reset
          * on the next swap. For connected but unused outputs we clear the CRTC.
          */
-        for (auto& db_ptr : display_buffers)
+        for (auto& db_ptr : display_groups)
             db_ptr->schedule_set_crtc();
 
         clear_connected_unused_outputs();

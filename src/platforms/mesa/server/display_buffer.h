@@ -22,6 +22,7 @@
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display.h"
 #include "display_helpers.h"
+#include "platform.h"
 
 #include <vector>
 #include <memory>
@@ -42,8 +43,7 @@ class Platform;
 class BufferObject;
 class KMSOutput;
 
-class DisplayBuffer : public graphics::DisplayBuffer,
-                      public graphics::DisplayGroup
+class DisplayBuffer : public graphics::DisplayBuffer
 {
 public:
     DisplayBuffer(std::shared_ptr<Platform> const& platform,
@@ -54,7 +54,6 @@ public:
                   MirOrientation rot,
                   GLConfig const& gl_config,
                   EGLContext shared_context);
-    ~DisplayBuffer();
 
     geometry::Rectangle view_area() const override;
     void make_current() override;
@@ -62,38 +61,66 @@ public:
     void gl_swap_buffers() override;
     bool post_renderables_if_optimizable(RenderableList const& renderlist) override;
 
-    void for_each_display_buffer(
-        std::function<void(graphics::DisplayBuffer&)> const& f) override;
-    void post() override;
-
     MirOrientation orientation() const override;
     void set_orientation(MirOrientation const rot, geometry::Rectangle const& a);
     bool uses_alpha() const override;
-    void schedule_set_crtc();
-    void wait_for_page_flip();
+
+    std::shared_ptr<graphics::Buffer> bypass_buffer();
+    BufferObject* buffer_obj_to_be_posted();
 
 private:
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
-    bool schedule_page_flip(BufferObject* bufobj);
 
-    BufferObject* last_flipped_bufobj;
-    BufferObject* scheduled_bufobj;
-    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
     std::shared_ptr<Buffer> bypass_buf{nullptr};
     BufferObject* bypass_bufobj{nullptr};
-    std::shared_ptr<Platform> const platform;
-    std::shared_ptr<DisplayReport> const listener;
+
+    BypassOption platform_bypass_option;
+
     /* DRM helper from mgm::Platform */
     helpers::DRMHelper& drm;
-    std::vector<std::shared_ptr<KMSOutput>> outputs;
     GBMSurfaceUPtr surface_gbm;
     helpers::EGLHelper egl;
     geometry::Rectangle area;
     uint32_t fb_width, fb_height;
     MirOrientation rotation;
+};
+
+class DisplayGroup : public graphics::DisplayGroup
+{
+public:
+    DisplayGroup(
+        std::shared_ptr<Platform> const& platform,
+        std::shared_ptr<DisplayReport> const& listener,
+        std::vector<std::shared_ptr<KMSOutput>> const& outputs,
+        GBMSurfaceUPtr surface_gbm,
+        geometry::Rectangle const& area,
+        MirOrientation rot,
+        GLConfig const& gl_config,
+        EGLContext shared_context);
+    ~DisplayGroup();
+
+    void for_each_display_buffer(
+        std::function<void(graphics::DisplayBuffer&)> const& f) override;
+    void post() override;
+
+    void schedule_set_crtc();
+    void wait_for_page_flip();
+
+private:
+    bool schedule_page_flip(BufferObject* bufobj);
+
+    DisplayBuffer db;
+    std::shared_ptr<Platform> const platform;
+    std::shared_ptr<DisplayReport> const listener;
+
     std::atomic<bool> needs_set_crtc;
     bool page_flips_pending;
+    std::vector<std::shared_ptr<KMSOutput>> outputs;
+
+    BufferObject* last_flipped_bufobj;
+    BufferObject* scheduled_bufobj;
+    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
 };
 
 }

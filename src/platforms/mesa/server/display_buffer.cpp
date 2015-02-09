@@ -65,6 +65,7 @@ private:
     uint32_t drm_fb_id;
 };
 
+
 namespace
 {
 
@@ -90,24 +91,18 @@ void ensure_egl_image_extensions()
 mgm::DisplayBuffer::DisplayBuffer(
     std::shared_ptr<Platform> const& platform,
     std::shared_ptr<DisplayReport> const& listener,
-    std::vector<std::shared_ptr<KMSOutput>> const& outputs,
+    std::vector<std::shared_ptr<KMSOutput>> const&,
     GBMSurfaceUPtr surface_gbm_param,
     geom::Rectangle const& area,
     MirOrientation rot,
     GLConfig const& gl_config,
-    EGLContext shared_context)
-    : last_flipped_bufobj{nullptr},
-      scheduled_bufobj{nullptr},
-      platform(platform),
-      listener(listener),
-      drm(*platform->drm),
-      outputs(outputs),
-      surface_gbm{std::move(surface_gbm_param)},
-      egl{gl_config},
-      area(area),
-      rotation(rot),
-      needs_set_crtc{false},
-      page_flips_pending{false}
+    EGLContext shared_context) :
+    platform_bypass_option{platform->bypass_option()},
+    drm(*platform->drm),
+    surface_gbm{std::move(surface_gbm_param)},
+    egl{gl_config},
+    area(area),
+    rotation(rot)
 {
     uint32_t area_width = area.size.width.as_uint32_t();
     uint32_t area_height = area.size.height.as_uint32_t();
@@ -139,16 +134,6 @@ mgm::DisplayBuffer::DisplayBuffer(
 
     listener->report_successful_egl_buffer_swap_on_construction();
 
-    scheduled_bufobj = get_front_buffer_object();
-    if (!scheduled_bufobj)
-        fatal_error("Failed to get frontbuffer");
-
-    for (auto& output : outputs)
-    {
-        if (!output->set_crtc(scheduled_bufobj->get_drm_fb_id()))
-            fatal_error("Failed to set DRM crtc");
-    }
-
     egl.release_current();
 
     listener->report_successful_drm_mode_set_crtc_on_construction();
@@ -158,19 +143,6 @@ mgm::DisplayBuffer::DisplayBuffer(
         {
             listener->report_egl_configuration(disp, cfg);
         });
-}
-
-mgm::DisplayBuffer::~DisplayBuffer()
-{
-    /*
-     * There is no need to destroy last_flipped_bufobj manually.
-     * It will be destroyed when its gbm_surface gets destroyed.
-     */
-    if (last_flipped_bufobj)
-        last_flipped_bufobj->release();
-
-    if (scheduled_bufobj)
-        scheduled_bufobj->release();
 }
 
 geom::Rectangle mgm::DisplayBuffer::view_area() const
@@ -198,7 +170,7 @@ bool mgm::DisplayBuffer::uses_alpha() const
 bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& renderable_list)
 {
     if ((rotation == mir_orientation_normal) &&
-       (platform->bypass_option() == mgm::BypassOption::allowed))
+        (platform_bypass_option == mgm::BypassOption::allowed))
     {
         mgm::BypassMatch bypass_match(area);
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
@@ -227,132 +199,12 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
     return false;
 }
 
-void mgm::DisplayBuffer::for_each_display_buffer(
-    std::function<void(graphics::DisplayBuffer&)> const& f)
-{
-    f(*this);
-}
-
 void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
     bypass_buf = nullptr;
     bypass_bufobj = nullptr;
-}
-
-void mgm::DisplayBuffer::post()
-{
-    /*
-     * We might not have waited for the previous frame to page flip yet.
-     * This is good because it maximizes the time available to spend rendering
-     * each frame. Just remember wait_for_page_flip() must be called at some
-     * point before the next schedule_page_flip().
-     */
-    wait_for_page_flip();
-
-    /*
-     * Switching from bypass to compositing? Now is the earliest safe time
-     * we can unreference the bypass buffer...
-     */
-    if (scheduled_bufobj)
-        last_flipped_bypass_buf = nullptr;
-    /*
-     * Release the last flipped buffer object (which is not displayed anymore)
-     * to make it available for future rendering.
-     */
-    if (last_flipped_bufobj)
-        last_flipped_bufobj->release();
-
-    last_flipped_bufobj = scheduled_bufobj;
-    scheduled_bufobj = nullptr;
-
-    mgm::BufferObject *bufobj;
-    if (bypass_buf)
-    {
-        bufobj = bypass_bufobj;
-    }
-    else
-    {
-        bufobj = get_front_buffer_object();
-        if (!bufobj)
-            fatal_error("Failed to get front buffer object");
-    }
-
-    /*
-     * Schedule the current front buffer object for display, and wait
-     * for it to be actually displayed (flipped).
-     *
-     * If the flip fails, release the buffer object to make it available
-     * for future rendering.
-     */
-    if (!needs_set_crtc && !schedule_page_flip(bufobj))
-    {
-        if (!bypass_buf)
-            bufobj->release();
-        fatal_error("Failed to schedule page flip");
-    }
-    else if (needs_set_crtc)
-    {
-        for (auto& output : outputs)
-        {
-            if (!output->set_crtc(bufobj->get_drm_fb_id()))
-                fatal_error("Failed to set DRM crtc");
-        }
-        needs_set_crtc = false;
-    }
-
-    if (bypass_buf)
-    {
-        /*
-         * For composited frames we defer wait_for_page_flip till just before
-         * the next frame, but not for bypass frames. Deferring the flip of
-         * bypass frames would increase the time we held
-         * last_flipped_bypass_buf unacceptably, resulting in client stuttering
-         * unless we allocate more buffers (which I'm trying to avoid).
-         * Also, bypass does not need the deferred page flip because it has
-         * no compositing/rendering step for which to save time for.
-         */
-        wait_for_page_flip();
-        scheduled_bufobj = nullptr;
-
-        /*
-         * Keep a reference to the buffer being bypassed for the entire
-         * duration of the frame. This ensures the buffer doesn't get reused by
-         * the client while its on-screen, which would be seen as tearing or
-         * worse.
-         */
-        last_flipped_bypass_buf = bypass_buf;
-    }
-    else
-    {
-        /*
-         * Not in clone mode? We can afford to wait for the page flip then,
-         * making us double-buffered (noticeably less laggy than the triple
-         * buffering that clone mode requires).
-         */
-        if (outputs.size() == 1)
-        {
-            wait_for_page_flip();
-
-            /*
-             * bufobj is now physically on screen. Release the old frame...
-             */
-            if (last_flipped_bufobj)
-            {
-                last_flipped_bufobj->release();
-                last_flipped_bufobj = nullptr;
-            }
-
-            /*
-             * last_flipped_bufobj will be set correctly on the next iteration
-             * Don't do it here or else bufobj would be released while still
-             * on screen (hence tearing and artefacts).
-             */
-        }
-
-        scheduled_bufobj = bufobj;
-    }
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
@@ -408,8 +260,196 @@ mgm::BufferObject* mgm::DisplayBuffer::get_buffer_object(
     return bufobj;
 }
 
+void mgm::DisplayBuffer::make_current()
+{
+    if (!egl.make_current())
+    {
+        fatal_error("Failed to make EGL surface current");
+    }
+}
 
-bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
+void mgm::DisplayBuffer::release_current()
+{
+    egl.release_current();
+}
+
+
+std::shared_ptr<mir::graphics::Buffer> mgm::DisplayBuffer::bypass_buffer()
+{
+    return bypass_buf;
+}
+
+mgm::BufferObject* mgm::DisplayBuffer::buffer_obj_to_be_posted()
+{
+    if (bypass_buf)
+    {
+        return bypass_bufobj;
+    }
+    else
+    {
+        auto bufobj = get_front_buffer_object();
+        if (!bufobj)
+            fatal_error("Failed to get front buffer object");
+        return bufobj;
+    }
+}
+
+
+mgm::DisplayGroup::DisplayGroup(
+    std::shared_ptr<Platform> const& platform,
+    std::shared_ptr<DisplayReport> const& listener,
+    std::vector<std::shared_ptr<KMSOutput>> const& outputs,
+    GBMSurfaceUPtr surface_gbm,
+    geometry::Rectangle const& area,
+    MirOrientation rot,
+    GLConfig const& gl_config,
+    EGLContext shared_context) :
+    db{platform, listener, outputs, std::move(surface_gbm), area, rot, gl_config, shared_context},
+    platform(platform),
+    listener(listener),
+    needs_set_crtc{false},
+    page_flips_pending{false},
+    outputs(outputs),
+    last_flipped_bufobj{nullptr},
+    scheduled_bufobj{db.buffer_obj_to_be_posted()},
+    last_flipped_bypass_buf{nullptr}
+{
+    for (auto& output : outputs)
+    {
+        if (!output->set_crtc(scheduled_bufobj->get_drm_fb_id()))
+            fatal_error("Failed to set DRM crtc");
+    }
+}
+
+mgm::DisplayGroup::~DisplayGroup()
+{
+    /*
+     * There is no need to destroy last_flipped_bufobj manually.
+     * It will be destroyed when its gbm_surface gets destroyed.
+     */
+    if (last_flipped_bufobj)
+        last_flipped_bufobj->release();
+
+    if (scheduled_bufobj)
+        scheduled_bufobj->release();
+}
+
+void mgm::DisplayGroup::for_each_display_buffer(
+    std::function<void(graphics::DisplayBuffer&)> const& f)
+{
+    f(db);
+}
+
+void mgm::DisplayGroup::post()
+{
+    /*
+     * We might not have waited for the previous frame to page flip yet.
+     * This is good because it maximizes the time available to spend rendering
+     * each frame. Just remember wait_for_page_flip() must be called at some
+     * point before the next schedule_page_flip().
+     */
+    wait_for_page_flip();
+
+    /*
+     * Switching from bypass to compositing? Now is the earliest safe time
+     * we can unreference the bypass buffer...
+     */
+    if (scheduled_bufobj)
+        last_flipped_bypass_buf = nullptr;
+    /*
+     * Release the last flipped buffer object (which is not displayed anymore)
+     * to make it available for future rendering.
+     */
+    if (last_flipped_bufobj)
+        last_flipped_bufobj->release();
+
+    last_flipped_bufobj = scheduled_bufobj;
+    scheduled_bufobj = nullptr;
+
+    mgm::BufferObject *bufobj = db.buffer_obj_to_be_posted();
+    auto bypass_buffer = db.bypass_buffer();
+    /*
+     * Schedule the current front buffer object for display, and wait
+     * for it to be actually displayed (flipped).
+     *
+     * If the flip fails, release the buffer object to make it available
+     * for future rendering.
+     */
+    if (!needs_set_crtc && !schedule_page_flip(bufobj))
+    {
+        if (!bypass_buffer)
+            bufobj->release();
+        fatal_error("Failed to schedule page flip");
+    }
+    else if (needs_set_crtc)
+    {
+        for (auto& output : outputs)
+        {
+            if (!output->set_crtc(bufobj->get_drm_fb_id()))
+                fatal_error("Failed to set DRM crtc");
+        }
+        needs_set_crtc = false;
+    }
+
+    if (bypass_buffer)
+    {
+        /*
+         * For composited frames we defer wait_for_page_flip till just before
+         * the next frame, but not for bypass frames. Deferring the flip of
+         * bypass frames would increase the time we held
+         * last_flipped_bypass_buf unacceptably, resulting in client stuttering
+         * unless we allocate more buffers (which I'm trying to avoid).
+         * Also, bypass does not need the deferred page flip because it has
+         * no compositing/rendering step for which to save time for.
+         */
+        wait_for_page_flip();
+        scheduled_bufobj = nullptr;
+
+        /*
+         * Keep a reference to the buffer being bypassed for the entire
+         * duration of the frame. This ensures the buffer doesn't get reused by
+         * the client while its on-screen, which would be seen as tearing or
+         * worse.
+         */
+        last_flipped_bypass_buf = db.bypass_buffer();
+    }
+    else
+    {
+        /*
+         * Not in clone mode? We can afford to wait for the page flip then,
+         * making us double-buffered (noticeably less laggy than the triple
+         * buffering that clone mode requires).
+         */
+        if (outputs.size() == 1)
+        {
+            wait_for_page_flip();
+
+            /*
+             * bufobj is now physically on screen. Release the old frame...
+             */
+            if (last_flipped_bufobj)
+            {
+                last_flipped_bufobj->release();
+                last_flipped_bufobj = nullptr;
+            }
+
+            /*
+             * last_flipped_bufobj will be set correctly on the next iteration
+             * Don't do it here or else bufobj would be released while still
+             * on screen (hence tearing and artefacts).
+             */
+        }
+
+        scheduled_bufobj = bufobj;
+    }
+}
+
+void mgm::DisplayGroup::schedule_set_crtc()
+{
+    needs_set_crtc = true;
+}
+
+bool mgm::DisplayGroup::schedule_page_flip(BufferObject* bufobj)
 {
     /*
      * Schedule the current front buffer object for display. Note that
@@ -424,7 +464,7 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
     return page_flips_pending;
 }
 
-void mgm::DisplayBuffer::wait_for_page_flip()
+void mgm::DisplayGroup::wait_for_page_flip()
 {
     if (page_flips_pending)
     {
@@ -434,22 +474,3 @@ void mgm::DisplayBuffer::wait_for_page_flip()
         page_flips_pending = false;
     }
 }
-
-void mgm::DisplayBuffer::make_current()
-{
-    if (!egl.make_current())
-    {
-        fatal_error("Failed to make EGL surface current");
-    }
-}
-
-void mgm::DisplayBuffer::release_current()
-{
-    egl.release_current();
-}
-
-void mgm::DisplayBuffer::schedule_set_crtc()
-{
-    needs_set_crtc = true;
-}
-
