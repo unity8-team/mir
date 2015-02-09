@@ -23,6 +23,8 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/rectangles.h"
 
+#include <iostream>
+
 namespace mi = mir::input;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
@@ -57,11 +59,14 @@ geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 void mi::DisplayInputRegion::confine(geom::Point& point)
 {
     geom::Rectangles rectangles;
+    uint32_t display_id = 0;
 
     display->for_each_display_buffer(
-        [&rectangles](mg::DisplayBuffer const& buffer)
+        [&rectangles,this,display_id](mg::DisplayBuffer const& buffer)
         {
-            rectangles.add(buffer.view_area());
+            rectangles.add(
+                overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation())
+                );
         });
 
     rectangles.confine(point);
