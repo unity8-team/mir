@@ -23,7 +23,7 @@
 #include "real_kms_output_container.h"
 #include "real_kms_display_configuration.h"
 #include "display_helpers.h"
-#include "display_buffer.h"
+#include "display_group.h"
 
 #include <mutex>
 

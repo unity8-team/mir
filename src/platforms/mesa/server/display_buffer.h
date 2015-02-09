@@ -26,7 +26,6 @@
 
 #include <vector>
 #include <memory>
-#include <atomic>
 
 namespace mir
 {
@@ -41,14 +40,12 @@ namespace mesa
 
 class Platform;
 class BufferObject;
-class KMSOutput;
 
 class DisplayBuffer : public graphics::DisplayBuffer
 {
 public:
     DisplayBuffer(std::shared_ptr<Platform> const& platform,
                   std::shared_ptr<DisplayReport> const& listener,
-                  std::vector<std::shared_ptr<KMSOutput>> const& outputs,
                   GBMSurfaceUPtr surface_gbm,
                   geometry::Rectangle const& area,
                   MirOrientation rot,
@@ -84,43 +81,6 @@ private:
     geometry::Rectangle area;
     uint32_t fb_width, fb_height;
     MirOrientation rotation;
-};
-
-class DisplayGroup : public graphics::DisplayGroup
-{
-public:
-    DisplayGroup(
-        std::shared_ptr<Platform> const& platform,
-        std::shared_ptr<DisplayReport> const& listener,
-        std::vector<std::shared_ptr<KMSOutput>> const& outputs,
-        GBMSurfaceUPtr surface_gbm,
-        geometry::Rectangle const& area,
-        MirOrientation rot,
-        GLConfig const& gl_config,
-        EGLContext shared_context);
-    ~DisplayGroup();
-
-    void for_each_display_buffer(
-        std::function<void(graphics::DisplayBuffer&)> const& f) override;
-    void post() override;
-
-    void schedule_set_crtc();
-    void wait_for_page_flip();
-
-private:
-    bool schedule_page_flip(BufferObject* bufobj);
-
-    DisplayBuffer db;
-    std::shared_ptr<Platform> const platform;
-    std::shared_ptr<DisplayReport> const listener;
-
-    std::atomic<bool> needs_set_crtc;
-    bool page_flips_pending;
-    std::vector<std::shared_ptr<KMSOutput>> outputs;
-
-    BufferObject* last_flipped_bufobj;
-    BufferObject* scheduled_bufobj;
-    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
 };
 
 }

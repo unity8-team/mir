@@ -27,6 +27,7 @@ add_library(
   real_kms_display_configuration.cpp
   drm_mode_resources.cpp
   display_buffer.cpp
+  display_group.cpp
   real_kms_output.cpp
   real_kms_output_container.cpp
   kms_page_flipper.cpp
@@ -38,6 +39,7 @@ add_library(
   bypass.cpp
   ipc_operations.cpp
   nested_authentication.cpp
+  buffer_object.cpp
 )
 
 add_library(

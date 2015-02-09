@@ -19,7 +19,7 @@
 #include "display.h"
 #include "cursor.h"
 #include "platform.h"
-#include "display_buffer.h"
+#include "display_group.h"
 #include "kms_display_configuration.h"
 #include "kms_output.h"
 #include "kms_page_flipper.h"
