@@ -4,11 +4,12 @@ qtmir-gles (0.4.4+15.04.20150209-0ubuntu1) UNRELEASED; urgency=medium
 
  -- Robert Carr <robert.carr@canonical.com>  Wed, 09 Feb 2015 3:02:19 -0800
 
-qtmir-gles (0.4.4+15.04.20150206-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150206-0ubuntu1) vivid; urgency=medium
 
+  [ Michał Sawicz ]
   * Sync with upstream
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 04 Feb 2015 11:06:38 +0100
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 06 Feb 2015 10:59:06 +0000
 
 qtmir-gles (0.4.4+15.04.20150115-0ubuntu1) vivid; urgency=medium
 
