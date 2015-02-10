@@ -36,19 +36,28 @@ namespace geom = mir::geometry;
 
 namespace
 {
-geom::Displacement transform(geom::Rectangle const& rect, geom::Displacement const& vector, MirOrientation orientation)
+geom::Point transform(geom::Rectangle const& rect,
+                      float scale,
+                      geom::Displacement const& vector,
+                      geom::Displacement const& hotspot,
+                      geom::Size const& buffer_size,
+                      MirOrientation orientation)
 {
+    auto center = geom::Displacement{buffer_size.width.as_int(), buffer_size.height.as_int()}*0.5f;
+    auto bottom_left = geom::Displacement{rect.size.width.as_int(), rect.size.height.as_int()};
+    auto position = vector + scale*(center - hotspot) - center;
+    auto inverted_position = bottom_left - vector + scale*hotspot - scale*center - center;
     switch(orientation)
     {
     case mir_orientation_left:
-        return {vector.dy.as_int(), rect.size.width.as_int() -vector.dx.as_int()};
+        return {position.dy.as_int(), inverted_position.dx.as_int()};
     case mir_orientation_inverted:
-        return {rect.size.width.as_int() -vector.dx.as_int(), rect.size.height.as_int() - vector.dy.as_int()};
+        return {inverted_position.dx.as_int(), inverted_position.dy.as_int() };
     case mir_orientation_right:
-        return {rect.size.height.as_int() -vector.dy.as_int(), vector.dx.as_int()};
+        return {inverted_position.dy.as_int(), position.dx.as_int() };
     default:
     case mir_orientation_normal:
-        return vector;
+        return {position.dx.as_int(), position.dy.as_int()};
     }
 }
 
@@ -109,6 +118,11 @@ public:
         return 1.0;
     }
 
+
+    float get_scale()
+    {
+        return this->scale;
+    }
     void set_scale(float scale)
     {
         this->scale = scale;
@@ -152,10 +166,10 @@ public:
         return true;
     }
 
-    void move_to(geom::Displacement new_position)
+    void move_to(geom::Point new_position)
     {
         std::lock_guard<std::mutex> lock{position_mutex};
-        position = geom::Point{new_position.dx.as_int(), new_position.dy.as_int()};
+        position = new_position;
     }
 
 private:
@@ -214,14 +228,20 @@ void mg::SoftwareCursor::update_visualization(std::shared_ptr<detail::CursorRend
             if (!extents.contains(position))
                 return;
 
-            // this is actually wrong
-            auto displacement = transform(extents, position - geometry::Point{0,0}, overridden);
 
-            cursor->move_to(displacement - hotspot);
+            auto displacement = transform(extents,
+                                          cursor->get_scale(),
+                                          position - extents.top_left,
+                                          hotspot,
+                                          cursor->buffer()->size(),
+                                          overridden);
+
+            cursor->move_to(displacement);
             cursor->set_orientation(overridden);
 
             ++display_id;
         });
+    std::cout << "result of calc:: " << position << " -> " << cursor->screen_position() << std::endl;
 }
 
 void mg::SoftwareCursor::show(CursorImage const& cursor_image)
