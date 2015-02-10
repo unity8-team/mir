@@ -28,7 +28,6 @@
 
 #include <mutex>
 #include <sstream>
-#include <iostream>
 
 namespace mg = mir::graphics;
 namespace mi = mir::input;
@@ -241,7 +240,6 @@ void mg::SoftwareCursor::update_visualization(std::shared_ptr<detail::CursorRend
 
             ++display_id;
         });
-    std::cout << "result of calc:: " << position << " -> " << cursor->screen_position() << std::endl;
 }
 
 void mg::SoftwareCursor::show(CursorImage const& cursor_image)
