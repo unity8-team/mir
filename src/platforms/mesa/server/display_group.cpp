@@ -212,3 +212,8 @@ void mgm::DisplayGroup::wait_for_page_flip()
         page_flips_pending = false;
     }
 }
+
+void mgm::DisplayGroup::set_orientation(MirOrientation const rot, geometry::Rectangle const& a)
+{
+    db.set_orientation(rot, a);
+}

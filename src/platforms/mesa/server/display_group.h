@@ -61,6 +61,7 @@ public:
 
     void schedule_set_crtc();
     void wait_for_page_flip();
+    void set_orientation(MirOrientation const rot, geometry::Rectangle const& a);
 
 private:
     bool schedule_page_flip(BufferObject* bufobj);

@@ -176,7 +176,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 
         /* Set up used outputs */
         OverlappingOutputGrouping grouping{conf};
-//        auto group_idx = 0;
+        auto group_idx = 0;
 
         grouping.for_each_group([&](OverlappingOutputGroup const& group)
         {
@@ -207,7 +207,7 @@ void mgm::Display::configure(mg::DisplayConfiguration const& conf)
 
             if (comp)
             {
-//                display_groups[group_idx++]->set_orientation(orientation, bounding_rect);
+                display_groups[group_idx++]->set_orientation(orientation, bounding_rect);
             }
             else
             {
