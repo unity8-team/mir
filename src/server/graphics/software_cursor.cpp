@@ -332,4 +332,5 @@ void mg::SoftwareCursor::override_orientation(uint32_t screen, MirOrientation or
 {
     // there is no cache invalidation in this hack
     overrides.add_override(screen, orientation);
+    scene->emit_scene_changed();
 }
