@@ -177,10 +177,13 @@ static void copy_region(const MirGraphicsRegion *dest,
 static void redraw(MirSurface *surface, const MirGraphicsRegion *canvas)
 {
     MirGraphicsRegion backbuffer;
+    MirBufferStream *bs = mir_surface_get_buffer_stream(surface);
 
-    mir_surface_get_graphics_region(surface, &backbuffer);
+    mir_buffer_stream_get_graphics_region(
+        bs, &backbuffer);
     copy_region(&backbuffer, canvas);
-    mir_surface_swap_buffers_sync(surface);
+    mir_buffer_stream_swap_buffers_sync(
+        bs);
 }
 
 static void on_event(MirSurface *surface, const MirEvent *event, void *context)
@@ -212,7 +215,7 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         static float max_pressure = 1.0f;
 
         MirInputEvent const* input_event = mir_event_get_input_event(event);
-        MirTouchEvent const* tev = NULL;
+        MirTouchInputEvent const* tev = NULL;
         MirPointerInputEvent const* pev = NULL;
         unsigned touch_count = 0;
         bool ended = false;
@@ -221,10 +224,11 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
         switch (type)
         {
         case mir_input_event_type_touch:
-            tev = mir_input_event_get_touch_event(input_event);
-            touch_count = mir_touch_event_point_count(tev);
+            tev = mir_input_event_get_touch_input_event(input_event);
+            touch_count = mir_touch_input_event_get_touch_count(tev);
             ended = touch_count == 1 &&
-                    (mir_touch_event_action(tev, 0) == mir_touch_action_up);
+                    (mir_touch_input_event_get_touch_action(tev, 0) ==
+                     mir_touch_input_event_action_up);
             break;
         case mir_input_event_type_pointer:
             pev = mir_input_event_get_pointer_input_event(input_event);
@@ -258,12 +262,14 @@ static void on_event(MirSurface *surface, const MirEvent *event, void *context)
 
                 if (tev != NULL)
                 {
-                    x = mir_touch_event_axis_value(tev, p, mir_touch_axis_x);
-                    y = mir_touch_event_axis_value(tev, p, mir_touch_axis_y);
-                    float size = mir_touch_event_axis_value(tev, p,
-                                                          mir_touch_axis_size);
-                    pressure = mir_touch_event_axis_value(tev, p,
-                                                      mir_touch_axis_pressure);
+                    x = mir_touch_input_event_get_touch_axis_value(tev, p,
+                        mir_touch_input_axis_x);
+                    y = mir_touch_input_event_get_touch_axis_value(tev, p,
+                        mir_touch_input_axis_y);
+                    float size = mir_touch_input_event_get_touch_axis_value(
+                        tev, p, mir_touch_input_axis_size);
+                    pressure = mir_touch_input_event_get_touch_axis_value(tev,
+                        p, mir_touch_input_axis_pressure);
                     radius = size * 50.0f + 1.0f;
                 }
                 else if (pev != NULL)
