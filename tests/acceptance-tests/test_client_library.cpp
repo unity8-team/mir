@@ -893,7 +893,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 
     int dispatch_count{0};
 
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -918,7 +918,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
             mir_connection_create_surface(connection, &request_params, &TestData::surface_created, &data);
 
     dispatch_count = 0;
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -936,7 +936,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     auto swap_wh = mir_surface_swap_buffers(data.surf, TestData::swap_buffers_complete, &data);
 
     dispatch_count = 0;
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -1007,7 +1007,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
 
     int dispatch_count{0};
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -1028,7 +1028,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     mir_surface_spec_release(surface_spec);
 
     dispatch_count = 0;
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -1044,7 +1044,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 
     auto configure_wh = mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
 
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
@@ -1060,7 +1060,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
-    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{1}));
+    ASSERT_TRUE(mt::fd_becomes_readable(fd, std::chrono::seconds{5}));
     while(mt::fd_is_readable(fd))
     {
         dispatch_count++;
