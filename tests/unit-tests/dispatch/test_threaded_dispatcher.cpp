@@ -71,7 +71,7 @@ TEST_F(ThreadedDispatcherTest, calls_dispatch_when_fd_is_readable)
 
     dispatchable->trigger();
 
-    EXPECT_TRUE(dispatched->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(dispatched->wait_for(std::chrono::seconds{5}));
 }
 
 TEST_F(ThreadedDispatcherTest, stops_calling_dispatch_once_fd_is_not_readable)
@@ -85,6 +85,7 @@ TEST_F(ThreadedDispatcherTest, stops_calling_dispatch_once_fd_is_not_readable)
 
     dispatchable->trigger();
 
+    // 1s is fine; if things are too slow we might get a false-pass, but that's OK.
     std::this_thread::sleep_for(std::chrono::seconds{1});
 
     EXPECT_THAT(dispatch_count, Eq(1));
@@ -114,10 +115,10 @@ TEST_F(ThreadedDispatcherTest, passes_dispatch_events_through)
     md::ThreadedDispatcher dispatcher{dispatchable};
 
     dispatchable->trigger();
-    EXPECT_TRUE(dispatched_with_only_readable->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(dispatched_with_only_readable->wait_for(std::chrono::seconds{5}));
 
     dispatchable->hangup();
-    EXPECT_TRUE(dispatched_with_hangup->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(dispatched_with_hangup->wait_for(std::chrono::seconds{5}));
 }
 
 TEST_F(ThreadedDispatcherTest, doesnt_call_dispatch_after_first_false_return)
@@ -150,7 +151,7 @@ TEST_F(ThreadedDispatcherTest, doesnt_call_dispatch_after_first_false_return)
         dispatchable->trigger();
     }
 
-    EXPECT_FALSE(dispatched_more_than_enough->wait_for(std::chrono::seconds{1}));
+    EXPECT_FALSE(dispatched_more_than_enough->wait_for(std::chrono::seconds{5}));
 }
 
 TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relevant)
@@ -178,11 +179,11 @@ TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relev
 
     md::ThreadedDispatcher dispatcher{dispatchable};
 
-    EXPECT_TRUE(dispatched_writable->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(dispatched_writable->wait_for(std::chrono::seconds{5}));
 
     // Make the fd remote-closed...
     watch_fd = mir::Fd{};
-    EXPECT_FALSE(dispatched_closed->wait_for(std::chrono::seconds{1}));
+    EXPECT_FALSE(dispatched_closed->wait_for(std::chrono::seconds{5}));
 }
 
 TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
@@ -203,12 +204,12 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
     auto first_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         first_dispatched->raise();
-        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{1}));
+        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{50}));
     });
     auto second_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         second_dispatched->raise();
-        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{1}));
+        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{50}));
     });
 
     auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
@@ -229,6 +230,7 @@ TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
 
     auto first_dispatchable = std::make_shared<mt::TestDispatchable>([second_dispatched]()
     {
+        //1s is OK here; if things are slow, we might false-pass.
         EXPECT_FALSE(second_dispatched->wait_for(std::chrono::seconds{1}));
     });
     auto second_dispatchable = std::make_shared<mt::TestDispatchable>([second_dispatched]()
@@ -247,7 +249,7 @@ TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
     dispatcher.remove_thread();
     second_dispatchable->trigger();
 
-    EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{2}));
+    EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{5}));
 }
 
 
