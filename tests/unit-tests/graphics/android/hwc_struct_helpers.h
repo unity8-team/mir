@@ -86,7 +86,9 @@ MATCHER_P(MatchesCommonFields, value, std::string(testing::PrintToString(value))
     EXPECT_THAT(arg.blending, MatchesMember(value.blending, "blending"));
     EXPECT_THAT(arg.displayFrame, MatchesRect(value.displayFrame, "displayFrame"));
     EXPECT_THAT(arg.visibleRegionScreen.numRects, MatchesMember(value.visibleRegionScreen.numRects, "visibleRegionScreen.numRects"));
+#ifdef HWC_DEVICE_API_VERSION_1_3
     EXPECT_THAT(arg.planeAlpha, MatchesMember(value.planeAlpha, "planeAlpha"));
+#endif
     EXPECT_THAT(arg.acquireFenceFd, MatchesMember(value.acquireFenceFd, "acquireFenceFd"));
     EXPECT_THAT(arg.releaseFenceFd, MatchesMember(value.releaseFenceFd, "releaseFenceFd")); 
     return !(::testing::Test::HasFailure());

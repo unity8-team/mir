@@ -33,9 +33,11 @@ namespace geom=mir::geometry;
 
 namespace
 {
+#ifdef HWC_DEVICE_API_VERSION_1_3
 decltype(hwc_layer_1_t::planeAlpha) static const plane_alpha_max{
     std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max()
 };
+#endif
 }
 
 void mga::FloatSourceCrop::fill_source_crop(
@@ -124,7 +126,9 @@ mga::HWCLayer::HWCLayer(
     hwc_layer->acquireFenceFd = -1;
     hwc_layer->releaseFenceFd = -1;
     hwc_layer->blending = HWC_BLENDING_NONE;
+#ifdef HWC_DEVICE_API_VERSION_1_3
     hwc_layer->planeAlpha = plane_alpha_max;
+#endif
 
     hwc_layer->visibleRegionScreen.numRects=1;
     hwc_layer->visibleRegionScreen.rects= &visible_rect;
@@ -206,7 +210,9 @@ bool mga::HWCLayer::setup_layer(
     else
         hwc_layer->blending = HWC_BLENDING_NONE;
 
+#ifdef HWC_DEVICE_API_VERSION_1_3
     hwc_layer->planeAlpha = plane_alpha_max;
+#endif
 
     /* note, if the sourceCrop and DisplayFrame sizes differ, the output will be linearly scaled */
     hwc_layer->displayFrame = 

@@ -28,6 +28,10 @@ namespace graphics
 namespace android
 {
 
+#ifndef HWC_DEVICE_API_VERSION_1_3
+#define HWC_DISPLAY_VIRTUAL 2
+#endif
+
 enum DisplayName
 {
     primary = HWC_DISPLAY_PRIMARY,

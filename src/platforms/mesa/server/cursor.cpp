@@ -29,6 +29,11 @@
 #include <stdexcept>
 #include <vector>
 
+// Detect older versions of gbm.h
+#ifndef GBM_BO_IMPORT_FD  // Unrelated, but the only detectable macro change
+#define GBM_BO_USE_CURSOR GBM_BO_USE_CURSOR_64X64
+#endif
+
 namespace mg = mir::graphics;
 namespace mgm = mg::mesa;
 namespace geom = mir::geometry;

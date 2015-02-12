@@ -78,7 +78,9 @@ public:
         expected_layer.visibleRegionScreen = {1, &region};
         expected_layer.acquireFenceFd = -1;
         expected_layer.releaseFenceFd = -1;
+#ifdef HWC_DEVICE_API_VERSION_1_3
         expected_layer.planeAlpha = std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max();
+#endif
     }
 
     mga::LayerType type;
@@ -286,7 +288,9 @@ TEST_F(HWCLayersTest, check_layer_defaults_and_alpha)
     expected_layer.visibleRegionScreen = visible_region;
     expected_layer.acquireFenceFd = -1;
     expected_layer.releaseFenceFd = -1;
+#ifdef HWC_DEVICE_API_VERSION_1_3
     expected_layer.planeAlpha = std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max();
+#endif
 
     mga::HWCLayer layer(layer_adapter, list, list_index);
     layer.setup_layer(
@@ -337,7 +341,9 @@ TEST_F(HWCLayersTest, has_float_sourcecrop)
     expected_layer.visibleRegionScreen = visible_region;
     expected_layer.acquireFenceFd = -1;
     expected_layer.releaseFenceFd = -1;
+#ifdef HWC_DEVICE_API_VERSION_1_3
     expected_layer.planeAlpha = std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max();
+#endif
 
     mga::HWCLayer layer(std::make_shared<mga::FloatSourceCrop>(), list, list_index);
     layer.setup_layer(
