@@ -55,6 +55,7 @@ public:
     virtual void confine(geometry::Point& point) = 0;
 
     virtual void override_orientation(uint32_t display_id, MirOrientation orientation) = 0;
+    virtual MirOrientation get_orientation(geometry::Point const& point) = 0;
 
 protected:
     InputRegion() = default;

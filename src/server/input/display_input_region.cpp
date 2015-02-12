@@ -40,17 +40,32 @@ void mi::DisplayInputRegion::override_orientation(uint32_t display_id, MirOrient
     overrides.add_override(display_id, orientation);
 }
 
+MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& point)
+{
+    uint32_t display_id = 0;
+    MirOrientation orientation = mir_orientation_normal;
+
+    display->for_each_display_buffer(
+        [this,&display_id,point,&orientation](mg::DisplayBuffer const& buffer)
+        {
+            if (buffer.view_area().contains(point))
+            {
+                orientation = overrides.get_orientation(display_id, buffer.orientation());
+            }
+            ++ display_id;
+        });
+
+    return orientation;
+}
+
 geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 {
     geom::Rectangles rectangles;
-    uint32_t display_id = 0;
 
     display->for_each_display_buffer(
-        [&rectangles,this,display_id](mg::DisplayBuffer const& buffer)
+        [&rectangles,this](mg::DisplayBuffer const& buffer)
         {
-            rectangles.add(
-                overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation())
-                );
+            rectangles.add(buffer.view_area());
         });
 
     return rectangles.bounding_rectangle();
@@ -59,14 +74,11 @@ geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 void mi::DisplayInputRegion::confine(geom::Point& point)
 {
     geom::Rectangles rectangles;
-    uint32_t display_id = 0;
 
     display->for_each_display_buffer(
-        [&rectangles,this,display_id](mg::DisplayBuffer const& buffer)
+        [&rectangles,this](mg::DisplayBuffer const& buffer)
         {
-            rectangles.add(
-                overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation())
-                );
+            rectangles.add(buffer.view_area());
         });
 
     rectangles.confine(point);

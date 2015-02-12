@@ -54,6 +54,7 @@ class PointerController : public DummyPointerController
 
   private:
     bool get_bounds_locked(float *out_min_x, float* out_min_y, float* out_max_x, float* out_max_y) const;
+    void update_positions(float& new_x, float& new_y);
     void notify_listener();
     // Could be a read/write mutex as this is a latency sensitive class.
     mutable std::mutex guard;

@@ -35,29 +35,36 @@ namespace geom = mir::geometry;
 
 namespace
 {
-geom::Point transform(geom::Rectangle const& rect,
-                      float scale,
+geom::Point transform(float scale,
                       geom::Displacement const& vector,
                       geom::Displacement const& hotspot,
                       geom::Size const& buffer_size,
                       MirOrientation orientation)
 {
     auto center = geom::Displacement{buffer_size.width.as_int(), buffer_size.height.as_int()}*0.5f;
-    auto bottom_left = geom::Displacement{rect.size.width.as_int(), rect.size.height.as_int()};
-    auto position = vector + scale*(center - hotspot) - center;
-    auto inverted_position = bottom_left - vector + scale*hotspot - scale*center - center;
+    auto scaled_center = scale*center;
+    auto scaled_hotspot = scale*hotspot;
+
     switch(orientation)
     {
-    case mir_orientation_left:
-        return {position.dy.as_int(), inverted_position.dx.as_int()};
-    case mir_orientation_inverted:
-        return {inverted_position.dx.as_int(), inverted_position.dy.as_int() };
     case mir_orientation_right:
-        return {inverted_position.dy.as_int(), position.dx.as_int() };
+        scaled_hotspot = geom::Displacement{-scaled_hotspot.dy.as_int(), scaled_hotspot.dx.as_int()};
+        scaled_center = geom::Displacement{-scaled_center.dy.as_int(), scaled_center.dx.as_int()};
+        break;
+    case mir_orientation_left:
+        scaled_hotspot = geom::Displacement{scaled_hotspot.dy.as_int(), -scaled_hotspot.dx.as_int()};
+        scaled_center = geom::Displacement{scaled_center.dy.as_int(), -scaled_center.dx.as_int()};
+        break;
+    case mir_orientation_inverted:
+        scaled_center = -1.0f*scaled_center;
+        scaled_hotspot = -1.0f*scaled_hotspot;
+        break;
     default:
-    case mir_orientation_normal:
-        return {position.dx.as_int(), position.dy.as_int()};
+        break;
     }
+
+    auto position = vector + scaled_center - scaled_hotspot - center;
+    return {position.dx.as_int(), position.dy.as_int()};
 }
 
 MirPixelFormat get_8888_format(std::vector<MirPixelFormat> const& formats)
@@ -222,15 +229,11 @@ void mg::SoftwareCursor::update_visualization(std::shared_ptr<detail::CursorRend
         {
             MirOrientation overridden = overrides.get_orientation(display_id, buffer.orientation());
 
-            auto extents = overrides.transform_rectangle(display_id, buffer.view_area(), buffer.orientation());
-
-            if (!extents.contains(position))
+            if (!buffer.view_area().contains(position))
                 return;
 
-
-            auto displacement = transform(extents,
-                                          cursor->get_scale(),
-                                          position - extents.top_left,
+            auto displacement = transform(cursor->get_scale(),
+                                          position - buffer.view_area().top_left,
                                           hotspot,
                                           cursor->buffer()->size(),
                                           overridden);
