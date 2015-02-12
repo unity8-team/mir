@@ -155,8 +155,10 @@ void mtf::UdevEnvironment::load_device_ioctls(std::string const& name)
     GError* err = nullptr;
     if (!umockdev_testbed_load_ioctl(testbed, NULL, ioctls_filename.c_str(), &err))
     {
-        BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Failed to load ioctl recording: ") +
-                                                 err->message));
+        std::runtime_error exception{std::string("Failed to load ioctl recording: ") +
+                                     err->message};
+        g_error_free(err);
+        BOOST_THROW_EXCEPTION(exception);
     }
 }
 
@@ -167,7 +169,9 @@ void mtf::UdevEnvironment::load_device_evemu(std::string const& name)
     GError* err = nullptr;
     if (!umockdev_testbed_load_evemu_events(testbed, NULL, evemu_filename.c_str(), &err))
     {
-        BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Failed to load evemu recording: ") +
-                                                 err->message));
+        std::runtime_error exception{std::string{"Failed to load evemu recording: "} +
+                                     err->message};
+        g_error_free(err);
+        BOOST_THROW_EXCEPTION(exception);
     }
 }
