@@ -204,12 +204,12 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
     auto first_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         first_dispatched->raise();
-        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{50}));
+        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{5}));
     });
     auto second_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         second_dispatched->raise();
-        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{50}));
+        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{5}));
     });
 
     auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
