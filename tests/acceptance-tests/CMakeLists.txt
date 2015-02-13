@@ -2,6 +2,7 @@ include(CMakeDependentOption)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/include/cookie
 )
 
 set(
@@ -34,6 +35,7 @@ set(
   test_debug_api.cpp
   test_unresponsive_client.cpp
   test_client_platform_operation.cpp
+  test_mir_cookie.cpp
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")
@@ -60,6 +62,7 @@ target_link_libraries(
   mirclient
   mirclient-debug-extension
   mirplatform
+  mircookie
 
   mir-test
   mir-test-framework

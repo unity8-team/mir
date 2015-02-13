@@ -22,6 +22,7 @@
 #define MIR_COMMON_H_
 
 #include <mir_toolkit/cursors.h>
+#include <stdint.h>
 
 /**
  * \addtogroup mir_toolkit
@@ -168,6 +169,13 @@ typedef enum MirEdgeAttachment
     mir_edge_attachment_any = mir_edge_attachment_vertical |
                               mir_edge_attachment_horizontal
 } MirEdgeAttachment;
+
+typedef struct MirCookie
+{
+    uint64_t timestamp;
+    uint64_t mac;
+} MirCookie;
+
 /**@}*/
 
 #endif

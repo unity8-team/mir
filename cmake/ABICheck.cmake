@@ -66,6 +66,7 @@ make_lib_descriptor(client)
 make_lib_descriptor(server)
 make_lib_descriptor(common INCLUDE_PRIVATE EXCLUDE_HEADERS ${android-platform-headers})
 make_lib_descriptor(platform INCLUDE_PRIVATE)
+make_lib_descriptor(cookie)
 
 macro(_add_custom_abi_dump_command libname version)
   set(ABI_DUMP_NAME ${ABI_DUMPS_DIR_PREFIX}/${libname}_${version}.abi.tar.gz)
@@ -98,7 +99,7 @@ macro(_define_abi_check_for libname)
   )
 endmacro(_define_abi_check_for)
 
-set(the_libs mirserver mirclient mircommon mirplatform)
+set(the_libs mirserver mirclient mircommon mirplatform mircookie)
 
 foreach(libname ${the_libs})
   _define_abi_dump_for(${libname})

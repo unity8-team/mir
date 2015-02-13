@@ -8,6 +8,7 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/src/include/platform
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/src/include/server
+  ${PROJECT_SOURCE_DIR}/include/cookie
   ${GLIB_INCLUDE_DIRS}
 )
 
@@ -86,6 +87,7 @@ target_link_libraries(mirserver LINK_PUBLIC
   mirplatform
   mircommon
   mirprotobuf
+  mircookie
   3rd_party
   xcursorloader
   ${GLog_LIBRARY}
