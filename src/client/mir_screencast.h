@@ -26,6 +26,7 @@
 #include "mir/geometry/rectangle.h"
 
 #include <EGL/eglplatform.h>
+#include <memory>
 
 namespace mir
 {

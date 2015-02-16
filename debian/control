@@ -37,6 +37,7 @@ Build-Depends: cmake,
                umockdev (>= 0.8.7),
                libudev-dev,
                google-mock (>= 1.6.0+svn437),
+               libgtest-dev,
                valgrind [!arm64],
                libglib2.0-dev,
 Standards-Version: 3.9.4

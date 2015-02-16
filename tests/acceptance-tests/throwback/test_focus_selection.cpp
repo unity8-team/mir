@@ -49,7 +49,7 @@ MATCHER(NonNullSession, "")
 struct MockShell : msh::ShellWrapper
 {
     explicit MockShell(std::shared_ptr<msh::Shell> const& wrapped) :
-        msh::ShellWrapper{wrapped}
+        msh::ShellWrapper(wrapped)
     {
         ON_CALL(*this, open_session(_, _, _)).
             WillByDefault(Invoke(this, &MockShell::unmocked_open_session));

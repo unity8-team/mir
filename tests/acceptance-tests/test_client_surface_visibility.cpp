@@ -50,7 +50,7 @@ public:
     StoringShell(
         std::shared_ptr<msh::Shell> const& wrapped,
         std::shared_ptr<ms::SurfaceCoordinator> const surface_coordinator) :
-        msh::ShellWrapper{wrapped},
+        msh::ShellWrapper(wrapped),
         surface_coordinator{surface_coordinator}
     {}
 

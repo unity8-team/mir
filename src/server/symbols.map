@@ -765,3 +765,11 @@ MIR_SERVER_29 {
   };
  local: *;
 };
+
+MIR_SERVER_29.1 {
+ global:
+  extern "C++" {
+    vtable?for?mir::DefaultServerConfiguration;
+  };
+} MIR_SERVER_29;
+
