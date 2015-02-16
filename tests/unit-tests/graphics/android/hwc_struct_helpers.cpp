@@ -42,9 +42,7 @@ void PrintTo(const hwc_layer_1& layer , ::std::ostream* os)
     PrintTo(layer.displayFrame, os);
     *os << std::endl;
     *os << "\tvisibleRegionScreen.numRects: " << layer.visibleRegionScreen.numRects << std::endl
-#ifdef HWC_DEVICE_API_VERSION_1_3
     << "\tplaneAlpha: " << layer.planeAlpha << std::endl
-#endif
     << "\tacquireFenceFd: " << layer.acquireFenceFd << std::endl
     << "\treleaseFenceFd: " << layer.releaseFenceFd << std::endl;
 }
@@ -73,7 +71,5 @@ void mir::test::fill_hwc_layer(
     layer.visibleRegionScreen = {1, visible_rect};
     layer.acquireFenceFd = -1;
     layer.releaseFenceFd = -1;
-#ifdef HWC_DEVICE_API_VERSION_1_3
     layer.planeAlpha = std::numeric_limits<decltype(hwc_layer_1_t::planeAlpha)>::max();
-#endif
 }
