@@ -104,6 +104,7 @@ public:
 
 private:
     class SourceRegistration;
+    class RegisteredSigAction;
     struct HandlerElement
     {
         operator bool() const { return !!handler; }
@@ -121,7 +122,7 @@ private:
     mir::Fd signal_write_fd;
     mir::ThreadSafeList<HandlerElement> handlers;
     std::mutex handled_signals_mutex;
-    std::unordered_map<int, struct sigaction> handled_signals;
+    std::vector<std::shared_ptr<RegisteredSigAction>> handled_signals;
     std::unique_ptr<SourceRegistration> source_registration;
 };
 

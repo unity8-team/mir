@@ -1078,3 +1078,103 @@ TEST(GLibMainLoopForkTest, handles_signals_when_created_in_forked_process)
     // doesn't handle signals, and thus hangs forever.
     execute_in_forked_process(this, [&] { check_mainloop_signal_handling(); });
 }
+
+TEST(GLibMainLoopRaceTest, signal_handlers_do_not_race_for_destruction)
+{
+    using namespace ::testing;
+
+    for (int i = 0; i != 100; ++i)
+    {
+        int const signum = SIGUSR1;
+        int handled_signum = 0;
+        mt::Signal first_loop_running;
+        mt::Signal first_loop_finished;
+        mt::Signal first_loop_received_signal;
+        mt::Signal second_loop_running;
+        mt::Signal second_loop_finished;
+
+        {
+            mir::GLibMainLoop first{std::make_shared<mir::time::SteadyClock>()};
+            mir::GLibMainLoop second{std::make_shared<mir::time::SteadyClock>()};
+
+            first.register_signal_handler(
+                {signum},
+                [&](int)
+                {
+                });
+
+
+            std::thread{
+                [&]
+                {
+                    int const owner{0};
+                    first.enqueue(&owner, [&] { first_loop_running.raise(); });
+                    first.run();
+                    first_loop_finished.raise();
+                }}.detach();
+
+            std::thread{
+                [&]
+                {
+                    int const owner{0};
+                    second.enqueue(&owner, [&] { second_loop_running.raise(); });
+                    second.run();
+                    second_loop_finished.raise();
+                }}.detach();
+
+                    ASSERT_TRUE(first_loop_running.wait_for(std::chrono::seconds{5}));
+            ASSERT_TRUE(second_loop_running.wait_for(std::chrono::seconds{5}));
+
+
+            first.stop();
+            second.stop();
+
+            EXPECT_TRUE(first_loop_finished.wait_for(std::chrono::seconds{5}));
+            EXPECT_TRUE(second_loop_finished.wait_for(std::chrono::seconds{5}));
+        }
+
+        {
+            mir::GLibMainLoop first{std::make_shared<mir::time::SteadyClock>()};
+            mir::GLibMainLoop second{std::make_shared<mir::time::SteadyClock>()};
+            first.register_signal_handler(
+                        {signum},
+                        [&](int sig)
+                        {
+                            handled_signum = sig;
+                            first_loop_received_signal.raise();
+                        });
+
+            std::thread{
+                [&]
+                {
+                    int const owner{0};
+                    first.enqueue(&owner, [&] { first_loop_running.raise(); });
+                    first.run();
+                    first_loop_finished.raise();
+                }}.detach();
+
+            std::thread{
+                [&]
+                {
+                    int const owner{0};
+                    second.enqueue(&owner, [&] { second_loop_running.raise(); });
+                    second.run();
+                    second_loop_finished.raise();
+                }}.detach();
+
+
+            ASSERT_TRUE(first_loop_running.wait_for(std::chrono::seconds{5}));
+            ASSERT_TRUE(second_loop_running.wait_for(std::chrono::seconds{5}));
+            kill(getpid(), signum);
+
+            ASSERT_TRUE(first_loop_received_signal.wait_for(std::chrono::seconds{5}));
+            first.stop();
+            second.stop();
+
+            EXPECT_TRUE(first_loop_finished.wait_for(std::chrono::seconds{5}));
+            EXPECT_TRUE(second_loop_finished.wait_for(std::chrono::seconds{5}));
+        }
+
+        EXPECT_THAT(handled_signum, Eq(signum));
+    }
+}
