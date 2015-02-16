@@ -22,8 +22,6 @@ add_library(mircookie SHARED
   cookie_factory.cpp
 )
 
-add_custom_target(symbols_file DEPENDS ${symbol_map})
-add_dependencies(mircookie symbols_file)
 set_target_properties(mircookie
 
   PROPERTIES
