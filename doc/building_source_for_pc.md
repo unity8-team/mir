@@ -37,10 +37,19 @@ tool:
 
     $ cmake-gui ..
 
-The next step is to build the source and run the tests:
+The next step is to build the source:
 
-    $ make (-j8)
-    $ ctest
+    $ make
+
+If you get build failures in Android-related files (e.g. on trusty), you
+can reconfigure the build to skip those and only build for desktop:
+
+    $ cmake .. -DMIR_PLATFORM=mesa
+    $ make
+
+Run the tests:
+
+    $ make test   # or ctest
 
 To install Mir just use the normal make install command:
 
