@@ -16,9 +16,16 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
+#include "mir_toolkit/mir_client_library.h"
 #include "mir/cookie_factory.h"
 
+#include "mir_test_framework/headless_test.h"
+#include "mir_test_framework/udev_environment.h"
+#include "mir_test/validity_matchers.h"
+
 #include <gtest/gtest.h>
+
+namespace mtf = mir_test_framework;
 
 TEST(MirCookieFactory, attests_real_timestamp)
 {
@@ -57,4 +64,63 @@ TEST(MirCookieFactory, timestamp_trusted_with_different_secret_doesnt_attest)
 
     EXPECT_FALSE(alices_factory.attest_timestamp(bobs_cookie));
     EXPECT_FALSE(bobs_factory.attest_timestamp(alices_cookie));
+}
+
+class ClientCookies : public mtf::HeadlessTest
+{
+public:
+    ClientCookies()
+        : cookie_secret{ 0x01, 0x02, 0x33, 0xde, 0xad, 0xbe, 0xef, 0xf0 }
+    {
+        server.set_cookie_secret(cookie_secret);
+        mock_devices.add_standard_device("laptop-keyboard");
+    }
+
+    void SetUp() override
+    {
+        start_server();
+    }
+
+    void TearDown() override
+    {
+        stop_server();
+    }
+
+    std::vector<uint8_t> const cookie_secret;
+    mtf::UdevEnvironment mock_devices;
+};
+
+void cookie_capturing_callback(MirSurface*, MirEvent const* ev, void* ctx)
+{
+    auto out_cookie = reinterpret_cast<MirCookie*>(ctx);
+    if (mir_event_get_type(ev) == mir_event_type_input)
+    {
+        *out_cookie = mir_input_event_get_cookie(mir_event_get_input_event(ev));
+    }
+}
+
+TEST_F(ClientCookies, input_events_have_attestable_cookies)
+{
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    ASSERT_THAT(connection, IsValid());
+
+    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
+                                                                      233, 355,
+                                                                      mir_pixel_format_argb_8888);
+    auto surf = mir_surface_create_sync(surface_spec);
+    mir_surface_spec_release(surface_spec);
+    ASSERT_THAT(surf, IsValid());
+
+    MirCookie cookie;
+    MirEventDelegate const delegate = {
+        &cookie_capturing_callback,
+        &cookie
+    };
+    mir_surface_set_event_handler(surf, &delegate);
+
+    mock_devices.load_device_evemu("laptop-keyboard-hello");
+
+    mir::CookieFactory factory{cookie_secret};
+
+    EXPECT_TRUE(factory.attest_timestamp(cookie));
 }

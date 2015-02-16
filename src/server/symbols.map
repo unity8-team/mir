@@ -288,6 +288,7 @@ MIR_SERVER_29 {
     mir::ServerActionQueue::?ServerActionQueue*;
     mir::ServerActionQueue::ServerActionQueue*;
     mir::Server::add_configuration_option*;
+    mir::Server::set_cookie_secret*;
     mir::Server::add_emergency_cleanup*;
     mir::Server::add_init_callback*;
     mir::Server::apply_settings*;

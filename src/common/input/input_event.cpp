@@ -173,6 +173,14 @@ MirInputDeviceId mir_input_event_get_device_id(MirInputEvent const* ev)
     }
 }
 
+MirCookie mir_input_event_get_cookie(MirInputEvent const* ev)
+{
+    MirCookie cookie;
+    cookie.timestamp = mir_input_event_get_event_time(ev);
+    cookie.mac = 0;
+    return cookie;
+}
+
 int64_t mir_input_event_get_event_time(MirInputEvent const* ev)
 {
     auto old_ev = old_ev_from_new(ev);

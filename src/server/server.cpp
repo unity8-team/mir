@@ -98,6 +98,7 @@ struct mir::Server::Self
     std::weak_ptr<options::Option> options;
     std::string config_file;
     std::shared_ptr<ServerConfiguration> server_config;
+    std::vector<uint8_t> cookie_secret;
 
     std::function<void()> init_callback{[]{}};
     int argc{0};
@@ -282,6 +283,12 @@ void mir::Server::set_command_line(int argc, char const* argv[])
     verify_setting_allowed(self->server_config);
     self->argc = argc;
     self->argv = argv;
+}
+
+void mir::Server::set_cookie_secret(std::vector<uint8_t> const& secret)
+{
+    verify_setting_allowed(self->server_config);
+    self->cookie_secret = secret;
 }
 
 void mir::Server::add_init_callback(std::function<void()> const& init_callback)
