@@ -543,7 +543,7 @@ TEST_F(ClientLibrary, highly_threaded_client)
     c.join();
 
     EXPECT_THAT(mir_surface_get_type(surface), Eq(mir_surface_type_dialog));
-    EXPECT_THAT(mir_surface_get_type(surface), Eq(mir_surface_state_minimized));
+    EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_minimized));
 
     mir_surface_release_sync(surface);
 
