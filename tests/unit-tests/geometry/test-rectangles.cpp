@@ -248,40 +248,29 @@ TEST_F(TestRectangles, tracks_add_and_remove)
 
     rectangles = Rectangles{rect[0], rect[1], rect[2]};
 
-    auto contents = unique_elements(rectangles);
-    EXPECT_THAT(contents, SizeIs(3));
-    EXPECT_THAT(contents, Contains(rect[0]));
-    EXPECT_THAT(contents, Contains(rect[1]));
-    EXPECT_THAT(contents, Contains(rect[2]));
-
+    EXPECT_THAT(unique_elements(rectangles),
+                AllOf(SizeIs(3),
+                      Contains(rect[0]), Contains(rect[1]), Contains(rect[2])));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 
     rectangles.remove(rect[1]);
 
-    contents = unique_elements(rectangles);
-    EXPECT_THAT(contents, SizeIs(2));
-    EXPECT_THAT(contents, Contains(rect[0]));
-    EXPECT_THAT(contents, Contains(rect[2]));
-
+    EXPECT_THAT(unique_elements(rectangles),
+                AllOf(SizeIs(2), Contains(rect[0]), Contains(rect[2])));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[2]);
 
-    contents = unique_elements(rectangles);
-    EXPECT_THAT(contents, SizeIs(2));
-    EXPECT_THAT(contents, Contains(rect[0]));
-    EXPECT_THAT(contents, Contains(rect[2]));
+    EXPECT_THAT(unique_elements(rectangles),
+                AllOf(SizeIs(2), Contains(rect[0]), Contains(rect[2])));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[1]);
     rectangles.remove(rect[2]);
 
-    contents = unique_elements(rectangles);
-    EXPECT_THAT(contents, SizeIs(3));
-    EXPECT_THAT(contents, Contains(rect[0]));
-    EXPECT_THAT(contents, Contains(rect[1]));
-    EXPECT_THAT(contents, Contains(rect[2]));
-
+    EXPECT_THAT(unique_elements(rectangles),
+                AllOf(SizeIs(3),
+                      Contains(rect[0]), Contains(rect[1]), Contains(rect[2])));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 }
 
