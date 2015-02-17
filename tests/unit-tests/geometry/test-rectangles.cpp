@@ -33,10 +33,18 @@ struct TestRectangles : Test
 {
     Rectangles rectangles;
 
-    auto contents_of(Rectangles const& rects) ->
-        std::vector<Rectangle>
+    static std::vector<Rectangle> unique_elements(Rectangles const& rects)
     {
-        return {std::begin(rects), std::end(rects)};
+        std::vector<Rectangle> uniq;
+
+        for (auto& r : rects)
+        {
+            auto it = std::find(uniq.begin(), uniq.end(), r);
+            if (it == uniq.end())
+                uniq.push_back(r);
+        }
+
+        return uniq;
     }
 };
 }
@@ -240,23 +248,40 @@ TEST_F(TestRectangles, tracks_add_and_remove)
 
     rectangles = Rectangles{rect[0], rect[1], rect[2]};
 
-    EXPECT_THAT(contents_of(rectangles), ElementsAre(rect[0], rect[1], rect[2]));
+    auto contents = unique_elements(rectangles);
+    EXPECT_THAT(contents, SizeIs(3));
+    EXPECT_THAT(contents, Contains(rect[0]));
+    EXPECT_THAT(contents, Contains(rect[1]));
+    EXPECT_THAT(contents, Contains(rect[2]));
+
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 
     rectangles.remove(rect[1]);
 
-    EXPECT_THAT(contents_of(rectangles), ElementsAre(rect[0], rect[2]));
+    contents = unique_elements(rectangles);
+    EXPECT_THAT(contents, SizeIs(2));
+    EXPECT_THAT(contents, Contains(rect[0]));
+    EXPECT_THAT(contents, Contains(rect[2]));
+
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[2]);
 
-    EXPECT_THAT(contents_of(rectangles), ElementsAre(rect[0], rect[2], rect[2]));
+    contents = unique_elements(rectangles);
+    EXPECT_THAT(contents, SizeIs(2));
+    EXPECT_THAT(contents, Contains(rect[0]));
+    EXPECT_THAT(contents, Contains(rect[2]));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[1]);
     rectangles.remove(rect[2]);
 
-    EXPECT_THAT(contents_of(rectangles), ElementsAre(rect[0], rect[2], rect[1]));
+    contents = unique_elements(rectangles);
+    EXPECT_THAT(contents, SizeIs(3));
+    EXPECT_THAT(contents, Contains(rect[0]));
+    EXPECT_THAT(contents, Contains(rect[1]));
+    EXPECT_THAT(contents, Contains(rect[2]));
+
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 }
 
