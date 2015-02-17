@@ -47,6 +47,8 @@ public:
         LayerList&,
         SwappingGLContext const& context,
         RenderableListCompositor const& list_compositor) override;
+    void start_posting_external_display() override;
+    void stop_posting_external_display() override;
 
 private:
     void content_cleared() override;
