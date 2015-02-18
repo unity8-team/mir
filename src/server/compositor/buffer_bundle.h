@@ -48,11 +48,8 @@ public:
      *                     collisions, all callers should determine user_id
      *                     in the same way (e.g. always use "this" pointer).
      */
-    virtual std::shared_ptr<graphics::Buffer>
-        compositor_acquire(void const* user_id) = 0;
-    virtual void compositor_release(std::shared_ptr<graphics::Buffer> const&) = 0;
+    virtual std::shared_ptr<graphics::Buffer> compositor_acquire(void const* user_id) = 0;
     virtual std::shared_ptr<graphics::Buffer> snapshot_acquire() = 0;
-    virtual void snapshot_release(std::shared_ptr<graphics::Buffer> const&) = 0;
 
     virtual graphics::BufferProperties properties() const = 0;
     virtual void allow_framedropping(bool dropping_allowed) = 0;
