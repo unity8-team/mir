@@ -23,6 +23,7 @@
 
 #include <iterator>
 #include <algorithm>
+#include <initializer_list>
 
 using namespace mir::geometry;
 using namespace testing;
@@ -32,22 +33,23 @@ namespace
 struct TestRectangles : Test
 {
     Rectangles rectangles;
-
-    static std::vector<Rectangle> unique_elements(Rectangles const& rects)
-    {
-        std::vector<Rectangle> uniq;
-
-        for (auto& r : rects)
-        {
-            auto it = std::find(uniq.begin(), uniq.end(), r);
-            if (it == uniq.end())
-                uniq.push_back(r);
-        }
-
-        return uniq;
-    }
 };
+
+bool equivalent_unordered(Rectangles const& rects,
+                          std::initializer_list<Rectangle> const& expect)
+{
+    std::vector<Rectangle> check(rects.begin(), rects.end());
+    for (auto const& e : expect)
+    {
+        auto it = std::find(check.begin(), check.end(), e);
+        if (it == check.end())
+            return false;
+        check.erase(it);
+    }
+    return check.empty();
 }
+
+} // namespace
 
 TEST_F(TestRectangles, rectangles_empty)
 {
@@ -248,29 +250,23 @@ TEST_F(TestRectangles, tracks_add_and_remove)
 
     rectangles = Rectangles{rect[0], rect[1], rect[2]};
 
-    EXPECT_THAT(unique_elements(rectangles),
-                AllOf(SizeIs(3),
-                      Contains(rect[0]), Contains(rect[1]), Contains(rect[2])));
+    EXPECT_TRUE(equivalent_unordered(rectangles, {rect[0], rect[1], rect[2]}));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 
     rectangles.remove(rect[1]);
 
-    EXPECT_THAT(unique_elements(rectangles),
-                AllOf(SizeIs(2), Contains(rect[0]), Contains(rect[2])));
+    EXPECT_TRUE(equivalent_unordered(rectangles, {rect[0], rect[2]}));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[2]);
 
-    EXPECT_THAT(unique_elements(rectangles),
-                AllOf(SizeIs(2), Contains(rect[0]), Contains(rect[2])));
+    EXPECT_TRUE(equivalent_unordered(rectangles, {rect[0], rect[2], rect[2]}));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,600}}));
 
     rectangles.add(rect[1]);
     rectangles.remove(rect[2]);
 
-    EXPECT_THAT(unique_elements(rectangles),
-                AllOf(SizeIs(3),
-                      Contains(rect[0]), Contains(rect[1]), Contains(rect[2])));
+    EXPECT_TRUE(equivalent_unordered(rectangles, {rect[0], rect[1], rect[2]}));
     EXPECT_THAT(rectangles.bounding_rectangle(), Eq(Rectangle{{0,0}, {900,700}}));
 }
 
