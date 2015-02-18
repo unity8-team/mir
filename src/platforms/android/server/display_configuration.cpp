@@ -55,7 +55,7 @@ mg::DisplayConfigurationOutput external_output(
         preferred_format_index,
         external_attribs.display_format,
         external_mode,
-        mir_orientation_normal
+        mir_orientation_left
     };
 }
 }
