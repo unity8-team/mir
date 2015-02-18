@@ -277,6 +277,43 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
     // TODO: error logging when surface not found
 }
 
+namespace
+{
+template <typename Container>
+struct InReverse {
+    Container& container;
+    auto begin() -> decltype(container.rbegin()) { return container.rbegin(); }
+    auto end() -> decltype(container.rend()) { return container.rend(); }
+};
+
+template <typename Container>
+InReverse<Container> in_reverse(Container& container) { return InReverse<Container>{container}; }
+}
+
+auto ms::SurfaceStack::surface_at(geometry::Point cursor) const
+-> std::shared_ptr<Surface>
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+    for (auto &layer : in_reverse(layers_by_depth))
+    {
+        for (auto const& surface : in_reverse(layer.second))
+        {
+            // TODO this implementation is probably simplistic as the client area may,
+            // TODO in principle, have transparency. I don't think we have a mechanism
+            // TODO to track this yet.
+            // TODO Daniel has suggested using "surface->input_area_contains(cursor)"
+            // TODO here but has also (in the code that uses this) pointed out that
+            // TODO "the input area the client has designated is probably irrelevant.
+            // TODO Instead you want to consider the whole surface rectangle..."
+            if (surface->visible() &&
+                geom::Rectangle{surface->top_left(), surface->size()}.contains(cursor))
+                    return surface;
+        }
+    }
+
+    return {};
+}
+
 void ms::SurfaceStack::for_each(std::function<void(std::shared_ptr<mi::Surface> const&)> const& callback)
 {
     std::lock_guard<decltype(guard)> lg(guard);
