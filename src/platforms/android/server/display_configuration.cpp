@@ -29,15 +29,35 @@ geom::Point const origin{0,0};
 size_t const preferred_format_index{0};
 size_t const preferred_mode_index{0};
 
+geom::Size bound_size(geom::Size primary, geom::Size external)
+{
+    geom::Size transposed_external{external.height.as_int(), external.width.as_int()};
+    return geom::Size {
+        std::min(primary.width, transposed_external.width),
+        std::min(primary.height, transposed_external.height)
+    };
+}
+
+geom::Point center(geom::Size forced, geom::Size actual)
+{
+    //actual will be equal or greater than forced
+    printf("PARMS %i %i %i %i\n", actual.width.as_int(), forced.width.as_int(),
+        actual.height.as_int(), forced.height.as_int());
+    geom::X x{(forced.width.as_int() - actual.width.as_int()) / 2};
+    geom::Y y{(forced.height.as_int() - actual.height.as_int()) / 2};
+    printf("CENTER %i %i\n", x.as_int(), y.as_int());
+    return geom::Point{x,y};
+}
+
 mg::DisplayConfigurationOutput external_output(
     mga::DisplayAttribs const& external_attribs,
-    MirPowerMode external_mode)
+    MirPowerMode external_mode, geom::Size forced_size)
 {
     std::vector<mg::DisplayConfigurationMode> external_modes;
     if (external_attribs.connected)
     {
         external_modes.emplace_back(
-            mg::DisplayConfigurationMode{external_attribs.pixel_size, external_attribs.vrefresh_hz});
+            mg::DisplayConfigurationMode{forced_size, external_attribs.vrefresh_hz});
     }
 
     bool used{false};
@@ -51,22 +71,38 @@ mg::DisplayConfigurationOutput external_output(
         external_attribs.mm_size,
         external_attribs.connected,
         used,
-        origin,
+        center(forced_size, {external_attribs.pixel_size.height.as_int(), external_attribs.pixel_size.width.as_int()}),
         preferred_format_index,
         external_attribs.display_format,
         external_mode,
         mir_orientation_left
     };
 }
-}
 
-mga::DisplayConfiguration::DisplayConfiguration(
+mg::DisplayConfigurationOutput primary_output(
     mga::DisplayAttribs const& primary_attribs,
     MirPowerMode primary_mode,
-    mga::DisplayAttribs const& external_attribs,
-    MirPowerMode external_mode) :
-    configurations{{
-        mg::DisplayConfigurationOutput{
+    geom::Size forced_size,
+    bool connected)
+{
+    if (connected)
+        return mg::DisplayConfigurationOutput{
+            mg::DisplayConfigurationOutputId{primary_id},
+            mg::DisplayConfigurationCardId{0},
+            mg::DisplayConfigurationOutputType::lvds,
+            {primary_attribs.display_format},
+            {mg::DisplayConfigurationMode{forced_size, primary_attribs.vrefresh_hz}},
+            preferred_mode_index,
+            primary_attribs.mm_size,
+            primary_attribs.connected,
+            true,
+            center(forced_size, primary_attribs.pixel_size),
+            preferred_format_index,
+            primary_attribs.display_format,
+            primary_mode,
+            mir_orientation_normal};
+    else
+        return mg::DisplayConfigurationOutput{
             mg::DisplayConfigurationOutputId{primary_id},
             mg::DisplayConfigurationCardId{0},
             mg::DisplayConfigurationOutputType::lvds,
@@ -80,9 +116,20 @@ mga::DisplayConfiguration::DisplayConfiguration(
             preferred_format_index,
             primary_attribs.display_format,
             primary_mode,
-            mir_orientation_normal
-        }, 
-        external_output(external_attribs, external_mode)
+            mir_orientation_normal};
+}
+
+}
+
+mga::DisplayConfiguration::DisplayConfiguration(
+    mga::DisplayAttribs const& primary_attribs,
+    MirPowerMode primary_mode,
+    mga::DisplayAttribs const& external_attribs,
+    MirPowerMode external_mode) :
+    forced_size(bound_size(primary_attribs.pixel_size, external_attribs.pixel_size)),
+    configurations{{
+        primary_output(primary_attribs, primary_mode, forced_size, external_attribs.connected), 
+        external_output(external_attribs, external_mode, forced_size)
     }},
     card{mg::DisplayConfigurationCardId{0}, 1}
 {

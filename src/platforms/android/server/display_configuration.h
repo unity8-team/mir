@@ -50,6 +50,7 @@ public:
     DisplayConfigurationOutput& operator[](DisplayConfigurationOutputId const&);
 
 private:
+    geometry::Size forced_size;
     std::array<DisplayConfigurationOutput, 2> configurations;
     DisplayConfigurationCard card;
 };

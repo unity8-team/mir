@@ -53,7 +53,7 @@ public:
         GLContext const& shared_gl_context,
         GLProgramFactory const& program_factory,
         MirOrientation orientation,
-        OverlayOptimization overlay_option);
+        OverlayOptimization overlay_option, geometry::Point pt = geometry::Point{0,0});
 
     geometry::Rectangle view_area() const override;
     void make_current() override;
@@ -65,6 +65,7 @@ public:
     MirOrientation orientation() const override;
     bool uses_alpha() const override;
     void configure(MirPowerMode power_mode, MirOrientation orientation) override;
+    void update_pos(geometry::Point pt) override;
 private:
     DisplayName display_name;
     std::unique_ptr<LayerList> layer_list;
@@ -75,6 +76,7 @@ private:
     HWCFallbackGLRenderer overlay_program;
     bool overlay_enabled;
     MirOrientation orientation_;
+    geometry::Point pt;
 };
 
 }

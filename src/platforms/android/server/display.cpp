@@ -110,7 +110,7 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> create_display_buffer(
     mga::DisplayAttribs const& attribs,
     std::shared_ptr<mg::GLProgramFactory> const& gl_program_factory,
     mga::PbufferGLContext const& gl_context,
-    mga::OverlayOptimization overlay_option)
+    mga::OverlayOptimization overlay_option, geom::Point origin)
 {
     std::shared_ptr<mga::FramebufferBundle> fbs{display_buffer_builder.create_framebuffers(attribs)};
     auto cache = std::make_shared<mga::InterpreterCache>();
@@ -125,7 +125,7 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> create_display_buffer(
         gl_context,
         *gl_program_factory,
         mir_orientation_normal,
-        overlay_option));
+        overlay_option, origin));
 }
 }
 
@@ -154,7 +154,7 @@ mga::Display::Display(
         primary_attribs,
         gl_program_factory,
         gl_context,
-        overlay_option)},
+        overlay_option, config.primary().top_left)},
     display_change_pipe(new DisplayChangePipe),
     gl_program_factory(gl_program_factory)
 {
@@ -170,7 +170,7 @@ mga::Display::Display(
             external_attribs,
             gl_program_factory,
             gl_context,
-            mga::OverlayOptimization::disabled);
+            mga::OverlayOptimization::disabled, config.external().top_left);
     }
 
     display_report->report_successful_setup_of_native_resources();
@@ -211,9 +211,10 @@ void mga::Display::update_configuration(std::lock_guard<std::mutex> const&) cons
                 attribs,
                 gl_program_factory,
                 gl_context,
-                mga::OverlayOptimization::disabled);
+                mga::OverlayOptimization::disabled, config.external().top_left);
         else
             display_device->stop_posting_external_display();
+        primary_db->update_pos(config.primary().top_left);
     }
 
 }

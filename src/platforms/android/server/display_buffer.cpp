@@ -40,7 +40,8 @@ mga::DisplayBuffer::DisplayBuffer(
     mga::GLContext const& shared_gl_context,
     mg::GLProgramFactory const& program_factory,
     MirOrientation orientation,
-    mga::OverlayOptimization overlay_option)
+    mga::OverlayOptimization overlay_option,
+    geom::Point pt)
     : display_name(display_name),
       layer_list(std::move(layer_list)),
       fb_bundle{fb_bundle},
@@ -49,7 +50,8 @@ mga::DisplayBuffer::DisplayBuffer(
       gl_context{shared_gl_context, fb_bundle, native_window},
       overlay_program{program_factory, gl_context, geom::Rectangle{{0,0},fb_bundle->fb_size()}},
       overlay_enabled{overlay_option == mga::OverlayOptimization::enabled},
-      orientation_{orientation}
+      orientation_{orientation},
+      pt{pt}
 {
 }
 
@@ -62,7 +64,7 @@ geom::Rectangle mga::DisplayBuffer::view_area() const
     if (orientation_ == mir_orientation_left || orientation_ == mir_orientation_right)
         std::swap(width, height);
 
-    return {{0,0}, {width,height}};
+    return {pt, {width,height}};
 }
 
 void mga::DisplayBuffer::make_current()
@@ -77,7 +79,7 @@ void mga::DisplayBuffer::release_current()
 
 bool mga::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& renderlist)
 {
-    if (!overlay_enabled || !display_device->compatible_renderlist(renderlist))
+    if ((pt != geom::Point{0,0}) || !overlay_enabled || !display_device->compatible_renderlist(renderlist))
         return false;
 
     layer_list->update_list(renderlist);
@@ -123,4 +125,9 @@ void mga::DisplayBuffer::configure(MirPowerMode power_mode, MirOrientation orien
     if (power_mode != mir_power_mode_on)
         display_device->content_cleared();
     orientation_ = orientation;
+}
+
+void mga::DisplayBuffer::update_pos(geometry::Point p)
+{
+    pt = p;
 }

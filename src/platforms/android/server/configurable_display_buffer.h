@@ -33,6 +33,7 @@ class ConfigurableDisplayBuffer : public graphics::DisplayBuffer
 {
 public:
     virtual void configure(MirPowerMode power_mode, MirOrientation orientation) = 0;
+    virtual void update_pos(geometry::Point) {};
 };
 
 }
