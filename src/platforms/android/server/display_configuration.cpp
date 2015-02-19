@@ -29,15 +29,24 @@ geom::Point const origin{0,0};
 size_t const preferred_format_index{0};
 size_t const preferred_mode_index{0};
 
+geom::Size bound_size(geom::Size primary, geom::Size external)
+{
+    geom::Size transposed_external{external.height.as_int(), external.width.as_int()};
+    return geom::Size {
+        std::min(primary.width, transposed_external.width),
+        std::min(primary.height, transposed_external.height)
+    };
+}
+
 mg::DisplayConfigurationOutput external_output(
     mga::DisplayAttribs const& external_attribs,
-    MirPowerMode external_mode)
+    MirPowerMode external_mode, geom::Size forced_size)
 {
     std::vector<mg::DisplayConfigurationMode> external_modes;
     if (external_attribs.connected)
     {
         external_modes.emplace_back(
-            mg::DisplayConfigurationMode{external_attribs.pixel_size, external_attribs.vrefresh_hz});
+            mg::DisplayConfigurationMode{forced_size, external_attribs.vrefresh_hz});
     }
 
     bool used{false};
@@ -65,13 +74,14 @@ mga::DisplayConfiguration::DisplayConfiguration(
     MirPowerMode primary_mode,
     mga::DisplayAttribs const& external_attribs,
     MirPowerMode external_mode) :
+    forced_size(bound_size(primary_attribs.pixel_size, external_attribs.pixel_size)),
     configurations{{
         mg::DisplayConfigurationOutput{
             mg::DisplayConfigurationOutputId{primary_id},
             mg::DisplayConfigurationCardId{0},
             mg::DisplayConfigurationOutputType::lvds,
             {primary_attribs.display_format},
-            {mg::DisplayConfigurationMode{primary_attribs.pixel_size, primary_attribs.vrefresh_hz}},
+            {mg::DisplayConfigurationMode{forced_size, primary_attribs.vrefresh_hz}},
             preferred_mode_index,
             primary_attribs.mm_size,
             primary_attribs.connected,
@@ -82,7 +92,7 @@ mga::DisplayConfiguration::DisplayConfiguration(
             primary_mode,
             mir_orientation_normal
         }, 
-        external_output(external_attribs, external_mode)
+        external_output(external_attribs, external_mode, forced_size)
     }},
     card{mg::DisplayConfigurationCardId{0}, 1}
 {

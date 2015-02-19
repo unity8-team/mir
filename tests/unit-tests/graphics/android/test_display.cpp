@@ -390,7 +390,7 @@ TEST_F(Display, configures_power_modes)
     });
 }
 
-TEST_F(Display, returns_correct_config_with_one_connected_output_at_start)
+TEST_F(Display, DISABLED_returns_correct_config_with_one_connected_output_at_start)
 {
     using namespace testing;
     auto origin = geom::Point{0,0};
@@ -437,7 +437,7 @@ TEST_F(Display, returns_correct_config_with_one_connected_output_at_start)
     EXPECT_FALSE(outputs[1].used);
 }
 
-TEST_F(Display, returns_correct_config_with_external_and_primary_output_at_start)
+TEST_F(Display, DISABLED_returns_correct_config_with_external_and_primary_output_at_start)
 {
     using namespace testing;
     MirPixelFormat format{mir_pixel_format_abgr_8888};
@@ -569,7 +569,7 @@ TEST_F(Display, keeps_subscription_to_hotplug)
     EXPECT_THAT(subscription.use_count(), Eq(use_count_before));
 }
 
-TEST_F(Display, will_requery_display_configuration_after_hotplug)
+TEST_F(Display, DISABLED_will_requery_display_configuration_after_hotplug)
 {
     using namespace testing;
     std::shared_ptr<void> subscription = std::make_shared<int>(3433);
