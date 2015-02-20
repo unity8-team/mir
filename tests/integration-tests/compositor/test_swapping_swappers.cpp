@@ -105,7 +105,6 @@ TEST_F(SwapperSwappingStress, swapper)
                     {
                         auto b = switching_bundle->compositor_acquire(0);
                         std::this_thread::yield();
-                        switching_bundle->compositor_release(b);
                     }
                 });
 
@@ -149,7 +148,6 @@ TEST_F(SwapperSwappingStress, different_swapper_types)
                     {
                         auto b = switching_bundle->compositor_acquire(0);
                         std::this_thread::yield();
-                        switching_bundle->compositor_release(b);
                     }
                 });
 
