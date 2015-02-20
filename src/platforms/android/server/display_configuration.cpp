@@ -29,8 +29,9 @@ geom::Point const origin{0,0};
 size_t const preferred_format_index{0};
 size_t const preferred_mode_index{0};
 
-geom::Size bound_size(geom::Size primary, geom::Size external)
+geom::Size bound_size(geom::Size primary, geom::Size external, bool ext_connected)
 {
+    if (!ext_connected) return primary;
     geom::Size transposed_external{external.height.as_int(), external.width.as_int()};
     return geom::Size {
         std::min(primary.width, transposed_external.width),
@@ -74,7 +75,7 @@ mga::DisplayConfiguration::DisplayConfiguration(
     MirPowerMode primary_mode,
     mga::DisplayAttribs const& external_attribs,
     MirPowerMode external_mode) :
-    forced_size(bound_size(primary_attribs.pixel_size, external_attribs.pixel_size)),
+    forced_size(bound_size(primary_attribs.pixel_size, external_attribs.pixel_size, external_attribs.connected)),
     configurations{{
         mg::DisplayConfigurationOutput{
             mg::DisplayConfigurationOutputId{primary_id},
