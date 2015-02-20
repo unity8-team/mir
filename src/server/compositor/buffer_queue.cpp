@@ -200,7 +200,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
     ready_to_composite_queue.push_back(buffer);
 }
 
-std::shared_ptr<mg::Buffer>
+std::shared_ptr<mc::BufferHandle>
 mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
@@ -245,25 +245,8 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
-    std::shared_ptr<mg::Buffer> const acquired_buffer
-        (buffer_for(current_compositor_buffer, buffers).get(),
-         [this](graphics::Buffer* buffer)
-         {
-             std::unique_lock<decltype(guard)> lock(guard);
-
-             remove(buffer, buffers_sent_to_compositor);
-
-             /* Not ready to release it yet, other compositors still reference this buffer */
-             if (contains(buffer, buffers_sent_to_compositor))
-                return;
-
-             if (nbuffers <= 1)
-                return;
-
-             if (current_compositor_buffer != buffer)
-                release(buffer, std::move(lock));
-         }
-        );
+    std::shared_ptr<mc::BufferHandle> const acquired_buffer =
+            std::make_shared<mc::BufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
 
     if (buffer_to_release)
         release(buffer_to_release, std::move(lock));
@@ -522,4 +505,30 @@ void mc::BufferQueue::drop_client_requests()
     std::unique_lock<std::mutex> lock(guard);
     callbacks_allowed = false;
     pending_client_notifications.clear();
+}
+
+void mc::BufferQueue::release_compositor_buffer(mg::Buffer* buffer) noexcept
+{
+    std::unique_lock<decltype(guard)> lock(guard);
+
+    remove(buffer, buffers_sent_to_compositor);
+
+    /* Not ready to release it yet, other compositors still reference this buffer */
+    if (contains(buffer, buffers_sent_to_compositor))
+       return;
+
+    if (nbuffers <= 1)
+       return;
+
+    if (current_compositor_buffer != buffer)
+       release(buffer, std::move(lock));
+}
+
+void mc::BufferQueue::release_snapshot_buffer(mg::Buffer* buffer) noexcept
+{
+    std::unique_lock<std::mutex> lock(guard);
+
+    remove(buffer, pending_snapshots);
+
+    snapshot_released.notify_all();
 }

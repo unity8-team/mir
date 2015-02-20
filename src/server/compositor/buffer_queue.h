@@ -21,6 +21,7 @@
 #include "mir/compositor/frame_dropping_policy_factory.h"
 #include "mir/compositor/frame_dropping_policy.h"
 #include "buffer_bundle.h"
+#include "buffer_handle.h"
 
 #include <mutex>
 #include <condition_variable>
@@ -49,7 +50,7 @@ public:
 
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
-    std::shared_ptr<graphics::Buffer> compositor_acquire(void const* user_id) override;
+    std::shared_ptr<BufferHandle> compositor_acquire(void const* user_id) override;
     std::shared_ptr<graphics::Buffer> snapshot_acquire() override;
 
     graphics::BufferProperties properties() const override;
@@ -62,6 +63,8 @@ public:
     bool is_a_current_buffer_user(void const* user_id) const;
     void drop_old_buffers() override;
     void drop_client_requests() override;
+    void release_compositor_buffer(graphics::Buffer* buffer) noexcept override;
+    void release_snapshot_buffer(graphics::Buffer* buffer) noexcept override;
 
 private:
     void give_buffer_to_client(graphics::Buffer* buffer,
