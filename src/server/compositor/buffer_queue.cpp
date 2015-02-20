@@ -251,11 +251,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
          {
              std::unique_lock<decltype(guard)> lock(guard);
 
-             if (!remove(buffer, buffers_sent_to_compositor))
-             {
-                BOOST_THROW_EXCEPTION(
-                    std::logic_error("unexpected release: buffer was not given to compositor"));
-             }
+             remove(buffer, buffers_sent_to_compositor);
 
              /* Not ready to release it yet, other compositors still reference this buffer */
              if (contains(buffer, buffers_sent_to_compositor))
@@ -285,11 +281,8 @@ std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
      [this](graphics::Buffer* buffer)
      {
          std::unique_lock<std::mutex> lock(guard);
-         if (!remove(buffer, pending_snapshots))
-         {
-             BOOST_THROW_EXCEPTION(
-                 std::logic_error("unexpected release: no buffers were given to snapshotter"));
-         }
+
+         remove(buffer, pending_snapshots);
 
          snapshot_released.notify_all();
      }

@@ -638,23 +638,6 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
     }
 }
 
-//TODO: fix this test
-TEST_F(BufferQueueTest, compositor_release_verifies_parameter)
-{
-    for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
-    {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
-
-        auto handle = client_acquire_async(q);
-        ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-        handle->release_buffer();
-
-        auto comp_buffer = q.compositor_acquire(this);
-        comp_buffer.reset();
-//        EXPECT_THROW(q.compositor_release(comp_buffer), std::logic_error);
-    }
-}
-
 /* Regression test for LP#1270964 */
 TEST_F(BufferQueueTest, compositor_client_interleaved)
 {
@@ -756,31 +739,6 @@ TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
         std::shared_ptr<mg::Buffer> buf[num_snapshots];
         for (int i = 0; i < num_snapshots; i++)
             buf[i] = q.snapshot_acquire();
-    }
-}
-
-//TODO: fix this test
-TEST_F(BufferQueueTest, snapshot_release_verifies_parameter)
-{
-    for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
-    {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
-
-        auto handle = client_acquire_async(q);
-        ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-        handle->release_buffer();
-
-        auto comp_buffer = q.compositor_acquire(this);
-//        EXPECT_THROW(q.snapshot_release(comp_buffer), std::logic_error);
-
-        handle = client_acquire_async(q);
-        ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
-        auto snapshot = q.snapshot_acquire();
-
-        EXPECT_THAT(snapshot->id(), Eq(comp_buffer->id()));
-        EXPECT_THAT(snapshot->id(), Ne(handle->id()));
-//        EXPECT_NO_THROW(q.snapshot_release(snapshot));
-//        EXPECT_THROW(q.snapshot_release(snapshot), std::logic_error);
     }
 }
 
