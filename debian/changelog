@@ -1,3 +1,10 @@
+qtmir-gles (0.4.4+15.04.20150220-0ubuntu1) UNRELEASED; urgency=medium
+
+
+  * Sync with upstream
+
+ -- Timo Jyrinki <timo-jyrinki@ubuntu.com>  Fri, 20 Feb 2015 14:18:21 +0200
+
 qtmir-gles (0.4.4+15.04.20150209-0ubuntu2) vivid; urgency=medium
 
   * No-change rebuild against Qt 5.4.0.
