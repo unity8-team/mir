@@ -1,9 +1,10 @@
-qtmir-gles (0.4.4+15.04.20150220-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150220-0ubuntu1) vivid; urgency=medium
 
 
+  [ Timo Jyrinki ]
   * Sync with upstream
 
- -- Timo Jyrinki <timo-jyrinki@ubuntu.com>  Fri, 20 Feb 2015 14:18:21 +0200
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 20 Feb 2015 12:36:50 +0000
 
 qtmir-gles (0.4.4+15.04.20150209-0ubuntu2) vivid; urgency=medium
 
