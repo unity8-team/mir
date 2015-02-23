@@ -40,11 +40,13 @@ void mi::DisplayInputRegion::override_orientation(uint32_t display_id, MirOrient
     overrides.add_override(display_id, orientation);
 }
 
-MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& point)
+MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& /*point*/)
 {
     uint32_t display_id = 0;
+    //since we are going clone mode - position does not matter
+    return overrides.get_orientation(display_id, mir_orientation_normal);
+    /*
     MirOrientation orientation = mir_orientation_normal;
-
     display->for_each_display_buffer(
         [this,&display_id,point,&orientation](mg::DisplayBuffer const& buffer)
         {
@@ -55,31 +57,28 @@ MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& po
             ++ display_id;
         });
 
-    return orientation;
+    return orientation;*/
 }
 
 geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 {
-    geom::Rectangles rectangles;
+    geom::Width width{INT_MAX};
+    geom::Height height{INT_MAX};
 
     display->for_each_display_buffer(
-        [&rectangles,this](mg::DisplayBuffer const& buffer)
+        [&width, &height](mg::DisplayBuffer const& buffer)
         {
-            rectangles.add(buffer.view_area());
+            auto area = buffer.view_area();
+            width = std::min(width, area.size.width);
+            height = std::min(height, area.size.height);
         });
 
-    return rectangles.bounding_rectangle();
+    return {{0,0}, {width, height}};
 }
 
 void mi::DisplayInputRegion::confine(geom::Point& point)
 {
-    geom::Rectangles rectangles;
-
-    display->for_each_display_buffer(
-        [&rectangles,this](mg::DisplayBuffer const& buffer)
-        {
-            rectangles.add(buffer.view_area());
-        });
-
-    rectangles.confine(point);
+    geom::Rectangles rects;
+    rects.add(bounding_rectangle());
+    rects.confine(point);
 }

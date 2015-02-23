@@ -60,7 +60,7 @@ private:
 
 TEST(DisplayInputRegionTest, returns_correct_bounding_rectangle)
 {
-    geom::Rectangle const expected_bounding_rect{geom::Point{0,0}, geom::Size{900,700}};
+    geom::Rectangle const expected_bounding_rect{geom::Point{0,0}, geom::Size{100,100}};
     auto stub_display = std::make_shared<StubDisplay>();
 
     mi::DisplayInputRegion input_region{stub_display};
@@ -77,16 +77,16 @@ TEST(DisplayInputRegionTest, confines_point_to_closest_valid_position)
 
     std::vector<std::tuple<geom::Point,geom::Point>> point_tuples{
         std::make_tuple(geom::Point{0,0}, geom::Point{0,0}),
-        std::make_tuple(geom::Point{900,50}, geom::Point{899,50}),
-        std::make_tuple(geom::Point{850,100}, geom::Point{850,99}),
-        std::make_tuple(geom::Point{801,100}, geom::Point{801,99}),
-        std::make_tuple(geom::Point{800,101}, geom::Point{799,101}),
-        std::make_tuple(geom::Point{800,600}, geom::Point{799,599}),
-        std::make_tuple(geom::Point{-1,700}, geom::Point{0,699}),
+        std::make_tuple(geom::Point{900,50}, geom::Point{99,50}),
+        std::make_tuple(geom::Point{850,100}, geom::Point{99,99}),
+        std::make_tuple(geom::Point{801,100}, geom::Point{99,99}),
+        std::make_tuple(geom::Point{800,101}, geom::Point{99,99}),
+        std::make_tuple(geom::Point{800,600}, geom::Point{99,99}),
+        std::make_tuple(geom::Point{-1,700}, geom::Point{0,99}),
         std::make_tuple(geom::Point{-1,-1}, geom::Point{0,0}),
         std::make_tuple(geom::Point{-1,50}, geom::Point{0,50}),
-        std::make_tuple(geom::Point{799,-1}, geom::Point{799,0}),
-        std::make_tuple(geom::Point{800,-1}, geom::Point{800,0})
+        std::make_tuple(geom::Point{799,-1}, geom::Point{99,0}),
+        std::make_tuple(geom::Point{800,-1}, geom::Point{99,0})
     };
 
     for (auto const& t : point_tuples)
