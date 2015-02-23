@@ -36,5 +36,5 @@ std::shared_ptr<mg::Buffer> const& mc::BufferHandle::get_buffer()
 
 mc::BufferHandle::~BufferHandle()
 {
-    buffer_bundle->release_compositor_buffer(buffer.get());
+    buffer_bundle->compositor_release(buffer.get());
 }

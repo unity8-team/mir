@@ -51,7 +51,9 @@ public:
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
     std::shared_ptr<BufferHandle> compositor_acquire(void const* user_id) override;
+    void compositor_release(graphics::Buffer* const buffer) noexcept override;
     std::shared_ptr<graphics::Buffer> snapshot_acquire() override;
+    void snapshot_release(graphics::Buffer* const buffer) noexcept override;
 
     graphics::BufferProperties properties() const override;
     void allow_framedropping(bool dropping_allowed) override;
@@ -63,8 +65,6 @@ public:
     bool is_a_current_buffer_user(void const* user_id) const;
     void drop_old_buffers() override;
     void drop_client_requests() override;
-    void release_compositor_buffer(graphics::Buffer* buffer) noexcept override;
-    void release_snapshot_buffer(graphics::Buffer* buffer) noexcept override;
 
 private:
     void give_buffer_to_client(graphics::Buffer* buffer,

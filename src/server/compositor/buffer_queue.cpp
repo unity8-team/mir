@@ -254,6 +254,23 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     return acquired_buffer;
 }
 
+void mc::BufferQueue::compositor_release(mg::Buffer* const buffer) noexcept
+{
+    std::unique_lock<decltype(guard)> lock(guard);
+
+    remove(buffer, buffers_sent_to_compositor);
+
+    /* Not ready to release it yet, other compositors still reference this buffer */
+    if (contains(buffer, buffers_sent_to_compositor))
+       return;
+
+    if (nbuffers <= 1)
+       return;
+
+    if (current_compositor_buffer != buffer)
+       release(buffer, std::move(lock));
+}
+
 std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
@@ -272,6 +289,15 @@ std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
     );
 
     return acquired_buffer;
+}
+
+void mc::BufferQueue::snapshot_release(mg::Buffer* const buffer) noexcept
+{
+    std::unique_lock<std::mutex> lock(guard);
+
+    remove(buffer, pending_snapshots);
+
+    snapshot_released.notify_all();
 }
 
 mg::BufferProperties mc::BufferQueue::properties() const
@@ -505,30 +531,4 @@ void mc::BufferQueue::drop_client_requests()
     std::unique_lock<std::mutex> lock(guard);
     callbacks_allowed = false;
     pending_client_notifications.clear();
-}
-
-void mc::BufferQueue::release_compositor_buffer(mg::Buffer* buffer) noexcept
-{
-    std::unique_lock<decltype(guard)> lock(guard);
-
-    remove(buffer, buffers_sent_to_compositor);
-
-    /* Not ready to release it yet, other compositors still reference this buffer */
-    if (contains(buffer, buffers_sent_to_compositor))
-       return;
-
-    if (nbuffers <= 1)
-       return;
-
-    if (current_compositor_buffer != buffer)
-       release(buffer, std::move(lock));
-}
-
-void mc::BufferQueue::release_snapshot_buffer(mg::Buffer* buffer) noexcept
-{
-    std::unique_lock<std::mutex> lock(guard);
-
-    remove(buffer, pending_snapshots);
-
-    snapshot_released.notify_all();
 }

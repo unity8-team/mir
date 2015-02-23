@@ -50,7 +50,9 @@ public:
      *                     in the same way (e.g. always use "this" pointer).
      */
     virtual std::shared_ptr<BufferHandle> compositor_acquire(void const* user_id) = 0;
+    virtual void compositor_release(graphics::Buffer* const buffer) noexcept = 0;
     virtual std::shared_ptr<graphics::Buffer> snapshot_acquire() = 0;
+    virtual void snapshot_release(graphics::Buffer* const buffer) noexcept = 0;
 
     virtual graphics::BufferProperties properties() const = 0;
     virtual void allow_framedropping(bool dropping_allowed) = 0;
@@ -67,8 +69,6 @@ public:
     virtual int buffers_free_for_client() const = 0;
     virtual void drop_old_buffers() = 0;
     virtual void drop_client_requests() = 0;
-    virtual void release_compositor_buffer(graphics::Buffer* buffer) noexcept = 0;
-    virtual void release_snapshot_buffer(graphics::Buffer* buffer) noexcept = 0;
 
 protected:
     BufferBundle() = default;
