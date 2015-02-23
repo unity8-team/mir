@@ -52,7 +52,7 @@ public:
     void client_release(graphics::Buffer* buffer) override;
     std::shared_ptr<BufferHandle> compositor_acquire(void const* user_id) override;
     void compositor_release(graphics::Buffer* const buffer) noexcept override;
-    std::shared_ptr<graphics::Buffer> snapshot_acquire() override;
+    std::shared_ptr<BufferHandle> snapshot_acquire() override;
     void snapshot_release(graphics::Buffer* const buffer) noexcept override;
 
     graphics::BufferProperties properties() const override;

@@ -33,15 +33,31 @@ class BufferBundle;
 class BufferHandle
 {
 public:
-    BufferHandle(BufferBundle* bundle,
-                 std::shared_ptr<graphics::Buffer> const& buffer);
     std::shared_ptr<graphics::Buffer> const& get_buffer();
-    virtual ~BufferHandle() noexcept;
 
-private:
+protected:
+    explicit BufferHandle(BufferBundle* bundle,
+                 std::shared_ptr<graphics::Buffer> const& buffer);
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> const& buffer;
 };
+
+class CompositorBufferHandle : public BufferHandle
+{
+public:
+	explicit CompositorBufferHandle(BufferBundle* bundle,
+                 std::shared_ptr<graphics::Buffer> const& buffer);
+    virtual ~CompositorBufferHandle() noexcept;
+};
+
+class SnapshotBufferHandle : public BufferHandle
+{
+public:
+	explicit SnapshotBufferHandle(BufferBundle* bundle,
+                 std::shared_ptr<graphics::Buffer> const& buffer);
+    virtual ~SnapshotBufferHandle() noexcept;
+};
+
 }
 }
 

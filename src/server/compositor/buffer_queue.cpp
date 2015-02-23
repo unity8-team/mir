@@ -200,8 +200,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
     ready_to_composite_queue.push_back(buffer);
 }
 
-std::shared_ptr<mc::BufferHandle>
-mc::BufferQueue::compositor_acquire(void const* user_id)
+std::shared_ptr<mc::BufferHandle> mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
@@ -246,7 +245,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
     std::shared_ptr<mc::BufferHandle> const acquired_buffer =
-            std::make_shared<mc::BufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
+            std::make_shared<mc::CompositorBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
 
     if (buffer_to_release)
         release(buffer_to_release, std::move(lock));
@@ -271,22 +270,13 @@ void mc::BufferQueue::compositor_release(mg::Buffer* const buffer) noexcept
        release(buffer, std::move(lock));
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
+std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
-    std::shared_ptr<mg::Buffer> const acquired_buffer
-    (buffer_for(current_compositor_buffer, buffers).get(),
-     [this](graphics::Buffer* buffer)
-     {
-         std::unique_lock<std::mutex> lock(guard);
-
-         remove(buffer, pending_snapshots);
-
-         snapshot_released.notify_all();
-     }
-    );
+    std::shared_ptr<mc::BufferHandle> const acquired_buffer =
+            std::make_shared<mc::SnapshotBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
 
     return acquired_buffer;
 }

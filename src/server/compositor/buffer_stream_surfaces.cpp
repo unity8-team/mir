@@ -44,7 +44,7 @@ std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_compositor_buffer(
 
 std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
-    return buffer_bundle->snapshot_acquire();
+    return buffer_bundle->snapshot_acquire()->get_buffer();
 }
 
 void mc::BufferStreamSurfaces::acquire_client_buffer(

@@ -34,7 +34,24 @@ std::shared_ptr<mg::Buffer> const& mc::BufferHandle::get_buffer()
     return buffer;
 }
 
-mc::BufferHandle::~BufferHandle()
+mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
+                                                   std::shared_ptr<mg::Buffer> const& buffer)
+                                                   : BufferHandle(bundle, buffer)
 {
-    buffer_bundle->compositor_release(buffer.get());
+}
+
+mc::CompositorBufferHandle::~CompositorBufferHandle()
+{
+	buffer_bundle->compositor_release(buffer.get());
+}
+
+mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
+                                               std::shared_ptr<mg::Buffer> const& buffer)
+                                               : BufferHandle(bundle, buffer)
+{
+}
+
+mc::SnapshotBufferHandle::~SnapshotBufferHandle()
+{
+	buffer_bundle->snapshot_release(buffer.get());
 }

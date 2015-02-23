@@ -51,7 +51,7 @@ public:
      */
     virtual std::shared_ptr<BufferHandle> compositor_acquire(void const* user_id) = 0;
     virtual void compositor_release(graphics::Buffer* const buffer) noexcept = 0;
-    virtual std::shared_ptr<graphics::Buffer> snapshot_acquire() = 0;
+    virtual std::shared_ptr<BufferHandle> snapshot_acquire() = 0;
     virtual void snapshot_release(graphics::Buffer* const buffer) noexcept = 0;
 
     virtual graphics::BufferProperties properties() const = 0;
