@@ -22,6 +22,7 @@
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_input_scene.h"
+#include "mir_test_doubles/stub_display.h"
 
 #include "mir_test/fake_shared.h"
 
@@ -80,12 +81,19 @@ private:
 
 struct SoftwareCursor : testing::Test
 {
+    std::vector<mir::geometry::Rectangle> regs{
+        mir::geometry::Rectangle{
+            mir::geometry::Point{0,0},
+            mir::geometry::Size{1024,768}
+        }};
+    mtd::StubDisplay stub_display{regs};
     StubCursorImage stub_cursor_image{{3,4}};
     StubCursorImage another_stub_cursor_image{{10,9}};
     mtd::StubBufferAllocator stub_buffer_allocator;
     testing::NiceMock<MockInputScene> mock_input_scene;
 
     mg::SoftwareCursor cursor{
+        mt::fake_shared(stub_display),
         mt::fake_shared(stub_buffer_allocator),
         mt::fake_shared(mock_input_scene)};
 };
@@ -307,6 +315,7 @@ TEST_F(SoftwareCursor, new_buffer_on_each_show)
         .Times(3)
         .WillRepeatedly(testing::Return(std::make_shared<mtd::StubBuffer>()));;
     mg::SoftwareCursor cursor{
+        mt::fake_shared(stub_display),
         mt::fake_shared(mock_allocator),
         mt::fake_shared(mock_input_scene)};
     cursor.show(another_stub_cursor_image);

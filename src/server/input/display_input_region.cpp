@@ -23,6 +23,8 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/rectangles.h"
 
+#include <iostream>
+
 namespace mi = mir::input;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
@@ -33,12 +35,35 @@ mi::DisplayInputRegion::DisplayInputRegion(
 {
 }
 
+void mi::DisplayInputRegion::override_orientation(uint32_t display_id, MirOrientation orientation)
+{
+    overrides.add_override(display_id, orientation);
+}
+
+MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& point)
+{
+    uint32_t display_id = 0;
+    MirOrientation orientation = mir_orientation_normal;
+
+    display->for_each_display_buffer(
+        [this,&display_id,point,&orientation](mg::DisplayBuffer const& buffer)
+        {
+            if (buffer.view_area().contains(point))
+            {
+                orientation = overrides.get_orientation(display_id, buffer.orientation());
+            }
+            ++ display_id;
+        });
+
+    return orientation;
+}
+
 geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 {
     geom::Rectangles rectangles;
 
     display->for_each_display_buffer(
-        [&rectangles](mg::DisplayBuffer const& buffer)
+        [&rectangles,this](mg::DisplayBuffer const& buffer)
         {
             rectangles.add(buffer.view_area());
         });
@@ -51,7 +76,7 @@ void mi::DisplayInputRegion::confine(geom::Point& point)
     geom::Rectangles rectangles;
 
     display->for_each_display_buffer(
-        [&rectangles](mg::DisplayBuffer const& buffer)
+        [&rectangles,this](mg::DisplayBuffer const& buffer)
         {
             rectangles.add(buffer.view_area());
         });

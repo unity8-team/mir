@@ -77,6 +77,25 @@ void mia::PointerController::move(float delta_x, float delta_y)
 {
     auto new_x = x + delta_x;
     auto new_y = y + delta_y;
+    auto old_orientation = input_region->get_orientation(geom::Point{x, y});
+    switch (old_orientation)
+    {
+    default:
+    case mir_orientation_normal:
+        break;
+    case mir_orientation_inverted:
+         new_x = x - delta_x;
+         new_y = y - delta_y;
+         break;
+    case mir_orientation_left:
+         new_x = x + delta_y;
+         new_y = y - delta_x;
+         break;
+    case mir_orientation_right:
+         new_x = x - delta_y;
+         new_y = y + delta_x;
+         break;
+    }
     setPosition(new_x, new_y);
 }
 void mia::PointerController::setButtonState(int32_t button_state)
@@ -103,6 +122,7 @@ void mia::PointerController::setPosition(float new_x, float new_y)
     // to prevent the InputReader from getting ahead of rendering. This may need to be thought about later.
     notify_listener();
 }
+
 void mia::PointerController::getPosition(float *out_x, float *out_y) const
 {
     std::lock_guard<std::mutex> lg(guard);

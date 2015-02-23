@@ -168,25 +168,16 @@ mir::DefaultServerConfiguration::the_cursor()
     return cursor(
         [this]() -> std::shared_ptr<mg::Cursor>
         {
-            // We try to create a hardware cursor, if this fails we use a software cursor
-            auto hardware_cursor = the_display()->create_hardware_cursor(the_default_cursor_image());
-            if (hardware_cursor)
-            {
-                mir::log_info("Using hardware cursor");
-                return hardware_cursor;
-            }
-            else
-            {
-                mir::log_info("Using software cursor");
+            mir::log_info("Using software cursor");
 
-                auto const cursor = std::make_shared<mg::SoftwareCursor>(
-                    the_buffer_allocator(),
-                    the_input_scene());
+            auto const cursor = std::make_shared<mg::SoftwareCursor>(
+                the_display(), // hack
+                the_buffer_allocator(),
+                the_input_scene());
 
-                cursor->show(*the_default_cursor_image());
+            cursor->show(*the_default_cursor_image());
 
-                return cursor;
-            }
+            return cursor;
         });
 }
 
