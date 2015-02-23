@@ -1,3 +1,13 @@
+mir (0.11.1) UNRELEASED; urgency=medium
+
+  * New upstream release 0.11.1 (https://launchpad.net/mir/+milestone/0.11.1)
+    - Bug fixes:
+      . [regression] Platform libraries and packages are not versioned thus
+        are not installable in parallel.
+      . [regression] Deadlock in TimeoutFrameDroppingPolicy logic
+ 
+ -- Alberto Aguirre <alberto.aguirre@canonical.com>  Mon, 23 Feb 2015 14:22:40 -0600
+
 mir (0.11.0+15.04.20150209.1-0ubuntu1) vivid; urgency=medium
 
   [ Daniel van Vugt ]
