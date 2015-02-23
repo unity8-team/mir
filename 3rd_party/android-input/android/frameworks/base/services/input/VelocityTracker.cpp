@@ -65,36 +65,31 @@ static float vectorNorm(const float* a, uint32_t m) {
 
 #if DEBUG_STRATEGY || DEBUG_VELOCITY
 static String8 vectorToString(const float* a, uint32_t m) {
-    String8 str;
-    str.append("[");
+    std::stringstream str;
+    str << '[';
     while (m--) {
-        str.appendFormat(" %f", *(a++));
-        if (m) {
-            str.append(",");
-        }
+        str << *a++;
+        if (m)
+            str << ',';
     }
-    str.append(" ]");
-    return str;
+    str << ']';
+    return str.str();
 }
 
 static String8 matrixToString(const float* a, uint32_t m, uint32_t n, bool rowMajor) {
-    String8 str;
-    str.append("[");
+    std::stringstream str;
+    str << '[';
     for (size_t i = 0; i < m; i++) {
-        if (i) {
-            str.append(",");
-        }
-        str.append(" [");
+        if (i) str << ',';
+        str << " [";
         for (size_t j = 0; j < n; j++) {
-            if (j) {
-                str.append(",");
-            }
-            str.appendFormat(" %f", a[rowMajor ? i * n + j : j * m + i]);
+            if (j) str << ',';
+            str << ' ' << a[rowMajor ? i * n + j : j * m + i];
         }
-        str.append(" ]");
+        str << " ]";
     }
-    str.append(" ]");
-    return str;
+    str << " ]";
+    return str.str();
 }
 #endif
 
@@ -249,11 +244,11 @@ void VelocityTracker::addMovement(std::chrono::nanoseconds eventTime, const IntS
                 "estimator (degree=%d, xCoeff=%s, yCoeff=%s, confidence=%f)",
                 id, positions[index].x, positions[index].y,
                 int(estimator.degree),
-                vectorToString(estimator.xCoeff, estimator.degree + 1).string(),
-                vectorToString(estimator.yCoeff, estimator.degree + 1).string(),
+                vectorToString(estimator.xCoeff, estimator.degree + 1).c_str(),
+                vectorToString(estimator.yCoeff, estimator.degree + 1).c_str(),
                 estimator.confidence);
         ++index;
-    }
+    });
 #endif
 }
 
@@ -436,8 +431,8 @@ static bool solveLeastSquares(const float* x, const float* y,
         const float* w, uint32_t m, uint32_t n, float* outB, float* outDet) {
 #if DEBUG_STRATEGY
     ALOGD("solveLeastSquares: m=%d, n=%d, x=%s, y=%s, w=%s", int(m), int(n),
-            vectorToString(x, m).string(), vectorToString(y, m).string(),
-            vectorToString(w, m).string());
+            vectorToString(x, m).c_str(), vectorToString(y, m).c_str(),
+            vectorToString(w, m).c_str());
 #endif
 
     // Expand the X vector to a matrix A, pre-multiplied by the weights.
@@ -449,7 +444,7 @@ static bool solveLeastSquares(const float* x, const float* y,
         }
     }
 #if DEBUG_STRATEGY
-    ALOGD("  - a=%s", matrixToString(&a[0][0], m, n, false /*rowMajor*/).string());
+    ALOGD("  - a=%s", matrixToString(&a[0][0], m, n, false /*rowMajor*/).c_str());
 #endif
 
     // Apply the Gram-Schmidt process to A to obtain its QR decomposition.
@@ -484,8 +479,8 @@ static bool solveLeastSquares(const float* x, const float* y,
         }
     }
 #if DEBUG_STRATEGY
-    ALOGD("  - q=%s", matrixToString(&q[0][0], m, n, false /*rowMajor*/).string());
-    ALOGD("  - r=%s", matrixToString(&r[0][0], n, n, true /*rowMajor*/).string());
+    ALOGD("  - q=%s", matrixToString(&q[0][0], m, n, false /*rowMajor*/).c_str());
+    ALOGD("  - r=%s", matrixToString(&r[0][0], n, n, true /*rowMajor*/).c_str());
 
     // calculate QR, if we factored A correctly then QR should equal A
     float qr[n][m];
@@ -497,7 +492,7 @@ static bool solveLeastSquares(const float* x, const float* y,
             }
         }
     }
-    ALOGD("  - qr=%s", matrixToString(&qr[0][0], m, n, false /*rowMajor*/).string());
+    ALOGD("  - qr=%s", matrixToString(&qr[0][0], m, n, false /*rowMajor*/).c_str());
 #endif
 
     // Solve R B = Qt W Y to find B.  This is easy because R is upper triangular.
@@ -514,7 +509,7 @@ static bool solveLeastSquares(const float* x, const float* y,
         outB[i] /= r[i][i];
     }
 #if DEBUG_STRATEGY
-    ALOGD("  - b=%s", vectorToString(outB, n).string());
+    ALOGD("  - b=%s", vectorToString(outB, n).c_str());
 #endif
 
     // Calculate the coefficient of determination as 1 - (SSerr / SStot) where
@@ -598,10 +593,10 @@ bool LeastSquaresVelocityTrackerStrategy::getEstimator(uint32_t id,
             outEstimator->degree = degree;
             outEstimator->confidence = xdet * ydet;
 #if DEBUG_STRATEGY
-            ALOGD("estimate: degree=%d, xCoeff=%s, yCoeff=%s, confidence=%f",
+            ALOGD("estimate : degree=%d, xCoeff=%s, yCoeff=%s, confidence=%f",
                     int(outEstimator->degree),
-                    vectorToString(outEstimator->xCoeff, n).string(),
-                    vectorToString(outEstimator->yCoeff, n).string(),
+                    vectorToString(outEstimator->xCoeff, n).c_str(),
+                    vectorToString(outEstimator->yCoeff, n).c_str(),
                     outEstimator->confidence);
 #endif
             return true;
