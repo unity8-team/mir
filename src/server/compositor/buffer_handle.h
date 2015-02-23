@@ -47,7 +47,7 @@ class CompositorBufferHandle : public BufferHandle
 public:
 	explicit CompositorBufferHandle(BufferBundle* bundle,
                  std::shared_ptr<graphics::Buffer> const& buffer);
-    virtual ~CompositorBufferHandle() noexcept;
+    virtual ~CompositorBufferHandle();
 };
 
 class SnapshotBufferHandle : public BufferHandle
@@ -55,7 +55,7 @@ class SnapshotBufferHandle : public BufferHandle
 public:
 	explicit SnapshotBufferHandle(BufferBundle* bundle,
                  std::shared_ptr<graphics::Buffer> const& buffer);
-    virtual ~SnapshotBufferHandle() noexcept;
+    virtual ~SnapshotBufferHandle();
 };
 
 }

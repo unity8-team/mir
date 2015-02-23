@@ -39,10 +39,10 @@ public:
 
     MOCK_METHOD1(client_acquire,     void(std::function<void(graphics::Buffer*)>));
     MOCK_METHOD1(client_release,     void(graphics::Buffer*));
-    MOCK_METHOD1(compositor_acquire, std::shared_ptr<graphics::Buffer>(void const*));
-    MOCK_METHOD1(compositor_release, void(std::shared_ptr<graphics::Buffer> const&));
-    MOCK_METHOD0(snapshot_acquire, std::shared_ptr<graphics::Buffer>());
-    MOCK_METHOD1(snapshot_release, void(std::shared_ptr<graphics::Buffer> const&));
+    MOCK_METHOD1(compositor_acquire, std::shared_ptr<compositor::BufferHandle>(void const*));
+    MOCK_METHOD1(compositor_release, void(graphics::Buffer* const));
+    MOCK_METHOD0(snapshot_acquire, std::shared_ptr<compositor::BufferHandle>());
+    MOCK_METHOD1(snapshot_release, void(graphics::Buffer* const));
     MOCK_METHOD1(allow_framedropping, void(bool));
     MOCK_CONST_METHOD0(properties, graphics::BufferProperties());
     MOCK_METHOD0(force_client_abort, void());

@@ -19,6 +19,7 @@
 
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
+#include "buffer_handle.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -253,7 +254,7 @@ std::shared_ptr<mc::BufferHandle> mc::BufferQueue::compositor_acquire(void const
     return acquired_buffer;
 }
 
-void mc::BufferQueue::compositor_release(mg::Buffer* const buffer) noexcept
+void mc::BufferQueue::compositor_release(mg::Buffer* const buffer)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
@@ -281,7 +282,7 @@ std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
     return acquired_buffer;
 }
 
-void mc::BufferQueue::snapshot_release(mg::Buffer* const buffer) noexcept
+void mc::BufferQueue::snapshot_release(mg::Buffer* const buffer)
 {
     std::unique_lock<std::mutex> lock(guard);
 

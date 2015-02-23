@@ -21,6 +21,7 @@
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir_test/gmock_fixes.h"
+#include "src/server/compositor/buffer_handle.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -43,10 +44,12 @@ protected:
         // Two of the tests care about this, the rest should not...
         EXPECT_CALL(*mock_bundle, force_requests_to_complete())
             .Times(::testing::AnyNumber());
+        stub_handle = std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
     }
 
     std::shared_ptr<mtd::StubBuffer> mock_buffer;
     std::shared_ptr<mtd::MockBufferBundle> mock_bundle;
+    std::shared_ptr<mc::BufferHandle> stub_handle;
 };
 
 TEST_F(BufferStreamTest, size_query)
@@ -98,7 +101,7 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_handles_resources)
 
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
         .Times(1)
-        .WillOnce(Return(mock_buffer));
+        .WillOnce(Return(stub_handle));
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 
@@ -111,7 +114,7 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
 
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
         .Times(1)
-        .WillOnce(Return(mock_buffer));
+        .WillOnce(Return(stub_handle));
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 
