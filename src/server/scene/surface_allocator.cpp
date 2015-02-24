@@ -22,53 +22,48 @@
 #include "mir/input/input_channel_factory.h"
 #include "basic_surface.h"
 
-namespace geom=mir::geometry;
-namespace mc=mir::compositor;
-namespace mg=mir::graphics;
-namespace ms=mir::scene;
-namespace msh=mir::shell;
-namespace mi=mir::input;
+namespace geom = mir::geometry;
+namespace mc = mir::compositor;
+namespace mg = mir::graphics;
+namespace ms = mir::scene;
+namespace msh = mir::shell;
+namespace mi = mir::input;
 
 static inline bool has_alpha(MirPixelFormat fmt)
 {
-    return (fmt == mir_pixel_format_abgr_8888) ||
-           (fmt == mir_pixel_format_argb_8888);
+    return (fmt == mir_pixel_format_abgr_8888) || (fmt == mir_pixel_format_argb_8888);
 }
 
-ms::SurfaceAllocator::SurfaceAllocator(
-    std::shared_ptr<BufferStreamFactory> const& stream_factory,
-    std::shared_ptr<input::InputChannelFactory> const& input_factory,
-    std::shared_ptr<input::InputSender> const& input_sender,
-    std::shared_ptr<mg::CursorImage> const& default_cursor_image,
-    std::shared_ptr<SceneReport> const& report) :
-    buffer_stream_factory(stream_factory),
-    input_factory(input_factory),
-    input_sender(input_sender),
-    default_cursor_image(default_cursor_image),
-    report(report)
+ms::SurfaceAllocator::SurfaceAllocator(std::shared_ptr<BufferStreamFactory> const& stream_factory,
+                                       std::shared_ptr<input::InputChannelFactory> const& input_factory,
+                                       std::shared_ptr<input::InputSender> const& input_sender,
+                                       std::shared_ptr<mg::CursorImage> const& default_cursor_image,
+                                       std::shared_ptr<SceneReport> const& report)
+    : buffer_stream_factory(stream_factory),
+      input_factory(input_factory),
+      input_sender(input_sender),
+      default_cursor_image(default_cursor_image),
+      report(report)
 {
 }
 
 std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreationParameters const& params)
 {
-    mg::BufferProperties buffer_properties{params.size,
-                                           params.pixel_format,
-                                           params.buffer_usage};
+    mg::BufferProperties buffer_properties{params.size, params.pixel_format, params.buffer_usage};
     auto buffer_stream = buffer_stream_factory->create_buffer_stream(buffer_properties);
     auto actual_size = geom::Rectangle{params.top_left, buffer_stream->stream_size()};
 
     bool nonrectangular = has_alpha(params.pixel_format);
     auto input_channel = input_factory->make_input_channel();
-    auto const surface = std::make_shared<BasicSurface>(
-        params.name,
-        actual_size,
-        params.parent,
-        nonrectangular,
-        buffer_stream,
-        input_channel,
-        input_sender,
-        default_cursor_image,
-        report);
+    auto const surface = std::make_shared<BasicSurface>(params.name,
+                                                        actual_size,
+                                                        params.parent,
+                                                        nonrectangular,
+                                                        buffer_stream,
+                                                        input_channel,
+                                                        input_sender,
+                                                        default_cursor_image,
+                                                        report);
 
     return surface;
 }
