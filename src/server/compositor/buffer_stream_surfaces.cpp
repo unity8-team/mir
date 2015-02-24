@@ -60,7 +60,7 @@ void mc::BufferStreamSurfaces::release_client_buffer(graphics::Buffer* buf)
     buffer_bundle->client_release(buf);
 }
 
-MirPixelFormat mc::BufferStreamSurfaces::get_stream_pixel_format()
+MirPixelFormat mc::BufferStreamSurfaces::stream_pixel_format()
 {
     return buffer_bundle->properties().format;
 }

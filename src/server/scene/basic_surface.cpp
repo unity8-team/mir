@@ -216,7 +216,7 @@ mir::geometry::Size ms::BasicSurface::client_size() const
 
 MirPixelFormat ms::BasicSurface::pixel_format() const
 {
-    return surface_buffer_stream->get_stream_pixel_format();
+    return surface_buffer_stream->stream_pixel_format();
 }
 
 void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(mg::Buffer* new_buffer)> complete)

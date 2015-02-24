@@ -78,7 +78,7 @@ struct StubStream : public mc::BufferStream
     { return std::make_shared<mtd::StubBuffer>(); }
     std::shared_ptr<mg::Buffer> lock_snapshot_buffer()
     { return std::make_shared<mtd::StubBuffer>(); }
-    MirPixelFormat get_stream_pixel_format() { return mir_pixel_format_abgr_8888; }
+    MirPixelFormat stream_pixel_format() { return mir_pixel_format_abgr_8888; }
     geom::Size stream_size() { return geom::Size{1,212121}; }
     void resize(geom::Size const&) {};
     void allow_framedropping(bool) {};

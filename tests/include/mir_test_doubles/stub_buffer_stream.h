@@ -59,7 +59,7 @@ public:
         return stub_compositor_buffer;
     }
 
-    MirPixelFormat get_stream_pixel_format() override
+    MirPixelFormat stream_pixel_format() override
     {
         return MirPixelFormat();
     }

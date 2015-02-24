@@ -63,7 +63,7 @@ public:
     std::shared_ptr<mg::Buffer> lock_snapshot_buffer() override
         { return std::make_shared<mtd::StubBuffer>(); }
 
-    MirPixelFormat get_stream_pixel_format() override
+    MirPixelFormat stream_pixel_format() override
         { return mir_pixel_format_abgr_8888; }
 
     void allow_framedropping(bool) override

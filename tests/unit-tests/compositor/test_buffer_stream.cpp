@@ -71,7 +71,7 @@ TEST_F(BufferStreamTest, pixel_format_query)
         .WillOnce(testing::Return(properties));
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
-    auto returned_pf = buffer_stream.get_stream_pixel_format();
+    auto returned_pf = buffer_stream.stream_pixel_format();
     EXPECT_EQ(format, returned_pf);
 }
 
