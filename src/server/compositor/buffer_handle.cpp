@@ -23,19 +23,19 @@ namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
 mc::BufferHandle::BufferHandle(BufferBundle* bundle,
-                               std::shared_ptr<mg::Buffer> const& buffer)
+                               std::shared_ptr<mg::Buffer> buffer)
                                : buffer_bundle(bundle),
                                  buffer(buffer)
 {
 }
 
-std::shared_ptr<mg::Buffer> const& mc::BufferHandle::get_buffer()
+std::shared_ptr<mg::Buffer> mc::BufferHandle::get_buffer()
 {
     return buffer;
 }
 
 mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
-                                                   std::shared_ptr<mg::Buffer> const& buffer)
+                                                   std::shared_ptr<mg::Buffer> buffer)
                                                    : BufferHandle(bundle, buffer)
 {
 }
@@ -46,7 +46,7 @@ mc::CompositorBufferHandle::~CompositorBufferHandle()
 }
 
 mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
-                                               std::shared_ptr<mg::Buffer> const& buffer)
+                                               std::shared_ptr<mg::Buffer> buffer)
                                                : BufferHandle(bundle, buffer)
 {
 }
