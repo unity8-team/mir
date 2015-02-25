@@ -26,8 +26,8 @@ namespace mir
 
 enum class ModuleType : uint32_t
 {
-    server_graphics_platform = 1,
-    server_input_platform = server_graphics_platform << 1,
+    server_graphics_platform = 1 << 0,
+    server_input_platform    = 1 << 1,
 };
 
 void mir_enable_enum_bit_operators(ModuleType);
@@ -47,5 +47,5 @@ struct ModuleProperties
 extern "C" typedef ModuleProperties const*(*DescribeModule)();
 extern "C" ModuleProperties const* describe_module();
 }
-
+,
 #endif /* MIR_PLATFORM_MODULE_PROPERTIES_H_ */
