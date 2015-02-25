@@ -44,12 +44,10 @@ protected:
         // Two of the tests care about this, the rest should not...
         EXPECT_CALL(*mock_bundle, force_requests_to_complete())
             .Times(::testing::AnyNumber());
-        stub_handle = std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
     }
 
     std::shared_ptr<mtd::StubBuffer> mock_buffer;
     std::shared_ptr<mtd::MockBufferBundle> mock_bundle;
-    std::shared_ptr<mc::BufferHandle> stub_handle;
 };
 
 TEST_F(BufferStreamTest, size_query)
@@ -99,9 +97,15 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_handles_resources)
 {
     using namespace testing;
 
+    std::shared_ptr<mc::BufferHandle> stub_handle =
+        std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
+
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
         .Times(1)
         .WillOnce(Return(stub_handle));
+
+    EXPECT_CALL(*mock_bundle, compositor_release(_))
+        .Times(1);
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 
@@ -112,9 +116,15 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
 {
     using namespace testing;
 
+    std::shared_ptr<mc::BufferHandle> stub_handle =
+        std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
+
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
         .Times(1)
         .WillOnce(Return(stub_handle));
+
+    EXPECT_CALL(*mock_bundle, compositor_release(_))
+        .Times(1);
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 
