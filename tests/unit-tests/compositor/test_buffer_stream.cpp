@@ -93,25 +93,6 @@ TEST_F(BufferStreamTest, requests_are_completed_before_destruction)
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);
 }
 
-TEST_F(BufferStreamTest, get_buffer_for_compositor_handles_resources)
-{
-    using namespace testing;
-
-    std::shared_ptr<mc::BufferHandle> stub_handle =
-        std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
-
-    EXPECT_CALL(*mock_bundle, compositor_acquire(_))
-        .Times(1)
-        .WillOnce(Return(stub_handle));
-
-    EXPECT_CALL(*mock_bundle, compositor_release(_))
-        .Times(1);
-
-    mc::BufferStreamSurfaces buffer_stream(mock_bundle);
-
-    buffer_stream.lock_compositor_buffer(0);
-}
-
 TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
 {
     using namespace testing;
@@ -121,7 +102,7 @@ TEST_F(BufferStreamTest, get_buffer_for_compositor_can_lock)
 
     EXPECT_CALL(*mock_bundle, compositor_acquire(_))
         .Times(1)
-        .WillOnce(Return(stub_handle));
+        .WillOnce(ReturnPointee(&stub_handle));
 
     EXPECT_CALL(*mock_bundle, compositor_release(_))
         .Times(1);
