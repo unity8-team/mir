@@ -1,8 +1,61 @@
-qtmir-gles (0.4.4+15.04.20150108.1-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150220-0ubuntu1) vivid; urgency=medium
 
+
+  [ Timo Jyrinki ]
   * Sync with upstream
 
- -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Thu, 08 Jan 2015 08:59:06 -0600
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 20 Feb 2015 12:36:50 +0000
+
+qtmir-gles (0.4.4+15.04.20150209-0ubuntu2) vivid; urgency=medium
+
+  * No-change rebuild against Qt 5.4.0.
+
+ -- Timo Jyrinki <timo-jyrinki@ubuntu.com>  Fri, 13 Feb 2015 13:05:47 +0200
+
+qtmir-gles (0.4.4+15.04.20150209-0ubuntu1) vivid; urgency=medium
+
+  [ Robert Carr ]
+  * Sync with upstream
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 09 Feb 2015 23:23:10 +0000
+
+qtmir-gles (0.4.4+15.04.20150206-0ubuntu1) vivid; urgency=medium
+
+  [ Michał Sawicz ]
+  * Sync with upstream
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 06 Feb 2015 10:59:06 +0000
+
+qtmir-gles (0.4.4+15.04.20150115-0ubuntu1) vivid; urgency=medium
+
+  [ Michał Sawicz ]
+  * Sync with upstream
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 15 Jan 2015 15:59:48 +0000
+
+qtmir-gles (0.4.4+15.04.20150114-0ubuntu1) vivid; urgency=medium
+
+  [ Michał Sawicz ]
+  * Sync with upstream
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 14 Jan 2015 09:33:36 +0000
+
+qtmir-gles (0.4.4+15.04.20150109-0ubuntu1) vivid; urgency=medium
+
+  [ Michał Sawicz ]
+  * Sync with upstream
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Fri, 09 Jan 2015 17:55:35 +0000
+
+qtmir-gles (0.4.4+15.04.20150108.1-0ubuntu1) vivid; urgency=medium
+
+  [ Cemil Azizoglu ]
+  * Sync with upstream
+
+  [ Ubuntu daily release ]
+  * New rebuild forced
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Thu, 08 Jan 2015 15:02:52 +0000
 
 qtmir-gles (0.4.4+15.04.20141215-0ubuntu1) vivid; urgency=medium
 
