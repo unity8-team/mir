@@ -1,8 +1,12 @@
-qtmir-gles (0.4.4+15.04.20150227.1-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150227.1-0ubuntu1) vivid; urgency=medium
 
+  [ Kevin DuBois ]
   * Sync with upstream for mir 0.12.0
 
- -- Kevin DuBois <kevin.dubois@canonical.com>  Thu, 26 Feb 2015 14:07:05 -0500
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 27 Feb 2015 19:46:48 +0000
 
 qtmir-gles (0.4.4+15.04.20150220-0ubuntu1) vivid; urgency=medium
 
