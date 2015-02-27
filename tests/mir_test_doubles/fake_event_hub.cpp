@@ -531,7 +531,9 @@ void FakeEventHub::synthesize_event(const mis::ButtonParameters &parameters)
 void FakeEventHub::synthesize_event(const mis::MotionParameters &parameters)
 {
     RawEvent event;
-    event.when = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
+    static auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
+    time += std::chrono::seconds(1);
+    event.when = time;
     event.type = EV_REL;
     if (parameters.device_id)
         event.deviceId = parameters.device_id;
