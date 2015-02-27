@@ -599,7 +599,6 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
                     std::shared_ptr<mg::Buffer> buffer;
                     EXPECT_NO_THROW(buffer = q.compositor_acquire(this)->buffer());
                     EXPECT_THAT(buffer, Ne(nullptr));
-                    EXPECT_NO_THROW(buffer.reset());
                 }
                 std::this_thread::yield();
             }
