@@ -186,6 +186,8 @@ void mga::HwcDevice::content_cleared()
 void mga::HwcDevice::start_posting_external_display()
 {
     std::unique_lock<decltype(mutex)> lk(mutex);
+    if (needed_list_count == both_displays)
+        return;
     needed_list_count = both_displays;
     committed = false;
 }
@@ -193,6 +195,8 @@ void mga::HwcDevice::start_posting_external_display()
 void mga::HwcDevice::stop_posting_external_display()
 {
     std::unique_lock<decltype(mutex)> lk(mutex);
+    if (needed_list_count == primary_only)
+        return;
     lists[1] = nullptr;
     needed_list_count = primary_only;
     auto it = std::find_if(displays.begin(), displays.end(),

@@ -33,13 +33,22 @@ namespace
 {
 void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& rectangles)
 {
+    geom::Width width{std::numeric_limits<int>::max()};
+    geom::Height height{std::numeric_limits<int>::max()};
     conf.for_each_output(
-        [&rectangles](mg::DisplayConfigurationOutput const& output)
+        [&width,&height,&rectangles](mg::DisplayConfigurationOutput const& output)
         {
             if (output.power_mode == mir_power_mode_on &&
                 output.current_mode_index < output.modes.size())
-                rectangles.add({output.top_left, output.modes[output.current_mode_index].size});
+            {
+                auto output_size = output.modes[output.current_mode_index].size;
+
+                width = std::min(width, output_size.width);
+                height = std::min(height, output_size.height);
+            }
         });
+
+    rectangles.add({{0,0}, {width, height}});
 }
 }
 
