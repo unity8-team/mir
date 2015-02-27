@@ -1348,11 +1348,11 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     mc::BufferQueue q{nbuffers, allocator, basic_properties, policy_factory};
     q.allow_framedropping(true);
 
-    std::vector<std::shared_ptr<mc::BufferHandle>> buffers;
+    std::vector<std::shared_ptr<mc::BufferHandle>> buffer_handles;
 
     /* The client can never own this acquired buffer */
     auto comp_buffer_handle = q.compositor_acquire(this);
-    buffers.push_back(comp_buffer_handle);
+    buffer_handles.push_back(comp_buffer_handle);
 
     /* Let client release all possible buffers so they go into
      * the ready queue
@@ -1369,7 +1369,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     /* Let the compositor acquire all ready buffers */
     for (int i = 0; i < nbuffers; ++i)
     {
-        buffers.push_back(q.compositor_acquire(this));
+    	buffer_handles.push_back(q.compositor_acquire(this));
     }
 
     /* At this point the queue has 0 free buffers and 0 ready buffers
@@ -1382,8 +1382,8 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     if (!handle->has_acquired_buffer())
     {
         /* Release compositor buffers so that the client can get one */
-        for (auto& buffer : buffers)
-            buffer.reset();
+        for (auto& buf_handle : buffer_handles)
+        	buf_handle.reset();
 
         EXPECT_THAT(handle->has_acquired_buffer(), Eq(true));
     }
@@ -1457,16 +1457,16 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
             auto client_id = handle->id();
-            std::vector<std::shared_ptr<mc::BufferHandle>> buffers;
+            std::vector<std::shared_ptr<mc::BufferHandle>> buffer_handles;
             for (int j = 0; j < nbuffers; j++)
             {
                 auto buffer_handle = q.compositor_acquire(this);
                 ASSERT_THAT(client_id, Ne(buffer_handle->buffer()->id()));
-                buffers.push_back(buffer_handle);
+                buffer_handles.push_back(buffer_handle);
             }
 
-            for (auto& buffer: buffers)
-                buffer.reset();
+            for (auto& buf_handle: buffer_handles)
+                buf_handle.reset();
 
             handle->release_buffer();
 
@@ -1643,12 +1643,15 @@ TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_bu
 
     q.drop_old_buffers();
 
-    auto buffer_handle = q.compositor_acquire(this);
-    ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
-    buffer_handle.reset();
+    {
+        auto buffer_handle = q.compositor_acquire(this);
+        ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
+    }
 
-    buffer_handle = q.compositor_acquire(this);
-    ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
+    {
+        auto buffer_handle = q.compositor_acquire(this);
+        ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
+    }
 }
 
 TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_old_buffers)
