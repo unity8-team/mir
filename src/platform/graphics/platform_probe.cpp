@@ -40,7 +40,7 @@ mir::graphics::module_for_device(std::vector<std::shared_ptr<SharedLibrary>> con
 
             if (!contains(info->type, ModuleType::server_graphics_platform))
             {
-                ml::log(ml::Severity::informational,
+                ml::log(ml::Severity::debug,
                     std::string{"Not considering "} + info->name +  " as a graphics platform module",
                     "Platform Probing");
                 continue;
