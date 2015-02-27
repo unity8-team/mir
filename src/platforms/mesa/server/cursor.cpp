@@ -161,6 +161,16 @@ void mgm::Cursor::pad_and_write_image_data_locked(std::lock_guard<std::mutex> co
     write_buffer_data_locked(lg, &padded[0], padded_size);
 }
 
+void mgm::Cursor::show()
+{
+    if (!visible)
+    {
+        std::lock_guard<std::mutex> lg(guard);
+        visible = true;
+        place_cursor_at_locked(lg, current_position, ForceState);
+    }
+}
+
 void mgm::Cursor::show(CursorImage const& cursor_image)
 {
     std::lock_guard<std::mutex> lg(guard);
@@ -252,11 +262,17 @@ void mgm::Cursor::place_cursor_at_locked(
     if (!visible)
         return;
 
+    uint32_t override_id = 0;
+
     for_each_used_output([&](KMSOutput& output, geom::Rectangle const& output_rect, MirOrientation orientation)
     {
         if (output_rect.contains(position))
         {
-            auto dp = transform(output_rect, position - output_rect.top_left, orientation);
+            MirOrientation overridden = orientation;
+            if (end(overrides) != overrides.find(override_id))
+                overridden = overrides[override_id];
+
+            auto dp = transform(output_rect, position - output_rect.top_left, overridden);
             
             // It's a little strange that we implement hotspot this way as there is
             // drmModeSetCursor2 with hotspot support. However it appears to not actually
@@ -275,5 +291,12 @@ void mgm::Cursor::place_cursor_at_locked(
                 output.clear_cursor();
             }
         }
+        ++override_id;
     });
+}
+
+void mgm::Cursor::override_orientation(uint32_t screen, MirOrientation orientation)
+{
+    // there is no cache invalidation in this hack
+    overrides[screen] = orientation;
 }

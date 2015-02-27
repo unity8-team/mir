@@ -24,6 +24,7 @@
 
 #include <mutex>
 #include <map>
+#include <vector>
 
 namespace mir
 {
@@ -65,6 +66,7 @@ public:
 
     void pause_display_config_processing() override;
     void resume_display_config_processing() override;
+    void register_change_callback(std::function<void(graphics::DisplayConfiguration const&)> const& change_callback) override;
 
 private:
     void focus_change_handler(std::shared_ptr<Session> const& session);
@@ -75,6 +77,8 @@ private:
                       SystemStateHandling pause_resume_system);
     void apply_base_config(SystemStateHandling pause_resume_system);
     void send_config_to_all_sessions(
+        std::shared_ptr<graphics::DisplayConfiguration> const& conf);
+    void send_config_to_all_callbacks(
         std::shared_ptr<graphics::DisplayConfiguration> const& conf);
 
     std::shared_ptr<graphics::Display> const display;
@@ -90,6 +94,7 @@ private:
     std::weak_ptr<frontend::Session> focused_session;
     std::shared_ptr<graphics::DisplayConfiguration> base_configuration;
     bool base_configuration_applied;
+    std::vector<std::function<void(graphics::DisplayConfiguration const&)>> callbacks;
 };
 
 }

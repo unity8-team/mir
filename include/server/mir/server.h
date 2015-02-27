@@ -29,8 +29,8 @@ namespace mir
 {
 namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
 namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
-namespace graphics { class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
+namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
+namespace input { class InputRegion; class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
 namespace logging { class Logger; }
 namespace options { class Option; }
 namespace shell
@@ -286,6 +286,9 @@ public:
     /// \return the cursor listener.
     auto the_cursor_listener() const -> std::shared_ptr<input::CursorListener>;
 
+    /// \return the cursor
+    auto the_cursor() const -> std::shared_ptr<graphics::Cursor>;
+
     /// \return the focus controller.
     auto the_focus_controller() const -> std::shared_ptr<shell::FocusController>;
 
@@ -300,6 +303,9 @@ public:
 
     /// \return the input targeter.
     auto the_input_targeter() const -> std::shared_ptr<shell::InputTargeter>;
+
+    /// Sets an override functor for creating the input region.
+    auto the_input_region() const -> std::shared_ptr<input::InputRegion>;
 
     /// \return the logger.
     auto the_logger() const -> std::shared_ptr<logging::Logger>;

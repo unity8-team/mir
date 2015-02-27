@@ -48,7 +48,9 @@ namespace
 
 struct MockCursor : public mg::Cursor
 {
+    MOCK_METHOD0(show, void());
     MOCK_METHOD1(show, void(mg::CursorImage const&));
+    MOCK_METHOD2(override_orientation, void(uint32_t, MirOrientation));
     MOCK_METHOD0(hide, void());
 
     // We are not interested in mocking the motion in these tests as we

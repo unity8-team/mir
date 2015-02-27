@@ -48,9 +48,11 @@ public:
     {
         controller = std::make_shared<mia::PointerController>(mt::fake_shared(input_region), std::shared_ptr<mi::CursorListener>(),
                                                               std::make_shared<mtd::StubTouchVisualizer>());
+        using namespace ::testing;
+        ON_CALL(input_region,get_orientation(_)).WillByDefault(Return(mir_orientation_normal));
     }
 protected:
-    mtd::MockInputRegion input_region;
+    ::testing::NiceMock<mtd::MockInputRegion> input_region;
     std::shared_ptr<mia::PointerController> controller;
 };
 

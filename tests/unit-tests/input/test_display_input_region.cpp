@@ -19,7 +19,8 @@
 #include "src/server/input/display_input_region.h"
 
 #include "mir_test_doubles/null_display.h"
-#include "mir_test_doubles/stub_display_buffer.h"
+#include "mir_test_doubles/stub_display.h"
+#include "mir_test_doubles/stub_display_changer.h"
 
 #include <vector>
 #include <tuple>
@@ -33,37 +34,20 @@ namespace geom = mir::geometry;
 
 namespace
 {
-
-class StubDisplay : public mtd::NullDisplay
-{
-public:
-    StubDisplay()
-        : display_buffers{
-              mtd::StubDisplayBuffer{geom::Rectangle{geom::Point{0,0}, geom::Size{800,600}}},
-              mtd::StubDisplayBuffer{geom::Rectangle{geom::Point{0,600}, geom::Size{100,100}}},
-              mtd::StubDisplayBuffer{geom::Rectangle{geom::Point{800,0}, geom::Size{100,100}}}}
-    {
-
-    }
-
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f) override
-    {
-        for (auto& db : display_buffers)
-            f(db);
-    }
-
-private:
-    std::vector<mtd::StubDisplayBuffer> display_buffers;
+std::vector<geom::Rectangle> const rects{
+    geom::Rectangle{{0,0}, {800,600}},
+    geom::Rectangle{{0,600}, {100,100}},
+    geom::Rectangle{{800,0}, {100,100}}
 };
-
 }
 
 TEST(DisplayInputRegionTest, returns_correct_bounding_rectangle)
 {
     geom::Rectangle const expected_bounding_rect{geom::Point{0,0}, geom::Size{900,700}};
-    auto stub_display = std::make_shared<StubDisplay>();
+    auto stub_display = std::make_shared<mtd::StubDisplay>(rects);
+    auto stub_display_changer = std::make_shared<mtd::StubDisplayChanger>();
 
-    mi::DisplayInputRegion input_region{stub_display};
+    mi::DisplayInputRegion input_region{*stub_display->configuration(), stub_display_changer};
 
     auto rect = input_region.bounding_rectangle();
     EXPECT_EQ(expected_bounding_rect, rect);
@@ -71,9 +55,10 @@ TEST(DisplayInputRegionTest, returns_correct_bounding_rectangle)
 
 TEST(DisplayInputRegionTest, confines_point_to_closest_valid_position)
 {
-    auto stub_display = std::make_shared<StubDisplay>();
+    auto stub_display = std::make_shared<mtd::StubDisplay>(rects);
+    auto stub_display_changer = std::make_shared<mtd::StubDisplayChanger>();
 
-    mi::DisplayInputRegion input_region{stub_display};
+    mi::DisplayInputRegion input_region{*stub_display->configuration(), stub_display_changer};
 
     std::vector<std::tuple<geom::Point,geom::Point>> point_tuples{
         std::make_tuple(geom::Point{0,0}, geom::Point{0,0}),

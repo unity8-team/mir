@@ -327,12 +327,14 @@ MIR_SERVER_29 {
     mir::Server::supported_pixel_formats*;
     mir::Server::the_composite_event_filter*;
     mir::Server::the_compositor*;
+    mir::Server::the_cursor*;
     mir::Server::the_cursor_listener*;
     mir::Server::the_display*;
     mir::Server::the_focus_controller*;
     mir::Server::the_gl_config*;
     mir::Server::the_graphics_platform*;
     mir::Server::the_input_targeter*;
+    mir::Server::the_input_region*;
     mir::Server::the_logger*;
     mir::Server::the_main_loop*;
     mir::Server::the_prompt_session_listener*;
@@ -592,6 +594,7 @@ MIR_SERVER_29 {
     vtable?for?mir::input::InputChannel;
     vtable?for?mir::input::InputDispatcher;
     vtable?for?mir::input::InputManager;
+    vtable?for?mir::input::InputRegion;
     vtable?for?mir::input::Surface;
     vtable?for?mir::input::TouchVisualizer;
     vtable?for?mir::input::TouchVisualizer::Spot;

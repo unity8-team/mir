@@ -22,6 +22,8 @@
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_input_scene.h"
+#include "mir_test_doubles/stub_display.h"
+#include "mir_test_doubles/stub_display_changer.h"
 
 #include "mir_test/fake_shared.h"
 
@@ -80,12 +82,21 @@ private:
 
 struct SoftwareCursor : testing::Test
 {
+    std::vector<mir::geometry::Rectangle> regs{
+        mir::geometry::Rectangle{
+            mir::geometry::Point{0,0},
+            mir::geometry::Size{1024,768}
+        }};
+    mtd::StubDisplay stub_display{regs};
+    mtd::StubDisplayChanger stub_display_changer;
     StubCursorImage stub_cursor_image{{3,4}};
     StubCursorImage another_stub_cursor_image{{10,9}};
     mtd::StubBufferAllocator stub_buffer_allocator;
     testing::NiceMock<MockInputScene> mock_input_scene;
 
     mg::SoftwareCursor cursor{
+        *stub_display.configuration(),
+        mt::fake_shared(stub_display_changer),
         mt::fake_shared(stub_buffer_allocator),
         mt::fake_shared(mock_input_scene)};
 };
@@ -199,6 +210,25 @@ TEST_F(SoftwareCursor, notifies_scene_when_moving)
     cursor.move_to({22,23});
 }
 
+TEST_F(SoftwareCursor, multiple_shows_just_show)
+{
+    using namespace testing;
+
+    InSequence s;
+    EXPECT_CALL(mock_input_scene, add_input_visualization(_));
+
+    EXPECT_CALL(mock_input_scene, remove_input_visualization(_));
+    EXPECT_CALL(mock_input_scene, add_input_visualization(_));
+
+    EXPECT_CALL(mock_input_scene, remove_input_visualization(_)); // removal on destruction
+
+    cursor.show(stub_cursor_image);
+    cursor.hide();
+    cursor.show();
+    cursor.show();
+}
+
+
 TEST_F(SoftwareCursor, creates_renderable_with_filled_buffer)
 {
     using namespace testing;
@@ -288,6 +318,8 @@ TEST_F(SoftwareCursor, new_buffer_on_each_show)
         .Times(3)
         .WillRepeatedly(testing::Return(std::make_shared<mtd::StubBuffer>()));;
     mg::SoftwareCursor cursor{
+        *stub_display.configuration(),
+        mt::fake_shared(stub_display_changer),
         mt::fake_shared(mock_allocator),
         mt::fake_shared(mock_input_scene)};
     cursor.show(another_stub_cursor_image);

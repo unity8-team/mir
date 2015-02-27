@@ -22,13 +22,17 @@
 #include "mir/graphics/cursor.h"
 #include "mir_toolkit/client_types.h"
 #include "mir/geometry/displacement.h"
+#include "mir/geometry/overrides.h"
+#include "mir/geometry/rectangles.h"
 #include <mutex>
 
 namespace mir
 {
+class DisplayChanger;
 namespace input { class Scene; }
 namespace graphics
 {
+class DisplayConfiguration;
 class GraphicBufferAllocator;
 class Renderable;
 
@@ -41,24 +45,34 @@ class SoftwareCursor : public Cursor
 {
 public:
     SoftwareCursor(
+        mir::graphics::DisplayConfiguration const& inital_configuration,
+        std::shared_ptr<mir::DisplayChanger> const& display_changer,
         std::shared_ptr<GraphicBufferAllocator> const& allocator,
         std::shared_ptr<input::Scene> const& scene);
     ~SoftwareCursor();
 
+    void show() override;
     void show(CursorImage const& cursor_image) override;
     void hide() override;
     void move_to(geometry::Point position) override;
+    void override_orientation(uint32_t screen, MirOrientation) override;
 
 private:
     std::shared_ptr<detail::CursorRenderable> create_renderable_for(
         CursorImage const& cursor_image, geometry::Point position);
+
+    void update_visualization(std::shared_ptr<detail::CursorRenderable> renderable);
 
     std::shared_ptr<GraphicBufferAllocator> const allocator;
     std::shared_ptr<input::Scene> const scene;
     MirPixelFormat const format;
     std::mutex guard;
     std::shared_ptr<detail::CursorRenderable> renderable;
+    bool visible;
+    geometry::Point position;
     geometry::Displacement hotspot;
+    geometry::Overrides overrides;
+    geometry::Rectangles bounding_rectangle;
 };
 
 }
