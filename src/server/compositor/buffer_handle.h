@@ -33,13 +33,13 @@ class BufferBundle;
 class BufferHandle
 {
 public:
-    std::shared_ptr<graphics::Buffer> get_buffer();
+    std::shared_ptr<graphics::Buffer> buffer();
 
 protected:
     explicit BufferHandle(BufferBundle* bundle,
                  std::shared_ptr<graphics::Buffer> buffer);
     BufferBundle* buffer_bundle;
-    std::shared_ptr<graphics::Buffer> buffer;
+    std::shared_ptr<graphics::Buffer> wrapped;
 };
 
 class CompositorBufferHandle : public BufferHandle

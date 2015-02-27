@@ -39,12 +39,12 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
 std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_compositor_buffer(
     void const* user_id)
 {
-    return buffer_bundle->compositor_acquire(user_id)->get_buffer();
+    return buffer_bundle->compositor_acquire(user_id)->buffer();
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
-    return buffer_bundle->snapshot_acquire()->get_buffer();
+    return buffer_bundle->snapshot_acquire()->buffer();
 }
 
 void mc::BufferStreamSurfaces::acquire_client_buffer(

@@ -25,13 +25,13 @@ namespace mg = mir::graphics;
 mc::BufferHandle::BufferHandle(BufferBundle* bundle,
                                std::shared_ptr<mg::Buffer> buffer)
                                : buffer_bundle(bundle),
-                                 buffer(buffer)
+                                 wrapped(buffer)
 {
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferHandle::get_buffer()
+std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
 {
-    return buffer;
+    return wrapped;
 }
 
 mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
@@ -42,7 +42,7 @@ mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
 
 mc::CompositorBufferHandle::~CompositorBufferHandle()
 {
-	buffer_bundle->compositor_release(buffer.get());
+	buffer_bundle->compositor_release(wrapped.get());
 }
 
 mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
@@ -53,5 +53,5 @@ mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
 
 mc::SnapshotBufferHandle::~SnapshotBufferHandle()
 {
-	buffer_bundle->snapshot_release(buffer.get());
+	buffer_bundle->snapshot_release(wrapped.get());
 }
