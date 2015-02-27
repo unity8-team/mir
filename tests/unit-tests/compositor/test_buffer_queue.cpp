@@ -558,6 +558,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
         }
     }
 }
+
 TEST_F(BufferQueueTest, compositor_acquire_never_blocks_when_there_are_no_ready_buffers)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
