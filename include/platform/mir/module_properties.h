@@ -47,5 +47,5 @@ struct ModuleProperties
 extern "C" typedef ModuleProperties const*(*DescribeModule)();
 extern "C" ModuleProperties const* describe_module();
 }
-,
+
 #endif /* MIR_PLATFORM_MODULE_PROPERTIES_H_ */
