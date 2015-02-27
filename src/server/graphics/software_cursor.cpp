@@ -21,8 +21,8 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/pixel_format_utils.h"
 #include "mir/graphics/renderable.h"
-#include "mir/graphics/display.h"
-#include "mir/graphics/display_buffer.h"
+#include "mir/display_changer.h"
+#include "mir/graphics/display_configuration.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/input/scene.h"
 
@@ -35,6 +35,16 @@ namespace geom = mir::geometry;
 
 namespace
 {
+void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& rectangles)
+{
+    conf.for_each_output(
+        [&rectangles](mg::DisplayConfigurationOutput const& output)
+        {
+            if (output.power_mode == mir_power_mode_on &&
+                output.current_mode_index < output.modes.size())
+                rectangles.add({output.top_left, output.modes[output.current_mode_index].size});
+        });
+}
 geom::Point transform(float scale,
                       geom::Displacement const& vector,
                       geom::Displacement const& hotspot,
@@ -187,16 +197,23 @@ private:
 };
 
 mg::SoftwareCursor::SoftwareCursor(
-    std::shared_ptr<mg::Display> const& display,
+    mg::DisplayConfiguration const& intial_configuration,
+    std::shared_ptr<mir::DisplayChanger> const& display_changer,
     std::shared_ptr<mg::GraphicBufferAllocator> const& allocator,
     std::shared_ptr<mi::Scene> const& scene)
     : allocator{allocator},
       scene{scene},
       format{get_8888_format(allocator->supported_pixel_formats())},
       visible(false),
-      hotspot{0,0},
-      display{display}
+      hotspot{0,0}
 {
+    update_rectangles(intial_configuration, bounding_rectangle);
+    display_changer->register_change_callback(
+        [this](mg::DisplayConfiguration const& conf)
+        {
+            std::unique_lock<std::mutex> lock(guard);
+            update_rectangles(conf, bounding_rectangle);
+        });
 }
 
 mg::SoftwareCursor::~SoftwareCursor()
@@ -224,25 +241,17 @@ void mg::SoftwareCursor::update_visualization(std::shared_ptr<detail::CursorRend
     if (!cursor)
         return;
     uint32_t display_id = 0;
-    display->for_each_display_buffer(
-        [cursor,&display_id,this](DisplayBuffer const& buffer)
-        {
-            MirOrientation overridden = overrides.get_orientation(display_id, buffer.orientation());
+    MirOrientation overridden = overrides.get_orientation(display_id, mir_orientation_normal);
+    geom::Rectangle area = bounding_rectangle.bounding_rectangle();
 
-            if (!buffer.view_area().contains(position))
-                return;
+    auto displacement = transform(cursor->get_scale(),
+                                  position - area.top_left,
+                                  hotspot,
+                                  cursor->buffer()->size(),
+                                  overridden);
 
-            auto displacement = transform(cursor->get_scale(),
-                                          position - buffer.view_area().top_left,
-                                          hotspot,
-                                          cursor->buffer()->size(),
-                                          overridden);
-
-            cursor->move_to(displacement);
-            cursor->set_orientation(overridden);
-
-            ++display_id;
-        });
+    cursor->move_to(displacement);
+    cursor->set_orientation(overridden);
 }
 
 void mg::SoftwareCursor::show(CursorImage const& cursor_image)

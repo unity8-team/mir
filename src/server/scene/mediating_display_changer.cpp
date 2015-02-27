@@ -160,7 +160,14 @@ void ms::MediatingDisplayChanger::configure_for_hardware_change(
 
             /* Send the new configuration to all the sessions */
             send_config_to_all_sessions(conf);
+
+            send_config_to_all_callbacks(conf);
         });
+}
+
+void ms::MediatingDisplayChanger::register_change_callback(std::function<void(mg::DisplayConfiguration const&)> const& callback)
+{
+    callbacks.push_back(callback);
 }
 
 void ms::MediatingDisplayChanger::pause_display_config_processing()
@@ -208,6 +215,16 @@ void ms::MediatingDisplayChanger::send_config_to_all_sessions(
         {
             session->send_display_config(*conf);
         });
+}
+
+
+void ms::MediatingDisplayChanger::send_config_to_all_callbacks(
+    std::shared_ptr<mg::DisplayConfiguration> const& conf)
+{
+    for (auto const& callback : callbacks)
+    {
+        callback(*conf);
+    }
 }
 
 void ms::MediatingDisplayChanger::focus_change_handler(

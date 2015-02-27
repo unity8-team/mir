@@ -29,6 +29,7 @@
 #include "mir/graphics/gl_config.h"
 #include "mir/graphics/platform.h"
 #include "mir/graphics/cursor.h"
+#include "mir/graphics/display.h"
 #include "mir/graphics/platform_probe.h"
 #include "program_factory.h"
 
@@ -171,7 +172,8 @@ mir::DefaultServerConfiguration::the_cursor()
             mir::log_info("Using software cursor");
 
             auto const cursor = std::make_shared<mg::SoftwareCursor>(
-                the_display(), // hack
+                *the_display()->configuration(), // hack
+                the_display_changer(), // hack
                 the_buffer_allocator(),
                 the_input_scene());
 

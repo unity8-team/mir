@@ -47,6 +47,8 @@
 #include "mir/input/touch_visualizer.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
+#include "mir/graphics/display.h"
+#include "mir/graphics/display_configuration.h"
 #include "mir/compositor/scene.h"
 #include "mir/report/legacy_input_report.h"
 #include "mir/main_loop.h"
@@ -68,7 +70,7 @@ std::shared_ptr<mi::InputRegion> mir::DefaultServerConfiguration::the_input_regi
     return input_region(
         [this]()
         {
-            return std::make_shared<mi::DisplayInputRegion>(the_display());
+            return std::make_shared<mi::DisplayInputRegion>(*the_display()->configuration(), the_display_changer());
         });
 }
 

@@ -17,8 +17,8 @@
  */
 
 #include "display_input_region.h"
-#include "mir/graphics/display.h"
-#include "mir/graphics/display_buffer.h"
+#include "mir/graphics/display_configuration.h"
+#include "mir/display_changer.h"
 
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/rectangles.h"
@@ -29,57 +29,56 @@ namespace mi = mir::input;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
 
-mi::DisplayInputRegion::DisplayInputRegion(
-    std::shared_ptr<mg::Display> const& display)
-    : display{display}
+namespace
 {
+void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& rectangles)
+{
+    conf.for_each_output(
+        [&rectangles](mg::DisplayConfigurationOutput const& output)
+        {
+            if (output.power_mode == mir_power_mode_on &&
+                output.current_mode_index < output.modes.size())
+                rectangles.add({output.top_left, output.modes[output.current_mode_index].size});
+        });
+}
+}
+
+mi::DisplayInputRegion::DisplayInputRegion(
+    mg::DisplayConfiguration const& initial_conf,
+    std::shared_ptr<mir::DisplayChanger> const& display_changer)
+{
+    update_rectangles(initial_conf, rectangles);
+    display_changer->register_change_callback(
+        [this](mg::DisplayConfiguration const& conf)
+        {
+            std::unique_lock<std::mutex> lock(rectangles_lock);
+            update_rectangles(conf, rectangles);
+        });
 }
 
 void mi::DisplayInputRegion::override_orientation(uint32_t display_id, MirOrientation orientation)
 {
+    std::unique_lock<std::mutex> lock(rectangles_lock);
     overrides.add_override(display_id, orientation);
 }
 
-MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& point)
+MirOrientation mi::DisplayInputRegion::get_orientation(geometry::Point const& /*point*/)
 {
+    std::unique_lock<std::mutex> lock(rectangles_lock);
     uint32_t display_id = 0;
     MirOrientation orientation = mir_orientation_normal;
 
-    display->for_each_display_buffer(
-        [this,&display_id,point,&orientation](mg::DisplayBuffer const& buffer)
-        {
-            if (buffer.view_area().contains(point))
-            {
-                orientation = overrides.get_orientation(display_id, buffer.orientation());
-            }
-            ++ display_id;
-        });
-
-    return orientation;
+    return overrides.get_orientation(display_id, orientation);
 }
 
 geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
 {
-    geom::Rectangles rectangles;
-
-    display->for_each_display_buffer(
-        [&rectangles,this](mg::DisplayBuffer const& buffer)
-        {
-            rectangles.add(buffer.view_area());
-        });
-
+    std::unique_lock<std::mutex> lock(rectangles_lock);
     return rectangles.bounding_rectangle();
 }
 
 void mi::DisplayInputRegion::confine(geom::Point& point)
 {
-    geom::Rectangles rectangles;
-
-    display->for_each_display_buffer(
-        [&rectangles,this](mg::DisplayBuffer const& buffer)
-        {
-            rectangles.add(buffer.view_area());
-        });
-
+    std::unique_lock<std::mutex> lock(rectangles_lock);
     rectangles.confine(point);
 }

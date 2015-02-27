@@ -23,14 +23,16 @@
 #include "mir_toolkit/client_types.h"
 #include "mir/geometry/displacement.h"
 #include "mir/geometry/overrides.h"
+#include "mir/geometry/rectangles.h"
 #include <mutex>
 
 namespace mir
 {
+class DisplayChanger;
 namespace input { class Scene; }
 namespace graphics
 {
-class Display;
+class DisplayConfiguration;
 class GraphicBufferAllocator;
 class Renderable;
 
@@ -43,7 +45,8 @@ class SoftwareCursor : public Cursor
 {
 public:
     SoftwareCursor(
-        std::shared_ptr<mir::graphics::Display> const& display,
+        mir::graphics::DisplayConfiguration const& inital_configuration,
+        std::shared_ptr<mir::DisplayChanger> const& display_changer,
         std::shared_ptr<GraphicBufferAllocator> const& allocator,
         std::shared_ptr<input::Scene> const& scene);
     ~SoftwareCursor();
@@ -69,7 +72,7 @@ private:
     geometry::Point position;
     geometry::Displacement hotspot;
     geometry::Overrides overrides;
-    std::shared_ptr<mir::graphics::Display> display;
+    geometry::Rectangles bounding_rectangle;
 };
 
 }
