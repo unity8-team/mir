@@ -82,7 +82,7 @@ private:
 
     BufferObject* last_flipped_bufobj;
     BufferObject* scheduled_bufobj;
-    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
+    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf, scheduled_bypass_buf;
     std::shared_ptr<graphics::Renderable> bypass_candidate;
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;

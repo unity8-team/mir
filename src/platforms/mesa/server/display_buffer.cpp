@@ -233,19 +233,10 @@ void mgm::DisplayBuffer::post()
      */
     wait_for_page_flip();
 
-    /*
-     * Switching from bypass to compositing? Now is the earliest safe time
-     * we can unreference the bypass buffer...
-     */
-    if (scheduled_bufobj)
-        last_flipped_bypass_buf = nullptr;
-    /*
-     * Release the last flipped buffer object (which is not displayed anymore)
-     * to make it available for future rendering.
-     */
-    if (last_flipped_bufobj)
-        last_flipped_bufobj->release();
+    last_flipped_bypass_buf = scheduled_bypass_buf;
+    scheduled_bypass_buf = nullptr;
 
+    if (last_flipped_bufobj) last_flipped_bufobj->release();
     last_flipped_bufobj = scheduled_bufobj;
     scheduled_bufobj = nullptr;
 
@@ -259,9 +250,9 @@ void mgm::DisplayBuffer::post_bypass()
 {
     if (outputs.size() == 1)
     {
-        last_flipped_bypass_buf = nullptr;
-
-        // TODO: wait for vblank here
+        //mir::log_info("Start wait");
+        //outputs.front()->wait_for_vblank();
+        //mir::log_info("Done wait");
     }
 
     auto bypass_buf = bypass_candidate->buffer();
@@ -281,25 +272,19 @@ void mgm::DisplayBuffer::post_bypass()
     {
         set_crtc(*bufobj);  // regardless of outputs.size()
     }
-    else if (outputs.size() > 1)
-    {
-        if (!schedule_page_flip(bufobj))
-            fatal_error("Failed to schedule page flip");
-    }
     else
     {
         mir::log_info("Start reset");
+#if 1
+        if (!schedule_page_flip(bufobj))
+            fatal_error("Failed to schedule page flip");
+#else
         set_crtc(*bufobj);
+#endif
         mir::log_info("Done reset");
     }
 
-    /*
-     * Keep a reference to the buffer being bypassed for the entire
-     * duration of the frame. This ensures the buffer doesn't get reused by
-     * the client while its on-screen, which would be seen as tearing or
-     * worse.
-     */
-    last_flipped_bypass_buf = bypass_buf;
+    scheduled_bypass_buf = bypass_buf;
 }
 
 void mgm::DisplayBuffer::post_egl()
@@ -344,6 +329,7 @@ void mgm::DisplayBuffer::post_egl()
     }
 
     scheduled_bufobj = bufobj;
+    scheduled_bypass_buf = nullptr;
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()

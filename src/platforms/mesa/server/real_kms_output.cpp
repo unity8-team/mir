@@ -378,3 +378,21 @@ void mgm::RealKMSOutput::set_power_mode(MirPowerMode mode)
                                    dpms_enum_id, mode);
     }
 }
+
+void mgm::RealKMSOutput::wait_for_vblank()
+{
+    static unsigned int next = 0; // FIXME: not static
+
+    drmVBlank v;
+    v.request.type =
+        drmVBlankSeqType(DRM_VBLANK_ABSOLUTE);
+    v.request.sequence = next;
+    v.request.signal = 0;
+
+    int err = drmWaitVBlank(drm_fd, &v);
+    fprintf(stderr, "Wait for = %d (%s), got %u\n", err, strerror(err),
+        v.reply.sequence);
+
+    if (!err)
+        next = v.reply.sequence + 1;
+}
