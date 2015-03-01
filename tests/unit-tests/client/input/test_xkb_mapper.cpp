@@ -32,26 +32,24 @@ namespace
 
 static int map_key(mircv::XKBMapper &mapper, MirKeyAction action, int scan_code)
 {
-    MirEvent ev;
-    ev.type = mir_event_type_key;
-    ev.key.action = action;
-    ev.key.scan_code = scan_code;
-    ev.key.repeat_count = 0;
+    MirKeyEvent ev;
+    ev.action = action;
+    ev.scan_code = scan_code;
+    ev.repeat_count = 0;
 
     mapper.update_state_and_map_event(ev);
-    return ev.key.key_code;
+    return ev.key_code;
 }
 
 static int map_repeated_key(mircv::XKBMapper &mapper, MirKeyAction action, int scan_code)
 {
-    MirEvent ev;
-    ev.type = mir_event_type_key;
-    ev.key.action = action;
-    ev.key.scan_code = scan_code;
-    ev.key.repeat_count = 1;
+    MirKeyEvent ev;
+    ev.action = action;
+    ev.scan_code = scan_code;
+    ev.repeat_count = 1;
 
     mapper.update_state_and_map_event(ev);
-    return ev.key.key_code;
+    return ev.key_code;
 }
 
 }

@@ -34,7 +34,9 @@ T clamp(T x, T min, T max)
 
 geom::Rectangle rect_from_points(geom::Point const& tl, geom::Point const& br)
 {
-    return {tl, as_size(br-tl)};
+    return {tl,
+            geom::Size{geom::Width{br.x.as_int() - tl.x.as_int()},
+                       geom::Height{br.y.as_int() - tl.y.as_int()}}};
 }
 
 }

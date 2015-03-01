@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -107,19 +107,18 @@ void me::add_test_client_option_to(mir::Server& server, std::atomic<bool>& test_
             }
             else if (pid > 0)
             {
-                static auto const kill_action = server.the_main_loop()->create_alarm(
+                static auto const kill_action = server.the_main_loop()->notify_in(
+                    std::chrono::seconds(options->get<int>(test_timeout_opt)),
                     [pid]{ kill(pid, SIGTERM); });
 
-                static auto const exit_action = server.the_main_loop()->create_alarm(
+                static auto const exit_action = server.the_main_loop()->notify_in(
+                    std::chrono::seconds(options->get<int>(test_timeout_opt)+1),
                     [pid, &server, &test_failed]
                     {
                         if (!exit_success(pid))
                             test_failed = true;
                         server.stop();
                     });
-
-                kill_action->reschedule_in(std::chrono::seconds(options->get<int>(test_timeout_opt)));
-                exit_action->reschedule_in(std::chrono::seconds(options->get<int>(test_timeout_opt)+1));
             }
             else
             {

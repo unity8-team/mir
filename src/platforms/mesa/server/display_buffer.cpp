@@ -204,22 +204,11 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
         if (bypass_it != renderable_list.rend())
         {
-            auto bypass_buffer = (*bypass_it)->buffer();
-            auto native = bypass_buffer->native_buffer_handle();
-            auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
-            auto bufobj = get_buffer_object(gbm_native->bo);
-            if (bufobj &&
-                native->flags & mir_buffer_flag_can_scanout &&
-                bypass_buffer->size() == geom::Size{fb_width,fb_height})
+            auto bypass_buf = (*bypass_it)->buffer();
+            if ((bypass_buf->native_buffer_handle()->flags & mir_buffer_flag_can_scanout) &&
+                bypass_buf->size() == geom::Size{fb_width,fb_height})
             {
-                bypass_buf = bypass_buffer;
-                bypass_bufobj = bufobj;
-                return true;
-            }
-            else
-            {
-                bypass_buf = nullptr;
-                bypass_bufobj = nullptr;
+                return flip(bypass_buf);
             }
         }
     }
@@ -227,21 +216,19 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
     return false;
 }
 
-void mgm::DisplayBuffer::for_each_display_buffer(
-    std::function<void(graphics::DisplayBuffer&)> const& f)
+void mgm::DisplayBuffer::flip()
 {
-    f(*this);
+    flip(nullptr);
 }
 
 void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
-    bypass_buf = nullptr;
-    bypass_bufobj = nullptr;
 }
 
-void mgm::DisplayBuffer::post()
+bool mgm::DisplayBuffer::flip(
+    std::shared_ptr<graphics::Buffer> bypass_buf)
 {
     /*
      * We might not have waited for the previous frame to page flip yet.
@@ -270,7 +257,12 @@ void mgm::DisplayBuffer::post()
     mgm::BufferObject *bufobj;
     if (bypass_buf)
     {
-        bufobj = bypass_bufobj;
+        auto native = bypass_buf->native_buffer_handle();
+        auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
+        bufobj = get_buffer_object(gbm_native->bo);
+        // If bypass fails, just fall back to compositing.
+        if (!bufobj)
+            return false;
     }
     else
     {
@@ -353,6 +345,8 @@ void mgm::DisplayBuffer::post()
 
         scheduled_bufobj = bufobj;
     }
+
+    return true;
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()

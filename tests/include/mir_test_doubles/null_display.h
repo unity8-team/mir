@@ -22,7 +22,7 @@
 #include "mir/graphics/display.h"
 #include "null_gl_context.h"
 #include "null_display_configuration.h"
-#include "null_display_sync_group.h"
+#include <thread>
 
 namespace mir
 {
@@ -34,9 +34,10 @@ namespace doubles
 class NullDisplay : public graphics::Display
 {
  public:
-    void for_each_display_sync_group(std::function<void(graphics::DisplaySyncGroup&)> const& f) override
+    void for_each_display_buffer(std::function<void(graphics::DisplayBuffer&)> const&) override
     {
-        f(group);
+        /* yield() is needed to ensure reasonable runtime under valgrind for some tests */
+        std::this_thread::yield();
     }
     std::unique_ptr<graphics::DisplayConfiguration> configuration() const override
     {
@@ -65,7 +66,6 @@ class NullDisplay : public graphics::Display
     {
         return std::unique_ptr<NullGLContext>{new NullGLContext()};
     }
-    NullDisplaySyncGroup group;
 };
 
 }

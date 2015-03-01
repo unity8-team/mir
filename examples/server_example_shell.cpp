@@ -18,7 +18,6 @@
 
 #include "server_example_shell.h"
 #include "server_example_tiling_window_manager.h"
-#include "server_example_canonical_window_manager.h"
 #include "server_example_basic_window_manager.h"
 
 #include "mir/abnormal_exit.h"
@@ -39,13 +38,12 @@ using namespace mir::geometry;
 /// Demonstrate a shell supporting selection of a window manager
 
 char const* const me::wm_option = "window-manager";
-char const* const me::wm_description = "window management strategy [{tiling|fullscreen|canonical}]";
+char const* const me::wm_description = "window management strategy [{tiling|fullscreen}]";
 
 namespace
 {
 char const* const wm_tiling = "tiling";
 char const* const wm_fullscreen = "fullscreen";
-char const* const wm_canonical = "canonical";
 
 struct NullSessionInfo
 {
@@ -110,7 +108,6 @@ private:
 
 using TilingWindowManager = me::BasicWindowManager<me::TilingWindowManagerPolicy, me::TilingSessionInfo, me::TilingSurfaceInfo>;
 using FullscreenWindowManager = me::BasicWindowManager<FullscreenWindowManagerPolicy, NullSessionInfo, NullSurfaceInfo>;
-using CanonicalWindowManager = me::BasicWindowManager<me::CanonicalWindowManagerPolicy, me::CanonicalSessionInfo, me::CanonicalSurfaceInfo>;
 
 auto me::ShellFactory::shell() -> std::shared_ptr<me::Shell>
 {
@@ -121,27 +118,20 @@ auto me::ShellFactory::shell() -> std::shared_ptr<me::Shell>
         auto const options = server.get_options();
         auto const selection = options->get<std::string>(wm_option);
 
-        std::function<std::shared_ptr<WindowManager>(me::FocusController* focus_controller)> wm_builder;
+        std::function<std::shared_ptr<WindowManager>(shell::FocusController* focus_controller)> wm_builder;
 
         if (selection == wm_tiling)
         {
-            wm_builder = [this](me::FocusController* focus_controller) -> std::shared_ptr<WindowManager>
+            wm_builder = [this](msh::FocusController* focus_controller) -> std::shared_ptr<WindowManager>
                 {
                     return std::make_shared<TilingWindowManager>(focus_controller);
                 };
         }
         else if (selection == wm_fullscreen)
         {
-            wm_builder = [this](me::FocusController* focus_controller) -> std::shared_ptr<WindowManager>
+            wm_builder = [this](msh::FocusController* focus_controller) -> std::shared_ptr<WindowManager>
                 {
                     return std::make_shared<FullscreenWindowManager>(focus_controller, server.the_shell_display_layout());
-                };
-        }
-        else if (selection == wm_canonical)
-        {
-            wm_builder = [this](me::FocusController* focus_controller) -> std::shared_ptr<WindowManager>
-                {
-                    return std::make_shared<CanonicalWindowManager>(focus_controller);
                 };
         }
         else

@@ -141,6 +141,8 @@ void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
         // flip() ...
         // FIXME: This clear() call is blocking a little (LP: #1395421)
         renderable_list.clear();
+
+        display_buffer.flip();
     }
 
     report->finished_frame(this);

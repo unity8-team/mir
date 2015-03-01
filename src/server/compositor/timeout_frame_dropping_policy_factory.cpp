@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,11 +14,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
- *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 #include "mir/compositor/frame_dropping_policy.h"
-#include "mir/lockable_callback_wrapper.h"
 
 #include "timeout_frame_dropping_policy_factory.h"
 
@@ -34,9 +32,9 @@ namespace
 class TimeoutFrameDroppingPolicy : public mc::FrameDroppingPolicy
 {
 public:
-    TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::AlarmFactory> const& factory,
+    TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                std::chrono::milliseconds timeout,
-                               std::shared_ptr<mir::LockableCallback> const& drop_frame);
+                               std::function<void(void)> drop_frame);
 
     void swap_now_blocking() override;
     void swap_unblocked() override;
@@ -50,15 +48,18 @@ private:
     std::unique_ptr<mir::time::Alarm> const alarm;
 };
 
-TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::AlarmFactory> const& factory,
+TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                                        std::chrono::milliseconds timeout,
-                                                       std::shared_ptr<mir::LockableCallback> const& callback)
+                                                       std::function<void(void)> drop_frame)
     : timeout{timeout},
       pending_swaps{0},
-      alarm{factory->create_alarm(
-          std::make_shared<mir::LockableCallbackWrapper>(callback,
-              [this] { assert(pending_swaps.load() > 0); },
-              [this] { if (--pending_swaps > 0) alarm->reschedule_in(this->timeout);} ))}
+      alarm{timer->create_alarm([this, drop_frame]
+        {
+            assert(pending_swaps.load() > 0);
+            drop_frame();
+            if (--pending_swaps > 0)
+                alarm->reschedule_in(this->timeout);
+        })}
 {
 }
 
@@ -80,16 +81,15 @@ void TimeoutFrameDroppingPolicy::swap_unblocked()
 }
 }
 
-mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(
-    std::shared_ptr<mir::time::AlarmFactory> const& timer,
-    std::chrono::milliseconds timeout)
-    : factory{timer},
+mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(std::shared_ptr<mir::time::Timer> const& timer,
+                                                                         std::chrono::milliseconds timeout)
+    : timer{timer},
       timeout{timeout}
 {
 }
 
-std::unique_ptr<mc::FrameDroppingPolicy>
-mc::TimeoutFrameDroppingPolicyFactory::create_policy(std::shared_ptr<LockableCallback> const& drop_frame) const
+
+std::unique_ptr<mc::FrameDroppingPolicy> mc::TimeoutFrameDroppingPolicyFactory::create_policy(std::function<void ()> drop_frame) const
 {
-    return std::make_unique<TimeoutFrameDroppingPolicy>(factory, timeout, drop_frame);
+    return std::make_unique<TimeoutFrameDroppingPolicy>(timer, timeout, drop_frame);
 }

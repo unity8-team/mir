@@ -25,7 +25,6 @@
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
-#include "mir/geometry/displacement.h"
 
 #include "mir/scene/scene_report.h"
 
@@ -105,12 +104,6 @@ void ms::SurfaceObservers::client_surface_close_requested()
 {
     for_each([](std::shared_ptr<SurfaceObserver> const& observer)
         { observer->client_surface_close_requested(); });
-}
-
-void ms::SurfaceObservers::keymap_changed(xkb_rule_names const& rules)
-{
-    for_each([&rules](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->keymap_changed(rules); });
 }
 
 
@@ -330,7 +323,8 @@ bool ms::BasicSurface::input_area_contains(geom::Point const& point) const
         return true;
 
     // TODO: Perhaps creates some issues with transformation.
-    auto local_point = geom::Point{0, 0} + (point-surface_rect.top_left);
+    auto local_point = geom::Point{geom::X{point.x.as_uint32_t()-surface_rect.top_left.x.as_uint32_t()},
+                                   geom::Y{point.y.as_uint32_t()-surface_rect.top_left.y.as_uint32_t()}};
 
     for (auto const& rectangle : custom_input_rectangles)
     {
@@ -747,9 +741,4 @@ int ms::BasicSurface::buffers_ready_for_compositor(void const* id) const
 void ms::BasicSurface::consume(MirEvent const& event)
 {
     input_sender->send_event(event, server_input_channel);
-}
-
-void ms::BasicSurface::set_keymap(xkb_rule_names const& rules)
-{
-    observers.keymap_changed(rules);
 }

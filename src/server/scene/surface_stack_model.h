@@ -24,12 +24,9 @@
 #include "mir/input/input_reception_mode.h"
 
 #include <memory>
-#include <set>
 
 namespace mir
 {
-namespace geometry { class Point; }
-
 namespace scene
 {
 class Surface;
@@ -37,9 +34,7 @@ class Surface;
 class SurfaceStackModel
 {
 public:
-    using SurfaceSet = std::set<std::weak_ptr<Surface>, std::owner_less<std::weak_ptr<Surface>>>;
-
-    virtual ~SurfaceStackModel() = default;
+    virtual ~SurfaceStackModel() {}
 
     virtual void add_surface(
         std::shared_ptr<Surface> const& surface,
@@ -49,10 +44,6 @@ public:
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) = 0;
 
     virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
-
-    virtual void raise(SurfaceSet const& surfaces) = 0;
-
-    virtual auto surface_at(geometry::Point) const -> std::shared_ptr<Surface> = 0;
 
 protected:
     SurfaceStackModel() = default;

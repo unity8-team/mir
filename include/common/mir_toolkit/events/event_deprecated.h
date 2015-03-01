@@ -29,8 +29,6 @@
 #include <stdint.h>
 #include "mir_toolkit/common.h"
 
-#include <xkbcommon/xkbcommon.h>
-
 #ifdef __cplusplus
 /**
  * \addtogroup mir_toolkit
@@ -236,17 +234,9 @@ struct MirCloseSurfaceEvent
     int surface_id;
 };
 
-struct MirKeymapEvent
-{
-    MirEventType type;
-
-    int surface_id;
-    struct xkb_rule_names rules;
-};
-
-// Access to MirEvent is deprecated
 union MirEvent
 {
+    // Direct access to the type member is deprecated. Instead use mir_event_get_type. 
     MirEventType    type;
     MirKeyEvent     key;
     MirMotionEvent  motion;
@@ -255,7 +245,6 @@ union MirEvent
     MirPromptSessionEvent  prompt_session;
     MirOrientationEvent orientation;
     MirCloseSurfaceEvent   close_surface;
-    MirKeymapEvent keymap;
 };
 
 #ifdef __cplusplus

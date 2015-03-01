@@ -53,26 +53,22 @@ void render_loop(mir::Server& server)
 
     mir::draw::glAnimationBasic gl_animation;
 
-    display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group)
+    display->for_each_display_buffer([&](mg::DisplayBuffer& buffer)
     {
-        group.for_each_display_buffer([&](mg::DisplayBuffer& buffer)
-        {
-            buffer.make_current();
-            gl_animation.init_gl();
-        });
+        buffer.make_current();
+        gl_animation.init_gl();
     });
 
     while (running)
     {
-        display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group)
+        display->for_each_display_buffer([&](mg::DisplayBuffer& buffer)
         {
-            group.for_each_display_buffer([&](mg::DisplayBuffer& buffer)
-            {
-                buffer.make_current();
-                gl_animation.render_gl();
-                buffer.gl_swap_buffers();
-            });
-            group.post();
+            buffer.make_current();
+
+            gl_animation.render_gl();
+
+            buffer.gl_swap_buffers();
+            buffer.flip();
         });
 
         gl_animation.step();

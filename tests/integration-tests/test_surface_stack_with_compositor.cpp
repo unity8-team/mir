@@ -30,8 +30,6 @@
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_input_sender.h"
-#include "mir_test_doubles/null_surface_configurator.h"
-#include "mir_test_doubles/null_display_sync_group.h"
 
 #include <condition_variable>
 #include <mutex>
@@ -58,14 +56,23 @@ public:
     }
 };
 
-struct CountingDisplaySyncGroup : public mtd::StubDisplaySyncGroup
+struct CountingDisplayBuffer : public mtd::StubDisplayBuffer
 {
-    CountingDisplaySyncGroup() :
-    mtd::StubDisplaySyncGroup({100,100})
+    CountingDisplayBuffer() :
+        StubDisplayBuffer({{0,0}, {10, 10}})
     {
     }
 
-    void post() override
+    bool post_renderables_if_optimizable(mg::RenderableList const&) override
+    {
+        return false;
+    }
+
+    void gl_swap_buffers() override
+    {
+    }
+
+    void flip() override
     {
         increment_post_count();
     }
@@ -94,19 +101,19 @@ private:
 
 struct StubDisplay : public mtd::NullDisplay
 {
-    StubDisplay(mg::DisplaySyncGroup& primary, mg::DisplaySyncGroup& secondary)
+    StubDisplay(mg::DisplayBuffer& primary, mg::DisplayBuffer& secondary)
       : primary(primary),
         secondary(secondary)
     {
     } 
-    void for_each_display_sync_group(std::function<void(mg::DisplaySyncGroup&)> const& fn) override
+    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& fn) override
     {
         fn(primary);
         fn(secondary);
     }
 private:
-    mg::DisplaySyncGroup& primary;
-    mg::DisplaySyncGroup& secondary;
+    mg::DisplayBuffer& primary;
+    mg::DisplayBuffer& secondary;
 };
 
 struct SurfaceStackCompositor : public testing::Test
@@ -137,8 +144,8 @@ struct SurfaceStackCompositor : public testing::Test
     std::shared_ptr<ms::BasicSurface> stub_surface;
     ms::SurfaceCreationParameters default_params;
     mtd::StubBuffer stubbuf;
-    CountingDisplaySyncGroup stub_primary_db;
-    CountingDisplaySyncGroup stub_secondary_db;
+    CountingDisplayBuffer stub_primary_db;
+    CountingDisplayBuffer stub_secondary_db;
     StubDisplay stub_display{stub_primary_db, stub_secondary_db};
     mc::DefaultDisplayBufferCompositorFactory dbc_factory{
         mt::fake_shared(renderer_factory),

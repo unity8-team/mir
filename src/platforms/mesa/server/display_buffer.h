@@ -20,7 +20,6 @@
 #define MIR_GRAPHICS_MESA_DISPLAY_BUFFER_H_
 
 #include "mir/graphics/display_buffer.h"
-#include "mir/graphics/display.h"
 #include "display_helpers.h"
 
 #include <vector>
@@ -42,8 +41,7 @@ class Platform;
 class BufferObject;
 class KMSOutput;
 
-class DisplayBuffer : public graphics::DisplayBuffer,
-                      public graphics::DisplaySyncGroup
+class DisplayBuffer : public graphics::DisplayBuffer
 {
 public:
     DisplayBuffer(std::shared_ptr<Platform> const& platform,
@@ -60,11 +58,8 @@ public:
     void make_current() override;
     void release_current() override;
     void gl_swap_buffers() override;
+    void flip() override;
     bool post_renderables_if_optimizable(RenderableList const& renderlist) override;
-
-    void for_each_display_buffer(
-        std::function<void(graphics::DisplayBuffer&)> const& f) override;
-    void post() override;
 
     MirOrientation orientation() const override;
     void set_orientation(MirOrientation const rot, geometry::Rectangle const& a);
@@ -73,6 +68,8 @@ public:
     void wait_for_page_flip();
 
 private:
+    bool flip(std::shared_ptr<graphics::Buffer> bypass_buf);
+
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
     bool schedule_page_flip(BufferObject* bufobj);
@@ -80,8 +77,6 @@ private:
     BufferObject* last_flipped_bufobj;
     BufferObject* scheduled_bufobj;
     std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf;
-    std::shared_ptr<Buffer> bypass_buf{nullptr};
-    BufferObject* bypass_bufobj{nullptr};
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;
     /* DRM helper from mgm::Platform */

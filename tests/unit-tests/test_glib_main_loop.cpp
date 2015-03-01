@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -14,7 +14,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
- *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 #include "mir/glib_main_loop.h"
@@ -22,10 +21,8 @@
 
 #include "mir_test/signal.h"
 #include "mir_test/pipe.h"
-#include "mir_test/fake_shared.h"
 #include "mir_test/auto_unblock_thread.h"
 #include "mir_test_doubles/advanceable_clock.h"
-#include "mir_test_doubles/mock_lockable_callback.h"
 #include "mir_test_framework/process.h"
 
 #include <gtest/gtest.h>
@@ -800,22 +797,21 @@ TEST_F(GLibMainLoopAlarmTest, main_loop_runs_until_stop_called)
 {
     auto mainloop_started = std::make_shared<mt::Signal>();
 
-    auto fire_on_mainloop_start = ml.create_alarm([mainloop_started]()
+    auto fire_on_mainloop_start = ml.notify_in(std::chrono::milliseconds{0},
+                                               [mainloop_started]()
     {
         mainloop_started->raise();
     });
-    fire_on_mainloop_start->reschedule_in(std::chrono::milliseconds{0});
 
     UnblockMainLoop unblocker(ml);
 
     ASSERT_TRUE(mainloop_started->wait_for(std::chrono::milliseconds{100}));
 
     auto timer_fired = std::make_shared<mt::Signal>();
-    auto alarm = ml.create_alarm([timer_fired]
+    auto alarm = ml.notify_in(std::chrono::milliseconds{10}, [timer_fired]
     {
         timer_fired->raise();
     });
-    alarm->reschedule_in(std::chrono::milliseconds{10});
 
     clock->advance_by(std::chrono::milliseconds{10}, ml);
     EXPECT_TRUE(timer_fired->wait_for(std::chrono::milliseconds{500}));
@@ -824,30 +820,29 @@ TEST_F(GLibMainLoopAlarmTest, main_loop_runs_until_stop_called)
 
     // Main loop should be stopped now
     timer_fired = std::make_shared<mt::Signal>();
-    auto should_not_fire = ml.create_alarm([timer_fired]()
+    auto should_not_fire =  ml.notify_in(std::chrono::milliseconds{0},
+                                         [timer_fired]()
     {
         timer_fired->raise();
     });
-    should_not_fire->reschedule_in(std::chrono::milliseconds{0});
 
     EXPECT_FALSE(timer_fired->wait_for(std::chrono::milliseconds{10}));
 }
 
 TEST_F(GLibMainLoopAlarmTest, alarm_starts_in_pending_state)
 {
-    auto alarm = ml.create_alarm([]{});
+    auto alarm = ml.notify_in(delay, [this]() {});
 
     UnblockMainLoop unblocker(ml);
 
-    EXPECT_EQ(mir::time::Alarm::cancelled, alarm->state());
+    EXPECT_EQ(mir::time::Alarm::pending, alarm->state());
 }
 
 TEST_F(GLibMainLoopAlarmTest, alarm_fires_with_correct_delay)
 {
     UnblockMainLoop unblocker(ml);
 
-    auto alarm = ml.create_alarm([]{});
-    alarm->reschedule_in(delay);
+    auto alarm = ml.notify_in(delay, [](){});
 
     clock->advance_by(delay - std::chrono::milliseconds{1}, ml);
     EXPECT_EQ(mir::time::Alarm::pending, alarm->state());
@@ -865,10 +860,7 @@ TEST_F(GLibMainLoopAlarmTest, multiple_alarms_fire)
     std::array<std::unique_ptr<mir::time::Alarm>, alarm_count> alarms;
 
     for (auto& alarm : alarms)
-    {
-        alarm = ml.create_alarm([&call_count]{ ++call_count;});
-        alarm->reschedule_in(delay);
-    }
+        alarm = ml.notify_in(delay, [&call_count](){++call_count;});
 
     UnblockMainLoop unblocker(ml);
     clock->advance_by(delay, ml);
@@ -883,11 +875,10 @@ TEST_F(GLibMainLoopAlarmTest, multiple_alarms_fire)
 TEST_F(GLibMainLoopAlarmTest, alarm_changes_to_triggered_state)
 {
     auto alarm_fired = std::make_shared<mt::Signal>();
-    auto alarm = ml.create_alarm([alarm_fired]()
+    auto alarm = ml.notify_in(std::chrono::milliseconds{5}, [alarm_fired]()
     {
         alarm_fired->raise();
     });
-    alarm->reschedule_in(std::chrono::milliseconds{5});
 
     UnblockMainLoop unblocker(ml);
 
@@ -900,8 +891,8 @@ TEST_F(GLibMainLoopAlarmTest, alarm_changes_to_triggered_state)
 TEST_F(GLibMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
 {
     UnblockMainLoop unblocker(ml);
-    auto alarm = ml.create_alarm([]{ FAIL() << "Alarm handler of canceld alarm called"; });
-    alarm->reschedule_in(std::chrono::milliseconds{100});
+    auto alarm = ml.notify_in(std::chrono::milliseconds{100},
+                              [](){ FAIL() << "Alarm handler of canceld alarm called";});
 
     EXPECT_TRUE(alarm->cancel());
 
@@ -914,8 +905,8 @@ TEST_F(GLibMainLoopAlarmTest, cancelled_alarm_doesnt_fire)
 
 TEST_F(GLibMainLoopAlarmTest, destroyed_alarm_doesnt_fire)
 {
-    auto alarm = ml.create_alarm([]{ FAIL() << "Alarm handler of destroyed alarm called"; });
-    alarm->reschedule_in(std::chrono::milliseconds{200});
+    auto alarm = ml.notify_in(std::chrono::milliseconds{200},
+                              [](){ FAIL() << "Alarm handler of destroyed alarm called"; });
 
     UnblockMainLoop unblocker(ml);
 
@@ -927,12 +918,11 @@ TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_fires_again)
 {
     std::atomic<int> call_count{0};
 
-    auto alarm = ml.create_alarm([&call_count]()
+    auto alarm = ml.notify_in(std::chrono::milliseconds{0}, [&call_count]()
     {
         if (call_count++ > 1)
             FAIL() << "Alarm called too many times";
     });
-    alarm->reschedule_in(std::chrono::milliseconds{0});
 
     UnblockMainLoop unblocker(ml);
 
@@ -950,11 +940,10 @@ TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
 {
     std::atomic<int> call_count{0};
 
-    auto alarm = ml.create_alarm([&call_count]()
+    auto alarm = ml.notify_in(std::chrono::milliseconds{100}, [&call_count]()
     {
         call_count++;
     });
-    alarm->reschedule_in(std::chrono::milliseconds{100});
 
     UnblockMainLoop unblocker(ml);
     clock->advance_by(std::chrono::milliseconds{90}, ml);
@@ -970,31 +959,51 @@ TEST_F(GLibMainLoopAlarmTest, rescheduled_alarm_cancels_previous_scheduling)
     EXPECT_EQ(1, call_count);
 }
 
-TEST_F(GLibMainLoopAlarmTest, alarm_callback_preserves_lock_ordering)
-{
-    using namespace testing;
+TEST_F(GLibMainLoopAlarmTest, alarm_callback_cannot_deadlock)
+{   // Regression test for deadlock bug LP: #1339700
+    std::timed_mutex m;
+    std::atomic_bool failed(false);
+    int i = 0;
+    int const loops = 5;
 
-    mtd::MockLockableCallback handler;
+    auto alarm = ml.notify_in(std::chrono::milliseconds{0}, [&]()
     {
-        InSequence s;
-        EXPECT_CALL(handler, lock());
-        EXPECT_CALL(handler, functor());
-        EXPECT_CALL(handler, unlock());
-    }
+        // From this angle, ensure we can lock m (alarm should be unlocked)
+        failed = !m.try_lock_for(std::chrono::seconds{5});
+        ASSERT_FALSE(failed);
+        ++i;
+        m.unlock();
+    });
 
-    auto alarm = ml.create_alarm(mt::fake_shared(handler));
+    std::thread t([&]()
+        {
+            m.lock();
+            while (i < loops && !failed)
+            {
+                // From this angle, ensure we can lock alarm while holding m
+                (void)alarm->state();
+                m.unlock();
+                std::this_thread::yield();
+                m.lock();
+            }
+            m.unlock();
+        });
 
     UnblockMainLoop unblocker(ml);
-    alarm->reschedule_in(std::chrono::milliseconds{10});
-    clock->advance_by(std::chrono::milliseconds{11}, ml);
+    for (int j = 0; j < loops; ++j)
+    {
+        clock->advance_by(std::chrono::milliseconds{11}, ml);
+        alarm->reschedule_in(std::chrono::milliseconds{10});
+    }
+
+    t.join();
 }
 
 TEST_F(GLibMainLoopAlarmTest, alarm_fires_at_correct_time_point)
 {
     mir::time::Timestamp real_soon = clock->now() + std::chrono::milliseconds{120};
 
-    auto alarm = ml.create_alarm([]{});
-    alarm->reschedule_for(real_soon);
+    auto alarm = ml.notify_at(real_soon, []{});
 
     UnblockMainLoop unblocker(ml);
 
@@ -1013,8 +1022,9 @@ TEST_F(GLibMainLoopAlarmTest, propagates_exception_from_alarm)
     execute_in_forked_process(this,
         [&]
         {
-            auto alarm = ml.create_alarm([] { throw std::runtime_error(""); });
-            alarm->reschedule_in(std::chrono::milliseconds{0});
+            auto const alarm = ml.notify_in(
+                std::chrono::milliseconds{0},
+                [] { throw std::runtime_error(""); });
 
             EXPECT_THROW({ ml.run(); }, std::runtime_error);
         });
@@ -1029,8 +1039,9 @@ TEST_F(GLibMainLoopTest, stress_emits_alarm_notification_with_zero_timeout)
     {
         mt::Signal notification_called;
 
-        auto alarm = ml.create_alarm([&]{ notification_called.raise(); });
-        alarm->reschedule_in(std::chrono::milliseconds{0});
+        auto alarm = ml.notify_in(
+                std::chrono::milliseconds{0},
+                [&] { notification_called.raise(); });
 
         EXPECT_TRUE(notification_called.wait_for(std::chrono::seconds{5}));
     }
