@@ -76,6 +76,7 @@ private:
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
     bool schedule_page_flip(BufferObject* bufobj);
+    void set_crtc(BufferObject const&);
 
     BufferObject* last_flipped_bufobj;
     BufferObject* scheduled_bufobj;
