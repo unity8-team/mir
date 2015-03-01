@@ -1,17 +1,34 @@
-mir (0.12.0-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.12.0+15.04.20150228-0ubuntu2) UNRELEASED; urgency=medium
 
+  * demo changes
+
+ -- Andreas Pokorny <andreas.pokorny@canonical.com>  Sun, 01 Mar 2015 15:09:13 +0100
+
+mir (0.12.0+15.04.20150228-0ubuntu1) vivid; urgency=medium
+
+  [ Alberto Aguirre ]
   * New upstream release 0.12.0 (https://launchpad.net/mir/+milestone/0.12.0)
-    - Enhancements:
-      . TODO
+    - Packaging changes:
+      . Client platform packages now include the Mir client platform ABI 
+        number. Thusly, mir-client-platform-(mesa|android) is replaced by 
+        mir-client-platform-(mesa|android)2
+      . Server graphics platform packages now include the Mir graphics
+        platform ABI number. Thusly, mir-platform-graphics-(mesa|android)
+        is replaced by mir-platform-graphics-(mesa|android)1
     - ABI summary: Servers need rebuilding, but clients do not;
       . Mirclient ABI unchanged at 8
-      . Mircommon ABI unchanged at 3 (TODO)
-      . Mirplatform ABI unchanged at 6 (TODO)
-      . Mirserver ABI unchanged at 29 (TODO)
+      . Mircommon ABI unchanged at 3
+      . Mirplatform ABI unchanged at 6
+      . Mirserver ABI bumped to 30
     - Bug fixes:
-      . TODO
+      . [regression] Platform libraries and packages are not versioned thus
+        are not installable in parallel (LP: #1423591)
+      . [regression] Deadlock in TimeoutFrameDroppingPolicy logic (LP: #1421255)
+ 
+  [ CI Train Bot ]
+  * New rebuild forced.
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Thu, 12 Feb 2015 10:12:11 +0800
+ -- CI Train Bot <ci-train-bot@canonical.com>  Sat, 28 Feb 2015 10:30:53 +0000
 
 mir (0.11.0+15.04.20150209.1-0ubuntu1) vivid; urgency=medium
 
