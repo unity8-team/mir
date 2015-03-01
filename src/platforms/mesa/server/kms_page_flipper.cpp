@@ -32,12 +32,29 @@ namespace mgm = mir::graphics::mesa;
 namespace
 {
 
-void page_flip_handler(int /*fd*/, unsigned int /*frame*/,
+void vblank_handler(int /*fd*/, unsigned int seq,
+                       unsigned int /*sec*/, unsigned int /*usec*/,
+                       void*)
+{
+    fprintf(stderr, "vblank #%u\n", seq);
+}
+
+void page_flip_handler(int fd, unsigned int seq,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void* data)
 {
+    fprintf(stderr, "flip #%u\n", seq);
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
     page_flip_data->pending->erase(page_flip_data->crtc_id);
+
+    // Tell us when the next vblank happens so we have an opportunity to
+    // schedule a flip as late as possible...
+    drmVBlank v;
+    v.request.type =
+        drmVBlankSeqType(DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT);
+    v.request.sequence = seq + 1;
+    v.request.signal = 0;
+    drmWaitVBlank(fd, &v);
 }
 
 }
@@ -73,7 +90,7 @@ void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
     static drmEventContext evctx =
     {
         DRM_EVENT_CONTEXT_VERSION,  /* .version */
-        0,  /* .vblank_handler */
+        vblank_handler,
         page_flip_handler  /* .page_flip_handler */
     };
     static std::thread::id const invalid_tid;

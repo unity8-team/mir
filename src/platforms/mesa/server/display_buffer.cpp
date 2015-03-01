@@ -30,6 +30,7 @@
 #include <GLES2/gl2.h>
 
 #include <stdexcept>
+#include <thread>
 
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
@@ -253,6 +254,11 @@ void mgm::DisplayBuffer::post_bypass()
         //mir::log_info("Start wait");
         //outputs.front()->wait_for_vblank();
         //mir::log_info("Done wait");
+
+        // FIXME: This is meant to be a wait_for_vblank(), but that currently
+        //        either sleeps for no time at all, or an additional frame.
+        // TODO:  Consider reusing the vblank event from page flipper
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
     }
 
     auto bypass_buf = bypass_candidate->buffer();
@@ -269,20 +275,9 @@ void mgm::DisplayBuffer::post_bypass()
     }
 
     if (needs_set_crtc)
-    {
-        set_crtc(*bufobj);  // regardless of outputs.size()
-    }
-    else
-    {
-        mir::log_info("Start reset");
-#if 1
-        if (!schedule_page_flip(bufobj))
-            fatal_error("Failed to schedule page flip");
-#else
         set_crtc(*bufobj);
-#endif
-        mir::log_info("Done reset");
-    }
+    else if (!schedule_page_flip(bufobj))
+        fatal_error("Failed to schedule page flip");
 
     scheduled_bypass_buf = bypass_buf;
 }
