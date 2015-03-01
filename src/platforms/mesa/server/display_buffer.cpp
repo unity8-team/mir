@@ -200,23 +200,8 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
         if (bypass_it != renderable_list.rend())
         {
-            auto bypass_buffer = (*bypass_it)->buffer();
-            auto native = bypass_buffer->native_buffer_handle();
-            auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
-            auto bufobj = get_buffer_object(gbm_native->bo);
-            if (bufobj &&
-                native->flags & mir_buffer_flag_can_scanout &&
-                bypass_buffer->size() == geom::Size{fb_width,fb_height})
-            {
-                bypass_buf = bypass_buffer;
-                bypass_bufobj = bufobj;
-                return true;
-            }
-            else
-            {
-                bypass_buf = nullptr;
-                bypass_bufobj = nullptr;
-            }
+            bypass_candidate = *bypass_it;
+            return true;
         }
     }
 
@@ -233,8 +218,7 @@ void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
-    bypass_buf = nullptr;
-    bypass_bufobj = nullptr;
+    bypass_candidate.reset();
 }
 
 void mgm::DisplayBuffer::post()
@@ -263,7 +247,7 @@ void mgm::DisplayBuffer::post()
     last_flipped_bufobj = scheduled_bufobj;
     scheduled_bufobj = nullptr;
 
-    if (bypass_buf)
+    if (bypass_candidate)
         post_bypass();
     else
         post_egl();
@@ -271,13 +255,27 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
-    mgm::BufferObject *bufobj = bypass_bufobj;
+    // TODO: wait for vblank here
+
+    auto bypass_buf = bypass_candidate->buffer();
+    auto native = bypass_buf->native_buffer_handle();
+    auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
+    auto bufobj = get_buffer_object(gbm_native->bo);
+    if (!bufobj ||
+        !(native->flags & mir_buffer_flag_can_scanout) ||
+        bypass_buf->size() != geom::Size{fb_width,fb_height})
+    {
+        // prediction failed
+        post_egl();
+        return;
+    }
 
     if (needs_set_crtc)
         set_crtc(*bufobj);
     else if (!schedule_page_flip(bufobj))
         fatal_error("Failed to schedule page flip");
 
+    // TODO: set CRTC
     wait_for_page_flip();
     scheduled_bufobj = nullptr;
 
