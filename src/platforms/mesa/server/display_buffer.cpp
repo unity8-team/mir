@@ -285,7 +285,6 @@ void mgm::DisplayBuffer::post_bypass()
     {
         if (!schedule_page_flip(bufobj))
             fatal_error("Failed to schedule page flip");
-        wait_for_page_flip();
     }
     else
     {
