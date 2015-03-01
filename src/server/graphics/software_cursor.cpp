@@ -118,7 +118,7 @@ public:
             std::stringstream gu_parse(std::string{env});
             float value;
             if (gu_parse >> value)
-                scale = value/8.0f; // guess to transform gu into a scale that turns 32x32 icon into a readable size
+                scale = value/12.0f; // guess to transform gu into a scale that turns 24x24 icon into a readable size
         }
     }
 
