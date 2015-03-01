@@ -263,87 +263,75 @@ void mgm::DisplayBuffer::post()
     last_flipped_bufobj = scheduled_bufobj;
     scheduled_bufobj = nullptr;
 
-    mgm::BufferObject *bufobj;
     if (bypass_buf)
-    {
-        bufobj = bypass_bufobj;
-    }
+        post_bypass();
     else
-    {
-        bufobj = get_front_buffer_object();
-        if (!bufobj)
-            fatal_error("Failed to get front buffer object");
-    }
+        post_egl();
+}
+
+void mgm::DisplayBuffer::post_bypass()
+{
+    mgm::BufferObject *bufobj = bypass_bufobj;
+
+    if (needs_set_crtc)
+        set_crtc(*bufobj);
+    else if (!schedule_page_flip(bufobj))
+        fatal_error("Failed to schedule page flip");
+
+    wait_for_page_flip();
+    scheduled_bufobj = nullptr;
 
     /*
-     * Schedule the current front buffer object for display, and wait
-     * for it to be actually displayed (flipped).
-     *
-     * If the flip fails, release the buffer object to make it available
-     * for future rendering.
+     * Keep a reference to the buffer being bypassed for the entire
+     * duration of the frame. This ensures the buffer doesn't get reused by
+     * the client while its on-screen, which would be seen as tearing or
+     * worse.
      */
-    if (!needs_set_crtc && !schedule_page_flip(bufobj))
-    {
-        if (!bypass_buf)
-            bufobj->release();
-        fatal_error("Failed to schedule page flip");
-    }
-    else if (needs_set_crtc)
+    last_flipped_bypass_buf = bypass_buf;
+}
+
+void mgm::DisplayBuffer::post_egl()
+{
+    mgm::BufferObject *bufobj = get_front_buffer_object();
+    if (!bufobj)
+        fatal_error("Failed to get front buffer object");
+
+    if (needs_set_crtc)
     {
         set_crtc(*bufobj);
     }
-
-    if (bypass_buf)
+    else if (!schedule_page_flip(bufobj))
     {
-        /*
-         * For composited frames we defer wait_for_page_flip till just before
-         * the next frame, but not for bypass frames. Deferring the flip of
-         * bypass frames would increase the time we held
-         * last_flipped_bypass_buf unacceptably, resulting in client stuttering
-         * unless we allocate more buffers (which I'm trying to avoid).
-         * Also, bypass does not need the deferred page flip because it has
-         * no compositing/rendering step for which to save time for.
-         */
-        wait_for_page_flip();
-        scheduled_bufobj = nullptr;
-
-        /*
-         * Keep a reference to the buffer being bypassed for the entire
-         * duration of the frame. This ensures the buffer doesn't get reused by
-         * the client while its on-screen, which would be seen as tearing or
-         * worse.
-         */
-        last_flipped_bypass_buf = bypass_buf;
+        bufobj->release();
+        fatal_error("Failed to schedule page flip");
     }
-    else
+
+    /*
+     * Not in clone mode? We can afford to wait for the page flip then,
+     * making us double-buffered (noticeably less laggy than the triple
+     * buffering that clone mode requires).
+     */
+    if (outputs.size() == 1)
     {
+        wait_for_page_flip();
+
         /*
-         * Not in clone mode? We can afford to wait for the page flip then,
-         * making us double-buffered (noticeably less laggy than the triple
-         * buffering that clone mode requires).
+         * bufobj is now physically on screen. Release the old frame...
          */
-        if (outputs.size() == 1)
+        if (last_flipped_bufobj)
         {
-            wait_for_page_flip();
-
-            /*
-             * bufobj is now physically on screen. Release the old frame...
-             */
-            if (last_flipped_bufobj)
-            {
-                last_flipped_bufobj->release();
-                last_flipped_bufobj = nullptr;
-            }
-
-            /*
-             * last_flipped_bufobj will be set correctly on the next iteration
-             * Don't do it here or else bufobj would be released while still
-             * on screen (hence tearing and artefacts).
-             */
+            last_flipped_bufobj->release();
+            last_flipped_bufobj = nullptr;
         }
 
-        scheduled_bufobj = bufobj;
+        /*
+         * last_flipped_bufobj will be set correctly on the next iteration
+         * Don't do it here or else bufobj would be released while still
+         * on screen (hence tearing and artefacts).
+         */
     }
+
+    scheduled_bufobj = bufobj;
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
