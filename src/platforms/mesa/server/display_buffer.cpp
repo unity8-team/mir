@@ -270,7 +270,14 @@ void mgm::DisplayBuffer::post_bypass()
         return;
     }
 
-    set_crtc(*bufobj);
+    if (needs_set_crtc)
+        set_crtc(*bufobj);
+    else if (!schedule_page_flip(bufobj))
+        fatal_error("Failed to schedule page flip");
+
+    // TODO: set CRTC
+    wait_for_page_flip();
+    scheduled_bufobj = nullptr;
 
     /*
      * Keep a reference to the buffer being bypassed for the entire
