@@ -16,6 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "Mesa DisplayBuffer"
 #include "display_buffer.h"
 #include "platform.h"
 #include "kms_output.h"
@@ -23,6 +24,7 @@
 #include "bypass.h"
 #include "gbm_buffer.h"
 #include "mir/fatal.h"
+#include "mir/log.h"
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
@@ -255,7 +257,12 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
-    // TODO: wait for vblank here
+    if (outputs.size() == 1)
+    {
+        last_flipped_bypass_buf = nullptr;
+
+        // TODO: wait for vblank here
+    }
 
     auto bypass_buf = bypass_candidate->buffer();
     auto native = bypass_buf->native_buffer_handle();
@@ -271,13 +278,21 @@ void mgm::DisplayBuffer::post_bypass()
     }
 
     if (needs_set_crtc)
+    {
+        set_crtc(*bufobj);  // regardless of outputs.size()
+    }
+    else if (outputs.size() > 1)
+    {
+        if (!schedule_page_flip(bufobj))
+            fatal_error("Failed to schedule page flip");
+        wait_for_page_flip();
+    }
+    else
+    {
+        mir::log_info("Start reset");
         set_crtc(*bufobj);
-    else if (!schedule_page_flip(bufobj))
-        fatal_error("Failed to schedule page flip");
-
-    // TODO: set CRTC
-    wait_for_page_flip();
-    scheduled_bufobj = nullptr;
+        mir::log_info("Done reset");
+    }
 
     /*
      * Keep a reference to the buffer being bypassed for the entire
