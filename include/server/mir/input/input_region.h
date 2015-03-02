@@ -56,6 +56,7 @@ public:
 
     virtual void override_orientation(uint32_t display_id, MirOrientation orientation) = 0;
     virtual MirOrientation get_orientation(geometry::Point const& point) = 0;
+    virtual geometry::Point get_display_position() const = 0;
 
 protected:
     InputRegion() = default;

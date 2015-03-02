@@ -76,6 +76,7 @@ class FakePointerController : public PointerControllerInterface {
     bool mHaveBounds;
     float mMinX, mMinY, mMaxX, mMaxY;
     float mX, mY;
+    float mDisplayX{0}, mDisplayY{0};
     int32_t mButtonState;
 
 protected:
@@ -111,6 +112,16 @@ public:
     virtual void getPosition(float* outX, float* outY) const {
         *outX = mX;
         *outY = mY;
+    }
+
+    virtual void getDisplayPosition(float& outX, float& outY) const {
+        outX = mDisplayX;
+        outY = mDisplayY;
+    }
+
+    void setDisplayPosition(float x, float y) {
+        mDisplayX = x;
+        mDisplayY = y;
     }
 
 private:

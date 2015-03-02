@@ -68,6 +68,9 @@ public:
     /* Gets the absolute location of the pointer. */
     virtual void getPosition(float* outX, float* outY) const = 0;
 
+    // hack
+    virtual void getDisplayPosition(float &x,  float& y) const = 0;
+
     enum Transition {
         // Fade/unfade immediately.
         TRANSITION_IMMEDIATE,
@@ -142,6 +145,7 @@ public:
 
     void setDisplaySize(int32_t width, int32_t height);
     void setDisplayOrientation(int32_t orientation);
+    void getDisplayPosition(float &x,  float& y) const override;
 
 private:
     mutable Mutex mLock;

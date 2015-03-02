@@ -46,11 +46,13 @@ public:
     MirOrientation get_orientation(geometry::Point const& point) override;
     geometry::Rectangle bounding_rectangle();
     void confine(geometry::Point& point);
+    virtual geometry::Point get_display_position() const override;
 
 private:
     std::mutex rectangles_lock;
     mir::geometry::Overrides overrides;
     mir::geometry::Rectangles rectangles;
+    mir::geometry::Point display_pos;
 
 };
 

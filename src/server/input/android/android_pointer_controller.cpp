@@ -151,3 +151,9 @@ void mia::PointerController::clearSpots()
 {
     touch_visualizer->visualize_touches({});
 }
+
+void mia::PointerController::getDisplayPosition(float &x, float &y) const {
+    auto pos = input_region->get_display_position();
+    x = pos.x.as_float();
+    y = pos.y.as_float();
+}

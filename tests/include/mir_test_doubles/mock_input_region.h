@@ -39,6 +39,7 @@ public:
     MOCK_METHOD1(get_orientation, MirOrientation(mir::geometry::Point const&));
     MOCK_METHOD0(bounding_rectangle, geometry::Rectangle());
     MOCK_METHOD1(confine, void(geometry::Point&));
+    MOCK_CONST_METHOD0(get_display_position, geometry::Point());
 };
 
 }

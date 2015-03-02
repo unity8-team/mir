@@ -3937,6 +3937,15 @@ void TouchInputMapper::dispatchHoverEnterAndMove(std::chrono::nanoseconds when, 
 void TouchInputMapper::cookPointerData() {
     uint32_t currentPointerCount = mCurrentRawPointerData.pointerCount;
 
+    // hack
+    auto pointer = mPointerController;
+
+    float display_x = 0, display_y = 0;
+    if (pointer == nullptr)
+        pointer = getPolicy()->obtainPointerController(getDeviceId());
+
+    if (pointer != nullptr)
+        pointer->getDisplayPosition(display_x, display_y);
     mCurrentCookedPointerData.clear();
     mCurrentCookedPointerData.pointerCount = currentPointerCount;
     mCurrentCookedPointerData.hoveringIds = mCurrentRawPointerData.hoveringIds;
@@ -4082,8 +4091,8 @@ void TouchInputMapper::cookPointerData() {
         }
 
         // X and Y
-        // Adjust coords for surface orientation.
         float x, y;
+        // Adjust coords for surface orientation.
         switch (mSurfaceOrientation) {
         case DISPLAY_ORIENTATION_90:
             x = float(in.y - mRawPointerAxes.y.minValue) * mYScale;
@@ -4110,6 +4119,10 @@ void TouchInputMapper::cookPointerData() {
             y = float(in.y - mRawPointerAxes.y.minValue) * mYScale;
             break;
         }
+
+        // offset to input region
+        x -= display_x;
+        y -= display_y;
 
         // Write output coords.
         PointerCoords& out = mCurrentCookedPointerData.pointerCoords[i];

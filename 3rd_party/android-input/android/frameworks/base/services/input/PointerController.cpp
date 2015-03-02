@@ -273,4 +273,9 @@ void PointerController::updatePointerLocked() {
   // TODO: Implement
 }
 
+void PointerController::getDisplayPosition(float &x, float &y) const {
+    x = 0;
+    y = 0;
+}
+
 } // namespace android

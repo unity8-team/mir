@@ -48,6 +48,7 @@ class PointerController : public DummyPointerController
     int32_t getButtonState() const;
     void setPosition(float x, float y);
     void getPosition(float *out_x, float *out_y) const;
+    void getDisplayPosition(float& out_x, float& out_y) const override;
 
     void setSpots(const droidinput::PointerCoords* spot_coords, uint32_t spot_count);
     void clearSpots();
