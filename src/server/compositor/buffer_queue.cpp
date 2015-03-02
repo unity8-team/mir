@@ -317,10 +317,7 @@ std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
-    std::shared_ptr<mc::BufferHandle> const acquired_buffer =
-            std::make_shared<mc::SnapshotBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
-
-    return acquired_buffer;
+    return std::make_shared<mc::SnapshotBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
 }
 
 void mc::BufferQueue::snapshot_release(mg::Buffer* const buffer)
