@@ -37,7 +37,7 @@ public:
 
 protected:
     explicit BufferHandle(BufferBundle* bundle,
-                 std::shared_ptr<graphics::Buffer> buffer);
+        std::shared_ptr<graphics::Buffer> buffer);
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> wrapped;
 };
@@ -45,16 +45,16 @@ protected:
 class CompositorBufferHandle : public BufferHandle
 {
 public:
-	explicit CompositorBufferHandle(BufferBundle* bundle,
-                 std::shared_ptr<graphics::Buffer> buffer);
+    explicit CompositorBufferHandle(BufferBundle* bundle,
+        std::shared_ptr<graphics::Buffer> buffer);
     virtual ~CompositorBufferHandle();
 };
 
 class SnapshotBufferHandle : public BufferHandle
 {
 public:
-	explicit SnapshotBufferHandle(BufferBundle* bundle,
-                 std::shared_ptr<graphics::Buffer> buffer);
+    explicit SnapshotBufferHandle(BufferBundle* bundle,
+        std::shared_ptr<graphics::Buffer> buffer);
     virtual ~SnapshotBufferHandle();
 };
 
