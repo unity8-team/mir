@@ -57,8 +57,6 @@ public:
 
     void set_power_mode(MirPowerMode mode);
 
-    void wait_for_vblank() override;
-
 private:
     bool ensure_crtc();
     void restore_saved_crtc();

@@ -55,8 +55,6 @@ public:
 
     virtual void set_power_mode(MirPowerMode mode) = 0;
 
-    virtual void wait_for_vblank() {}
-
 protected:
     KMSOutput() = default;
     KMSOutput(const KMSOutput&) = delete;

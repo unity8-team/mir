@@ -30,6 +30,7 @@
 #include <GLES2/gl2.h>
 
 #include <stdexcept>
+#include <thread>
 
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
@@ -250,12 +251,22 @@ void mgm::DisplayBuffer::post_bypass()
 {
     if (outputs.size() == 1)
     {
-        //mir::log_info("Start wait");
-        //outputs.front()->wait_for_vblank();
-        //mir::log_info("Done wait");
+        mir::log_info("Start wait");
+        // This is meant to be a wait_for_vblank() in theory. But in practice
+        // Linux DRM has annoying side-effects whereby waiting for vblank here
+        // means the scheduled page flip won't occur till the vblank after
+        // that. Arguably a kernel bug. So we simulate the wait for vblank
+        // that we wish Linux had with this hack:
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        mir::log_info("Done wait");
+
+        last_flipped_bypass_buf = scheduled_bypass_buf;
+        scheduled_bypass_buf = nullptr;
     }
 
     auto bypass_buf = bypass_candidate->buffer();
+    if (bypass_buf.use_count() > 2)
+        fatal_error("Bypass renderable's buffer() was acquired too early.");
     auto native = bypass_buf->native_buffer_handle();
     auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
     auto bufobj = get_buffer_object(gbm_native->bo);
@@ -269,20 +280,9 @@ void mgm::DisplayBuffer::post_bypass()
     }
 
     if (needs_set_crtc)
-    {
-        set_crtc(*bufobj);  // regardless of outputs.size()
-    }
-    else
-    {
-        mir::log_info("Start reset");
-#if 1
-        if (!schedule_page_flip(bufobj))
-            fatal_error("Failed to schedule page flip");
-#else
         set_crtc(*bufobj);
-#endif
-        mir::log_info("Done reset");
-    }
+    else if (!schedule_page_flip(bufobj))
+        fatal_error("Failed to schedule bypass page flip");
 
     scheduled_bypass_buf = bypass_buf;
 }
@@ -300,7 +300,7 @@ void mgm::DisplayBuffer::post_egl()
     else if (!schedule_page_flip(bufobj))
     {
         bufobj->release();
-        fatal_error("Failed to schedule page flip");
+        fatal_error("Failed to schedule EGL page flip");
     }
 
     /*
