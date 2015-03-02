@@ -200,7 +200,9 @@ private:
     }
 
     virtual sp<PointerControllerInterface> obtainPointerController(int32_t deviceId) {
-        return mPointerControllers.valueFor(deviceId);
+        if (mPointerControllers.indexOfKey(deviceId) >= 0)
+            return mPointerControllers.valueFor(deviceId);
+        return nullptr;
     }
 
     virtual void notifyInputDevicesChanged(const Vector<InputDeviceInfo>& inputDevices) {
