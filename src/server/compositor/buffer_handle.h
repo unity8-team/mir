@@ -37,7 +37,7 @@ public:
 
 protected:
     explicit BufferHandle(BufferBundle* bundle,
-        std::shared_ptr<graphics::Buffer> buffer);
+        std::shared_ptr<graphics::Buffer> const& buffer);
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> wrapped;
 };
@@ -46,7 +46,7 @@ class CompositorBufferHandle : public BufferHandle
 {
 public:
     explicit CompositorBufferHandle(BufferBundle* bundle,
-        std::shared_ptr<graphics::Buffer> buffer);
+        std::shared_ptr<graphics::Buffer> const& buffer);
     virtual ~CompositorBufferHandle();
 };
 
@@ -54,7 +54,7 @@ class SnapshotBufferHandle : public BufferHandle
 {
 public:
     explicit SnapshotBufferHandle(BufferBundle* bundle,
-        std::shared_ptr<graphics::Buffer> buffer);
+        std::shared_ptr<graphics::Buffer> const& buffer);
     virtual ~SnapshotBufferHandle();
 };
 
