@@ -110,7 +110,8 @@ mgm::DisplayBuffer::DisplayBuffer(
       area(area),
       rotation(rot),
       needs_set_crtc{false},
-      page_flips_pending{false}
+      page_flips_pending{false},
+      last_page_flip{0}
 {
     uint32_t area_width = area.size.width.as_uint32_t();
     uint32_t area_height = area.size.height.as_uint32_t();
@@ -251,9 +252,9 @@ void mgm::DisplayBuffer::post_bypass()
 {
     if (outputs.size() == 1)
     {
-        //mir::log_info("Start wait");
-        //outputs.front()->wait_for_vblank();
-        //mir::log_info("Done wait");
+        mir::log_info("Start wait for #%u", last_page_flip+1);
+        outputs.front()->wait_for_vblank(last_page_flip + 1);
+        mir::log_info("Done wait");
 
         // FIXME: This is meant to be a wait_for_vblank(), but that currently
         //        either sleeps for no time at all, or an additional frame.
@@ -411,8 +412,11 @@ void mgm::DisplayBuffer::wait_for_page_flip()
 {
     if (page_flips_pending)
     {
-        for (auto& output : outputs)
-            output->wait_for_page_flip();
+        int n = outputs.size();
+        if (n > 0)
+            last_page_flip = outputs[0]->wait_for_page_flip();
+        for (int i = 1; i < n; ++i)
+            outputs[i]->wait_for_page_flip();
 
         page_flips_pending = false;
     }

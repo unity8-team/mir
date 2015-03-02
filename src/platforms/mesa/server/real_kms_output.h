@@ -48,7 +48,7 @@ public:
     bool set_crtc(uint32_t fb_id);
     void clear_crtc();
     bool schedule_page_flip(uint32_t fb_id);
-    void wait_for_page_flip();
+    unsigned int wait_for_page_flip() override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
@@ -57,7 +57,7 @@ public:
 
     void set_power_mode(MirPowerMode mode);
 
-    void wait_for_vblank() override;
+    void wait_for_vblank(unsigned int seq) override;
 
 private:
     bool ensure_crtc();

@@ -43,6 +43,7 @@ struct PageFlipEventData
 {
     std::unordered_map<uint32_t,PageFlipEventData>* pending;
     uint32_t crtc_id;
+    unsigned int* last_seq;
 };
 
 class KMSPageFlipper : public PageFlipper
@@ -51,7 +52,7 @@ public:
     KMSPageFlipper(int drm_fd);
 
     bool schedule_flip(uint32_t crtc_id, uint32_t fb_id);
-    void wait_for_flip(uint32_t crtc_id);
+    unsigned int wait_for_flip(uint32_t crtc_id) override;
 
     std::thread::id debug_get_worker_tid();
 
@@ -59,6 +60,7 @@ private:
     bool page_flip_is_done(uint32_t crtc_id);
 
     int const drm_fd;
+    unsigned int last_seq;
     std::unordered_map<uint32_t,PageFlipEventData> pending_page_flips;
     std::mutex pf_mutex;
     std::condition_variable pf_cv;
