@@ -20,7 +20,6 @@
 #include "page_flipper.h"
 #include "mir/fatal.h"
 #include <vector>
-#include <thread>
 #include <string.h> // strcmp
 
 namespace mg = mir::graphics;
