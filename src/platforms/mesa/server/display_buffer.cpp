@@ -30,7 +30,6 @@
 #include <GLES2/gl2.h>
 
 #include <stdexcept>
-#include <thread>
 
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
@@ -110,8 +109,7 @@ mgm::DisplayBuffer::DisplayBuffer(
       area(area),
       rotation(rot),
       needs_set_crtc{false},
-      page_flips_pending{false},
-      last_page_flip{0}
+      page_flips_pending{false}
 {
     uint32_t area_width = area.size.width.as_uint32_t();
     uint32_t area_height = area.size.height.as_uint32_t();
@@ -252,19 +250,12 @@ void mgm::DisplayBuffer::post_bypass()
 {
     if (outputs.size() == 1)
     {
-        mir::log_info("Start wait for #%u", last_page_flip+1);
-        outputs.front()->wait_for_vblank(last_page_flip + 1);
-        mir::log_info("Done wait");
-
-        // FIXME: This is meant to be a wait_for_vblank(), but that currently
-        //        either sleeps for no time at all, or an additional frame.
-        // TODO:  Consider reusing the vblank event from page flipper
-        //std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        //mir::log_info("Start wait");
+        //outputs.front()->wait_for_vblank();
+        //mir::log_info("Done wait");
     }
 
     auto bypass_buf = bypass_candidate->buffer();
-    if (bypass_buf.use_count() > 2)  // One here, one in Renderable
-        mir::log_error("A compositor has acquired the bypass buffer too early");
     auto native = bypass_buf->native_buffer_handle();
     auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
     auto bufobj = get_buffer_object(gbm_native->bo);
@@ -278,9 +269,20 @@ void mgm::DisplayBuffer::post_bypass()
     }
 
     if (needs_set_crtc)
+    {
+        set_crtc(*bufobj);  // regardless of outputs.size()
+    }
+    else
+    {
+        mir::log_info("Start reset");
+#if 1
+        if (!schedule_page_flip(bufobj))
+            fatal_error("Failed to schedule page flip");
+#else
         set_crtc(*bufobj);
-    else if (!schedule_page_flip(bufobj))
-        fatal_error("Failed to schedule page flip");
+#endif
+        mir::log_info("Done reset");
+    }
 
     scheduled_bypass_buf = bypass_buf;
 }
@@ -412,11 +414,8 @@ void mgm::DisplayBuffer::wait_for_page_flip()
 {
     if (page_flips_pending)
     {
-        int n = outputs.size();
-        if (n > 0)
-            last_page_flip = outputs[0]->wait_for_page_flip();
-        for (int i = 1; i < n; ++i)
-            outputs[i]->wait_for_page_flip();
+        for (auto& output : outputs)
+            output->wait_for_page_flip();
 
         page_flips_pending = false;
     }

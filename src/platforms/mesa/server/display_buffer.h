@@ -96,7 +96,6 @@ private:
     MirOrientation rotation;
     std::atomic<bool> needs_set_crtc;
     bool page_flips_pending;
-    unsigned int last_page_flip;
 };
 
 }

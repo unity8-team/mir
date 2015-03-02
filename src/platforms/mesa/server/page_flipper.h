@@ -34,7 +34,7 @@ public:
     virtual ~PageFlipper() {}
 
     virtual bool schedule_flip(uint32_t crtc_id, uint32_t fb_id) = 0;
-    virtual unsigned int wait_for_flip(uint32_t crtc_id) = 0;
+    virtual void wait_for_flip(uint32_t crtc_id) = 0;
 
 protected:
     PageFlipper() = default;

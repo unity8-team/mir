@@ -252,17 +252,17 @@ bool mgm::RealKMSOutput::schedule_page_flip(uint32_t fb_id)
     return page_flipper->schedule_flip(current_crtc->crtc_id, fb_id);
 }
 
-unsigned int mgm::RealKMSOutput::wait_for_page_flip()
+void mgm::RealKMSOutput::wait_for_page_flip()
 {
     std::unique_lock<std::mutex> lg(power_mutex);
     if (power_mode != mir_power_mode_on)
-        return 0;
+        return;
     if (!current_crtc)
     {
         fatal_error("Output %s has no associated CRTC to wait on",
                    connector_name(connector.get()).c_str());
     }
-    return page_flipper->wait_for_flip(current_crtc->crtc_id);
+    page_flipper->wait_for_flip(current_crtc->crtc_id);
 }
 
 void mgm::RealKMSOutput::set_cursor(gbm_bo* buffer)
@@ -379,14 +379,20 @@ void mgm::RealKMSOutput::set_power_mode(MirPowerMode mode)
     }
 }
 
-void mgm::RealKMSOutput::wait_for_vblank(unsigned int seq)
+void mgm::RealKMSOutput::wait_for_vblank()
 {
+    static unsigned int next = 0; // FIXME: not static
+
     drmVBlank v;
-    v.request.type = DRM_VBLANK_ABSOLUTE;
-    v.request.sequence = seq;
+    v.request.type =
+        drmVBlankSeqType(DRM_VBLANK_ABSOLUTE);
+    v.request.sequence = next;
     v.request.signal = 0;
 
     int err = drmWaitVBlank(drm_fd, &v);
-    fprintf(stderr, "Wait for = %d (%s), got #%u\n", err, strerror(err),
+    fprintf(stderr, "Wait for = %d (%s), got %u\n", err, strerror(err),
         v.reply.sequence);
+
+    if (!err)
+        next = v.reply.sequence + 1;
 }

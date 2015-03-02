@@ -16,8 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#define MIR_LOG_COMPONENT "KMS page flipper"
-#include "mir/log.h"
 #include "kms_page_flipper.h"
 #include "mir/graphics/display_report.h"
 
@@ -34,37 +32,18 @@ namespace mgm = mir::graphics::mesa;
 namespace
 {
 
-void vblank_handler(int /*fd*/, unsigned int seq,
-                       unsigned int /*sec*/, unsigned int /*usec*/,
-                       void*)
-{
-    mir::log_info("vblank #%u", seq);
-}
-
-void page_flip_handler(int fd, unsigned int seq,
+void page_flip_handler(int /*fd*/, unsigned int /*frame*/,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void* data)
 {
-    mir::log_info("flip #%u", seq);
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
     page_flip_data->pending->erase(page_flip_data->crtc_id);
-    *page_flip_data->last_seq = seq;
-
-    // Tell us when the next vblank happens so we have an opportunity to
-    // schedule a flip as late as possible...
-    drmVBlank v;
-    v.request.type =
-        drmVBlankSeqType(DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT);
-    v.request.sequence = seq + 1;
-    v.request.signal = 0;
-    drmWaitVBlank(fd, &v);
 }
 
 }
 
 mgm::KMSPageFlipper::KMSPageFlipper(int drm_fd)
     : drm_fd{drm_fd},
-      last_seq{0},
       pending_page_flips(),
       worker_tid()
 {
@@ -77,13 +56,11 @@ bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
     if (pending_page_flips.find(crtc_id) != pending_page_flips.end())
         BOOST_THROW_EXCEPTION(std::logic_error("Page flip for crtc_id is already scheduled"));
 
-    auto& data = pending_page_flips[crtc_id];
-    data.pending = &pending_page_flips;
-    data.crtc_id = crtc_id;
-    data.last_seq = &last_seq;
+    pending_page_flips[crtc_id] = PageFlipEventData{&pending_page_flips, crtc_id};
 
     auto ret = drmModePageFlip(drm_fd, crtc_id, fb_id,
-                               DRM_MODE_PAGE_FLIP_EVENT, &data);
+                               DRM_MODE_PAGE_FLIP_EVENT,
+                               &pending_page_flips[crtc_id]);
 
     if (ret)
         pending_page_flips.erase(crtc_id);
@@ -91,12 +68,12 @@ bool mgm::KMSPageFlipper::schedule_flip(uint32_t crtc_id, uint32_t fb_id)
     return (ret == 0);
 }
 
-unsigned int mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
+void mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
 {
     static drmEventContext evctx =
     {
         DRM_EVENT_CONTEXT_VERSION,  /* .version */
-        vblank_handler,
+        0,  /* .vblank_handler */
         page_flip_handler  /* .page_flip_handler */
     };
     static std::thread::id const invalid_tid;
@@ -113,7 +90,7 @@ unsigned int mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
 
         /* If the page flip we are waiting for has arrived we are done. */
         if (page_flip_is_done(crtc_id))
-            return last_seq;
+            return;
 
         /* ...otherwise we become the worker */
         worker_tid = std::this_thread::get_id();
@@ -163,8 +140,6 @@ unsigned int mgm::KMSPageFlipper::wait_for_flip(uint32_t crtc_id)
          */
         pf_cv.notify_all();
     }
-
-    return last_seq;
 }
 
 std::thread::id mgm::KMSPageFlipper::debug_get_worker_tid()
