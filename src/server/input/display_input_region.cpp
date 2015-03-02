@@ -25,6 +25,8 @@
 #include "mir/geometry/point.h"
 #include "mir/geometry/rectangles.h"
 
+#include <iostream>
+
 namespace mi = mir::input;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
@@ -44,6 +46,7 @@ void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& r
                 output.current_mode_index < output.modes.size())
             {
                 auto output_size = output.modes[output.current_mode_index].size;
+                std::cout << "Another display :" << output_size.width.as_int()  <<  "x" << output_size.height.as_int() << std::endl;
 
                 if (first_display)
                 {
@@ -62,6 +65,8 @@ void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& r
         display_pos.x = geom::X{(width.as_int() - main_size.width.as_int())/2};
     if (main_size.height < height)
         display_pos.y = geom::Y{(height.as_int() - main_size.height.as_int())/2};
+
+    std::cout << "Display is offseted by" << display_pos.x.as_int() <<  " " << display_pos.y.as_int() << std::endl;
 }
 }
 
