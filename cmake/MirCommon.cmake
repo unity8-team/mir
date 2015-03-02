@@ -188,8 +188,16 @@ function (mir_add_wrapped_executable TARGET)
     SKIP_BUILD_RPATH TRUE
   )
 
-  add_custom_target(${TARGET}-wrapped
-    ln -fs wrapper ${CMAKE_BINARY_DIR}/bin/${TARGET}
-  )
-  add_dependencies(${TARGET} ${TARGET}-wrapped)
+  add_executable(${TARGET}-wrapper ${PROJECT_SOURCE_DIR}/cmake/src/wrapper.cpp)
+  target_link_libraries(${TARGET}-wrapper mir-test-framework)
+  set_property(TARGET ${TARGET}-wrapper
+               APPEND_STRING PROPERTY COMPILE_FLAGS " -DEXECUTABLE=\\\"${REAL_EXECUTABLE}\\\"")
+  set_property(TARGET ${TARGET}-wrapper
+               APPEND_STRING PROPERTY COMPILE_FLAGS " -DBUILD_PREFIX=\\\"${CMAKE_BINARY_DIR}\\\"")
+  set_property(TARGET ${TARGET}-wrapper
+	       PROPERTY OUTPUT_NAME ${TARGET})
+  set_property(TARGET ${TARGET}-wrapper
+               APPEND_STRING PROPERTY COMPILE_FLAGS " -D_BSD_SOURCE -I${PROJECT_SOURCE_DIR}")
+	     
+  add_dependencies(${TARGET} ${TARGET}-wrapper)
 endfunction()

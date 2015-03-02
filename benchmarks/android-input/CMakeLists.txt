@@ -1,5 +1,3 @@
-project(android-input-perf)
-
 include_directories(
   ${Mir_SOURCE_DIR}/tests/include
   ${Mir_SOURCE_DIR}/include/platform
