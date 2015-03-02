@@ -61,6 +61,7 @@ mclr::make_rpc_channel(std::string const& name,
     {
         transport = std::make_unique<mclr::StreamSocketTransport>(name);
     }
+    // TODO: Multiple co-existing client protocols, server replies.
     std::vector<uint8_t> buffer(38);
     *reinterpret_cast<uint16_t*>(buffer.data()) = 0;
     memcpy(buffer.data() + 2, "60019143-2648-4904-9719-7817f0b9fb13", 36);
