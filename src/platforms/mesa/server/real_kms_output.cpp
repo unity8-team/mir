@@ -297,7 +297,7 @@ void mgm::RealKMSOutput::wait_for_vblank()
         if (frametime_usec < 0) frametime_usec += 1000000L;
 
         // Max time required to schedule a page flip and meet the deadline
-        long const schedule_usec = 2000;
+        long const schedule_usec = 1000;
 
         long wakeup_sec = prev_vblank.tval_sec;
         long wakeup_usec = prev_vblank.tval_usec
