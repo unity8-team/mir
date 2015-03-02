@@ -282,7 +282,7 @@ void mgm::DisplayBuffer::post_egl()
     if (experimental_zero_lag_compositing)
     {
         // In future this could be measured and adjusted dynamically:
-        long const max_render_time_usec = 3000;
+        long const max_render_time_usec = 2000;
         if (outputs.size() == 1)
             outputs.front()->wait_for_vblank(-max_render_time_usec);
     }

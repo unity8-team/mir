@@ -16,6 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "RealKMSOutput"
+#include "mir/log.h"
 #include "real_kms_output.h"
 #include "page_flipper.h"
 #include "mir/fatal.h"
@@ -311,6 +313,17 @@ void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
     }
     prev_prev_vblank = prev_vblank;
+
+    v.request.type = DRM_VBLANK_RELATIVE;
+    v.request.sequence = 0;
+    v.request.signal = 0;
+    err = drmWaitVBlank(drm_fd, &v);
+    if (!err && v.reply.sequence != prev_prev_vblank.sequence)
+    {
+        mir::log_error("Frame skipping! You're not allowing enough time "
+                       "for your compositor to finish before the deadline.");
+        // TODO: feedback and adjust.
+    }
 }
 
 void mgm::RealKMSOutput::set_cursor(gbm_bo* buffer)
