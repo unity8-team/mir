@@ -47,7 +47,7 @@ public:
     virtual void clear_crtc() = 0;
     virtual bool schedule_page_flip(uint32_t fb_id) = 0;
     virtual void wait_for_page_flip() = 0;
-    virtual void wait_for_vblank() {}
+    virtual void wait_for_vblank(long /*extra_microseconds*/) {}
 
     virtual void set_cursor(gbm_bo* buffer) = 0;
     virtual void move_cursor(geometry::Point destination) = 0;

@@ -266,7 +266,7 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     page_flipper->wait_for_flip(current_crtc->crtc_id);
 }
 
-void mgm::RealKMSOutput::wait_for_vblank()
+void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
 {
     /**
      * This is much more complicated than it should be. Unfortunately Linux
@@ -296,14 +296,11 @@ void mgm::RealKMSOutput::wait_for_vblank()
                               prev_prev_vblank.tval_usec;
         if (frametime_usec < 0) frametime_usec += 1000000L;
 
-        // Max time required to schedule a page flip and meet the deadline
-        long const schedule_usec = 1000;
-
         long wakeup_sec = prev_vblank.tval_sec;
         long wakeup_usec = prev_vblank.tval_usec
                          + frametime_usec
-                         - schedule_usec;
-        if (wakeup_usec >= 1000000L)
+                         + extra_microseconds;
+        while (wakeup_usec >= 1000000L)
         {
             wakeup_sec++;
             wakeup_usec -= 1000000L;

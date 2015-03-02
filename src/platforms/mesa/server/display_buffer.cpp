@@ -246,9 +246,9 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
-    // XXX Misnomer: wait_for_vblank means "wait_for_almost_the_next_vblank"
+    long const max_schedule_and_flip_time_usec = 1000;
     if (outputs.size() == 1)
-        outputs.front()->wait_for_vblank();
+        outputs.front()->wait_for_vblank(-max_schedule_and_flip_time_usec);
 
     auto bypass_buf = bypass_candidate->buffer();
     if (bypass_buf.use_count() > 2)
@@ -275,6 +275,18 @@ void mgm::DisplayBuffer::post_bypass()
 
 void mgm::DisplayBuffer::post_egl()
 {
+    // XXX Experiemental XXX
+    // This works on fast machines with fast compositors, but otherwise
+    // you risk getting a halved frame rate.
+    bool const experimental_zero_lag_compositing = true;
+    if (experimental_zero_lag_compositing)
+    {
+        // In future this could be measured and adjusted dynamically:
+        long const max_render_time_usec = 3000;
+        if (outputs.size() == 1)
+            outputs.front()->wait_for_vblank(-max_render_time_usec);
+    }
+
     mgm::BufferObject *bufobj = get_front_buffer_object();
     if (!bufobj)
         fatal_error("Failed to get front buffer object");
