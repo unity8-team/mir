@@ -16,6 +16,10 @@ export CXX=$(DEB_HOST_GNU_TYPE)-g++-4.9
 %:
 	dh $@ --parallel --fail-missing
 
+override_dh_testdir:
+	sh debian/create_control_and_install_files.sh
+	dh_testdir
+
 #overrding dh_auto_test to get rid of --parallel during testing
 override_dh_auto_test:
 	GTEST_OUTPUT=xml:./ dh_auto_test --max-parallel=1 -- ARGS="-V"
