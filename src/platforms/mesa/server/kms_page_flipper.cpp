@@ -16,6 +16,8 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "KMS page flipper"
+#include "mir/log.h"
 #include "kms_page_flipper.h"
 #include "mir/graphics/display_report.h"
 
@@ -36,14 +38,14 @@ void vblank_handler(int /*fd*/, unsigned int seq,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void*)
 {
-    fprintf(stderr, "vblank #%u\n", seq);
+    mir::log_info("vblank #%u", seq);
 }
 
 void page_flip_handler(int fd, unsigned int seq,
                        unsigned int /*sec*/, unsigned int /*usec*/,
                        void* data)
 {
-    fprintf(stderr, "flip #%u\n", seq);
+    mir::log_info("flip #%u", seq);
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
     page_flip_data->pending->erase(page_flip_data->crtc_id);
 

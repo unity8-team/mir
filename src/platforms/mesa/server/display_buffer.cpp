@@ -258,10 +258,12 @@ void mgm::DisplayBuffer::post_bypass()
         // FIXME: This is meant to be a wait_for_vblank(), but that currently
         //        either sleeps for no time at all, or an additional frame.
         // TODO:  Consider reusing the vblank event from page flipper
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(15));
     }
 
     auto bypass_buf = bypass_candidate->buffer();
+    if (bypass_buf.use_count() > 2)  // One here, one in Renderable
+        mir::log_error("A compositor has acquired the bypass buffer too early");
     auto native = bypass_buf->native_buffer_handle();
     auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
     auto bufobj = get_buffer_object(gbm_native->bo);
