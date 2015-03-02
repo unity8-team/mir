@@ -37,7 +37,6 @@ void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& r
 {
     geom::Width width{std::numeric_limits<int>::max()};
     geom::Height height{std::numeric_limits<int>::max()};
-    geom::Size main_size{0,0};
     bool first_display = true;
     conf.for_each_output(
         [&](mg::DisplayConfigurationOutput const& output)
@@ -46,12 +45,11 @@ void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& r
                 output.current_mode_index < output.modes.size())
             {
                 auto output_size = output.modes[output.current_mode_index].size;
-                std::cout << "Another display :" << output_size.width.as_int()  <<  "x" << output_size.height.as_int() << std::endl;
 
                 if (first_display)
                 {
                      first_display = false;
-                     main_size = output_size;
+                     display_pos = {-output.top_left.x.as_int(), -output.top_left.y.as_int()};
                 }
 
                 width = std::min(width, output_size.width);
@@ -60,11 +58,6 @@ void update_rectangles(mg::DisplayConfiguration const& conf, geom::Rectangles& r
         });
 
     rectangles.add({{0,0}, {width, height}});
-
-    if (main_size.width < width)
-        display_pos.x = geom::X{(width.as_int() - main_size.width.as_int())/2};
-    if (main_size.height < height)
-        display_pos.y = geom::Y{(height.as_int() - main_size.height.as_int())/2};
 
     std::cout << "Display is offseted by" << display_pos.x.as_int() <<  " " << display_pos.y.as_int() << std::endl;
 }
