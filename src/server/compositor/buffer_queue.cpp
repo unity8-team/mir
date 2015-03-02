@@ -287,7 +287,26 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
     std::shared_ptr<mc::BufferHandle> const acquired_buffer =
-            std::make_shared<mc::CompositorBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
+        std::make_shared<mc::CompositorBufferHandle>(
+           this,
+           buffer_for(current_compositor_buffer, buffers),
+           [this](mg::Buffer* b)
+           {
+               std::unique_lock<decltype(guard)> lock(guard);
+
+               remove(b, buffers_sent_to_compositor);
+
+               /* Not ready to release it yet, other compositors still reference this buffer */
+               if (contains(b, buffers_sent_to_compositor))
+                   return;
+
+               if (nbuffers <= 1)
+                   return;
+
+               if (current_compositor_buffer != b)
+                   release(b, std::move(lock));
+           }
+        );
 
     if (buffer_to_release)
         release(buffer_to_release, std::move(lock));
@@ -295,38 +314,23 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     return acquired_buffer;
 }
 
-void mc::BufferQueue::compositor_release(mg::Buffer* const buffer)
-{
-    std::unique_lock<decltype(guard)> lock(guard);
-
-    remove(buffer, buffers_sent_to_compositor);
-
-    /* Not ready to release it yet, other compositors still reference this buffer */
-    if (contains(buffer, buffers_sent_to_compositor))
-       return;
-
-    if (nbuffers <= 1)
-       return;
-
-    if (current_compositor_buffer != buffer)
-       release(buffer, std::move(lock));
-}
-
 std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
-    return std::make_shared<mc::SnapshotBufferHandle>(this, buffer_for(current_compositor_buffer, buffers));
-}
+    return std::make_shared<mc::SnapshotBufferHandle>(
+               this,
+               buffer_for(current_compositor_buffer, buffers),
+               [this](mg::Buffer* b)
+               {
+                   std::unique_lock<std::mutex> lock(guard);
 
-void mc::BufferQueue::snapshot_release(mg::Buffer* const buffer)
-{
-    std::unique_lock<std::mutex> lock(guard);
+                   remove(b, pending_snapshots);
 
-    remove(buffer, pending_snapshots);
-
-    snapshot_released.notify_all();
+                   snapshot_released.notify_all();
+               }
+           );
 }
 
 mg::BufferProperties mc::BufferQueue::properties() const

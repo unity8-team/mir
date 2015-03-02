@@ -23,10 +23,18 @@ namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
 mc::BufferHandle::BufferHandle(BufferBundle* bundle,
-                               std::shared_ptr<mg::Buffer> const& buffer)
+                               std::shared_ptr<mg::Buffer> const& buffer,
+                               std::function<void(mg::Buffer*)> const& release)
                                : buffer_bundle(bundle),
-                                 wrapped(buffer)
+                                 wrapped(buffer),
+                                 release_fn(release)
 {
+}
+
+mc::BufferHandle::~BufferHandle()
+{
+    if (release_fn)
+    	release_fn(wrapped.get());
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
@@ -35,23 +43,15 @@ std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
 }
 
 mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
-                                                   std::shared_ptr<mg::Buffer> const& buffer)
-                                                   : BufferHandle(bundle, buffer)
+                                                   std::shared_ptr<mg::Buffer> const& buffer,
+                                                   std::function<void(mg::Buffer*)> const& release)
+                                                   : BufferHandle(bundle, buffer, release)
 {
-}
-
-mc::CompositorBufferHandle::~CompositorBufferHandle()
-{
-	buffer_bundle->compositor_release(wrapped.get());
 }
 
 mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
-                                               std::shared_ptr<mg::Buffer> const& buffer)
-                                               : BufferHandle(bundle, buffer)
+                                               std::shared_ptr<mg::Buffer> const& buffer,
+                                               std::function<void(mg::Buffer*)> const& release)
+                                               : BufferHandle(bundle, buffer, release)
 {
-}
-
-mc::SnapshotBufferHandle::~SnapshotBufferHandle()
-{
-	buffer_bundle->snapshot_release(wrapped.get());
 }
