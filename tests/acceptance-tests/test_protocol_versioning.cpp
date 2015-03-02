@@ -58,13 +58,13 @@ public:
 
     static std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> protocol_impls;
 
-    class DispatcherOverridingServerConfig : public mir_test_framework::StubbedServerConfiguration
+    class DispatcherOverridingServerConfig : public mtf::StubbedServerConfiguration
     {
     public:
         std::shared_ptr<mir::frontend::ProtobufConnectionCreator> make_protobuf_connection_creator()
         {
             return std::make_shared<mir::frontend::ProtobufConnectionCreator>(
-                the_ipc_factory(the_frontend_shell(), the_buffer_allocator()),
+                new_ipc_factory(the_session_authorizer()),
                 the_session_authorizer(),
                 the_message_processor_report());
         }

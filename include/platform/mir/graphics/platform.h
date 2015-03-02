@@ -20,10 +20,11 @@
 #ifndef MIR_GRAPHICS_PLATFORM_H_
 #define MIR_GRAPHICS_PLATFORM_H_
 
-#include "basic_platform.h"
-
 #include <boost/program_options/options_description.hpp>
+#include <EGL/egl.h>
 #include <memory>
+
+#include "mir/module_properties.h"
 
 namespace mir
 {
@@ -42,23 +43,16 @@ class Option;
 /// the graphics environment.
 namespace graphics
 {
-class BufferIPCPacker;
 class Buffer;
 class Display;
-struct PlatformIPCPackage;
-class BufferInitializer;
-class InternalClient;
 class DisplayReport;
 class DisplayConfigurationPolicy;
 class GraphicBufferAllocator;
 class GLConfig;
 class GLProgramFactory;
+class PlatformIpcOperations;
+class NestedContext;
 
-enum class BufferIpcMsgType
-{
-    full_msg, //pack the full ipc representation of the buffer
-    update_msg //assume the client has a full representation, and pack only updates to the buffer 
-};
 /**
  * \defgroup platform_enablement Mir platform enablement
  *
@@ -69,7 +63,7 @@ enum class BufferIpcMsgType
  * Interface to platform specific support for graphics operations.
  * \ingroup platform_enablement
  */
-class Platform : public BasicPlatform
+class Platform
 {
 public:
     Platform() = default;
@@ -80,13 +74,9 @@ public:
 
     /**
      * Creates the buffer allocator subsystem.
-     *
-     * \param [in] buffer_initializer the object responsible for initializing the buffers
      */
-
-    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<BufferInitializer> const& buffer_initializer) = 0;
-
+    virtual std::shared_ptr<GraphicBufferAllocator> create_buffer_allocator() = 0;
+    
     /**
      * Creates the display subsystem.
      */
@@ -96,37 +86,36 @@ public:
         std::shared_ptr<GLConfig> const& gl_config) = 0;
 
     /**
-     * Gets the IPC package for the platform.
-     *
-     * The IPC package will be sent to clients when they connect.
+     * Creates an object capable of doing platform specific processing of buffers
+     * before they are sent or after they are recieved accross IPC
      */
-    virtual std::shared_ptr<PlatformIPCPackage> get_ipc_package() = 0;
+    virtual std::shared_ptr<PlatformIpcOperations> make_ipc_operations() const = 0;
 
-    /**
-     * Arranges the IPC package for a buffer that is to be sent through
-     * the frontend. This should be called every time a buffer is to be
-     * sent cross-process.
-     *
-     * The Buffer IPC package will be sent to clients when receiving a buffer.
-     * The implementation must use the provided packer object to perform the packing.
-     *
-     * \param [in] packer   the object providing the packing functionality
-     * \param [in] buffer   the buffer to fill the IPC package for
-     * \param [in] ipc_type what sort of ipc message is needed
-     */
-    virtual void fill_buffer_package(
-        BufferIPCPacker* packer,
-        Buffer const* buffer,
-        BufferIpcMsgType msg_type) const = 0;
-
-    /**
-     * Creates the in-process client support object.
-     */
-    virtual std::shared_ptr<InternalClient> create_internal_client() = 0;
+    virtual EGLNativeDisplayType egl_native_display() const = 0;
 };
 
 /**
- * Function prototype used to return a new graphics platform.
+ * A measure of how well a platform supports a device
+ *
+ * \note This is compared as an integer; best + 1 is a valid PlatformPriority that
+ *       will be used in preference to a module that reports best.
+ *       Platform modules distributed with Mir will never use a priority higher
+ *       than best.
+ */
+enum PlatformPriority : uint32_t
+{
+    unsupported = 0,    /**< Unable to function at all on this device */
+    supported = 128,    /**< Capable of providing a functioning Platform on this device,
+                         *   possibly with degraded performance or features.
+                         */
+    best = 256          /**< Capable of providing a Platform with the best features and
+                         *   performance this device is capable of.
+                         */
+};
+
+/**
+ * Function prototype used to return a new host graphics platform. The host graphics platform
+ * is the system entity that owns the physical display and is a mir host server.
  *
  * \param [in] options options to use for this platform
  * \param [in] emergency_cleanup_registry object to register emergency shutdown handlers with
@@ -136,18 +125,55 @@ public:
  *
  * \ingroup platform_enablement
  */
-extern "C" typedef std::shared_ptr<Platform>(*CreatePlatform)(
+extern "C" typedef std::shared_ptr<Platform>(*CreateHostPlatform)(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<DisplayReport> const& report);
-extern "C" std::shared_ptr<Platform> create_platform(
+extern "C" std::shared_ptr<Platform> create_host_platform(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<DisplayReport> const& report);
+
+/**
+ * Function prototype used to return a new guest graphics platform. The guest graphics platform
+ * exists alongside the host platform and do not output or control the physical displays 
+ *
+ * \param [in] nested_context the object that contains resources needed from the host platform 
+ * \param [in] report the object to use to report interesting events from the display subsystem
+ *
+ * This factory function needs to be implemented by each platform.
+ *
+ * \ingroup platform_enablement
+ */
+extern "C" typedef std::shared_ptr<Platform>(*CreateGuestPlatform)(
+    std::shared_ptr<DisplayReport> const& report,
+    std::shared_ptr<NestedContext> const& nested_context);
+extern "C" std::shared_ptr<Platform> create_guest_platform(
+    std::shared_ptr<DisplayReport> const& report,
+    std::shared_ptr<NestedContext> const& nested_context);
+
+/**
+ * Function prototype used to add platform specific options to the platform-independant server options.
+ *
+ * \param [in] config a boost::program_options that can be appended with new options
+ *
+ * This factory function needs to be implemented by each platform.
+ *
+ * \ingroup platform_enablement
+ */
 extern "C" typedef void(*AddPlatformOptions)(
     boost::program_options::options_description& config);
-extern "C" void add_platform_options(
+extern "C" void add_graphics_platform_options(
     boost::program_options::options_description& config);
+
+// TODO: We actually need to be more granular here; on a device with more
+//       than one graphics system we may need a different platform per GPU,
+//       so we should be associating platforms with graphics devices in some way
+extern "C" typedef PlatformPriority(*PlatformProbe)();
+extern "C" PlatformPriority probe_graphcis_platform();
+
+extern "C" typedef ModuleProperties const*(*DescribeModule)();
+extern "C" ModuleProperties const* describe_graphics_module();
 }
 }
 

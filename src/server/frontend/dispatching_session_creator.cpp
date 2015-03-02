@@ -22,6 +22,7 @@
 
 #include "dispatching_session_creator.h"
 #include "dispatched_session_creator.h"
+#include "mir/frontend/connection_context.h"
 
 mir::frontend::DispatchingConnectionCreator::DispatchingConnectionCreator(
     std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> protocol_implementors,
@@ -50,7 +51,7 @@ void mir::frontend::DispatchingConnectionCreator::create_connection_for(std::sha
     boost::asio::async_read(*socket,
                             *header,
                             boost::asio::transfer_exactly(sizeof(uint16_t) + 36),
-                            [this, header, socket, deadline, &connection_context](boost::system::error_code const&, size_t)
+                            [this, header, socket, deadline, connection_context](boost::system::error_code const&, size_t)
                             {
         deadline->cancel();
 

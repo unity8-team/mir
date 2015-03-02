@@ -29,6 +29,7 @@
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/null_event_sink.h"
 #include "mir_test_doubles/null_display_changer.h"
+#include "mir_test_doubles/null_display_sync_group.h"
 #include "mir_test_doubles/stub_display_buffer.h"
 #include "mir_test_doubles/null_platform.h"
 #include "mir_test/display_config_matchers.h"
@@ -61,13 +62,13 @@ public:
     {
     }
 
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f) override
+    void for_each_display_sync_group(std::function<void(mg::DisplaySyncGroup&)> const& f) override
     {
-        f(display_buffer);
+        f(display_sync_group);
     }
 
 private:
-    mtd::NullDisplayBuffer display_buffer;
+    mtd::NullDisplaySyncGroup display_sync_group;
 };
 
 class StubChanger : public mtd::NullDisplayChanger
@@ -110,8 +111,7 @@ std::vector<MirPixelFormat> const StubGraphicBufferAllocator::pixel_formats{
 class StubPlatform : public mtd::NullPlatform
 {
 public:
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
-            std::shared_ptr<mg::BufferInitializer> const& /*buffer_initializer*/) override
+    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
     {
         return std::make_shared<StubGraphicBufferAllocator>();
     }

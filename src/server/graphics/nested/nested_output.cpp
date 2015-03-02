@@ -16,9 +16,12 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
+#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
+
 #include "nested_output.h"
 #include "host_connection.h"
 #include "mir/input/input_dispatcher.h"
+#include "mir/graphics/pixel_format_utils.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -62,7 +65,7 @@ void mgn::detail::NestedOutput::release_current()
     eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
-void mgn::detail::NestedOutput::post_update()
+void mgn::detail::NestedOutput::gl_swap_buffers()
 {
     eglSwapBuffers(egl_display, egl_surface);
 }

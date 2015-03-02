@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -17,7 +17,9 @@
  */
 
 #include "mir/run_mir.h"
+#include "mir/terminate_with_current_exception.h"
 #include "mir/display_server.h"
+#include "mir/fatal.h"
 #include "mir/main_loop.h"
 #include "mir/server_configuration.h"
 #include "mir/frontend/connector.h"
@@ -63,20 +65,38 @@ extern "C" void fatal_signal_cleanup(int sig)
 
 void mir::run_mir(ServerConfiguration& config, std::function<void(DisplayServer&)> init)
 {
+    run_mir(config, init, {});
+}
+
+void mir::run_mir(
+    ServerConfiguration& config,
+    std::function<void(DisplayServer&)> init,
+    std::function<void(int)> const& terminator)
+{
     DisplayServer* server_ptr{nullptr};
     {
         std::lock_guard<std::mutex> lock{termination_exception_mutex};
         termination_exception = nullptr;
     }
-    auto main_loop = config.the_main_loop();
 
-    main_loop->register_signal_handler(
-        {SIGINT, SIGTERM},
-        [&server_ptr](int)
-        {
-            assert(server_ptr);
-            server_ptr->stop();
-        });
+    auto const main_loop = config.the_main_loop();
+
+    if (terminator)
+    {
+        main_loop->register_signal_handler({SIGINT, SIGTERM}, terminator);
+    }
+    else
+    {
+        main_loop->register_signal_handler(
+            {SIGINT, SIGTERM},
+            [&server_ptr](int)
+            {
+                assert(server_ptr);
+                server_ptr->stop();
+            });
+    }
+
+    FatalErrorStrategy fatal_error_strategy{config.the_fatal_error_strategy()};
 
     DisplayServer server(config);
     server_ptr = &server;

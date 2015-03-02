@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -17,35 +17,61 @@
  */
 
 #include "mir/default_server_configuration.h"
+#include "null_host_lifecycle_event_listener.h"
 
-#include "consuming_placement_strategy.h"
-#include "default_focus_mechanism.h"
+
+#include "default_placement_strategy.h"
+#include "default_shell.h"
+#include "frontend_shell.h"
 #include "graphics_display_layout.h"
 
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mf = mir::frontend;
 
-std::shared_ptr<ms::PlacementStrategy>
-mir::DefaultServerConfiguration::the_placement_strategy()
+
+auto mir::DefaultServerConfiguration::the_shell() -> std::shared_ptr<msh::Shell>
 {
-    return shell_placement_strategy(
-        [this]
+    return shell([this]
         {
-            return std::make_shared<msh::ConsumingPlacementStrategy>(
-                the_shell_display_layout());
+            return wrap_shell(std::make_shared<msh::DefaultShell>(
+                the_input_targeter(),
+                the_surface_coordinator(),
+                the_session_coordinator(),
+                the_prompt_session_manager(),
+                the_placement_strategy(),
+                the_surface_configurator()));
         });
 }
 
-std::shared_ptr<msh::FocusSetter>
-mir::DefaultServerConfiguration::the_shell_focus_setter()
+auto mir::DefaultServerConfiguration::wrap_shell(std::shared_ptr<msh::Shell> const& wrapped) -> std::shared_ptr<msh::Shell>
 {
-    return shell_focus_setter(
+    return wrapped;
+}
+
+std::shared_ptr<mf::Shell>
+mir::DefaultServerConfiguration::the_frontend_shell()
+{
+    return frontend_shell([this]
+        {
+            return std::make_shared<msh::detail::FrontendShell>(the_shell());
+        });
+}
+
+std::shared_ptr<msh::FocusController>
+mir::DefaultServerConfiguration::the_focus_controller()
+{
+    return the_shell();
+}
+
+std::shared_ptr<ms::PlacementStrategy>
+mir::DefaultServerConfiguration::the_placement_strategy()
+{
+    return placement_strategy(
         [this]
         {
-            return std::make_shared<msh::DefaultFocusMechanism>(
-                the_input_targeter(),
-                the_surface_coordinator());
+            return std::make_shared<msh::DefaultPlacementStrategy>(
+                the_shell_display_layout());
         });
 }
 
@@ -56,5 +82,15 @@ mir::DefaultServerConfiguration::the_shell_display_layout()
         [this]()
         {
             return std::make_shared<msh::GraphicsDisplayLayout>(the_display());
+        });
+}
+
+std::shared_ptr<msh::HostLifecycleEventListener>
+mir::DefaultServerConfiguration::the_host_lifecycle_event_listener()
+{
+    return host_lifecycle_event_listener(
+        []()
+        {
+            return std::make_shared<msh::NullHostLifecycleEventListener>();
         });
 }

@@ -41,7 +41,7 @@
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
-namespace mtf = mir::mir_test_framework;
+namespace mtf = mir_test_framework;
 
 namespace
 {
@@ -113,13 +113,8 @@ public:
                                  SetArgPointee<4>(1),
                                  Return(EGL_TRUE)));
 
-        const char* egl_exts = "EGL_KHR_image EGL_KHR_image_base EGL_MESA_drm_image";
-        const char* gl_exts = "GL_OES_texture_npot GL_OES_EGL_image";
-
-        ON_CALL(mock_egl, eglQueryString(_,EGL_EXTENSIONS))
-            .WillByDefault(Return(egl_exts));
-        ON_CALL(mock_gl, glGetString(GL_EXTENSIONS))
-            .WillByDefault(Return(reinterpret_cast<const GLubyte*>(gl_exts)));
+        mock_egl.provide_egl_extensions();
+        mock_gl.provide_gles_extensions();
 
         /*
          * Silence uninteresting calls called when cleaning up resources in
@@ -240,8 +235,8 @@ TEST_F(MesaDisplayMultiMonitorTest, create_display_sets_all_connected_crtcs)
     setup_outputs(num_connected_outputs, num_disconnected_outputs);
 
     /* Create DRM FBs */
-    EXPECT_CALL(mock_drm, drmModeAddFB(mock_drm.fake_drm.fd(),
-                                       _, _, _, _, _, _, _))
+    EXPECT_CALL(mock_drm, drmModeAddFB2(mock_drm.fake_drm.fd(),
+                                        _, _, _, _, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<7>(fb_id), Return(0)));
 
     ExpectationSet crtc_setups;
@@ -301,6 +296,10 @@ TEST_F(MesaDisplayMultiMonitorTest, create_display_creates_shared_egl_contexts)
         /* The shared context is made current finally */
         EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,shared_context))
             .Times(1);
+
+        /* Contexts are released at teardown */
+        EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,EGL_NO_CONTEXT))
+            .Times(AtLeast(1));
     }
 
     auto display = create_display_cloned(create_platform());
@@ -320,7 +319,7 @@ ACTION_P(InvokePageFlipHandler, param)
 
 }
 
-TEST_F(MesaDisplayMultiMonitorTest, post_update_flips_all_connected_crtcs)
+TEST_F(MesaDisplayMultiMonitorTest, flip_flips_all_connected_crtcs)
 {
     using namespace testing;
 
@@ -332,8 +331,8 @@ TEST_F(MesaDisplayMultiMonitorTest, post_update_flips_all_connected_crtcs)
     setup_outputs(num_connected_outputs, num_disconnected_outputs);
 
     /* Create DRM FBs */
-    EXPECT_CALL(mock_drm, drmModeAddFB(mock_drm.fake_drm.fd(),
-                                       _, _, _, _, _, _, _))
+    EXPECT_CALL(mock_drm, drmModeAddFB2(mock_drm.fake_drm.fd(),
+                                        _, _, _, _, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<7>(fb_id), Return(0)));
 
     /* All crtcs are flipped */
@@ -359,16 +358,16 @@ TEST_F(MesaDisplayMultiMonitorTest, post_update_flips_all_connected_crtcs)
     auto display = create_display_cloned(create_platform());
 
     /* First frame: Page flips are scheduled, but not waited for */
-    display->for_each_display_buffer([](mg::DisplayBuffer& buffer)
+    display->for_each_display_sync_group([](mg::DisplaySyncGroup& group)
     {
-        buffer.post_update();
+        group.post();
     });
 
     /* Second frame: Previous page flips finish (drmHandleEvent) and new ones
        are scheduled */
-    display->for_each_display_buffer([](mg::DisplayBuffer& buffer)
+    display->for_each_display_sync_group([](mg::DisplaySyncGroup& group)
     {
-        buffer.post_update();
+        group.post();
     });
 }
 
@@ -379,9 +378,9 @@ struct FBIDContainer
 {
     FBIDContainer(uint32_t base_fb_id) : last_fb_id{base_fb_id} {}
 
-    int add_fb(int, uint32_t, uint32_t, uint8_t,
-               uint8_t, uint32_t, uint32_t,
-               uint32_t *buf_id)
+    int add_fb2(int, uint32_t, uint32_t, uint32_t,
+               uint32_t[4], uint32_t[4], uint32_t[4],
+               uint32_t *buf_id, uint32_t)
     {
         *buf_id = last_fb_id;
         fb_ids.insert(last_fb_id);
@@ -420,10 +419,10 @@ TEST_F(MesaDisplayMultiMonitorTest, create_display_uses_different_drm_fbs_for_si
     setup_outputs(num_connected_outputs, num_disconnected_outputs);
 
     /* Create DRM FBs */
-    EXPECT_CALL(mock_drm, drmModeAddFB(mock_drm.fake_drm.fd(),
-                                       _, _, _, _, _, _, _))
+    EXPECT_CALL(mock_drm, drmModeAddFB2(mock_drm.fake_drm.fd(),
+                                        _, _, _, _, _, _, _, _))
         .Times(num_connected_outputs)
-        .WillRepeatedly(Invoke(&fb_id_container, &FBIDContainer::add_fb));
+        .WillRepeatedly(Invoke(&fb_id_container, &FBIDContainer::add_fb2));
 
     ExpectationSet crtc_setups;
 

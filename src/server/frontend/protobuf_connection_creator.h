@@ -52,7 +52,7 @@ public:
                                ConnectionContext const& connection_context) override;
     void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
                                ConnectionContext const& connection_context,
-                               const std::string& connection_data);
+                               const std::string& connection_data) override;
 
     void protocol_id(uuid_t id) const override;
     size_t header_size() const override;

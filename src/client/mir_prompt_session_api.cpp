@@ -16,10 +16,13 @@
  * Authored by: Nick Dedekind <nick.dedekind@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "MirPromptSessionAPI"
 
 #include "mir_toolkit/mir_prompt_session.h"
 #include "mir_prompt_session.h"
 #include "mir_connection.h"
+
+#include "mir/uncaught.h"
 
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
@@ -27,16 +30,6 @@
 namespace
 {
 void null_callback(MirPromptSession*, void*) {}
-
-void add_prompt_provider_callback(
-    MirPromptSession*,
-    MirBool added,
-    void* context)
-{
-    if (context)
-        *(MirBool*)context = added;
-}
-
 }
 
 MirPromptSession *mir_connection_create_prompt_session_sync(
@@ -56,40 +49,12 @@ MirPromptSession *mir_connection_create_prompt_session_sync(
                      nullptr));
         return prompt_session;
     }
-    catch (std::exception const&)
+    catch (std::exception const& ex)
     {
         // TODO callback with an error
+        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
-}
-
-MirWaitHandle *mir_prompt_session_add_prompt_provider(
-    MirPromptSession *prompt_session,
-    pid_t provider_pid,
-    mir_prompt_session_add_prompt_provider_callback callback,
-    void* context)
-{
-    try
-    {
-        return prompt_session->add_prompt_provider(provider_pid, callback, context);
-    }
-    catch (std::exception const&)
-    {
-        // TODO callback with an error
-        return nullptr;
-    }
-}
-
-MirBool mir_prompt_session_add_prompt_provider_sync(
-    MirPromptSession *prompt_session,
-    pid_t provider_pid)
-{
-    MirBool result;
-    mir_wait_for(mir_prompt_session_add_prompt_provider(prompt_session,
-        provider_pid,
-        add_prompt_provider_callback,
-        &result));
-    return result;
 }
 
 MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
@@ -104,8 +69,9 @@ MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
             prompt_session->new_fds_for_prompt_providers(no_of_fds, callback, context) :
             nullptr;
     }
-    catch (std::exception const&)
+    catch (std::exception const& ex)
     {
+        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -117,11 +83,11 @@ void mir_prompt_session_release_sync(
     delete prompt_session;
 }
 
-MirBool mir_prompt_session_is_valid(MirPromptSession *prompt_session)
+bool mir_prompt_session_is_valid(MirPromptSession *prompt_session)
 {
     auto const err = prompt_session->get_error_message();
 
-    return MirBool(!*err);
+    return !*err;
 }
 
 char const *mir_prompt_session_error_message(MirPromptSession *prompt_session)

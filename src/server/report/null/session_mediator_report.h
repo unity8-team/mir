@@ -41,6 +41,8 @@ class SessionMediatorReport : public frontend::SessionMediatorReport
 
     void session_next_buffer_called(std::string const& app_name) override;
 
+    void session_exchange_buffer_called(std::string const& app_name) override;
+
     void session_release_surface_called(std::string const& app_name) override;
 
     void session_disconnect_called(std::string const& app_name) override;
@@ -54,8 +56,6 @@ class SessionMediatorReport : public frontend::SessionMediatorReport
     void session_configure_display_called(std::string const& app_name) override;
 
     void session_start_prompt_session_called(std::string const& app_name, pid_t application_process) override;
-
-    void session_add_prompt_provider_called(std::string const& app_name, pid_t provider_process) override;
 
     void session_stop_prompt_session_called(std::string const& app_name) override;
 

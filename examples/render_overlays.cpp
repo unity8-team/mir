@@ -16,24 +16,21 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/default_server_configuration.h"
+#include "mir/server.h"
+#include "mir/report_exception.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/platform.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_properties.h"
-#include "mir/report_exception.h"
-
-#include "testdraw/graphics_region_factory.h"
-#include "testdraw/patterns.h"
+#include "mir_image.h"
 
 #include <chrono>
 #include <csignal>
 #include <iostream>
 
 namespace mg=mir::graphics;
-namespace ml=mir::logging;
 namespace mo=mir::options;
 namespace geom=mir::geometry;
 
@@ -46,6 +43,36 @@ void signal_handler(int /*signum*/)
     running = false;
 }
 
+class PixelBufferABGR
+{
+public:
+    PixelBufferABGR(geom::Size sz, uint32_t color) :
+        size{sz.width.as_uint32_t() * sz.height.as_uint32_t()},
+        data{new uint32_t[size]}
+    {
+        fill(color);
+    }
+
+    void fill(uint32_t color)
+    {
+        for(auto i = 0u; i < size; i++)
+            data[i] = color;
+    }
+
+    unsigned char* pixels()
+    {
+        return reinterpret_cast<unsigned char*>(data.get());
+    }
+
+    size_t pixel_size()
+    {
+        return size * sizeof(uint32_t);
+    }
+private:
+    size_t size;
+    std::unique_ptr<uint32_t[]> data;
+};
+
 class DemoOverlayClient
 {
 public:
@@ -54,9 +81,9 @@ public:
         mg::BufferProperties const& buffer_properties, uint32_t color)
          : front_buffer(buffer_allocator.alloc_buffer(buffer_properties)),
            back_buffer(buffer_allocator.alloc_buffer(buffer_properties)),
-           region_factory(mir::test::draw::create_graphics_region_factory()),
            color{color},
-           last_tick{std::chrono::high_resolution_clock::now()}
+           last_tick{std::chrono::high_resolution_clock::now()},
+           pixel_buffer{buffer_properties.size, color}
     {
     }
 
@@ -66,9 +93,9 @@ public:
         green_value += compute_update_value();
         color &= 0xFFFF00FF;
         color |= (green_value << 8);
+        pixel_buffer.fill(color);
 
-        mir::test::draw::DrawPatternSolid fill{color};
-        fill.draw(*region_factory->graphic_region_from_handle(*back_buffer->native_buffer_handle()));
+        back_buffer->write(pixel_buffer.pixels(), pixel_buffer.pixel_size());
         std::swap(front_buffer, back_buffer);
     }
 
@@ -91,9 +118,9 @@ private:
 
     std::shared_ptr<mg::Buffer> front_buffer;
     std::shared_ptr<mg::Buffer> back_buffer;
-    std::shared_ptr<mir::test::draw::GraphicsRegionFactory> region_factory;
     unsigned int color;
     std::chrono::time_point<std::chrono::high_resolution_clock> last_tick;
+    PixelBufferABGR pixel_buffer;
 };
 
 class DemoRenderable : public mg::Renderable
@@ -113,11 +140,6 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         return client->last_rendered();
-    }
-
-    bool alpha_enabled() const override
-    {
-        return false;
     }
 
     geom::Rectangle screen_position() const override
@@ -140,27 +162,14 @@ public:
         return false;
     }
 
-    bool visible() const override
-    {
-        return true;
-    }
-
-    int buffers_ready_for_compositor() const override
-    {
-        return 1;
-    }
-
 private:
     std::shared_ptr<DemoOverlayClient> const client;
     geom::Rectangle const position;
     glm::mat4 const trans;
 };
-}
 
-int main(int argc, char const** argv)
-try
+void render_loop(mir::Server& server)
 {
-
     /* Set up graceful exit on SIGINT and SIGTERM */
     struct sigaction sa;
     sa.sa_handler = signal_handler;
@@ -170,20 +179,20 @@ try
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 
-    mir::DefaultServerConfiguration conf{argc, argv};
+    auto platform = server.the_graphics_platform();
+    auto display = server.the_display();
+    auto buffer_allocator = platform->create_buffer_allocator();
 
-    auto platform = conf.the_graphics_platform();
-    auto display = conf.the_display();
-    auto buffer_allocator = platform->create_buffer_allocator(conf.the_buffer_initializer());
-
-     mg::BufferProperties buffer_properties{
+    mg::BufferProperties buffer_properties{
         geom::Size{512, 512},
         mir_pixel_format_abgr_8888,
         mg::BufferUsage::hardware
     };
 
-    auto client1 = std::make_shared<DemoOverlayClient>(*buffer_allocator, buffer_properties,0xFF0000FF);
-    auto client2 = std::make_shared<DemoOverlayClient>(*buffer_allocator, buffer_properties,0xFFFFFF00);
+    auto client1 = std::make_shared<DemoOverlayClient>(
+        *buffer_allocator, buffer_properties, 0xFF0000FF);
+    auto client2 = std::make_shared<DemoOverlayClient>(
+        *buffer_allocator, buffer_properties, 0xFFFFFF00);
 
     std::list<std::shared_ptr<mg::Renderable>> renderlist
     {
@@ -193,18 +202,34 @@ try
 
     while (running)
     {
-        display->for_each_display_buffer([&](mg::DisplayBuffer& buffer)
+        client1->update_green_channel();
+        client2->update_green_channel();
+        display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group)
         {
-            buffer.make_current();
-            client1->update_green_channel();
-            client2->update_green_channel();
-            buffer.post_renderables_if_optimizable(renderlist);
+            group.for_each_display_buffer([&](mg::DisplayBuffer& buffer)
+            {
+                buffer.make_current();
+                buffer.post_renderables_if_optimizable(renderlist);
+            });
+            group.post();
         });
     }
-   return 0;
+}
+}
+
+int main(int argc, char const** argv)
+try
+{
+    mir::Server server;
+    server.set_command_line(argc, argv);
+    server.apply_settings();
+
+    render_loop(server);
+
+    return EXIT_SUCCESS;
 }
 catch (...)
 {
     mir::report_exception(std::cerr);
-    return 1;
+    return EXIT_FAILURE;
 }

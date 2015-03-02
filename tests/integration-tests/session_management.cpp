@@ -18,7 +18,6 @@
 
 #include "mir/frontend/session.h"
 #include "mir/frontend/shell.h"
-#include "mir/input/input_configuration.h"
 
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/scene/session.h"
@@ -98,6 +97,7 @@ struct SessionManagement : Test
     std::shared_ptr<mf::EventSink> const event_sink = std::make_shared<mtd::NullEventSink>();
     std::shared_ptr<mf::Shell> const session_manager = builder.the_frontend_shell();
     std::shared_ptr<TestSurfaceStack> const& test_surface_stack = builder.test_surface_stack;
+    ms::SurfaceCreationParameters const params = ms::SurfaceCreationParameters().of_size(100,100);
 
     void SetUp()
     {
@@ -117,25 +117,21 @@ MATCHER_P(WeakPtrTo, p, "")
 
 TEST_F(SessionManagement, creating_a_surface_adds_it_to_scene)
 {
-    ms::SurfaceCreationParameters params;
-
     auto const session = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
 
     EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(1);
-    session->create_surface(params);
+    session_manager->create_surface(session, params);
 }
 
 TEST_F(SessionManagement, focus_on_a_session_raises_its_surface)
 {
     EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(AnyNumber());
 
-    ms::SurfaceCreationParameters params;
-
     auto const session1 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto const surface1 = session1->create_surface(params);
+    auto const surface1 = session_manager->create_surface(session1, params);
 
     auto const session2 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto surface2 = session2->create_surface(params);
+    auto surface2 = session_manager->create_surface(session2, params);
 
     auto const focus_controller = builder.the_focus_controller();
     auto const shell_session = std::dynamic_pointer_cast<ms::Session>(session1);
@@ -144,6 +140,6 @@ TEST_F(SessionManagement, focus_on_a_session_raises_its_surface)
 
     focus_controller->set_focus_to(shell_session);
 
-    session1->destroy_surface(surface1);
-    session2->destroy_surface(surface2);
+    session_manager->destroy_surface(session1, surface1);
+    session_manager->destroy_surface(session2, surface2);
 }

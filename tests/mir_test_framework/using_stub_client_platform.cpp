@@ -19,64 +19,27 @@
 #include <unistd.h>
 
 #include "mir_test_framework/using_stub_client_platform.h"
-#include "mir_test_framework/stub_client_connection_configuration.h"
-#include "src/client/mir_wait_handle.h"
-#include "src/client/mir_connection.h"
-#include "src/client/api_impl.h"
+#include "mir_toolkit/mir_client_library.h"
 
 namespace mtf = mir_test_framework;
+namespace mcl = mir::client;
 
-namespace
+MirWaitHandle* mtf::StubMirConnectionAPI::connect(
+        mcl::ConfigurationFactory /*configuration*/,
+        char const* socket_file,
+        char const* name,
+        mir_connected_callback callback,
+        void* context)
 {
-
-MirWaitHandle* mir_connect_override(
-    char const *socket_file,
-    char const *app_name,
-    mir_connected_callback callback,
-    void *context)
-{
-    mtf::StubConnectionConfiguration conf(socket_file);
-
-    if (write(conf.the_socket_fd(), "60019143-2648-4904-9719-7817f0b9fb13", 36) != 36)
-    {
-        auto error_connection = new MirConnection(std::string("Failed to send client protocol string: ") +
-                                                  strerror(errno) + " (" + std::to_string(errno) + ")");
-        callback(error_connection, context);
-        return nullptr;
-    }
-
-    auto connection = new MirConnection(conf);
-    return connection->connect(app_name, callback, context);
+    return prev_api->connect(configuration_factory(), socket_file, name, callback, context);
 }
 
-void mir_connection_release_override(MirConnection *connection)
+void mtf::StubMirConnectionAPI::release(MirConnection* connection)
 {
-    try
-    {
-        auto wait_handle = connection->disconnect();
-        wait_handle->wait_for_all();
-    }
-    catch (std::exception const&)
-    {
-        // Really, we want try/finally, but that's not C++11
-        delete connection;
-        throw;
-    }
-    delete connection;
+    return prev_api->release(connection);
 }
 
-}
-
-mtf::UsingStubClientPlatform::UsingStubClientPlatform()
-    : prev_mir_connect_impl{mir_connect_impl},
-      prev_mir_connection_release_impl{mir_connection_release_impl}
+mcl::ConfigurationFactory mtf::StubMirConnectionAPI::configuration_factory()
 {
-    mir_connect_impl = mir_connect_override;
-    mir_connection_release_impl = mir_connection_release_override;
-}
-
-mtf::UsingStubClientPlatform::~UsingStubClientPlatform()
-{
-    mir_connect_impl = prev_mir_connect_impl;
-    mir_connection_release_impl = prev_mir_connection_release_impl;
+    return factory;
 }

@@ -17,6 +17,8 @@
  *              Daniel d'Andradra <daniel.dandrada@canonical.com>
  */
 
+#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
+
 #include "mir/input/input_dispatcher.h"
 #include "android_input_manager.h"
 #include "android_input_constants.h"
@@ -36,6 +38,9 @@ mia::InputManager::InputManager(std::shared_ptr<droidinput::EventHubInterface> c
 
 mia::InputManager::~InputManager()
 {
+    // It is safe to call stop(), even if we haven't been started at all,
+    // or we have been previously started and stopped manually.
+    stop();
 }
 
 void mia::InputManager::stop()

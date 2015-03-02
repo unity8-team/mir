@@ -18,11 +18,11 @@
 
 #include "cursor_controller.h"
 
-#include "mir/input/input_targets.h"
+#include "mir/input/scene.h"
 #include "mir/input/surface.h"
 #include "mir/graphics/cursor.h"
 #include "mir/scene/observer.h"
-#include "mir/scene/surface_observer.h"
+#include "mir/scene/null_surface_observer.h"
 #include "mir/scene/surface.h"
 
 #include <functional>
@@ -39,7 +39,7 @@ namespace geom = mir::geometry;
 namespace
 {
 
-struct UpdateCursorOnSurfaceChanges : ms::SurfaceObserver
+struct UpdateCursorOnSurfaceChanges : ms::NullSurfaceObserver
 {
     UpdateCursorOnSurfaceChanges(mi::CursorController* cursor_controller)
         : cursor_controller(cursor_controller)
@@ -86,6 +86,10 @@ struct UpdateCursorOnSurfaceChanges : ms::SurfaceObserver
     {
         // No need to update cursor for orientation property change alone.
     }
+    void client_surface_close_requested() override
+    {
+        // No need to update cursor for client close requests
+    }
 
     mi::CursorController* const cursor_controller;
 };
@@ -130,6 +134,11 @@ struct UpdateCursorOnSceneChanges : ms::Observer
     {
         cursor_controller->update_cursor_image();
     }
+
+    void scene_changed()
+    {
+        cursor_controller->update_cursor_image();
+    }
     
     void surface_exists(ms::Surface *surface)
     {
@@ -157,7 +166,7 @@ private:
 };
 
 std::shared_ptr<mi::Surface> topmost_surface_containing_point(
-    std::shared_ptr<mi::InputTargets> const& targets, geom::Point const& point)
+    std::shared_ptr<mi::Scene> const& targets, geom::Point const& point)
 {
     std::shared_ptr<mi::Surface> top_surface_at_point;
     targets->for_each([&top_surface_at_point, &point]
@@ -171,7 +180,7 @@ std::shared_ptr<mi::Surface> topmost_surface_containing_point(
 
 }
 
-mi::CursorController::CursorController(std::shared_ptr<mi::InputTargets> const& input_targets,
+mi::CursorController::CursorController(std::shared_ptr<mi::Scene> const& input_targets,
     std::shared_ptr<mg::Cursor> const& cursor,
     std::shared_ptr<mg::CursorImage> const& default_cursor_image) :
         input_targets(input_targets),
@@ -198,7 +207,7 @@ mi::CursorController::~CursorController()
     }
 }
 
-void mi::CursorController::set_cursor_image_locked(std::lock_guard<std::mutex> const&,
+void mi::CursorController::set_cursor_image_locked(std::unique_lock<std::mutex>& lock,
     std::shared_ptr<mg::CursorImage> const& image)
 {
     if (current_cursor == image)
@@ -207,38 +216,45 @@ void mi::CursorController::set_cursor_image_locked(std::lock_guard<std::mutex> c
     }
 
     current_cursor = image;
+
+    lock.unlock();
+
     if (image)
         cursor->show(*image);
     else
         cursor->hide();
 }
 
-void mi::CursorController::update_cursor_image_locked(std::lock_guard<std::mutex> const& lg)
+void mi::CursorController::update_cursor_image_locked(std::unique_lock<std::mutex>& lock)
 {
     auto surface = topmost_surface_containing_point(input_targets, cursor_location);
     if (surface)
     {
-        set_cursor_image_locked(lg, surface->cursor_image());
+        set_cursor_image_locked(lock, surface->cursor_image());
     }
     else
     {
-        set_cursor_image_locked(lg, default_cursor_image);
+        set_cursor_image_locked(lock, default_cursor_image);
     }
 }
 
 void mi::CursorController::update_cursor_image()
 {
-    std::lock_guard<std::mutex> lg(cursor_state_guard);
-    update_cursor_image_locked(lg);
+    std::unique_lock<std::mutex> lock(cursor_state_guard);
+    update_cursor_image_locked(lock);
 }
 
 void mi::CursorController::cursor_moved_to(float abs_x, float abs_y)
 {
-    std::lock_guard<std::mutex> lg(cursor_state_guard);
+    auto const new_location = geom::Point{geom::X{abs_x}, geom::Y{abs_y}};
 
-    cursor_location = geom::Point{geom::X{abs_x}, geom::Y{abs_y}};
-    
-    update_cursor_image_locked(lg);
+    {
+        std::unique_lock<std::mutex> lock(cursor_state_guard);
 
-    cursor->move_to(cursor_location);
+        cursor_location = new_location;
+
+        update_cursor_image_locked(lock);
+    }
+
+    cursor->move_to(new_location);
 }

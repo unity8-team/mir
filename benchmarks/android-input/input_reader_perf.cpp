@@ -62,13 +62,13 @@ public:
     }
 
     void getAssociatedDisplayInfo(InputDeviceIdentifier const& /* identifier */,
-        int& out_associated_display_id, bool& out_associated_display_is_external) {
+        int& out_associated_display_id, bool& out_associated_display_is_external) override {
         out_associated_display_id = 0;
         out_associated_display_is_external = false;
     }
 
 private:
-    virtual void getReaderConfiguration(InputReaderConfiguration* outConfig) {
+    virtual void getReaderConfiguration(InputReaderConfiguration* outConfig) override {
         *outConfig = mConfig;
     }
 
@@ -77,7 +77,7 @@ private:
         return sp<PointerControllerInterface>();
     }
 
-    virtual void notifyInputDevicesChanged(const Vector<InputDeviceInfo>& inputDevices) {
+    virtual void notifyInputDevicesChanged(const Vector<InputDeviceInfo>& inputDevices) override {
         mInputDevices = inputDevices;
     }
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
         size_t i = 0;
         while (gInputEvents[i].nsecs > 0)
         {
-            fakeEventHub->synthesize_event(gInputEvents[i].nsecs, DEVICE_ID,
+            fakeEventHub->synthesize_event(std::chrono::nanoseconds(gInputEvents[i].nsecs), DEVICE_ID,
                                            gInputEvents[i].type,
                                            gInputEvents[i].code,
                                            gInputEvents[i].value);

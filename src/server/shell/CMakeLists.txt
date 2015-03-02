@@ -1,16 +1,17 @@
 set(
   SHELL_SOURCES
 
-  default_focus_mechanism.cpp
-  consuming_placement_strategy.cpp
+  abstract_shell.cpp
+  default_placement_strategy.cpp
+  frontend_shell.cpp
   graphics_display_layout.cpp
   default_configuration.cpp
-  session_coordinator_wrapper.cpp
-  surface_coordinator_wrapper.cpp
+  default_shell.cpp
+  shell_wrapper.cpp
 )
 
 add_library(
-  mirshell STATIC
+  mirshell OBJECT
 
   ${SHELL_SOURCES}
 )

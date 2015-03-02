@@ -47,8 +47,12 @@ public:
     /** Releases the current GL rendering target. */
     virtual void release_current() = 0;
 
-    /** This will trigger OpenGL rendering and post the result to the screen. */
-    virtual void post_update() = 0;
+    /**
+     * Swap buffers for OpenGL rendering.
+     * After this method returns is the earliest time that it is safe to
+     * free GL-related resources such as textures and buffers.
+     */
+    virtual void gl_swap_buffers() = 0;
 
     /** This will render renderlist to the screen and post the result to the 
      *  screen if there is a hardware optimization that can be done.

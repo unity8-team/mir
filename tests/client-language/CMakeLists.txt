@@ -1,5 +1,5 @@
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c89")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 
-add_executable(client-language-test-c89
-  c89.c
+mir_add_wrapped_executable(client-language-test-c99 NOINSTALL
+  c99.c
 )

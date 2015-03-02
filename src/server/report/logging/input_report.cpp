@@ -59,19 +59,19 @@ public:
         case ANDROID_LOG_DEFAULT:
         case ANDROID_LOG_VERBOSE:
         case ANDROID_LOG_DEBUG:
-            logger->log(ml::Logger::debug, buffer, component);
+            logger->log(ml::Severity::debug, buffer, component);
             break;
 
         case ANDROID_LOG_INFO:
-            logger->log(ml::Logger::informational, buffer, component);
+            logger->log(ml::Severity::informational, buffer, component);
             break;
 
         case ANDROID_LOG_WARN:
-            logger->log(ml::Logger::warning, buffer, component);
+            logger->log(ml::Severity::warning, buffer, component);
             break;
 
         case ANDROID_LOG_ERROR:
-            logger->log(ml::Logger::error, buffer, component);
+            logger->log(ml::Severity::error, buffer, component);
         };
     }
 
@@ -112,12 +112,12 @@ void mrl::InputReport::received_event_from_kernel(int64_t when, int type, int co
     std::stringstream ss;
 
     ss << "Received event"
-       << " time=" << ml::input_timestamp(when)
+       << " time=" << ml::input_timestamp(std::chrono::nanoseconds(when))
        << " type=" << type
        << " code=" << code
        << " value=" << value;
 
-    logger->log(ml::Logger::informational, ss.str(), component());
+    logger->log(ml::Severity::informational, ss.str(), component());
 }
 
 void mrl::InputReport::published_key_event(int dest_fd, uint32_t seq_id, int64_t event_time)
@@ -126,10 +126,10 @@ void mrl::InputReport::published_key_event(int dest_fd, uint32_t seq_id, int64_t
 
     ss << "Published key event"
        << " seq_id=" << seq_id
-       << " time=" << ml::input_timestamp(event_time)
+       << " time=" << ml::input_timestamp(std::chrono::nanoseconds(event_time))
        << " dest_fd=" << dest_fd;
 
-    logger->log(ml::Logger::informational, ss.str(), component());
+    logger->log(ml::Severity::informational, ss.str(), component());
 }
 
 void mrl::InputReport::published_motion_event(int dest_fd, uint32_t seq_id, int64_t event_time)
@@ -138,10 +138,10 @@ void mrl::InputReport::published_motion_event(int dest_fd, uint32_t seq_id, int6
 
     ss << "Published motion event"
        << " seq_id=" << seq_id
-       << " time=" << ml::input_timestamp(event_time)
+       << " time=" << ml::input_timestamp(std::chrono::nanoseconds(event_time))
        << " dest_fd=" << dest_fd;
 
-    logger->log(ml::Logger::informational, ss.str(), component());
+    logger->log(ml::Severity::informational, ss.str(), component());
 }
 
 void mrl::InputReport::received_event_finished_signal(int src_fd, uint32_t seq_id)
@@ -152,5 +152,5 @@ void mrl::InputReport::received_event_finished_signal(int src_fd, uint32_t seq_i
        << " seq_id=" << seq_id
        << " src_fd=" << src_fd;
 
-    logger->log(ml::Logger::informational, ss.str(), component());
+    logger->log(ml::Severity::informational, ss.str(), component());
 }

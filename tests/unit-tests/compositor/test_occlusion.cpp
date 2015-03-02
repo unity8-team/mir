@@ -113,32 +113,9 @@ TEST_F(OcclusionFilterTest, translucent_window_occludes_nothing)
     EXPECT_THAT(renderables_from(elements), ElementsAre(bottom, top));
 }
 
-TEST_F(OcclusionFilterTest, hidden_window_is_self_occluded)
-{
-    auto window = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
-    auto elements = scene_elements_from({window});
-
-    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
-
-    EXPECT_THAT(renderables_from(occlusions), ElementsAre(window));
-    EXPECT_THAT(renderables_from(elements), IsEmpty());
-}
-
-TEST_F(OcclusionFilterTest, hidden_window_occludes_nothing)
-{
-    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, true, false);
-    auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
-    auto elements = scene_elements_from({bottom, top});
-
-    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
-
-    EXPECT_THAT(renderables_from(occlusions), ElementsAre(top));
-    EXPECT_THAT(renderables_from(elements), ElementsAre(bottom));
-}
-
 TEST_F(OcclusionFilterTest, shaped_window_occludes_nothing)
 {
-    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, false, true);
+    auto top = std::make_shared<mtd::FakeRenderable>(Rectangle{{10, 10}, {10, 10}}, 1.0f, false);
     auto bottom = std::make_shared<mtd::FakeRenderable>(12, 12, 5, 5);
     auto elements = scene_elements_from({bottom, top});
 
@@ -208,4 +185,20 @@ TEST_F(OcclusionFilterTest, some_occluded_and_some_not)
 
     EXPECT_THAT(renderables_from(occlusions), ElementsAre(window3, window2, window1));
     EXPECT_THAT(renderables_from(elements), ElementsAre(window5, window4, window0));
+}
+
+TEST_F(OcclusionFilterTest,
+       occludes_partially_onscreen_window_when_onscreen_part_is_covered_by_another_window)
+{
+    auto const partially_onscreen = std::make_shared<mtd::FakeRenderable>(-50, 100, 150, 100);
+    auto const covering = std::make_shared<mtd::FakeRenderable>(0, 100, 100, 100);
+    auto elements = scene_elements_from({
+        partially_onscreen,
+        covering
+    });
+
+    auto const& occlusions = filter_occlusions_from(elements, monitor_rect);
+
+    EXPECT_THAT(renderables_from(occlusions), ElementsAre(partially_onscreen));
+    EXPECT_THAT(renderables_from(elements), ElementsAre(covering));
 }

@@ -24,7 +24,9 @@
 #include "mir/compositor/scene.h"
 #include "mir/scene/depth_id.h"
 #include "mir/scene/observer.h"
-#include "mir/input/input_targets.h"
+#include "mir/input/scene.h"
+
+#include "mir/basic_observers.h"
 
 #include <memory>
 #include <vector>
@@ -34,6 +36,10 @@
 
 namespace mir
 {
+namespace graphics
+{
+class Renderable;
+}
 /// Management of Surface objects. Includes the model (SurfaceStack and Surface
 /// classes) and controller (SurfaceController) elements of an MVC design.
 namespace scene
@@ -43,25 +49,22 @@ class BasicSurface;
 class SceneReport;
 class RenderingTracker;
 
-class Observers : public Observer
+class Observers : public Observer, BasicObservers<Observer>
 {
 public:
    // ms::Observer
    void surface_added(Surface* surface) override;
    void surface_removed(Surface* surface) override;
    void surfaces_reordered() override;
+   void scene_changed() override;
    void surface_exists(Surface* surface) override;
-   void end_observation();
+   void end_observation() override;
 
-   void add_observer(std::shared_ptr<Observer> const& observer);
-   void remove_observer(std::shared_ptr<Observer> const& observer);
-
-private:
-    std::mutex mutex;
-    std::vector<std::shared_ptr<Observer>> observers;
+   using BasicObservers<Observer>::add;
+   using BasicObservers<Observer>::remove;
 };
 
-class SurfaceStack : public compositor::Scene, public input::InputTargets, public SurfaceStackModel
+class SurfaceStack : public compositor::Scene, public input::Scene, public SurfaceStackModel
 {
 public:
     explicit SurfaceStack(
@@ -70,23 +73,34 @@ public:
 
     // From Scene
     compositor::SceneElementSequence scene_elements_for(compositor::CompositorID id) override;
+    int frames_pending(compositor::CompositorID) const override;
     void register_compositor(compositor::CompositorID id) override;
     void unregister_compositor(compositor::CompositorID id) override;
 
-    // From InputTargets
-    void for_each(std::function<void(std::shared_ptr<input::Surface> const&)> const& callback);
+    // From Scene
+    void for_each(std::function<void(std::shared_ptr<input::Surface> const&)> const& callback) override;
 
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) override;
 
     virtual void raise(std::weak_ptr<Surface> const& surface) override;
+
+    void raise(SurfaceSet const& surfaces) override;
 
     void add_surface(
         std::shared_ptr<Surface> const& surface,
         DepthId depth,
         input::InputReceptionMode input_mode) override;
     
+    auto surface_at(geometry::Point) const -> std::shared_ptr<Surface> override;
+
     void add_observer(std::shared_ptr<Observer> const& observer) override;
     void remove_observer(std::weak_ptr<Observer> const& observer) override;
+    
+    // Intended for input overlays, as described in mir::input::Scene documentation.
+    void add_input_visualization(std::shared_ptr<graphics::Renderable> const& overlay) override;
+    void remove_input_visualization(std::weak_ptr<graphics::Renderable> const& overlay) override;
+    
+    void emit_scene_changed() override;
 
 private:
     SurfaceStack(const SurfaceStack&) = delete;
@@ -103,8 +117,11 @@ private:
     std::map<DepthId, Layer> layers_by_depth;
     std::map<Surface*,std::shared_ptr<RenderingTracker>> rendering_trackers;
     std::set<compositor::CompositorID> registered_compositors;
+    
+    std::vector<std::shared_ptr<graphics::Renderable>> overlays;
 
     Observers observers;
+    bool scene_changed = false;
 };
 
 }

@@ -21,12 +21,11 @@
 #include "mir/input/input_channel.h"
 #include "mir/input/surface.h"
 #include "mir/scene/surface_creation_parameters.h"
-#include "mir/frontend/shell.h"
 #include "mir/frontend/session.h"
 #include "mir/input/composite_event_filter.h"
 
 #include "mir_test/fake_event_hub.h"
-#include "mir_test/fake_event_hub_input_configuration.h"
+#include "mir_test/wait_condition.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -34,6 +33,7 @@
 #include <stdexcept>
 
 namespace mtf = mir_test_framework;
+namespace mt = mir::test;
 
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
@@ -53,9 +53,23 @@ mtf::InputTestingServerConfiguration::InputTestingServerConfiguration(
 {
 }
 
-void mtf::InputTestingServerConfiguration::exec()
+void mtf::InputTestingServerConfiguration::on_start()
 {
-    input_injection_thread = std::thread(std::mem_fn(&mtf::InputTestingServerConfiguration::inject_input), this);
+    auto const start_input_injection = std::make_shared<mt::WaitCondition>();
+
+    input_injection_thread = std::thread{
+        [this, start_input_injection]
+        {
+            // We need to wait for the 'input_injection_thread' variable to be
+            // assigned to before starting. Otherwise we may end up calling
+            // on_exit() before assignment and try to join an unjoinable thread.
+            start_input_injection->wait_for_at_most_seconds(3);
+            if (!start_input_injection->woken())
+                BOOST_THROW_EXCEPTION(std::runtime_error("Input injection thread start signal timed out"));
+            inject_input();
+        }};
+
+    start_input_injection->wake_up_everyone();
 }
 
 void mtf::InputTestingServerConfiguration::on_exit()
@@ -68,6 +82,11 @@ std::shared_ptr<ms::InputTargeter> mtf::InputTestingServerConfiguration::the_inp
     return DefaultServerConfiguration::the_input_targeter();
 }
 
+std::shared_ptr<mi::InputManager> mtf::InputTestingServerConfiguration::the_input_manager()
+{
+    return DefaultServerConfiguration::the_input_manager();
+}
+
 std::shared_ptr<mi::InputDispatcher> mtf::InputTestingServerConfiguration::the_input_dispatcher()
 {
     return DefaultServerConfiguration::the_input_dispatcher();
@@ -78,16 +97,11 @@ std::shared_ptr<mi::InputSender> mtf::InputTestingServerConfiguration::the_input
     return DefaultServerConfiguration::the_input_sender();
 }
 
-std::shared_ptr<mi::InputConfiguration> mtf::InputTestingServerConfiguration::the_input_configuration()
+std::shared_ptr<droidinput::EventHubInterface> mtf::InputTestingServerConfiguration::the_event_hub()
 {
-    if (!input_configuration)
+    if (!fake_event_hub)
     {
-        input_configuration = std::make_shared<mtd::FakeEventHubInputConfiguration>(
-            the_input_dispatcher(),
-            the_input_region(),
-            the_cursor_listener(),
-            the_input_report());
-        fake_event_hub = input_configuration->the_fake_event_hub();
+        fake_event_hub = std::make_shared<mia::FakeEventHub>();
 
         fake_event_hub->synthesize_builtin_keyboard_added();
         fake_event_hub->synthesize_builtin_cursor_added();
@@ -95,5 +109,5 @@ std::shared_ptr<mi::InputConfiguration> mtf::InputTestingServerConfiguration::th
         fake_event_hub->synthesize_device_scan_complete();
     }
 
-    return input_configuration;
+    return fake_event_hub;
 }

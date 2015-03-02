@@ -20,8 +20,8 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/graphics/display.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
-#include "src/platform/graphics/mesa/platform.h"
-#include "src/platform/graphics/mesa/kms_display_configuration.h"
+#include "src/platforms/mesa/server/platform.h"
+#include "src/platforms/mesa/server/kms_display_configuration.h"
 
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
@@ -43,7 +43,7 @@ namespace mg = mir::graphics;
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
-namespace mtf = mir::mir_test_framework;
+namespace mtf = mir_test_framework;
 
 namespace
 {
@@ -56,8 +56,8 @@ mg::DisplayConfigurationMode conf_mode_from_drm_mode(drmModeModeInfo const& mode
     /* Calculate vertical refresh rate from DRM mode information */
     if (mode.htotal != 0.0 && mode.vtotal != 0.0)
     {
-        vrefresh_hz = mode.clock * 1000.0 / (mode.htotal * mode.vtotal);
-        vrefresh_hz = round(vrefresh_hz * 10.0) / 10.0;
+        vrefresh_hz = (mode.clock * 100000LL /
+                       ((long)mode.htotal * (long)mode.vtotal)) / 100.0;
     }
 
     return mg::DisplayConfigurationMode{size, vrefresh_hz};
@@ -76,13 +76,8 @@ public:
                              SetArgPointee<4>(1),
                              Return(EGL_TRUE)));
 
-        const char* egl_exts = "EGL_KHR_image EGL_KHR_image_base EGL_MESA_drm_image";
-        const char* gl_exts = "GL_OES_texture_npot GL_OES_EGL_image";
-
-        ON_CALL(mock_egl, eglQueryString(_,EGL_EXTENSIONS))
-        .WillByDefault(Return(egl_exts));
-        ON_CALL(mock_gl, glGetString(GL_EXTENSIONS))
-        .WillByDefault(Return(reinterpret_cast<const GLubyte*>(gl_exts)));
+        mock_egl.provide_egl_extensions();
+        mock_gl.provide_gles_extensions();
 
         setup_sample_modes();
 

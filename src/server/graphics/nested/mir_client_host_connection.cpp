@@ -18,26 +18,35 @@
 
 #include "mir_client_host_connection.h"
 #include "mir_toolkit/mir_client_library.h"
-#include "mir_toolkit/mir_client_library_drm.h"
+#include "mir/raii.h"
+#include "mir/graphics/platform_operation_message.h"
 
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
 #include <stdexcept>
 
+namespace mg = mir::graphics;
 namespace mgn = mir::graphics::nested;
 
 namespace
 {
 
-void drm_auth_magic_callback(int status, void* context)
-{
-    int* status_ret = static_cast<int*>(context);
-    *status_ret = status;
-}
-
 void display_config_callback_thunk(MirConnection* /*connection*/, void* context)
 {
     (*static_cast<std::function<void()>*>(context))();
+}
+
+void platform_operation_callback(
+    MirConnection*, MirPlatformMessage* reply, void* context)
+{
+    auto reply_ptr = static_cast<MirPlatformMessage**>(context);
+    *reply_ptr = reply;
+}
+
+static void nested_lifecycle_event_callback_thunk(MirConnection* /*connection*/, MirLifecycleState state, void *context)
+{
+    msh::HostLifecycleEventListener* listener = static_cast<msh::HostLifecycleEventListener*>(context);
+    listener->lifecycle_event_occurred(state);
 }
 
 class MirClientHostSurface : public mgn::HostSurface
@@ -64,7 +73,7 @@ public:
     EGLNativeWindowType egl_native_window() override
     {
         return reinterpret_cast<EGLNativeWindowType>(
-            mir_surface_get_egl_native_window(mir_surface));
+            mir_buffer_stream_get_egl_native_window(mir_surface_get_buffer_stream(mir_surface)));
     }
 
     void set_event_handler(MirEventDelegate const* handler) override
@@ -80,9 +89,12 @@ private:
 }
 
 mgn::MirClientHostConnection::MirClientHostConnection(
-    std::string const& host_socket, std::string const& name)
+    std::string const& host_socket,
+    std::string const& name,
+    std::shared_ptr<msh::HostLifecycleEventListener> const& host_lifecycle_event_listener)
     : mir_connection{mir_connect_sync(host_socket.c_str(), name.c_str())},
-      conf_change_callback{[]{}}
+      conf_change_callback{[]{}},
+      host_lifecycle_event_listener{host_lifecycle_event_listener}
 {
     if (!mir_connection_is_valid(mir_connection))
     {
@@ -92,6 +104,11 @@ mgn::MirClientHostConnection::MirClientHostConnection(
 
         BOOST_THROW_EXCEPTION(std::runtime_error(msg));
     }
+
+    mir_connection_set_lifecycle_event_callback(
+        mir_connection,
+        nested_lifecycle_event_callback_thunk,
+        std::static_pointer_cast<void>(host_lifecycle_event_listener).get());
 }
 
 mgn::MirClientHostConnection::~MirClientHostConnection()
@@ -145,25 +162,31 @@ std::shared_ptr<mgn::HostSurface> mgn::MirClientHostConnection::create_surface(
         mir_connection, surface_parameters);
 }
 
-void mgn::MirClientHostConnection::drm_auth_magic(int magic)
+mg::PlatformOperationMessage mgn::MirClientHostConnection::platform_operation(
+    unsigned int op, mg::PlatformOperationMessage const& request)
 {
-    int status{-1};
-    mir_wait_for(mir_connection_drm_auth_magic(mir_connection, magic,
-                                               drm_auth_magic_callback, &status));
-    if (status)
-    {
-        std::string const msg("Nested Mir failed to authenticate magic");
-        BOOST_THROW_EXCEPTION(
-            boost::enable_error_info(
-                std::runtime_error(msg)) << boost::errinfo_errno(status));
-    }
-}
+    auto const msg = mir::raii::deleter_for(
+        mir_platform_message_create(op),
+        mir_platform_message_release);
 
-void mgn::MirClientHostConnection::drm_set_gbm_device(struct gbm_device* dev)
-{
-    if (!mir_connection_drm_set_gbm_device(mir_connection, dev))
-    {
-        std::string const msg("Nested Mir failed to set the gbm device");
-        BOOST_THROW_EXCEPTION(std::runtime_error(msg));
-    }
+    mir_platform_message_set_data(msg.get(), request.data.data(), request.data.size());
+    mir_platform_message_set_fds(msg.get(), request.fds.data(), request.fds.size());
+
+    MirPlatformMessage* raw_reply{nullptr};
+
+    auto const wh = mir_connection_platform_operation(
+        mir_connection, msg.get(), platform_operation_callback, &raw_reply);
+    mir_wait_for(wh);
+
+    auto const reply = mir::raii::deleter_for(
+        raw_reply,
+        mir_platform_message_release);
+
+    auto reply_data = mir_platform_message_get_data(reply.get());
+    auto reply_fds = mir_platform_message_get_fds(reply.get());
+
+    return PlatformOperationMessage{
+        {static_cast<uint8_t const*>(reply_data.data),
+         static_cast<uint8_t const*>(reply_data.data) + reply_data.size},
+        {reply_fds.fds, reply_fds.fds + reply_fds.num_fds}};
 }

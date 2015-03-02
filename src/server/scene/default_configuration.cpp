@@ -20,7 +20,7 @@
 
 #include "mir/graphics/display.h"
 #include "mir/graphics/gl_context.h"
-#include "mir/input/input_targets.h"
+#include "mir/input/scene.h"
 #include "mir/abnormal_exit.h"
 #include "mir/scene/session.h"
 
@@ -36,6 +36,7 @@
 #include "surface_stack.h"
 #include "threaded_snapshot_strategy.h"
 #include "prompt_session_manager_impl.h"
+#include "default_coordinate_translator.h"
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
@@ -57,7 +58,7 @@ mir::DefaultServerConfiguration::the_scene()
                          { return std::make_shared<ms::SurfaceStack>(the_scene_report()); });
 }
 
-std::shared_ptr<mi::InputTargets> mir::DefaultServerConfiguration::the_input_targets()
+std::shared_ptr<mi::Scene> mir::DefaultServerConfiguration::the_input_scene()
 {
     return surface_stack([this]()
                          { return std::make_shared<ms::SurfaceStack>(the_scene_report()); });
@@ -73,7 +74,6 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
                 the_buffer_stream_factory(),
                 the_input_channel_factory(),
                 the_input_sender(),
-                the_surface_configurator(),
                 the_default_cursor_image(),
                 the_scene_report());
         });
@@ -85,19 +85,10 @@ mir::DefaultServerConfiguration::the_surface_coordinator()
     return surface_coordinator(
         [this]()
         {
-            return wrap_surface_coordinator(
-                std::make_shared<ms::SurfaceController>(
+            return std::make_shared<ms::SurfaceController>(
                     the_surface_factory(),
-                    the_placement_strategy(),
-                    the_surface_stack_model()));
+                    the_surface_stack_model());
         });
-}
-
-std::shared_ptr<ms::SurfaceCoordinator>
-mir::DefaultServerConfiguration::wrap_surface_coordinator(
-    std::shared_ptr<ms::SurfaceCoordinator> const& wrapped)
-{
-    return wrapped;
 }
 
 std::shared_ptr<ms::BroadcastingSessionEventSink>
@@ -174,35 +165,13 @@ mir::DefaultServerConfiguration::the_session_coordinator()
     return session_coordinator(
         [this]()
         {
-            return wrap_session_coordinator(
-                std::make_shared<ms::SessionManager>(
+            return std::make_shared<ms::SessionManager>(
                     the_surface_coordinator(),
                     the_session_container(),
-                    the_shell_focus_setter(),
                     the_snapshot_strategy(),
                     the_session_event_sink(),
-                    the_session_listener(),
-                    the_prompt_session_manager()));
+                    the_session_listener());
         });
-}
-
-std::shared_ptr<ms::SessionCoordinator>
-mir::DefaultServerConfiguration::wrap_session_coordinator(
-    std::shared_ptr<ms::SessionCoordinator> const& wrapped)
-{
-    return wrapped;
-}
-
-std::shared_ptr<mf::Shell>
-mir::DefaultServerConfiguration::the_frontend_shell()
-{
-    return the_session_coordinator();
-}
-
-std::shared_ptr<msh::FocusController>
-mir::DefaultServerConfiguration::the_focus_controller()
-{
-    return the_session_coordinator();
 }
 
 std::shared_ptr<ms::PixelBuffer>
@@ -236,5 +205,15 @@ mir::DefaultServerConfiguration::the_prompt_session_manager()
             return std::make_shared<ms::PromptSessionManagerImpl>(
                 the_session_container(),
                 the_prompt_session_listener());
+        });
+}
+
+std::shared_ptr<ms::CoordinateTranslator>
+mir::DefaultServerConfiguration::the_coordinate_translator()
+{
+    return coordinate_translator(
+        [this]()
+        {
+            return std::make_shared<ms::DefaultCoordinateTranslator>();
         });
 }

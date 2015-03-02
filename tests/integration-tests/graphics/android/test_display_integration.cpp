@@ -16,19 +16,19 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir/graphics/buffer_initializer.h"
 #include "mir/graphics/display_buffer.h"
-#include "src/platform/graphics/android/android_display.h"
-#include "src/platform/graphics/android/hwc_loggers.h"
-#include "src/platform/graphics/android/resource_factory.h"
-#include "src/platform/graphics/android/android_graphic_buffer_allocator.h"
-#include "src/platform/graphics/android/output_builder.h"
+#include "src/platforms/android/server/display.h"
+#include "src/platforms/android/server/hwc_loggers.h"
+#include "src/platforms/android/server/resource_factory.h"
+#include "src/platforms/android/server/android_graphic_buffer_allocator.h"
+#include "src/platforms/android/server/hal_component_factory.h"
 #include "src/server/graphics/program_factory.h"
 #include "src/server/report/null_report_factory.h"
 
 #include "examples/graphics.h"
 #include "mir_test_doubles/mock_display_report.h"
 #include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_renderable.h"
 
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -41,6 +41,10 @@ namespace mtd=mir::test::doubles;
 
 namespace
 {
+void (*original_sigterm_handler)(int);
+std::shared_ptr<mg::Display> display;
+std::shared_ptr<mga::GraphicBufferAllocator> buffer_allocator;
+
 class AndroidDisplay : public ::testing::Test
 {
 protected:
@@ -50,50 +54,65 @@ protected:
            the server can handle this, but we need the test to as well */
         original_sigterm_handler = signal(SIGTERM, [](int){});
 
+        buffer_allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>();
+
         /* note about fb_device: OMAP4 drivers seem to only be able to open fb once
            per process (repeated framebuffer_{open,close}() doesn't seem to work). once we
            figure out why, we can remove fb_device in the test fixture */
-        auto logger = std::make_shared<mga::NullHwcLogger>();
-        display_resource_factory = std::make_shared<mga::ResourceFactory>(logger);
+        auto report = std::make_shared<mga::NullHwcReport>();
+        auto display_resource_factory = std::make_shared<mga::ResourceFactory>();
+        auto null_display_report = mir::report::null_display_report();
+        auto stub_gl_config = std::make_shared<mtd::StubGLConfig>();
+        auto display_buffer_factory = std::make_shared<mga::HalComponentFactory>(
+            buffer_allocator, display_resource_factory, report);
+        auto program_factory = std::make_shared<mg::ProgramFactory>();
+        display = std::make_shared<mga::Display>(
+            display_buffer_factory, program_factory, stub_gl_config, null_display_report, mga::OverlayOptimization::enabled);
     }
 
     static void TearDownTestCase()
     {
         signal(SIGTERM, original_sigterm_handler);
-        display_resource_factory.reset();
+        display.reset();
+        buffer_allocator.reset();
     }
-
-    md::glAnimationBasic gl_animation;
-
-    static std::shared_ptr<mga::ResourceFactory> display_resource_factory;
-    static void (*original_sigterm_handler)(int);
 };
-
-void (*AndroidDisplay::original_sigterm_handler)(int);
-std::shared_ptr<mga::ResourceFactory> AndroidDisplay::display_resource_factory;
 }
 
 TEST_F(AndroidDisplay, display_can_post)
 {
-    auto null_display_report = mir::report::null_display_report();
-    auto stub_gl_config = std::make_shared<mtd::StubGLConfig>();
-    auto buffer_initializer = std::make_shared<mg::NullBufferInitializer>();
-    auto fb_allocator = std::make_shared<mga::AndroidGraphicBufferAllocator>(buffer_initializer);
-    auto display_buffer_factory = std::make_shared<mga::OutputBuilder>(
-        fb_allocator, display_resource_factory, null_display_report, mga::OverlayOptimization::disabled);
+    display->for_each_display_sync_group([](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([](mg::DisplayBuffer& buffer)
+        {
+            buffer.make_current();
+            md::glAnimationBasic gl_animation;
+            gl_animation.init_gl();
 
-    auto program_factory = std::make_shared<mg::ProgramFactory>();
-    mga::AndroidDisplay display{display_buffer_factory, program_factory, stub_gl_config, null_display_report};
+            gl_animation.render_gl();
+            buffer.gl_swap_buffers();
 
-    display.for_each_display_buffer([this](mg::DisplayBuffer& buffer)
-    {
-        buffer.make_current();
-        gl_animation.init_gl();
+            gl_animation.render_gl();
+            buffer.gl_swap_buffers();
+        });
+        group.post();
+    });
+}
 
-        gl_animation.render_gl();
-        buffer.post_update();
+TEST_F(AndroidDisplay, display_can_post_overlay)
+{
+    display->for_each_display_sync_group([](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([](mg::DisplayBuffer& db)
+        {
+            db.make_current();
+            auto area = db.view_area();
+            auto buffer = buffer_allocator->alloc_buffer_platform(
+                area.size, mir_pixel_format_abgr_8888, mga::BufferUsage::use_hardware);
+            mg::RenderableList list{
+                std::make_shared<mtd::StubRenderable>(buffer, area)
+            };
 
-        gl_animation.render_gl();
-        buffer.post_update();
+            db.post_renderables_if_optimizable(list);
+        });
+        group.post();
     });
 }

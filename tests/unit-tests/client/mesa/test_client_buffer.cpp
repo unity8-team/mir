@@ -17,9 +17,9 @@
  */
 
 #include "mir_toolkit/mir_client_library.h"
-#include "src/client/mesa/client_buffer.h"
-#include "src/client/mesa/client_buffer_factory.h"
-#include "src/client/mesa/buffer_file_ops.h"
+#include "src/platforms/mesa/client/client_buffer.h"
+#include "src/platforms/mesa/client/client_buffer_factory.h"
+#include "src/platforms/mesa/client/buffer_file_ops.h"
 
 #include <sys/mman.h>
 #include <gmock/gmock.h>
@@ -189,4 +189,17 @@ TEST_F(MesaClientBufferTest, creation_with_invalid_buffer_package_throws)
     EXPECT_THROW({
         factory.create_buffer(invalid_package, unused_size, pf);
     }, std::runtime_error);
+}
+
+TEST_F(MesaClientBufferTest, packs_empty_update_msg)
+{
+    using namespace testing;
+    mclg::ClientBuffer buffer(buffer_file_ops, package, size, pf);
+    MirBufferPackage msg;
+    msg.data_items = 2;
+    msg.fd_items = 2;
+
+    buffer.fill_update_msg(msg);
+    EXPECT_THAT(msg.data_items, Eq(0)); 
+    EXPECT_THAT(msg.fd_items, Eq(0)); 
 }

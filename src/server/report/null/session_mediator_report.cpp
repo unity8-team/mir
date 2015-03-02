@@ -30,6 +30,10 @@ void mir::report::null::SessionMediatorReport::session_next_buffer_called(std::s
 {
 }
 
+void mir::report::null::SessionMediatorReport::session_exchange_buffer_called(std::string const&)
+{
+}
+
 void mir::report::null::SessionMediatorReport::session_release_surface_called(std::string const&)
 {
 }
@@ -55,10 +59,6 @@ void mir::report::null::SessionMediatorReport::session_configure_display_called(
 }
 
 void mir::report::null::SessionMediatorReport::session_start_prompt_session_called(std::string const&, pid_t)
-{
-}
-
-void mir::report::null::SessionMediatorReport::session_add_prompt_provider_called(std::string const&, pid_t)
 {
 }
 

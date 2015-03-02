@@ -21,24 +21,30 @@ pushd ${BUILD_DIR} > /dev/null
     # Upload and run the tests!
     # Requires: https://wiki.canonical.com/ProductStrategyTeam/Android/Deploy
     #
-    RUN_DIR=/tmp/mirtest
+    RUN_DIR=/home/phablet/mirtest
 
     adb wait-for-device
-    adb root
-    adb wait-for-device
-    adb shell mkdir -p ${RUN_DIR}
+    adb shell mkdir -p ${RUN_DIR}/udev_recordings
 
     for x in bin/mir_acceptance_tests \
              bin/mir_integration_tests \
              bin/mir_unit_tests \
              lib/libmirclient.so.* \
+             lib/libmircommon.so.* \
+             lib/libmirplatform.so.* \
+             lib/platform-graphics-dummy.so \
+             lib/client-modules/* \
+             lib/server-modules/* \
              lib/libmirprotobuf.so.* \
-             lib/libmirplatform.so \
-             lib/libmirplatformgraphics.so \
-             lib/libmirclientplatform.so \
+             lib/libmirclient-debug-extension.so.* \
              lib/libmirserver.so.*
     do
         adb push $x ${RUN_DIR}
+    done
+
+    for x in bin/udev_recordings/*
+    do 
+        adb push $x ${RUN_DIR}/udev_recordings
     done
 
     echo "cd ${RUN_DIR};

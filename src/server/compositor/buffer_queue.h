@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -58,17 +58,27 @@ public:
     void allow_framedropping(bool dropping_allowed) override;
     void force_requests_to_complete() override;
     void resize(const geometry::Size &newsize) override;
-    int buffers_ready_for_compositor() const override;
+    int buffers_ready_for_compositor(void const* user_id) const override;
     int buffers_free_for_client() const override;
     bool framedropping_allowed() const;
+    bool is_a_current_buffer_user(void const* user_id) const;
+    void drop_old_buffers() override;
+    void drop_client_requests() override;
 
 private:
+    class LockableCallback;
+    enum SnapshotWait
+    {
+        wait_for_snapshot,
+        ignore_snapshot
+    };
     void give_buffer_to_client(graphics::Buffer* buffer,
-        std::unique_lock<std::mutex> lock);
-    bool is_a_current_buffer_user(void const* user_id) const;
+        std::unique_lock<std::mutex>& lock);
+    void give_buffer_to_client(graphics::Buffer* buffer,
+        std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
-    void drop_frame(std::unique_lock<std::mutex> lock);
+    void drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
 
     mutable std::mutex guard;
 
@@ -86,11 +96,17 @@ private:
 
     int nbuffers;
     bool frame_dropping_enabled;
-    std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
+    bool current_compositor_buffer_valid;
     graphics::BufferProperties the_properties;
+    bool force_new_compositor_buffer;
+    bool callbacks_allowed;
 
     std::condition_variable snapshot_released;
     std::shared_ptr<graphics::GraphicBufferAllocator> gralloc;
+
+    // Ensure framedrop_policy gets destroyed first so the callback installed
+    // does not access dead objects.
+    std::unique_ptr<FrameDroppingPolicy> framedrop_policy;
 };
 
 }

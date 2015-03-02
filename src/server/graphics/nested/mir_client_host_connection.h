@@ -20,10 +20,13 @@
 #define MIR_GRAPHICS_NESTED_MIR_CLIENT_HOST_CONNECTION_H_
 
 #include "host_connection.h"
+#include "mir/shell/host_lifecycle_event_listener.h"
 
 #include <string>
 
 struct MirConnection;
+
+namespace msh = mir::shell;
 
 namespace mir
 {
@@ -35,7 +38,7 @@ namespace nested
 class MirClientHostConnection : public HostConnection
 {
 public:
-    MirClientHostConnection(std::string const& host_socket, std::string const& name);
+    MirClientHostConnection(std::string const& host_socket, std::string const& name, std::shared_ptr<msh::HostLifecycleEventListener> const& host_lifecycle_event_listener);
     ~MirClientHostConnection();
 
     std::vector<int> platform_fd_items() override;
@@ -45,12 +48,13 @@ public:
     void set_display_config_change_callback(std::function<void()> const& cb) override;
     void apply_display_config(MirDisplayConfiguration&) override;
 
-    void drm_auth_magic(int magic) override;
-    void drm_set_gbm_device(struct gbm_device* dev) override;
+    virtual PlatformOperationMessage platform_operation(
+        unsigned int op, PlatformOperationMessage const& request) override;
 
 private:
     MirConnection* const mir_connection;
     std::function<void()> conf_change_callback;
+    std::shared_ptr<msh::HostLifecycleEventListener> const host_lifecycle_event_listener;
 };
 
 }

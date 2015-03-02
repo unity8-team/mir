@@ -128,10 +128,20 @@ TEST_F(PromptSessionManager, notifies_provider_of_start_and_stop)
     auto const prompt_session = session_manager.start_prompt_session_for(helper, parameters);
 
     EXPECT_CALL(prompt_session_listener, stopping(Eq(prompt_session))).Times(1);
-    session_manager.stop_prompt_session(prompt_session);
 
-    // Need to verify explicitly as we see unmatched callbacks during teardown of fixture
-    Mock::VerifyAndClearExpectations(&prompt_session_listener);
+    session_manager.stop_prompt_session(prompt_session);
+}
+
+TEST_F(PromptSessionManager, notifies_provider_of_suspend_and_resume)
+{
+    InSequence seq;
+    EXPECT_CALL(prompt_session_listener, suspending(_)).Times(1);
+
+    session_manager.suspend_prompt_session(prompt_session);
+
+    EXPECT_CALL(prompt_session_listener, resuming(Eq(prompt_session))).Times(1);
+
+    session_manager.resume_prompt_session(prompt_session);
 }
 
 TEST_F(PromptSessionManager, sets_helper_for)
@@ -164,56 +174,6 @@ TEST_F(PromptSessionManager, thows_exception_when_adding_a_prompt_provider_with_
     EXPECT_THROW(
         session_manager.add_prompt_provider(prompt_session, provider_session),
         std::runtime_error);
-}
-
-TEST_F(PromptSessionManager, no_exception_when_adding_a_prompt_provider_by_pid)
-{
-    EXPECT_NO_THROW(session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid));
-}
-
-TEST_F(PromptSessionManager, no_exception_on_adding_a_prompt_provider_by_pid_twice)
-{
-    session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid);
-    EXPECT_NO_THROW(session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid));
-}
-
-TEST_F(PromptSessionManager, thows_exception_when_adding_a_prompt_provider_by_pid_with_stopped_prompt_session)
-{
-    session_manager.stop_prompt_session(prompt_session);
-
-    EXPECT_THROW(
-        session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid),
-        std::runtime_error);
-}
-
-TEST_F(PromptSessionManager, notifies_session_beginning_when_prompt_provider_is_not_in_existing_sessions)
-{
-    session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid);
-
-    EXPECT_CALL(prompt_session_listener, prompt_provider_added(Ref(*prompt_session), Eq(provider_session))).Times(1);
-
-    session_manager.add_expected_session(provider_session);
-}
-
-TEST_F(PromptSessionManager, notifies_session_beginning_when_prompt_provider_is_in_existing_sessions)
-{
-    existing_sessions.insert_session(provider_session);
-
-    EXPECT_CALL(prompt_session_listener, prompt_provider_added(Ref(*prompt_session), Eq(provider_session))).Times(1);
-
-    session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid);
-}
-
-TEST_F(PromptSessionManager, notifies_session_added_and_removed)
-{
-    session_manager.add_prompt_provider_by_pid(prompt_session, prompt_provider_pid);
-
-    InSequence seq;
-    EXPECT_CALL(prompt_session_listener, prompt_provider_added(Ref(*prompt_session), Eq(provider_session))).Times(1);
-    EXPECT_CALL(prompt_session_listener, prompt_provider_removed(Ref(*prompt_session), Eq(provider_session))).Times(1);
-
-    session_manager.add_expected_session(provider_session);
-    session_manager.stop_prompt_session(prompt_session);
 }
 
 TEST_F(PromptSessionManager, can_iterate_over_prompt_providers_in_a_prompt_session)

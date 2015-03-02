@@ -6,23 +6,47 @@ endif()
 include_directories(${MIR_3RD_PARTY_INCLUDE_DIRECTORIES})
 include_directories(${MIR_ANDROID_INCLUDE_DIRECTORIES})
 
-if ("${CMAKE_CXX_COMPILER}" MATCHES "clang")
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wnull-dereference HAS_W_NULL_DEREFERENCE)
+check_cxx_compiler_flag(-Woverloaded-virtual HAS_W_OVERLOADED_VIRTUAL)
+check_cxx_compiler_flag(-Winconsistent-missing-override HAS_W_INCONSISTENT_MISSING_OVERRIDE)
+
+if (HAS_W_NULL_DEREFERENCE)
   # Avoid clang complaints about poor quality gmock/gtest headers
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=null-dereference")
+endif()
+if (HAS_W_OVERLOADED_VIRTUAL)
+  # Avoid clang complaints about poor quality gmock/gtest headers
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=overloaded-virtual")
+endif()
+if (HAS_W_INCONSISTENT_MISSING_OVERRIDE)
+  # MOCK_METHOD()s cannot be marked as override; we cannot consistently mark overrides
+  # in the tests.
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
 endif()
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
-  #avoid complaints about poor quality android headers
-  include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
   add_definitions(-DANDROID)
 endif()
 
+if (MIR_BUILD_PLATFORM_ANDROID)
+  #avoid complaints about poor quality android headers
+  include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
+  add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+endif()
+
+if (MIR_BUILD_PLATFORM_MESA)
+  add_definitions(-DMIR_BUILD_PLATFORM_MESA)
+endif()
+
 include_directories(
+  include
   ${PROJECT_SOURCE_DIR}/include/platform
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
-  ${PROJECT_SOURCE_DIR}/include/test)
+  ${PROJECT_SOURCE_DIR}/include/common
+  ${PROJECT_SOURCE_DIR}/src/platforms/mesa/include
+)
 
 option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" ON)
 option(MIR_BUILD_INTEGRATION_TESTS "Build integration tests" ON)

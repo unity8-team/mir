@@ -21,6 +21,8 @@
 #include <mir_toolkit/client_types.h>
 #include <mir_toolkit/common.h>
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 /**
  * \addtogroup mir_toolkit
@@ -66,7 +68,7 @@ MirConnection *mir_connect_sync(char const *server, char const *app_name);
  * \return                 True if the supplied connection is valid, or
  *                         false otherwise.
  */
-MirBool mir_connection_is_valid(MirConnection *connection);
+bool mir_connection_is_valid(MirConnection *connection);
 
 /**
  * Retrieve a text description of the last error. The returned string is owned
@@ -168,6 +170,23 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *con
 void mir_connection_get_available_surface_formats(
     MirConnection* connection, MirPixelFormat* formats,
     unsigned const int format_size, unsigned int *num_valid_formats);
+
+/**
+ * Perform a platform specific operation.
+ *
+ * The MirPlatformMessage used for the request needs to remain valid
+ * until this operation finishes.
+ *
+ * \param [in] connection  The connection
+ * \param [in] request     The message used for this operation
+ * \param [in] callback    The callback to call when the operation finishes
+ * \param [in,out] context User data passed to the callback function
+ * \return                 A handle that can be passed to mir_wait_for
+ */
+MirWaitHandle* mir_connection_platform_operation(
+    MirConnection* connection,
+    MirPlatformMessage const* request,
+    mir_platform_operation_callback callback, void* context);
 
 #ifdef __cplusplus
 }

@@ -18,8 +18,6 @@
 #ifndef _RUNTIME_EVENT_HUB_H
 #define _RUNTIME_EVENT_HUB_H
 
-#include "mir/udev/wrapper.h"
-
 #include <androidfw/Input.h>
 #include <androidfw/InputDevice.h>
 #include <androidfw/Keyboard.h>
@@ -41,6 +39,7 @@
 
 namespace mir
 {
+namespace udev { class Monitor; }
 namespace input
 {
 class InputReport;
@@ -65,7 +64,7 @@ enum {
  * A raw event as retrieved from the EventHub.
  */
 struct RawEvent {
-    nsecs_t when;
+    std::chrono::nanoseconds when;
     int32_t deviceId;
     int32_t type;
     int32_t code;
@@ -234,7 +233,7 @@ public:
     virtual bool setKeyboardLayoutOverlay(int32_t deviceId, const sp<KeyCharacterMap>& map) = 0;
 
     /* Control the vibrator. */
-    virtual void vibrate(int32_t deviceId, nsecs_t duration) = 0;
+    virtual void vibrate(int32_t deviceId, std::chrono::nanoseconds duration) = 0;
     virtual void cancelVibrate(int32_t deviceId) = 0;
 
     /* Requests the EventHub to reopen all input devices on the next call to getEvents(). */
@@ -299,7 +298,7 @@ public:
     virtual sp<KeyCharacterMap> getKeyCharacterMap(int32_t deviceId) const;
     virtual bool setKeyboardLayoutOverlay(int32_t deviceId, const sp<KeyCharacterMap>& map);
 
-    virtual void vibrate(int32_t deviceId, nsecs_t duration);
+    virtual void vibrate(int32_t deviceId, std::chrono::nanoseconds duration);
     virtual void cancelVibrate(int32_t deviceId);
 
     virtual void requestReopenDevices();
@@ -407,7 +406,7 @@ private:
     Vector<String8> mExcludedDevices;
 
     int mEpollFd;
-    mir::udev::Monitor device_listener;
+    std::unique_ptr<mir::udev::Monitor> const device_listener;
     int mWakeReadPipeFd;
     int mWakeWritePipeFd;
 

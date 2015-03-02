@@ -16,12 +16,13 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/platform/graphics/android/server_render_window.h"
+#include "src/platforms/android/server/server_render_window.h"
 
 #include "mir_test_doubles/mock_buffer.h"
 #include "mir_test_doubles/mock_fence.h"
 #include "mir_test_doubles/mock_interpreter_resource_cache.h"
 #include "mir_test_doubles/mock_framebuffer_bundle.h"
+#include "mir_test_doubles/stub_android_native_buffer.h"
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_android_native_buffer.h"
 
@@ -181,13 +182,4 @@ TEST_F(ServerRenderWindow, throws_on_driver_unknown_inquiry)
     EXPECT_THROW({
         render_window.driver_requests_info(NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND);
     }, std::runtime_error);
-}
-
-TEST_F(ServerRenderWindow, services_driver_swapinterval_request)
-{
-    EXPECT_CALL(*mock_fb_bundle, wait_for_consumed_buffer(false))
-        .Times(1);
-
-    mga::ServerRenderWindow render_window(mock_fb_bundle, mock_cache);
-    render_window.sync_to_display(false);
 }

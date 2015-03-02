@@ -80,3 +80,13 @@ void ms::LegacySurfaceChangeNotification::reception_mode_set_to(mi::InputRecepti
 {
     notify_scene_change();
 }
+
+// A client close request is not enough to trigger recomposition.
+void ms::LegacySurfaceChangeNotification::client_surface_close_requested()
+{
+}
+
+// A keymap change is not enough to trigger recomposition
+void ms::LegacySurfaceChangeNotification::keymap_changed(xkb_rule_names const&)
+{
+}

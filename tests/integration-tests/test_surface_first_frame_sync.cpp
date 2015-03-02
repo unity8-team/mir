@@ -55,32 +55,52 @@ class SynchronousCompositor : public mc::Compositor
 {
 public:
     SynchronousCompositor(std::shared_ptr<mg::Display> const& display_,
-                          std::shared_ptr<mc::Scene> const& scene,
-                          std::shared_ptr<mc::DisplayBufferCompositorFactory> const& db_compositor_factory)
+                          std::shared_ptr<mc::Scene> const& s,
+                          std::shared_ptr<mc::DisplayBufferCompositorFactory> const& dbc_factory)
         : display{display_},
-          scene{scene}
+          scene{s}
     {
-        display->for_each_display_buffer(
-            [this, &db_compositor_factory](mg::DisplayBuffer& display_buffer)
+        display->for_each_display_sync_group([this, &dbc_factory](mg::DisplaySyncGroup& group)
+        {
+            group.for_each_display_buffer([this, &dbc_factory](mg::DisplayBuffer& display_buffer)
             {
-                display_buffer_compositor_map[&display_buffer] = db_compositor_factory->create_compositor_for(display_buffer);
+                auto dbc = dbc_factory->create_compositor_for(display_buffer);
+                scene->register_compositor(dbc.get());
+                display_buffer_compositor_map[&display_buffer] = std::move(dbc);
             });
-       
+        });
+ 
         auto notify = [this]()
         {
-            display->for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+            display->for_each_display_sync_group([this](mg::DisplaySyncGroup& group)
             {
-                display_buffer_compositor_map[&display_buffer]->composite();
+                group.for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+                {
+                    auto& dbc = display_buffer_compositor_map[&display_buffer];
+                    dbc->composite(scene->scene_elements_for(dbc.get()));
+                });
+                group.post();
             });
         };
         auto notify2 = [this](int)
         {
-            display->for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+            display->for_each_display_sync_group([this](mg::DisplaySyncGroup& group)
             {
-                display_buffer_compositor_map[&display_buffer]->composite();
+                group.for_each_display_buffer([this](mg::DisplayBuffer& display_buffer)
+                {
+                    auto& dbc = display_buffer_compositor_map[&display_buffer];
+                    dbc->composite(scene->scene_elements_for(dbc.get()));
+                });
+                group.post();
             });
         };
         observer = std::make_shared<ms::LegacySceneChangeNotification>(notify, notify2);
+    }
+
+    ~SynchronousCompositor()
+    {
+        for(auto& dbc : display_buffer_compositor_map)
+            scene->unregister_compositor(dbc.second.get());
     }
 
     void start()
@@ -113,7 +133,7 @@ public:
     {
         for (auto const& r : renderables)
         {
-            (void)r;
+            r->buffer(); // We need to consume a buffer to unblock client tests
             while (write(render_operations_fd, "a", 1) != 1) continue;
         }
     }
@@ -274,7 +294,8 @@ TEST_F(SurfaceFirstFrameSync, surface_not_rendered_until_buffer_is_pushed)
             set_flag(surface_created);
             wait_for(do_next_buffer);
 
-            mir_surface_swap_buffers_sync(surface);
+            mir_buffer_stream_swap_buffers_sync(
+                mir_surface_get_buffer_stream(surface));
 
             set_flag(next_buffer_done);
             wait_for(do_client_finish);

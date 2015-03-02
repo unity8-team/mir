@@ -1,5 +1,3 @@
-# Workaround for bug 1208774 (spurious link errors on 32bit g++)
-string (REPLACE " -Wl,--no-undefined" " " CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
 include_directories(${GLESv2_INCLUDE_DIRS})
 
 set(
@@ -14,26 +12,12 @@ set(
   gl_program.cpp
   gl_texture.cpp
   tessellation_helpers.cpp
+  platform_probe.cpp
 )
 
-add_library(
-  mirplatformgraphicscommon STATIC
+add_library(mirplatformgraphicscommon OBJECT
 
   ${GRAPHICS_SOURCES}
 )
 
-target_link_libraries(
-  mirplatformgraphicscommon
-  mirsharedgeometry
-
-  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
-)
-
-if (MIR_BUILD_PLATFORM_ANDROID)
-  add_subdirectory(android/)
-endif()
-
-if (MIR_BUILD_PLATFORM_MESA)
-  add_subdirectory(mesa/)
-endif()
-
+set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)

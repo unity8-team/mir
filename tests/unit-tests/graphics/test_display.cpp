@@ -33,7 +33,6 @@
 #include "mir_test_doubles/mock_gbm.h"
 #include "mir_test_framework/udev_environment.h"
 #else
-#include "src/platform/graphics/android/android_platform.h"
 #include "mir_test_doubles/mock_android_hw.h"
 #include "mir_test_doubles/mock_display_device.h"
 #endif
@@ -44,7 +43,7 @@
 namespace mg = mir::graphics;
 namespace mtd = mir::test::doubles;
 #ifndef ANDROID
-namespace mtf = mir::mir_test_framework;
+namespace mtf = mir_test_framework;
 #endif
 
 class DisplayTest : public ::testing::Test
@@ -59,13 +58,8 @@ public:
                                  SetArgPointee<4>(1),
                                  Return(EGL_TRUE)));
 
-        const char* egl_exts = "EGL_KHR_image EGL_KHR_image_base EGL_MESA_drm_image";
-        const char* gl_exts = "GL_OES_texture_npot GL_OES_EGL_image";
-
-        ON_CALL(mock_egl, eglQueryString(_,EGL_EXTENSIONS))
-            .WillByDefault(Return(egl_exts));
-        ON_CALL(mock_gl, glGetString(GL_EXTENSIONS))
-            .WillByDefault(Return(reinterpret_cast<const GLubyte*>(gl_exts)));
+        mock_egl.provide_egl_extensions();
+        mock_gl.provide_gles_extensions();
 
 #ifndef ANDROID
         fake_devices.add_standard_device("standard-drm-devices");
@@ -197,7 +191,9 @@ TEST_F(DisplayTest, does_not_expose_display_buffer_for_output_with_power_mode_of
     auto display = create_display();
     int db_count{0};
 
-    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    });
     EXPECT_THAT(db_count, Eq(1));
 
     auto conf = display->configuration();
@@ -210,6 +206,8 @@ TEST_F(DisplayTest, does_not_expose_display_buffer_for_output_with_power_mode_of
     display->configure(*conf);
 
     db_count = 0;
-    display->for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&] (mg::DisplayBuffer&) { ++db_count; });
+    });
     EXPECT_THAT(db_count, Eq(0));
 }

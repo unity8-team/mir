@@ -39,12 +39,12 @@ class Observer;
 
 namespace input
 {
-class InputTargets;
+class Scene;
 
 class CursorController : public CursorListener
 {
 public:
-    CursorController(std::shared_ptr<InputTargets> const& input_targets,
+    CursorController(std::shared_ptr<Scene> const& input_targets,
         std::shared_ptr<graphics::Cursor> const& cursor,
         std::shared_ptr<graphics::CursorImage> const& default_cursor_image);
     virtual ~CursorController();
@@ -56,7 +56,7 @@ public:
     void update_cursor_image();
 
 private:
-    std::shared_ptr<InputTargets> const input_targets;
+    std::shared_ptr<Scene> const input_targets;
     std::shared_ptr<graphics::Cursor> const cursor;
     std::shared_ptr<graphics::CursorImage> const default_cursor_image;
 
@@ -67,8 +67,8 @@ private:
     std::weak_ptr<scene::Observer> observer;
     
 
-    void update_cursor_image_locked(std::lock_guard<std::mutex> const&);
-    void set_cursor_image_locked(std::lock_guard<std::mutex> const&, std::shared_ptr<graphics::CursorImage> const& image);
+    void update_cursor_image_locked(std::unique_lock<std::mutex>&);
+    void set_cursor_image_locked(std::unique_lock<std::mutex>&, std::shared_ptr<graphics::CursorImage> const& image);
 };
 
 }

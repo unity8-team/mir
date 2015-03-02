@@ -42,6 +42,7 @@ TRACEPOINT_EVENT_CLASS(
 MIR_SESSION_MEDIATOR_EVENT(session_connect_called)
 MIR_SESSION_MEDIATOR_EVENT(session_create_surface_called)
 MIR_SESSION_MEDIATOR_EVENT(session_next_buffer_called)
+MIR_SESSION_MEDIATOR_EVENT(session_exchange_buffer_called)
 MIR_SESSION_MEDIATOR_EVENT(session_release_surface_called)
 MIR_SESSION_MEDIATOR_EVENT(session_disconnect_called)
 MIR_SESSION_MEDIATOR_EVENT(session_drm_auth_magic_called)
@@ -62,16 +63,6 @@ TRACEPOINT_EVENT(
 
 TRACEPOINT_EVENT(
     mir_server_session_mediator,
-    session_add_prompt_provider_called,
-    TP_ARGS(char const*, application, pid_t, provider_process),
-    TP_FIELDS(
-        ctf_string(application, application)
-        ctf_integer(pid_t, provider_process, provider_process)
-        )
-    )
-
-TRACEPOINT_EVENT(
-    mir_server_session_mediator,
     session_error,
     TP_ARGS(char const*, application, char const*, method, char const*, what),
     TP_FIELDS(
@@ -82,8 +73,6 @@ TRACEPOINT_EVENT(
     )
 
 #undef MIR_SESSION_MEDIATOR_EVENT
-
-#include "lttng_utils_pop.h"
 
 #endif /* MIR_LTTNG_SESSION_MEDIATOR_REPORT_TP_H_ */
 

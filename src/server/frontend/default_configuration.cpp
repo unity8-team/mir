@@ -24,6 +24,10 @@
 #include "default_ipc_factory.h"
 #include "published_socket_connector.h"
 
+#include "unsupported_coordinate_translator.h"
+
+#include "mir/graphics/platform.h"
+#include "protobuf_connection_creator.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
@@ -31,6 +35,7 @@
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
 namespace msh = mir::shell;
+namespace ms = mir::scene;
 
 std::shared_ptr<mf::ConnectionCreator>
 mir::DefaultServerConfiguration::the_connection_creator()
@@ -75,12 +80,17 @@ mir::DefaultServerConfiguration::the_connector()
             }
             else
             {
-                return std::make_shared<mf::PublishedSocketConnector>(
+                auto const result = std::make_shared<mf::PublishedSocketConnector>(
                     the_socket_file(),
                     the_connection_creator(),
                     threads,
                     *the_emergency_cleanup(),
                     the_connector_report());
+
+                if (the_options()->is_set(options::arw_server_socket_opt))
+                    chmod(the_socket_file().c_str(), S_IRUSR|S_IWUSR| S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+
+                return result;
             }
         });
 }
@@ -114,10 +124,13 @@ mir::DefaultServerConfiguration::the_prompt_connection_creator()
     return prompt_connection_creator([this]
         {
             auto const session_authorizer = std::make_shared<PromptSessionAuthorizer>();
-            return std::make_shared<mf::ProtobufConnectionCreator>(
-                new_ipc_factory(session_authorizer),
-                session_authorizer,
-                the_message_processor_report());
+            auto const protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
+            protocols->push_back(std::make_shared<mf::ProtobufConnectionCreator>(
+                                    new_ipc_factory(session_authorizer),
+                                    session_authorizer,
+                                    the_message_processor_report()));
+            return std::make_shared<mf::DispatchingConnectionCreator>(protocols,
+                                                                      session_authorizer);
         });
 }
 
@@ -148,40 +161,27 @@ mir::DefaultServerConfiguration::the_prompt_connector()
         });
 }
 
-// TODO Remove after 0.5.0 is branched: the_ipc_factory() is used by
-// TODO clients that use the "PrivateProtobuf" but is it now deprecated
-// TODO and only retained as a migration aid.
-std::shared_ptr<mir::frontend::ProtobufIpcFactory>
-mir::DefaultServerConfiguration::the_ipc_factory(
-    std::shared_ptr<mf::Shell> const& shell,
-    std::shared_ptr<mg::GraphicBufferAllocator> const& allocator)
-{
-    return ipc_factory(
-        [&]()
-        {
-            return std::make_shared<mf::DefaultIpcFactory>(
-                shell,
-                the_session_mediator_report(),
-                the_graphics_platform(),
-                the_frontend_display_changer(),
-                allocator,
-                the_screencast(),
-                the_session_authorizer(),
-                the_cursor_images());
-        });
-}
-
 std::shared_ptr<mir::frontend::ProtobufIpcFactory>
 mir::DefaultServerConfiguration::new_ipc_factory(
     std::shared_ptr<mf::SessionAuthorizer> const& session_authorizer)
 {
+    std::shared_ptr<ms::CoordinateTranslator> translator;
+    if (the_options()->is_set(options::debug_opt))
+    {
+        translator = the_coordinate_translator();
+    }
+    else
+    {
+        translator = std::make_shared<mf::UnsupportedCoordinateTranslator>();
+    }
     return std::make_shared<mf::DefaultIpcFactory>(
-        the_frontend_shell(),
-        the_session_mediator_report(),
-        the_graphics_platform(),
-        the_frontend_display_changer(),
-        the_buffer_allocator(),
-        the_screencast(),
-        session_authorizer,
-        the_cursor_images());
+                the_frontend_shell(),
+                the_session_mediator_report(),
+                the_graphics_platform()->make_ipc_operations(),
+                the_frontend_display_changer(),
+                the_buffer_allocator(),
+                the_screencast(),
+                session_authorizer,
+                the_cursor_images(),
+                translator);
 }

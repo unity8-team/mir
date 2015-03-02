@@ -16,31 +16,20 @@ set(
   resource_cache.cpp
   socket_messenger.cpp
   event_sender.cpp
-  surface.cpp
+  surface_tracker.cpp
   unauthorized_display_changer.cpp
   unauthorized_screencast.cpp
   session_credentials.cpp
   default_configuration.cpp
   default_ipc_factory.cpp
-
-  ${PROTO_HDRS}
+  unsupported_coordinate_translator.cpp
 )
 
 add_library(
-  mirfrontend STATIC
+  mirfrontend OBJECT
 
   ${FRONTEND_SOURCES}
 )
 
 # Fix build race condition - ensure the protobuf header is built before us.
 add_dependencies(mirfrontend mirprotobuf)
-
-target_link_libraries(
-  mirfrontend
-
-  mirshell
-  mirlogging
-  3rd_party
-  ${UUID_LIBRARIES}
-  ${Boost_LIBRARIES}
-)

@@ -27,7 +27,14 @@ If you are curious about Mir internals or intend to contribute to it, you should
 get the source and build it:
 
  - \ref building_source_for_pc
- - \ref building_source_for_android
+ - \ref building_source_for_arm
+
+### Preparing a VM to run Mir
+
+Especially if you want to debug the shell without locking your system this might be a helpful setup:
+
+- \ref setup_kvm_for_mir
+- \ref setup_vmware_for_mir
 
 Using Mir
 ---------
@@ -36,6 +43,7 @@ Using Mir
  - \ref using_mir_on_android
  - \ref debug_for_xmir
  - \ref demo_shell_controls
+ - \ref demo_server
 
 Getting involved
 ----------------
@@ -75,12 +83,27 @@ Writing server applications
 Mir server is written as a library which allows the server code to be adapted
 for bespoke applications.
 
- - \subpage render_surfaces-example "render_surfaces.cpp: A simple program using the Mir library"
- - \ref demo_inprocess_egl
+ - \subpage server_example.cpp 
+   "server_example.cpp: a test executable hosting the following"
+ - \subpage server_example_input_event_filter.cpp 
+   "server_example_input_event_filter.cpp: provide a Quit command"
+ - \subpage server_example_display_configuration_policy.cpp 
+   "server_example_display_configuration_policy.cpp: configuring display layout"
+ - \subpage server_example_input_filter.cpp 
+   "server_example_input_filter.cpp: print input events to stdout"
+ - \subpage server_example_log_options.cpp 
+   "server_example_log_options.cpp: replace Mir logger with glog"
+ - \subpage server_example_window_manager.cpp 
+   "server_example_window_manager.cpp: How to wire up a window manager"
+ - \subpage server_example_window_management.cpp 
+   "server_example_window_management.cpp: simple window management examples"
 
 Working on Mir code
 -------------------
 
  - \ref md_README  "Mir Read me"
  - \ref md_HACKING "Mir hacking guide"
+ - \subpage android_new_device_bringup "New android device bringup" 
  - \ref component_reports
+ - \ref dso_versioning_guide
+ - \ref abi_compatibility_tools

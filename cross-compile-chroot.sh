@@ -24,9 +24,11 @@ do
     case $OPTNAME in
       c )
         clean_build_dir ${BUILD_DIR}
+        shift
         ;;
       u )
         _do_update_chroot=1
+        shift
         ;;
       h )
         usage
@@ -42,7 +44,7 @@ done
 
 
 if [ "${MIR_NDK_PATH}" = "" ]; then
-    export MIR_NDK_PATH=$(pwd)/partial-armhf-chroot
+    export MIR_NDK_PATH=~/.cache/mir-armhf-chroot
 fi
 
 if [ ! -d ${MIR_NDK_PATH} ]; then 
@@ -78,6 +80,6 @@ pushd ${BUILD_DIR} > /dev/null
       -DMIR_PLATFORM=android\;mesa \
       .. 
 
-    make -j${NUM_JOBS}
+    make -j${NUM_JOBS} $@
 
 popd > /dev/null 

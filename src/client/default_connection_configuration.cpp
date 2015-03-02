@@ -16,31 +16,30 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-
-#include <boost/throw_exception.hpp>
-#include <boost/exception/errinfo_errno.hpp>
-
 #include "default_connection_configuration.h"
 
 #include "display_configuration.h"
 #include "rpc/make_rpc_channel.h"
-#include "rpc/mir_socket_rpc_channel.h"
 #include "rpc/null_rpc_report.h"
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/input/input_platform.h"
 #include "mir/input/null_input_receiver_report.h"
 #include "logging/rpc_report.h"
 #include "logging/input_receiver_report.h"
+#include "mir/logging/shared_library_prober_report.h"
+#include "mir/logging/null_shared_library_prober_report.h"
 #include "lttng/rpc_report.h"
 #include "lttng/input_receiver_report.h"
+#include "lttng/shared_library_prober_report.h"
 #include "connection_surface_map.h"
 #include "lifecycle_control.h"
 #include "mir/shared_library.h"
-#include "client_platform_factory.h"
+#include "mir/client_platform_factory.h"
+#include "probing_client_platform_factory.h"
 #include "mir_event_distributor.h"
+#include "mir/shared_library_prober.h"
+
+#include <dlfcn.h>
 
 namespace mcl = mir::client;
 
@@ -49,80 +48,32 @@ namespace
 std::string const off_opt_val{"off"};
 std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
-std::string const default_platform_lib{"libmirclientplatform.so"};
 
-mir::SharedLibrary const* load_library(std::string const& libname)
+// Shove this here until we properly manage the lifetime of our
+// loadable modules
+std::shared_ptr<mcl::ProbingClientPlatformFactory> the_platform_prober;
+
+// Hack around the way Qt loads mir:
+// qtmir and therefore Mir are loaded via dlopen(..., RTLD_LOCAL).
+// While this is sensible for a plugin it would mean that some symbols
+// cannot be resolved by the Mir platform plugins. This hack makes the
+// necessary symbols global.
+void ensure_loaded_with_rtld_global()
 {
-    // There's no point in loading twice, and it isn't safe to unload...
-    static std::map<std::string, std::shared_ptr<mir::SharedLibrary>> libraries_cache;
+    Dl_info info;
 
-    if (auto& ptr = libraries_cache[libname])
-    {
-        return ptr.get();
-    }
-    else
-    {
-        ptr = std::make_shared<mir::SharedLibrary>(libname);
-        return ptr.get();
-    }
+    // Cast dladdr itself to work around g++-4.8 warnings (LP: #1366134)
+    typedef int (safe_dladdr_t)(void(*func)(), Dl_info *info);
+    safe_dladdr_t *safe_dladdr = (safe_dladdr_t*)&dladdr;
+    safe_dladdr(&ensure_loaded_with_rtld_global, &info);
+    dlopen(info.dli_fname,  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
 }
 }
-
-namespace
-{
-struct Prefix
-{
-    template<int Size>
-    Prefix(char const (&prefix)[Size]) : size(Size-1), prefix(prefix) {}
-
-    bool is_start_of(std::string const& name) const
-    { return !strncmp(name.c_str(), prefix, size); }
-
-    int const size;
-    char const* const prefix;
-} const fd_prefix("fd://");
-}
-
 
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
     std::string const& socket_file)
-    : owns_socket{false}
+    : socket_file{socket_file}
 {
-    if (fd_prefix.is_start_of(socket_file))
-    {
-        socket_fd = atoi(socket_file.c_str()+fd_prefix.size);
-    }
-    else
-    {
-        struct sockaddr_un addr;
-        addr.sun_family = AF_UNIX;
-        strcpy(addr.sun_path, socket_file.c_str());
-
-        socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (socket_fd < 0)
-        {
-            BOOST_THROW_EXCEPTION(
-                        boost::enable_error_info(
-                            std::runtime_error(std::string("Failed to create socket: ") +
-                                               strerror(errno)))<<boost::errinfo_errno(errno));
-        }
-        owns_socket = true;
-        if (connect(socket_fd, (struct sockaddr* const)&addr, sizeof addr) < 0)
-        {
-            BOOST_THROW_EXCEPTION(
-                        boost::enable_error_info(
-                            std::runtime_error(std::string("Failed to connect to server socket: ") +
-                                               strerror(errno)))<<boost::errinfo_errno(errno));
-        }
-    }
-}
-
-mir::client::DefaultConnectionConfiguration::~DefaultConnectionConfiguration()
-{
-    if (owns_socket)
-    {
-        close(socket_fd);
-    }
 }
 
 std::shared_ptr<mcl::ConnectionSurfaceMap>
@@ -141,7 +92,7 @@ mcl::DefaultConnectionConfiguration::the_rpc_channel()
         [this]
         {
             return mcl::rpc::make_rpc_channel(
-                the_socket_fd(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink());
+                the_socket_file(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink());
         });
 }
 
@@ -159,17 +110,25 @@ std::shared_ptr<mcl::ClientPlatformFactory>
 mcl::DefaultConnectionConfiguration::the_client_platform_factory()
 {
     return client_platform_factory(
-        []
+        [this]
         {
-            auto const val_raw = getenv("MIR_CLIENT_PLATFORM_LIB");
-            std::string const val{val_raw ? val_raw : default_platform_lib};
-            auto const platform_lib = ::load_library(val);
+            ensure_loaded_with_rtld_global();
+            auto const platform_override = getenv("MIR_CLIENT_PLATFORM_LIB");
+            std::vector<std::shared_ptr<mir::SharedLibrary>> platform_plugins;
+            if (platform_override)
+            {
+                platform_plugins.push_back(std::make_shared<mir::SharedLibrary>(platform_override));
+            }
+            else
+            {
+                auto const platform_path_override = getenv("MIR_CLIENT_PLATFORM_PATH");
+                auto const platform_path = platform_path_override ? platform_path_override : MIR_CLIENT_PLATFORM_PATH;
+                platform_plugins = mir::libraries_for_path(platform_path, *the_shared_library_prober_report());
+            }
 
-            auto const create_client_platform_factory =
-                platform_lib->load_function<mcl::CreateClientPlatformFactory>(
-                    "create_client_platform_factory");
+            the_platform_prober = std::make_shared<mcl::ProbingClientPlatformFactory>(platform_plugins);
 
-            return create_client_platform_factory();
+            return the_platform_prober;
         });
 }
 
@@ -183,10 +142,10 @@ mcl::DefaultConnectionConfiguration::the_input_platform()
         });
 }
 
-int
-mcl::DefaultConnectionConfiguration::the_socket_fd()
+std::string
+mcl::DefaultConnectionConfiguration::the_socket_file()
 {
-    return socket_fd;
+    return socket_file;
 }
 
 std::shared_ptr<mcl::rpc::RpcReport>
@@ -258,5 +217,21 @@ std::shared_ptr<mcl::EventHandlerRegister> mcl::DefaultConnectionConfiguration::
         []
         {
             return std::make_shared<MirEventDistributor>();
+        });
+}
+
+std::shared_ptr<mir::SharedLibraryProberReport> mir::client::DefaultConnectionConfiguration::the_shared_library_prober_report()
+{
+    return shared_library_prober_report(
+        [this] () -> std::shared_ptr<mir::SharedLibraryProberReport>
+        {
+            auto val_raw = getenv("MIR_CLIENT_SHARED_LIBRARY_PROBER_REPORT");
+            std::string const val{val_raw ? val_raw : off_opt_val};
+            if (val == log_opt_val)
+                return std::make_shared<mir::logging::SharedLibraryProberReport>(the_logger());
+            else if (val == lttng_opt_val)
+                return std::make_shared<mcl::lttng::SharedLibraryProberReport>();
+            else
+                return std::make_shared<mir::logging::NullSharedLibraryProberReport>();
         });
 }

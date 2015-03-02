@@ -47,11 +47,11 @@ public:
     geometry::Rectangle view_area() const override;
     void make_current() override;
     void release_current() override;
-    void post_update() override;
+    void gl_swap_buffers() override;
     MirOrientation orientation() const override;
     bool uses_alpha() const override;
 
-    bool post_renderables_if_optimizable(RenderableList const& renderlist);
+    bool post_renderables_if_optimizable(RenderableList const& renderlist) override;
 
     NestedOutput(NestedOutput const&) = delete;
     NestedOutput operator=(NestedOutput const&) = delete;

@@ -16,7 +16,7 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include "src/client/aging_buffer.h"
+#include "mir/aging_buffer.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -31,29 +31,37 @@ namespace test
 
 struct MyAgingBuffer : public mcl::AgingBuffer
 {
-    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write()
+    std::shared_ptr<mcl::MemoryRegion> secure_for_cpu_write() override
     {
         exit(1);
     }
 
-    geom::Size size() const
+    geom::Size size() const override
     {
         exit(1);
     }
 
-    geom::Stride stride() const
+    geom::Stride stride() const override
     {
         exit(1);
     }
 
-    MirPixelFormat pixel_format() const
+    MirPixelFormat pixel_format() const override
     {
         exit(1);
     }
 
-    std::shared_ptr<mir::graphics::NativeBuffer> native_buffer_handle() const
+    std::shared_ptr<mir::graphics::NativeBuffer> native_buffer_handle() const override
     {
         exit(1);
+    }
+    
+    void update_from(MirBufferPackage const&) override
+    {
+    }
+
+    void fill_update_msg(MirBufferPackage&) override
+    {
     }
 };
 

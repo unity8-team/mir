@@ -16,7 +16,7 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "src/platform/graphics/android/device_quirks.h"
+#include "src/platforms/android/server/device_quirks.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -69,4 +69,43 @@ TEST(DeviceDetection, three_buffers_reported_for_mx3)
 
     mga::DeviceQuirks quirks(mock_ops);
     EXPECT_EQ(3u, quirks.num_framebuffers());
+}
+
+//LP: 1371619, 1370555
+TEST(DeviceDetection, reports_gralloc_reopenable_after_close_by_default)
+{
+    using namespace testing;
+    char const default_str[] = "";
+    char const any_name_str[] = "anydevice";
+
+    MockOps mock_ops;
+    EXPECT_CALL(mock_ops, property_get(StrEq("ro.product.device"), _, StrEq(default_str)))
+        .Times(1)
+        .WillOnce(Invoke([&](char const*, char* value, char const*)
+        {
+            strncpy(value, any_name_str, PROP_VALUE_MAX);
+            return 0;
+        }));
+
+    mga::DeviceQuirks quirks(mock_ops);
+    EXPECT_TRUE(quirks.gralloc_reopenable_after_close());
+}
+
+TEST(DeviceDetection, reports_gralloc_not_reopenable_after_close_on_krillin)
+{
+    using namespace testing;
+    char const default_str[] = "";
+    char const krillin_name_str[] = "krillin";
+
+    MockOps mock_ops;
+    EXPECT_CALL(mock_ops, property_get(StrEq("ro.product.device"), _, StrEq(default_str)))
+        .Times(1)
+        .WillOnce(Invoke([&](char const*, char* value, char const*)
+        {
+            strncpy(value, krillin_name_str, PROP_VALUE_MAX);
+            return 0;
+        }));
+
+    mga::DeviceQuirks quirks(mock_ops);
+    EXPECT_FALSE(quirks.gralloc_reopenable_after_close());
 }

@@ -102,7 +102,16 @@ mtd::MockEGL::MockEGL()
     .WillByDefault(Return(fake_egl_context));
 
     ON_CALL(*this, eglMakeCurrent(_,_,_,_))
-    .WillByDefault(Return(EGL_TRUE));
+    .WillByDefault(Invoke(
+        [&] (EGLDisplay, EGLSurface, EGLSurface, EGLContext context)
+        {
+            current_contexts[std::this_thread::get_id()] = context;
+            return EGL_TRUE;
+        }));
+
+    ON_CALL(*this, eglGetCurrentContext())
+    .WillByDefault(Invoke(
+        [&] { return current_contexts[std::this_thread::get_id()]; }));
 
     ON_CALL(*this, eglSwapBuffers(_,_))
     .WillByDefault(Return(EGL_TRUE));
@@ -120,6 +129,15 @@ mtd::MockEGL::MockEGL()
         .WillByDefault(Return(reinterpret_cast<func_ptr_t>(extension_eglDestroyImageKHR)));
     ON_CALL(*this, eglGetProcAddress(StrEq("glEGLImageTargetTexture2DOES")))
         .WillByDefault(Return(reinterpret_cast<func_ptr_t>(extension_glEGLImageTargetTexture2DOES)));
+}
+
+void mtd::MockEGL::provide_egl_extensions()
+{
+    using namespace testing;
+
+    const char* egl_exts = "EGL_KHR_image EGL_KHR_image_base EGL_KHR_image_pixmap";
+    ON_CALL(*this, eglQueryString(_,EGL_EXTENSIONS))
+        .WillByDefault(Return(egl_exts));
 }
 
 mtd::MockEGL::~MockEGL()

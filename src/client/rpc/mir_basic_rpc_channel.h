@@ -47,7 +47,7 @@ class RpcReport;
 
 namespace detail
 {
-typedef std::vector<char> SendBuffer;
+typedef std::vector<uint8_t> SendBuffer;
 
 class PendingCallCache
 {
@@ -97,7 +97,8 @@ public:
 protected:
     mir::protobuf::wire::Invocation invocation_for(
         google::protobuf::MethodDescriptor const* method,
-        google::protobuf::Message const* request);
+        google::protobuf::Message const* request,
+        size_t num_side_channel_fds);
     int next_id();
 
 private:

@@ -24,10 +24,11 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/common.h"
 #include "mir/graphics/native_buffer.h"
+#include "mir/optional_value.h"
 #include "client_buffer_depository.h"
 #include "mir_wait_handle.h"
-#include "mir_client_surface.h"
-#include "client_platform.h"
+#include "mir/client_platform.h"
+#include "client_buffer_stream.h"
 
 #include <memory>
 #include <functional>
@@ -42,28 +43,62 @@ namespace receiver
 {
 class InputPlatform;
 class InputReceiverThread;
+class XKBMapper;
 }
 }
 namespace client
 {
 class ClientBuffer;
+class ClientBufferStream;
+class ClientBufferStreamFactory;
 
 struct MemoryRegion;
 }
 }
 
-struct MirSurface : public mir::client::ClientSurface
+struct MirSurfaceSpec
+{
+    MirSurfaceSpec() = default;
+    MirSurfaceSpec(MirConnection* connection, int width, int height, MirPixelFormat format);
+    MirSurfaceSpec(MirConnection* connection, MirSurfaceParameters const& params);
+
+    mir::protobuf::SurfaceParameters serialize() const;
+
+    // Required parameters
+    MirConnection* connection{nullptr};
+    int width{-1};
+    int height{-1};
+    MirPixelFormat pixel_format{mir_pixel_format_invalid};
+    MirBufferUsage buffer_usage{mir_buffer_usage_hardware};
+
+    // Optional parameters
+    mir::optional_value<std::string> surface_name;
+    mir::optional_value<uint32_t> output_id;
+
+    mir::optional_value<MirSurfaceType> type;
+    mir::optional_value<MirSurfaceState> state;
+    mir::optional_value<MirOrientationMode> pref_orientation;
+
+    mir::optional_value<MirSurface*> parent;
+    mir::optional_value<MirRectangle> aux_rect;
+    mir::optional_value<MirEdgeAttachment> edge_attachment;
+};
+
+struct MirSurface
 {
 public:
     MirSurface(MirSurface const &) = delete;
     MirSurface& operator=(MirSurface const &) = delete;
 
+    MirSurface(std::string const& error);
+
     MirSurface(
         MirConnection *allocating_connection,
-        mir::protobuf::DisplayServer::Stub & server,
-        std::shared_ptr<mir::client::ClientBufferFactory> const& buffer_factory,
+        mir::protobuf::DisplayServer::Stub& server,
+        mir::protobuf::Debug::Stub* debug,
+        std::shared_ptr<mir::client::ClientBufferStreamFactory> const& buffer_stream_factory,
         std::shared_ptr<mir::input::receiver::InputPlatform> const& input_platform,
-        MirSurfaceParameters const& params,
+        MirSurfaceSpec const& spec,
         mir_surface_callback callback, void * context);
 
     ~MirSurface();
@@ -75,28 +110,29 @@ public:
     MirSurfaceParameters get_parameters() const;
     char const * get_error_message();
     int id() const;
-    MirWaitHandle* next_buffer(mir_surface_callback callback, void * context);
+
     MirWaitHandle* get_create_wait_handle();
-
-    MirNativeBuffer* get_current_buffer_package();
-    MirPlatformType platform_type();
-    std::shared_ptr<mir::client::ClientBuffer> get_current_buffer();
-    uint32_t get_current_buffer_id() const;
-    void get_cpu_region(MirGraphicsRegion& region);
-    EGLNativeWindowType generate_native_window();
-
     MirWaitHandle* configure(MirSurfaceAttrib a, int value);
-    int attrib(MirSurfaceAttrib a) const;
-    MirOrientation get_orientation() const;
+
+    // TODO: Some sort of extension mechanism so that this can be moved
+    //       out into a separate class in the libmirclient-debug DSO.
+    bool translate_to_screen_coordinates(int x, int y,
+                                         int* screen_x, int* screen_y);
     
+    // Non-blocking
+    int attrib(MirSurfaceAttrib a) const;
+
+    MirOrientation get_orientation() const;
+    MirWaitHandle* set_preferred_orientation(MirOrientationMode mode);
+
     MirWaitHandle* configure_cursor(MirCursorConfiguration const* cursor);
 
     void set_event_handler(MirEventDelegate const* delegate);
     void handle_event(MirEvent const& e);
 
-    /* mir::client::ClientSurface */
-    void request_and_wait_for_next_buffer();
     void request_and_wait_for_configure(MirSurfaceAttrib a, int value);
+
+    mir::client::ClientBufferStream* get_buffer_stream();
 
     static bool is_valid(MirSurface* query);
 private:
@@ -104,29 +140,27 @@ private:
 
     void on_configured();
     void on_cursor_configured();
-    void process_incoming_buffer();
-    void populate(MirBufferPackage& buffer_package);
-    void created(mir_surface_callback callback, void * context);
-    void new_buffer(mir_surface_callback callback, void * context);
-    MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf);
-    void release_cpu_region();
+    void created(mir_surface_callback callback, void* context);
+    MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf) const;
 
-    mir::protobuf::DisplayServer::Stub & server;
+    mir::protobuf::DisplayServer::Stub* server{nullptr};
+    mir::protobuf::Debug::Stub* debug{nullptr};
     mir::protobuf::Surface surface;
+    mir::protobuf::BufferRequest buffer_request;
     std::string error_message;
+    std::string name;
     mir::protobuf::Void void_response;
 
-    MirConnection* const connection;
+    MirConnection* const connection{nullptr};
+
     MirWaitHandle create_wait_handle;
-    MirWaitHandle next_buffer_wait_handle;
     MirWaitHandle configure_wait_handle;
     MirWaitHandle configure_cursor_wait_handle;
 
-    std::shared_ptr<mir::client::MemoryRegion> secured_region;
-    std::shared_ptr<mir::client::ClientBufferDepository> buffer_depository;
+    std::shared_ptr<mir::client::ClientBufferStreamFactory> const buffer_stream_factory;
+    std::shared_ptr<mir::client::ClientBufferStream> buffer_stream;
     std::shared_ptr<mir::input::receiver::InputPlatform> const input_platform;
-
-    std::shared_ptr<EGLNativeWindowType> accelerated_window;
+    std::shared_ptr<mir::input::receiver::XKBMapper> const keymapper;
 
     mir::protobuf::SurfaceSetting configure_result;
 

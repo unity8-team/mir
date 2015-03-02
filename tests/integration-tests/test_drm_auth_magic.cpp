@@ -17,8 +17,8 @@
  */
 
 #include "mir/graphics/display.h"
-#include "mir/graphics/drm_authenticator.h"
 #include "mir/graphics/platform_ipc_package.h"
+#include "mir/graphics/buffer_ipc_message.h"
 #include "mir/graphics/buffer_basic.h"
 
 #include <boost/exception/errinfo_errno.hpp>
@@ -30,9 +30,12 @@
 
 #include "mir_toolkit/mir_client_library.h"
 #include "mir_toolkit/mir_client_library_drm.h"
+#include "mir_toolkit/mesa/platform_operation.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <cstring>
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
@@ -44,16 +47,34 @@ namespace
 
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-class MockAuthenticatingPlatform : public mtd::NullPlatform, public mg::DRMAuthenticator
+struct MockAuthenticatingIpcOps : public mg::PlatformIpcOperations
+{
+    MOCK_CONST_METHOD3(pack_buffer, void(mg::BufferIpcMessage&, mg::Buffer const&, mg::BufferIpcMsgType));
+    MOCK_CONST_METHOD2(unpack_buffer, void(mg::BufferIpcMessage&, mg::Buffer const&));
+    MOCK_METHOD0(connection_ipc_package, std::shared_ptr<mg::PlatformIPCPackage>());
+    MOCK_METHOD2(platform_operation, mg::PlatformOperationMessage(
+        unsigned int const, mg::PlatformOperationMessage const&));
+};
+
+class StubAuthenticatingPlatform : public mtd::NullPlatform
 {
 public:
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator(
-        std::shared_ptr<mg::BufferInitializer> const& /*buffer_initializer*/) override
+    StubAuthenticatingPlatform(std::shared_ptr<mg::PlatformIpcOperations> const& ops) :
+        ops{ops}
+    {
+    }
+
+    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
     {
         return std::make_shared<mtd::StubBufferAllocator>();
     }
+    std::shared_ptr<mg::PlatformIpcOperations> make_ipc_operations() const override
+    {
+        return ops;
+    }
 
-    MOCK_METHOD1(drm_auth_magic, void(unsigned int));
+private:
+    std::shared_ptr<mg::PlatformIpcOperations> const ops;
 };
 
 void connection_callback(MirConnection* connection, void* context)
@@ -72,7 +93,8 @@ void drm_auth_magic_callback(int status, void* client_context)
 
 TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
 {
-    unsigned int const magic{0x10111213};
+    static unsigned int const magic{0x10111213};
+    static MirMesaAuthMagicResponse const auth_magic_response{123};
 
     struct ServerConfig : TestingServerConfiguration
     {
@@ -81,15 +103,24 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
             using namespace testing;
             if (!platform)
             {
-                platform = std::make_shared<MockAuthenticatingPlatform>();
-                EXPECT_CALL(*platform, drm_auth_magic(magic))
-                    .Times(1);
+                mg::PlatformOperationMessage pkg;
+                pkg.data.resize(sizeof(auth_magic_response));
+                std::memcpy(pkg.data.data(), &auth_magic_response,
+                            sizeof(auth_magic_response));
+
+                auto ipc_ops = std::make_shared<NiceMock<MockAuthenticatingIpcOps>>();
+                EXPECT_CALL(*ipc_ops, platform_operation(_,_))
+                    .Times(1)
+                    .WillRepeatedly(Return(pkg));
+                ON_CALL(*ipc_ops, connection_ipc_package())
+                    .WillByDefault(Return(std::make_shared<mg::PlatformIPCPackage>()));
+                platform = std::make_shared<StubAuthenticatingPlatform>(ipc_ops);
             }
 
             return platform;
         }
 
-        std::shared_ptr<MockAuthenticatingPlatform> platform;
+        std::shared_ptr<StubAuthenticatingPlatform> platform;
     } server_config;
 
     launch_server_process(server_config);
@@ -102,7 +133,6 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
             mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
                                      connection_callback, &connection));
 
-            int const no_error{0};
             int status{67};
 
             ASSERT_TRUE(mir_connection_is_valid(connection));
@@ -110,55 +140,7 @@ TEST_F(BespokeDisplayServerTestFixture, client_drm_auth_magic_calls_platform)
             mir_wait_for(mir_connection_drm_auth_magic(connection, magic,
                                                        drm_auth_magic_callback,
                                                        &status));
-            EXPECT_EQ(no_error, status);
-
-            mir_connection_release(connection);
-        }
-    } client_config;
-
-    launch_client_process(client_config);
-}
-
-TEST_F(BespokeDisplayServerTestFixture, drm_auth_magic_platform_error_reaches_client)
-{
-    unsigned int const magic{0x10111213};
-    static int const auth_magic_error{667};
-
-    struct ServerConfig : TestingServerConfiguration
-    {
-        std::shared_ptr<mg::Platform> the_graphics_platform()
-        {
-            using namespace testing;
-            if (!platform)
-            {
-                platform = std::make_shared<MockAuthenticatingPlatform>();
-                EXPECT_CALL(*platform, drm_auth_magic(magic))
-                    .WillOnce(Throw(::boost::enable_error_info(std::exception())
-                        << boost::errinfo_errno(auth_magic_error)));
-            }
-
-            return platform;
-        }
-
-        std::shared_ptr<MockAuthenticatingPlatform> platform;
-    } server_config;
-
-    launch_server_process(server_config);
-
-    struct Client : TestingClientConfiguration
-    {
-        void exec()
-        {
-            MirConnection* connection{nullptr};
-            mir_wait_for(mir_connect(mir_test_socket, __PRETTY_FUNCTION__,
-                                     connection_callback, &connection));
-
-            int status{67};
-
-            mir_wait_for(mir_connection_drm_auth_magic(connection, magic,
-                                                       drm_auth_magic_callback,
-                                                       &status));
-            EXPECT_EQ(auth_magic_error, status);
+            EXPECT_EQ(auth_magic_response.status, status);
 
             mir_connection_release(connection);
         }

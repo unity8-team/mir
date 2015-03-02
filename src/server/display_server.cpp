@@ -18,6 +18,11 @@
  *   Thomas Voss <thomas.voss@canonical.com>
  */
 
+// TODO: Eliminate usage of std::chrono::nanoseconds in input_dispatcher.h
+// to remove this.
+#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER 
+
+#define MIR_LOG_COMPONENT "DisplayServer"
 #include "mir/display_server.h"
 #include "mir/server_configuration.h"
 #include "mir/main_loop.h"
@@ -30,6 +35,7 @@
 #include "mir/graphics/display_configuration.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
+#include "mir/log.h"
 
 #include <stdexcept>
 
@@ -74,7 +80,6 @@ struct mir::DisplayServer::Private
           graphics_platform{config.the_graphics_platform()},
           display{config.the_display()},
           input_dispatcher{config.the_input_dispatcher()},
-          input_configuration{config.the_input_configuration()},
           compositor{config.the_compositor()},
           connector{config.the_connector()},
           prompt_connector{config.the_prompt_connector()},
@@ -186,7 +191,6 @@ struct mir::DisplayServer::Private
     std::shared_ptr<mg::Platform> const graphics_platform; // Hold this so the platform is loaded once
     std::shared_ptr<mg::Display> const display;
     std::shared_ptr<mi::InputDispatcher> const input_dispatcher;
-    std::shared_ptr<input::InputConfiguration> const input_configuration;
     std::shared_ptr<mc::Compositor> const compositor;
     std::shared_ptr<mf::Connector> const connector;
     std::shared_ptr<mf::Connector> const prompt_connector;
@@ -206,12 +210,12 @@ mir::DisplayServer::DisplayServer(ServerConfiguration& config) :
  * can define the 'p' member variable as a unique_ptr to an
  * incomplete type (DisplayServerPrivate) in the header.
  */
-mir::DisplayServer::~DisplayServer()
-{
-}
+mir::DisplayServer::~DisplayServer() = default;
 
 void mir::DisplayServer::run()
 {
+    mir::log_info("Mir version " MIR_VERSION);
+
     p->connector->start();
     p->prompt_connector->start();
     p->compositor->start();

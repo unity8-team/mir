@@ -41,7 +41,6 @@ class Logger;
 
 namespace client
 {
-
 class ConnectionSurfaceMap;
 class Logger;
 class ClientPlatformFactory;
@@ -70,7 +69,6 @@ protected:
     ConnectionConfiguration(ConnectionConfiguration const&) = delete;
     ConnectionConfiguration& operator=(ConnectionConfiguration const&) = delete;
 };
-
 }
 }
 

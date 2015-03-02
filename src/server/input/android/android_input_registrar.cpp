@@ -101,7 +101,7 @@ droidinput::sp<droidinput::InputWindowHandle> mia::InputRegistrar::handle_for_ch
 {
     std::unique_lock<std::mutex> lock(handles_mutex);
     if (window_handles.find(channel) == window_handles.end())
-        BOOST_THROW_EXCEPTION(std::logic_error("Requesting handle for an unregistered channel"));
+        return droidinput::sp<droidinput::InputWindowHandle>{};
     return window_handles[channel];
 }
 
@@ -122,4 +122,8 @@ void mia::InputRegistrar::SceneObserver::surface_exists(ms::Surface* surface)
 void mia::InputRegistrar::SceneObserver::surface_removed(ms::Surface* surface)
 {
     remove(surface);
+}
+
+void mia::InputRegistrar::SceneObserver::scene_changed()
+{
 }

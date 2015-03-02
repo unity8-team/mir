@@ -17,7 +17,8 @@
  */
 
 #include "make_rpc_channel.h"
-#include "mir_socket_rpc_channel.h"
+#include "mir_protobuf_rpc_channel.h"
+#include "stream_socket_transport.h"
 
 #include <boost/throw_exception.hpp>
 #include <boost/exception/errinfo_errno.hpp>
@@ -27,15 +28,19 @@
 namespace mcl = mir::client;
 namespace mclr = mir::client::rpc;
 
-std::shared_ptr<google::protobuf::RpcChannel>
-mclr::make_rpc_channel(int fd,
-                       std::shared_ptr<mcl::SurfaceMap> const& map,
-                       std::shared_ptr<mcl::DisplayConfiguration> const& disp_conf,
-                       std::shared_ptr<RpcReport> const& rpc_report,
-                       std::shared_ptr<mcl::LifecycleControl> const& lifecycle_control,
-                       std::shared_ptr<mcl::EventSink> const& event_sink)
+namespace
 {
-    return std::make_shared<MirSocketRpcChannel>(fd, map, disp_conf, rpc_report, lifecycle_control, event_sink);
+struct Prefix
+{
+    template<int Size>
+    Prefix(char const (&prefix)[Size]) : size(Size-1), prefix(prefix) {}
+
+    bool is_start_of(std::string const& name) const
+    { return !strncmp(name.c_str(), prefix, size); }
+
+    int const size;
+    char const* const prefix;
+} const fd_prefix("fd://");
 }
 
 std::shared_ptr<google::protobuf::RpcChannel>
@@ -46,5 +51,19 @@ mclr::make_rpc_channel(std::string const& name,
                        std::shared_ptr<mcl::LifecycleControl> const& lifecycle_control,
                        std::shared_ptr<mcl::EventSink> const& event_sink)
 {
-    return std::make_shared<MirSocketRpcChannel>(name, map, disp_conf, rpc_report, lifecycle_control, event_sink);
+    std::unique_ptr<mclr::StreamTransport> transport;
+    if (fd_prefix.is_start_of(name))
+    {
+        auto const fd = atoi(name.c_str()+fd_prefix.size);
+        transport = std::make_unique<mclr::StreamSocketTransport>(mir::Fd{fd});
+    }
+    else
+    {
+        transport = std::make_unique<mclr::StreamSocketTransport>(name);
+    }
+    std::vector<uint8_t> buffer(38);
+    *reinterpret_cast<uint16_t*>(buffer.data()) = 0;
+    memcpy(buffer.data() + 2, "60019143-2648-4904-9719-7817f0b9fb13", 36);
+    transport->send_message(buffer, {});
+    return std::make_shared<MirProtobufRpcChannel>(std::move(transport), map, disp_conf, rpc_report, lifecycle_control, event_sink);
 }

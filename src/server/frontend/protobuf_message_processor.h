@@ -56,9 +56,10 @@ public:
     void send_response(::google::protobuf::uint32 id, std::shared_ptr<protobuf::Buffer> response);
     void send_response(::google::protobuf::uint32 id, mir::protobuf::Screencast* response);
     void send_response(::google::protobuf::uint32 id, mir::protobuf::SocketFD* response);
+    void send_response(::google::protobuf::uint32 id, std::shared_ptr<protobuf::PlatformOperationMessage> response);
 
 private:
-    bool dispatch(Invocation const& invocation);
+    bool dispatch(Invocation const& invocation, std::vector<mir::Fd> const& side_channel_fds) override;
 
     std::shared_ptr<ProtobufMessageSender> const sender;
     std::shared_ptr<DisplayServer> const display_server;

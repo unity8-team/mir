@@ -40,7 +40,7 @@ mrl::CompositorReport::CompositorReport(
 
 mrl::CompositorReport::TimePoint mrl::CompositorReport::now() const
 {
-    return clock->sample();
+    return clock->now();
 }
 
 void mrl::CompositorReport::added_display(int width, int height, int x, int y, SubCompositorId id)
@@ -48,7 +48,7 @@ void mrl::CompositorReport::added_display(int width, int height, int x, int y, S
     char msg[128];
     snprintf(msg, sizeof msg, "Added display %p: %dx%d %+d%+d",
              id, width, height, x, y);
-    logger->log(ml::Logger::informational, msg, component);
+    logger->log(ml::Severity::informational, msg, component);
 }
 
 void mrl::CompositorReport::began_frame(SubCompositorId id)
@@ -59,6 +59,15 @@ void mrl::CompositorReport::began_frame(SubCompositorId id)
     auto t = now();
     inst.start_of_frame = t;
     inst.latency_sum += t - last_scheduled;
+    inst.bypassed = true;
+}
+
+void mrl::CompositorReport::rendered_frame(SubCompositorId id)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    auto& inst = instance[id];
+    inst.render_time_sum += now() - inst.start_of_frame;
+    inst.bypassed = false;
 }
 
 void mrl::CompositorReport::Instance::log(ml::Logger& logger, SubCompositorId id)
@@ -72,9 +81,9 @@ void mrl::CompositorReport::Instance::log(ml::Logger& logger, SubCompositorId id
                 total_time_sum - last_reported_total_time_sum
             ).count();
         auto dn = nframes - last_reported_nframes;
-        long long df =
+        long long dr =
             std::chrono::duration_cast<std::chrono::microseconds>(
-                frame_time_sum - last_reported_frame_time_sum
+                render_time_sum - last_reported_render_time_sum
             ).count();
         long long dl =
             std::chrono::duration_cast<std::chrono::microseconds>(
@@ -86,7 +95,7 @@ void mrl::CompositorReport::Instance::log(ml::Logger& logger, SubCompositorId id
         // Keep everything premultiplied by 1000 to guarantee accuracy
         // and avoid floating point.
         long frames_per_1000sec = dt ? dn * 1000000000LL / dt : 0;
-        long avg_frame_time_usec = dn ? df / dn : 0;
+        long avg_render_time_usec = dn ? dr / dn : 0;
         long avg_latency_usec = dn ? dl / dn : 0;
         long dt_msec = dt / 1000L;
 
@@ -99,8 +108,8 @@ void mrl::CompositorReport::Instance::log(ml::Logger& logger, SubCompositorId id
                  id,
                  frames_per_1000sec / 1000,
                  frames_per_1000sec % 1000,
-                 avg_frame_time_usec / 1000,
-                 avg_frame_time_usec % 1000,
+                 avg_render_time_usec / 1000,
+                 avg_render_time_usec % 1000,
                  avg_latency_usec / 1000,
                  avg_latency_usec % 1000,
                  dn,
@@ -109,28 +118,26 @@ void mrl::CompositorReport::Instance::log(ml::Logger& logger, SubCompositorId id
                  bypass_percent
                  );
 
-        logger.log(ml::Logger::informational, msg, component);
+        logger.log(ml::Severity::informational, msg, component);
     }
 
     last_reported_total_time_sum = total_time_sum;
-    last_reported_frame_time_sum = frame_time_sum;
+    last_reported_render_time_sum = render_time_sum;
     last_reported_latency_sum = latency_sum;
     last_reported_nframes = nframes;
     last_reported_bypassed = nbypassed;
 }
 
-void mrl::CompositorReport::finished_frame(bool bypassed,
-                                           SubCompositorId id)
+void mrl::CompositorReport::finished_frame(SubCompositorId id)
 {
     std::lock_guard<std::mutex> lock(mutex);
     auto& inst = instance[id];
 
     auto t = now();
     inst.total_time_sum += t - inst.end_of_frame;
-    inst.frame_time_sum += t - inst.start_of_frame;
     inst.end_of_frame = t;
     inst.nframes++;
-    if (bypassed)
+    if (inst.bypassed)
         ++inst.nbypassed;
 
     /*
@@ -145,24 +152,24 @@ void mrl::CompositorReport::finished_frame(bool bypassed,
             i.second.log(*logger, i.first);
     }
 
-    if (bypassed != inst.prev_bypassed || inst.nframes == 1)
+    if (inst.bypassed != inst.prev_bypassed || inst.nframes == 1)
     {
         char msg[128];
         snprintf(msg, sizeof msg, "Display %p bypass %s",
-                 id, bypassed ? "ON" : "OFF");
-        logger->log(ml::Logger::informational, msg, component);
+                 id, inst.bypassed ? "ON" : "OFF");
+        logger->log(ml::Severity::informational, msg, component);
     }
-    inst.prev_bypassed = bypassed;
+    inst.prev_bypassed = inst.bypassed;
 }
 
 void mrl::CompositorReport::started()
 {
-    logger->log(ml::Logger::informational, "Started", component);
+    logger->log(ml::Severity::informational, "Started", component);
 }
 
 void mrl::CompositorReport::stopped()
 {
-    logger->log(ml::Logger::informational, "Stopped", component);
+    logger->log(ml::Severity::informational, "Stopped", component);
 
     std::lock_guard<std::mutex> lock(mutex);
     instance.clear();

@@ -7,6 +7,7 @@ include_directories(
   system/extras/ext4_utils
 
   ${PROJECT_SOURCE_DIR}/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/include/platform
 )
 
@@ -65,7 +66,6 @@ endif()
 target_link_libraries(
   android-input
 
-  mirplatform
   ${Boost_LIBRARIES}
 )
 

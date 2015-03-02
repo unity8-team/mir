@@ -17,13 +17,15 @@
  */
 
 #include "mir/default_server_configuration.h"
+#include "mir/fatal.h"
 #include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
-#include "mir/asio_main_loop.h"
+#include "mir/glib_main_loop.h"
 #include "mir/default_server_status_listener.h"
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 
+#include "mir/logging/dumb_console_logger.h"
 #include "mir/options/program_option.h"
 #include "mir/frontend/session_credentials.h"
 #include "mir/frontend/session_authorizer.h"
@@ -34,7 +36,7 @@
 #include "mir/input/cursor_listener.h"
 #include "mir/input/vt_filter.h"
 #include "mir/input/input_manager.h"
-#include "mir/time/high_resolution_clock.h"
+#include "mir/time/steady_clock.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/default_configuration.h"
 #include "mir/scene/null_prompt_session_listener.h"
@@ -44,6 +46,7 @@ namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
+namespace ml = mir::logging;
 namespace mo = mir::options;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
@@ -122,17 +125,17 @@ mir::DefaultServerConfiguration::the_session_authorizer()
 {
     struct DefaultSessionAuthorizer : public mf::SessionAuthorizer
     {
-        bool connection_is_allowed(mf::SessionCredentials const& /* creds */)
+        bool connection_is_allowed(mf::SessionCredentials const& /* creds */) override
         {
             return true;
         }
 
-        bool configure_display_is_allowed(mf::SessionCredentials const& /* creds */)
+        bool configure_display_is_allowed(mf::SessionCredentials const& /* creds */) override
         {
             return true;
         }
 
-        bool screencast_is_allowed(mf::SessionCredentials const& /* creds */)
+        bool screencast_is_allowed(mf::SessionCredentials const& /* creds */) override
         {
             return true;
         }
@@ -149,23 +152,21 @@ mir::DefaultServerConfiguration::the_session_authorizer()
         });
 }
 
-mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
-
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {
     return clock(
         []()
         {
-            return std::make_shared<mir::time::HighResolutionClock>();
+            return std::make_shared<mir::time::SteadyClock>();
         });
 }
 
 std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
 {
     return main_loop(
-        [this]()
+        [this]() -> std::shared_ptr<mir::MainLoop>
         {
-            return std::make_shared<mir::AsioMainLoop>(the_clock());
+            return std::make_shared<mir::GLibMainLoop>(the_clock());
         });
 }
 
@@ -189,5 +190,24 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
         []()
         {
             return std::make_shared<DefaultEmergencyCleanup>();
+        });
+}
+
+auto mir::DefaultServerConfiguration::the_fatal_error_strategy()
+-> void (*)(char const* reason, ...)
+{
+    if (the_options()->is_set(options::fatal_abort_opt))
+        return &fatal_error_abort;
+    else
+        return fatal_error;
+}
+
+auto mir::DefaultServerConfiguration::the_logger()
+    -> std::shared_ptr<ml::Logger>
+{
+    return logger(
+        [this]() -> std::shared_ptr<ml::Logger>
+        {
+            return std::make_shared<ml::DumbConsoleLogger>();
         });
 }

@@ -48,7 +48,6 @@ public:
      */
     virtual std::shared_ptr<Buffer> buffer() const = 0;
 
-    virtual bool alpha_enabled() const = 0;
     virtual geometry::Rectangle screen_position() const = 0;
 
     // These are from the old CompositingCriteria. There is a little bit
@@ -69,15 +68,7 @@ public:
      */
     virtual glm::mat4 transformation() const = 0;
 
-    /**
-     * TODO: Its a bit questionable that we have this member function, why not 
-     *       just trim the renderable from the RenderableList? Its convenient
-     *       to have this function temporarily while refactoring --kdub
-     */ 
-    virtual bool visible() const = 0;
-
     virtual bool shaped() const = 0;  // meaning the pixel format has alpha
-    virtual int buffers_ready_for_compositor() const = 0;
 
 protected:
     Renderable() = default;
