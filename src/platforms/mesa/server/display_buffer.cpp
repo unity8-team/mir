@@ -275,7 +275,7 @@ void mgm::DisplayBuffer::post_bypass()
 
 void mgm::DisplayBuffer::post_egl()
 {
-    // XXX Experiemental XXX
+    // XXX Experimental XXX
     // This works on fast machines with fast compositors, but otherwise
     // you risk getting a halved frame rate.
     bool const experimental_zero_lag_compositing = true;
