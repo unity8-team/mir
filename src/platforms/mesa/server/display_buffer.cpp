@@ -16,7 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#define MIR_LOG_COMPONENT "Mesa DisplayBuffer"
 #include "display_buffer.h"
 #include "platform.h"
 #include "kms_output.h"
@@ -24,13 +23,11 @@
 #include "bypass.h"
 #include "gbm_buffer.h"
 #include "mir/fatal.h"
-#include "mir/log.h"
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
 
 #include <stdexcept>
-#include <thread>
 
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
@@ -249,20 +246,9 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
+    // XXX Misnomer: wait_for_vblank means "wait_for_almost_the_next_vblank"
     if (outputs.size() == 1)
-    {
-        mir::log_info("Start wait");
-        // This is meant to be a wait_for_vblank() in theory. But in practice
-        // Linux DRM has annoying side-effects whereby waiting for vblank here
-        // means the scheduled page flip won't occur till the vblank after
-        // that. Arguably a kernel bug. So we simulate the wait for vblank
-        // that we wish Linux had with this hack:
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
-        mir::log_info("Done wait");
-
-        last_flipped_bypass_buf = scheduled_bypass_buf;
-        scheduled_bypass_buf = nullptr;
-    }
+        outputs.front()->wait_for_vblank();
 
     auto bypass_buf = bypass_candidate->buffer();
     if (bypass_buf.use_count() > 2)

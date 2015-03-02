@@ -49,6 +49,7 @@ public:
     void clear_crtc();
     bool schedule_page_flip(uint32_t fb_id);
     void wait_for_page_flip();
+    void wait_for_vblank() override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
@@ -72,6 +73,8 @@ private:
     drmModeCrtc saved_crtc;
     bool using_saved_crtc;
     bool has_cursor_;
+
+    drmVBlankReply prev_prev_vblank = {DRM_VBLANK_RELATIVE, 0, 0, 0};
 
     MirPowerMode power_mode;
     int dpms_enum_id;

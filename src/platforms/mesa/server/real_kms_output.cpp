@@ -20,6 +20,7 @@
 #include "page_flipper.h"
 #include "mir/fatal.h"
 #include <vector>
+#include <thread>
 #include <string.h> // strcmp
 
 namespace mg = mir::graphics;
@@ -263,6 +264,57 @@ void mgm::RealKMSOutput::wait_for_page_flip()
                    connector_name(connector.get()).c_str());
     }
     page_flipper->wait_for_flip(current_crtc->crtc_id);
+}
+
+void mgm::RealKMSOutput::wait_for_vblank()
+{
+    /**
+     * This is much more complicated than it should be. Unfortunately Linux
+     * DRM is a bit weird and we need to do this.
+     *   The rules are: you're allowed to drmWaitVBlank and query the previous
+     * vblank time, but not wait for the next vblank using drmWaitVBlank.
+     * If you use drmWaitVBlank in a way that forces it to block, that causes
+     * side-effects in the kernel and you'll also delay the next page flip
+     * by an extra frame. Very annoying.
+     *   So we need to passively query the last vblank time and work out our
+     * own sleep to wake up a bit before the next one, with enough time to
+     * spare to schedule a page flip.
+     */
+    drmVBlank v;
+
+    // Ask for the _previous_ vblank time. This shouldn't involve blocking.
+    v.request.type = DRM_VBLANK_RELATIVE;
+    v.request.sequence = 0;
+    v.request.signal = 0;
+    int err = drmWaitVBlank(drm_fd, &v);
+    if (err) return;
+
+    auto& prev_vblank = v.reply;
+    if (prev_vblank.sequence == prev_prev_vblank.sequence + 1)
+    {    // We're rendering at full monitor speed and can predict...
+        long frametime_usec = prev_vblank.tval_usec -
+                              prev_prev_vblank.tval_usec;
+        if (frametime_usec < 0) frametime_usec += 1000000L;
+
+        // Max time required to schedule a page flip and meet the deadline
+        long const schedule_usec = 2000;
+
+        long wakeup_sec = prev_vblank.tval_sec;
+        long wakeup_usec = prev_vblank.tval_usec
+                         + frametime_usec
+                         - schedule_usec;
+        if (wakeup_usec >= 1000000L)
+        {
+            wakeup_sec++;
+            wakeup_usec -= 1000000L;
+        }
+
+        struct timespec wakeup;
+        wakeup.tv_sec = wakeup_sec;
+        wakeup.tv_nsec = wakeup_usec * 1000L;
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
+    }
+    prev_prev_vblank = prev_vblank;
 }
 
 void mgm::RealKMSOutput::set_cursor(gbm_bo* buffer)
