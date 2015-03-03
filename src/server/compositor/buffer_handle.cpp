@@ -17,7 +17,6 @@
  */
 
 #include "buffer_handle.h"
-#include "buffer_bundle.h"
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
