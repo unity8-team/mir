@@ -41,17 +41,3 @@ std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
 {
     return wrapped;
 }
-
-mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
-                                                   std::shared_ptr<mg::Buffer> const& buffer,
-                                                   release_callback const& release)
-                                                   : BufferHandle(bundle, buffer, release)
-{
-}
-
-mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
-                                               std::shared_ptr<mg::Buffer> const& buffer,
-                                               release_callback const& release)
-                                               : BufferHandle(bundle, buffer, release)
-{
-}

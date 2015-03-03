@@ -17,8 +17,8 @@
  * Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#ifndef MIR_COMPOSITOR_BUFFER_HANDLE_H_
-#define MIR_COMPOSITOR_BUFFER_HANDLE_H_
+#ifndef MIR_BUFFER_HANDLE_H_
+#define MIR_BUFFER_HANDLE_H_
 
 #include <memory>
 
@@ -35,36 +35,21 @@ typedef std::function<void(graphics::Buffer* buffer)> release_callback;
 class BufferHandle
 {
 public:
-    std::shared_ptr<graphics::Buffer> buffer();
-
-protected:
     explicit BufferHandle(BufferBundle* bundle,
         std::shared_ptr<graphics::Buffer> const& buffer,
         release_callback const& release);
+
+    std::shared_ptr<graphics::Buffer> buffer();
+
     virtual ~BufferHandle();
 
+private:
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> wrapped;
     release_callback const release_fn;
 };
 
-class CompositorBufferHandle : public BufferHandle
-{
-public:
-    explicit CompositorBufferHandle(BufferBundle* bundle,
-        std::shared_ptr<graphics::Buffer> const& buffer,
-        release_callback const& release);
-};
-
-class SnapshotBufferHandle : public BufferHandle
-{
-public:
-    explicit SnapshotBufferHandle(BufferBundle* bundle,
-        std::shared_ptr<graphics::Buffer> const& buffer,
-        release_callback const& release);
-};
-
 }
 }
 
-#endif /*MIR_COMPOSITOR_BUFFER_HANDLE_H_*/
+#endif /* MIR_BUFFER_HANDLE_H_*/

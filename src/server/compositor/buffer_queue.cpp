@@ -287,7 +287,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
     std::shared_ptr<mc::BufferHandle> const acquired_buffer =
-        std::make_shared<mc::CompositorBufferHandle>(
+        std::make_shared<mc::BufferHandle>(
            this,
            buffer_for(current_compositor_buffer, buffers),
            [this](mg::Buffer* b)
@@ -319,7 +319,7 @@ std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
-    return std::make_shared<mc::SnapshotBufferHandle>(
+    return std::make_shared<mc::BufferHandle>(
                this,
                buffer_for(current_compositor_buffer, buffers),
                [this](mg::Buffer* b)
