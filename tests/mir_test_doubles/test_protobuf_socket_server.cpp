@@ -38,7 +38,7 @@ std::shared_ptr<mf::Connector> make_connector(std::string const& socket_name,
                                               std::shared_ptr<mf::ConnectorReport> const& report)
 {
     auto protobuf_session = std::make_shared<mf::ProtobufConnectionCreator>(
-        std::move(factory), std::make_shared<mtd::StubSessionAuthorizer>(), mr::null_message_processor_report());
+        std::move(factory), mr::null_message_processor_report());
     auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
     sessions->push_back(protobuf_session);
 

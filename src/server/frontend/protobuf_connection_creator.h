@@ -40,17 +40,15 @@ class MessageProcessor;
 class ProtobufMessageSender;
 }
 
-class ProtobufConnectionCreator : public DispatchedConnectionCreator, public ConnectionCreator
+class ProtobufConnectionCreator : public DispatchedConnectionCreator
 {
 public:
     ProtobufConnectionCreator(std::unique_ptr<ProtobufIpcFactory> ipc_factory,
-                              std::shared_ptr<SessionAuthorizer> const& session_authorizer,
                               std::shared_ptr<MessageProcessorReport> const& report);
     ~ProtobufConnectionCreator() noexcept;
 
     void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
-                               ConnectionContext const& connection_context) override;
-    void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
+                               SessionAuthorizer& authorizer,
                                ConnectionContext const& connection_context,
                                const std::string& connection_data) override;
 
@@ -66,7 +64,6 @@ private:
     int next_id();
 
     std::unique_ptr<ProtobufIpcFactory> const ipc_factory;
-    std::shared_ptr<SessionAuthorizer> const session_authorizer;
     std::shared_ptr<MessageProcessorReport> const report;
     std::atomic<int> next_session_id;
 

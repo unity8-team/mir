@@ -56,7 +56,10 @@ public:
             .WillByDefault(Invoke([](uuid_t id){ uuid_parse(mock_uuid, id); }));
     }
 
-    MOCK_METHOD3(create_connection_for, void(const std::shared_ptr<boost::asio::local::stream_protocol::socket> &, mir::frontend::ConnectionContext const&, std::string const&));
+    MOCK_METHOD4(create_connection_for, void(std::shared_ptr<boost::asio::local::stream_protocol::socket> const&,
+                                             mir::frontend::SessionAuthorizer&,
+                                             mir::frontend::ConnectionContext const&,
+                                             std::string const&));
     MOCK_CONST_METHOD1(protocol_id, void(uuid_t id));
     MOCK_CONST_METHOD0(header_size, size_t(void));
 };
@@ -82,7 +85,7 @@ TEST(DispatchingConnectionCreatorTest, DispatchesSingleUUIDSupported)
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
 
-    EXPECT_CALL(*mock_proto, create_connection_for(_, _,StrEq("")));
+    EXPECT_CALL(*mock_proto, create_connection_for(_, _, _,StrEq("")));
 
     dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
@@ -114,7 +117,7 @@ TEST(DispatchingConnectionCreatorTest, DispatchesToCorrectUUID)
 
     ON_CALL(*mock_proto_two, protocol_id(_))
         .WillByDefault(Invoke([proto_two_uuid](uuid_t id) { uuid_parse(proto_two_uuid, id);}));
-    EXPECT_CALL(*mock_proto_two, create_connection_for(_, _, StrEq("")));
+    EXPECT_CALL(*mock_proto_two, create_connection_for(_, _, _, StrEq("")));
 
     dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 

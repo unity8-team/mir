@@ -66,7 +66,6 @@ public:
         {
             return std::make_shared<mir::frontend::ProtobufConnectionCreator>(
                 new_ipc_factory(),
-                the_session_authorizer(),
                 the_message_processor_report());
         }
 
@@ -86,8 +85,9 @@ public:
     }
 
     void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& /*socket*/,
-                            mir::frontend::ConnectionContext const&,
-                            std::string const& /*connection_data*/) override
+                               mir::frontend::SessionAuthorizer&,
+                               mir::frontend::ConnectionContext const&,
+                               std::string const& /*connection_data*/) override
     {
     }
 

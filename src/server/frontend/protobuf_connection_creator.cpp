@@ -37,10 +37,8 @@ namespace ba = boost::asio;
 
 mf::ProtobufConnectionCreator::ProtobufConnectionCreator(
     std::unique_ptr<ProtobufIpcFactory> ipc_factory,
-    std::shared_ptr<SessionAuthorizer> const& session_authorizer,
     std::shared_ptr<MessageProcessorReport> const& report)
 :   ipc_factory{std::move(ipc_factory)},
-    session_authorizer(session_authorizer),
     report(report),
     next_session_id(0),
     connections(std::make_shared<mfd::Connections<mfd::SocketConnection>>())
@@ -57,17 +55,15 @@ int mf::ProtobufConnectionCreator::next_id()
     return next_session_id.fetch_add(1);
 }
 
-void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket, ConnectionContext const& connection_context, std::string const&)
-{
-    return create_connection_for(socket, connection_context);
-}
-
-void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket, ConnectionContext const& connection_context)
+void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket,
+                                                          SessionAuthorizer& authorizer,
+                                                          ConnectionContext const& connection_context,
+                                                          std::string const&)
 {
     auto const messenger = std::make_shared<detail::SocketMessenger>(socket);
     auto const creds = messenger->client_creds();
 
-    if (session_authorizer->connection_is_allowed(creds))
+    if (authorizer.connection_is_allowed(creds))
     {
         auto const message_sender = std::make_shared<detail::ProtobufResponder>(
             messenger,
@@ -76,7 +72,7 @@ void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::lo
         auto const event_sink = std::make_shared<detail::EventSender>(messenger);
         auto const msg_processor = create_processor(
             message_sender,
-            ipc_factory->make_ipc_server(*session_authorizer, creds, event_sink, connection_context),
+            ipc_factory->make_ipc_server(authorizer, creds, event_sink, connection_context),
             report);
 
         auto const& connection = std::make_shared<mfd::SocketConnection>(messenger, next_id(), connections, msg_processor);

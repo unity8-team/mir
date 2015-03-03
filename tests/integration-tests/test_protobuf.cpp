@@ -149,7 +149,6 @@ struct DemoServerConfiguration : mtf::StubbedServerConfiguration
                 auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
                 protocols->push_back(std::make_shared<DemoConnectionCreator>(
                     new_ipc_factory(),
-                    the_session_authorizer(),
                     the_message_processor_report()));
                 return protocols;
             });

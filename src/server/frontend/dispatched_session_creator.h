@@ -32,6 +32,8 @@ namespace mir
 {
 namespace frontend
 {
+class SessionAuthorizer;
+
 class DispatchedConnectionCreator
 {
 public:
@@ -39,6 +41,7 @@ public:
     virtual ~DispatchedConnectionCreator() = default;
 
     virtual void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
+                                       SessionAuthorizer& authorizer,
                                        ConnectionContext const& connection_context,
                                        std::string const& connection_data) = 0;
 

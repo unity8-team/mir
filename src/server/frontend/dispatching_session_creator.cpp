@@ -80,7 +80,7 @@ void mir::frontend::DispatchingConnectionCreator::create_connection_for(std::sha
                         client_protocol_str + std::string("! (expected: ") + std::to_string(protocol->header_size()) +
                         std::string(" received: ") + std::to_string(client_header_size) + std::string(")")));
 
-                protocol->create_connection_for(socket, connection_context, "");
+                protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
                 return;
             }
         }
