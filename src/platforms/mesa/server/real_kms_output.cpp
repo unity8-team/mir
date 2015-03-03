@@ -292,29 +292,21 @@ void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
 
     auto& prev_vblank = v.reply;
     if (prev_vblank.sequence == prev_prev_vblank.sequence + 1)
-    {    // We're rendering at full monitor speed and can predict...
-        long frametime_usec = prev_vblank.tval_usec -
+    {   // We're rendering at full monitor speed...
+        auto frametime_usec = prev_vblank.tval_usec -
                               prev_prev_vblank.tval_usec;
-        if (frametime_usec < 0) frametime_usec += 1000000L;
+        if (frametime_usec < 0) frametime_usec += 1000000;
 
-        long wakeup_sec = prev_vblank.tval_sec;
-        long wakeup_usec = prev_vblank.tval_usec
-                         + frametime_usec
-                         + extra_microseconds;
-        while (wakeup_usec >= 1000000L)
-        {
-            wakeup_sec++;
-            wakeup_usec -= 1000000L;
-        }
-        while (wakeup_usec < 0L)
-        {
-            wakeup_sec--;
-            wakeup_usec += 1000000L;
-        }
+        typedef long long KernelMonotonicMicroseconds;
+        KernelMonotonicMicroseconds
+            prev_vblank_time = prev_vblank.tval_sec * 1000000LL
+                             + prev_vblank.tval_usec,
+            next_vblank_time = prev_vblank_time + frametime_usec,
+            wakeup_time = next_vblank_time + extra_microseconds;
 
         struct timespec wakeup;
-        wakeup.tv_sec = wakeup_sec;
-        wakeup.tv_nsec = wakeup_usec * 1000L;
+        wakeup.tv_sec = wakeup_time / 1000000;
+        wakeup.tv_nsec = (wakeup_time % 1000000) * 1000;
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
     }
     prev_prev_vblank = prev_vblank;
