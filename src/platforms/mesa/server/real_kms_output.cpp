@@ -306,6 +306,11 @@ void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
             wakeup_sec++;
             wakeup_usec -= 1000000L;
         }
+        while (wakeup_usec < 0L)
+        {
+            wakeup_sec--;
+            wakeup_usec += 1000000L;
+        }
 
         struct timespec wakeup;
         wakeup.tv_sec = wakeup_sec;
