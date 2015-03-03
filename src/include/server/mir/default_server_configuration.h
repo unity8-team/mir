@@ -327,8 +327,7 @@ protected:
     virtual std::shared_ptr<graphics::GLProgramFactory> the_gl_program_factory();
     virtual std::shared_ptr<input::InputChannelFactory> the_input_channel_factory();
     virtual std::shared_ptr<scene::MediatingDisplayChanger> the_mediating_display_changer();
-    virtual std::shared_ptr<frontend::ProtobufIpcFactory> new_ipc_factory(
-        std::shared_ptr<frontend::SessionAuthorizer> const& session_authorizer);
+    virtual std::shared_ptr<frontend::ProtobufIpcFactory> new_ipc_factory();
 
     /** @name input dispatcher related configuration
      *  @{ */

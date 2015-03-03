@@ -56,11 +56,11 @@ public:
         std::shared_ptr<DisplayChanger> const& display_changer,
         std::shared_ptr<graphics::GraphicBufferAllocator> const& buffer_allocator,
         std::shared_ptr<Screencast> const& screencast,
-        std::shared_ptr<SessionAuthorizer> const& session_authorizer,
         std::shared_ptr<input::CursorImages> const& cursor_images,
         std::shared_ptr<scene::CoordinateTranslator> const& translator);
 
     std::shared_ptr<detail::DisplayServer> make_ipc_server(
+        SessionAuthorizer& authorizer,
         SessionCredentials const& creds,
         std::shared_ptr<EventSink> const& sink,
         ConnectionContext const& connection_context) override;
@@ -87,7 +87,6 @@ private:
     std::shared_ptr<DisplayChanger> const display_changer;
     std::shared_ptr<graphics::GraphicBufferAllocator> const buffer_allocator;
     std::shared_ptr<Screencast> const screencast;
-    std::shared_ptr<SessionAuthorizer> const session_authorizer;
     std::shared_ptr<input::CursorImages> const cursor_images;
     std::shared_ptr<scene::CoordinateTranslator> const translator;
 };

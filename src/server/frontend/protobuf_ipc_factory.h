@@ -35,11 +35,13 @@ class ConnectionContext;
 class EventSink;
 class ResourceCache;
 class SessionCredentials;
+class SessionAuthorizer;
 
 class ProtobufIpcFactory
 {
 public:
     virtual std::shared_ptr<detail::DisplayServer> make_ipc_server(
+        SessionAuthorizer& authorizer,
         SessionCredentials const& creds,
         std::shared_ptr<EventSink> const& sink,
         ConnectionContext const& connection_context) = 0;

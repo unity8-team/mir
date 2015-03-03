@@ -37,7 +37,6 @@ mf::DefaultIpcFactory::DefaultIpcFactory(
     std::shared_ptr<DisplayChanger> const& display_changer,
     std::shared_ptr<mg::GraphicBufferAllocator> const& buffer_allocator,
     std::shared_ptr<Screencast> const& screencast,
-    std::shared_ptr<SessionAuthorizer> const& session_authorizer,
     std::shared_ptr<mi::CursorImages> const& cursor_images,
     std::shared_ptr<scene::CoordinateTranslator> const& translator) :
     shell(shell),
@@ -48,13 +47,13 @@ mf::DefaultIpcFactory::DefaultIpcFactory(
     display_changer(display_changer),
     buffer_allocator(buffer_allocator),
     screencast(screencast),
-    session_authorizer(session_authorizer),
     cursor_images(cursor_images),
     translator{translator}
 {
 }
 
 std::shared_ptr<mf::detail::DisplayServer> mf::DefaultIpcFactory::make_ipc_server(
+    SessionAuthorizer& authorizer,
     SessionCredentials const& creds,
     std::shared_ptr<EventSink> const& sink,
     ConnectionContext const& connection_context)
@@ -62,7 +61,7 @@ std::shared_ptr<mf::detail::DisplayServer> mf::DefaultIpcFactory::make_ipc_serve
     std::shared_ptr<DisplayChanger> changer;
     std::shared_ptr<Screencast> effective_screencast;
 
-    if (session_authorizer->configure_display_is_allowed(creds))
+    if (authorizer.configure_display_is_allowed(creds))
     {
         changer = display_changer;
     }
@@ -71,7 +70,7 @@ std::shared_ptr<mf::detail::DisplayServer> mf::DefaultIpcFactory::make_ipc_serve
         changer = std::make_shared<UnauthorizedDisplayChanger>(display_changer);
     }
 
-    if (session_authorizer->screencast_is_allowed(creds))
+    if (authorizer.screencast_is_allowed(creds))
     {
         effective_screencast = screencast;
     }
@@ -81,7 +80,7 @@ std::shared_ptr<mf::detail::DisplayServer> mf::DefaultIpcFactory::make_ipc_serve
     }
 
     auto const allow_prompt_session =
-        session_authorizer->prompt_session_is_allowed(creds);
+        authorizer.prompt_session_is_allowed(creds);
 
     auto const effective_shell = allow_prompt_session ? shell : no_prompt_shell;
 

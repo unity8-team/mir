@@ -56,7 +56,7 @@ mir::DefaultServerConfiguration::the_connection_protocols()
             auto const session_authorizer = the_session_authorizer();
             std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>> protocols{
                     std::make_shared<mf::ProtobufConnectionCreator>(
-                                new_ipc_factory(session_authorizer),
+                                new_ipc_factory(),
                                 session_authorizer,
                                 the_message_processor_report())};
             return std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>(protocols);
@@ -126,7 +126,7 @@ mir::DefaultServerConfiguration::the_prompt_connection_creator()
             auto const session_authorizer = std::make_shared<PromptSessionAuthorizer>();
             auto const protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
             protocols->push_back(std::make_shared<mf::ProtobufConnectionCreator>(
-                                    new_ipc_factory(session_authorizer),
+                                    new_ipc_factory(),
                                     session_authorizer,
                                     the_message_processor_report()));
             return std::make_shared<mf::DispatchingConnectionCreator>(protocols,
@@ -162,8 +162,7 @@ mir::DefaultServerConfiguration::the_prompt_connector()
 }
 
 std::shared_ptr<mir::frontend::ProtobufIpcFactory>
-mir::DefaultServerConfiguration::new_ipc_factory(
-    std::shared_ptr<mf::SessionAuthorizer> const& session_authorizer)
+mir::DefaultServerConfiguration::new_ipc_factory()
 {
     std::shared_ptr<ms::CoordinateTranslator> translator;
     if (the_options()->is_set(options::debug_opt))
@@ -181,7 +180,6 @@ mir::DefaultServerConfiguration::new_ipc_factory(
                 the_frontend_display_changer(),
                 the_buffer_allocator(),
                 the_screencast(),
-                session_authorizer,
                 the_cursor_images(),
                 translator);
 }

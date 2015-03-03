@@ -64,7 +64,7 @@ public:
         std::shared_ptr<mir::frontend::ProtobufConnectionCreator> make_protobuf_connection_creator()
         {
             return std::make_shared<mir::frontend::ProtobufConnectionCreator>(
-                new_ipc_factory(the_session_authorizer()),
+                new_ipc_factory(),
                 the_session_authorizer(),
                 the_message_processor_report());
         }
