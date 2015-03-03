@@ -53,7 +53,6 @@ mir::DefaultServerConfiguration::the_connection_protocols()
 {
     return connection_protocols([this]
         {
-            auto const session_authorizer = the_session_authorizer();
             std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>> protocols{
                     std::make_shared<mf::ProtobufConnectionCreator>(
                                 new_ipc_factory(),
@@ -123,11 +122,7 @@ mir::DefaultServerConfiguration::the_prompt_connection_creator()
     return prompt_connection_creator([this]
         {
             auto const session_authorizer = std::make_shared<PromptSessionAuthorizer>();
-            auto const protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
-            protocols->push_back(std::make_shared<mf::ProtobufConnectionCreator>(
-                                    new_ipc_factory(),
-                                    the_message_processor_report()));
-            return std::make_shared<mf::DispatchingConnectionCreator>(protocols,
+            return std::make_shared<mf::DispatchingConnectionCreator>(the_connection_protocols(),
                                                                       session_authorizer);
         });
 }
