@@ -28,6 +28,7 @@ namespace graphics { class Buffer; }
 
 namespace compositor
 {
+
 class BufferBundle;
 
 typedef std::function<void(graphics::Buffer* buffer)> release_callback;
@@ -39,11 +40,17 @@ public:
         std::shared_ptr<graphics::Buffer> const& buffer,
         release_callback const& release);
 
-    std::shared_ptr<graphics::Buffer> buffer();
-
     virtual ~BufferHandle();
 
+    std::shared_ptr<graphics::Buffer> buffer();
+
+    BufferHandle(BufferHandle&& other);
+    BufferHandle& operator=(BufferHandle&& other);
+
 private:
+    BufferHandle(BufferHandle const&) = delete;
+    BufferHandle& operator=(BufferHandle const&) = delete;
+
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> wrapped;
     release_callback const release_fn;
