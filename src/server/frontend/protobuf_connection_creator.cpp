@@ -36,10 +36,10 @@ namespace mfd = mir::frontend::detail;
 namespace ba = boost::asio;
 
 mf::ProtobufConnectionCreator::ProtobufConnectionCreator(
-    std::shared_ptr<ProtobufIpcFactory> const& ipc_factory,
+    std::unique_ptr<ProtobufIpcFactory> ipc_factory,
     std::shared_ptr<SessionAuthorizer> const& session_authorizer,
     std::shared_ptr<MessageProcessorReport> const& report)
-:   ipc_factory(ipc_factory),
+:   ipc_factory{std::move(ipc_factory)},
     session_authorizer(session_authorizer),
     report(report),
     next_session_id(0),

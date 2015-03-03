@@ -24,6 +24,7 @@
 #include "src/server/frontend/protobuf_connection_creator.h"
 #include "src/server/frontend/dispatching_session_creator.h"
 #include "src/server/frontend/dispatched_session_creator.h"
+#include "src/server/frontend/protobuf_ipc_factory.h"
 
 #include <functional>
 #include <iostream>

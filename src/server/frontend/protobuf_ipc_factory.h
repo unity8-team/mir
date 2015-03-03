@@ -40,6 +40,8 @@ class SessionAuthorizer;
 class ProtobufIpcFactory
 {
 public:
+    virtual ~ProtobufIpcFactory() = default;
+
     virtual std::shared_ptr<detail::DisplayServer> make_ipc_server(
         SessionAuthorizer& authorizer,
         SessionCredentials const& creds,
@@ -49,8 +51,7 @@ public:
     virtual std::shared_ptr<ResourceCache> resource_cache() = 0;
 
 protected:
-    ProtobufIpcFactory() {}
-    virtual ~ProtobufIpcFactory() {}
+    ProtobufIpcFactory() = default;
     ProtobufIpcFactory(ProtobufIpcFactory const&) = delete;
     ProtobufIpcFactory& operator =(ProtobufIpcFactory const&) = delete;
 };

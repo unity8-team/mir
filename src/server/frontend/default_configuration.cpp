@@ -161,7 +161,7 @@ mir::DefaultServerConfiguration::the_prompt_connector()
         });
 }
 
-std::shared_ptr<mir::frontend::ProtobufIpcFactory>
+std::unique_ptr<mir::frontend::ProtobufIpcFactory>
 mir::DefaultServerConfiguration::new_ipc_factory()
 {
     std::shared_ptr<ms::CoordinateTranslator> translator;
@@ -173,7 +173,7 @@ mir::DefaultServerConfiguration::new_ipc_factory()
     {
         translator = std::make_shared<mf::UnsupportedCoordinateTranslator>();
     }
-    return std::make_shared<mf::DefaultIpcFactory>(
+    return std::make_unique<mf::DefaultIpcFactory>(
                 the_frontend_shell(),
                 the_session_mediator_report(),
                 the_graphics_platform()->make_ipc_operations(),

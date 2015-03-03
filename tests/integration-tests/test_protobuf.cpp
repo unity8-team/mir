@@ -23,6 +23,7 @@
 #include "mir/frontend/protobuf_message_sender.h"
 #include "src/server/frontend/protobuf_connection_creator.h"
 #include "mir/frontend/template_protobuf_message_processor.h"
+#include "src/server/frontend/protobuf_ipc_factory.h"
 
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"

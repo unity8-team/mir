@@ -179,10 +179,10 @@ TEST_F(ErrorReporting, c_api_returns_connection_error)
 
     struct ServerConfig : TestingServerConfiguration
     {
-        std::shared_ptr<mf::ProtobufIpcFactory> new_ipc_factory() override
+        std::unique_ptr<mf::ProtobufIpcFactory> new_ipc_factory() override
         {
             static auto error_server = std::make_shared<ConnectionErrorServer>();
-            return std::make_shared<mtd::StubIpcFactory>(*error_server);
+            return std::make_unique<mtd::StubIpcFactory>(*error_server);
         }
     } server_config;
 

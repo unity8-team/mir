@@ -43,7 +43,7 @@ class ProtobufMessageSender;
 class ProtobufConnectionCreator : public DispatchedConnectionCreator, public ConnectionCreator
 {
 public:
-    ProtobufConnectionCreator(std::shared_ptr<ProtobufIpcFactory> const& ipc_factory,
+    ProtobufConnectionCreator(std::unique_ptr<ProtobufIpcFactory> ipc_factory,
                               std::shared_ptr<SessionAuthorizer> const& session_authorizer,
                               std::shared_ptr<MessageProcessorReport> const& report);
     ~ProtobufConnectionCreator() noexcept;
@@ -65,7 +65,7 @@ public:
 private:
     int next_id();
 
-    std::shared_ptr<ProtobufIpcFactory> const ipc_factory;
+    std::unique_ptr<ProtobufIpcFactory> const ipc_factory;
     std::shared_ptr<SessionAuthorizer> const session_authorizer;
     std::shared_ptr<MessageProcessorReport> const report;
     std::atomic<int> next_session_id;

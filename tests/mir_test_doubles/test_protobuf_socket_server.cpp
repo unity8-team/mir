@@ -34,11 +34,11 @@ namespace mr = mir::report;
 namespace
 {
 std::shared_ptr<mf::Connector> make_connector(std::string const& socket_name,
-                                              std::shared_ptr<mf::ProtobufIpcFactory> const& factory,
+                                              std::unique_ptr<mf::ProtobufIpcFactory> factory,
                                               std::shared_ptr<mf::ConnectorReport> const& report)
 {
     auto protobuf_session = std::make_shared<mf::ProtobufConnectionCreator>(
-        factory, std::make_shared<mtd::StubSessionAuthorizer>(), mr::null_message_processor_report());
+        std::move(factory), std::make_shared<mtd::StubSessionAuthorizer>(), mr::null_message_processor_report());
     auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
     sessions->push_back(protobuf_session);
 
@@ -64,6 +64,6 @@ mt::TestProtobufServer::TestProtobufServer(
     std::string const& socket_name,
     const std::shared_ptr<mf::detail::DisplayServer>& tool,
     std::shared_ptr<frontend::ConnectorReport> const& report) :
-    comm(make_connector(socket_name, std::make_shared<mtd::StubIpcFactory>(*tool), report))
+    comm(make_connector(socket_name, std::make_unique<mtd::StubIpcFactory>(*tool), report))
 {
 }
