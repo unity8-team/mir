@@ -30,6 +30,8 @@ namespace compositor
 {
 class BufferBundle;
 
+typedef std::function<void(graphics::Buffer* buffer)> release_callback;
+
 class BufferHandle
 {
 public:
@@ -38,12 +40,12 @@ public:
 protected:
     explicit BufferHandle(BufferBundle* bundle,
         std::shared_ptr<graphics::Buffer> const& buffer,
-        std::function<void(graphics::Buffer*)> const& release);
+        release_callback const& release);
     virtual ~BufferHandle();
 
     BufferBundle* buffer_bundle;
     std::shared_ptr<graphics::Buffer> wrapped;
-    std::function<void(graphics::Buffer*)> release_fn;
+    release_callback const release_fn;
 };
 
 class CompositorBufferHandle : public BufferHandle
@@ -51,7 +53,7 @@ class CompositorBufferHandle : public BufferHandle
 public:
     explicit CompositorBufferHandle(BufferBundle* bundle,
         std::shared_ptr<graphics::Buffer> const& buffer,
-        std::function<void(graphics::Buffer*)> const& release);
+        release_callback const& release);
 };
 
 class SnapshotBufferHandle : public BufferHandle
@@ -59,7 +61,7 @@ class SnapshotBufferHandle : public BufferHandle
 public:
     explicit SnapshotBufferHandle(BufferBundle* bundle,
         std::shared_ptr<graphics::Buffer> const& buffer,
-        std::function<void(graphics::Buffer*)> const& release);
+        release_callback const& release);
 };
 
 }

@@ -24,7 +24,7 @@ namespace mg = mir::graphics;
 
 mc::BufferHandle::BufferHandle(BufferBundle* bundle,
                                std::shared_ptr<mg::Buffer> const& buffer,
-                               std::function<void(mg::Buffer*)> const& release)
+                               release_callback const& release)
                                : buffer_bundle(bundle),
                                  wrapped(buffer),
                                  release_fn(release)
@@ -44,14 +44,14 @@ std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
 
 mc::CompositorBufferHandle::CompositorBufferHandle(BufferBundle* bundle,
                                                    std::shared_ptr<mg::Buffer> const& buffer,
-                                                   std::function<void(mg::Buffer*)> const& release)
+                                                   release_callback const& release)
                                                    : BufferHandle(bundle, buffer, release)
 {
 }
 
 mc::SnapshotBufferHandle::SnapshotBufferHandle(BufferBundle* bundle,
                                                std::shared_ptr<mg::Buffer> const& buffer,
-                                               std::function<void(mg::Buffer*)> const& release)
+                                               release_callback const& release)
                                                : BufferHandle(bundle, buffer, release)
 {
 }
