@@ -253,9 +253,13 @@ MIR_COMMON_3.3 {
   global:
     extern "C++" {
       mir::frontend::ProtobufHandshakeProtocol::protocol_id*;
+
       mir::frontend::ProtobufHandshakeProtocol::header_size*;
       mir::frontend::ProtobufHandshakeProtocol::send_client_header*;
+      mir::frontend::ProtobufHandshakeProtocol::send_client_header*;
+
       mir::frontend::ProtobufHandshakeProtocol::send_server_header*;
+      mir::frontend::ProtobufHandshakeProtocol::receive_server_header*;
       
       typeinfo?for?mir::frontend::ProtobufHandshakeProtocol;
       vtable?for?mir::frontend::ProtobufHandshakeProtocol;      
