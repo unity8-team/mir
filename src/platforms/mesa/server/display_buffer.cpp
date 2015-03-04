@@ -205,6 +205,27 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         }
     }
 
+    /*
+     * XXX Experimental XXX
+     * This is the "sleep" approach to reducing latency.
+     * This optimization is usually only enabled for bypass, where the render
+     * time is predictably zero. For the compositing case it's more art than
+     * science. You're free to try it out, but if the adaptive wait fails to
+     * correctly estimate the required delay for render_time+flip_scheduling
+     * then it may cause stuttering...
+     */
+    bool const enable_low_latency_compositing = false;
+    if (enable_low_latency_compositing)
+    {
+        if (outputs.size() == 1)
+        {
+            auto& single = outputs.front();
+            if (!last_flipped_bufobj)
+                single->reset_adaptive_wait();
+            single->adaptive_wait();
+        }
+    }
+
     return false;
 }
 
@@ -247,7 +268,8 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
-    if (outputs.size() == 1)
+    bool use_adaptive_wait = (outputs.size() == 1);
+    if (use_adaptive_wait)
     {
         auto& single = outputs.front();
         if (!last_flipped_bypass_buf)
@@ -256,7 +278,7 @@ void mgm::DisplayBuffer::post_bypass()
     }
 
     auto bypass_buf = bypass_candidate->buffer();
-    if (bypass_buf.use_count() > 2)
+    if (use_adaptive_wait && bypass_buf.use_count() > 2)
         fatal_error("Bypass renderable's buffer() was acquired too early.");
     auto native = bypass_buf->native_buffer_handle();
     auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
@@ -265,8 +287,9 @@ void mgm::DisplayBuffer::post_bypass()
         !(native->flags & mir_buffer_flag_can_scanout) ||
         bypass_buf->size() != geom::Size{fb_width,fb_height})
     {
-        // prediction failed
-        post_egl();
+        // Prediction failed. Skip a frame.
+        // FIXME: We can't fall back to EGL any more while this is outside
+        //        of the optimize function.
         return;
     }
 
@@ -280,14 +303,6 @@ void mgm::DisplayBuffer::post_bypass()
 
 void mgm::DisplayBuffer::post_egl()
 {
-    if (outputs.size() == 1)
-    {
-        auto& single = outputs.front();
-        if (!last_flipped_bufobj)
-            single->reset_adaptive_wait();
-        single->adaptive_wait();
-    }
-
     mgm::BufferObject *bufobj = get_front_buffer_object();
     if (!bufobj)
         fatal_error("Failed to get front buffer object");

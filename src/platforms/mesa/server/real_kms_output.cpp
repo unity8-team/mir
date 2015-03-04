@@ -31,6 +31,8 @@ namespace geom = mir::geometry;
 namespace
 {
 
+long const render_time_too_large = 0x7fffffff;
+
 bool encoder_is_used(mgm::DRMModeResources const& resources, uint32_t encoder_id)
 {
     bool encoder_used{false};
@@ -274,16 +276,20 @@ void mgm::RealKMSOutput::reset_adaptive_wait()
 
 void mgm::RealKMSOutput::adaptive_wait()
 {
+    if (render_time_estimate >= render_time_too_large)
+        return;
+
     /**
      * This is much more complicated than it should be. Unfortunately Linux
      * DRM is a bit weird and we need to do this.
      *   The rules are: you're allowed to drmWaitVBlank and query the previous
      * vblank time, but not wait for the next vblank using drmWaitVBlank.
-     * If you use drmWaitVBlank in a way that forces it to block, that causes
-     * side-effects in the kernel and you'll also delay the next page flip
-     * by an extra frame. Very annoying.
+     * If you use drmWaitVBlank in a way that forces it to block, that means
+     * you have then waited too long to be able to squeeze a page flip schedule
+     * into that same vblank. And the kernel DRM code will force you to wait an
+     * extra frame. Very annoying.
      *   So we need to passively query the last vblank time and work out our
-     * own sleep to wake up a bit before the next one, with enough time to
+     * own sleep to wake up a bit before the next one, with enough time
      * spare to schedule a page flip.
      */
     drmVBlank io;
@@ -324,17 +330,17 @@ void mgm::RealKMSOutput::adaptive_wait()
         {
             if (render_time_estimate < frametime_usec)
             {
-                render_time_estimate += 500; // 500usec = 0.5 milliseconds
-                mir::log_info("Output latency adjusted to %ld.%03ldms",
-                              render_time_estimate/1000,
-                              render_time_estimate%1000);
+                render_time_estimate += 1000;
+                mir::log_info("Output latency adjusted to %ldms",
+                              render_time_estimate/1000);
             }
             else
             {
+                render_time_estimate = render_time_too_large;
                 mir::log_info("Frame skipping! Your compositor or hardware is "
                               "too slow to render smoothly. It's failing to "
-                              "keep up with a frame interval of %ld.%03ldms",
-                              frametime_usec/1000, frametime_usec%1000);
+                              "keep up with a frame interval of %ldms",
+                              frametime_usec/1000);
             }
         }
     }
