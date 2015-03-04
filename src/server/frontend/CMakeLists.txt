@@ -10,8 +10,8 @@ set(
   protobuf_responder.cpp
   protobuf_buffer_packer.cpp
   published_socket_connector.cpp
-  dispatching_session_creator.cpp
-  protobuf_connection_creator.cpp
+  handshaking_connection_creator.cpp
+  protobuf_protocol.cpp
   socket_connection.cpp
   resource_cache.cpp
   socket_messenger.cpp

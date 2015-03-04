@@ -17,8 +17,8 @@
  */
 
 
-#ifndef MIR_FRONTEND_DISPATCHING_SESSION_CREATOR_H_
-#define MIR_FRONTEND_DISPATCHING_SESSION_CREATOR_H_
+#ifndef MIR_FRONTEND_HANDSHAKING_SESSION_CREATOR_H_
+#define MIR_FRONTEND_HANDSHAKING_SESSION_CREATOR_H_
 
 #include <memory>
 #include <vector>
@@ -30,21 +30,21 @@ namespace mir
 {
 namespace frontend
 {
-class DispatchedConnectionCreator;
+class ProtocolInterpreter;
 
-class DispatchingConnectionCreator : public ConnectionCreator
+class HandshakingConnectionCreator : public ConnectionCreator
 {
 public:
-    DispatchingConnectionCreator(std::shared_ptr<std::vector<std::shared_ptr<DispatchedConnectionCreator>>> protocol_implementors,
+    HandshakingConnectionCreator(std::shared_ptr<std::vector<std::shared_ptr<ProtocolInterpreter>>> protocol_implementors,
                                  std::shared_ptr<SessionAuthorizer> const& session_authorizer);
 
     void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
                                ConnectionContext const& connection_context) override;
 private:
-    std::shared_ptr<std::vector<std::shared_ptr<DispatchedConnectionCreator>>> const implementations;
+    std::shared_ptr<std::vector<std::shared_ptr<ProtocolInterpreter>>> const implementations;
     std::shared_ptr<SessionAuthorizer> const session_authorizer;
 };
 }
 }
 
-#endif // MIR_FRONTEND_DISPATCHING_SESSION_CREATOR_H_
+#endif // MIR_FRONTEND_HANDSHAKING_SESSION_CREATOR_H_

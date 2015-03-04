@@ -24,7 +24,7 @@
 #include "src/server/report/null_report_factory.h"
 #include "src/server/frontend/resource_cache.h"
 #include "src/server/frontend/published_socket_connector.h"
-#include "src/server/frontend/protobuf_connection_creator.h"
+#include "src/server/frontend/protobuf_protocol.h"
 
 #include "mir/frontend/connector_report.h"
 

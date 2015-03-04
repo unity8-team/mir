@@ -17,8 +17,8 @@
  */
 
 #include "mir/default_server_configuration.h"
-#include "dispatching_session_creator.h"
-#include "protobuf_connection_creator.h"
+#include "handshaking_connection_creator.h"
+#include "protobuf_protocol.h"
 #include "mir/emergency_cleanup.h"
 
 #include "default_ipc_factory.h"
@@ -27,7 +27,6 @@
 #include "unsupported_coordinate_translator.h"
 
 #include "mir/graphics/platform.h"
-#include "protobuf_connection_creator.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/options/configuration.h"
 #include "mir/options/option.h"
@@ -42,22 +41,22 @@ mir::DefaultServerConfiguration::the_connection_creator()
 {
     return connection_creator([this]
         {
-            return std::make_shared<mf::DispatchingConnectionCreator>(the_connection_protocols(),
+            return std::make_shared<mf::HandshakingConnectionCreator>(the_connection_protocols(),
                                                                       the_session_authorizer());
         });
 }
 
 
-std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>
+std::shared_ptr<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>>
 mir::DefaultServerConfiguration::the_connection_protocols()
 {
     return connection_protocols([this]
         {
-            std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>> protocols{
-                    std::make_shared<mf::ProtobufConnectionCreator>(
+            std::vector<std::shared_ptr<mf::ProtocolInterpreter>> protocols{
+                    std::make_shared<mf::ProtobufProtocol>(
                                 new_ipc_factory(),
                                 the_message_processor_report())};
-            return std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>(protocols);
+            return std::make_shared<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>>(protocols);
         });
 }
 
@@ -122,7 +121,7 @@ mir::DefaultServerConfiguration::the_prompt_connection_creator()
     return prompt_connection_creator([this]
         {
             auto const session_authorizer = std::make_shared<PromptSessionAuthorizer>();
-            return std::make_shared<mf::DispatchingConnectionCreator>(the_connection_protocols(),
+            return std::make_shared<mf::HandshakingConnectionCreator>(the_connection_protocols(),
                                                                       session_authorizer);
         });
 }

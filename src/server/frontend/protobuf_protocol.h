@@ -16,11 +16,12 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_FRONTEND_PROTOBUF_CONNECTION_CREATOR_H_
-#define MIR_FRONTEND_PROTOBUF_CONNECTION_CREATOR_H_
+#ifndef MIR_FRONTEND_PROTOBUF_PROTOCOL_H_
+#define MIR_FRONTEND_PROTOBUF_PROTOCOL_H_
 
-#include "dispatched_session_creator.h"
+#include "protocol_interpreter.h"
 #include "mir/frontend/connections.h"
+#include "mir/frontend/protobuf_handshake_protocol.h"
 
 #include <atomic>
 
@@ -40,20 +41,19 @@ class MessageProcessor;
 class ProtobufMessageSender;
 }
 
-class ProtobufConnectionCreator : public DispatchedConnectionCreator
+class ProtobufProtocol : public ProtocolInterpreter
 {
 public:
-    ProtobufConnectionCreator(std::unique_ptr<ProtobufIpcFactory> ipc_factory,
-                              std::shared_ptr<MessageProcessorReport> const& report);
-    ~ProtobufConnectionCreator() noexcept;
+    ProtobufProtocol(std::unique_ptr<ProtobufIpcFactory> ipc_factory,
+                     std::shared_ptr<MessageProcessorReport> const& report);
+    ~ProtobufProtocol() noexcept;
 
     void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
                                SessionAuthorizer& authorizer,
                                ConnectionContext const& connection_context,
-                               const std::string& connection_data) override;
+                               std::string const& connection_data) override;
 
-    void protocol_id(uuid_t id) const override;
-    size_t header_size() const override;
+    HandshakeProtocol& connection_protocol() override;
 
     virtual std::shared_ptr<detail::MessageProcessor> create_processor(
         std::shared_ptr<detail::ProtobufMessageSender> const& sender,
@@ -63,6 +63,7 @@ public:
 private:
     int next_id();
 
+    ProtobufHandshakeProtocol connect_proto;
     std::unique_ptr<ProtobufIpcFactory> const ipc_factory;
     std::shared_ptr<MessageProcessorReport> const report;
     std::atomic<int> next_session_id;
@@ -73,4 +74,4 @@ public:
 }
 }
 
-#endif /* MIR_FRONTEND_PROTOBUF_CONNECTION_CREATOR_H_ */
+#endif /* MIR_FRONTEND_PROTOBUF_PROTOCOL_H_ */

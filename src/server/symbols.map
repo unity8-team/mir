@@ -744,7 +744,7 @@ MIR_SERVER_31.1 {
   extern "C++" {
    # Needed by test framework; should not be public
    mir::DefaultServerConfiguration::the_connection_protocols*;
-   mir::frontend::ProtobufConnectionCreator::ProtobufConnectionCreator*;
-   mir::frontend::ProtobufConnectionCreator::?ProtobufConnectionCreator*;
+   mir::frontend::ProtobufProtocol::ProtobufProtocol*;
+   mir::frontend::ProtobufProtocol::?ProtobufProtocol*;
   };
 } MIR_SERVER_31;

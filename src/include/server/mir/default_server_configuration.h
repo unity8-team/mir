@@ -62,7 +62,7 @@ class Connector;
 class ConnectorReport;
 class ProtobufIpcFactory;
 class ConnectionCreator;
-class DispatchedConnectionCreator;
+class ProtocolInterpreter;
 class SessionMediatorReport;
 class MessageProcessorReport;
 class SessionAuthorizer;
@@ -242,7 +242,7 @@ public:
      *  @{ */
     virtual std::shared_ptr<frontend::ConnectionCreator>      the_connection_creator();
     virtual std::shared_ptr<frontend::ConnectionCreator>      the_prompt_connection_creator();
-    virtual std::shared_ptr<std::vector<std::shared_ptr<frontend::DispatchedConnectionCreator>>> the_connection_protocols();
+    virtual std::shared_ptr<std::vector<std::shared_ptr<frontend::ProtocolInterpreter>>> the_connection_protocols();
     virtual std::shared_ptr<frontend::ConnectorReport>        the_connector_report();
     /** @} */
     /** @} */
@@ -389,7 +389,7 @@ protected:
     CachedPtr<frontend::EventSink> global_event_sink;
     CachedPtr<frontend::ConnectionCreator> connection_creator;
     CachedPtr<frontend::ConnectionCreator> prompt_connection_creator;
-    CachedPtr<std::vector<std::shared_ptr<frontend::DispatchedConnectionCreator>>> connection_protocols;
+    CachedPtr<std::vector<std::shared_ptr<frontend::ProtocolInterpreter>>> connection_protocols;
     CachedPtr<frontend::Screencast> screencast;
     CachedPtr<compositor::RendererFactory> renderer_factory;
     CachedPtr<compositor::BufferStreamFactory> buffer_stream_factory;

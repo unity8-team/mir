@@ -20,18 +20,18 @@
 #include <istream>
 #include <boost/throw_exception.hpp>
 
-#include "dispatching_session_creator.h"
-#include "dispatched_session_creator.h"
+#include "handshaking_connection_creator.h"
+#include "protocol_interpreter.h"
 #include "mir/frontend/connection_context.h"
 
-mir::frontend::DispatchingConnectionCreator::DispatchingConnectionCreator(
-    std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> protocol_implementors,
+mir::frontend::HandshakingConnectionCreator::HandshakingConnectionCreator(
+    std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::ProtocolInterpreter>>> protocol_implementors,
     std::shared_ptr<mir::frontend::SessionAuthorizer> const& session_authorizer)
     : implementations(protocol_implementors), session_authorizer(session_authorizer)
 {
 }
 
-void mir::frontend::DispatchingConnectionCreator::create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket, const ConnectionContext &connection_context)
+void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket, const ConnectionContext &connection_context)
 {
     auto header = std::make_shared<boost::asio::streambuf>();
 
@@ -71,15 +71,17 @@ void mir::frontend::DispatchingConnectionCreator::create_connection_for(std::sha
         for (auto& protocol : *implementations)
         {
             uuid_t server_protocol_id;
-            protocol->protocol_id(server_protocol_id);
+            auto& connection_protocol = protocol->connection_protocol();
+            connection_protocol.protocol_id(server_protocol_id);
             if (uuid_compare(client_protocol_id, server_protocol_id) == 0)
             {
-                if (client_header_size != protocol->header_size())
+                if (client_header_size != connection_protocol.header_size())
                     BOOST_THROW_EXCEPTION(std::runtime_error(
                         std::string("Client and server disagree on protocol header size for protocol ") +
-                        client_protocol_str + std::string("! (expected: ") + std::to_string(protocol->header_size()) +
+                        client_protocol_str + std::string("! (expected: ") + std::to_string(connection_protocol.header_size()) +
                         std::string(" received: ") + std::to_string(client_header_size) + std::string(")")));
 
+                connection_protocol.receive_client_header();
                 protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
                 return;
             }

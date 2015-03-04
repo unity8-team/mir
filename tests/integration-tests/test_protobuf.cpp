@@ -21,7 +21,7 @@
 #include "mir_toolkit/mir_client_library.h"
 #include "mir/client/private.h"
 #include "mir/frontend/protobuf_message_sender.h"
-#include "src/server/frontend/protobuf_connection_creator.h"
+#include "src/server/frontend/protobuf_protocol.h"
 #include "mir/frontend/template_protobuf_message_processor.h"
 #include "src/server/frontend/protobuf_ipc_factory.h"
 
@@ -105,9 +105,9 @@ struct DemoMessageProcessor : mfd::MessageProcessor
     std::shared_ptr<mfd::MessageProcessor> const wrapped;
 };
 
-struct DemoConnectionCreator : mf::ProtobufConnectionCreator
+struct DemoConnectionCreator : mf::ProtobufProtocol
 {
-    using ProtobufConnectionCreator::ProtobufConnectionCreator;
+    using ProtobufProtocol::ProtobufProtocol;
 
     MOCK_CONST_METHOD3(create_processor,
         std::shared_ptr<mfd::MessageProcessor>(
@@ -120,7 +120,7 @@ struct DemoConnectionCreator : mf::ProtobufConnectionCreator
         std::shared_ptr<mfd::DisplayServer> const& display_server,
         std::shared_ptr<mf::MessageProcessorReport> const& report) const
     {
-        auto const wrapped = mf::ProtobufConnectionCreator::create_processor(
+        auto const wrapped = mf::ProtobufProtocol::create_processor(
             sender,
             display_server,
             report);
@@ -133,7 +133,7 @@ struct DemoConnectionCreator : mf::ProtobufConnectionCreator
         std::shared_ptr<mfd::DisplayServer> const& display_server,
         std::shared_ptr<mf::MessageProcessorReport> const& report) const
     {
-        return mf::ProtobufConnectionCreator::create_processor(
+        return mf::ProtobufProtocol::create_processor(
             sender,
             display_server,
             report);
@@ -142,11 +142,11 @@ struct DemoConnectionCreator : mf::ProtobufConnectionCreator
 
 struct DemoServerConfiguration : mtf::StubbedServerConfiguration
 {
-    std::shared_ptr<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>> the_connection_protocols() override
+    std::shared_ptr<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>> the_connection_protocols() override
     {
         return connection_protocols([this]
             {
-                auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
+                auto protocols = std::make_shared<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>>();
                 protocols->push_back(std::make_shared<DemoConnectionCreator>(
                     new_ipc_factory(),
                     the_message_processor_report()));

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,42 +16,41 @@
  * Authored by: Christopher Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-
-#ifndef MIR_FRONTEND_DISPATCHED_SESSION_CREATOR_H_
-#define MIR_FRONTEND_DISPATCHED_SESSION_CREATOR_H_
+#ifndef MIR_FRONTEND_PROTOCOL_INTERPRETER_H_
+#define MIR_FRONTEND_PROTOCOL_INTERPRETER_H_
 
 #include <memory>
 #include <vector>
 #include <boost/asio.hpp>
-#include <uuid/uuid.h>
 
-#include "mir/frontend/session_authorizer.h"
-#include "mir/frontend/connection_creator.h"
+#include "mir/frontend/handshake_protocol.h"
 
 namespace mir
 {
 namespace frontend
 {
 class SessionAuthorizer;
+class ConnectionContext;
+class HandshakeProtocol;
 
-class DispatchedConnectionCreator
+class ProtocolInterpreter
 {
 public:
-    DispatchedConnectionCreator() = default;
-    virtual ~DispatchedConnectionCreator() = default;
+    ProtocolInterpreter() = default;
+    virtual ~ProtocolInterpreter() = default;
 
     virtual void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
                                        SessionAuthorizer& authorizer,
                                        ConnectionContext const& connection_context,
                                        std::string const& connection_data) = 0;
 
-    virtual void protocol_id(uuid_t id) const = 0;
-    virtual size_t header_size() const = 0;
+    virtual HandshakeProtocol& connection_protocol() = 0;
+
 private:
-    DispatchedConnectionCreator(DispatchedConnectionCreator const&) = delete;
-    DispatchedConnectionCreator& operator=(DispatchedConnectionCreator const&) = delete;
+    ProtocolInterpreter(ProtocolInterpreter const&) = delete;
+    ProtocolInterpreter& operator=(ProtocolInterpreter const&) = delete;
 };
 }
 }
 
-#endif // MIR_FRONTEND_DISPATCHED_SESSION_CREATOR_H_
+#endif  // MIR_FRONTEND_PROTOCOL_INTERPRETER_H_

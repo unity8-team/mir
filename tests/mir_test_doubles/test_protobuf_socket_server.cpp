@@ -20,9 +20,9 @@
 #include "mir_test_doubles/stub_ipc_factory.h"
 #include "mir_test_doubles/stub_session_authorizer.h"
 #include "mir/frontend/connector_report.h"
-#include "src/server/frontend/protobuf_connection_creator.h"
+#include "src/server/frontend/protobuf_protocol.h"
 #include "src/server/frontend/published_socket_connector.h"
-#include "src/server/frontend/dispatching_session_creator.h"
+#include "src/server/frontend/handshaking_connection_creator.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir_test_doubles/null_emergency_cleanup.h"
 
@@ -37,16 +37,16 @@ std::shared_ptr<mf::Connector> make_connector(std::string const& socket_name,
                                               std::unique_ptr<mf::ProtobufIpcFactory> factory,
                                               std::shared_ptr<mf::ConnectorReport> const& report)
 {
-    auto protobuf_session = std::make_shared<mf::ProtobufConnectionCreator>(
+    auto protobuf_session = std::make_shared<mf::ProtobufProtocol>(
         std::move(factory), mr::null_message_processor_report());
-    auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::DispatchedConnectionCreator>>>();
+    auto sessions = std::make_shared<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>>();
     sessions->push_back(protobuf_session);
 
     mtd::NullEmergencyCleanup null_emergency_cleanup;
 
     return std::make_shared<mf::PublishedSocketConnector>(
         socket_name,
-        std::make_shared<mf::DispatchingConnectionCreator>(sessions, std::make_shared<mtd::StubSessionAuthorizer>()),
+        std::make_shared<mf::HandshakingConnectionCreator>(sessions, std::make_shared<mtd::StubSessionAuthorizer>()),
         10,
         null_emergency_cleanup,
         report);

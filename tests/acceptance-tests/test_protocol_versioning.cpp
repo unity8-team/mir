@@ -21,9 +21,9 @@
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/stubbed_server_configuration.h"
 
-#include "src/server/frontend/protobuf_connection_creator.h"
-#include "src/server/frontend/dispatching_session_creator.h"
-#include "src/server/frontend/dispatched_session_creator.h"
+#include "mir/frontend/handshake_protocol.h"
+#include "src/server/frontend/protobuf_protocol.h"
+#include "src/server/frontend/handshaking_connection_creator.h"
 #include "src/server/frontend/protobuf_ipc_factory.h"
 
 #include <functional>
@@ -35,6 +35,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+namespace mf = mir::frontend;
 namespace mtf = mir_test_framework;
 
 namespace
@@ -44,7 +45,7 @@ class ProtocolVersioningTest : public mtf::InProcessServer
 public:
     ProtocolVersioningTest()
     {
-        protocol_impls = std::make_shared<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>>();
+        protocol_impls = std::make_shared<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>>();
     }
 
     ~ProtocolVersioningTest()
@@ -57,27 +58,27 @@ public:
         return config;
     }
 
-    static std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> protocol_impls;
+    static std::shared_ptr<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>> protocol_impls;
 
     class DispatcherOverridingServerConfig : public mtf::StubbedServerConfiguration
     {
     public:
-        std::shared_ptr<mir::frontend::ProtobufConnectionCreator> make_protobuf_connection_creator()
+        std::shared_ptr<mf::ProtobufProtocol> make_protobuf_connection_creator()
         {
-            return std::make_shared<mir::frontend::ProtobufConnectionCreator>(
+            return std::make_shared<mf::ProtobufProtocol>(
                 new_ipc_factory(),
                 the_message_processor_report());
         }
 
-        std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> the_connection_protocols() override
+        std::shared_ptr<std::vector<std::shared_ptr<mf::ProtocolInterpreter>>> the_connection_protocols() override
         {
             return protocol_impls;
         }
     } config;
 };
-std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::DispatchedConnectionCreator>>> ProtocolVersioningTest::protocol_impls;
+std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::ProtocolInterpreter>>> ProtocolVersioningTest::protocol_impls;
 
-class DummySessionCreator : public mir::frontend::DispatchedConnectionCreator
+class DummySessionCreator : public mf::ProtocolInterpreter
 {
 public:
     DummySessionCreator()
@@ -91,15 +92,41 @@ public:
     {
     }
 
-    void protocol_id(uuid_t id) const override
+    mf::HandshakeProtocol& connection_protocol() override
     {
-        uuid_parse("f14e4484-b475-4406-a0ed-cd01fbcf356a", id);
+        return conn_proto;
     }
 
-    size_t header_size() const override
+private:
+    class DummyConnectionProtocol : public mf::HandshakeProtocol
     {
-        return 8;
-    }
+    public:
+        void protocol_id(uuid_t id) const override
+        {
+            uuid_parse("f14e4484-b475-4406-a0ed-cd01fbcf356a", id);
+        }
+
+        size_t header_size() const override
+        {
+            return 8;
+        }
+
+        void send_client_header() override
+        {
+        }
+
+        void receive_client_header() override
+        {
+        }
+
+        void send_server_header() override
+        {
+        }
+
+        void receive_server_header() override
+        {
+        }
+    } conn_proto;
 };
 }
 

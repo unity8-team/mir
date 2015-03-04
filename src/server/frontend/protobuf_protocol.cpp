@@ -18,7 +18,7 @@
 
 #include <uuid/uuid.h>
 
-#include "protobuf_connection_creator.h"
+#include "protobuf_protocol.h"
 
 #include "mir/frontend/session_credentials.h"
 #include "event_sender.h"
@@ -35,7 +35,7 @@ namespace mf = mir::frontend;
 namespace mfd = mir::frontend::detail;
 namespace ba = boost::asio;
 
-mf::ProtobufConnectionCreator::ProtobufConnectionCreator(
+mf::ProtobufProtocol::ProtobufProtocol(
     std::unique_ptr<ProtobufIpcFactory> ipc_factory,
     std::shared_ptr<MessageProcessorReport> const& report)
 :   ipc_factory{std::move(ipc_factory)},
@@ -45,17 +45,17 @@ mf::ProtobufConnectionCreator::ProtobufConnectionCreator(
 {
 }
 
-mf::ProtobufConnectionCreator::~ProtobufConnectionCreator() noexcept
+mf::ProtobufProtocol::~ProtobufProtocol() noexcept
 {
     connections->clear();
 }
 
-int mf::ProtobufConnectionCreator::next_id()
+int mf::ProtobufProtocol::next_id()
 {
     return next_session_id.fetch_add(1);
 }
 
-void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket,
+void mf::ProtobufProtocol::create_connection_for(std::shared_ptr<ba::local::stream_protocol::socket> const& socket,
                                                           SessionAuthorizer& authorizer,
                                                           ConnectionContext const& connection_context,
                                                           std::string const&)
@@ -81,17 +81,13 @@ void mf::ProtobufConnectionCreator::create_connection_for(std::shared_ptr<ba::lo
     }
 }
 
-void mf::ProtobufConnectionCreator::protocol_id(uuid_t id) const
+mf::HandshakeProtocol& mf::ProtobufProtocol::connection_protocol()
 {
-    uuid_parse("60019143-2648-4904-9719-7817f0b9fb13", id);
-}
-size_t mf::ProtobufConnectionCreator::header_size() const
-{
-    return 0;
+    return connect_proto;
 }
 
 std::shared_ptr<mfd::MessageProcessor>
-mf::ProtobufConnectionCreator::create_processor(
+mf::ProtobufProtocol::create_processor(
     std::shared_ptr<mfd::ProtobufMessageSender> const& sender,
     std::shared_ptr<detail::DisplayServer> const& display_server,
     std::shared_ptr<mf::MessageProcessorReport> const& report) const
