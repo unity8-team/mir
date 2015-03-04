@@ -22,6 +22,7 @@
 #include "mir/scene/surface.h"
 #include "mir/basic_observers.h"
 #include "mir/scene/surface_observer.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include "mir/geometry/rectangle.h"
 
@@ -192,6 +193,7 @@ private:
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
     std::weak_ptr<Surface> const parent_;
+    compositor::BufferHandle mutable snapshot_buffer_handle;
 
     // Surface attributes:
     MirSurfaceType type_ = mir_surface_type_normal;

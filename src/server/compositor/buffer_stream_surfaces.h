@@ -32,6 +32,7 @@ namespace compositor
 class BufferIDUniqueGenerator;
 class BufferBundle;
 class BackBufferStrategy;
+class BufferHandle;
 
 class BufferStreamSurfaces : public BufferStream
 {
@@ -42,9 +43,8 @@ public:
     void acquire_client_buffer(std::function<void(graphics::Buffer* buffer)> complete) override;
     void release_client_buffer(graphics::Buffer* buf) override;
 
-    std::shared_ptr<graphics::Buffer>
-        lock_compositor_buffer(void const* user_id) override;
-    std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() override;
+    BufferHandle lock_compositor_buffer(void const* user_id) override;
+    BufferHandle lock_snapshot_buffer() override;
 
     MirPixelFormat get_stream_pixel_format() override;
     geometry::Size stream_size() override;

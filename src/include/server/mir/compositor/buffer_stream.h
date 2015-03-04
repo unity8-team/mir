@@ -36,6 +36,8 @@ class Buffer;
 namespace compositor
 {
 
+class BufferHandle;
+
 class BufferStream
 {
 public:
@@ -44,9 +46,8 @@ public:
     virtual void acquire_client_buffer(
         std::function<void(graphics::Buffer* buffer)> complete) = 0;
     virtual void release_client_buffer(graphics::Buffer* buf) = 0;
-    virtual std::shared_ptr<graphics::Buffer>
-        lock_compositor_buffer(void const* user_id) = 0;
-    virtual std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() = 0;
+    virtual BufferHandle lock_compositor_buffer(void const* user_id) = 0;
+    virtual BufferHandle lock_snapshot_buffer() = 0;
     virtual MirPixelFormat get_stream_pixel_format() = 0;
     virtual geometry::Size stream_size() = 0;
     virtual void resize(geometry::Size const& size) = 0;

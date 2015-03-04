@@ -16,7 +16,7 @@
  * Authored by: Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#include "buffer_handle.h"
+#include "mir/compositor/buffer_handle.h"
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -32,6 +32,17 @@ mc::BufferHandle::BufferHandle(BufferHandle&& other)
                                : wrapped(std::move(other.wrapped)),
                                  release_fn(std::move(other.release_fn))
 {
+}
+
+mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
+{
+    if (this != &other)
+    {
+        wrapped = std::move(other.wrapped);
+        release_fn = std::move(other.release_fn);
+    }
+
+    return *this;
 }
 
 mc::BufferHandle::~BufferHandle()

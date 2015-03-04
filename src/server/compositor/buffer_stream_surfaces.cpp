@@ -19,7 +19,7 @@
 
 #include "buffer_stream_surfaces.h"
 #include "buffer_bundle.h"
-#include "buffer_handle.h"
+#include "mir/compositor/buffer_handle.h"
 #include "mir/graphics/buffer_properties.h"
 
 namespace mc = mir::compositor;
@@ -36,15 +36,15 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
     force_requests_to_complete();
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_compositor_buffer(
+mc::BufferHandle mc::BufferStreamSurfaces::lock_compositor_buffer(
     void const* user_id)
 {
-    return buffer_bundle->compositor_acquire(user_id)->buffer();
+    return buffer_bundle->compositor_acquire(user_id);
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
+mc::BufferHandle mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
-    return buffer_bundle->snapshot_acquire()->buffer();
+    return buffer_bundle->snapshot_acquire();
 }
 
 void mc::BufferStreamSurfaces::acquire_client_buffer(

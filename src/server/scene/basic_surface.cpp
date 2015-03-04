@@ -26,7 +26,6 @@
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
 #include "mir/geometry/displacement.h"
-
 #include "mir/scene/scene_report.h"
 
 #include <boost/throw_exception.hpp>
@@ -137,7 +136,8 @@ ms::BasicSurface::BasicSurface(
     input_sender(input_sender),
     cursor_image_(cursor_image),
     report(report),
-    parent_(parent)
+    parent_(parent),
+    snapshot_buffer_handle{nullptr, nullptr}
 {
     report->surface_created(this, surface_name);
 }
@@ -248,7 +248,8 @@ void ms::BasicSurface::allow_framedropping(bool allow)
 
 std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
 {
-    return surface_buffer_stream->lock_snapshot_buffer();
+    snapshot_buffer_handle = surface_buffer_stream->lock_snapshot_buffer();
+    return snapshot_buffer_handle.buffer();
 }
 
 bool ms::BasicSurface::supports_input() const
@@ -677,7 +678,7 @@ public:
         bool shaped,
         mg::Renderable::ID id)
     : underlying_buffer_stream{stream},
-      compositor_buffer{nullptr},
+      compositor_buffer_handle{nullptr, nullptr},
       compositor_id{compositor_id},
       alpha_{alpha},
       shaped_{shaped},
@@ -693,9 +694,9 @@ public:
  
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        if (!compositor_buffer)
-            compositor_buffer = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
-        return compositor_buffer;
+        if (!compositor_buffer_handle.buffer())
+        	compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        return compositor_buffer_handle.buffer();
     }
 
     geom::Rectangle screen_position() const override
@@ -714,7 +715,7 @@ public:
     { return id_; }
 private:
     std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
-    std::shared_ptr<mg::Buffer> mutable compositor_buffer;
+    mc::BufferHandle mutable compositor_buffer_handle;
     void const*const compositor_id;
     float const alpha_;
     bool const shaped_;

@@ -39,6 +39,7 @@ public:
         release_callback const& release);
 
     BufferHandle(BufferHandle&& other);
+    BufferHandle& operator=(BufferHandle&& other);
 
     virtual ~BufferHandle();
 
@@ -47,10 +48,9 @@ public:
 private:
     BufferHandle(BufferHandle const&) = delete;
     BufferHandle& operator=(BufferHandle const&) = delete;
-    BufferHandle& operator=(BufferHandle&& other) = delete;
 
     std::shared_ptr<graphics::Buffer> wrapped;
-    release_callback const release_fn;
+    release_callback release_fn;
 };
 
 }
