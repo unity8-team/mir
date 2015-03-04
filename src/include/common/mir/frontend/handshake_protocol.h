@@ -32,8 +32,6 @@ class SessionAuthorizer;
 /**
  * \brief A descriptor of the initial socket handshake needed to connect a protocol
  *
- * \todo This is currently enough that we can add a full client/server handshake in future
- *       without breaking existing clients, but doesn't currently provide a full handshake.
  */
 class HandshakeProtocol
 {
@@ -46,12 +44,27 @@ public:
      * \param [out] id  The protocol's uuid.
      */
     virtual void protocol_id(uuid_t id) const = 0;
+
     /**
      * \brief The size, in bytes, of extra data sent along with the UUID.
      */
     virtual size_t header_size() const = 0;
+    /**
+     * \brief Send the extra client connection data for this protocol.
+     *
+     * \note receive_client_header is unnecessary; the header_size is sent on client connect
+     */
+    virtual void send_client_header() = 0;
 
-    // TODO: add send/receive client/server headers methods,
+    /**
+     * \brief Send the server connection reply
+     */
+    virtual void send_server_header() = 0;
+    /**
+     * \brief Read the server connection reply
+     */
+    virtual void receive_server_header() = 0;
+
 private:
     HandshakeProtocol(HandshakeProtocol const&) = delete;
     HandshakeProtocol& operator=(HandshakeProtocol const&) = delete;
