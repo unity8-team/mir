@@ -16,7 +16,6 @@
  * Authored by:
  *  Alan Griffiths <alan@octopull.co.uk>
  *  Thomas Voss <thomas.voss@canonical.com>
- *  Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
 #ifndef MIR_SCENE_BUFFER_QUEUE_FACTORY_H_

@@ -690,7 +690,7 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         if (!compositor_buffer_handle.buffer())
-        	compositor_buffer_handle = underlying_buffer_queue->compositor_acquire(compositor_id);
+            compositor_buffer_handle = underlying_buffer_queue->compositor_acquire(compositor_id);
         return compositor_buffer_handle.buffer();
     }
 

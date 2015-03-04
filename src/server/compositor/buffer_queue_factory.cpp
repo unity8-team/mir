@@ -16,7 +16,6 @@
  * Authored by:
  *   Alan Griffiths <alan@octopull.co.uk>
  *   Thomas Voss <thomas.voss@canonical.com>
- *   Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
 #include "buffer_queue_factory.h"
