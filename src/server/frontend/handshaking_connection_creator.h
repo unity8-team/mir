@@ -32,6 +32,30 @@ namespace frontend
 {
 class ProtocolInterpreter;
 
+/**
+ * \brief Perform client connection handshake and dispatch to the appropriate protocol implementation.
+ *
+ * Theory of operation:
+ *
+ * On connection to the socket, the client sends the total connection data size, plus
+ * one or more sets of {size, UUID, extra_data} describing the protocols it supports
+ * and any extra data that those protocols need. Following capnproto's lead, all structures
+ * on the wire are little-endian.
+ *
+ * In total, the connection packet looks like:
+ * uint16_t length - subsequent connection data, in bytes
+ *   [
+ *     uint16_t length - of subsequent protocol data packet, in bytes
+ *     36 bytes of UUID in string form, without terminating null byte (eg: "60019143-2648-4904-9719-7817f0b9fb13")
+ *     (length - 36) bytes of opaque data, passed to protocol implementation
+ *   ]…
+ *
+ * This gives the server enough information to skip any protocols it does not support.
+ *
+ * The HandshakingConnectionCreator finds the first ProtocolInterpreter with a
+ * HandshakeProtocol that matches one of the client-supported UUIDs then calls
+ * its create_connnection_for method with the extra_data from the client connect packet.
+ */
 class HandshakingConnectionCreator : public ConnectionCreator
 {
 public:
