@@ -267,7 +267,12 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     page_flipper->wait_for_flip(current_crtc->crtc_id);
 }
 
-void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
+void mgm::RealKMSOutput::reset_adaptive_wait()
+{
+    render_time_estimate = 0;
+}
+
+void mgm::RealKMSOutput::adaptive_wait()
 {
     /**
      * This is much more complicated than it should be. Unfortunately Linux
@@ -281,46 +286,59 @@ void mgm::RealKMSOutput::wait_for_vblank(long extra_microseconds)
      * own sleep to wake up a bit before the next one, with enough time to
      * spare to schedule a page flip.
      */
-    drmVBlank v;
-
+    drmVBlank io;
     // Ask for the _previous_ vblank time. This shouldn't involve blocking.
-    v.request.type = DRM_VBLANK_RELATIVE;
-    v.request.sequence = 0;
-    v.request.signal = 0;
-    int err = drmWaitVBlank(drm_fd, &v);
-    if (err) return;
+    io.request.type = DRM_VBLANK_RELATIVE;
+    io.request.sequence = 0;
+    io.request.signal = 0;
+    int err = drmWaitVBlank(drm_fd, &io);
+    if (err)
+        return;
 
-    auto& prev_vblank = v.reply;
+    auto& prev_vblank = io.reply;
     if (prev_vblank.sequence == prev_prev_vblank.sequence + 1)
     {   // We're rendering at full monitor speed...
-        auto frametime_usec = prev_vblank.tval_usec -
-                              prev_prev_vblank.tval_usec;
-        if (frametime_usec < 0) frametime_usec += 1000000;
+        long frametime_usec = prev_vblank.tval_usec
+                            - prev_prev_vblank.tval_usec;
+        if (frametime_usec < 0)
+            frametime_usec += 1000000;
 
         typedef long long KernelMonotonicMicroseconds;
         KernelMonotonicMicroseconds
             prev_vblank_time = prev_vblank.tval_sec * 1000000LL
                              + prev_vblank.tval_usec,
             next_vblank_time = prev_vblank_time + frametime_usec,
-            wakeup_time = next_vblank_time + extra_microseconds;
+            wakeup_time = next_vblank_time - render_time_estimate;
 
         struct timespec wakeup;
         wakeup.tv_sec = wakeup_time / 1000000;
         wakeup.tv_nsec = (wakeup_time % 1000000) * 1000;
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
+
+        drmVBlank check;
+        check.request.type = DRM_VBLANK_RELATIVE;
+        check.request.sequence = 0;
+        check.request.signal = 0;
+        err = drmWaitVBlank(drm_fd, &check);
+        if (!err && check.reply.sequence != prev_vblank.sequence)
+        {
+            if (render_time_estimate < frametime_usec)
+            {
+                render_time_estimate += 500; // 500usec = 0.5 milliseconds
+                mir::log_info("Output latency adjusted to %ld.%03ldms",
+                              render_time_estimate/1000,
+                              render_time_estimate%1000);
+            }
+            else
+            {
+                mir::log_info("Frame skipping! Your compositor or hardware is "
+                              "too slow to render smoothly. It's failing to "
+                              "keep up with a frame interval of %ld.%03ldms",
+                              frametime_usec/1000, frametime_usec%1000);
+            }
+        }
     }
     prev_prev_vblank = prev_vblank;
-
-    v.request.type = DRM_VBLANK_RELATIVE;
-    v.request.sequence = 0;
-    v.request.signal = 0;
-    err = drmWaitVBlank(drm_fd, &v);
-    if (!err && v.reply.sequence != prev_prev_vblank.sequence)
-    {
-        mir::log_error("Frame skipping! You're not allowing enough time "
-                       "for your compositor to finish before the deadline.");
-        // TODO: feedback and adjust.
-    }
 }
 
 void mgm::RealKMSOutput::set_cursor(gbm_bo* buffer)

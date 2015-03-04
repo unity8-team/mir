@@ -234,7 +234,8 @@ void mgm::DisplayBuffer::post()
     last_flipped_bypass_buf = scheduled_bypass_buf;
     scheduled_bypass_buf = nullptr;
 
-    if (last_flipped_bufobj) last_flipped_bufobj->release();
+    if (last_flipped_bufobj)
+        last_flipped_bufobj->release();
     last_flipped_bufobj = scheduled_bufobj;
     scheduled_bufobj = nullptr;
 
@@ -246,9 +247,13 @@ void mgm::DisplayBuffer::post()
 
 void mgm::DisplayBuffer::post_bypass()
 {
-    long const max_schedule_and_flip_time_usec = 1000;
     if (outputs.size() == 1)
-        outputs.front()->wait_for_vblank(-max_schedule_and_flip_time_usec);
+    {
+        auto& single = outputs.front();
+        if (!last_flipped_bypass_buf)
+            single->reset_adaptive_wait();
+        single->adaptive_wait();
+    }
 
     auto bypass_buf = bypass_candidate->buffer();
     if (bypass_buf.use_count() > 2)
@@ -275,16 +280,12 @@ void mgm::DisplayBuffer::post_bypass()
 
 void mgm::DisplayBuffer::post_egl()
 {
-    // XXX Experimental XXX
-    // This works on fast machines with fast compositors, but otherwise
-    // you risk getting a halved frame rate.
-    bool const experimental_zero_lag_compositing = true;
-    if (experimental_zero_lag_compositing)
+    if (outputs.size() == 1)
     {
-        // In future this could be measured and adjusted dynamically:
-        long const max_render_time_usec = 2000;
-        if (outputs.size() == 1)
-            outputs.front()->wait_for_vblank(-max_render_time_usec);
+        auto& single = outputs.front();
+        if (!last_flipped_bufobj)
+            single->reset_adaptive_wait();
+        single->adaptive_wait();
     }
 
     mgm::BufferObject *bufobj = get_front_buffer_object();

@@ -49,7 +49,9 @@ public:
     void clear_crtc();
     bool schedule_page_flip(uint32_t fb_id);
     void wait_for_page_flip();
-    void wait_for_vblank(long extra_microseconds) override;
+
+    void adaptive_wait() override;
+    void reset_adaptive_wait() override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
@@ -78,6 +80,8 @@ private:
 
     MirPowerMode power_mode;
     int dpms_enum_id;
+
+    long render_time_estimate = 0;
 
     std::mutex power_mutex;
 };
