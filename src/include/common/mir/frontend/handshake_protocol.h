@@ -29,15 +29,29 @@ namespace frontend
 {
 class SessionAuthorizer;
 
+/**
+ * \brief A descriptor of the initial socket handshake needed to connect a protocol
+ *
+ * \todo This is currently enough that we can add a full client/server handshake in future
+ *       without breaking existing clients, but doesn't currently provide a full handshake.
+ */
 class HandshakeProtocol
 {
 public:
     HandshakeProtocol() = default;
     virtual ~HandshakeProtocol() = default;
 
+    /**
+     * \brief The UUID of this protocol
+     * \param [out] id  The protocol's uuid.
+     */
     virtual void protocol_id(uuid_t id) const = 0;
+    /**
+     * \brief The size, in bytes, of extra data sent along with the UUID.
+     */
     virtual size_t header_size() const = 0;
 
+    // TODO: add send/receive client/server headers methods,
 private:
     HandshakeProtocol(HandshakeProtocol const&) = delete;
     HandshakeProtocol& operator=(HandshakeProtocol const&) = delete;

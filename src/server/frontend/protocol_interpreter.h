@@ -33,17 +33,31 @@ class SessionAuthorizer;
 class ConnectionContext;
 class HandshakeProtocol;
 
+/**
+ * \brief An IPC protocol handler
+ */
 class ProtocolInterpreter
 {
 public:
     ProtocolInterpreter() = default;
     virtual ~ProtocolInterpreter() = default;
 
+    /**
+     * \brief Start an IPC session on an open socket.
+     * \param [in] socket               The client connection
+     * \param [in] authorizer           Authorises client capabilities
+     * \param [in] connection_context   The connection context
+     * \param [in] connection_data      Client data from the initial handshake
+     */
     virtual void create_connection_for(std::shared_ptr<boost::asio::local::stream_protocol::socket> const& socket,
                                        SessionAuthorizer& authorizer,
                                        ConnectionContext const& connection_context,
                                        std::string const& connection_data) = 0;
 
+    /**
+     * \brief Describes the initial socket handshake
+     * \return The protocol that is necessary before an IPC session can be created
+     */
     virtual HandshakeProtocol& connection_protocol() = 0;
 
 private:
