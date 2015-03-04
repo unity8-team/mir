@@ -38,12 +38,6 @@ public:
     virtual void protocol_id(uuid_t id) const = 0;
     virtual size_t header_size() const = 0;
 
-    virtual void send_client_header() = 0;
-    virtual void receive_client_header() = 0;
-
-    virtual void send_server_header() = 0;
-    virtual void receive_server_header() = 0;
-
 private:
     HandshakeProtocol(HandshakeProtocol const&) = delete;
     HandshakeProtocol& operator=(HandshakeProtocol const&) = delete;

@@ -111,21 +111,6 @@ private:
             return 8;
         }
 
-        void send_client_header() override
-        {
-        }
-
-        void receive_client_header() override
-        {
-        }
-
-        void send_server_header() override
-        {
-        }
-
-        void receive_server_header() override
-        {
-        }
     } conn_proto;
 };
 }

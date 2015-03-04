@@ -30,12 +30,6 @@ class ProtobufHandshakeProtocol : public HandshakeProtocol
 public:
     void protocol_id(uuid_t id) const override;
     size_t header_size() const override;
-
-    void send_client_header() override;
-    void receive_client_header() override;
-
-    void send_server_header() override;
-    void receive_server_header() override;
 };
 
 }

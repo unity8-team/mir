@@ -63,11 +63,6 @@ public:
 
     MOCK_CONST_METHOD1(protocol_id, void(uuid_t id));
     MOCK_CONST_METHOD0(header_size, size_t(void));
-
-    MOCK_METHOD0(send_client_header, void());
-    MOCK_METHOD0(receive_client_header, void());
-    MOCK_METHOD0(send_server_header, void());
-    MOCK_METHOD0(receive_server_header, void());
 };
 
 class MockDispatchedSessionCreator : public mir::frontend::ProtocolInterpreter

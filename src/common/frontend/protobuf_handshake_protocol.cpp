@@ -30,19 +30,3 @@ size_t mf::ProtobufHandshakeProtocol::header_size() const
 {
     return 0;
 }
-
-void mf::ProtobufHandshakeProtocol::send_client_header()
-{
-}
-
-void mf::ProtobufHandshakeProtocol::receive_client_header()
-{
-}
-
-void mf::ProtobufHandshakeProtocol::send_server_header()
-{
-}
-
-void mf::ProtobufHandshakeProtocol::receive_server_header()
-{
-}

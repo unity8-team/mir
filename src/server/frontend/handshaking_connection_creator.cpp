@@ -81,7 +81,6 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
                         client_protocol_str + std::string("! (expected: ") + std::to_string(connection_protocol.header_size()) +
                         std::string(" received: ") + std::to_string(client_header_size) + std::string(")")));
 
-                connection_protocol.receive_client_header();
                 protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
                 return;
             }
