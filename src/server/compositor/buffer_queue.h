@@ -39,7 +39,8 @@ namespace compositor
 
 class BufferHandle;
 
-class BufferQueue : public BufferBundle
+class BufferQueue : public BufferBundle,
+                    public std::enable_shared_from_this<BufferQueue>
 {
 public:
     typedef std::function<void(graphics::Buffer* buffer)> Callback;

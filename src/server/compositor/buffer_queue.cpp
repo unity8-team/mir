@@ -286,25 +286,29 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
+    std::weak_ptr<BufferQueue> weak_this = shared_from_this();
+
     std::shared_ptr<mc::BufferHandle> const acquired_buffer =
         std::make_shared<mc::BufferHandle>(
-           this,
            buffer_for(current_compositor_buffer, buffers),
-           [this](mg::Buffer* b)
+           [weak_this](mg::Buffer* b)
            {
-               std::unique_lock<decltype(guard)> lock(guard);
+               if (auto self = weak_this.lock())
+               {
+                   std::unique_lock<decltype(self->guard)> lock(self->guard);
 
-               remove(b, buffers_sent_to_compositor);
+                   remove(b, self->buffers_sent_to_compositor);
 
-               /* Not ready to release it yet, other compositors still reference this buffer */
-               if (contains(b, buffers_sent_to_compositor))
-                   return;
+                   /* Not ready to release it yet, other compositors still reference this buffer */
+                   if (contains(b, self->buffers_sent_to_compositor))
+                       return;
 
-               if (nbuffers <= 1)
-                   return;
+                   if (self->nbuffers <= 1)
+                       return;
 
-               if (current_compositor_buffer != b)
-                   release(b, std::move(lock));
+                   if (self->current_compositor_buffer != b)
+                       self->release(b, std::move(lock));
+               }
            }
         );
 
@@ -319,16 +323,20 @@ std::shared_ptr<mc::BufferHandle> mc::BufferQueue::snapshot_acquire()
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
+    std::weak_ptr<BufferQueue> weak_this = shared_from_this();
+
     return std::make_shared<mc::BufferHandle>(
-               this,
                buffer_for(current_compositor_buffer, buffers),
-               [this](mg::Buffer* b)
+               [weak_this](mg::Buffer* b)
                {
-                   std::unique_lock<std::mutex> lock(guard);
+                   if (auto self = weak_this.lock())
+                   {
+                       std::unique_lock<std::mutex> lock(self->guard);
 
-                   remove(b, pending_snapshots);
+                       remove(b, self->pending_snapshots);
 
-                   snapshot_released.notify_all();
+                       self->snapshot_released.notify_all();
+                   }
                }
            );
 }

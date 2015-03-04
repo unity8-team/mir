@@ -21,12 +21,16 @@
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
-mc::BufferHandle::BufferHandle(BufferBundle* bundle,
-                               std::shared_ptr<mg::Buffer> const& buffer,
+mc::BufferHandle::BufferHandle(std::shared_ptr<mg::Buffer> const& buffer,
                                release_callback const& release)
-                               : buffer_bundle(bundle),
-                                 wrapped(buffer),
+                               : wrapped(buffer),
                                  release_fn(release)
+{
+}
+
+mc::BufferHandle::BufferHandle(BufferHandle&& other)
+                               : wrapped(std::move(other.wrapped)),
+                                 release_fn(std::move(other.release_fn))
 {
 }
 
