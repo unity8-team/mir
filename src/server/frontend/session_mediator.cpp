@@ -30,7 +30,6 @@
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/buffer.h"
 #include "mir/input/cursor_images.h"
-#include "mir/compositor/buffer_stream.h"
 #include "mir/geometry/dimensions.h"
 #include "mir/frontend/display_changer.h"
 #include "mir/graphics/display_configuration.h"

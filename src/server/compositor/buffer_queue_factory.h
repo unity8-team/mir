@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012, 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,12 +16,13 @@
  * Authored by:
  *  Alan Griffiths <alan@octopull.co.uk>
  *  Thomas Voss <thomas.voss@canonical.com>
+ *  Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#ifndef MIR_COMPOSITOR_BUFFER_STREAM_FACTORY_H_
-#define MIR_COMPOSITOR_BUFFER_STREAM_FACTORY_H_
+#ifndef MIR_COMPOSITOR_BUFFER_QUEUE_FACTORY_H_
+#define MIR_COMPOSITOR_BUFFER_QUEUE_FACTORY_H_
 
-#include "mir/scene/buffer_stream_factory.h"
+#include "mir/scene/buffer_queue_factory.h"
 #include "mir/compositor/frame_dropping_policy_factory.h"
 
 #include <memory>
@@ -35,15 +36,15 @@ class GraphicBufferAllocator;
 namespace compositor
 {
 
-class BufferStreamFactory : public scene::BufferStreamFactory
+class BufferQueueFactory : public scene::BufferQueueFactory
 {
 public:
-    BufferStreamFactory(std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
+	BufferQueueFactory(std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
                         std::shared_ptr<FrameDroppingPolicyFactory> const& policy_factory);
 
-    virtual ~BufferStreamFactory() {}
+    virtual ~BufferQueueFactory() {}
 
-    virtual std::shared_ptr<BufferStream> create_buffer_stream(
+    virtual std::shared_ptr<BufferBundle> create_buffer_queue(
         graphics::BufferProperties const& buffer_properties);
 
 private:
@@ -55,4 +56,4 @@ private:
 }
 
 
-#endif /* MIR_COMPOSITOR_BUFFER_STREAM_FACTORY_H_ */
+#endif /* MIR_COMPOSITOR_BUFFER_QUEUE_FACTORY_H_ */

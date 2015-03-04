@@ -26,7 +26,6 @@
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/buffer.h"
-#include "mir/compositor/buffer_stream.h"
 #include "occlusion.h"
 #include <mutex>
 #include <cstdlib>

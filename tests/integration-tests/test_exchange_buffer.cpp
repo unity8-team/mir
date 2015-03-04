@@ -26,7 +26,7 @@
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/buffer_ipc_message.h"
 #include "mir/graphics/platform_operation_message.h"
-#include "mir/scene/buffer_stream_factory.h"
+#include "mir/scene/buffer_queue_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "src/client/mir_connection.h"

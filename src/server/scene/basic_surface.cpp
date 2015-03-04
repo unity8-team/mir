@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012-2014 Canonical Ltd.
+ * Copyright © 2012-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,7 +19,6 @@
  */
 
 #include "basic_surface.h"
-#include "mir/compositor/buffer_stream.h"
 #include "mir/frontend/event_sink.h"
 #include "mir/input/input_channel.h"
 #include "mir/shell/input_targeter.h"
@@ -27,6 +26,7 @@
 #include "mir/graphics/buffer.h"
 #include "mir/geometry/displacement.h"
 #include "mir/scene/scene_report.h"
+#include "mir/compositor/buffer_bundle.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -118,7 +118,7 @@ ms::BasicSurface::BasicSurface(
     geometry::Rectangle rect,
     std::weak_ptr<Surface> const& parent,
     bool nonrectangular,
-    std::shared_ptr<mc::BufferStream> const& buffer_stream,
+    std::shared_ptr<mc::BufferBundle> const& buffer_queue,
     std::shared_ptr<mi::InputChannel> const& input_channel,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& cursor_image,
@@ -131,7 +131,7 @@ ms::BasicSurface::BasicSurface(
     input_mode(mi::InputReceptionMode::normal),
     nonrectangular(nonrectangular),
     custom_input_rectangles(),
-    surface_buffer_stream(buffer_stream),
+    buffer_queue(buffer_queue),
     server_input_channel(input_channel),
     input_sender(input_sender),
     cursor_image_(cursor_image),
@@ -146,32 +146,27 @@ ms::BasicSurface::BasicSurface(
     std::string const& name,
     geometry::Rectangle rect,
     bool nonrectangular,
-    std::shared_ptr<mc::BufferStream> const& buffer_stream,
+    std::shared_ptr<mc::BufferBundle> const& buffer_queue,
     std::shared_ptr<mi::InputChannel> const& input_channel,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& cursor_image,
     std::shared_ptr<SceneReport> const& report) :
-    BasicSurface(name, rect, std::shared_ptr<Surface>{nullptr}, nonrectangular,buffer_stream,
+    BasicSurface(name, rect, std::shared_ptr<Surface>{nullptr}, nonrectangular, buffer_queue,
                  input_channel, input_sender, cursor_image, report)
 {
 }
 
 void ms::BasicSurface::force_requests_to_complete()
 {
-    surface_buffer_stream->force_requests_to_complete();
+    buffer_queue->force_requests_to_complete();
 }
 
 ms::BasicSurface::~BasicSurface() noexcept
 {
     report->surface_deleted(this, surface_name);
 
-    if (surface_buffer_stream) // some tests use null for surface_buffer_stream
-        surface_buffer_stream->drop_client_requests();
-}
-
-std::shared_ptr<mc::BufferStream> ms::BasicSurface::buffer_stream() const
-{
-    return surface_buffer_stream;
+    if (buffer_queue)
+        buffer_queue->drop_client_requests();
 }
 
 std::string ms::BasicSurface::name() const
@@ -217,14 +212,14 @@ mir::geometry::Size ms::BasicSurface::client_size() const
 
 MirPixelFormat ms::BasicSurface::pixel_format() const
 {
-    return surface_buffer_stream->get_stream_pixel_format();
+    return buffer_queue->properties().format;
 }
 
 void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(mg::Buffer* new_buffer)> complete)
 {
     if (old_buffer)
     {
-        surface_buffer_stream->release_client_buffer(old_buffer);
+        buffer_queue->client_release(old_buffer);
         {
             std::unique_lock<std::mutex> lk(guard);
             first_frame_posted = true;
@@ -238,17 +233,17 @@ void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(m
         observers.frame_posted(1);
     }
 
-    surface_buffer_stream->acquire_client_buffer(complete);
+    buffer_queue->client_acquire(complete);
 }
 
 void ms::BasicSurface::allow_framedropping(bool allow)
 {
-    surface_buffer_stream->allow_framedropping(allow);
+    buffer_queue->allow_framedropping(allow);
 }
 
 std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
 {
-    snapshot_buffer_handle = surface_buffer_stream->lock_snapshot_buffer();
+    snapshot_buffer_handle = buffer_queue->snapshot_acquire();
     return snapshot_buffer_handle.buffer();
 }
 
@@ -292,7 +287,7 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
      * not predictable here. Such critical exceptions would arise from
      * the platform buffer allocator as a runtime_error via:
      */
-    surface_buffer_stream->resize(new_size);
+    buffer_queue->resize(new_size);
 
     // Now the buffer stream has successfully resized, update the state second;
     {
@@ -637,7 +632,7 @@ MirSurfaceVisibility ms::BasicSurface::set_visibility(MirSurfaceVisibility new_v
         visibility_ = new_visibility;
         lg.unlock();
         if (new_visibility == mir_surface_visibility_exposed)
-            surface_buffer_stream->drop_old_buffers();
+            buffer_queue->drop_old_buffers();
         observers.attrib_changed(mir_surface_attrib_visibility, visibility_);
     }
 
@@ -670,14 +665,14 @@ class SurfaceSnapshot : public mg::Renderable
 {
 public:
     SurfaceSnapshot(
-        std::shared_ptr<mc::BufferStream> const& stream,
+        std::shared_ptr<mc::BufferBundle> const& bq,
         void const* compositor_id,
         geom::Rectangle const& position,
         glm::mat4 const& transform,
         float alpha,
         bool shaped,
         mg::Renderable::ID id)
-    : underlying_buffer_stream{stream},
+    : underlying_buffer_queue{bq},
       compositor_buffer_handle{nullptr, nullptr},
       compositor_id{compositor_id},
       alpha_{alpha},
@@ -695,7 +690,7 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         if (!compositor_buffer_handle.buffer())
-        	compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        	compositor_buffer_handle = underlying_buffer_queue->compositor_acquire(compositor_id);
         return compositor_buffer_handle.buffer();
     }
 
@@ -714,7 +709,7 @@ public:
     mg::Renderable::ID id() const override
     { return id_; }
 private:
-    std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
+    std::shared_ptr<mc::BufferBundle> const underlying_buffer_queue;
     mc::BufferHandle mutable compositor_buffer_handle;
     void const*const compositor_id;
     float const alpha_;
@@ -730,7 +725,7 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
     std::unique_lock<std::mutex> lk(guard);
 
     return std::make_unique<SurfaceSnapshot>(
-        surface_buffer_stream,
+        buffer_queue,
         compositor_id,
         surface_rect,
         transformation_matrix,
@@ -742,7 +737,7 @@ std::unique_ptr<mg::Renderable> ms::BasicSurface::compositor_snapshot(void const
 int ms::BasicSurface::buffers_ready_for_compositor(void const* id) const
 {
     std::unique_lock<std::mutex> lk(guard);
-    return surface_buffer_stream->buffers_ready_for_compositor(id);
+    return buffer_queue->buffers_ready_for_compositor(id);
 }
 
 void ms::BasicSurface::consume(MirEvent const& event)

@@ -34,14 +34,14 @@ class CursorImage;
 }
 namespace scene
 {
-class BufferStreamFactory;
+class BufferQueueFactory;
 class SceneReport;
 class SurfaceConfigurator;
 
 class SurfaceAllocator : public SurfaceFactory
 {
 public:
-    SurfaceAllocator(std::shared_ptr<BufferStreamFactory> const& bb_factory,
+    SurfaceAllocator(std::shared_ptr<BufferQueueFactory> const& bq_factory,
                      std::shared_ptr<input::InputChannelFactory> const& input_factory,
                      std::shared_ptr<input::InputSender> const& input_sender,
                      std::shared_ptr<graphics::CursorImage> const& default_cursor_image,
@@ -50,7 +50,7 @@ public:
     std::shared_ptr<Surface> create_surface(SurfaceCreationParameters const& params) override;
 
 private:
-    std::shared_ptr<BufferStreamFactory> const buffer_stream_factory;
+    std::shared_ptr<BufferQueueFactory> const buffer_queue_factory;
     std::shared_ptr<input::InputChannelFactory> const input_factory;
     std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<graphics::CursorImage> const default_cursor_image;

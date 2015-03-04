@@ -56,6 +56,7 @@ public:
     virtual void allow_framedropping(bool dropping_allowed) = 0;
     virtual void force_requests_to_complete() = 0;
     virtual void resize(const geometry::Size &newsize) = 0;
+    virtual geometry::Size size() = 0;
     virtual int buffers_ready_for_compositor(void const* user_id) const = 0;
 
     /**

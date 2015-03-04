@@ -24,7 +24,7 @@
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/compositor/scene.h"
 #include "mir/compositor/buffer_stream.h"
-#include "mir/scene/buffer_stream_factory.h"
+#include "mir/scene/buffer_queue_factory.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_doubles/stub_buffer.h"

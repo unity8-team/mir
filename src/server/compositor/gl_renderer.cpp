@@ -17,7 +17,6 @@
 
 #define MIR_LOG_COMPONENT "GL"
 #include "mir/compositor/gl_renderer.h"
-#include "mir/compositor/buffer_stream.h"
 #include "mir/compositor/destination_alpha.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/buffer.h"

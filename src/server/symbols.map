@@ -672,7 +672,7 @@ MIR_SERVER_31 {
     mir::DefaultServerConfiguration::new_ipc_factory*;
     mir::DefaultServerConfiguration::the_android_input_dispatcher*;
     mir::DefaultServerConfiguration::the_buffer_allocator*;
-    mir::DefaultServerConfiguration::the_buffer_stream_factory*;
+    mir::DefaultServerConfiguration::the_buffer_queue_factory*;
     mir::DefaultServerConfiguration::the_clock*;
     mir::DefaultServerConfiguration::the_composite_event_filter*;
     mir::DefaultServerConfiguration::the_compositor*;

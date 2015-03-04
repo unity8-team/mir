@@ -15,7 +15,7 @@
  *
  */
 
-#include "buffer_queue.h"
+#include "mir/compositor/buffer_queue.h"
 
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
@@ -29,6 +29,7 @@
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
+namespace geom = mir::geometry;
 
 namespace
 {
@@ -368,6 +369,12 @@ void mc::BufferQueue::force_requests_to_complete()
         }
         give_buffer_to_client(buffer, lock, ignore_snapshot);
     }
+}
+
+geom::Size mc::BufferQueue::size()
+{
+    std::lock_guard<decltype(guard)> lock(guard);
+    return the_properties.size;
 }
 
 void mc::BufferQueue::resize(geometry::Size const& new_size)

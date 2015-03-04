@@ -45,7 +45,7 @@ class SharedLibraryProberReport;
 namespace compositor
 {
 class Renderer;
-class BufferStreamFactory;
+class BufferQueueFactory;
 class Scene;
 class Drawer;
 class DisplayBufferCompositorFactory;
@@ -87,7 +87,7 @@ namespace scene
 {
 class SurfaceFactory;
 class BroadcastingSessionEventSink;
-class BufferStreamFactory;
+class BufferQueueFactory;
 class MediatingDisplayChanger;
 class PixelBuffer;
 class PlacementStrategy;
@@ -278,7 +278,7 @@ public:
     /** @name scene configuration - dependencies
      * dependencies of scene on the rest of the Mir
      *  @{ */
-    virtual std::shared_ptr<scene::BufferStreamFactory> the_buffer_stream_factory();
+    virtual std::shared_ptr<scene::BufferQueueFactory> the_buffer_queue_factory();
     virtual std::shared_ptr<scene::SceneReport>      the_scene_report();
     /** @} */
 
@@ -389,7 +389,7 @@ protected:
     CachedPtr<frontend::ConnectionCreator> prompt_connection_creator;
     CachedPtr<frontend::Screencast> screencast;
     CachedPtr<compositor::RendererFactory> renderer_factory;
-    CachedPtr<compositor::BufferStreamFactory> buffer_stream_factory;
+    CachedPtr<compositor::BufferQueueFactory> buffer_queue_factory;
     CachedPtr<compositor::FrameDroppingPolicyFactory> frame_dropping_policy_factory;
     CachedPtr<scene::SurfaceStack> surface_stack;
     CachedPtr<scene::SceneReport> scene_report;

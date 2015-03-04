@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012, 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,35 +16,36 @@
  * Authored by:
  *  Alan Griffiths <alan@octopull.co.uk>
  *  Thomas Voss <thomas.voss@canonical.com>
+ *  Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#ifndef MIR_SCENE_BUFFER_STREAM_FACTORY_H_
-#define MIR_SCENE_BUFFER_STREAM_FACTORY_H_
+#ifndef MIR_SCENE_BUFFER_QUEUE_FACTORY_H_
+#define MIR_SCENE_BUFFER_QUEUE_FACTORY_H_
 
 #include <memory>
 
 namespace mir
 {
-namespace compositor { class BufferStream; }
+namespace compositor { class BufferBundle; }
 namespace graphics { struct BufferProperties; }
 
 namespace scene
 {
-class BufferStreamFactory
+class BufferQueueFactory
 {
 public:
-    virtual ~BufferStreamFactory() = default;
+    virtual ~BufferQueueFactory() = default;
 
-    virtual std::shared_ptr<compositor::BufferStream> create_buffer_stream(
+    virtual std::shared_ptr<compositor::BufferBundle> create_buffer_queue(
         graphics::BufferProperties const& buffer_properties) = 0;
 
 protected:
-    BufferStreamFactory() = default;
-    BufferStreamFactory(const BufferStreamFactory&) = delete;
-    BufferStreamFactory& operator=(const BufferStreamFactory&) = delete;
+    BufferQueueFactory() = default;
+    BufferQueueFactory(const BufferQueueFactory&) = delete;
+    BufferQueueFactory& operator=(const BufferQueueFactory&) = delete;
 };
 
 }
 }
 
-#endif // MIR_SCENE_BUFFER_STREAM_FACTORY_H_
+#endif // MIR_SCENE_BUFFER_QUEUE_FACTORY_H_

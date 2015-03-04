@@ -39,7 +39,7 @@ namespace mir
 namespace compositor
 {
 struct BufferIPCPackage;
-class BufferStream;
+class BufferBundle;
 }
 namespace frontend { class EventSink; }
 namespace graphics
@@ -83,7 +83,7 @@ public:
         std::string const& name,
         geometry::Rectangle rect,
         bool nonrectangular,
-        std::shared_ptr<compositor::BufferStream> const& buffer_stream,
+        std::shared_ptr<compositor::BufferBundle> const& buffer_queue,
         std::shared_ptr<input::InputChannel> const& input_channel,
         std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
@@ -94,7 +94,7 @@ public:
         geometry::Rectangle rect,
         std::weak_ptr<Surface> const& parent,
         bool nonrectangular,
-        std::shared_ptr<compositor::BufferStream> const& buffer_stream,
+        std::shared_ptr<compositor::BufferBundle> const& buffer_queue,
         std::shared_ptr<input::InputChannel> const& input_channel,
         std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
@@ -124,8 +124,6 @@ public:
     void set_reception_mode(input::InputReceptionMode mode) override;
 
     void set_input_region(std::vector<geometry::Rectangle> const& input_rectangles) override;
-
-    std::shared_ptr<compositor::BufferStream> buffer_stream() const;
 
     void resize(geometry::Size const& size) override;
     geometry::Point top_left() const override;
@@ -187,7 +185,7 @@ private:
     input::InputReceptionMode input_mode;
     const bool nonrectangular;
     std::vector<geometry::Rectangle> custom_input_rectangles;
-    std::shared_ptr<compositor::BufferStream> const surface_buffer_stream;
+    std::shared_ptr<compositor::BufferBundle> const buffer_queue;
     std::shared_ptr<input::InputChannel> const server_input_channel;
     std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<graphics::CursorImage> cursor_image_;

@@ -19,7 +19,7 @@
 #include "mir/default_server_configuration.h"
 
 #include "mir/shell/shell.h"
-#include "buffer_stream_factory.h"
+#include "buffer_queue_factory.h"
 #include "default_display_buffer_compositor_factory.h"
 #include "multi_threaded_compositor.h"
 #include "gl_renderer_factory.h"
@@ -36,14 +36,14 @@ namespace mc = mir::compositor;
 namespace ms = mir::scene;
 namespace mf = mir::frontend;
 
-std::shared_ptr<ms::BufferStreamFactory>
-mir::DefaultServerConfiguration::the_buffer_stream_factory()
+std::shared_ptr<ms::BufferQueueFactory>
+mir::DefaultServerConfiguration::the_buffer_queue_factory()
 {
-    return buffer_stream_factory(
+    return buffer_queue_factory(
         [this]()
         {
-            return std::make_shared<mc::BufferStreamFactory>(the_buffer_allocator(),
-                                                             the_frame_dropping_policy_factory());
+            return std::make_shared<mc::BufferQueueFactory>(the_buffer_allocator(),
+                                                            the_frame_dropping_policy_factory());
         });
 }
 
