@@ -20,6 +20,7 @@
 #define MIR_FRONTEND_SESSION_MEDIATOR_H_
 
 #include "display_server.h"
+#include "mir/semaphore_lock.h"
 #include "mir/frontend/connection_context.h"
 #include "mir/frontend/surface_id.h"
 #include "mir/graphics/platform_ipc_operations.h"
@@ -213,7 +214,7 @@ private:
 
     SurfaceTracker surface_tracker;
 
-    std::mutex session_mutex;
+    SemaphoreLock session_lock;
     std::weak_ptr<Session> weak_session;
     std::weak_ptr<PromptSession> weak_prompt_session;
 };
