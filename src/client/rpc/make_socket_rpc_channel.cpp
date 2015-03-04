@@ -18,6 +18,7 @@
 
 #include "make_rpc_channel.h"
 #include "mir_protobuf_rpc_channel.h"
+#include "mir/frontend/protobuf_handshake_protocol.h"
 #include "stream_socket_transport.h"
 
 #include <boost/throw_exception.hpp>
@@ -26,6 +27,7 @@
 #include <cstring>
 
 namespace mcl = mir::client;
+namespace mf = mir::frontend;
 namespace mclr = mir::client::rpc;
 
 namespace
@@ -62,9 +64,13 @@ mclr::make_rpc_channel(std::string const& name,
         transport = std::make_unique<mclr::StreamSocketTransport>(name);
     }
     // TODO: Multiple co-existing client protocols, server replies.
+    mf::ProtobufHandshakeProtocol handshake;
     std::vector<uint8_t> buffer(38);
-    *reinterpret_cast<uint16_t*>(buffer.data()) = 0;
-    memcpy(buffer.data() + 2, "60019143-2648-4904-9719-7817f0b9fb13", 36);
+    uuid_t id;
+    handshake.protocol_id(id);
+    *reinterpret_cast<uint16_t*>(buffer.data()) = handshake.header_size();
+    uuid_unparse(id, reinterpret_cast<char*>(buffer.data()) + 2);
+
     transport->send_message(buffer, {});
     return std::make_shared<MirProtobufRpcChannel>(std::move(transport), map, disp_conf, rpc_report, lifecycle_control, event_sink);
 }
