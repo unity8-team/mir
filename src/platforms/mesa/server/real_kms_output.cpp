@@ -281,7 +281,11 @@ void mgm::RealKMSOutput::wait_for_page_flip()
         if (frame_time_usec < 0)
             frame_time_usec += 1000000L;
     }
-    else if (!idle)  // Slow compositor and not an idle compositor
+    else if (idle)
+    {
+        frame_skips = 0;
+    }
+    else
     {
         ++frame_skips;
     }
