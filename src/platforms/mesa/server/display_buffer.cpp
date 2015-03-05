@@ -194,8 +194,6 @@ bool mgm::DisplayBuffer::uses_alpha() const
 
 bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& renderable_list)
 {
-    bypassed = false;
-
     if ((rotation == mir_orientation_normal) &&
        (platform->bypass_option() == mgm::BypassOption::allowed))
     {
@@ -204,11 +202,11 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         if (bypass_it != renderable_list.rend())
         {
             auto& renderable = **bypass_it;
-            bypassed = post_bypass(renderable);
+            return post_bypass(renderable);
         }
     }
 
-    return bypassed;
+    return false;
 }
 
 void mgm::DisplayBuffer::for_each_display_buffer(
@@ -286,6 +284,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
         fatal_error("Failed to schedule bypass page flip");
 
     scheduled_bypass_buf = bypass_buf;
+    bypassed = true;
 
     return true;
 }
