@@ -98,6 +98,7 @@ mgm::DisplayBuffer::DisplayBuffer(
     EGLContext shared_context)
     : last_flipped_bufobj{nullptr},
       scheduled_bufobj{nullptr},
+      bypassed{false},
       platform(platform),
       listener(listener),
       drm(*platform->drm),
@@ -193,6 +194,8 @@ bool mgm::DisplayBuffer::uses_alpha() const
 
 bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& renderable_list)
 {
+    bypassed = false;
+
     if ((rotation == mir_orientation_normal) &&
        (platform->bypass_option() == mgm::BypassOption::allowed))
     {
@@ -200,12 +203,12 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
         if (bypass_it != renderable_list.rend())
         {
-            bypass_candidate = *bypass_it;
-            return true;
+            auto& renderable = **bypass_it;
+            bypassed = post_bypass(renderable);
         }
     }
 
-    return false;
+    return bypassed;
 }
 
 void mgm::DisplayBuffer::for_each_display_buffer(
@@ -218,10 +221,9 @@ void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
-    bypass_candidate.reset();
 }
 
-void mgm::DisplayBuffer::post()
+void mgm::DisplayBuffer::finish_previous_frame()
 {
     /*
      * We might not have waited for the previous frame to page flip yet.
@@ -231,22 +233,29 @@ void mgm::DisplayBuffer::post()
      */
     wait_for_page_flip();
 
-    last_flipped_bypass_buf = scheduled_bypass_buf;
-    scheduled_bypass_buf = nullptr;
+    // Make sure we hold a reference to some visible framebuffer always.
+    // Ideally only one most of the time.
+    {
+        last_flipped_bypass_buf = scheduled_bypass_buf;
+        scheduled_bypass_buf = nullptr;
+    
+        if (last_flipped_bufobj)
+            last_flipped_bufobj->release();
+        last_flipped_bufobj = scheduled_bufobj;
+        scheduled_bufobj = nullptr;
+    }
+}
 
-    if (last_flipped_bufobj)
-        last_flipped_bufobj->release();
-    last_flipped_bufobj = scheduled_bufobj;
-    scheduled_bufobj = nullptr;
-
-    if (bypass_candidate)
-        post_bypass();
-    else
+void mgm::DisplayBuffer::post()
+{
+    if (!bypassed)
         post_egl();
 }
 
-void mgm::DisplayBuffer::post_bypass()
+bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
 {
+    finish_previous_frame();
+
     bool use_adaptive_wait = (outputs.size() == 1);
     if (use_adaptive_wait)
     {
@@ -256,7 +265,7 @@ void mgm::DisplayBuffer::post_bypass()
         single->adaptive_wait();
     }
 
-    auto bypass_buf = bypass_candidate->buffer();
+    auto bypass_buf = renderable.buffer();
     if (use_adaptive_wait && bypass_buf.use_count() > 2)
         fatal_error("Bypass renderable's buffer() was acquired too early.");
     auto native = bypass_buf->native_buffer_handle();
@@ -266,10 +275,8 @@ void mgm::DisplayBuffer::post_bypass()
         !(native->flags & mir_buffer_flag_can_scanout) ||
         bypass_buf->size() != geom::Size{fb_width,fb_height})
     {
-        // Prediction failed. Skip a frame.
-        // FIXME: We can't fall back to EGL any more while this is outside
-        //        of the optimize function.
-        return;
+        // Bypass failed. Fall back to GL.
+        return false;
     }
 
     if (needs_set_crtc)
@@ -278,10 +285,14 @@ void mgm::DisplayBuffer::post_bypass()
         fatal_error("Failed to schedule bypass page flip");
 
     scheduled_bypass_buf = bypass_buf;
+
+    return true;
 }
 
 void mgm::DisplayBuffer::post_egl()
 {
+    finish_previous_frame();
+
     mgm::BufferObject *bufobj = get_front_buffer_object();
     if (!bufobj)
         fatal_error("Failed to get front buffer object");
@@ -421,7 +432,7 @@ void mgm::DisplayBuffer::make_current()
         fatal_error("Failed to make EGL surface current");
     }
 
-    // This needs to be done before rendering starts:
+    // To be effective, this needs to be done before rendering starts:
     if (outputs.size() == 1)
     {
         auto& single = outputs.front();
@@ -429,6 +440,10 @@ void mgm::DisplayBuffer::make_current()
             single->reset_adaptive_wait();
         single->adaptive_wait();
     }
+
+    // A compositor might not even call post_renderables_if_optimizable,
+    // so make sure the flag is correct in that case:
+    bypassed = false;
 }
 
 void mgm::DisplayBuffer::release_current()

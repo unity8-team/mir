@@ -76,14 +76,15 @@ private:
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
     bool schedule_page_flip(BufferObject* bufobj);
-    void post_bypass();
+    void finish_previous_frame();
+    bool post_bypass(graphics::Renderable const&);
     void post_egl();
     void set_crtc(BufferObject const&);
 
     BufferObject* last_flipped_bufobj;
     BufferObject* scheduled_bufobj;
     std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf, scheduled_bypass_buf;
-    std::shared_ptr<graphics::Renderable> bypass_candidate;
+    bool bypassed;
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;
     /* DRM helper from mgm::Platform */
