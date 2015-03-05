@@ -279,20 +279,21 @@ void mgm::RealKMSOutput::wait_for_page_flip()
         if (frame_time_usec < 0)
             frame_time_usec += 1000000L;
     }
-    else if (!idle)
+    else if (!idle)  // An idle compositor is not a slow compositor
     {
         render_time_estimate += 1000;
-        if (render_time_estimate < frame_time_usec)
-        {
-            mir::log_info("Output latency adjusted to %ldms, "
-                          "with frame time %ldms",
-                          render_time_estimate/1000, frame_time_usec/1000);
-        }
-        else
+        if (render_time_estimate >= frame_time_usec)
         {
             render_time_estimate = render_time_too_large;
             mir::log_info("Frame skipping! Your compositor or hardware is "
                           "too slow to render smoothly.");
+        }
+        else
+        {
+            // This is probably too verbose and should go away eventually...
+            mir::log_info("Output latency adjusted to %ldms, "
+                          "with frame time %ldms",
+                          render_time_estimate/1000, frame_time_usec/1000);
         }
     }
 }
@@ -329,7 +330,9 @@ void mgm::RealKMSOutput::adaptive_wait()
         return;
     prev_vblank = io.reply;
 
+    // Is the compositor trying to keep up or just doesn't have much work?
     idle = (prev_vblank.sequence != prev_flip.sequence);
+
     if (!idle)
     {   // The compositor is trying to keep up full frame rate...
         auto prev_vblank_abs = prev_vblank.tval_sec * 1000000LL
@@ -340,7 +343,10 @@ void mgm::RealKMSOutput::adaptive_wait()
         struct timespec wakeup;
         wakeup.tv_sec = wakeup_abs / 1000000;
         wakeup.tv_nsec = (wakeup_abs % 1000000) * 1000;
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
+        do
+        {
+            err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
+        } while (err == EINTR);
     }
 }
 
