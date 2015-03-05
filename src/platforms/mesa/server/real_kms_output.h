@@ -76,12 +76,14 @@ private:
     bool using_saved_crtc;
     bool has_cursor_;
 
-    drmVBlankReply prev_prev_vblank = {DRM_VBLANK_RELATIVE, 0, 0, 0};
-
     MirPowerMode power_mode;
     int dpms_enum_id;
 
+    drmVBlankReply prev_flip =   {DRM_VBLANK_RELATIVE, 0, 0, 0},
+                   prev_vblank = {DRM_VBLANK_RELATIVE, 0, 0, 0};
+    long frame_time_usec = 0;
     long render_time_estimate = 0;
+    bool idle = true;
 
     std::mutex power_mutex;
 };
