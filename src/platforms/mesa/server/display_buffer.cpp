@@ -235,6 +235,7 @@ void mgm::DisplayBuffer::finish_previous_frame()
 
     // Make sure we hold a reference to some visible framebuffer always.
     // Ideally only one most of the time.
+    if (scheduled_bypass_buf || scheduled_bufobj)
     {
         last_flipped_bypass_buf = scheduled_bypass_buf;
         scheduled_bypass_buf = nullptr;
