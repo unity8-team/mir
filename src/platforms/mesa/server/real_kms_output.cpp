@@ -267,22 +267,13 @@ void mgm::RealKMSOutput::wait_for_page_flip()
                    connector_name(connector.get()).c_str());
     }
     page_flipper->wait_for_flip(current_crtc->crtc_id);
+    prev_flip = page_flipper->last_flip();
 
     if (render_time_estimate >= render_time_too_large)
+    {
         return;
-
-    // TODO This is a good estimate of flip time but we should get it from
-    //      page_flipper instead.
-    drmVBlank io;
-    io.request.type = DRM_VBLANK_RELATIVE;
-    io.request.sequence = 0;
-    io.request.signal = 0;
-    int err = drmWaitVBlank(drm_fd, &io);
-    if (err)
-        return;
-    prev_flip = io.reply;
-
-    if (prev_flip.sequence == prev_vblank.sequence + 1)
+    }
+    else if (prev_flip.sequence == prev_vblank.sequence + 1)
     {
         frame_time_usec = prev_flip.tval_usec - prev_vblank.tval_usec;
         if (frame_time_usec < 0)
@@ -291,13 +282,11 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     else if (!idle)
     {
         render_time_estimate += 1000;
-        if (render_time_estimate < 10000)
+        if (render_time_estimate < frame_time_usec)
         {
             mir::log_info("Output latency adjusted to %ldms, "
-                          "with frame time %ld.%03ldms",
-                          render_time_estimate/1000,
-                          frame_time_usec/1000,
-                          frame_time_usec%1000);
+                          "with frame time %ldms",
+                          render_time_estimate/1000, frame_time_usec/1000);
         }
         else
         {
@@ -343,16 +332,14 @@ void mgm::RealKMSOutput::adaptive_wait()
     idle = (prev_vblank.sequence != prev_flip.sequence);
     if (!idle)
     {   // The compositor is trying to keep up full frame rate...
-        typedef long long KernelMonotonicMicroseconds;
-        KernelMonotonicMicroseconds
-            prev_vblank_time = prev_vblank.tval_sec * 1000000LL
-                             + prev_vblank.tval_usec,
-            next_vblank_time = prev_vblank_time + frame_time_usec,
-            wakeup_time = next_vblank_time - render_time_estimate;
+        auto prev_vblank_abs = prev_vblank.tval_sec * 1000000LL
+                             + prev_vblank.tval_usec;
+        auto next_vblank_abs = prev_vblank_abs + frame_time_usec;
+        auto wakeup_abs = next_vblank_abs - render_time_estimate;
 
         struct timespec wakeup;
-        wakeup.tv_sec = wakeup_time / 1000000;
-        wakeup.tv_nsec = (wakeup_time % 1000000) * 1000;
+        wakeup.tv_sec = wakeup_abs / 1000000;
+        wakeup.tv_nsec = (wakeup_abs % 1000000) * 1000;
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
     }
 }

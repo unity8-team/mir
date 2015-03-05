@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_MESA_PAGE_FLIPPER_H_
 #define MIR_GRAPHICS_MESA_PAGE_FLIPPER_H_
 
+#include <xf86drm.h>
 #include <cstdint>
 
 namespace mir
@@ -35,6 +36,7 @@ public:
 
     virtual bool schedule_flip(uint32_t crtc_id, uint32_t fb_id) = 0;
     virtual void wait_for_flip(uint32_t crtc_id) = 0;
+    virtual drmVBlankReply const& last_flip() const = 0;
 
 protected:
     PageFlipper() = default;

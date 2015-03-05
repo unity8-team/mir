@@ -32,12 +32,12 @@ namespace mgm = mir::graphics::mesa;
 namespace
 {
 
-void page_flip_handler(int /*fd*/, unsigned int /*frame*/,
-                       unsigned int /*sec*/, unsigned int /*usec*/,
-                       void* data)
+void page_flip_handler(int /*fd*/, unsigned int seq,
+                       unsigned int sec, unsigned int usec, void* data)
 {
     auto page_flip_data = static_cast<mgm::PageFlipEventData*>(data);
-    page_flip_data->flipper->notify_page_flip(page_flip_data->crtc_id);
+    page_flip_data->flipper->notify_page_flip(page_flip_data->crtc_id,
+                                              seq, sec, usec);
 }
 
 }
@@ -158,8 +158,18 @@ bool mgm::KMSPageFlipper::page_flip_is_done(uint32_t crtc_id)
     return pending_page_flips.find(crtc_id) == pending_page_flips.end();
 }
 
-void mgm::KMSPageFlipper::notify_page_flip(uint32_t crtc_id)
+void mgm::KMSPageFlipper::notify_page_flip(uint32_t crtc_id,
+                                           unsigned int seq,
+                                           long sec, long usec)
 {
     report->report_vsync(crtc_id);
     pending_page_flips.erase(crtc_id);
+    latest_flip.sequence = seq;
+    latest_flip.tval_sec = sec;
+    latest_flip.tval_usec = usec;
+}
+
+drmVBlankReply const& mgm::KMSPageFlipper::last_flip() const
+{
+    return latest_flip;
 }

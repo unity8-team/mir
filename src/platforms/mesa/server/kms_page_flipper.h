@@ -53,10 +53,12 @@ public:
 
     bool schedule_flip(uint32_t crtc_id, uint32_t fb_id);
     void wait_for_flip(uint32_t crtc_id);
+    drmVBlankReply const& last_flip() const override;
 
     std::thread::id debug_get_worker_tid();
 
-    void notify_page_flip(uint32_t crtc_id); 
+    void notify_page_flip(uint32_t crtc_id, unsigned int seq,
+                          long sec, long usec); 
 private:
     bool page_flip_is_done(uint32_t crtc_id);
 
@@ -66,6 +68,8 @@ private:
     std::mutex pf_mutex;
     std::condition_variable pf_cv;
     std::thread::id worker_tid;
+
+    drmVBlankReply latest_flip = {DRM_VBLANK_ABSOLUTE, 0, 0, 0};
 };
 
 }
