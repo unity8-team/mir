@@ -266,6 +266,7 @@ void mgm::RealKMSOutput::wait_for_page_flip()
         fatal_error("Output %s has no associated CRTC to wait on",
                    connector_name(connector.get()).c_str());
     }
+
     page_flipper->wait_for_flip(current_crtc->crtc_id);
     prev_flip = page_flipper->last_flip();
 
@@ -275,11 +276,17 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     }
     else if (prev_flip.sequence == prev_vblank.sequence + 1)
     {
+        frame_skips = 0;
         frame_time_usec = prev_flip.tval_usec - prev_vblank.tval_usec;
         if (frame_time_usec < 0)
             frame_time_usec += 1000000L;
     }
-    else if (!idle)  // An idle compositor is not a slow compositor
+    else if (!idle)  // Slow compositor and not an idle compositor
+    {
+        ++frame_skips;
+    }
+
+    if (frame_skips >= 3)  // Only repeated frame skips need action...
     {
         render_time_estimate += 1000;
         if (render_time_estimate >= frame_time_usec)
@@ -308,19 +315,9 @@ void mgm::RealKMSOutput::adaptive_wait()
     if (render_time_estimate >= render_time_too_large)
         return;
 
-    /**
-     * This is much more complicated than it should be. Unfortunately Linux
-     * DRM is a bit weird and we need to do this.
-     *   The rules are: you're allowed to drmWaitVBlank and query the previous
-     * vblank time, but not wait for the next vblank using drmWaitVBlank.
-     * If you use drmWaitVBlank in a way that forces it to block, that means
-     * you have then waited too long to be able to squeeze a page flip schedule
-     * into that same vblank. And the kernel DRM code will force you to wait an
-     * extra frame. Very annoying.
-     *   So we need to passively query the last vblank time and work out our
-     * own sleep to wake up a bit before the next one, with enough time
-     * spare to schedule a page flip.
-     */
+    // Only ever query the previous vblank. Actually waiting for the next one
+    // will guarantee that any page flip you then try and schedule will miss.
+    // That's not really how the hardware works, just a Linux DRM limitation.
     drmVBlank io;
     io.request.type = DRM_VBLANK_RELATIVE;
     io.request.sequence = 0;

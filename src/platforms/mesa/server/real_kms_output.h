@@ -83,6 +83,7 @@ private:
                    prev_vblank = {DRM_VBLANK_RELATIVE, 0, 0, 0};
     long frame_time_usec = 0;
     long render_time_estimate = 0;
+    int frame_skips = 0;
     bool idle = true;
 
     std::mutex power_mutex;
