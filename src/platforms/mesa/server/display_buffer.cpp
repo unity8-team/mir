@@ -282,27 +282,6 @@ void mgm::DisplayBuffer::post_bypass()
 
 void mgm::DisplayBuffer::post_egl()
 {
-    /*
-     * XXX Experimental XXX
-     * This is the "sleep" approach to reducing latency.
-     * This optimization is usually only enabled for bypass, where the render
-     * time is predictably zero. For the compositing case it's more art than
-     * science. You're free to try it out, but if the adaptive wait fails to
-     * correctly estimate the required delay for render_time+flip_scheduling
-     * then it may cause stuttering...
-     */
-    bool const enable_low_latency_compositing = true;
-    if (enable_low_latency_compositing)
-    {
-        if (outputs.size() == 1)
-        {
-            auto& single = outputs.front();
-            if (!last_flipped_bufobj)
-                single->reset_adaptive_wait();
-            single->adaptive_wait();
-        }
-    }
-
     mgm::BufferObject *bufobj = get_front_buffer_object();
     if (!bufobj)
         fatal_error("Failed to get front buffer object");
@@ -440,6 +419,15 @@ void mgm::DisplayBuffer::make_current()
     if (!egl.make_current())
     {
         fatal_error("Failed to make EGL surface current");
+    }
+
+    // This needs to be done before rendering starts:
+    if (outputs.size() == 1)
+    {
+        auto& single = outputs.front();
+        if (last_flipped_bypass_buf)
+            single->reset_adaptive_wait();
+        single->adaptive_wait();
     }
 }
 
