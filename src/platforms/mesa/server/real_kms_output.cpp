@@ -302,6 +302,7 @@ void mgm::RealKMSOutput::adaptive_wait()
         return;
 
     auto& prev_vblank = io.reply;
+//    mir::log_info("adaptive_wait: prev #%u, pprev #%u", prev_vblank.sequence, prev_prev_vblank.sequence);
     if (prev_vblank.sequence == prev_prev_vblank.sequence + 1)
     {   // We're rendering at full monitor speed...
         long frametime_usec = prev_vblank.tval_usec
@@ -321,6 +322,7 @@ void mgm::RealKMSOutput::adaptive_wait()
         wakeup.tv_nsec = (wakeup_time % 1000000) * 1000;
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);
 
+        // TODO: move this all into the page flip callback
         drmVBlank check;
         check.request.type = DRM_VBLANK_RELATIVE;
         check.request.sequence = 0;
@@ -328,9 +330,11 @@ void mgm::RealKMSOutput::adaptive_wait()
         err = drmWaitVBlank(drm_fd, &check);
         if (!err && check.reply.sequence != prev_vblank.sequence)
         {
+            render_time_estimate *= 2;
+            if (!render_time_estimate)
+                render_time_estimate = 1000;
             if (render_time_estimate < frametime_usec)
             {
-                render_time_estimate += 1000;
                 mir::log_info("Output latency adjusted to %ldms",
                               render_time_estimate/1000);
             }
@@ -339,8 +343,8 @@ void mgm::RealKMSOutput::adaptive_wait()
                 render_time_estimate = render_time_too_large;
                 mir::log_info("Frame skipping! Your compositor or hardware is "
                               "too slow to render smoothly. It's failing to "
-                              "keep up with a frame interval of %ldms",
-                              frametime_usec/1000);
+                              "keep up with a frame interval of %ld.%03ldms",
+                              frametime_usec/1000, frametime_usec%1000);
             }
         }
     }
