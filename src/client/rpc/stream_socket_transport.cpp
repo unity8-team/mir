@@ -51,6 +51,21 @@ void mclr::StreamSocketTransport::register_observer(std::shared_ptr<Observer> co
     observers.push_back(observer);
 }
 
+void mclr::StreamSocketTransport::unregister_observer(Observer const& observer)
+{
+    std::lock_guard<decltype(observer_mutex)> lock(observer_mutex);
+    auto victim = std::find_if (observers.begin(), observers.end(),
+                                [&observer] (std::shared_ptr<Observer> candidate)
+    {
+        return candidate.get() == &observer;
+    });
+    if (victim == observers.end())
+    {
+        throw std::logic_error{"Attempted to unregister a not-registered observer"};
+    }
+    observers.erase(victim);
+}
+
 void mclr::StreamSocketTransport::receive_data(void* buffer, size_t bytes_requested)
 {
     /*

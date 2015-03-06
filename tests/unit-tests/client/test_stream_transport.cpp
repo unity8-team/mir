@@ -1193,3 +1193,81 @@ TYPED_TEST(StreamTransportTest, ReceivingDataWithoutAskingForFdsIsAnErrorWhenThe
 
     EXPECT_TRUE(receive_done->wait_for(std::chrono::seconds{1}));
 }
+
+TYPED_TEST(StreamTransportTest, unregistering_a_not_registered_observer_is_an_error)
+{
+    MockObserver observer;
+    EXPECT_THROW(this->transport->unregister_observer(observer), std::logic_error);
+}
+
+TYPED_TEST(StreamTransportTest, unregistering_an_observer_prevents_further_observation)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    int notification_count{0};
+
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&notification_count]()
+                                                                 { ++notification_count; }));
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&notification_count]()
+                                                               { ++notification_count; }));
+
+    this->transport->register_observer(observer);
+
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_THAT(notification_count, Eq(1));
+
+    this->transport->unregister_observer(*observer);
+
+    EXPECT_TRUE(mt::fd_is_readable(this->transport->watch_fd()));
+    this->transport->dispatch(md::FdEvent::readable);
+
+    // No new notification of readability...
+    EXPECT_THAT(notification_count, Eq(1));
+
+    // Likewise, no notification of disconnection.
+    this->transport->dispatch(md::FdEvent::remote_closed);
+    EXPECT_THAT(notification_count, Eq(1));
+}
+
+TYPED_TEST(StreamTransportTest, unregistering_in_a_callback_succeeds)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    int notification_count{0};
+
+    // Pass the observer shared_ptr by reference here to avoid a trivial reference cycle.
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&notification_count, this, &observer]()
+    {
+        ++notification_count;
+        this->transport->unregister_observer(*observer);
+    }));
+
+    this->transport->register_observer(observer);
+
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_THAT(notification_count, Eq(1));
+
+    EXPECT_TRUE(mt::fd_is_readable(this->transport->watch_fd()));
+    this->transport->dispatch(md::FdEvent::readable);
+
+    // No new notification of readability...
+    EXPECT_THAT(notification_count, Eq(1));
+
+    // Likewise, no notification of disconnection.
+    this->transport->dispatch(md::FdEvent::remote_closed);
+    EXPECT_THAT(notification_count, Eq(1));
+}
