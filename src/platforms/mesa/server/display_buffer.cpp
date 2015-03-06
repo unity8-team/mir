@@ -96,8 +96,8 @@ mgm::DisplayBuffer::DisplayBuffer(
     MirOrientation rot,
     GLConfig const& gl_config,
     EGLContext shared_context)
-    : last_flipped_bufobj{nullptr},
-      scheduled_bufobj{nullptr},
+    : visible_composite_frame{nullptr},
+      scheduled_composite_frame{nullptr},
       bypassed{false},
       platform(platform),
       listener(listener),
@@ -140,11 +140,11 @@ mgm::DisplayBuffer::DisplayBuffer(
 
     listener->report_successful_egl_buffer_swap_on_construction();
 
-    scheduled_bufobj = get_front_buffer_object();
-    if (!scheduled_bufobj)
+    scheduled_composite_frame = get_front_buffer_object();
+    if (!scheduled_composite_frame)
         fatal_error("Failed to get frontbuffer");
 
-    set_crtc(*scheduled_bufobj);
+    set_crtc(*scheduled_composite_frame);
 
     egl.release_current();
 
@@ -160,14 +160,14 @@ mgm::DisplayBuffer::DisplayBuffer(
 mgm::DisplayBuffer::~DisplayBuffer()
 {
     /*
-     * There is no need to destroy last_flipped_bufobj manually.
+     * There is no need to destroy visible_composite_frame manually.
      * It will be destroyed when its gbm_surface gets destroyed.
      */
-    if (last_flipped_bufobj)
-        last_flipped_bufobj->release();
+    if (visible_composite_frame)
+        visible_composite_frame->release();
 
-    if (scheduled_bufobj)
-        scheduled_bufobj->release();
+    if (scheduled_composite_frame)
+        scheduled_composite_frame->release();
 }
 
 geom::Rectangle mgm::DisplayBuffer::view_area() const
@@ -233,15 +233,15 @@ void mgm::DisplayBuffer::finish_previous_frame()
 
     // Make sure we hold a reference to some visible framebuffer always.
     // Ideally only one most of the time.
-    if (scheduled_bypass_buf || scheduled_bufobj)
+    if (scheduled_bypass_frame || scheduled_composite_frame)
     {
-        last_flipped_bypass_buf = scheduled_bypass_buf;
-        scheduled_bypass_buf = nullptr;
+        visible_bypass_frame = scheduled_bypass_frame;
+        scheduled_bypass_frame = nullptr;
     
-        if (last_flipped_bufobj)
-            last_flipped_bufobj->release();
-        last_flipped_bufobj = scheduled_bufobj;
-        scheduled_bufobj = nullptr;
+        if (visible_composite_frame)
+            visible_composite_frame->release();
+        visible_composite_frame = scheduled_composite_frame;
+        scheduled_composite_frame = nullptr;
     }
 }
 
@@ -259,7 +259,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     if (use_adaptive_wait)
     {
         auto& single = outputs.front();
-        if (!last_flipped_bypass_buf)
+        if (!visible_bypass_frame)
             single->reset_adaptive_wait();
         single->adaptive_wait();
     }
@@ -283,7 +283,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     else if (!schedule_page_flip(bufobj))
         fatal_error("Failed to schedule bypass page flip");
 
-    scheduled_bypass_buf = bypass_buf;
+    scheduled_bypass_frame = bypass_buf;
     bypassed = true;
 
     return true;
@@ -319,21 +319,21 @@ void mgm::DisplayBuffer::post_egl()
         /*
          * bufobj is now physically on screen. Release the old frame...
          */
-        if (last_flipped_bufobj)
+        if (visible_composite_frame)
         {
-            last_flipped_bufobj->release();
-            last_flipped_bufobj = nullptr;
+            visible_composite_frame->release();
+            visible_composite_frame = nullptr;
         }
 
         /*
-         * last_flipped_bufobj will be set correctly on the next iteration
+         * visible_composite_frame will be set correctly on the next iteration
          * Don't do it here or else bufobj would be released while still
          * on screen (hence tearing and artefacts).
          */
     }
 
-    scheduled_bufobj = bufobj;
-    scheduled_bypass_buf = nullptr;
+    scheduled_composite_frame = bufobj;
+    scheduled_bypass_frame = nullptr;
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
@@ -436,7 +436,7 @@ void mgm::DisplayBuffer::make_current()
     if (outputs.size() == 1)
     {
         auto& single = outputs.front();
-        if (last_flipped_bypass_buf)
+        if (visible_bypass_frame)
             single->reset_adaptive_wait();
         single->adaptive_wait();
     }

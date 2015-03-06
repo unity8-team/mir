@@ -81,9 +81,9 @@ private:
     void post_egl();
     void set_crtc(BufferObject const&);
 
-    BufferObject* last_flipped_bufobj;
-    BufferObject* scheduled_bufobj;
-    std::shared_ptr<graphics::Buffer> last_flipped_bypass_buf, scheduled_bypass_buf;
+    BufferObject* visible_composite_frame;
+    BufferObject* scheduled_composite_frame;
+    std::shared_ptr<graphics::Buffer> visible_bypass_frame, scheduled_bypass_frame;
     bool bypassed;
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;
