@@ -286,7 +286,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     scheduled_bypass_frame = bypass_buf;
     bypassed = true;
 
-    if (outputs.size() == 1)
+    if (outputs.size() == 1)  // Clone mode triple buffers to avoid stutter
         finish_previous_frame();
 
     return true;
@@ -310,33 +310,10 @@ void mgm::DisplayBuffer::post_egl()
         fatal_error("Failed to schedule EGL page flip");
     }
 
-    /*
-     * Not in clone mode? We can afford to wait for the page flip then,
-     * making us double-buffered (noticeably less laggy than the triple
-     * buffering that clone mode requires).
-     */
-    if (outputs.size() == 1)
-    {
-        wait_for_page_flip();
-
-        /*
-         * bufobj is now physically on screen. Release the old frame...
-         */
-        if (visible_composite_frame)
-        {
-            visible_composite_frame->release();
-            visible_composite_frame = nullptr;
-        }
-
-        /*
-         * visible_composite_frame will be set correctly on the next iteration
-         * Don't do it here or else bufobj would be released while still
-         * on screen (hence tearing and artefacts).
-         */
-    }
-
     scheduled_composite_frame = bufobj;
-    scheduled_bypass_frame = nullptr;
+
+    if (outputs.size() == 1)  // Clone mode triple buffers to avoid stutter
+        finish_previous_frame();
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
