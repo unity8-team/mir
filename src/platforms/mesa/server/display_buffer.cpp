@@ -286,6 +286,9 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     scheduled_bypass_frame = bypass_buf;
     bypassed = true;
 
+    if (outputs.size() == 1)
+        finish_previous_frame();
+
     return true;
 }
 
