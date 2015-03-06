@@ -378,14 +378,17 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
     if (needs_set_crtc)
     {
         set_crtc(*bufobj);
+        return true;
     }
-    else
+
+    /*
+     * Schedule the current front buffer object for display. Note that
+     * the page flip is asynchronous and synchronized with vertical refresh.
+     */
+    for (auto& output : outputs)
     {
-        for (auto& output : outputs)
-        {
-            if (output->schedule_page_flip(bufobj->get_drm_fb_id()))
-                page_flips_pending = true;
-        }
+        if (output->schedule_page_flip(bufobj->get_drm_fb_id()))
+            page_flips_pending = true;
     }
 
     return page_flips_pending;
