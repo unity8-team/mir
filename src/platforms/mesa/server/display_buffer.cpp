@@ -278,9 +278,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
         return false;
     }
 
-    if (needs_set_crtc)
-        set_crtc(*bufobj);
-    else if (!schedule_page_flip(bufobj))
+    if (!schedule_page_flip(bufobj))
         fatal_error("Failed to schedule bypass page flip");
 
     scheduled_bypass_frame = bypass_buf;
@@ -300,11 +298,7 @@ void mgm::DisplayBuffer::post_egl()
     if (!bufobj)
         fatal_error("Failed to get front buffer object");
 
-    if (needs_set_crtc)
-    {
-        set_crtc(*bufobj);
-    }
-    else if (!schedule_page_flip(bufobj))
+    if (!schedule_page_flip(bufobj))
     {
         bufobj->release();
         fatal_error("Failed to schedule EGL page flip");
@@ -381,14 +375,17 @@ void mgm::DisplayBuffer::set_crtc(BufferObject const& bufobj)
 
 bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 {
-    /*
-     * Schedule the current front buffer object for display. Note that
-     * the page flip is asynchronous and synchronized with vertical refresh.
-     */
-    for (auto& output : outputs)
+    if (needs_set_crtc)
     {
-        if (output->schedule_page_flip(bufobj->get_drm_fb_id()))
-            page_flips_pending = true;
+        set_crtc(*bufobj);
+    }
+    else
+    {
+        for (auto& output : outputs)
+        {
+            if (output->schedule_page_flip(bufobj->get_drm_fb_id()))
+                page_flips_pending = true;
+        }
     }
 
     return page_flips_pending;
