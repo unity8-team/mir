@@ -15,6 +15,7 @@ MIRPLATFORM_7 {
     mir::graphics::Buffer::size*;
     mir::graphics::Buffer::stride*;
     mir::graphics::Buffer::write*;
+    std::shared_ptr?mir::graphics::Buffer?::*;
     mir::graphics::Cursor::?Cursor*;
     mir::graphics::Cursor::Cursor*;
     mir::graphics::Cursor::hide*;

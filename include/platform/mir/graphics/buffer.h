@@ -50,4 +50,7 @@ protected:
 
 }
 }
+
+extern template class std::shared_ptr<mir::graphics::Buffer>;
+
 #endif // MIR_COMPOSITOR_BUFFER_H_
