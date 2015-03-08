@@ -20,6 +20,7 @@
 #define MIR_GRAPHICS_ANDROID_HWC_DEVICE_H_
 
 #include "mir_toolkit/common.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/android/sync_fence.h"
 #include "display_device.h"
 #include "hwc_layerlist.h"

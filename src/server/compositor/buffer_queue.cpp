@@ -17,6 +17,7 @@
 
 #include "buffer_queue.h"
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
 #include "mir/lockable_callback.h"

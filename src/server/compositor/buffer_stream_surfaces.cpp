@@ -17,6 +17,7 @@
  * Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "buffer_stream_surfaces.h"
 #include "buffer_bundle.h"
 #include "mir/graphics/buffer_properties.h"

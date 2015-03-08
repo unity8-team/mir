@@ -20,6 +20,7 @@
 #ifndef MIR_GRAPHICS_ANDROID_FB_SIMPLE_SWAPPER_H_
 #define MIR_GRAPHICS_ANDROID_FB_SIMPLE_SWAPPER_H_
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "framebuffer_bundle.h"
 
 #include <hardware/gralloc.h>

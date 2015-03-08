@@ -19,6 +19,7 @@
 #ifndef MIR_FRONTEND_SCREENCAST_H_
 #define MIR_FRONTEND_SCREENCAST_H_
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/int_wrapper.h"
 #include "mir/graphics/display_configuration.h"
 

@@ -18,6 +18,7 @@
 
 #include "compositing_screencast.h"
 #include "screencast_display_buffer.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/display.h"

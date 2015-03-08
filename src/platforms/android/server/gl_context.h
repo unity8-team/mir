@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_ANDROID_GL_CONTEXT_H_
 #define MIR_GRAPHICS_ANDROID_GL_CONTEXT_H_
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/graphics/egl_resources.h"
 #include "swapping_gl_context.h"

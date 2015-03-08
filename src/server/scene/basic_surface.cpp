@@ -24,6 +24,7 @@
 #include "mir/input/input_channel.h"
 #include "mir/shell/input_targeter.h"
 #include "mir/input/input_sender.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/buffer.h"
 #include "mir/geometry/displacement.h"
 

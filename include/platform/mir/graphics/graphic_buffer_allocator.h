@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_GRAPHIC_BUFFER_ALLOCATOR_H_
 #define MIR_GRAPHICS_GRAPHIC_BUFFER_ALLOCATOR_H_
 
+#include <mir/graphics/shared_ptr_buffer.h>
 #include "mir/graphics/buffer.h"
 
 #include <vector>

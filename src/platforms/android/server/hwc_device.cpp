@@ -25,6 +25,7 @@
 #include "buffer.h"
 #include "hwc_fallback_gl_renderer.h"
 #include "mir/raii.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include <limits>
 #include <algorithm>
 

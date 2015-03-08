@@ -19,6 +19,7 @@
 #ifndef MIR_SCENE_BASIC_SURFACE_H_
 #define MIR_SCENE_BASIC_SURFACE_H_
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/scene/surface.h"
 #include "mir/basic_observers.h"
 #include "mir/scene/surface_observer.h"

@@ -17,6 +17,7 @@
  */
 
 #include "software_cursor.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/cursor_image.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/pixel_format_utils.h"

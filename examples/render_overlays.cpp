@@ -18,6 +18,7 @@
 
 #include "mir/server.h"
 #include "mir/report_exception.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/display_buffer.h"

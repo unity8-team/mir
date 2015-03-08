@@ -17,6 +17,7 @@
  */
 
 #include "mir/graphics/renderable.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/sync_fence.h"
 #include "mir/graphics/android/native_buffer.h"

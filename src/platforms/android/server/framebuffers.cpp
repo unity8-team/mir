@@ -17,6 +17,7 @@
  * Kevin DuBois <kevin.dubois@canonical.com>
  */
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "framebuffers.h"
 #include "graphic_buffer_allocator.h"
 

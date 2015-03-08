@@ -20,6 +20,7 @@
 #ifndef MIR_FRONTEND_PROTOBUF_MESSAGE_PROCESSOR_H_
 #define MIR_FRONTEND_PROTOBUF_MESSAGE_PROCESSOR_H_
 
+#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/frontend/message_processor.h"
 
 #include "mir_protobuf.pb.h"

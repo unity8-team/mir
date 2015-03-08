@@ -17,6 +17,7 @@
  */
 
 #include "unauthorized_screencast.h"
+#include "mir/graphics/shared_ptr_buffer.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>

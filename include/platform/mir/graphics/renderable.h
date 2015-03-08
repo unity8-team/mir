@@ -19,6 +19,7 @@
 #ifndef MIR_GRAPHICS_RENDERABLE_H_
 #define MIR_GRAPHICS_RENDERABLE_H_
 
+#include <mir/graphics/shared_ptr_buffer.h>
 #include <mir/geometry/rectangle.h>
 #include <glm/glm.hpp>
 #include <memory>
