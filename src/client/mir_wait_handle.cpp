@@ -72,17 +72,15 @@ void MirWaitHandle::wait_for_pending(std::chrono::milliseconds limit)
     wait_condition.wait_for(lock, limit, [&]{ return received.size() == expecting; });
 }
 
-
-void MirWaitHandle::wait_for_one()  // wait for any single result
+MirResult MirWaitHandle::wait_for_one()  // wait for any single result
 {
     std::unique_lock<std::mutex> lock(guard);
 
     wait_condition.wait(lock, [&]{ return !received.empty(); });
 
     auto head = received.front();
-    (void)head; // TODO
     received.pop_front();
-
     --expecting;
-}
 
+    return head;
+}

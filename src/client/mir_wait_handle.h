@@ -52,7 +52,7 @@ public:
     void result_received();
     void result_received(MirResult const&);
     void wait_for_all();
-    void wait_for_one();
+    MirResult wait_for_one();
     void wait_for_pending(std::chrono::milliseconds limit);
 
 private:
