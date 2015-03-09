@@ -54,9 +54,8 @@ add_dependencies(mir-test-doubles GMock)
 
 uses_android_input(mir-test-doubles)
 
-target_link_libraries(
-  mir-test-doubles
-
+target_link_libraries(mir-test-doubles
+  mirserver-static
   3rd_party
 
   ${PROTOBUF_LIBRARIES}

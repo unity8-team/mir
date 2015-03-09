@@ -69,21 +69,6 @@ set(MIR_SERVER_OBJECTS
 )
 
 set(MIR_SERVER_REFERENCES
-  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
-  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
-  ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
-  ${GLIB_LDFLAGS} ${GLIB_LIBRARIES}
-)
-
-set(MIR_SERVER_OBJECTS ${MIR_SERVER_OBJECTS} PARENT_SCOPE)
-set(MIR_SERVER_REFERENCES ${MIR_SERVER_REFERENCES} PARENT_SCOPE)
-
-add_library(mirserver SHARED
-  ${MIR_SERVER_OBJECTS}
-)
-
-target_link_libraries(mirserver LINK_PUBLIC
-
   mirclient
   mirplatform
   mircommon
@@ -97,6 +82,12 @@ target_link_libraries(mirserver LINK_PUBLIC
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
   ${GLIB_LDFLAGS} ${GLIB_LIBRARIES}
 )
+
+add_library(mirserver SHARED ${MIR_SERVER_OBJECTS})
+add_library(mirserver-static STATIC ${MIR_SERVER_OBJECTS})
+
+target_link_libraries(mirserver LINK_PUBLIC ${MIR_SERVER_REFERENCES})
+target_link_libraries(mirserver-static LINK_PUBLIC ${MIR_SERVER_REFERENCES})
 
 install(TARGETS mirserver
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

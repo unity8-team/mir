@@ -65,12 +65,8 @@ if(MIR_TEST_PLATFORM STREQUAL "mesa")
 endif()
 
 link_directories(${LIBRARY_OUTPUT_PATH})
-mir_add_wrapped_executable(
-  mir_integration_tests
+mir_add_wrapped_executable(mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
-  ${MIR_SERVER_OBJECTS}
-  ${MIR_PLATFORM_OBJECTS}
-  ${MIR_COMMON_OBJECTS}
 )
 
 mir_precompiled_header(mir_integration_tests ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.hpp)
@@ -86,6 +82,9 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
   mirclient-static
+  mirserver-static
+  mirplatform-static
+  mircommon-static
   mirclient-debug-extension
 
   mirdraw
@@ -112,9 +111,6 @@ target_link_libraries(
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${GBM_LDFLAGS} ${GBM_LIBRARIES}
   ${LIBHARDWARE_LIBRARIES}
-  ${MIR_PLATFORM_REFERENCES}
-  ${MIR_COMMON_REFERENCES}
-  ${MIR_SERVER_REFERENCES}
   ${INTEGRATION_TESTS_LINKS}
 )
 

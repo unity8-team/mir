@@ -17,22 +17,16 @@ set(MIR_PLATFORM_OBJECTS
 )
 
 set(MIR_PLATFORM_REFERENCES
+  mircommon
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
 
-set(MIR_PLATFORM_OBJECTS ${MIR_PLATFORM_OBJECTS} PARENT_SCOPE)
-set(MIR_PLATFORM_REFERENCES ${MIR_PLATFORM_REFERENCES} PARENT_SCOPE)
+add_library(mirplatform SHARED ${MIR_PLATFORM_OBJECTS})
+add_library(mirplatform-static STATIC ${MIR_PLATFORM_OBJECTS})
 
-add_library(mirplatform SHARED
-  ${MIR_PLATFORM_OBJECTS}
-)
-
-target_link_libraries(mirplatform
-
-  mircommon
-  ${MIR_PLATFORM_REFERENCES}
-)
+target_link_libraries(mirplatform ${MIR_PLATFORM_REFERENCES})
+target_link_libraries(mirplatform-static ${MIR_PLATFORM_REFERENCES})
 
 set_target_properties(
   mirplatform

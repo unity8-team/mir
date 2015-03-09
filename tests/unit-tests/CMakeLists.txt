@@ -81,9 +81,6 @@ link_directories(${LIBRARY_OUTPUT_PATH})
 
 mir_add_wrapped_executable(mir_unit_tests
   ${UNIT_TEST_SOURCES}
-  ${MIR_SERVER_OBJECTS}
-  ${MIR_PLATFORM_OBJECTS}
-  ${MIR_COMMON_OBJECTS}
 )
 
 mir_precompiled_header(mir_unit_tests ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.hpp)
@@ -97,6 +94,9 @@ target_link_libraries(
 
   mirdraw
   mirclient-static
+  mirserver-static
+  mirplatform-static
+  mircommon-static
   mirclientrpc
   mirclientlttngstatic
   demo-shell
@@ -127,9 +127,6 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${LIBHARDWARE_LDFLAGS} ${LIBHARDWARE_LIBRARIES}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
-  ${MIR_PLATFORM_REFERENCES}
-  ${MIR_COMMON_REFERENCES}
-  ${MIR_SERVER_REFERENCES}
   ${UNIT_TEST_LINKS}
 )
 
