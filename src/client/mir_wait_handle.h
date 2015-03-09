@@ -30,16 +30,14 @@
  * @{
  */
 
-struct MirSurface;
-struct MirConnection;
-
 struct MirResult
 {
     MirResult();
 
     const char* error;
-    struct MirSurface* surface;
-    struct MirConnection* connection;
+    // Suggested future use:
+    // struct MirSurface* surface;
+    // struct MirConnection* connection;
 };
 
 struct MirWaitHandle

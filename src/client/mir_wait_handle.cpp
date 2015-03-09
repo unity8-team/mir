@@ -20,7 +20,7 @@
 #include "mir_wait_handle.h"
 
 MirResult::MirResult()
-    : error{nullptr}, surface{nullptr}, connection{nullptr}
+    : error{nullptr}
 {
 }
 
