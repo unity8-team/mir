@@ -19,8 +19,7 @@
 
 #include "mir_wait_handle.h"
 
-MirResult::MirResult()
-    : error{nullptr}
+MirResult::MirResult(bool ok) : success{ok}
 {
 }
 
@@ -40,11 +39,6 @@ void MirWaitHandle::expect_result()
     std::lock_guard<std::mutex> lock(guard);
 
     expecting++;
-}
-
-void MirWaitHandle::result_received()
-{
-    result_received(MirResult());
 }
 
 void MirWaitHandle::result_received(MirResult const& r)

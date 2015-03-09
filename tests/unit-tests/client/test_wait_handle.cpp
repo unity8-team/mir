@@ -33,7 +33,7 @@ TEST(WaitHandle, symmetric_synchronous)
 
     for (int i = 0; i < arbitrary_number_of_events; i++)
     {
-        w.result_received();
+        w.result_received(true);
     }
 
     w.wait_for_all();
@@ -51,7 +51,7 @@ TEST(WaitHandle, asymmetric_synchronous)
             w.expect_result();
 
         for (int j = 1; j <= i; j++)
-            w.result_received();
+            w.result_received(true);
 
         w.wait_for_all();
     }
@@ -70,7 +70,7 @@ namespace
             in->expect_result();
             in->wait_for_all();
             symmetric_result = i;
-            out->result_received();
+            out->result_received(true);
         }
     }
 }
@@ -84,7 +84,7 @@ TEST(WaitHandle, symmetric_asynchronous)
     for (int i = 1; i <= max; i++)
     {
         out.expect_result();
-        in.result_received();
+        in.result_received(true);
         out.wait_for_all();
         ASSERT_EQ(symmetric_result, i);
     }
@@ -103,7 +103,7 @@ namespace
             in->wait_for_all();
             asymmetric_result = i;
             for (int j = 1; j <= i; j++)
-                out->result_received();
+                out->result_received(true);
         }
     }
 }
@@ -116,7 +116,7 @@ TEST(WaitHandle, asymmetric_asynchronous)
 
     for (int i = 1; i <= max; i++)
     {
-        in.result_received();
+        in.result_received(true);
         for (int j = 1; j <= i; j++)
             out.expect_result();
         out.wait_for_all();
@@ -153,7 +153,7 @@ TEST(WaitHandle, many_waiters)
     std::thread c(crowded_thread, &w, max);
 
     for (int n = 0; n < max * 3; n++)
-        w.result_received();
+        w.result_received(true);
 
     a.join();
     b.join();

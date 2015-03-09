@@ -104,21 +104,22 @@ void MirScreencast::request_and_wait_for_configure(MirSurfaceAttrib, int)
 void MirScreencast::screencast_created(
     mir_screencast_callback callback, void* context)
 {
-    if (!protobuf_screencast.has_error())
+    bool ok = !protobuf_screencast.has_error();
+    if (ok)
     {
         buffer_stream = buffer_stream_factory->make_consumer_stream(server,
             protobuf_screencast.buffer_stream(), "MirScreencast");
     }
 
     callback(this, context);
-    create_screencast_wait_handle.result_received();
+    create_screencast_wait_handle.result_received(ok);
 }
 
 void MirScreencast::released(
     mir_screencast_callback callback, void* context)
 {
     callback(this, context);
-    release_wait_handle.result_received();
+    release_wait_handle.result_received(true);
 }
 
 mir::client::ClientBufferStream* MirScreencast::get_buffer_stream()

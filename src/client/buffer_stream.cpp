@@ -226,7 +226,7 @@ void mcl::BufferStream::next_buffer_received(
 
     done();
 
-    next_buffer_wait_handle.result_received();
+    next_buffer_wait_handle.result_received(true);
 }
 
 /* mcl::EGLNativeSurface interface for EGLNativeWindow integration */
@@ -250,7 +250,7 @@ void mcl::BufferStream::request_and_wait_for_next_buffer()
 void mcl::BufferStream::on_configured()
 {
     std::unique_lock<decltype(mutex)> lock(mutex);
-    configure_wait_handle.result_received();
+    configure_wait_handle.result_received(true);
 }
 
 // TODO: It's a little strange that we use SurfaceAttrib here for the swap interval

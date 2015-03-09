@@ -191,7 +191,7 @@ void MirConnection::released(SurfaceRelease data)
         data.surface->handle_event(*unfocus);
     }
     data.callback(data.surface, data.context);
-    data.handle->result_received();
+    data.handle->result_received(true);
     delete data.surface;
 }
 
@@ -282,7 +282,7 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
     }
 
     if (safe_to_callback) callback(this, context);
-    connect_wait_handle.result_received();
+    connect_wait_handle.result_received(!connect_result.has_error());
 }
 
 MirWaitHandle* MirConnection::connect(
@@ -318,7 +318,7 @@ void MirConnection::done_disconnect()
 
     // Ensure no racy lifecycle notifications can happen after disconnect completes
     lifecycle_control->set_lifecycle_event_handler([](MirLifecycleState){});
-    disconnect_wait_handle.result_received();
+    disconnect_wait_handle.result_received(true);
 }
 
 MirWaitHandle* MirConnection::disconnect()
@@ -353,7 +353,8 @@ void MirConnection::done_platform_operation(
 
     callback(this, reply, context);
 
-    platform_operation_wait_handle.result_received();
+    platform_operation_wait_handle.result_received(
+        !platform_operation_reply.has_error());
 }
 
 MirWaitHandle* MirConnection::platform_operation(
@@ -529,10 +530,11 @@ void MirConnection::done_display_configure()
 
     set_error_message(display_configuration_response.error());
 
-    if (!display_configuration_response.has_error())
+    bool ok = !display_configuration_response.has_error();
+    if (ok)
         display_configuration->set_configuration(display_configuration_response);
 
-    return configure_display_wait_handle.result_received();
+    return configure_display_wait_handle.result_received(ok);
 }
 
 MirWaitHandle* MirConnection::configure_display(MirDisplayConfiguration* config)

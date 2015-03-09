@@ -114,7 +114,7 @@ void MirPromptSession::done_start(mir_prompt_session_callback callback, void* co
     }
 
     callback(this, context);
-    start_wait_handle.result_received();
+    start_wait_handle.result_received(!session.has_error());
 }
 
 void MirPromptSession::done_stop(mir_prompt_session_callback callback, void* context)
@@ -122,7 +122,7 @@ void MirPromptSession::done_stop(mir_prompt_session_callback callback, void* con
     set_state(mir_prompt_session_state_stopped);
 
     callback(this, context);
-    stop_wait_handle.result_received();
+    stop_wait_handle.result_received(true);
 }
 
 char const* MirPromptSession::get_error_message()
@@ -168,5 +168,5 @@ void MirPromptSession::done_fds_for_prompt_providers(
         fds.push_back(socket_fd_response.fd(i));
 
     callback(this, size, fds.data(), context);
-    fds_for_prompt_providers_wait_handle.result_received();
+    fds_for_prompt_providers_wait_handle.result_received(true);
 }

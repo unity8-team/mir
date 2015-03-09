@@ -48,5 +48,4 @@ MIR_CLIENT_8.3 {  # Mir 0.12
 MIR_CLIENT_8.4 {  # Mir 0.13
   global:
     mir_succeeded;
-    mir_wait_for_error;
 } MIR_CLIENT_8.3;

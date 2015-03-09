@@ -49,21 +49,11 @@ void mir_wait_for_one(MirWaitHandle *wait_handle);
 /**
  * Wait on the supplied handle until one instance of the associated request
  * has completed. This is the same as mir_wait_for_one with the extra
- * feature of returning a result. If you need more detailed error information
- * then see mir_wait_for_error.
+ * feature of returning a result.
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  *   \returns                 Whether the request succeeded.
  */
 bool mir_succeeded(MirWaitHandle *wait_handle);
-
-/**
- * Wait on the supplied handle until one instance of the associated request
- * has completed. This is the same as mir_wait_for_one with the extra
- * feature of returning error information.
- *   \param [in] wait_handle  Handle returned by an asynchronous request
- *   \returns                 Error string or NULL on success.
- */
-char const* mir_wait_for_error(MirWaitHandle *wait_handle);
 
 #ifdef __cplusplus
 }

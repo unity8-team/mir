@@ -206,6 +206,7 @@ MirPixelFormat MirSurface::convert_ipc_pf_to_geometry(gp::int32 pf) const
 
 void MirSurface::created(mir_surface_callback callback, void * context)
 {
+    bool ok = true;
     {
     std::lock_guard<decltype(mutex)> lock(mutex);
     if (!surface.has_id())
@@ -214,7 +215,7 @@ void MirSurface::created(mir_surface_callback callback, void * context)
             surface.set_error("Error processing surface create response, no ID (disconnected?)");
 
         callback(this, context);
-        create_wait_handle.result_received();
+        create_wait_handle.result_received(false);
         return;
     }
     }
@@ -237,12 +238,13 @@ void MirSurface::created(mir_surface_callback callback, void * context)
     }
     catch (std::exception const& error)
     {
+        ok = false;
         surface.set_error(std::string{"Error processing Surface creating response:"} +
                           boost::diagnostic_information(error));
     }
 
     callback(this, context);
-    create_wait_handle.result_received();
+    create_wait_handle.result_received(ok);
 }
 
 MirWaitHandle* MirSurface::release_surface(
@@ -322,7 +324,7 @@ namespace
 {
 void signal_response_received(MirWaitHandle* handle)
 {
-    handle->result_received();
+    handle->result_received(true);
 }
 }
 
@@ -370,6 +372,7 @@ void MirSurface::on_configured()
         configure_result.has_attrib())
     {
         int a = configure_result.attrib();
+        bool ok = !configure_result.has_error();
 
         switch (a)
         {
@@ -384,17 +387,18 @@ void MirSurface::on_configured()
                 assert(configure_result.has_error());
             break;
         default:
+            ok = false;
             assert(false);
             break;
         }
 
-        configure_wait_handle.result_received();
+        configure_wait_handle.result_received(ok);
     }
 }
 
 void MirSurface::on_cursor_configured()
 {
-    configure_cursor_wait_handle.result_received();
+    configure_cursor_wait_handle.result_received(true);
 }
 
 

@@ -32,10 +32,11 @@
 
 struct MirResult
 {
-    MirResult();
+    MirResult(bool ok);
 
-    const char* error;
-    // Suggested future use:
+    bool success;
+    // Suggested future uses:
+    // const char* error;
     // struct MirSurface* surface;
     // struct MirConnection* connection;
 };

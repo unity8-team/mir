@@ -31,15 +31,10 @@ void mir_wait_for_one(MirWaitHandle* wait_handle)
         wait_handle->wait_for_one();
 }
 
-char const* mir_wait_for_error(MirWaitHandle* wait_handle)
+bool mir_succeeded(MirWaitHandle* wait_handle)
 {
     if (!wait_handle)
         return false;
 
-    return wait_handle->wait_for_one().error;
-}
-
-bool mir_succeeded(MirWaitHandle* wait_handle)
-{
-    return !mir_wait_for_error(wait_handle);
+    return wait_handle->wait_for_one().success;
 }
