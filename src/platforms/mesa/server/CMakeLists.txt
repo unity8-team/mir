@@ -40,15 +40,15 @@ add_library(
   nested_authentication.cpp
 )
 
-add_library(
-  mirplatformgraphicsmesa MODULE
-
+add_library(mirplatformgraphicsmesa MODULE
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 
-target_link_libraries(
-  mirplatformgraphicsmesa
+add_library(mirplatformgraphicsmesa-static STATIC
+  $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
+)
 
+set(LINKS
   mirplatform
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
@@ -56,6 +56,8 @@ target_link_libraries(
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
+target_link_libraries(mirplatformgraphicsmesa ${LINKS})
+target_link_libraries(mirplatformgraphicsmesa-static ${LINKS})
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 

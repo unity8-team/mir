@@ -16,15 +16,17 @@ add_library(mirclientplatformmesaobjects OBJECT
   native_surface.cpp
 )
 
-add_library(
-  mirclientplatformmesa MODULE
-
+add_library(mirclientplatformmesa MODULE
   $<TARGET_OBJECTS:mirclientplatformmesaobjects>
   $<TARGET_OBJECTS:client_platform_common>
 )
 
-set_target_properties(
-  mirclientplatformmesa PROPERTIES
+add_library(mirclientplatformmesa-static STATIC
+  $<TARGET_OBJECTS:mirclientplatformmesaobjects>
+  $<TARGET_OBJECTS:client_platform_common>
+)
+
+set_target_properties(mirclientplatformmesa PROPERTIES
   OUTPUT_NAME mesa
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/client-modules
   PREFIX ""
@@ -32,9 +34,11 @@ set_target_properties(
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
 
-target_link_libraries(mirclientplatformmesa
+set(LINKS
   mirclient
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
+target_link_libraries(mirclientplatformmesa ${LINKS})
+target_link_libraries(mirclientplatformmesa-static ${LINKS})
 
 install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})

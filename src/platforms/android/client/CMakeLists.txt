@@ -14,15 +14,17 @@ add_library(mirclientplatformandroidobjects OBJECT
   android_native_display_container.cpp
 )
 
-add_library(
-  mirclientplatformandroid MODULE
-
+add_library(mirclientplatformandroid MODULE
   $<TARGET_OBJECTS:mirclientplatformandroidobjects>
   $<TARGET_OBJECTS:client_platform_common>
 )
 
-set_target_properties(
-  mirclientplatformandroid PROPERTIES
+add_library(mirclientplatformandroid-static STATIC
+  $<TARGET_OBJECTS:mirclientplatformandroidobjects>
+  $<TARGET_OBJECTS:client_platform_common>
+)
+
+set_target_properties(mirclientplatformandroid PROPERTIES
   OUTPUT_NAME android
   LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/client-modules
   PREFIX ""
@@ -30,10 +32,12 @@ set_target_properties(
   LINK_FLAGS "-Wl,--version-script,${symbol_map}"
 )
 
-target_link_libraries(mirclientplatformandroid
+set(LINKS
   mirclient
   mirsharedandroid
   ${LIBHARDWARE_LIBRARIES}
 )
+target_link_libraries(mirclientplatformandroid ${LINKS})
+target_link_libraries(mirclientplatformandroid-static ${LINKS})
 
 install(TARGETS mirclientplatformandroid LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})
