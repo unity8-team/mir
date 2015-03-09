@@ -44,7 +44,7 @@ add_library(mirplatformgraphicsandroid MODULE
   $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
 
-add_library(mirplatformgraphicsandroid-static STATIC
+add_library(mirplatformgraphicsandroid-private SHARED
   $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
 
@@ -59,7 +59,7 @@ set(LINKS
 )
 
 target_link_libraries(mirplatformgraphicsandroid ${LINKS})
-target_link_libraries(mirplatformgraphicsandroid-static ${LINKS})
+target_link_libraries(mirplatformgraphicsandroid-private ${LINKS})
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 

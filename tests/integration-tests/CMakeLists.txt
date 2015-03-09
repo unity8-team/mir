@@ -82,9 +82,9 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
   mirclient-static
-  mirserver-static
-  mirplatform-static
-  mircommon-static
+  mirserver-private
+  mirplatform-private
+  mircommon-private
   mirclient-debug-extension
 
   mirdraw

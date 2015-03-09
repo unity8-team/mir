@@ -94,9 +94,9 @@ target_link_libraries(
 
   mirdraw
   mirclient-static
-  mirserver-static
-  mirplatform-static
-  mircommon-static
+  mirserver-private
+  mirplatform-private
+  mircommon-private
   mirclientrpc
   mirclientlttngstatic
   demo-shell

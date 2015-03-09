@@ -23,10 +23,10 @@ set(MIR_PLATFORM_REFERENCES
 )
 
 add_library(mirplatform SHARED ${MIR_PLATFORM_OBJECTS})
-add_library(mirplatform-static STATIC ${MIR_PLATFORM_OBJECTS})
+add_library(mirplatform-private SHARED ${MIR_PLATFORM_OBJECTS})
 
 target_link_libraries(mirplatform ${MIR_PLATFORM_REFERENCES})
-target_link_libraries(mirplatform-static ${MIR_PLATFORM_REFERENCES})
+target_link_libraries(mirplatform-private ${MIR_PLATFORM_REFERENCES})
 
 set_target_properties(
   mirplatform
