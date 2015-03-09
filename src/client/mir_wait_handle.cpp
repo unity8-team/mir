@@ -19,11 +19,15 @@
 
 #include "mir_wait_handle.h"
 
+MirResult::MirResult()
+    : error{nullptr}, surface{nullptr}, connection{nullptr}
+{
+}
+
 MirWaitHandle::MirWaitHandle() :
     guard(),
     wait_condition(),
-    expecting(0),
-    received(0)
+    expecting(0)
 {
 }
 
@@ -40,9 +44,14 @@ void MirWaitHandle::expect_result()
 
 void MirWaitHandle::result_received()
 {
+    result_received(MirResult());
+}
+
+void MirWaitHandle::result_received(MirResult const& r)
+{
     std::lock_guard<std::mutex> lock(guard);
 
-    received++;
+    received.push_back(r);
     wait_condition.notify_all();
 }
 
@@ -50,9 +59,9 @@ void MirWaitHandle::wait_for_all()  // wait for all results you expect
 {
     std::unique_lock<std::mutex> lock(guard);
 
-    wait_condition.wait(lock, [&]{ return received == expecting; });
+    wait_condition.wait(lock, [&]{ return received.size() == expecting; });
 
-    received = 0;
+    received.clear();
     expecting = 0;
 }
 
@@ -60,7 +69,7 @@ void MirWaitHandle::wait_for_pending(std::chrono::milliseconds limit)
 {
     std::unique_lock<std::mutex> lock(guard);
 
-    wait_condition.wait_for(lock, limit, [&]{ return received == expecting; });
+    wait_condition.wait_for(lock, limit, [&]{ return received.size() == expecting; });
 }
 
 
@@ -68,9 +77,12 @@ void MirWaitHandle::wait_for_one()  // wait for any single result
 {
     std::unique_lock<std::mutex> lock(guard);
 
-    wait_condition.wait(lock, [&]{ return received != 0; });
+    wait_condition.wait(lock, [&]{ return !received.empty(); });
 
-    --received;
+    auto head = received.front();
+    (void)head; // TODO
+    received.pop_front();
+
     --expecting;
 }
 

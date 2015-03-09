@@ -23,11 +23,25 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <deque>
 
 /**
  * \addtogroup mir_toolkit
  * @{
  */
+
+struct MirSurface;
+struct MirConnection;
+
+struct MirResult
+{
+    MirResult();
+
+    const char* error;
+    struct MirSurface* surface;
+    struct MirConnection* connection;
+};
+
 struct MirWaitHandle
 {
 public:
@@ -36,6 +50,7 @@ public:
 
     void expect_result();
     void result_received();
+    void result_received(MirResult const&);
     void wait_for_all();
     void wait_for_one();
     void wait_for_pending(std::chrono::milliseconds limit);
@@ -44,8 +59,9 @@ private:
     std::mutex guard;
     std::condition_variable wait_condition;
 
-    int expecting;
-    int received;
+    typedef std::deque<MirResult> Queue;
+    Queue::size_type expecting;
+    Queue received;
 };
 /**@}*/
 
