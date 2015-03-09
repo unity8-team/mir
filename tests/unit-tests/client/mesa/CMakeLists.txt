@@ -20,8 +20,10 @@ list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_client_platform.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_mesa_native_display_container.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_native_surface.cpp
-  $<TARGET_OBJECTS:mirclientplatformmesaobjects>
-  $<TARGET_OBJECTS:client_platform_common>
 )
-
 set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} PARENT_SCOPE)
+
+list(APPEND UNIT_TEST_LINKS
+  mirclientplatformmesa-static
+)
+set(UNIT_TEST_LINKS ${UNIT_TEST_LINKS} PARENT_SCOPE)

@@ -29,8 +29,11 @@ list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_hwc_fallback_gl_renderer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_hwc_configuration.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_display_hotplug.cpp
-  $<TARGET_OBJECTS:mirplatformgraphicsandroidobjects>
 )
-
 set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} PARENT_SCOPE)
+
+list(APPEND UNIT_TEST_LINKS
+  mirplatformgraphicsandroid-static
+)
+set(UNIT_TEST_LINKS ${UNIT_TEST_LINKS} PARENT_SCOPE)
 

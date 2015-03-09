@@ -69,7 +69,6 @@ mir_add_wrapped_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
   ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
@@ -86,6 +85,7 @@ target_link_libraries(
   mir-test
   mir-test-framework
   mir-test-doubles
+  mirclient-static
   mirclient-debug-extension
 
   mirdraw
@@ -115,6 +115,7 @@ target_link_libraries(
   ${MIR_PLATFORM_REFERENCES}
   ${MIR_COMMON_REFERENCES}
   ${MIR_SERVER_REFERENCES}
+  ${INTEGRATION_TESTS_LINKS}
 )
 
 if (MIR_BUILD_PLATFORM_ANDROID)

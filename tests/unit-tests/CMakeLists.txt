@@ -82,7 +82,6 @@ link_directories(${LIBRARY_OUTPUT_PATH})
 mir_add_wrapped_executable(mir_unit_tests
   ${UNIT_TEST_SOURCES}
   ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
@@ -97,6 +96,7 @@ target_link_libraries(
   mir_unit_tests
 
   mirdraw
+  mirclient-static
   mirclientrpc
   mirclientlttngstatic
   demo-shell
@@ -130,6 +130,7 @@ target_link_libraries(
   ${MIR_PLATFORM_REFERENCES}
   ${MIR_COMMON_REFERENCES}
   ${MIR_SERVER_REFERENCES}
+  ${UNIT_TEST_LINKS}
 )
 
 if (MIR_BUILD_PLATFORM_ANDROID)

@@ -17,7 +17,10 @@ list(APPEND UNIT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_bypass.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_ipc_operations.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_nested_authentication.cpp
-  $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
-
 set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} PARENT_SCOPE)
+
+list(APPEND UNIT_TEST_LINKS
+  mirplatformgraphicsmesa-static
+)
+set(UNIT_TEST_LINKS ${UNIT_TEST_LINKS} PARENT_SCOPE)
