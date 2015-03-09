@@ -37,10 +37,16 @@ MIR_CLIENT_8.2 {
     mir_surface_spec_set_preferred_orientation;
 } MIR_CLIENT_8.1;
 
-MIR_CLIENT_8.3 {
+MIR_CLIENT_8.3 {  # Mir 0.12
   global:
     mir_connection_create_spec_for_menu;
     mir_connection_create_spec_for_tooltip;
     mir_connection_create_spec_for_dialog;
     mir_connection_platform_operation;
 } MIR_CLIENT_8.2;
+
+MIR_CLIENT_8.4 {  # Mir 0.13
+  global:
+    mir_succeeded;
+    mir_wait_for_error;
+} MIR_CLIENT_8.3;
