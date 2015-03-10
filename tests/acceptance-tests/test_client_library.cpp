@@ -152,11 +152,24 @@ TEST_F(ClientLibrary, client_library_connects_and_disconnects)
 {
     MirWaitHandle* wh = mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this);
     EXPECT_THAT(wh, NotNull());
-    mir_wait_for(wh);
+    EXPECT_TRUE(mir_wait_for_result(wh));
 
     ASSERT_THAT(connection, NotNull());
     EXPECT_TRUE(mir_connection_is_valid(connection));
     EXPECT_THAT(mir_connection_get_error_message(connection), StrEq(""));
+
+    mir_connection_release(connection);
+}
+
+TEST_F(ClientLibrary, client_library_cant_connect)
+{
+    MirWaitHandle* wh = mir_connect("/dev/null", __PRETTY_FUNCTION__, connection_callback, this);
+    EXPECT_THAT(wh, IsNull());
+    EXPECT_FALSE(mir_wait_for_result(wh));
+
+    ASSERT_THAT(connection, NotNull());
+    EXPECT_FALSE(mir_connection_is_valid(connection));
+    EXPECT_THAT(mir_connection_get_error_message(connection), StrNe(""));
 
     mir_connection_release(connection);
 }
