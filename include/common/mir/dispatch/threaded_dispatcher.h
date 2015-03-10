@@ -48,13 +48,13 @@ private:
     friend class ThreadShutdownRequestHandler;
 
     std::shared_ptr<ThreadShutdownRequestHandler> thread_exiter;
-    MultiplexingDispatchable dispatcher;
+    std::shared_ptr<MultiplexingDispatchable> dispatcher;
 
     std::mutex thread_pool_mutex;
     std::vector<std::thread> threadpool;
 
-    static void dispatch_loop(ThreadShutdownRequestHandler& thread_register,
-                              Dispatchable& dispatcher);
+    static void dispatch_loop(std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
+                              std::shared_ptr<Dispatchable> dispatcher);
 
 };
 

@@ -46,12 +46,13 @@ class SurfaceSceneElement : public mc::SceneElement
 {
 public:
     SurfaceSceneElement(
-        std::shared_ptr<mg::Renderable> renderable,
+        std::shared_ptr<ms::Surface> surface,
         std::shared_ptr<ms::RenderingTracker> const& tracker,
         mc::CompositorID id)
-        : renderable_{renderable},
+        : renderable_{surface->compositor_snapshot(id)},
           tracker{tracker},
-          cid{id}
+          cid{id},
+          decor(mc::Decoration::Type::surface, surface->name())
     {
     }
 
@@ -70,15 +71,16 @@ public:
         tracker->occluded_in(cid);
     }
 
-    bool is_a_surface() const override
+    mc::Decoration const& decoration() const override
     {
-        return true;
+        return decor;
     }
 
 private:
     std::shared_ptr<mg::Renderable> const renderable_;
     std::shared_ptr<ms::RenderingTracker> const tracker;
     mc::CompositorID cid;
+    mc::Decoration const decor;
 };
 
 //note: something different than a 2D/HWC overlay
@@ -102,11 +104,6 @@ public:
 
     void occluded() override
     {
-    }
-    
-    bool is_a_surface() const override
-    {
-        return false;
     }
 
 private:
@@ -134,7 +131,7 @@ mc::SceneElementSequence ms::SurfaceStack::scene_elements_for(mc::CompositorID i
             if (surface->visible())
             {
                 auto element = std::make_shared<SurfaceSceneElement>(
-                    surface->compositor_snapshot(id),
+                    surface,
                     rendering_trackers[surface.get()],
                     id);
                 elements.emplace_back(element);
@@ -277,6 +274,39 @@ void ms::SurfaceStack::remove_surface(std::weak_ptr<Surface> const& surface)
     // TODO: error logging when surface not found
 }
 
+namespace
+{
+template <typename Container>
+struct InReverse {
+    Container& container;
+    auto begin() -> decltype(container.rbegin()) { return container.rbegin(); }
+    auto end() -> decltype(container.rend()) { return container.rend(); }
+};
+
+template <typename Container>
+InReverse<Container> in_reverse(Container& container) { return InReverse<Container>{container}; }
+}
+
+auto ms::SurfaceStack::surface_at(geometry::Point cursor) const
+-> std::shared_ptr<Surface>
+{
+    std::lock_guard<decltype(guard)> lg(guard);
+    for (auto &layer : in_reverse(layers_by_depth))
+    {
+        for (auto const& surface : in_reverse(layer.second))
+        {
+            // TODO There's a lack of clarity about how the input area will
+            // TODO be maintained and whether this test will detect clicks on
+            // TODO decorations (it should) as these may be outside the area
+            // TODO known to the client.  But it works for now.
+            if (surface->input_area_contains(cursor))
+                    return surface;
+        }
+    }
+
+    return {};
+}
+
 void ms::SurfaceStack::for_each(std::function<void(std::shared_ptr<mi::Surface> const&)> const& callback)
 {
     std::lock_guard<decltype(guard)> lg(guard);
@@ -320,6 +350,32 @@ void ms::SurfaceStack::raise(std::weak_ptr<Surface> const& s)
     BOOST_THROW_EXCEPTION(std::runtime_error("Invalid surface"));
 }
 
+void ms::SurfaceStack::raise(SurfaceSet const& ss)
+{
+    bool surfaces_reordered{false};
+
+    {
+        std::lock_guard<decltype(guard)> ul(guard);
+
+        for (auto &layer : layers_by_depth)
+        {
+            auto &surfaces = layer.second;
+
+            auto const old_surfaces = surfaces;
+
+            std::stable_partition(
+                begin(surfaces), end(surfaces),
+                [&](std::weak_ptr<Surface> const& s) { return !ss.count(s); });
+
+            if (old_surfaces != surfaces)
+                surfaces_reordered = true;
+        }
+    }
+
+    if (surfaces_reordered)
+        observers.surfaces_reordered();
+}
+
 void ms::SurfaceStack::create_rendering_tracker_for(std::shared_ptr<Surface> const& surface)
 {
     auto const tracker = std::make_shared<RenderingTracker>(surface);
@@ -339,7 +395,7 @@ void ms::SurfaceStack::add_observer(std::shared_ptr<ms::Observer> const& observe
 
     // Notify observer of existing surfaces
     {
-        std::unique_lock<decltype(guard)> ul(guard);
+        std::lock_guard<decltype(guard)> ul(guard);
         for (auto &layer : layers_by_depth)
         {
             for (auto &surface : layer.second)

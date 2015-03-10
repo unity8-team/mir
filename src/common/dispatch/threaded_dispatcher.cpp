@@ -152,17 +152,18 @@ private:
 };
 
 md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> const& dispatchee)
-    : thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()}
+    : thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()},
+      dispatcher{std::make_shared<MultiplexingDispatchable>()}
 {
 
     // We rely on exactly one thread at a time getting a shutdown message
-    dispatcher.add_watch(thread_exiter, md::DispatchReentrancy::sequential);
+    dispatcher->add_watch(thread_exiter, md::DispatchReentrancy::sequential);
 
     // But our target dispatchable is welcome to be dispatched on as many threads
     // as desired.
-    dispatcher.add_watch(dispatchee, md::DispatchReentrancy::reentrant);
+    dispatcher->add_watch(dispatchee, md::DispatchReentrancy::reentrant);
 
-    threadpool.emplace_back(&dispatch_loop, std::ref(*thread_exiter), std::ref(dispatcher));
+    threadpool.emplace_back(&dispatch_loop, thread_exiter, dispatcher);
 }
 
 md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
@@ -173,14 +174,28 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 
     for (auto& thread : threadpool)
     {
-        thread.join();
+        if (thread.get_id() == std::this_thread::get_id())
+        {
+            // We're being destroyed from a thread currently in dispatch().
+            // This is ok; the thread loop's shared_ptrs keep everything necessary
+            // alive, and we'll just drop out of the end of the while(running) loop.
+            //
+            // However, we need to manually get the thread_exiter to mark the current
+            // thread as no longer running, as we're not going to dispatch it again.
+            thread_exiter->dispatch(md::FdEvent::remote_closed);
+            thread.detach();
+        }
+        else
+        {
+            thread.join();
+        }
     }
 }
 
 void md::ThreadedDispatcher::add_thread()
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
-    threadpool.emplace_back(&dispatch_loop, std::ref(*thread_exiter), std::ref(dispatcher));
+    threadpool.emplace_back(&dispatch_loop, thread_exiter, dispatcher);
 }
 
 void md::ThreadedDispatcher::remove_thread()
@@ -200,8 +215,8 @@ void md::ThreadedDispatcher::remove_thread()
     threadpool.erase(dying_thread);
 }
 
-void md::ThreadedDispatcher::dispatch_loop(ThreadShutdownRequestHandler& thread_register,
-                                           Dispatchable& dispatcher)
+void md::ThreadedDispatcher::dispatch_loop(std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
+                                           std::shared_ptr<Dispatchable> dispatcher)
 {
     sigset_t all_signals;
     sigfillset(&all_signals);
@@ -216,17 +231,17 @@ void md::ThreadedDispatcher::dispatch_loop(ThreadShutdownRequestHandler& thread_
     bool running{true};
 
     auto thread_registrar = mir::raii::paired_calls(
-    [&running, &thread_register]()
+    [&running, thread_register]()
     {
-        thread_register.register_thread(running);
+        thread_register->register_thread(running);
     },
-    [&thread_register]()
+    [thread_register]()
     {
-        thread_register.unregister_thread();
+        thread_register->unregister_thread();
     });
 
     struct pollfd waiter;
-    waiter.fd = dispatcher.watch_fd();
+    waiter.fd = dispatcher->watch_fd();
     waiter.events = POLL_IN;
     while (running)
     {
@@ -236,6 +251,6 @@ void md::ThreadedDispatcher::dispatch_loop(ThreadShutdownRequestHandler& thread_
                                                      std::system_category(),
                                                      "Failed to wait for event"}));
         }
-        dispatcher.dispatch(md::FdEvent::readable);
+        dispatcher->dispatch(md::FdEvent::readable);
     }
 }

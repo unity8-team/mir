@@ -15,6 +15,8 @@ add_definitions(
     -DMIR_CLIENT_PLATFORM_PATH="${MIR_CLIENT_PLATFORM_PATH}"
     -DMIR_SERVER_PLATFORM_PATH="${MIR_SERVER_PLATFORM_PATH}"
     -DTEST_RECORDING_PATH="${CMAKE_INSTALL_PREFIX}/share/mir/udev_recordings"
+    -DMIR_CLIENT_PLATFORM_ABI_STRING="${MIR_CLIENT_PLATFORM_ABI}"
+    -DMIR_SERVER_GRAPHICS_PLATFORM_ABI_STRING="${MIR_SERVER_GRAPHICS_PLATFORM_ABI}"
     )
 
 set(
@@ -45,6 +47,7 @@ set(
   declarative_placement_strategy.cpp
   fake_event_hub_server_configuration.cpp
   any_surface.cpp
+  headless_nested_server_runner.cpp
 )
 
 list(APPEND TEST_FRAMEWORK_SRCS

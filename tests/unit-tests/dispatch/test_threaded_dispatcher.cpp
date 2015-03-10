@@ -151,7 +151,7 @@ TEST_F(ThreadedDispatcherTest, doesnt_call_dispatch_after_first_false_return)
         dispatchable->trigger();
     }
 
-    EXPECT_FALSE(dispatched_more_than_enough->wait_for(std::chrono::seconds{10}));
+    EXPECT_FALSE(dispatched_more_than_enough->wait_for(std::chrono::seconds{1}));
 }
 
 TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relevant)
@@ -252,4 +252,25 @@ TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
     EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{10}));
 }
 
+TEST_F(ThreadedDispatcherTest, handles_destruction_from_dispatch_callback)
+{
+    using namespace testing;
+    using namespace std::chrono_literals;
+
+    auto dispatched = std::make_shared<mt::Signal>();
+    md::ThreadedDispatcher* dispatcher{nullptr};
+
+    auto dispatchable = std::make_shared<mt::TestDispatchable>([dispatched, &dispatcher]()
+                                                               {
+                                                                   delete dispatcher;
+                                                                   dispatched->raise();
+                                                               });
+
+    dispatchable->trigger();
+    dispatchable->trigger();
+
+    dispatcher = new md::ThreadedDispatcher{dispatchable};
+
+    EXPECT_TRUE(dispatched->wait_for(10s));
+}
 

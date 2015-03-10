@@ -16,8 +16,8 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_COMPOSITOR_BUFFER_H_
-#define MIR_COMPOSITOR_BUFFER_H_
+#ifndef MIR_GRAPHICS_BUFFER_H_
+#define MIR_GRAPHICS_BUFFER_H_
 
 #include "mir/graphics/native_buffer.h"
 #include "mir/graphics/buffer_id.h"
@@ -42,9 +42,6 @@ public:
     virtual geometry::Stride stride() const = 0;
     virtual MirPixelFormat pixel_format() const = 0;
     virtual void gl_bind_to_texture() = 0;
-    /* TODO: remove this function, as it is specific to the mesa platform */
-    virtual bool can_bypass() const = 0;
-    
     virtual void write(unsigned char const* pixels, size_t size) = 0;
 
 protected:
@@ -53,4 +50,4 @@ protected:
 
 }
 }
-#endif // MIR_COMPOSITOR_BUFFER_H_
+#endif // MIR_GRAPHICS_BUFFER_H_

@@ -40,14 +40,15 @@ namespace md = mir::dispatch;
 namespace mia = mir::input::android;
 
 mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> const& input_channel,
+                                     std::shared_ptr<mircv::XKBMapper> const& keymapper,
                                      std::function<void(MirEvent*)> const& event_handling_callback,
                                      std::shared_ptr<mircv::InputReceiverReport> const& report,
                                      AndroidClock clock)
   : input_channel(input_channel),
     handler{event_handling_callback},
+    xkb_mapper(keymapper),
     report(report),
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
-    xkb_mapper(std::make_shared<mircv::XKBMapper>()),
     android_clock(clock)
 {
     timer_fd = mir::Fd{timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC)};
@@ -85,10 +86,12 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
 }
 
 mircva::InputReceiver::InputReceiver(int fd,
+                                     std::shared_ptr<mircv::XKBMapper> const& keymapper,
                                      std::function<void(MirEvent*)> const& event_handling_callback,
                                      std::shared_ptr<mircv::InputReceiverReport> const& report,
                                      AndroidClock clock)
     : InputReceiver(new droidinput::InputChannel(droidinput::String8(""), fd),
+                    keymapper,
                     event_handling_callback,
                     report,
                     clock)
@@ -121,10 +124,13 @@ static void map_key_event(std::shared_ptr<mircv::XKBMapper> const& xkb_mapper, M
 {
     // TODO: As XKBMapper is used to track modifier state we need to use a seperate instance
     // of XKBMapper per device id (or modify XKBMapper semantics)
-    if (ev.type != mir_event_type_key)
+    if (mir_event_get_type(&ev) != mir_event_type_input)
+        return;
+    if (mir_input_event_get_type(mir_event_get_input_event(&ev)) !=
+        mir_input_event_type_key)
         return;
 
-    xkb_mapper->update_state_and_map_event(ev.key);
+    xkb_mapper->update_state_and_map_event(ev);
 }
 
 }
@@ -183,7 +189,14 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     }
     if (input_consumer->hasDeferredEvent())
     {
-        // Ensure we get called again.
+        // input_consumer->consume() can read an event from the fd and find that the event cannot
+        // be added to the current batch.
+        //
+        // In this case, it emits the current batch and leaves the new event pending.
+        // This means we have an event we need to dispatch, but as it has already been read from
+        // the fd we cannot rely on being woken by the fd being readable.
+        //
+        // So, we ensure we'll appear dispatchable by pushing an event to the wakeup pipe.
         wake();
     }
     else if (input_consumer->hasPendingBatch())
@@ -191,9 +204,11 @@ void mircva::InputReceiver::process_and_maybe_send_event()
         /* TODO: Feed in vsync-ish events (or work out when consume() would
          *       actually generate an event) rather than polling at 1000Hz
          */
+        using namespace std::chrono;
+        using namespace std::literals::chrono_literals;
         struct itimerspec const msec_delay = {
             { 0, 0 },
-            { 0, 1000000 /* 10⁶ ns is 1ms */}
+            { 0, duration_cast<nanoseconds>(1ms).count() }
         };
         if (timerfd_settime(timer_fd, 0, &msec_delay, NULL) < 0)
         {

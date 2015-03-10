@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,21 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored By: Alan Griffiths <alan@octopull.co.uk>
+ * Authored by: Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
-#ifndef MIR_EXAMPLES_WINDOW_MANAGER_H_
-#define MIR_EXAMPLES_WINDOW_MANAGER_H_
+#include "mir/basic_callback.h"
 
-namespace mir
+mir::BasicCallback::BasicCallback(std::function<void()> const& callback)
+    : callback{callback}
 {
-class Server;
-
-namespace examples
-{
-void add_window_manager_option_to(Server& server);
 }
-} // namespace mir
 
+void mir::BasicCallback::operator()()
+{
+    callback();
+}
 
-#endif // MIR_EXAMPLES_WINDOW_MANAGER_H_
+void mir::BasicCallback::lock()
+{
+}
+
+void mir::BasicCallback::unlock()
+{
+}
