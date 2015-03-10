@@ -274,3 +274,24 @@ TEST_F(ThreadedDispatcherTest, handles_destruction_from_dispatch_callback)
     EXPECT_TRUE(dispatched->wait_for(10s));
 }
 
+TEST_F(ThreadedDispatcherTest, exceptions_in_threadpool_trigger_termination)
+{
+    using namespace testing;
+    using namespace std::chrono_literals;
+
+    FLAGS_gtest_death_test_style = "threadsafe";
+    constexpr char const* exception_msg = "Ducks! Ducks attack!";
+
+    auto dispatchable = std::make_shared<mt::TestDispatchable>([]()
+                                                               {
+                                                                   throw std::runtime_error{exception_msg};
+                                                               });
+
+    dispatchable->trigger();
+
+    // Ideally we'd use terminate_with_current_exception, but that's in server
+    // and we're going to be called from a C context anyway, so just using the default
+    // std::terminate behaviour should be acceptable.
+    EXPECT_EXIT({ md::ThreadedDispatcher dispatcher{dispatchable}; std::this_thread::sleep_for(10s); },
+                KilledBySignal(SIGABRT), (std::string{".*"} + exception_msg + ".*").c_str());
+}
