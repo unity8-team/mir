@@ -22,7 +22,6 @@
 
 #include "buffer_usage.h"
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/geometry/size.h"
 #include "mir_toolkit/common.h"
 

@@ -20,7 +20,6 @@
 #ifndef MIR_COMPOSITOR_BUFFER_STREAM_SCENE_H_
 #define MIR_COMPOSITOR_BUFFER_STREAM_SCENE_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/compositor/buffer_stream.h"
 
 #include <mutex>

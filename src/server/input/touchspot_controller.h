@@ -19,7 +19,6 @@
 #ifndef MIR_INPUT_TOUCHSPOT_CONTROLLER_H_
 #define MIR_INPUT_TOUCHSPOT_CONTROLLER_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/input/touch_visualizer.h"
 
 #include <memory>

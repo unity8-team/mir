@@ -18,4 +18,11 @@
 
 #include "mir/graphics/buffer.h"
 
+/*
+ * "Fully" instantiate the template here, in theory. Except it doesn't "fully"
+ * work, because gcc forgets to instantiate the "= default" methods.
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51629
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=57728
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=60796
+ */
 template class std::shared_ptr<mir::graphics::Buffer>;

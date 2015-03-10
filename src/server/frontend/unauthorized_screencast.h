@@ -19,7 +19,6 @@
 #ifndef MIR_FRONTEND_UNAUTHORIZED_SCREENCAST_H_
 #define MIR_FRONTEND_UNAUTHORIZED_SCREENCAST_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/frontend/screencast.h"
 
 namespace mir

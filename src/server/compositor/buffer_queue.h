@@ -18,7 +18,6 @@
 #ifndef MIR_BUFFER_QUEUE_H_
 #define MIR_BUFFER_QUEUE_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/compositor/frame_dropping_policy_factory.h"
 #include "mir/compositor/frame_dropping_policy.h"
 #include "buffer_bundle.h"

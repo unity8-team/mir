@@ -19,7 +19,6 @@
 #ifndef MIR_COMPOSITOR_COMPOSITING_SCREENCAST_H_
 #define MIR_COMPOSITOR_COMPOSITING_SCREENCAST_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/frontend/screencast.h"
 
 #include <unordered_map>

@@ -19,7 +19,6 @@
 #ifndef MIR_GRAPHICS_MESA_DISPLAY_BUFFER_H_
 #define MIR_GRAPHICS_MESA_DISPLAY_BUFFER_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display.h"
 #include "display_helpers.h"

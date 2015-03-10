@@ -19,7 +19,6 @@
 #ifndef MIR_GRAPHICS_ANDROID_SWAPPING_GL_CONTEXT_H_
 #define MIR_GRAPHICS_ANDROID_SWAPPING_GL_CONTEXT_H_
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include <memory>
 
 namespace mir

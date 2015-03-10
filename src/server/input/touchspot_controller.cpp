@@ -20,7 +20,7 @@
 #include "touchspot_image.c"
 
 #include "mir/geometry/displacement.h"
-#include "mir/graphics/shared_ptr_buffer.h"
+//#include "mir/graphics/shared_ptr_buffer.h" // gcc bug! 51629/57728/60796
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/buffer.h"

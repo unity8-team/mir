@@ -22,7 +22,6 @@
 
 #include <hardware/hardware.h>
 
-#include "mir/graphics/shared_ptr_buffer.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "graphic_buffer_allocator.h"
