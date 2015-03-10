@@ -267,16 +267,16 @@ TEST_F(ClientLibrary, can_set_surface_state)
 
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_restored));
 
-    mir_wait_for(mir_surface_set_state(surface, mir_surface_state_fullscreen));
+    EXPECT_TRUE(mir_wait_for_result(mir_surface_set_state(surface, mir_surface_state_fullscreen)));
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_fullscreen));
 
-    mir_wait_for(mir_surface_set_state(surface, static_cast<MirSurfaceState>(999)));
+    EXPECT_FALSE(mir_wait_for_result(mir_surface_set_state(surface, static_cast<MirSurfaceState>(999))));
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_fullscreen));
 
-    mir_wait_for(mir_surface_set_state(surface, mir_surface_state_minimized));
+    EXPECT_TRUE(mir_wait_for_result(mir_surface_set_state(surface, mir_surface_state_minimized)));
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_minimized));
 
-    mir_wait_for(mir_surface_set_state(surface, static_cast<MirSurfaceState>(888)));
+    EXPECT_FALSE(mir_wait_for_result(mir_surface_set_state(surface, static_cast<MirSurfaceState>(888))));
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_minimized));
 
     // Stress-test synchronization logic with some flooding
