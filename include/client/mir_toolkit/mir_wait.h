@@ -53,7 +53,7 @@ void mir_wait_for_one(MirWaitHandle *wait_handle);
  *   \param [in] wait_handle  Handle returned by an asynchronous request
  *   \returns                 Whether the request succeeded.
  */
-bool mir_succeeded(MirWaitHandle *wait_handle);
+bool mir_wait_for_result(MirWaitHandle *wait_handle);
 
 #ifdef __cplusplus
 }

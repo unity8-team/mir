@@ -31,10 +31,15 @@ void mir_wait_for_one(MirWaitHandle* wait_handle)
         wait_handle->wait_for_one();
 }
 
-bool mir_succeeded(MirWaitHandle* wait_handle)
+bool mir_wait_for_result(MirWaitHandle* wait_handle)
 {
     if (!wait_handle)
         return false;
 
+    /*
+     * As a MirWaitHandle may get recycled immediately, the structure cannot
+     * store a result beyond the lifetime of the mir_wait_for_ call. So any
+     * result needs to be copied out immediately. Even if it's ignored.
+     */
     return wait_handle->wait_for_one().success;
 }
