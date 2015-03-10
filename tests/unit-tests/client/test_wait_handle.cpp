@@ -160,3 +160,23 @@ TEST(WaitHandle, many_waiters)
     c.join();
 }
 
+TEST(WaitHandle, returns_result_value)
+{
+    MirWaitHandle w;
+
+    w.result_received(true);
+    EXPECT_TRUE(w.wait_for_one().success);
+
+    w.result_received(false);
+    EXPECT_FALSE(w.wait_for_one().success);
+
+    for (int i = 0; i < 10; ++i)
+        w.result_received(true);
+    for (int i = 0; i < 10; ++i)
+        w.result_received(false);
+
+    for (int i = 0; i < 10; ++i)
+        EXPECT_TRUE(w.wait_for_one().success);
+    for (int i = 0; i < 10; ++i)
+        EXPECT_FALSE(w.wait_for_one().success);
+}
