@@ -141,7 +141,7 @@ public:
 private:
     mutable std::mutex mutex; // Protects all members of *this
 
-    void on_configured();
+    void on_configured(int requested_value);
     void on_cursor_configured();
     void created(mir_surface_callback callback, void* context);
     MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf) const;

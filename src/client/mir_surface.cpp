@@ -315,7 +315,9 @@ MirWaitHandle* MirSurface::configure(MirSurfaceAttrib at, int value)
 
     configure_wait_handle.expect_result();
     server->configure_surface(0, &setting, &configure_result,
-              google::protobuf::NewCallback(this, &MirSurface::on_configured));
+        google::protobuf::NewCallback(this,
+                                      &MirSurface::on_configured,
+                                      value));
 
     return &configure_wait_handle;
 }
@@ -363,7 +365,7 @@ bool MirSurface::translate_to_screen_coordinates(int x, int y,
     return !response.has_error();
 }
 
-void MirSurface::on_configured()
+void MirSurface::on_configured(int requested_value)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
 
@@ -372,7 +374,8 @@ void MirSurface::on_configured()
         configure_result.has_attrib())
     {
         int a = configure_result.attrib();
-        bool ok = !configure_result.has_error();
+        bool ok = !configure_result.has_error() &&
+                  configure_result.ivalue() == requested_value;
 
         switch (a)
         {
