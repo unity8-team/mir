@@ -19,6 +19,7 @@
 #ifndef MIR_DISPATCH_SIMPLE_DISPATCH_THREAD_H_
 #define MIR_DISPATCH_SIMPLE_DISPATCH_THREAD_H_
 
+#include <string>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -37,7 +38,7 @@ class Dispatchable;
 class ThreadedDispatcher
 {
 public:
-    ThreadedDispatcher(std::shared_ptr<Dispatchable> const& dispatchee);
+    ThreadedDispatcher(std::string const& name, std::shared_ptr<Dispatchable> const& dispatchee);
     ~ThreadedDispatcher() noexcept;
 
     void add_thread();
@@ -47,13 +48,16 @@ private:
     class ThreadShutdownRequestHandler;
     friend class ThreadShutdownRequestHandler;
 
+    std::string const name_base;
+
     std::shared_ptr<ThreadShutdownRequestHandler> thread_exiter;
     std::shared_ptr<MultiplexingDispatchable> dispatcher;
 
     std::mutex thread_pool_mutex;
     std::vector<std::thread> threadpool;
 
-    static void dispatch_loop(std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
+    static void dispatch_loop(std::string const& name,
+                              std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
                               std::shared_ptr<Dispatchable> dispatcher);
 
 };

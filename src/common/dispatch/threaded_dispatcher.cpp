@@ -18,6 +18,7 @@
 
 #include "mir/dispatch/threaded_dispatcher.h"
 #include "mir/dispatch/dispatchable.h"
+#include "mir/thread_name.h"
 
 #include "mir/raii.h"
 
@@ -151,8 +152,9 @@ private:
     std::unordered_map<std::thread::id, bool*> running_flags;
 };
 
-md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> const& dispatchee)
-    : thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()},
+md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name, std::shared_ptr<md::Dispatchable> const& dispatchee)
+    : name_base{name},
+      thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()},
       dispatcher{std::make_shared<MultiplexingDispatchable>()}
 {
 
@@ -163,7 +165,7 @@ md::ThreadedDispatcher::ThreadedDispatcher(std::shared_ptr<md::Dispatchable> con
     // as desired.
     dispatcher->add_watch(dispatchee, md::DispatchReentrancy::reentrant);
 
-    threadpool.emplace_back(&dispatch_loop, thread_exiter, dispatcher);
+    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher);
 }
 
 md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
@@ -195,7 +197,7 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 void md::ThreadedDispatcher::add_thread()
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
-    threadpool.emplace_back(&dispatch_loop, thread_exiter, dispatcher);
+    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher);
 }
 
 void md::ThreadedDispatcher::remove_thread()
@@ -215,7 +217,8 @@ void md::ThreadedDispatcher::remove_thread()
     threadpool.erase(dying_thread);
 }
 
-void md::ThreadedDispatcher::dispatch_loop(std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
+void md::ThreadedDispatcher::dispatch_loop(std::string const& name,
+                                           std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
                                            std::shared_ptr<Dispatchable> dispatcher)
 {
     sigset_t all_signals;
@@ -225,6 +228,8 @@ void md::ThreadedDispatcher::dispatch_loop(std::shared_ptr<ThreadShutdownRequest
         BOOST_THROW_EXCEPTION((std::system_error{error,
                                                  std::system_category(),
                                                  "Failed to block signals on IO thread"}));
+
+    mir::set_thread_name(name);
 
     // This does not have to be std::atomic<bool> because thread_register is guaranteed to
     // only ever be dispatch()ed from one thread at a time.

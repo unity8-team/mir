@@ -67,7 +67,7 @@ TEST_F(ThreadedDispatcherTest, calls_dispatch_when_fd_is_readable)
     auto dispatched = std::make_shared<mt::Signal>();
     auto dispatchable = std::make_shared<mt::TestDispatchable>([dispatched]() { dispatched->raise(); });
 
-    md::ThreadedDispatcher dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{"Ducks", dispatchable};
 
     dispatchable->trigger();
 
@@ -81,7 +81,7 @@ TEST_F(ThreadedDispatcherTest, stops_calling_dispatch_once_fd_is_not_readable)
     std::atomic<int> dispatch_count{0};
     auto dispatchable = std::make_shared<mt::TestDispatchable>([&dispatch_count]() { ++dispatch_count; });
 
-    md::ThreadedDispatcher dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{"Dispatcher loop", dispatchable};
 
     dispatchable->trigger();
 
@@ -112,7 +112,7 @@ TEST_F(ThreadedDispatcherTest, passes_dispatch_events_through)
     };
     auto dispatchable = std::make_shared<mt::TestDispatchable>(delegate, md::FdEvent::readable | md::FdEvent::remote_closed);
 
-    md::ThreadedDispatcher dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{"Avocado", dispatchable};
 
     dispatchable->trigger();
     EXPECT_TRUE(dispatched_with_only_readable->wait_for(std::chrono::seconds{10}));
@@ -144,7 +144,7 @@ TEST_F(ThreadedDispatcherTest, doesnt_call_dispatch_after_first_false_return)
     };
     auto dispatchable = std::make_shared<mt::TestDispatchable>(delegate);
 
-    md::ThreadedDispatcher dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{"Unexpected walrus", dispatchable};
 
     for (int i = 0; i < expected_count + 1; ++i)
     {
@@ -177,7 +177,7 @@ TEST_F(ThreadedDispatcherTest, only_calls_dispatch_with_remote_closed_when_relev
         return true;
     }));
 
-    md::ThreadedDispatcher dispatcher{dispatchable};
+    md::ThreadedDispatcher dispatcher{"Implacable iguana", dispatchable};
 
     EXPECT_TRUE(dispatched_writable->wait_for(std::chrono::seconds{10}));
 
@@ -213,7 +213,7 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
     });
 
     auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
-    md::ThreadedDispatcher dispatcher{combined_dispatchable};
+    md::ThreadedDispatcher dispatcher{"Barry", combined_dispatchable};
 
     dispatcher.add_thread();
 
@@ -241,7 +241,7 @@ TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
     auto combined_dispatchable = std::make_shared<md::MultiplexingDispatchable>();
     combined_dispatchable->add_watch(first_dispatchable);
     combined_dispatchable->add_watch(second_dispatchable);
-    md::ThreadedDispatcher dispatcher{combined_dispatchable};
+    md::ThreadedDispatcher dispatcher{"Questionable decision", combined_dispatchable};
 
     dispatcher.add_thread();
 
@@ -269,7 +269,7 @@ TEST_F(ThreadedDispatcherTest, handles_destruction_from_dispatch_callback)
     dispatchable->trigger();
     dispatchable->trigger();
 
-    dispatcher = new md::ThreadedDispatcher{dispatchable};
+    dispatcher = new md::ThreadedDispatcher{"Mournful", dispatchable};
 
     EXPECT_TRUE(dispatched->wait_for(10s));
 }
@@ -292,6 +292,43 @@ TEST_F(ThreadedDispatcherTest, exceptions_in_threadpool_trigger_termination)
     // Ideally we'd use terminate_with_current_exception, but that's in server
     // and we're going to be called from a C context anyway, so just using the default
     // std::terminate behaviour should be acceptable.
-    EXPECT_EXIT({ md::ThreadedDispatcher dispatcher{dispatchable}; std::this_thread::sleep_for(10s); },
+    EXPECT_EXIT({ md::ThreadedDispatcher dispatcher("Die!", dispatchable); std::this_thread::sleep_for(10s); },
                 KilledBySignal(SIGABRT), (std::string{".*"} + exception_msg + ".*").c_str());
+}
+
+TEST_F(ThreadedDispatcherTest, sets_thread_names_appropriately)
+{
+    using namespace testing;
+    using namespace std::chrono_literals;
+
+    auto dispatched = std::make_shared<mt::Signal>();
+    constexpr int const threadcount{3};
+    constexpr char const* threadname_base{"Madness Thread"};
+
+    auto dispatchable = std::make_shared<mt::TestDispatchable>([dispatched]()
+                                                               {
+                                                                   static std::atomic<int> dispatch_count{0};
+                                                                   char buffer[80] = {0};
+                                                                   pthread_getname_np(pthread_self(), buffer, sizeof(buffer));
+                                                                   EXPECT_THAT(buffer, StartsWith(threadname_base));
+
+                                                                   if (++dispatch_count == threadcount)
+                                                                   {
+                                                                       dispatched->raise();
+                                                                   }
+                                                                   else
+                                                                   {
+                                                                       dispatched->wait_for(10s);
+                                                                   }
+                                                               });
+
+    md::ThreadedDispatcher dispatcher{threadname_base, dispatchable};
+
+    for (int i = 0; i < threadcount; ++i)
+    {
+        dispatcher.add_thread();
+        dispatchable->trigger();
+    }
+
+    EXPECT_TRUE(dispatched->wait_for(10s));
 }

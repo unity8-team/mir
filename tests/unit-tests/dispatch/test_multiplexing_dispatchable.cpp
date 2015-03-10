@@ -217,7 +217,7 @@ TEST(MultiplexingDispatchableTest, individual_dispatchee_is_not_concurrent)
     auto dispatcher = std::make_shared<md::MultiplexingDispatchable>();
     dispatcher->add_watch(dispatchee);
 
-    md::ThreadedDispatcher eventloop{dispatcher};
+    md::ThreadedDispatcher eventloop{"Fools!", dispatcher};
     eventloop.add_thread();
 
     EXPECT_TRUE(second_dispatch->wait_for(std::chrono::seconds{5}));
@@ -315,7 +315,7 @@ TEST(MultiplexingDispatchableTest, removal_is_threadsafe)
 
     dispatchee->trigger();
 
-    md::ThreadedDispatcher eventloop{dispatcher};
+    md::ThreadedDispatcher eventloop{"I'll destroy", dispatcher};
 
     EXPECT_TRUE(in_dispatch->wait_for(std::chrono::seconds{5}));
 
@@ -365,7 +365,7 @@ TEST(MultiplexingDispatchableTest, stress_test_threading)
 
     auto dispatcher = std::make_shared<md::MultiplexingDispatchable>();
 
-    auto event_dispatcher = std::make_shared<md::ThreadedDispatcher>(dispatcher);
+    auto event_dispatcher = std::make_shared<md::ThreadedDispatcher>(__func__, dispatcher);
     for (int i = 0 ; i < dispatchee_count + 5 ; ++i)
     {
         event_dispatcher->add_thread();
@@ -455,7 +455,7 @@ TEST(MultiplexingDispatchableTest, multiple_removals_are_threadsafe)
 
     first_dispatchee->trigger();
 
-    md::ThreadedDispatcher eventloop{dispatcher};
+    md::ThreadedDispatcher eventloop{"them all!", dispatcher};
     eventloop.add_thread();
 
     EXPECT_TRUE(in_dispatch->wait_for(std::chrono::seconds{5}));
@@ -480,7 +480,7 @@ TEST(MultiplexingDispatchableTest, automatic_removals_are_threadsafe)
 
     dispatcher->add_watch(dispatchee, md::DispatchReentrancy::reentrant);
 
-    md::ThreadedDispatcher eventloop{dispatcher};
+    md::ThreadedDispatcher eventloop{"Eeelo", dispatcher};
 
     eventloop.add_thread();
     eventloop.add_thread();

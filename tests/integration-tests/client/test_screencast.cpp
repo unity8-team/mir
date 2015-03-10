@@ -78,7 +78,7 @@ struct MirScreencastTest : public testing::Test
         protobuf_server =
             std::make_shared<mir::protobuf::DisplayServer::Stub>(rpc_channel.get());
         eventloop =
-            std::make_shared<md::ThreadedDispatcher>(
+            std::make_shared<md::ThreadedDispatcher>("I/O loop",
                 std::dynamic_pointer_cast<md::Dispatchable>(rpc_channel));
     }
 

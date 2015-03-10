@@ -47,7 +47,7 @@ mir::test::TestProtobufClient::TestProtobufClient(
         rpc_report,
         std::make_shared<mir::client::LifecycleControl>(),
         std::make_shared<mtd::NullClientEventSink>())),
-    eventloop{std::make_shared<md::ThreadedDispatcher>(std::dynamic_pointer_cast<md::Dispatchable>(channel))},
+    eventloop{std::make_shared<md::ThreadedDispatcher>("I/O loop", std::dynamic_pointer_cast<md::Dispatchable>(channel))},
     display_server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
     maxwait(timeout_ms),
     connect_done_called(false),

@@ -123,7 +123,7 @@ MirConnection::MirConnection(
         event_handler_register(conf.the_event_handler_register()),
         dispatcher{std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{std::dynamic_pointer_cast<md::Dispatchable>(channel)})},
         eventloop{dispatch == DispatchType::automatic ?
-                      new md::ThreadedDispatcher{dispatcher} :
+                      new md::ThreadedDispatcher{"I/O loop", dispatcher} :
                       nullptr
                   }
 {
