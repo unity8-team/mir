@@ -19,6 +19,7 @@
 #include <uuid/uuid.h>
 #include <istream>
 #include <boost/throw_exception.hpp>
+#include <string>
 
 #include "handshaking_connection_creator.h"
 #include "protocol_interpreter.h"
@@ -70,16 +71,17 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
 
         for (auto& protocol : *implementations)
         {
+            using namespace std::literals::string_literals;
             uuid_t server_protocol_id;
             auto& connection_protocol = protocol->connection_protocol();
             connection_protocol.protocol_id(server_protocol_id);
             if (uuid_compare(client_protocol_id, server_protocol_id) == 0)
             {
                 if (client_header_size != connection_protocol.header_size())
-                    BOOST_THROW_EXCEPTION(std::runtime_error(
-                        std::string("Client and server disagree on protocol header size for protocol ") +
-                        client_protocol_str + std::string("! (expected: ") + std::to_string(connection_protocol.header_size()) +
-                        std::string(" received: ") + std::to_string(client_header_size) + std::string(")")));
+                    BOOST_THROW_EXCEPTION((std::runtime_error{
+                        "Client and server disagree on protocol header size for protocol "s +
+                        client_protocol_str + "! (expected: "s + std::to_string(connection_protocol.header_size()) +
+                        " received: "s + std::to_string(client_header_size) + ")"s}));
 
                 protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
                 return;

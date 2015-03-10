@@ -25,6 +25,14 @@
 
 namespace mir
 {
+namespace client
+{
+namespace rpc
+{
+class StreamTransport;
+}
+}
+
 namespace frontend
 {
 class SessionAuthorizer;
@@ -49,12 +57,14 @@ public:
      * \brief The size, in bytes, of extra data sent along with the UUID.
      */
     virtual size_t header_size() const = 0;
+
     /**
      * \brief Send the extra client connection data for this protocol.
      *
-     * \note receive_client_header is unnecessary; the header_size is sent on client connect
+     * \note receive_client_header is unnecessary; the header_size is sent on client connect,
+     *       so the server handshake can read it without further assistance.
      */
-    virtual void send_client_header() = 0;
+    virtual void write_client_header(uint8_t* buffer) const = 0;
 
     /**
      * \brief Send the server connection reply
@@ -63,7 +73,7 @@ public:
     /**
      * \brief Read the server connection reply
      */
-    virtual void receive_server_header() = 0;
+    virtual void receive_server_header(client::rpc::StreamTransport& transport) = 0;
 
 private:
     HandshakeProtocol(HandshakeProtocol const&) = delete;

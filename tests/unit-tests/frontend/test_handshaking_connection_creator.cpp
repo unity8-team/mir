@@ -20,6 +20,7 @@
 #include "mir/frontend/handshake_protocol.h"
 #include "mir/frontend/connection_context.h"
 #include "src/server/frontend/protocol_interpreter.h"
+#include "src/client/rpc/stream_transport.h"
 
 #include "mir_test_doubles/stub_session_authorizer.h"
 
@@ -64,9 +65,9 @@ public:
     MOCK_CONST_METHOD1(protocol_id, void(uuid_t id));
     MOCK_CONST_METHOD0(header_size, size_t(void));
 
-    MOCK_METHOD0(send_client_header, void());
+    MOCK_CONST_METHOD1(write_client_header, void(uint8_t*));
     MOCK_METHOD0(send_server_header, void());
-    MOCK_METHOD0(receive_server_header, void());
+    MOCK_METHOD1(receive_server_header, void(mir::client::rpc::StreamTransport&));
 };
 
 class MockDispatchedSessionCreator : public mir::frontend::ProtocolInterpreter

@@ -21,6 +21,7 @@
 #include "display_configuration.h"
 #include "rpc/make_rpc_channel.h"
 #include "rpc/null_rpc_report.h"
+#include "rpc/protobuf_protocol.h"
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/input/input_platform.h"
 #include "mir/input/null_input_receiver_report.h"
@@ -38,10 +39,18 @@
 #include "probing_client_platform_factory.h"
 #include "mir_event_distributor.h"
 #include "mir/shared_library_prober.h"
+#include "rpc/stream_socket_transport.h"
+#include "rpc/handshaking_connection_creator.h"
 
 #include <dlfcn.h>
 
 namespace mcl = mir::client;
+
+
+namespace
+{
+}
+
 
 namespace
 {
@@ -91,9 +100,18 @@ mcl::DefaultConnectionConfiguration::the_rpc_channel()
     return rpc_channel(
         [this]
         {
-            return mcl::rpc::make_rpc_channel(
-                the_socket_file(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink());
+            mcl::rpc::HandshakingConnectionCreator handshake{make_supported_protocols()};
+            auto future = handshake.connect_to(mcl::rpc::transport_for(the_socket_file()));
+            return future.get();
         });
+}
+
+std::vector<std::unique_ptr<mcl::rpc::ProtocolInterpreter>>
+mcl::DefaultConnectionConfiguration::make_supported_protocols()
+{
+    std::vector<std::unique_ptr<mcl::rpc::ProtocolInterpreter>> protocols;
+    protocols.push_back(std::make_unique<mcl::rpc::ProtobufProtocol>(the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink()));
+    return protocols;
 }
 
 std::shared_ptr<mir::logging::Logger>

@@ -20,6 +20,7 @@
 #include "mir/frontend/protobuf_handshake_protocol.h"
 
 namespace mf = mir::frontend;
+namespace mclr = mir::client::rpc;
 
 void mf::ProtobufHandshakeProtocol::protocol_id(uuid_t id) const
 {
@@ -31,7 +32,7 @@ size_t mf::ProtobufHandshakeProtocol::header_size() const
     return 0;
 }
 
-void mf::ProtobufHandshakeProtocol::send_client_header()
+void mf::ProtobufHandshakeProtocol::write_client_header(uint8_t*) const
 {
 }
 
@@ -39,6 +40,7 @@ void mf::ProtobufHandshakeProtocol::send_server_header()
 {
 }
 
-void mf::ProtobufHandshakeProtocol::receive_server_header()
+void mf::ProtobufHandshakeProtocol::receive_server_header(mclr::StreamTransport& /*transport*/)
 {
+    // We have no server header!
 }

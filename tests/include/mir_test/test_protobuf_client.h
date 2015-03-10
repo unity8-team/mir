@@ -34,6 +34,7 @@ namespace dispatch
 {
 class SimpleDispatchThread;
 }
+
 namespace test
 {
 namespace doubles

@@ -20,6 +20,7 @@
 #define MIR_CLIENT_CONNECTION_CONFIGURATION_H_
 
 #include <memory>
+#include <vector>
 
 namespace google { namespace protobuf { class RpcChannel; } }
 
@@ -49,6 +50,11 @@ class LifecycleControl;
 class EventSink;
 class EventHandlerRegister;
 
+namespace rpc
+{
+class ProtocolInterpreter;
+}
+
 class ConnectionConfiguration
 {
 public:
@@ -56,6 +62,7 @@ public:
 
     virtual std::shared_ptr<ConnectionSurfaceMap> the_surface_map() = 0;
     virtual std::shared_ptr<google::protobuf::RpcChannel> the_rpc_channel() = 0;
+    virtual std::vector<std::unique_ptr<rpc::ProtocolInterpreter>> make_supported_protocols() = 0;
     virtual std::shared_ptr<mir::logging::Logger> the_logger() = 0;
     virtual std::shared_ptr<ClientPlatformFactory> the_client_platform_factory() = 0;
     virtual std::shared_ptr<input::receiver::InputPlatform> the_input_platform() = 0;

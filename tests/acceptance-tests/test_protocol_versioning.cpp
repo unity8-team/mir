@@ -20,6 +20,7 @@
 
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/stubbed_server_configuration.h"
+#include "mir_test_framework/using_stub_client_platform.h"
 
 #include "mir/frontend/handshake_protocol.h"
 #include "src/server/frontend/protobuf_protocol.h"
@@ -97,7 +98,6 @@ public:
         return conn_proto;
     }
 
-private:
     class DummyConnectionProtocol : public mf::HandshakeProtocol
     {
     public:
@@ -111,7 +111,7 @@ private:
             return 8;
         }
 
-        void send_client_header() override
+        void write_client_header(uint8_t*) const override
         {
         }
 
@@ -119,7 +119,7 @@ private:
         {
         }
 
-        void receive_server_header() override
+        void receive_server_header(mir::client::rpc::StreamTransport&) override
         {
         }
     } conn_proto;
@@ -129,6 +129,28 @@ private:
 TEST_F(ProtocolVersioningTest, ClientV1ConnectsToServerV1or2)
 {
     config.the_connection_protocols()->push_back(std::make_shared<DummySessionCreator>());
+    config.the_connection_protocols()->push_back(config.make_protobuf_connection_creator());
+
+    auto connection = mir_connect_sync(new_connection().c_str(), "test-client");
+    ASSERT_TRUE(mir_connection_is_valid(connection));
+
+    MirSurfaceParameters const request_params =
+    {
+        "input-test-client",
+        600, 600,
+        mir_pixel_format_argb_8888,
+        mir_buffer_usage_hardware,
+        mir_display_output_id_invalid
+    };
+    auto surface = mir_connection_create_surface_sync(connection, &request_params);
+    ASSERT_TRUE(mir_surface_is_valid(surface));
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
+}
+
+TEST_F(ProtocolVersioningTest, client_v1_or_v2_connects_to_server_v1)
+{
     config.the_connection_protocols()->push_back(config.make_protobuf_connection_creator());
 
     auto connection = mir_connect_sync(new_connection().c_str(), "test-client");

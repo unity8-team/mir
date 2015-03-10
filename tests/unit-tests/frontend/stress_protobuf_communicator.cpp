@@ -32,7 +32,7 @@
 #include "src/client/lifecycle_control.h"
 #include "src/client/rpc/null_rpc_report.h"
 #include "src/client/rpc/make_rpc_channel.h"
-#include "src/client/rpc/mir_basic_rpc_channel.h"
+#include "src/client/rpc/mir_protobuf_rpc_channel.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -180,8 +180,8 @@ StubProtobufClient::StubProtobufClient(
     std::string socket_file,
     int timeout_ms) :
     rpc_report(std::make_shared<mir::client::rpc::NullRpcReport>()),
-    channel(mir::client::rpc::make_rpc_channel(
-        socket_file,
+    channel(std::make_shared<mir::client::rpc::MirProtobufRpcChannel>(
+        mir::client::rpc::transport_for(socket_file),
         std::make_shared<mir::client::ConnectionSurfaceMap>(),
         std::make_shared<mir::client::DisplayConfiguration>(),
         rpc_report,

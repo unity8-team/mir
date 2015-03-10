@@ -31,10 +31,10 @@ public:
     void protocol_id(uuid_t id) const override;
 
     size_t header_size() const override;
-    void send_client_header() override;
+    void write_client_header(uint8_t* buffer) const override;
 
     void send_server_header() override;
-    void receive_server_header() override;
+    void receive_server_header(client::rpc::StreamTransport& transport) override;
 };
 
 }
