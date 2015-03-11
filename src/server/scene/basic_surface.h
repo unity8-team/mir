@@ -122,6 +122,7 @@ public:
     void consume(MirEvent const& event) override;
     void set_alpha(float alpha) override;
     void set_orientation(MirOrientation orientation) override;
+    MirOrientation orientation() const override;
     void set_transformation(glm::mat4 const&) override;
 
     bool visible() const override;
@@ -136,7 +137,7 @@ public:
     MirSurfaceState state() const override;
     void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) override;
     int configure(MirSurfaceAttrib attrib, int value) override;
-    int query(MirSurfaceAttrib attrib) override;
+    int query(MirSurfaceAttrib attrib) const override;
     void hide() override;
     void show() override;
     
@@ -189,6 +190,7 @@ private:
     MirSurfaceFocusState focus_ = mir_surface_unfocused;
     int dpi_ = 0;
     MirSurfaceVisibility visibility_ = mir_surface_visibility_exposed;
+    MirOrientation orientation_ = mir_orientation_normal;
     MirOrientationMode pref_orientation_mode = mir_orientation_mode_any;
 };
 

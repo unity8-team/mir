@@ -279,9 +279,16 @@ void ms::BasicSurface::set_alpha(float alpha)
     observers.surface_changed(*this, SurfaceObserver::opacity);
 }
 
-void ms::BasicSurface::set_orientation(MirOrientation)
+void ms::BasicSurface::set_orientation(MirOrientation o)
 {
+    orientation_ = o;
     observers.surface_changed(*this, SurfaceObserver::orientation);
+}
+
+MirOrientation ms::BasicSurface::orientation() const
+{
+    std::unique_lock<std::mutex> lk(guard);
+    return orientation_;
 }
 
 void ms::BasicSurface::set_transformation(glm::mat4 const& t)
@@ -477,7 +484,7 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
     return result;
 }
 
-int ms::BasicSurface::query(MirSurfaceAttrib attrib)
+int ms::BasicSurface::query(MirSurfaceAttrib attrib) const
 {
     std::unique_lock<std::mutex> lg(guard);
     switch (attrib)

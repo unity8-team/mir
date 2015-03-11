@@ -41,6 +41,8 @@ public:
 private:
     frontend::SurfaceId const id; // TODO: deprecate this
     std::shared_ptr<frontend::EventSink> const event_sink;
+
+    void attrib_changed(Surface const&, MirSurfaceAttrib) const;
 };
 }
 }

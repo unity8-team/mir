@@ -85,6 +85,7 @@ public:
     virtual void set_transformation(glm::mat4 const& t) = 0;
     virtual void set_alpha(float alpha) = 0;
     virtual void set_orientation(MirOrientation orientation) = 0;
+    virtual MirOrientation orientation() const = 0;
     virtual void force_requests_to_complete() = 0;
     
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) override = 0;
@@ -104,8 +105,9 @@ public:
     // TODO a legacy of old interactions and needs removing
     virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
     // TODO a legacy of old interactions and needs removing
-    virtual int query(MirSurfaceAttrib attrib) = 0;
+    virtual int query(MirSurfaceAttrib attrib) const = 0;
 
+    // TODO: Move this to input::Surface ?
     virtual void set_keymap(xkb_rule_names const& rules) = 0;
 };
 }

@@ -18,8 +18,7 @@
 
 #include "mir/events/event_builders.h"
 #include "mir/scene/surface_event_source.h"
-
-#include "mir/geometry/size.h"
+#include "mir/scene/surface.h"
 
 #include <cstring>
 #include <algorithm>
@@ -39,33 +38,48 @@ ms::SurfaceEventSource::SurfaceEventSource(
 void ms::SurfaceEventSource::surface_changed(ms::Surface const& surface,
                                              SurfaceObserver::Change change)
 {
-    (void)surface;
-    (void)change;
-    // TODO
+    switch (change)
+    {
+    case size:
+        event_sink->handle_event(*mev::make_event(id, surface.size()));
+        break;
+    case close:
+        event_sink->handle_event(*mev::make_event(id));
+        break;
+    case type:
+        attrib_changed(surface, mir_surface_attrib_type);
+        break;
+    case state:
+        attrib_changed(surface, mir_surface_attrib_state);
+        break;
+    case swapinterval:
+        attrib_changed(surface, mir_surface_attrib_swapinterval);
+        break;
+    case focus:
+        attrib_changed(surface, mir_surface_attrib_focus);
+        break;
+    case dpi:
+        attrib_changed(surface, mir_surface_attrib_dpi);
+        break;
+    case pref_orientation:
+        attrib_changed(surface, mir_surface_attrib_preferred_orientation);
+        break;
+    case orientation:
+        event_sink->handle_event(*mev::make_event(id, surface.orientation()));
+        break;
+    default:
+        break;
+    }
 }
 
+void ms::SurfaceEventSource::attrib_changed(Surface const& s,
+                                            MirSurfaceAttrib a) const
+{
+    event_sink->handle_event(*mev::make_event(id, a, s.query(a)));
+}
+
+// TODO
 #if 0
-void ms::SurfaceEventSource::resized_to(geom::Size const& size)
-{
-    event_sink->handle_event(*mev::make_event(id, size));
-}
-
-
-void ms::SurfaceEventSource::attrib_changed(MirSurfaceAttrib attrib, int value)
-{
-    event_sink->handle_event(*mev::make_event(id, attrib, value));
-}
-
-void ms::SurfaceEventSource::orientation_set_to(MirOrientation orientation)
-{
-    event_sink->handle_event(*mev::make_event(id, orientation));
-}
-
-void ms::SurfaceEventSource::client_surface_close_requested()
-{
-    event_sink->handle_event(*mev::make_event(id));
-}
-
 void ms::SurfaceEventSource::keymap_changed(xkb_rule_names const& names)
 {
     event_sink->handle_event(*mev::make_event(id, names));
