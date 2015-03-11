@@ -28,6 +28,8 @@
 #include "src/client/rpc/make_rpc_channel.h"
 #include "src/client/rpc/mir_basic_rpc_channel.h"
 #include "src/client/rpc/mir_protobuf_rpc_channel.h"
+#include "src/client/rpc/protobuf_protocol.h"
+#include "src/client/rpc/handshaking_connection_creator.h"
 #include "mir/dispatch/dispatchable.h"
 #include "mir/dispatch/simple_dispatch_thread.h"
 
@@ -37,17 +39,27 @@ namespace mtd = mir::test::doubles;
 namespace mclr = mir::client::rpc;
 namespace md = mir::dispatch;
 
+namespace
+{
+std::shared_ptr<google::protobuf::RpcChannel> perform_handshake(std::unique_ptr<mclr::StreamTransport> transport,
+                                                                std::shared_ptr<mclr::RpcReport> const& rpc_report)
+{
+    std::vector<std::unique_ptr<mclr::ProtocolInterpreter>> protocols;
+    protocols.push_back(std::make_unique<mclr::ProtobufProtocol>(std::make_shared<mir::client::ConnectionSurfaceMap>(),
+                                                                 std::make_shared<mir::client::DisplayConfiguration>(),
+                                                                 rpc_report,
+                                                                 std::make_shared<mir::client::LifecycleControl>(),
+                                                                 std::make_shared<mtd::NullClientEventSink>()));
+    mclr::HandshakingConnectionCreator handshaker(std::move(protocols));
+    return handshaker.connect_to(std::move(transport)).get();
+}
+}
+
 mir::test::TestProtobufClient::TestProtobufClient(
     std::string socket_file,
     int timeout_ms) :
     rpc_report(std::make_shared<testing::NiceMock<doubles::MockRpcReport>>()),
-    channel(std::make_shared<mir::client::rpc::MirProtobufRpcChannel>(
-        mir::client::rpc::transport_for(socket_file),
-        std::make_shared<mir::client::ConnectionSurfaceMap>(),
-        std::make_shared<mir::client::DisplayConfiguration>(),
-        rpc_report,
-        std::make_shared<mir::client::LifecycleControl>(),
-        std::make_shared<mtd::NullClientEventSink>())),
+    channel(perform_handshake(mclr::transport_for(socket_file), rpc_report)),
     eventloop{std::make_shared<md::SimpleDispatchThread>(std::dynamic_pointer_cast<md::Dispatchable>(channel))},
     display_server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
     maxwait(timeout_ms),
