@@ -21,6 +21,6 @@ list(APPEND UNIT_TEST_SOURCES
 set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} PARENT_SCOPE)
 
 list(APPEND UNIT_TEST_LINKS
-  mirplatformgraphicsmesa-private
+  mirplatformgraphicsmesa-static
 )
 set(UNIT_TEST_LINKS ${UNIT_TEST_LINKS} PARENT_SCOPE)

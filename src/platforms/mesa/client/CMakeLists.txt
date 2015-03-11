@@ -21,7 +21,7 @@ add_library(mirclientplatformmesa MODULE
   $<TARGET_OBJECTS:client_platform_common>
 )
 
-add_library(mirclientplatformmesa-private SHARED
+add_library(mirclientplatformmesa-static STATIC
   $<TARGET_OBJECTS:mirclientplatformmesaobjects>
   $<TARGET_OBJECTS:client_platform_common>
 )
@@ -39,6 +39,6 @@ set(LINKS
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
 )
 target_link_libraries(mirclientplatformmesa ${LINKS})
-target_link_libraries(mirclientplatformmesa-private ${LINKS})
+target_link_libraries(mirclientplatformmesa-static ${LINKS})
 
 install(TARGETS mirclientplatformmesa LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})

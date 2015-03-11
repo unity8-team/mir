@@ -84,10 +84,10 @@ set(MIR_SERVER_REFERENCES
 )
 
 add_library(mirserver SHARED ${MIR_SERVER_OBJECTS})
-add_library(mirserver-private SHARED ${MIR_SERVER_OBJECTS})
+add_library(mirserver-static STATIC ${MIR_SERVER_OBJECTS})
 
 target_link_libraries(mirserver LINK_PUBLIC ${MIR_SERVER_REFERENCES})
-target_link_libraries(mirserver-private LINK_PUBLIC ${MIR_SERVER_REFERENCES})
+target_link_libraries(mirserver-static LINK_PUBLIC ${MIR_SERVER_REFERENCES})
 
 install(TARGETS mirserver
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

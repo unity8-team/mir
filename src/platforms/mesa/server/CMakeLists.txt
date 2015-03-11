@@ -44,7 +44,7 @@ add_library(mirplatformgraphicsmesa MODULE
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 
-add_library(mirplatformgraphicsmesa-private SHARED
+add_library(mirplatformgraphicsmesa-static STATIC
   $<TARGET_OBJECTS:mirplatformgraphicsmesaobjects>
 )
 
@@ -57,7 +57,7 @@ set(LINKS
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
 target_link_libraries(mirplatformgraphicsmesa ${LINKS})
-target_link_libraries(mirplatformgraphicsmesa-private ${LINKS})
+target_link_libraries(mirplatformgraphicsmesa-static ${LINKS})
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 

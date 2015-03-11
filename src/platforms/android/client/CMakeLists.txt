@@ -19,7 +19,7 @@ add_library(mirclientplatformandroid MODULE
   $<TARGET_OBJECTS:client_platform_common>
 )
 
-add_library(mirclientplatformandroid-private SHARED
+add_library(mirclientplatformandroid-static STATIC
   $<TARGET_OBJECTS:mirclientplatformandroidobjects>
   $<TARGET_OBJECTS:client_platform_common>
 )
@@ -38,6 +38,6 @@ set(LINKS
   ${LIBHARDWARE_LIBRARIES}
 )
 target_link_libraries(mirclientplatformandroid ${LINKS})
-target_link_libraries(mirclientplatformandroid-private ${LINKS})
+target_link_libraries(mirclientplatformandroid-static ${LINKS})
 
 install(TARGETS mirclientplatformandroid LIBRARY DESTINATION ${MIR_CLIENT_PLATFORM_PATH})

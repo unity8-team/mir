@@ -44,10 +44,10 @@ list(APPEND MIR_COMMON_SOURCES
 )
 
 add_library(mircommon SHARED ${MIR_COMMON_SOURCES})
-add_library(mircommon-private SHARED ${MIR_COMMON_SOURCES})
+add_library(mircommon-static STATIC ${MIR_COMMON_SOURCES})
 
 target_link_libraries(mircommon ${MIR_COMMON_REFERENCES})
-target_link_libraries(mircommon-private ${MIR_COMMON_REFERENCES})
+target_link_libraries(mircommon-static ${MIR_COMMON_REFERENCES})
 
 # TODO we need a place to manage ABI and related versioning but use this as placeholder
 set(MIRCOMMON_ABI 3)
