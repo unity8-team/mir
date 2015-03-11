@@ -27,8 +27,10 @@ namespace mir
 {
 namespace shell
 {
+class WindowManager;
+
 /// Minimal Shell implementation with none of the necessary window management logic
-class AbstractShell : public virtual Shell
+class AbstractShell : public virtual Shell, public virtual FocusController
 {
 public:
     AbstractShell(
@@ -36,6 +38,13 @@ public:
         std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
         std::shared_ptr<scene::SessionCoordinator> const& session_coordinator,
         std::shared_ptr<scene::PromptSessionManager> const& prompt_session_manager);
+
+    AbstractShell(
+        std::shared_ptr<InputTargeter> const& input_targeter,
+        std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
+        std::shared_ptr<scene::SessionCoordinator> const& session_coordinator,
+        std::shared_ptr<scene::PromptSessionManager> const& prompt_session_manager,
+        std::function<std::shared_ptr<WindowManager>(FocusController* focus_controller)> const& wm_builder);
 
     ~AbstractShell() noexcept;
 
@@ -82,18 +91,20 @@ public:
  *  @{ */
     void focus_next() override;
 
-    std::weak_ptr<scene::Session> focussed_application() const override;
-
-    void set_focus_to(std::shared_ptr<scene::Session> const& focus) override;
-/** @} */
+    std::shared_ptr<scene::Session> focused_session() const override;
 
     // More useful than FocusController::set_focus_to()!
     void set_focus_to(
         std::shared_ptr<scene::Session> const& focus_session,
-        std::shared_ptr<scene::Surface> const& focus_surface);
+        std::shared_ptr<scene::Surface> const& focus_surface) override;
 
     // The surface with focus
-    std::shared_ptr<scene::Surface> focused_surface() const;
+    std::shared_ptr<scene::Surface> focused_surface() const override;
+
+    auto surface_at(geometry::Point cursor) const -> std::shared_ptr<scene::Surface> override;
+
+    void raise(SurfaceSet const& surfaces) override;
+/** @} */
 
     void add_display(geometry::Rectangle const& area) override;
     void remove_display(geometry::Rectangle const& area) override;
@@ -105,6 +116,7 @@ protected:
     std::shared_ptr<scene::SurfaceCoordinator> const surface_coordinator;
     std::shared_ptr<scene::SessionCoordinator> const session_coordinator;
     std::shared_ptr<scene::PromptSessionManager> const prompt_session_manager;
+    std::shared_ptr<WindowManager> const window_manager;
 
 private:
 /** @name callbacks from FocusController methods
