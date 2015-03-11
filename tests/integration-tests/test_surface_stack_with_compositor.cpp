@@ -21,11 +21,11 @@
 #include "src/server/report/null_report_factory.h"
 #include "src/server/scene/surface_stack.h"
 #include "src/server/compositor/gl_renderer_factory.h"
+#include "mir_test_doubles/mock_buffer_bundle.h"
 #include "src/server/scene/basic_surface.h"
 #include "src/server/compositor/default_display_buffer_compositor_factory.h"
 #include "src/server/compositor/multi_threaded_compositor.h"
 #include "mir_test/fake_shared.h"
-#include "mir_test_doubles/mock_buffer_stream.h"
 #include "mir_test_doubles/null_display.h"
 #include "mir_test_doubles/stub_renderer.h"
 #include "mir_test_doubles/stub_display_buffer.h"
@@ -120,27 +120,29 @@ struct SurfaceStackCompositor : public testing::Test
 {
     SurfaceStackCompositor() :
         timeout{std::chrono::system_clock::now() + std::chrono::seconds(5)},
-        mock_buffer_stream(std::make_shared<testing::NiceMock<mtd::MockBufferStream>>()),
+        mock_buffer_bundle(std::make_shared<testing::NiceMock<mtd::MockBufferBundle>>()),
         stub_surface{std::make_shared<ms::BasicSurface>(
             std::string("stub"),
             geom::Rectangle{{0,0},{1,1}},
             false,
-            mock_buffer_stream,
+            mock_buffer_bundle,
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mtd::StubInputSender>(),
             std::shared_ptr<mg::CursorImage>(),
             null_scene_report)}
     {
+/*        mc::BufferHandle stub_handle(mt::fake_shared(stubbuf), nullptr);
+
         using namespace testing;
-        ON_CALL(*mock_buffer_stream, lock_compositor_buffer(_))
-            .WillByDefault(Return(mt::fake_shared(stubbuf)));
-    }
+        ON_CALL(*mock_buffer_bundle, compositor_acquire(_))
+            .WillByDefault(InvokeWithoutArgs([&](){ return std::move(stub_handle); }));
+  */  }
     std::shared_ptr<ms::SceneReport> null_scene_report{mr::null_scene_report()};
     ms::SurfaceStack stack{null_scene_report};
     std::shared_ptr<mc::CompositorReport> null_comp_report{mr::null_compositor_report()};
     StubRendererFactory renderer_factory;
     std::chrono::system_clock::time_point timeout;
-    std::shared_ptr<mtd::MockBufferStream> mock_buffer_stream;
+    std::shared_ptr<mtd::MockBufferBundle> mock_buffer_bundle;
     std::shared_ptr<ms::BasicSurface> stub_surface;
     ms::SurfaceCreationParameters default_params;
     mtd::StubBuffer stubbuf;
@@ -201,7 +203,7 @@ TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a
 TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
+    ON_CALL(*mock_buffer_bundle, buffers_ready_for_compositor(_))
         .WillByDefault(Return(5));
 
     mc::MultiThreadedCompositor mt_compositor(
@@ -221,7 +223,7 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
 TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
+    ON_CALL(*mock_buffer_bundle, buffers_ready_for_compositor(_))
         .WillByDefault(Return(5));
 
     stub_surface->resize(geom::Size{10,10});
@@ -243,7 +245,7 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
 TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
+    ON_CALL(*mock_buffer_bundle, buffers_ready_for_compositor(_))
         .WillByDefault(Return(0));
 
     mc::MultiThreadedCompositor mt_compositor(
@@ -304,8 +306,8 @@ TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
 TEST_F(SurfaceStackCompositor, buffer_updates_trigger_composition)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
-        .WillByDefault(testing::Return(1));
+    ON_CALL(*mock_buffer_bundle, buffers_ready_for_compositor(_))
+        .WillByDefault(Return(1));
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
     stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});
 

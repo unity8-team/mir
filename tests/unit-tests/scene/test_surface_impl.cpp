@@ -25,8 +25,8 @@
 #include "mir/frontend/event_sink.h"
 #include "mir/graphics/display_configuration.h"
 
-#include "mir_test_doubles/stub_buffer_stream.h"
-#include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_bundle.h"
+#include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir_test_doubles/mock_input_targeter.h"
 #include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/null_event_sink.h"
@@ -53,23 +53,23 @@ namespace mr = mir::report;
 namespace
 {
 
-typedef testing::NiceMock<mtd::MockBufferStream> StubBufferStream;
+typedef testing::NiceMock<mtd::MockBufferBundle> StubBufferBundle;
 
 struct Surface : testing::Test
 {
-    std::shared_ptr<StubBufferStream> const buffer_stream = std::make_shared<StubBufferStream>();
+    std::shared_ptr<StubBufferBundle> const buffer_bundle = std::make_shared<StubBufferBundle>();
 
     void SetUp()
     {
         using namespace testing;
 
-        ON_CALL(*buffer_stream, stream_size()).WillByDefault(Return(geom::Size()));
-        ON_CALL(*buffer_stream, get_stream_pixel_format()).WillByDefault(Return(mir_pixel_format_abgr_8888));
-        ON_CALL(*buffer_stream, acquire_client_buffer(_))
+        ON_CALL(*buffer_bundle, size()).WillByDefault(Return(geom::Size()));
+//        ON_CALL(*buffer_bundle, get_stream_pixel_format()).WillByDefault(Return(mir_pixel_format_abgr_8888));
+        ON_CALL(*buffer_bundle, client_acquire(_))
             .WillByDefault(InvokeArgument<0>(nullptr));
         
         surface = std::make_shared<ms::BasicSurface>(std::string("stub"), geom::Rectangle{{},{}}, false,
-            buffer_stream, nullptr /* input_channel */, stub_input_sender,
+            buffer_bundle, nullptr /* input_channel */, stub_input_sender,
             nullptr /* cursor_image */, report);
     }
 
@@ -264,13 +264,13 @@ TEST_F(Surface, take_input_focus)
 
 TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
 {
-    auto stub_buffer_stream = std::make_shared<mtd::StubBufferStream>();
+    auto stub_buffer_bundle = std::make_shared<mtd::StubBufferBundle>();
 
     ms::BasicSurface surf(
         std::string("stub"),
         geom::Rectangle{{},{}},
         false,
-        stub_buffer_stream,
+        stub_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -284,7 +284,7 @@ TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
             buf_ptr = &buffer;
         });
 
-    EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(), buf_ptr);
+    EXPECT_EQ(stub_buffer_bundle->stub_compositor_buffer.get(), buf_ptr);
 }
 
 TEST_F(Surface, emits_client_close_events)
@@ -314,7 +314,7 @@ TEST_F(Surface, preferred_orientation_mode_defaults_to_any)
         std::string("stub"),
         geom::Rectangle{{},{}},
         false,
-        buffer_stream,
+        buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),

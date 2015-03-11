@@ -27,7 +27,8 @@
 #include "mir/graphics/buffer_ipc_message.h"
 #include "mir/graphics/platform_operation_message.h"
 #include "mir/scene/buffer_queue_factory.h"
-#include "mir/compositor/buffer_stream.h"
+#include "mir/compositor/buffer_handle.h"
+#include "mir/compositor/buffer_bundle.h"
 #include "mir_toolkit/mir_client_library.h"
 #include "src/client/mir_connection.h"
 #include <chrono>
@@ -54,14 +55,14 @@ MATCHER(DidNotTimeOut, "did not time out")
     return arg;
 }
 
-struct StubStream : public mc::BufferStream
+struct StubQueue : public mc::BufferBundle
 {
-    StubStream(std::vector<mg::BufferID> const& ids) :
+    StubQueue(std::vector<mg::BufferID> const& ids) :
         buffer_id_seq(ids)
     {
     }
 
-    void acquire_client_buffer(std::function<void(mg::Buffer* buffer)> complete)
+    void client_acquire(std::function<void(mg::Buffer* buffer)> complete)
     {
         std::shared_ptr<mg::Buffer> stub_buffer;
         if (buffers_acquired < buffer_id_seq.size())
@@ -73,13 +74,11 @@ struct StubStream : public mc::BufferStream
         complete(stub_buffer.get());
     }
 
-    void release_client_buffer(mg::Buffer*) {}
-    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*)
-    { return std::make_shared<mtd::StubBuffer>(); }
-    std::shared_ptr<mg::Buffer> lock_snapshot_buffer()
-    { return std::make_shared<mtd::StubBuffer>(); }
-    MirPixelFormat get_stream_pixel_format() { return mir_pixel_format_abgr_8888; }
-    geom::Size stream_size() { return geom::Size{1,212121}; }
+    void client_release(mg::Buffer*) {}
+    mc::BufferHandle compositor_acquire(void const*)
+        { return std::move(mc::BufferHandle(std::make_shared<mtd::StubBuffer>(), nullptr)); }
+    mc::BufferHandle snapshot_acquire()
+        { return std::move(mc::BufferHandle(std::make_shared<mtd::StubBuffer>(), nullptr)); }
     void resize(geom::Size const&) {};
     void allow_framedropping(bool) {};
     void force_requests_to_complete() {};
@@ -87,19 +86,26 @@ struct StubStream : public mc::BufferStream
     void drop_old_buffers() {}
     void drop_client_requests() override {}
 
+    mg::BufferProperties properties() const override
+        { return mg::BufferProperties(geom::Size{0, 0},
+        	       mir_pixel_format_invalid,
+                   mg::BufferUsage::undefined); }
+    geom::Size size() const override { return geom::Size{1,212121}; }
+    int buffers_free_for_client() const override { return 0; }
+
     std::vector<std::shared_ptr<mg::Buffer>> client_buffers;
     std::vector<mg::BufferID> const buffer_id_seq;
     unsigned int buffers_acquired{0};
 };
 
-struct StubStreamFactory : public msc::BufferStreamFactory
+struct StubQueueFactory : public msc::BufferQueueFactory
 {
-    StubStreamFactory(std::vector<mg::BufferID> const& ids) :
+	StubQueueFactory(std::vector<mg::BufferID> const& ids) :
         buffer_id_seq(ids)
     {}
 
-    std::shared_ptr<mc::BufferStream> create_buffer_stream(mg::BufferProperties const&) override
-    { return std::make_shared<StubStream>(buffer_id_seq); }
+    std::shared_ptr<mc::BufferBundle> create_buffer_queue(mg::BufferProperties const&) override
+    { return std::make_shared<StubQueue>(buffer_id_seq); }
     std::vector<mg::BufferID> const buffer_id_seq;
 };
 
@@ -175,7 +181,7 @@ struct ExchangeServerConfiguration : mtf::StubbedServerConfiguration
     ExchangeServerConfiguration(
         std::vector<mg::BufferID> const& id_seq,
         std::shared_ptr<mg::PlatformIpcOperations> const& ipc_ops) :
-        stream_factory{std::make_shared<StubStreamFactory>(id_seq)},
+        queue_factory{std::make_shared<StubQueueFactory>(id_seq)},
         platform{std::make_shared<StubPlatform>(ipc_ops)}
     {
     }
@@ -185,12 +191,12 @@ struct ExchangeServerConfiguration : mtf::StubbedServerConfiguration
         return platform;
     }
 
-    std::shared_ptr<msc::BufferStreamFactory> the_buffer_stream_factory() override
+    std::shared_ptr<msc::BufferQueueFactory> the_buffer_queue_factory() override
     {
-        return stream_factory;
+        return queue_factory;
     }
 
-    std::shared_ptr<msc::BufferStreamFactory> const stream_factory;
+    std::shared_ptr<msc::BufferQueueFactory> const queue_factory;
     std::shared_ptr<mg::Platform> const platform;
 };
 

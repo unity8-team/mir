@@ -59,7 +59,7 @@ public:
     void allow_framedropping(bool dropping_allowed) override;
     void force_requests_to_complete() override;
     void resize(const geometry::Size &newsize) override;
-    geometry::Size size() override;
+    geometry::Size size() const override;
     int buffers_ready_for_compositor(void const* user_id) const override;
     int buffers_free_for_client() const override;
     bool framedropping_allowed() const;

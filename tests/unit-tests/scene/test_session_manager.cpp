@@ -29,7 +29,7 @@
 
 #include "mir_test_doubles/mock_surface_coordinator.h"
 #include "mir_test_doubles/mock_session_listener.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_bundle.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_session_event_sink.h"
 
@@ -78,7 +78,7 @@ struct SessionManagerSetup : public testing::Test
         std::string("stub"),
         geom::Rectangle{{},{}},
         false,
-        std::make_shared<mtd::StubBufferStream>(),
+        std::make_shared<mtd::StubBufferBundle>(),
         std::shared_ptr<mi::InputChannel>(),
         std::shared_ptr<mi::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),

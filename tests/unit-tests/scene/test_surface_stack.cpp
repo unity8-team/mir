@@ -27,9 +27,9 @@
 #include "mir/input/input_channel_factory.h"
 #include "mir_test_doubles/stub_input_channel.h"
 #include "mir_test/fake_shared.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_bundle.h"
 #include "mir_test_doubles/stub_renderable.h"
-#include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/mock_buffer_bundle.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -125,7 +125,7 @@ struct SurfaceStack : public ::testing::Test
             std::string("stub"),
             geom::Rectangle{{},{}},
             false,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -137,7 +137,7 @@ struct SurfaceStack : public ::testing::Test
             std::string("stub"),
             geom::Rectangle{{},{}},
             false,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -149,7 +149,7 @@ struct SurfaceStack : public ::testing::Test
             std::string("stub"),
             geom::Rectangle{{},{}},
             false,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -161,7 +161,7 @@ struct SurfaceStack : public ::testing::Test
             std::string("stub"),
             geom::Rectangle{{},{}},
             false,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -236,7 +236,7 @@ TEST_F(SurfaceStack, scene_counts_pending_accurately)
         std::string("stub"),
         geom::Rectangle{{},{}},
         false,
-        std::make_shared<mtd::StubBufferStream>(),
+        std::make_shared<mtd::StubBufferBundle>(),
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
@@ -271,7 +271,7 @@ TEST_F(SurfaceStack, scene_doesnt_count_pending_frames_from_occluded_surfaces)
         std::string("stub"),
         geom::Rectangle{{},{}},
         false,
-        std::make_shared<mtd::StubBufferStream>(),
+        std::make_shared<mtd::StubBufferBundle>(),
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
@@ -397,7 +397,7 @@ TEST_F(SurfaceStack, generate_elementelements)
             std::string("stub"),
             geom::Rectangle{geom::Point{3 * i, 4 * i},geom::Size{1 * i, 2 * i}},
             true,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -527,7 +527,7 @@ TEST_F(SurfaceStack, scene_elements_hold_snapshot_of_positioning_info)
             std::string("stub"),
             geom::Rectangle{geom::Point{3 * i, 4 * i},geom::Size{1 * i, 2 * i}},
             true,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
@@ -552,15 +552,15 @@ TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
 {
     using namespace testing;
 
-    auto mock_stream = std::make_shared<NiceMock<mtd::MockBufferStream>>();
-    EXPECT_CALL(*mock_stream, lock_compositor_buffer(_))
-        .Times(0);
+    auto mock_bundle = std::make_shared<NiceMock<mtd::MockBufferBundle>>();
+//    EXPECT_CALL(*mock_bundle, compositor_acquire(_))
+//        .Times(0);
 
     auto const surface = std::make_shared<ms::BasicSurface>(
         std::string("stub"),
         geom::Rectangle{geom::Point{3, 4},geom::Size{1, 2}},
         true,
-        mock_stream,
+        mock_bundle,
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
@@ -570,10 +570,10 @@ TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
 
     auto const elements = stack.scene_elements_for(compositor_id);
 
-    Mock::VerifyAndClearExpectations(mock_stream.get());
-    EXPECT_CALL(*mock_stream, lock_compositor_buffer(compositor_id))
-        .Times(1)
-        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
+    Mock::VerifyAndClearExpectations(mock_bundle.get());
+//    EXPECT_CALL(*mock_bundle, compositor_acquire(compositor_id))
+//        .Times(1)
+//        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
     ASSERT_THAT(elements.size(), Eq(1u));
     elements.front()->renderable()->buffer();
 }
@@ -582,16 +582,16 @@ TEST_F(SurfaceStack, generates_scene_elements_that_allow_only_one_buffer_acquisi
 {
     using namespace testing;
 
-    auto mock_stream = std::make_shared<NiceMock<mtd::MockBufferStream>>();
-    EXPECT_CALL(*mock_stream, lock_compositor_buffer(_))
-        .Times(1)
-        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
+    auto mock_bundle = std::make_shared<NiceMock<mtd::MockBufferBundle>>();
+//    EXPECT_CALL(*mock_bundle, compositor_acquire(_))
+//        .Times(1)
+//        .WillOnce(Return(std::make_shared<mtd::StubBuffer>()));
 
     auto const surface = std::make_shared<ms::BasicSurface>(
         std::string("stub"),
         geom::Rectangle{geom::Point{3, 4},geom::Size{1, 2}},
         true,
-        mock_stream,
+        mock_bundle,
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
@@ -615,7 +615,7 @@ struct MockConfigureSurface : public ms::BasicSurface
             {},
             {{},{}},
             true,
-            std::make_shared<mtd::StubBufferStream>(),
+            std::make_shared<mtd::StubBufferBundle>(),
             {},
             {},
             {},

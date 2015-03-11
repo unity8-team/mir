@@ -27,7 +27,7 @@
 #include "mir/scene/null_surface_observer.h"
 #include "mir/events/event_builders.h"
 
-#include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir_test_doubles/mock_input_sender.h"
 #include "mir_test_doubles/stub_input_sender.h"
 #include "mir_test_doubles/stub_buffer.h"
@@ -92,8 +92,8 @@ struct BasicSurfaceTest : public testing::Test
     testing::NiceMock<MockCallback> mock_callback;
     std::function<void()> null_change_cb{[]{}};
     std::function<void()> mock_change_cb{std::bind(&MockCallback::call, &mock_callback)};
-    std::shared_ptr<testing::NiceMock<mtd::MockBufferStream>> mock_buffer_stream =
-        std::make_shared<testing::NiceMock<mtd::MockBufferStream>>();
+    std::shared_ptr<testing::NiceMock<mtd::MockBufferBundle>> mock_buffer_bundle =
+        std::make_shared<testing::NiceMock<mtd::MockBufferBundle>>();
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     void const* compositor_id{nullptr};
     std::shared_ptr<ms::LegacySurfaceChangeNotification> observer =
@@ -105,7 +105,7 @@ struct BasicSurfaceTest : public testing::Test
         name,
         rect,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -135,7 +135,7 @@ TEST_F(BasicSurfaceTest, id_always_unique)
     for (int i = 0; i < N; ++i)
     {
         surfaces[i].reset(new ms::BasicSurface(
-                name, rect, false, mock_buffer_stream,
+                name, rect, false, mock_buffer_bundle,
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
                 std::shared_ptr<mg::CursorImage>(), report)
             );
@@ -155,7 +155,7 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
     for (int i = 0; i < N; ++i)
     {
         surfaces[i].reset(new ms::BasicSurface(
-                name, rect, false, mock_buffer_stream,
+                name, rect, false, mock_buffer_bundle,
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
                 std::shared_ptr<mg::CursorImage>(), report)
             );
@@ -260,7 +260,7 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
 {
     using namespace testing;
     mtd::StubBuffer mock_buffer;
-    EXPECT_CALL(*mock_buffer_stream, acquire_client_buffer(_)).Times(2)
+    EXPECT_CALL(*mock_buffer_bundle, client_acquire(_)).Times(2)
         .WillRepeatedly(InvokeArgument<0>(&mock_buffer));
 
     mir::graphics::Buffer* buffer = nullptr;
@@ -271,7 +271,7 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
         name,
         rect,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -314,7 +314,7 @@ TEST_F(BasicSurfaceTest, test_surface_frame_posted_notifies_changes)
 {
     using namespace testing;
     mtd::StubBuffer mock_buffer;
-    EXPECT_CALL(*mock_buffer_stream, acquire_client_buffer(_)).Times(2)
+    EXPECT_CALL(*mock_buffer_bundle, client_acquire(_)).Times(2)
         .WillRepeatedly(InvokeArgument<0>(&mock_buffer));
 
     surface.add_observer(observer);
@@ -338,7 +338,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         name,
         geom::Rectangle{pt, one_by_one},
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -376,7 +376,7 @@ TEST_F(BasicSurfaceTest, default_invisible_surface_doesnt_get_input)
         name,
         geom::Rectangle{{0,0}, {100,100}},
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -517,7 +517,7 @@ TEST_F(BasicSurfaceTest, stores_parent)
         geom::Rectangle{{0,0}, {100,100}},
         parent,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
@@ -678,7 +678,7 @@ TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
         name,
         rect,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::shared_ptr<mi::InputChannel>(),
         mt::fake_shared(mock_sender),
         nullptr,

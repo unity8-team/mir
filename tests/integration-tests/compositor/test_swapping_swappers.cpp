@@ -20,8 +20,8 @@
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 #include "multithread_harness.h"
 
-#include "src/server/compositor/buffer_queue.h"
-#include "src/server/compositor/buffer_stream_surfaces.h"
+#include "mir/compositor/buffer_handle.h"
+#include "mir/compositor/buffer_queue.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
 
 #include <gmock/gmock.h>

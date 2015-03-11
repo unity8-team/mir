@@ -371,7 +371,7 @@ void mc::BufferQueue::force_requests_to_complete()
     }
 }
 
-geom::Size mc::BufferQueue::size()
+geom::Size mc::BufferQueue::size() const
 {
     std::lock_guard<decltype(guard)> lock(guard);
     return the_properties.size;

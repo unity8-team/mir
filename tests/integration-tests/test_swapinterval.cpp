@@ -23,12 +23,12 @@
 #include "mir/compositor/compositor.h"
 #include "mir/compositor/display_buffer_compositor.h"
 #include "mir/compositor/scene.h"
-#include "mir/compositor/buffer_stream.h"
+#include "mir/compositor/buffer_bundle.h"
 #include "mir/scene/buffer_queue_factory.h"
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_bundle.h"
 
 #include "mir_toolkit/mir_client_library.h"
 
@@ -49,23 +49,34 @@ namespace
 {
 char const* const mir_test_socket = mtf::test_socket_file().c_str();
 
-class CountingBufferStream : public mtd::StubBufferStream
+class CountingBufferBundle : public mtd::StubBufferBundle
 {
 public:
-    CountingBufferStream(int render_operations_fd)
+    CountingBufferBundle(int render_operations_fd)
      : render_operations_fd(render_operations_fd)
     {
     }
 
-    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*) override
+    mc::BufferHandle compositor_acquire(void const*) override
+    {
+        return std::move(mc::BufferHandle(nullptr, nullptr));
+    }
+/*    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*) override
         { return std::make_shared<mtd::StubBuffer>(); }
+*/
 
+    mc::BufferHandle snapshot_acquire() override
+    {
+        return std::move(mc::BufferHandle(nullptr, nullptr));
+    }
+/*
     std::shared_ptr<mg::Buffer> lock_snapshot_buffer() override
         { return std::make_shared<mtd::StubBuffer>(); }
+*/
 
-    MirPixelFormat get_stream_pixel_format() override
+/*    MirPixelFormat get_stream_pixel_format() override
         { return mir_pixel_format_abgr_8888; }
-
+*/
     void allow_framedropping(bool) override
     {
         while (write(render_operations_fd, "a", 1) != 1) continue;
@@ -75,17 +86,17 @@ private:
     int render_operations_fd;
 };
 
-class StubStreamFactory : public ms::BufferStreamFactory
+class StubQueueFactory : public ms::BufferQueueFactory
 {
 public:
-    StubStreamFactory(int render_operations_fd)
+    StubQueueFactory(int render_operations_fd)
      : render_operations_fd(render_operations_fd)
     {
     }
 
-    std::shared_ptr<mc::BufferStream> create_buffer_stream(mg::BufferProperties const&)
+    std::shared_ptr<mc::BufferBundle> create_buffer_queue(mg::BufferProperties const&)
     {
-        return std::make_shared<CountingBufferStream>(render_operations_fd);
+        return std::make_shared<CountingBufferBundle>(render_operations_fd);
     }
 private:
     int render_operations_fd;
@@ -127,11 +138,11 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
                 close(rendering_ops_pipe[1]);
         }
 
-        std::shared_ptr<ms::BufferStreamFactory> the_buffer_stream_factory() override
+        std::shared_ptr<ms::BufferQueueFactory> the_buffer_queue_factory() override
         {
-            if (!stub_stream_factory)
-                stub_stream_factory = std::make_shared<StubStreamFactory>(rendering_ops_pipe[1]);
-            return stub_stream_factory;
+            if (!stub_queue_factory)
+            	stub_queue_factory = std::make_shared<StubQueueFactory>(rendering_ops_pipe[1]);
+            return stub_queue_factory;
         }
 
         int num_of_swapinterval_devices()
@@ -146,7 +157,7 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
         }
 
         int rendering_ops_pipe[2];
-        std::shared_ptr<StubStreamFactory> stub_stream_factory;
+        std::shared_ptr<StubQueueFactory> stub_queue_factory;
     } server_config;
 
     launch_server_process(server_config);

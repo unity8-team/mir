@@ -17,8 +17,8 @@
  *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
-#include "src/server/compositor/buffer_queue.h"
-#include "src/server/compositor/buffer_handle.h"
+#include "mir/compositor/buffer_queue.h"
+#include "mir/compositor/buffer_handle.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
@@ -218,7 +218,7 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
         auto client_id = handle->id();
 
         /* Client and compositor always share the same buffer */
-        EXPECT_THAT(client_id, Eq(comp_buffer_handle->buffer()->id()));
+        EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
 
         EXPECT_NO_THROW(handle->release_buffer());
     }
@@ -249,7 +249,7 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
         /* Client and compositor share the same buffer so
          * expect the new size
          */
-        ASSERT_NO_THROW(q.compositor_acquire(this)->buffer());
+        ASSERT_NO_THROW(q.compositor_acquire(this).buffer());
 
         EXPECT_THAT(buffer->size(), Eq(expect_size));
     }
@@ -350,14 +350,14 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order_for_synchronous_clie
             mg::BufferID composited_id;
             {
                 auto comp_buffer_handle = q.compositor_acquire(main_compositor);
-                composited_id = comp_buffer_handle->buffer()->id();
+                composited_id = comp_buffer_handle.buffer()->id();
             }
 
             EXPECT_THAT(composited_id, Eq(client_id));
 
             {
                 auto comp_buffer_handle = q.compositor_acquire(second_compositor);
-                EXPECT_THAT(composited_id, Eq(comp_buffer_handle->buffer()->id()));
+                EXPECT_THAT(composited_id, Eq(comp_buffer_handle.buffer()->id()));
             }
         }
     }
@@ -394,7 +394,7 @@ TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
     handle->release_buffer();
 
     auto comp_buffer_handle = q.compositor_acquire(this);
-    EXPECT_THAT(client_id, Eq(comp_buffer_handle->buffer()->id()));
+    EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
 }
 
 TEST_F(BufferQueueTest, throws_on_out_of_order_client_release)
@@ -465,7 +465,7 @@ TEST_F(BufferQueueTest, compositor_can_acquire_and_release)
         ASSERT_NO_THROW(handle->release_buffer());
 
         auto comp_buffer_handle = q.compositor_acquire(this);
-        EXPECT_THAT(client_id, Eq(comp_buffer_handle->buffer()->id()));
+        EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
     }
 }
 
@@ -485,7 +485,7 @@ TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
             auto comp_buffer_handle = q.compositor_acquire(user_id);
-            EXPECT_THAT(client_id, Eq(comp_buffer_handle->buffer()->id()));
+            EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
         }
     }
 }
@@ -513,7 +513,7 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
             auto comp_buffer_handle = q.compositor_acquire(user_id);
-            ASSERT_EQ(client_id1, comp_buffer_handle->buffer()->id());
+            ASSERT_EQ(client_id1, comp_buffer_handle.buffer()->id());
         }
 
         // Still many monitors... verify they all get the second frame.
@@ -521,7 +521,7 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
             auto comp_buffer_handle = q.compositor_acquire(user_id);
-            ASSERT_EQ(client_id2, comp_buffer_handle->buffer()->id());
+            ASSERT_EQ(client_id2, comp_buffer_handle.buffer()->id());
         }
     }
 }
@@ -553,7 +553,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
             for (auto const& client_id : client_release_sequence)
             {
                 auto comp_buffer_handle = q.compositor_acquire(this);
-                EXPECT_THAT(client_id, Eq(comp_buffer_handle->buffer()->id()));
+                EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
             }
         }
     }
@@ -597,7 +597,7 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
             {
                 {
                     std::shared_ptr<mg::Buffer> buffer;
-                    EXPECT_NO_THROW(buffer = q.compositor_acquire(this)->buffer());
+                    EXPECT_NO_THROW(buffer = q.compositor_acquire(this).buffer());
                     EXPECT_THAT(buffer, Ne(nullptr));
                 }
                 std::this_thread::yield();
@@ -631,7 +631,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
             {
                 void const* user_id = reinterpret_cast<void const*>(monitor_id);
                 auto buffer_handle = q.compositor_acquire(user_id);
-                ASSERT_THAT(buffer_handle->buffer().get(), Eq(last_client_acquired_buffer));
+                ASSERT_THAT(buffer_handle.buffer().get(), Eq(last_client_acquired_buffer));
             }
         }
     }
@@ -654,7 +654,7 @@ TEST_F(BufferQueueTest, compositor_client_interleaved)
     // in the original bug, compositor would be given the wrong buffer here
     auto compositor_buffer_handle = q.compositor_acquire(this);
 
-    EXPECT_THAT(compositor_buffer_handle->buffer()->id(), Eq(first_ready_buffer_id));
+    EXPECT_THAT(compositor_buffer_handle.buffer()->id(), Eq(first_ready_buffer_id));
 
     handle->release_buffer();
 }
@@ -666,17 +666,17 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
     {
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
 
-        std::shared_ptr<mc::BufferHandle> compositor[2];
+        mc::BufferHandle *compositor[2];
 
         auto handle = client_acquire_async(q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        compositor[0] = q.compositor_acquire(this);
+        *compositor[0] = q.compositor_acquire(this);
 
         handle = client_acquire_async(q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        compositor[1] = q.compositor_acquire(this);
+        *compositor[1] = q.compositor_acquire(this);
 
         for (int i = 0; i < 20; i++)
         {
@@ -685,11 +685,10 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
 
             // One of the compositors (the oldest one) gets a new buffer...
             int oldest = i & 1;
-            compositor[oldest].reset();
             auto handle = client_acquire_async(q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
-            compositor[oldest] = q.compositor_acquire(this);
+            *compositor[oldest] = q.compositor_acquire(this);
         }
     }
 }
@@ -702,8 +701,8 @@ TEST_F(BufferQueueTest, snapshot_acquire_basic)
 
         auto comp_buffer_handle = q.compositor_acquire(this);
         auto snapshot_handle = q.snapshot_acquire();
-        EXPECT_THAT(snapshot_handle->buffer()->id(),
-                    Eq(comp_buffer_handle->buffer()->id()));
+        EXPECT_THAT(snapshot_handle.buffer()->id(),
+                    Eq(comp_buffer_handle.buffer()->id()));
     }
 }
 
@@ -736,9 +735,9 @@ TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
         mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
         int const num_snapshots = 100;
 
-        std::shared_ptr<mc::BufferHandle> buf[num_snapshots];
+        mc::BufferHandle* buf[num_snapshots];
         for (int i = 0; i < num_snapshots; i++)
-            buf[i] = q.snapshot_acquire();
+            *buf[i] = q.snapshot_acquire();
     }
 }
 
@@ -954,7 +953,7 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
                 handle->release_buffer();
 
                 auto comp_buffer_handle = q.compositor_acquire(this);
-                ASSERT_THAT(expect_size, Eq(comp_buffer_handle->buffer()->size()));
+                ASSERT_THAT(expect_size, Eq(comp_buffer_handle.buffer()->size()));
             }
         }
     }
@@ -1013,11 +1012,11 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             auto buffer_handle = q.compositor_acquire(this);
 
             // Verify the compositor gets resized buffers, eventually
-            ASSERT_THAT(buffer_handle->buffer()->size(), Eq(expect_size));
+            ASSERT_THAT(buffer_handle.buffer()->size(), Eq(expect_size));
 
             // Verify the compositor gets buffers with *contents*, ie. that
             // they have not been resized prematurely and are empty.
-            ASSERT_THAT(history[consume], Eq(buffer_handle->buffer()->id()));
+            ASSERT_THAT(history[consume], Eq(buffer_handle.buffer()->id()));
         }
 
         // Verify the final buffer size sticks
@@ -1025,7 +1024,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         for (int unchanging = 0; unchanging < 100; ++unchanging)
         {
             auto buffer_handle = q.compositor_acquire(this);
-            ASSERT_THAT(buffer_handle->buffer()->size(), Eq(final_size));
+            ASSERT_THAT(buffer_handle.buffer()->size(), Eq(final_size));
         }
     }
 }
@@ -1045,7 +1044,7 @@ TEST_F(BufferQueueTest, framedropping_policy_never_drops_newest_frame)
 
         // Start rendering one (don't finish)
         auto d = q.compositor_acquire(nullptr);
-        ASSERT_EQ(first, d->buffer().get());
+        ASSERT_EQ(first, d.buffer().get());
 
         auto second = client_acquire_sync(q);
         q.client_release(second);
@@ -1091,8 +1090,8 @@ TEST_F(BufferQueueTest, framedropping_surface_never_drops_newest_frame)
         for (int n = 0; n < nbuffers-1; ++n)
         {
             auto c = q.compositor_acquire(nullptr);
-            compositing.push_back(c->buffer());
-            ASSERT_EQ(order[n], c->buffer().get());
+            compositing.push_back(c.buffer());
+            ASSERT_EQ(order[n], c.buffer().get());
         }
 
         // Ensure it's not the newest frame that gets dropped to satisfy the
@@ -1193,7 +1192,7 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames_ev
 
     {
         auto buf_handle = q.compositor_acquire(this);
-        EXPECT_THAT(buf_handle->buffer()->size(), Eq(new_size));
+        EXPECT_THAT(buf_handle.buffer()->size(), Eq(new_size));
     }
 }
 
@@ -1208,12 +1207,9 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
     q.client_release(client_acquire_sync(q));
     auto b = q.compositor_acquire(this);
 
-    ASSERT_NE(a->buffer(), b->buffer());
+    ASSERT_NE(a.buffer(), b.buffer());
 
-    a.reset();
     q.client_release(client_acquire_sync(q));
-
-    b.reset();
 
     /*
      * Update to the original test case; This additional compositor acquire
@@ -1248,15 +1244,11 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
 
         auto b = q.compositor_acquire(this);
     
-        ASSERT_NE(a.get(), b.get());
+        ASSERT_NE(a.buffer(), b.buffer());
     
-        a.reset();
-
         auto w = client_acquire_async(q);
         ASSERT_TRUE(w->has_acquired_buffer());
         w->release_buffer();
-    
-        b.reset();
 
         /*
          * Update to the original test case; This additional compositor acquire
@@ -1293,11 +1285,11 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
         auto b = q.compositor_acquire(this);
     
         // Release frame 1
-        a.reset();
+//        a.reset();
         // Produce frame 3
         q.client_release(client_acquire_sync(q));
         // Release frame 2
-        b.reset();
+//        b.reset();
     
         // Verify frame 3 is ready for the first compositor
         ASSERT_THAT(q.buffers_ready_for_compositor(this), Ge(1));
@@ -1348,11 +1340,11 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     mc::BufferQueue q{nbuffers, allocator, basic_properties, policy_factory};
     q.allow_framedropping(true);
 
-    std::vector<std::shared_ptr<mc::BufferHandle>> buffer_handles;
+    std::vector<mc::BufferHandle> buffer_handles;
 
     /* The client can never own this acquired buffer */
     auto comp_buffer_handle = q.compositor_acquire(this);
-    buffer_handles.push_back(comp_buffer_handle);
+    buffer_handles.push_back(std::move(comp_buffer_handle));
 
     /* Let client release all possible buffers so they go into
      * the ready queue
@@ -1362,7 +1354,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
         auto handle = client_acquire_async(q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         /* Check the client never got the compositor buffer acquired above */
-        ASSERT_THAT(handle->id(), Ne(comp_buffer_handle->buffer()->id()));
+        ASSERT_THAT(handle->id(), Ne(comp_buffer_handle.buffer()->id()));
         handle->release_buffer();
     }
 
@@ -1382,8 +1374,8 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     if (!handle->has_acquired_buffer())
     {
         /* Release compositor buffers so that the client can get one */
-        for (auto& buf_handle : buffer_handles)
-        	buf_handle.reset();
+//        for (auto& buf_handle : buffer_handles)
+//        	buf_handle.reset();
 
         EXPECT_THAT(handle->has_acquired_buffer(), Eq(true));
     }
@@ -1417,7 +1409,7 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
                         time_for_client_to_acquire,
                         [&]()->bool{ return client_buffer; }))
                     {
-                        ASSERT_THAT(buffer_handle->buffer()->id(), Ne(client_buffer->id()));
+                        ASSERT_THAT(buffer_handle.buffer()->id(), Ne(client_buffer->id()));
                     }
                 }
 
@@ -1457,23 +1449,23 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
             auto client_id = handle->id();
-            std::vector<std::shared_ptr<mc::BufferHandle>> buffer_handles;
+            std::vector<mc::BufferHandle> buffer_handles;
             for (int j = 0; j < nbuffers; j++)
             {
                 auto buffer_handle = q.compositor_acquire(this);
-                ASSERT_THAT(client_id, Ne(buffer_handle->buffer()->id()));
-                buffer_handles.push_back(buffer_handle);
+                ASSERT_THAT(client_id, Ne(buffer_handle.buffer()->id()));
+                buffer_handles.push_back(std::move(buffer_handle));
             }
 
-            for (auto& buf_handle: buffer_handles)
-                buf_handle.reset();
+//            for (auto& buf_handle: buffer_handles)
+//                buf_handle.reset();
 
             handle->release_buffer();
 
             {
                 /* Flush out one ready buffer */
                 auto buffer_handle = q.compositor_acquire(this);
-                ASSERT_THAT(client_id, Eq(buffer_handle->buffer()->id()));
+                ASSERT_THAT(client_id, Eq(buffer_handle.buffer()->id()));
             }
         }
     }
@@ -1508,7 +1500,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         for (int acquires = 0; acquires < nbuffers; ++acquires)
             q.compositor_acquire(second_compositor);
 
-        comp_buffer1.reset();
+//        comp_buffer1.reset();
 
         /* An async client should still be able to cycle through all the available buffers */
         std::atomic<bool> done(false);
@@ -1625,7 +1617,7 @@ TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffe
     q.drop_old_buffers();
 
     auto comp = q.compositor_acquire(this);
-    ASSERT_THAT(comp, Ne(nullptr));
+//    ASSERT_THAT(comp, Ne(nullptr));
 }
 
 TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_buffers)
@@ -1645,12 +1637,12 @@ TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_bu
 
     {
         auto buffer_handle = q.compositor_acquire(this);
-        ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
+        ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle2->id()));
     }
 
     {
         auto buffer_handle = q.compositor_acquire(this);
-        ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle2->id()));
+        ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle2->id()));
     }
 }
 
@@ -1667,7 +1659,7 @@ TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_ol
 
     {
         auto buffer_handle = q.compositor_acquire(this);
-        ASSERT_THAT(buffer_handle->buffer()->id(), Eq(handle1->id()));
+        ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle1->id()));
     }
 
     auto handle2 = client_acquire_async(q);
@@ -1677,5 +1669,5 @@ TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_ol
     q.drop_old_buffers();
 
     auto buffer_handle2 = q.compositor_acquire(new_compositor_id);
-    ASSERT_THAT(buffer_handle2->buffer()->id(), Eq(handle2->id()));
+    ASSERT_THAT(buffer_handle2.buffer()->id(), Eq(handle2->id()));
 }

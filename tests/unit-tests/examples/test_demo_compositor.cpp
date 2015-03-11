@@ -27,7 +27,7 @@
 
 #include "mir_test_doubles/mock_gl.h"
 #include "mir_test_doubles/stub_display_buffer.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
+#include "mir_test_doubles/stub_buffer_bundle.h"
 #include "mir_test_doubles/stub_renderable.h"
 #include "mir_test/fake_shared.h"
 
@@ -67,7 +67,7 @@ struct DemoCompositor : testing::Test
         std::string("stub"),
         geom::Rectangle{{0,0},{100,100}},
         false,
-        std::make_shared<mtd::StubBufferStream>(),
+        std::make_shared<mtd::StubBufferBundle>(),
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mir::graphics::CursorImage>(),

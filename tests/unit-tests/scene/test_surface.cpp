@@ -27,7 +27,7 @@
 #include "mir/scene/surface_event_source.h"
 #include "mir/input/input_channel.h"
 
-#include "mir_test_doubles/mock_buffer_stream.h"
+#include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir_test_doubles/mock_input_surface.h"
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/mock_input_sender.h"
@@ -192,7 +192,7 @@ struct SurfaceCreation : public ::testing::Test
 {
     SurfaceCreation()
         : surface(surface_name,
-            rect, false, mock_buffer_stream, 
+            rect, false, mock_buffer_bundle,
             std::make_shared<mtd::StubInputChannel>(),
             std::make_shared<mtd::StubInputSender>(),
             nullptr /* cursor_image */, report)
@@ -209,11 +209,11 @@ struct SurfaceCreation : public ::testing::Test
             notification_count++;
         };
 
-        ON_CALL(*mock_buffer_stream, acquire_client_buffer(_))
+        ON_CALL(*mock_buffer_bundle, client_acquire(_))
             .WillByDefault(InvokeArgument<0>(&stub_buffer));
     }
 
-    std::shared_ptr<testing::NiceMock<mtd::MockBufferStream>> mock_buffer_stream = std::make_shared<testing::NiceMock<mtd::MockBufferStream>>();
+    std::shared_ptr<testing::NiceMock<mtd::MockBufferBundle>> mock_buffer_bundle = std::make_shared<testing::NiceMock<mtd::MockBufferBundle>>();
     std::function<void()> change_notification;
     int notification_count = 0;
     mtd::StubBuffer stub_buffer;
@@ -233,9 +233,9 @@ TEST_F(SurfaceCreation, test_surface_queries_stream_for_pf)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_stream, get_stream_pixel_format())
-        .Times(1)
-        .WillOnce(Return(pf));
+//    EXPECT_CALL(*mock_buffer_bundle, get_stream_pixel_format())
+//        .Times(1)
+//        .WillOnce(Return(pf));
 
     auto ret_pf = surface.pixel_format();
 
@@ -258,7 +258,7 @@ TEST_F(SurfaceCreation, test_surface_next_buffer)
 
     mtd::StubBuffer graphics_resource;
 
-    EXPECT_CALL(*mock_buffer_stream, acquire_client_buffer(_))
+    EXPECT_CALL(*mock_buffer_bundle, client_acquire(_))
         .Times(1)
         .WillOnce(InvokeArgument<0>(&graphics_resource));
 
@@ -273,7 +273,7 @@ TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
 
     mtd::StubBuffer stub_buffer;
 
-    EXPECT_CALL(*mock_buffer_stream, acquire_client_buffer(_))
+    EXPECT_CALL(*mock_buffer_bundle, client_acquire(_))
         .Times(1)
         .WillOnce(InvokeArgument<0>(&stub_buffer));
 
@@ -301,7 +301,7 @@ TEST_F(SurfaceCreation, resize_updates_stream_and_state)
     using namespace testing;
     geom::Size const new_size{123, 456};
 
-    EXPECT_CALL(*mock_buffer_stream, resize(new_size))
+    EXPECT_CALL(*mock_buffer_bundle, resize(new_size))
         .Times(1);
 
     auto const mock_event_sink = std::make_shared<MockEventSink>();
@@ -327,15 +327,15 @@ TEST_F(SurfaceCreation, duplicate_resize_ignored)
 
     ASSERT_THAT(surface.size(), Ne(new_size));
 
-    EXPECT_CALL(*mock_buffer_stream, resize(new_size)).Times(1);
+    EXPECT_CALL(*mock_buffer_bundle, resize(new_size)).Times(1);
     EXPECT_CALL(*mock_event_sink, handle_event(_)).Times(1);
     surface.resize(new_size);
     EXPECT_THAT(surface.size(), Eq(new_size));
 
-    Mock::VerifyAndClearExpectations(mock_buffer_stream.get());
+    Mock::VerifyAndClearExpectations(mock_buffer_bundle.get());
     Mock::VerifyAndClearExpectations(mock_event_sink.get());
 
-    EXPECT_CALL(*mock_buffer_stream, resize(_)).Times(0);
+    EXPECT_CALL(*mock_buffer_bundle, resize(_)).Times(0);
     EXPECT_CALL(*mock_event_sink, handle_event(_)).Times(0);
     surface.resize(new_size);
     EXPECT_THAT(surface.size(), Eq(new_size));
@@ -346,7 +346,7 @@ TEST_F(SurfaceCreation, unsuccessful_resize_does_not_update_state)
     using namespace testing;
     geom::Size const new_size{123, 456};
 
-    EXPECT_CALL(*mock_buffer_stream, resize(new_size))
+    EXPECT_CALL(*mock_buffer_bundle, resize(new_size))
         .Times(1)
         .WillOnce(Throw(std::runtime_error("bad resize")));
 
@@ -378,7 +378,7 @@ TEST_F(SurfaceCreation, impossible_resize_clamps)
         if (expect_size.height <= geom::Height{0})
             expect_size.height = geom::Height{1};
 
-        EXPECT_CALL(*mock_buffer_stream, resize(expect_size)).Times(1);
+        EXPECT_CALL(*mock_buffer_bundle, resize(expect_size)).Times(1);
         EXPECT_NO_THROW({ surface.resize(size); });
         EXPECT_EQ(expect_size, surface.size());
     }
@@ -407,7 +407,7 @@ TEST_F(SurfaceCreation, test_surface_force_requests_to_complete)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_stream, force_requests_to_complete()).Times(Exactly(1));
+    EXPECT_CALL(*mock_buffer_bundle, force_requests_to_complete()).Times(Exactly(1));
 
     surface.force_requests_to_complete();
 }
@@ -416,7 +416,7 @@ TEST_F(SurfaceCreation, test_surface_allow_framedropping)
 {
     using namespace testing;
 
-    EXPECT_CALL(*mock_buffer_stream, allow_framedropping(true))
+    EXPECT_CALL(*mock_buffer_bundle, allow_framedropping(true))
         .Times(1);
 
     surface.allow_framedropping(true);
@@ -452,7 +452,7 @@ TEST_F(SurfaceCreation, input_fds)
         surface_name,
         rect,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         mt::fake_shared(channel),
         std::make_shared<mtd::StubInputSender>(),
         std::shared_ptr<mg::CursorImage>(),
@@ -470,7 +470,7 @@ TEST_F(SurfaceCreation, consume_calls_send_event)
         surface_name,
         rect,
         false,
-        mock_buffer_stream,
+        mock_buffer_bundle,
         std::make_shared<mtd::StubInputChannel>(),
         mt::fake_shared(mock_sender),
         std::shared_ptr<mg::CursorImage>(),

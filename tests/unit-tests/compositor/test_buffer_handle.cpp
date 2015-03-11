@@ -18,7 +18,7 @@
 
 #include "mir_test_doubles/stub_buffer.h"
 #include "mir_test_doubles/mock_buffer_bundle.h"
-#include "src/server/compositor/buffer_handle.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include <gtest/gtest.h>
 

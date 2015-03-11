@@ -18,7 +18,8 @@
 #ifndef MIR_TEST_DOUBLES_MOCK_BUFFER_BUNDLE_H_
 #define MIR_TEST_DOUBLES_MOCK_BUFFER_BUNDLE_H_
 
-#include "src/server/compositor/buffer_bundle.h"
+#include "mir/compositor/buffer_handle.h"
+#include "mir/compositor/buffer_bundle.h"
 
 #include <gmock/gmock.h>
 
@@ -37,19 +38,19 @@ public:
     ~MockBufferBundle() noexcept
     {}
 
-    MOCK_METHOD1(client_acquire,     void(std::function<void(graphics::Buffer*)>));
-    MOCK_METHOD1(client_release,     void(graphics::Buffer*));
-    MOCK_METHOD1(compositor_acquire, std::shared_ptr<compositor::BufferHandle>(void const*));
-    MOCK_METHOD1(compositor_release, void(graphics::Buffer* const));
-    MOCK_METHOD0(snapshot_acquire, std::shared_ptr<compositor::BufferHandle>());
-    MOCK_METHOD1(snapshot_release, void(graphics::Buffer* const));
-    MOCK_METHOD1(allow_framedropping, void(bool));
+    MOCK_METHOD1(client_acquire, void(std::function<void(graphics::Buffer*)>));
+    MOCK_METHOD1(client_release, void(graphics::Buffer*));
     MOCK_CONST_METHOD0(properties, graphics::BufferProperties());
-    MOCK_METHOD0(force_client_abort, void());
+    MOCK_METHOD1(allow_framedropping, void(bool));
     MOCK_METHOD0(force_requests_to_complete, void());
     MOCK_METHOD1(resize, void(const geometry::Size &));
+    MOCK_CONST_METHOD0(size, geometry::Size());
     MOCK_METHOD0(drop_old_buffers, void());
-    int buffers_ready_for_compositor(void const*) const override { return 1; }
+    MOCK_CONST_METHOD1(buffers_ready_for_compositor, int(void const*));
+    compositor::BufferHandle compositor_acquire(void const*) override
+        { return std::move(compositor::BufferHandle(nullptr, nullptr)); }
+    compositor::BufferHandle snapshot_acquire() override
+        { return std::move(compositor::BufferHandle(nullptr, nullptr)); }
     int buffers_free_for_client() const override { return 1; }
     void drop_client_requests() override {}
 };

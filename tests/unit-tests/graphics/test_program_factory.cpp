@@ -29,8 +29,7 @@
 #include <mir_test/fake_shared.h>
 #include <mir_test_doubles/mock_buffer.h>
 #include <mir_test_doubles/mock_renderable.h>
-#include <mir_test_doubles/mock_buffer_stream.h>
-#include <mir/compositor/buffer_stream.h>
+#include <mir_test_doubles/mock_buffer_bundle.h>
 #include <mir_test_doubles/mock_gl.h>
 
 using testing::SetArgPointee;

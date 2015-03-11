@@ -16,10 +16,11 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#ifndef MIR_TEST_DOUBLES_NULL_BUFFER_STREAM_H_
-#define MIR_TEST_DOUBLES_NULL_BUFFER_STREAM_H_
+#ifndef MIR_TEST_DOUBLES_NULL_BUFFER_BUNDLE_H_
+#define MIR_TEST_DOUBLES_NULL_BUFFER_BUNDLE_H_
 
-#include <mir/compositor/buffer_stream.h>
+#include "mir/compositor/buffer_handle.h"
+#include <mir/compositor/buffer_bundle.h>
 #include <mir_test_doubles/stub_buffer.h>
 
 namespace mir
@@ -29,42 +30,47 @@ namespace test
 namespace doubles
 {
 
-class StubBufferStream : public compositor::BufferStream
+class StubBufferBundle : public compositor::BufferBundle
 {
 public:
-    StubBufferStream()
+    StubBufferBundle()
     {
         stub_compositor_buffer = std::make_shared<StubBuffer>();
     }
 
-    void acquire_client_buffer(
+    void client_acquire(
         std::function<void(graphics::Buffer* buffer)> complete) override
     {
         complete(&stub_client_buffer);
     }
 
-    void release_client_buffer(graphics::Buffer*) override
+    void client_release(graphics::Buffer*) override
     {
         ++nready;
     }
 
-    std::shared_ptr<graphics::Buffer> lock_compositor_buffer(void const*) override
+    compositor::BufferHandle compositor_acquire(void const*) override
+    {
+        return std::move(compositor::BufferHandle(nullptr, nullptr));
+    }
+/*
+    std::shared_ptr<compositor::BufferHandle> lock_compositor_buffer(void const*) override
     {
         --nready;
         return stub_compositor_buffer;
     }
-
+*/
+    compositor::BufferHandle snapshot_acquire() override
+    {
+        return std::move(compositor::BufferHandle(nullptr, nullptr));
+    }
+/*
     std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() override
     {
         return stub_compositor_buffer;
     }
-
-    MirPixelFormat get_stream_pixel_format() override
-    {
-        return MirPixelFormat();
-    }
-
-    geometry::Size stream_size() override
+*/
+    geometry::Size size() const override
     {
         return geometry::Size();
     }
@@ -81,10 +87,17 @@ public:
     {
     }
 
+    int buffers_free_for_client() const override { return 0; }
+
     int buffers_ready_for_compositor(void const*) const override { return nready; }
 
     void drop_old_buffers() override {}
     void drop_client_requests() override {}
+
+    graphics::BufferProperties properties() const override
+    { return graphics::BufferProperties(geometry::Size{0, 0},
+        	                            mir_pixel_format_invalid,
+        	                            graphics::BufferUsage::undefined); }
 
     StubBuffer stub_client_buffer;
     std::shared_ptr<graphics::Buffer> stub_compositor_buffer;
@@ -95,4 +108,4 @@ public:
 }
 } // namespace mir
 
-#endif /* MIR_TEST_DOUBLES_NULL_BUFFER_STREAM_H_ */
+#endif /* MIR_TEST_DOUBLES_NULL_BUFFER_BUNDLE_H_ */

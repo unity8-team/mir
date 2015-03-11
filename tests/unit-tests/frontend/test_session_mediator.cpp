@@ -16,7 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "mir/compositor/buffer_stream.h"
 #include "src/server/frontend/session_mediator.h"
 #include "src/server/report/null_report_factory.h"
 #include "src/server/frontend/resource_cache.h"

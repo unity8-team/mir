@@ -18,8 +18,7 @@
 
 #include "src/server/scene/basic_surface.h"
 #include "src/server/report/null_report_factory.h"
-#include "src/server/compositor/buffer_stream_surfaces.h"
-#include "src/server/compositor/buffer_queue.h"
+#include "mir/compositor/buffer_queue.h"
 
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
@@ -49,7 +48,7 @@ struct SurfaceComposition : Test
             std::string("SurfaceComposition"),
             geom::Rectangle{{},{}},
             false,
-            create_buffer_stream(),
+            create_buffer_bundle(),
             create_input_channel(),
             create_input_sender(),
             create_cursor_image(),
@@ -58,12 +57,6 @@ struct SurfaceComposition : Test
     }
 
     int const number_of_buffers = 3;
-
-    auto create_buffer_stream() const
-    ->std::shared_ptr<mc::BufferStream>
-    {
-        return std::make_shared<mc::BufferStreamSurfaces>(create_buffer_bundle());
-    }
 
     auto create_buffer_bundle() const
     -> std::shared_ptr<mc::BufferBundle>
