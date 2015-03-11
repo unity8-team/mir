@@ -236,7 +236,7 @@ TEST_F(SurfaceStack, decor_name_is_surface_name)
         std::string("Mary had a little lamb"),
         geom::Rectangle{{},{}},
         false,
-        std::make_shared<mtd::StubBufferStream>(),
+        std::make_shared<mtd::StubBufferBundle>(),
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
