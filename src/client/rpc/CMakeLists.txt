@@ -5,4 +5,6 @@ add_library(mirclientrpc STATIC
   mir_protobuf_rpc_channel.cpp
   make_socket_rpc_channel.cpp
   stream_socket_transport.cpp
+  protobuf_protocol.cpp
+  handshaking_connection_creator.cpp
 )

@@ -30,6 +30,7 @@
 #include <thread>
 #include <condition_variable>
 #include <array>
+#include <endian.h>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -40,15 +41,17 @@ namespace
 {
 char const* mock_uuid = "28e0bbfb-20e6-4066-ba80-aa38a5538638";
 
-void write_header(int socket, mir::frontend::HandshakeProtocol& handshake)
+void write_client_header(int socket, mir::frontend::HandshakeProtocol& handshake)
 {
-    uint16_t const network_header = htons(handshake.header_size());
+    uint16_t const client_header = htole16(handshake.header_size());
+    uint16_t const total_header_size = htole16(2 + 36 + handshake.header_size());
     uuid_t id;
     handshake.protocol_id(id);
     std::array<char, 36> uuid;
     uuid_unparse(id, uuid.data());
 
-    ASSERT_TRUE(write(socket, &network_header, sizeof network_header) == (sizeof network_header));
+    ASSERT_THAT(write(socket, &total_header_size, sizeof(total_header_size)), testing::Eq(sizeof(total_header_size)));
+    ASSERT_TRUE(write(socket, &client_header, sizeof client_header) == (sizeof client_header));
     ASSERT_TRUE(write(socket, uuid.data(), 36) == 36);
 }
 
@@ -78,7 +81,7 @@ public:
     {
     }
     MockDispatchedSessionCreator(std::string const& uuid)
-        : handshake{std::make_shared<MockHandshakeProtocol>(uuid)}
+        : handshake{std::make_shared<testing::NiceMock<MockHandshakeProtocol>>(uuid)}
     {
     }
 
@@ -110,9 +113,9 @@ TEST(DispatchingConnectionCreatorTest, DispatchesSingleUUIDSupported)
 
     boost::asio::io_service io_service;
     int socket_fds[2];
-    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds) == 0);
 
-    write_header(socket_fds[0], mock_proto->connection_protocol());
+    write_client_header(socket_fds[0], mock_proto->connection_protocol());
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
@@ -138,9 +141,9 @@ TEST(DispatchingConnectionCreatorTest, DispatchesToCorrectUUID)
 
     boost::asio::io_service io_service;
     int socket_fds[2];
-    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds) == 0);
 
-    write_header(socket_fds[0], mock_proto_two->connection_protocol());
+    write_client_header(socket_fds[0], mock_proto_two->connection_protocol());
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
@@ -160,15 +163,15 @@ TEST(DispatchingConnectionCreatorTest, NoCommonProtocolRaisesException)
     auto protos = std::make_shared<std::vector<std::shared_ptr<mir::frontend::ProtocolInterpreter>>>();
     protos->push_back(mock_proto);
 
-    MockHandshakeProtocol unknown_client_proto{"d29d39ba-c5fe-44a8-93c0-126ca9c4a41f"};
+    NiceMock<MockHandshakeProtocol> unknown_client_proto{"d29d39ba-c5fe-44a8-93c0-126ca9c4a41f"};
 
     mir::frontend::HandshakingConnectionCreator dispatcher{protos, authorizer};
 
     boost::asio::io_service io_service;
     int socket_fds[2];
-    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds) == 0);
 
-    write_header(socket_fds[0], unknown_client_proto);
+    write_client_header(socket_fds[0], unknown_client_proto);
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),
                                                                                 socket_fds[1]);
@@ -191,7 +194,7 @@ TEST(DispatchingConnectionCreatorTest, LazyClientTimesOutInConnect)
 
     boost::asio::io_service io_service;
     int socket_fds[2];
-    ASSERT_THAT(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds), Eq(0));
+    ASSERT_THAT(socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds), Eq(0));
 
     ASSERT_THAT(write(socket_fds[0], "partial-uuid-...", strlen("partial-uuid-...")),
                 Eq(strlen("partial-uuid-...")));
@@ -241,13 +244,13 @@ TEST(DispatchingConnectionCreatorTest, IncorrectProtocolSizeRaisesException)
 
     boost::asio::io_service io_service;
     int socket_fds[2];
-    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, socket_fds) == 0);
+    ASSERT_TRUE(socketpair(AF_UNIX, SOCK_STREAM, 0, socket_fds) == 0);
 
     uint16_t const mock_header_length{8};
 
     // First we lie about the protocol size...
     ON_CALL(*mock_handshake, header_size()).WillByDefault(Return(mock_header_length - 1));
-    write_header(socket_fds[0], *mock_handshake);
+    write_client_header(socket_fds[0], *mock_handshake);
 
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
                                                                                 boost::asio::local::stream_protocol(),

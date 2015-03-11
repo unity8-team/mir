@@ -20,6 +20,7 @@
 #include <istream>
 #include <boost/throw_exception.hpp>
 #include <string>
+#include <endian.h>
 
 #include "handshaking_connection_creator.h"
 #include "protocol_interpreter.h"
@@ -51,27 +52,32 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
 
     boost::asio::async_read(*socket,
                             *header,
-                            boost::asio::transfer_exactly(sizeof(uint16_t) + 36),
+                            boost::asio::transfer_exactly(4 + 36),
                             [this, header, socket, deadline, connection_context](boost::system::error_code const&, size_t)
                             {
         deadline->cancel();
 
-        uint16_t client_header_size;
-        uuid_t client_protocol_id;
-        char client_protocol_str[36 + 1];
-        client_protocol_str[36] = '\0';
+        uint16_t total_header_size;
 
         std::istream header_data{header.get()};
 
-        header_data.read(reinterpret_cast<char*>(&client_header_size), sizeof(uint16_t));
-        client_header_size = ntohs(client_header_size);
+        header_data.read(reinterpret_cast<char*>(&total_header_size), sizeof(uint16_t));
+        total_header_size = le16toh(total_header_size);
 
+        uuid_t client_protocol_id;
+        uint16_t client_header_size;
+        char client_protocol_str[36 + 1];
+        client_protocol_str[36] = '\0';
+
+        header_data.read(reinterpret_cast<char*>(&client_header_size), sizeof(uint16_t));
+        client_header_size = le16toh(client_header_size);
         header_data.read(client_protocol_str, 36);
         uuid_parse(client_protocol_str, client_protocol_id);
 
         for (auto& protocol : *implementations)
         {
             using namespace std::literals::string_literals;
+
             uuid_t server_protocol_id;
             auto& connection_protocol = protocol->connection_protocol();
             connection_protocol.protocol_id(server_protocol_id);
@@ -83,6 +89,8 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
                         client_protocol_str + "! (expected: "s + std::to_string(connection_protocol.header_size()) +
                         " received: "s + std::to_string(client_header_size) + ")"s}));
 
+                auto buf = boost::asio::buffer(client_protocol_str, 36);
+                boost::asio::write(*socket, buf, boost::asio::transfer_all());
                 protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
                 return;
             }
