@@ -274,7 +274,9 @@ TEST_F(ThreadedDispatcherTest, handles_destruction_from_dispatch_callback)
     EXPECT_TRUE(dispatched->wait_for(10s));
 }
 
-TEST_F(ThreadedDispatcherTest, exceptions_in_threadpool_trigger_termination)
+using ThreadedDispatcherDeathTest = ThreadedDispatcherTest;
+
+TEST_F(ThreadedDispatcherDeathTest, exceptions_in_threadpool_trigger_termination)
 {
     using namespace testing;
     using namespace std::chrono_literals;
