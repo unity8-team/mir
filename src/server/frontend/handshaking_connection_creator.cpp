@@ -40,7 +40,7 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
     auto deadline = std::make_shared<boost::asio::deadline_timer>(socket->get_io_service());
     // We're all local systems here; 500ms from socket connect to header write seems generous.
     deadline->expires_from_now(boost::posix_time::milliseconds{500});
-    deadline->async_wait([&socket](boost::system::error_code const& ec)
+    deadline->async_wait([socket](boost::system::error_code const& ec)
                          {
                              if (!ec)
                              {
