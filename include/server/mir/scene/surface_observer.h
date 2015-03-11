@@ -19,42 +19,35 @@
 #ifndef MIR_SCENE_SURFACE_OBSERVER_H_
 #define MIR_SCENE_SURFACE_OBSERVER_H_
 
-#include "mir_toolkit/common.h"
+namespace mir { namespace scene {
 
-#include "mir/input/input_reception_mode.h"
+class Surface;
 
-#include <glm/glm.hpp>
-#include <xkbcommon/xkbcommon.h>
-
-namespace mir
-{
-namespace geometry
-{
-struct Size;
-struct Point;
-}
-namespace graphics
-{
-class CursorImage;
-}
-
-namespace scene
-{
 class SurfaceObserver
 {
 public:
-    virtual void attrib_changed(MirSurfaceAttrib attrib, int value) = 0;
-    virtual void resized_to(geometry::Size const& size) = 0;
-    virtual void moved_to(geometry::Point const& top_left) = 0;
-    virtual void hidden_set_to(bool hide) = 0;
-    virtual void frame_posted(int frames_available) = 0;
-    virtual void alpha_set_to(float alpha) = 0;
-    virtual void orientation_set_to(MirOrientation orientation) = 0;
-    virtual void transformation_set_to(glm::mat4 const& t) = 0;
-    virtual void reception_mode_set_to(input::InputReceptionMode mode) = 0;
-    virtual void cursor_image_set_to(graphics::CursorImage const& image) = 0;
-    virtual void client_surface_close_requested() = 0;
-    virtual void keymap_changed(xkb_rule_names const& names) = 0;
+    enum Change
+    {
+        type,
+        state,
+        swapinterval,
+        focus,
+        dpi,
+        size,
+        position,
+        visibility,
+        content,
+        opacity,
+        orientation,
+        pref_orientation,
+        transformation,
+        input_mode,
+        cursor,
+        close,
+        keymap
+    };
+
+    virtual void surface_changed(Surface const&, Change) = 0;
 
 protected:
     SurfaceObserver() = default;
@@ -62,7 +55,7 @@ protected:
     SurfaceObserver(SurfaceObserver const&) = delete;
     SurfaceObserver& operator=(SurfaceObserver const&) = delete;
 };
-}
-}
+
+} } // namespace mir::scene
 
 #endif // MIR_SCENE_SURFACE_OBSERVER_H_

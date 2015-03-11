@@ -33,17 +33,13 @@ class SurfaceEventSource : public NullSurfaceObserver
 {
 public:
     SurfaceEventSource(
-        frontend::SurfaceId id,
+        frontend::SurfaceId id,  // TODO: deprecate this
         std::shared_ptr<frontend::EventSink> const& event_sink);
 
-    void attrib_changed(MirSurfaceAttrib attrib, int value) override;
-    void resized_to(geometry::Size const& size) override;
-    void orientation_set_to(MirOrientation orientation) override;
-    void client_surface_close_requested() override;
-    void keymap_changed(xkb_rule_names const& names) override;
+    void surface_changed(Surface const&, Change) override;
 
 private:
-    frontend::SurfaceId const id;
+    frontend::SurfaceId const id; // TODO: deprecate this
     std::shared_ptr<frontend::EventSink> const event_sink;
 };
 }

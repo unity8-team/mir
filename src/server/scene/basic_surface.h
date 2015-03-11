@@ -61,18 +61,7 @@ public:
     using BasicObservers<SurfaceObserver>::add;
     using BasicObservers<SurfaceObserver>::remove;
 
-    void attrib_changed(MirSurfaceAttrib attrib, int value) override;
-    void resized_to(geometry::Size const& size) override;
-    void moved_to(geometry::Point const& top_left) override;
-    void hidden_set_to(bool hide) override;
-    void frame_posted(int frames_available) override;
-    void alpha_set_to(float alpha) override;
-    void orientation_set_to(MirOrientation orientation) override;
-    void transformation_set_to(glm::mat4 const& t) override;
-    void reception_mode_set_to(input::InputReceptionMode mode) override;
-    void cursor_image_set_to(graphics::CursorImage const& image) override;
-    void client_surface_close_requested() override;
-    void keymap_changed(xkb_rule_names const& names) override;
+    void surface_changed(Surface const&, Change) override;
 };
 
 class BasicSurface : public Surface

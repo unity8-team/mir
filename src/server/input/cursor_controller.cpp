@@ -46,49 +46,21 @@ struct UpdateCursorOnSurfaceChanges : ms::NullSurfaceObserver
     {
     }
 
-    void attrib_changed(MirSurfaceAttrib, int) override
+    void surface_changed(ms::Surface const&, Change what) override
     {
-        // Attribute changing alone wont trigger a cursor update
-    }
-    void resized_to(geom::Size const&) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void moved_to(geom::Point const&) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void hidden_set_to(bool) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void frame_posted(int) override
-    {
-        // Frame posting wont trigger a cursor update
-    }
-    void alpha_set_to(float) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void transformation_set_to(glm::mat4 const&) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void reception_mode_set_to(mi::InputReceptionMode) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void cursor_image_set_to(mg::CursorImage const&) override
-    {
-        cursor_controller->update_cursor_image();
-    }
-    void orientation_set_to(MirOrientation /* orientation */) override
-    {
-        // No need to update cursor for orientation property change alone.
-    }
-    void client_surface_close_requested() override
-    {
-        // No need to update cursor for client close requests
+        switch (what)
+        {
+        case size:
+        case position:
+        case visibility:
+        case opacity:
+        case transformation:
+        case input_mode:
+        case cursor:
+            cursor_controller->update_cursor_image();
+        default:
+            break;
+        };
     }
 
     mi::CursorController* const cursor_controller;

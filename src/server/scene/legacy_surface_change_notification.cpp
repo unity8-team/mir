@@ -18,12 +18,9 @@
 
 #include "legacy_surface_change_notification.h"
 
-namespace ms = mir::scene;
-namespace mg = mir::graphics;
-namespace mi = mir::input;
-namespace geom = mir::geometry;
+namespace mir { namespace scene {
 
-ms::LegacySurfaceChangeNotification::LegacySurfaceChangeNotification(
+LegacySurfaceChangeNotification::LegacySurfaceChangeNotification(
     std::function<void()> const& notify_scene_change,
     std::function<void(int)> const& notify_buffer_change) :
     notify_scene_change(notify_scene_change),
@@ -31,62 +28,25 @@ ms::LegacySurfaceChangeNotification::LegacySurfaceChangeNotification(
 {
 }
 
-void ms::LegacySurfaceChangeNotification::resized_to(geom::Size const& /*size*/)
+void LegacySurfaceChangeNotification::surface_changed(
+    Surface const&, Change change)
 {
-    notify_scene_change();
+    switch (change)
+    {
+    case size:
+    case position:
+    case visibility:
+    case opacity:
+    case transformation:
+    case input_mode:
+        notify_scene_change();
+        break;
+    case content:
+        notify_buffer_change(1); // TODO remove parameter
+        break;
+    default:
+        break;
+    }
 }
 
-void ms::LegacySurfaceChangeNotification::moved_to(geom::Point const& /*top_left*/)
-{
-    notify_scene_change();
-}
-
-void ms::LegacySurfaceChangeNotification::hidden_set_to(bool /*hide*/)
-{
-    notify_scene_change();
-}
-
-void ms::LegacySurfaceChangeNotification::frame_posted(int frames_available)
-{
-    notify_buffer_change(frames_available);
-}
-
-void ms::LegacySurfaceChangeNotification::alpha_set_to(float /*alpha*/)
-{
-    notify_scene_change();
-}
-
-// An orientation change alone is not enough to trigger recomposition.
-void ms::LegacySurfaceChangeNotification::orientation_set_to(MirOrientation /*orientation*/)
-{
-}
-
-void ms::LegacySurfaceChangeNotification::transformation_set_to(glm::mat4 const& /*t*/)
-{
-    notify_scene_change();
-}
-
-// An attrib change alone is not enough to trigger recomposition.
-void ms::LegacySurfaceChangeNotification::attrib_changed(MirSurfaceAttrib /* attrib */, int /* value */)
-{
-}
-
-// Cursor image change request is not enough to trigger recomposition.
-void ms::LegacySurfaceChangeNotification::cursor_image_set_to(mg::CursorImage const& /* image */)
-{
-}
-
-void ms::LegacySurfaceChangeNotification::reception_mode_set_to(mi::InputReceptionMode /*mode*/)
-{
-    notify_scene_change();
-}
-
-// A client close request is not enough to trigger recomposition.
-void ms::LegacySurfaceChangeNotification::client_surface_close_requested()
-{
-}
-
-// A keymap change is not enough to trigger recomposition
-void ms::LegacySurfaceChangeNotification::keymap_changed(xkb_rule_names const&)
-{
-}
+} }  // namespace mir::scene

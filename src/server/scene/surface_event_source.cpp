@@ -36,6 +36,15 @@ ms::SurfaceEventSource::SurfaceEventSource(
 {
 }
 
+void ms::SurfaceEventSource::surface_changed(ms::Surface const& surface,
+                                             SurfaceObserver::Change change)
+{
+    (void)surface;
+    (void)change;
+    // TODO
+}
+
+#if 0
 void ms::SurfaceEventSource::resized_to(geom::Size const& size)
 {
     event_sink->handle_event(*mev::make_event(id, size));
@@ -61,3 +70,4 @@ void ms::SurfaceEventSource::keymap_changed(xkb_rule_names const& names)
 {
     event_sink->handle_event(*mev::make_event(id, names));
 }
+#endif

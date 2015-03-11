@@ -41,78 +41,11 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
-void ms::SurfaceObservers::attrib_changed(MirSurfaceAttrib attrib, int value)
+void ms::SurfaceObservers::surface_changed(Surface const& s, Change c)
 {
     for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->attrib_changed(attrib, value); });
+        { observer->surface_changed(s, c); });
 }
-
-void ms::SurfaceObservers::resized_to(geometry::Size const& size)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->resized_to(size); });
-}
-
-void ms::SurfaceObservers::moved_to(geometry::Point const& top_left)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->moved_to(top_left); });
-}
-
-void ms::SurfaceObservers::hidden_set_to(bool hide)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->hidden_set_to(hide); });
-}
-
-void ms::SurfaceObservers::frame_posted(int frames_available)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->frame_posted(frames_available); });
-}
-
-void ms::SurfaceObservers::alpha_set_to(float alpha)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->alpha_set_to(alpha); });
-}
-
-void ms::SurfaceObservers::orientation_set_to(MirOrientation orientation)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->orientation_set_to(orientation); });
-}
-
-void ms::SurfaceObservers::transformation_set_to(glm::mat4 const& t)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->transformation_set_to(t); });
-}
-
-void ms::SurfaceObservers::cursor_image_set_to(mg::CursorImage const& image)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->cursor_image_set_to(image); });
-}
-
-void ms::SurfaceObservers::reception_mode_set_to(mi::InputReceptionMode mode)
-{
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->reception_mode_set_to(mode); });
-}
-
-void ms::SurfaceObservers::client_surface_close_requested()
-{
-    for_each([](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->client_surface_close_requested(); });
-}
-
-void ms::SurfaceObservers::keymap_changed(xkb_rule_names const& rules)
-{
-    for_each([&rules](std::shared_ptr<SurfaceObserver> const& observer)
-        { observer->keymap_changed(rules); });
-}
-
 
 ms::BasicSurface::BasicSurface(
     std::string const& name,
@@ -185,7 +118,7 @@ void ms::BasicSurface::move_to(geometry::Point const& top_left)
         std::unique_lock<std::mutex> lk(guard);
         surface_rect.top_left = top_left;
     }
-    observers.moved_to(top_left);
+    observers.surface_changed(*this, SurfaceObserver::position);
 }
 
 float ms::BasicSurface::alpha() const
@@ -200,7 +133,7 @@ void ms::BasicSurface::set_hidden(bool hide)
         std::unique_lock<std::mutex> lk(guard);
         hidden = hide;
     }
-    observers.hidden_set_to(hide);
+    observers.surface_changed(*this, SurfaceObserver::visibility);
 }
 
 mir::geometry::Size ms::BasicSurface::size() const
@@ -230,12 +163,7 @@ void ms::BasicSurface::swap_buffers(mg::Buffer* old_buffer, std::function<void(m
             first_frame_posted = true;
         }
 
-        /*
-         * TODO: In future frame_posted() could be made parameterless.
-         *       The new method of catching up on buffer backlogs is to
-         *       query buffers_ready_for_compositor() or Scene::frames_pending
-         */
-        observers.frame_posted(1);
+        observers.surface_changed(*this, SurfaceObserver::content);
     }
 
     surface_buffer_stream->acquire_client_buffer(complete);
@@ -298,7 +226,7 @@ void ms::BasicSurface::resize(geom::Size const& desired_size)
         std::unique_lock<std::mutex> lock(guard);
         surface_rect.size = new_size;
     }
-    observers.resized_to(new_size);
+    observers.surface_changed(*this, SurfaceObserver::size);
 }
 
 geom::Point ms::BasicSurface::top_left() const
@@ -348,12 +276,12 @@ void ms::BasicSurface::set_alpha(float alpha)
         std::unique_lock<std::mutex> lk(guard);
         surface_alpha = alpha;
     }
-    observers.alpha_set_to(alpha);
+    observers.surface_changed(*this, SurfaceObserver::opacity);
 }
 
-void ms::BasicSurface::set_orientation(MirOrientation orientation)
+void ms::BasicSurface::set_orientation(MirOrientation)
 {
-    observers.orientation_set_to(orientation);
+    observers.surface_changed(*this, SurfaceObserver::orientation);
 }
 
 void ms::BasicSurface::set_transformation(glm::mat4 const& t)
@@ -362,7 +290,7 @@ void ms::BasicSurface::set_transformation(glm::mat4 const& t)
         std::unique_lock<std::mutex> lk(guard);
         transformation_matrix = t;
     }
-    observers.transformation_set_to(t);
+    observers.surface_changed(*this, SurfaceObserver::transformation);
 }
 
 bool ms::BasicSurface::visible() const
@@ -387,7 +315,7 @@ void ms::BasicSurface::set_reception_mode(mi::InputReceptionMode mode)
         std::lock_guard<std::mutex> lk(guard);
         input_mode = mode;
     }
-    observers.reception_mode_set_to(mode);
+    observers.surface_changed(*this, SurfaceObserver::input_mode);
 }
 
 void ms::BasicSurface::with_most_recent_buffer_do(
@@ -419,7 +347,7 @@ MirSurfaceType ms::BasicSurface::set_type(MirSurfaceType t)
         type_ = t;
         lg.unlock();
 
-        observers.attrib_changed(mir_surface_attrib_type, type_); 
+        observers.surface_changed(*this, SurfaceObserver::type);
     }
 
     return t;
@@ -443,7 +371,7 @@ MirSurfaceState ms::BasicSurface::set_state(MirSurfaceState s)
         lg.unlock();
         set_hidden(s == mir_surface_state_hidden);
         
-        observers.attrib_changed(mir_surface_attrib_state, s);
+        observers.surface_changed(*this, SurfaceObserver::state);
     }
 
     return s;
@@ -464,7 +392,7 @@ int ms::BasicSurface::set_swap_interval(int interval)
         allow_framedropping(allow_dropping);
 
         lg.unlock();
-        observers.attrib_changed(mir_surface_attrib_swapinterval, interval);
+        observers.surface_changed(*this, SurfaceObserver::swapinterval);
     }
 
     return interval;
@@ -484,7 +412,7 @@ MirSurfaceFocusState ms::BasicSurface::set_focus_state(MirSurfaceFocusState new_
         focus_ = new_state;
 
         lg.unlock();
-        observers.attrib_changed(mir_surface_attrib_focus, new_state);
+        observers.surface_changed(*this, SurfaceObserver::focus);
     }
 
     return new_state;
@@ -503,7 +431,7 @@ MirOrientationMode ms::BasicSurface::set_preferred_orientation(MirOrientationMod
         pref_orientation_mode = new_orientation_mode;
         lg.unlock();
 
-        observers.attrib_changed(mir_surface_attrib_preferred_orientation, new_orientation_mode);
+        observers.surface_changed(*this, SurfaceObserver::pref_orientation);
     }
 
     return new_orientation_mode;
@@ -583,7 +511,7 @@ void ms::BasicSurface::set_cursor_image(std::shared_ptr<mg::CursorImage> const& 
         cursor_image_ = image;
     }
 
-    observers.cursor_image_set_to(*image);
+    observers.surface_changed(*this, SurfaceObserver::cursor);
 }
     
 
@@ -595,7 +523,7 @@ std::shared_ptr<mg::CursorImage> ms::BasicSurface::cursor_image() const
 
 void ms::BasicSurface::request_client_surface_close()
 {
-    observers.client_surface_close_requested();
+    observers.surface_changed(*this, SurfaceObserver::close);
 }
 
 int ms::BasicSurface::dpi() const
@@ -616,7 +544,7 @@ int ms::BasicSurface::set_dpi(int new_dpi)
     {
         dpi_ = new_dpi;
         lg.unlock();
-        observers.attrib_changed(mir_surface_attrib_dpi, new_dpi);
+        observers.surface_changed(*this, SurfaceObserver::dpi);
     }
     
     return new_dpi;
@@ -633,11 +561,10 @@ MirSurfaceVisibility ms::BasicSurface::set_visibility(MirSurfaceVisibility new_v
     std::unique_lock<std::mutex> lg(guard);
     if (visibility_ != new_visibility)
     {
-        visibility_ = new_visibility;
         lg.unlock();
         if (new_visibility == mir_surface_visibility_exposed)
             surface_buffer_stream->drop_old_buffers();
-        observers.attrib_changed(mir_surface_attrib_visibility, visibility_);
+        observers.surface_changed(*this, SurfaceObserver::visibility);
     }
 
     return new_visibility;
@@ -749,7 +676,7 @@ void ms::BasicSurface::consume(MirEvent const& event)
     input_sender->send_event(event, server_input_channel);
 }
 
-void ms::BasicSurface::set_keymap(xkb_rule_names const& rules)
+void ms::BasicSurface::set_keymap(xkb_rule_names const&)
 {
-    observers.keymap_changed(rules);
+    observers.surface_changed(*this, SurfaceObserver::keymap);
 }
