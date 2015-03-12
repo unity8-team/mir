@@ -26,6 +26,56 @@
 #include "protocol_interpreter.h"
 #include "mir/frontend/connection_context.h"
 
+namespace
+{
+struct ClientProtocolHeader
+{
+    template<typename Iterator>
+    ClientProtocolHeader(std::array<char, 37> const& uuid_str, Iterator begin, Iterator end)
+        : client_data(begin, end)
+    {
+        if (uuid_parse(uuid_str.data(), id) != 0)
+        {
+            using namespace std::literals::string_literals;
+            BOOST_THROW_EXCEPTION((std::runtime_error{"Failed to parse UUID string "s + uuid_str.data()}));
+        }
+    }
+
+    uuid_t id;
+    std::vector<uint8_t> client_data;
+};
+
+std::vector<ClientProtocolHeader> parse_protocol_header(std::vector<uint8_t> const& wire_data)
+{
+    std::vector<ClientProtocolHeader> headers;
+
+    auto read_pos = wire_data.cbegin();
+
+    while (read_pos != wire_data.cend())
+    {
+        uint16_t client_header_size;
+        std::array<char, 37> client_protocol_str;
+        client_protocol_str[36] = '\0';
+
+
+        client_header_size = le16toh(*reinterpret_cast<uint16_t const*>(&(*read_pos)));
+        read_pos += 2;
+
+        auto const id_end = read_pos + 36;
+        auto const client_data_begin = id_end;
+        auto const client_data_end = read_pos + client_header_size;
+
+        std::copy(read_pos, id_end, client_protocol_str.begin());
+
+        headers.emplace_back(client_protocol_str, client_data_begin, client_data_end);
+        read_pos = client_data_end;
+    }
+
+    return headers;
+}
+
+}
+
 mir::frontend::HandshakingConnectionCreator::HandshakingConnectionCreator(
     std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::ProtocolInterpreter>>> protocol_implementors,
     std::shared_ptr<mir::frontend::SessionAuthorizer> const& session_authorizer)
@@ -52,49 +102,59 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
 
     boost::asio::async_read(*socket,
                             *header,
-                            boost::asio::transfer_exactly(4 + 36),
+                            boost::asio::transfer_exactly(2),
                             [this, header, socket, deadline, connection_context](boost::system::error_code const&, size_t)
-                            {
-        deadline->cancel();
-
+    {
         uint16_t total_header_size;
+        std::istream header_size_data{header.get()};
 
-        std::istream header_data{header.get()};
-
-        header_data.read(reinterpret_cast<char*>(&total_header_size), sizeof(uint16_t));
+        header_size_data.read(reinterpret_cast<char*>(&total_header_size), sizeof(uint16_t));
         total_header_size = le16toh(total_header_size);
 
-        uuid_t client_protocol_id;
-        uint16_t client_header_size;
-        char client_protocol_str[36 + 1];
-        client_protocol_str[36] = '\0';
+        auto protocol_data_buffer = std::make_shared<std::vector<uint8_t>>(total_header_size);
+        auto boost_buffer = boost::asio::buffer(*protocol_data_buffer);
 
-        header_data.read(reinterpret_cast<char*>(&client_header_size), sizeof(uint16_t));
-        client_header_size = le16toh(client_header_size);
-        header_data.read(client_protocol_str, 36);
-        uuid_parse(client_protocol_str, client_protocol_id);
-
-        for (auto& protocol : *implementations)
+        boost::asio::async_read(*socket,
+                                boost_buffer,
+                                boost::asio::transfer_exactly(total_header_size),
+                                [this, protocol_data_buffer, socket, deadline, connection_context](boost::system::error_code const&, size_t)
         {
-            using namespace std::literals::string_literals;
+            deadline->cancel();
 
-            uuid_t server_protocol_id;
-            auto& connection_protocol = protocol->connection_protocol();
-            connection_protocol.protocol_id(server_protocol_id);
-            if (uuid_compare(client_protocol_id, server_protocol_id) == 0)
+            auto protocols = parse_protocol_header(*protocol_data_buffer);
+
+            for (auto& protocol : *implementations)
             {
-                if (client_header_size != connection_protocol.header_size())
-                    BOOST_THROW_EXCEPTION((std::runtime_error{
-                        "Client and server disagree on protocol header size for protocol "s +
-                        client_protocol_str + "! (expected: "s + std::to_string(connection_protocol.header_size()) +
-                        " received: "s + std::to_string(client_header_size) + ")"s}));
+                for (auto const& client_header : protocols)
+                {
+                    using namespace std::literals::string_literals;
 
-                auto buf = boost::asio::buffer(client_protocol_str, 36);
-                boost::asio::write(*socket, buf, boost::asio::transfer_all());
-                protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
-                return;
+                    uuid_t server_protocol_id;
+                    auto& connection_protocol = protocol->connection_protocol();
+                    connection_protocol.protocol_id(server_protocol_id);
+                    if (uuid_compare(client_header.id, server_protocol_id) == 0)
+                    {
+                        std::array<char, 36> accepted_protocol_str;
+                        uuid_unparse(client_header.id, accepted_protocol_str.data());
+
+                        if (client_header.client_data.size() != connection_protocol.header_size())
+                        {
+                            BOOST_THROW_EXCEPTION((std::runtime_error{
+                                "Client and server disagree on protocol header size for protocol "s +
+                                accepted_protocol_str.data() + "! (expected: "s + std::to_string(connection_protocol.header_size()) +
+                                " received: "s + std::to_string(client_header.client_data.size()) + ")"s}));
+                        }
+
+                        auto buf = boost::asio::buffer(accepted_protocol_str);
+                        boost::asio::write(*socket, buf, boost::asio::transfer_all());
+
+                        protocol->create_connection_for(socket, *session_authorizer, connection_context, "");
+                        return;
+                    }
+                }
             }
-        }
-        BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Unknown client protocol: ") + client_protocol_str));
+            BOOST_THROW_EXCEPTION((std::runtime_error{"No matching protocols found"}));
+        });
+
     });
 }

@@ -49,14 +49,14 @@ mclr::HandshakingConnectionCreator::HandshakingConnectionCreator(
     buffer.resize(total_header_size);
 
     uint8_t* buffer_pos = buffer.data();
-    *reinterpret_cast<uint16_t*>(buffer_pos) = htole16(total_header_size);
+    *reinterpret_cast<uint16_t*>(buffer_pos) = htole16(total_header_size - 2);
     buffer_pos += sizeof(uint16_t);
     for (auto& protocol : protocols)
     {
         char uuid_str[37];
         uuid_t uuid;
         auto const& handshake = protocol->connection_protocol();
-        *reinterpret_cast<uint16_t*>(buffer_pos) = htole16(handshake.header_size());
+        *reinterpret_cast<uint16_t*>(buffer_pos) = htole16(handshake.header_size() + 36);
         buffer_pos += sizeof(uint16_t);
 
         handshake.protocol_id(uuid);

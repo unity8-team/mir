@@ -27,6 +27,9 @@
 #include "src/server/frontend/handshaking_connection_creator.h"
 #include "src/server/frontend/protobuf_ipc_factory.h"
 
+#include "src/client/default_connection_configuration.h"
+#include "src/client/rpc/protocol_interpreter.h"
+
 #include <functional>
 #include <iostream>
 #include <vector>
@@ -79,6 +82,32 @@ public:
 };
 std::shared_ptr<std::vector<std::shared_ptr<mir::frontend::ProtocolInterpreter>>> ProtocolVersioningTest::protocol_impls;
 
+class DummyConnectionProtocol : public mf::HandshakeProtocol
+{
+public:
+    void protocol_id(uuid_t id) const override
+    {
+        uuid_parse("f14e4484-b475-4406-a0ed-cd01fbcf356a", id);
+    }
+
+    size_t header_size() const override
+    {
+        return 8;
+    }
+
+    void write_client_header(uint8_t*) const override
+    {
+    }
+
+    void send_server_header() override
+    {
+    }
+
+    void receive_server_header(mir::client::rpc::StreamTransport&) override
+    {
+    }
+};
+
 class DummySessionCreator : public mf::ProtocolInterpreter
 {
 public:
@@ -98,31 +127,7 @@ public:
         return conn_proto;
     }
 
-    class DummyConnectionProtocol : public mf::HandshakeProtocol
-    {
-    public:
-        void protocol_id(uuid_t id) const override
-        {
-            uuid_parse("f14e4484-b475-4406-a0ed-cd01fbcf356a", id);
-        }
-
-        size_t header_size() const override
-        {
-            return 8;
-        }
-
-        void write_client_header(uint8_t*) const override
-        {
-        }
-
-        void send_server_header() override
-        {
-        }
-
-        void receive_server_header(mir::client::rpc::StreamTransport&) override
-        {
-        }
-    } conn_proto;
+    DummyConnectionProtocol conn_proto;
 };
 }
 
@@ -149,8 +154,59 @@ TEST_F(ProtocolVersioningTest, ClientV1ConnectsToServerV1or2)
     mir_connection_release(connection);
 }
 
+namespace
+{
+class VersionableClientConfig : public mir::client::DefaultConnectionConfiguration
+{
+public:
+    VersionableClientConfig(std::string const& socket_file)
+        : DefaultConnectionConfiguration(socket_file)
+    {
+    }
+
+    static void append_to_next_supported_protocols(std::unique_ptr<mcl::rpc::ProtocolInterpreter> interpreter)
+    {
+        next_protocol_set.push_back(std::move(interpreter));
+    }
+
+    std::vector<std::unique_ptr<mir::client::rpc::ProtocolInterpreter>> make_supported_protocols() override
+    {
+        return std::move(next_protocol_set);
+    }
+
+    static std::vector<std::unique_ptr<mcl::rpc::ProtocolInterpreter>> next_protocol_set;
+};
+std::vector<std::unique_ptr<mcl::rpc::ProtocolInterpreter>> VersionableClientConfig::next_protocol_set;
+
+class DummyClientProtocolInterpreter : public mcl::rpc::ProtocolInterpreter
+{
+public:
+    std::unique_ptr<google::protobuf::RpcChannel> create_interpreter_for(std::unique_ptr<mcl::rpc::StreamTransport>)
+    {
+        BOOST_THROW_EXCEPTION((std::logic_error{"Unimplemented, and shouldn't have been called"}));
+    }
+    mir::frontend::HandshakeProtocol &connection_protocol()
+    {
+        return conn_proto;
+    }
+private:
+    DummyConnectionProtocol conn_proto;
+};
+}
+
 TEST_F(ProtocolVersioningTest, client_v1_or_v2_connects_to_server_v1)
 {
+    mtf::UsingClientPlatform<VersionableClientConfig> client_platform_override;
+
+    mcl::DefaultConnectionConfiguration existing_protocol_provider{"/dev/null"};
+
+    VersionableClientConfig::append_to_next_supported_protocols(std::make_unique<DummyClientProtocolInterpreter>());
+
+    for (auto& protocol : existing_protocol_provider.make_supported_protocols())
+    {
+        VersionableClientConfig::append_to_next_supported_protocols(std::move(protocol));
+    }
+
     config.the_connection_protocols()->push_back(config.make_protobuf_connection_creator());
 
     auto connection = mir_connect_sync(new_connection().c_str(), "test-client");
