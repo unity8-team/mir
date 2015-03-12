@@ -71,12 +71,15 @@ public:
     }
 
 private:
-    void frame_posted(int) override
+    void surface_changed(ms::Surface const&, Change change) override
     {
-        if (auto const s = surface.lock())
+        if (change == content)
         {
-            focus_controller->set_focus_to(session.lock(), s);
-            s->remove_observer(shared_from_this());
+            if (auto const s = surface.lock())
+            {
+                focus_controller->set_focus_to(session.lock(), s);
+                s->remove_observer(shared_from_this());
+            }
         }
     }
 
