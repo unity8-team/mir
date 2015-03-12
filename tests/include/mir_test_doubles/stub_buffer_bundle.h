@@ -51,25 +51,15 @@ public:
 
     compositor::BufferHandle compositor_acquire(void const*) override
     {
-        return std::move(compositor::BufferHandle(nullptr, nullptr));
-    }
-/*
-    std::shared_ptr<compositor::BufferHandle> lock_compositor_buffer(void const*) override
-    {
         --nready;
-        return stub_compositor_buffer;
+        return std::move(compositor::BufferHandle(stub_compositor_buffer, nullptr));
     }
-*/
+
     compositor::BufferHandle snapshot_acquire() override
     {
-        return std::move(compositor::BufferHandle(nullptr, nullptr));
+        return std::move(compositor::BufferHandle(stub_compositor_buffer, nullptr));
     }
-/*
-    std::shared_ptr<graphics::Buffer> lock_snapshot_buffer() override
-    {
-        return stub_compositor_buffer;
-    }
-*/
+
     geometry::Size size() const override
     {
         return geometry::Size();

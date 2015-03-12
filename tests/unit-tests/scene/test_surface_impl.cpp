@@ -64,7 +64,6 @@ struct Surface : testing::Test
         using namespace testing;
 
         ON_CALL(*buffer_bundle, size()).WillByDefault(Return(geom::Size()));
-//        ON_CALL(*buffer_bundle, get_stream_pixel_format()).WillByDefault(Return(mir_pixel_format_abgr_8888));
         ON_CALL(*buffer_bundle, client_acquire(_))
             .WillByDefault(InvokeArgument<0>(nullptr));
         

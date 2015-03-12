@@ -229,13 +229,15 @@ struct SurfaceCreation : public ::testing::Test
 
 }
 
-TEST_F(SurfaceCreation, test_surface_queries_stream_for_pf)
+TEST_F(SurfaceCreation, test_surface_queries_bundle_for_pf)
 {
     using namespace testing;
 
-//    EXPECT_CALL(*mock_buffer_bundle, get_stream_pixel_format())
-//        .Times(1)
-//        .WillOnce(Return(pf));
+    EXPECT_CALL(*mock_buffer_bundle, properties())
+        .Times(1)
+        .WillOnce(Return(mg::BufferProperties(geom::Size{0, 0},
+        		                              pf,
+                                              mg::BufferUsage::undefined)));
 
     auto ret_pf = surface.pixel_format();
 
@@ -267,7 +269,7 @@ TEST_F(SurfaceCreation, test_surface_next_buffer)
         [&graphics_resource](mg::Buffer* result){ EXPECT_THAT(result, Eq(&graphics_resource)); });
 }
 
-TEST_F(SurfaceCreation, test_surface_gets_ipc_from_stream)
+TEST_F(SurfaceCreation, test_surface_gets_ipc_from_bundle)
 {
     using namespace testing;
 
@@ -296,7 +298,7 @@ TEST_F(SurfaceCreation, test_surface_move_to)
     EXPECT_EQ(p, surface.top_left());
 }
 
-TEST_F(SurfaceCreation, resize_updates_stream_and_state)
+TEST_F(SurfaceCreation, resize_updates_bundle_and_state)
 {
     using namespace testing;
     geom::Size const new_size{123, 456};
