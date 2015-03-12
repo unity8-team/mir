@@ -43,7 +43,7 @@ char const* mock_uuid = "28e0bbfb-20e6-4066-ba80-aa38a5538638";
 
 void write_client_header(int socket, mir::frontend::HandshakeProtocol& handshake)
 {
-    uint16_t const client_header = htole16(handshake.header_size());
+    uint16_t const client_header = htole16(handshake.header_size() + 36);
     uint16_t const total_header_size = htole16(2 + 36 + handshake.header_size());
     uuid_t id;
     handshake.protocol_id(id);
@@ -101,7 +101,7 @@ private:
 
 }
 
-TEST(DispatchingConnectionCreatorTest, DispatchesSingleUUIDSupported)
+TEST(HandshakingConnectionCreatorTest, DispatchesSingleUUIDSupported)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -127,7 +127,7 @@ TEST(DispatchingConnectionCreatorTest, DispatchesSingleUUIDSupported)
     io_service.run();
 }
 
-TEST(DispatchingConnectionCreatorTest, DispatchesToCorrectUUID)
+TEST(HandshakingConnectionCreatorTest, DispatchesToCorrectUUID)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -155,7 +155,7 @@ TEST(DispatchingConnectionCreatorTest, DispatchesToCorrectUUID)
     io_service.run();
 }
 
-TEST(DispatchingConnectionCreatorTest, NoCommonProtocolRaisesException)
+TEST(HandshakingConnectionCreatorTest, NoCommonProtocolRaisesException)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -181,7 +181,7 @@ TEST(DispatchingConnectionCreatorTest, NoCommonProtocolRaisesException)
     EXPECT_THROW({ io_service.run(); }, std::runtime_error);
 }
 
-TEST(DispatchingConnectionCreatorTest, LazyClientTimesOutInConnect)
+TEST(HandshakingConnectionCreatorTest, LazyClientTimesOutInConnect)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -231,7 +231,7 @@ TEST(DispatchingConnectionCreatorTest, LazyClientTimesOutInConnect)
 }
 
 
-TEST(DispatchingConnectionCreatorTest, IncorrectProtocolSizeRaisesException)
+TEST(HandshakingConnectionCreatorTest, IncorrectProtocolSizeRaisesException)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();

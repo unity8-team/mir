@@ -179,7 +179,7 @@ private:
 }
 
 
-TEST(HandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
+TEST(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
 {
     using namespace testing;
 
@@ -198,21 +198,21 @@ TEST(HandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
     auto future = handshake.connect_to(std::move(transport));
 
     std::vector<uint8_t> expected_header;
-    expected_header.push_back(0x2F);
+    expected_header.push_back(0x2D);
     expected_header.push_back(0x00);    // Header size (little endian) = 002D₁₆ = 45₁₀
-    expected_header.push_back(0x07);
-    expected_header.push_back(0x00);   // Proto header size (little endian) = 0007₁₆
+    expected_header.push_back(0x2B);
+    expected_header.push_back(0x00);   // Proto header size (little endian) = 002B₁₆ = 36₁₀ + 7₁₀
     expected_header.insert(expected_header.end(), uuid.begin(), uuid.end());     // UUID, no trailing null
     expected_header.insert(expected_header.end(), client_header.begin(), client_header.end());
 
     uint16_t total_header_size = le16toh(*reinterpret_cast<uint16_t*>(transport_observer->send_buffer.data()));
     uint16_t client_header_size = le16toh(*reinterpret_cast<uint16_t*>(transport_observer->send_buffer.data() + 2));
-    EXPECT_THAT(transport_observer->send_buffer.size(), Eq(total_header_size));
-    EXPECT_THAT(client_header_size, Eq(client_header.size()));
+    EXPECT_THAT(transport_observer->send_buffer.size(), Eq(total_header_size + 2));
+    EXPECT_THAT(client_header_size, Eq(client_header.size() + 36));
     EXPECT_THAT(transport_observer->send_buffer, ContainerEq(expected_header));
 }
 
-TEST(HandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
+TEST(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
 {
     using namespace testing;
 
@@ -239,7 +239,7 @@ TEST(HandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_serve
     EXPECT_THAT(proto, Eq(second_protocol_addr));
 }
 
-TEST(HandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
+TEST(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
 {
     using namespace testing;
 
