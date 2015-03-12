@@ -197,10 +197,9 @@ void switching_client_thread(mc::BufferQueue &bundle, int nframes)
 
 TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
 {
-    std::unique_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::move(
-        std::unique_ptr<mc::BufferQueue>(
-            new mc::BufferQueue(1, allocator, basic_properties, policy_factory))));
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle = client_acquire_async(*q);
@@ -235,27 +234,29 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
 
 TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
 {
-    mc::BufferQueue q(1, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
     const geom::Size expect_size{10, 20};
-    q.resize(expect_size);
+    q->resize(expect_size);
 
-    auto handle = client_acquire_async(q);
+    auto handle = client_acquire_async(*q);
     ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
     auto buffer = handle->buffer();
     ASSERT_THAT(buffer->size(), Eq(expect_size));
-
     {
         /* Client and compositor share the same buffer so
          * expect the new size
          */
-        ASSERT_NO_THROW(q.compositor_acquire(this).buffer());
+        ASSERT_NO_THROW(q->compositor_acquire(this).buffer());
 
         EXPECT_THAT(buffer->size(), Eq(expect_size));
     }
 
     EXPECT_NO_THROW(handle->release_buffer());
-    EXPECT_NO_THROW(q.compositor_acquire(this));
+    EXPECT_NO_THROW(q->compositor_acquire(this));
 }
 
 TEST_F(BufferQueueTest, framedropping_is_disabled_by_default)
@@ -303,25 +304,28 @@ TEST_F(BufferQueueTest, client_can_acquire_buffers)
 TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
 {
     int const nbuffers = 3;
-    mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    int const prefill = q.buffers_free_for_client();
+    int const prefill = q->buffers_free_for_client();
     ASSERT_THAT(prefill, Gt(0));
     for (int i = 0; i < prefill; ++i)
     {
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
     }
 
-    auto handle1 = client_acquire_async(q);
+    auto handle1 = client_acquire_async(*q);
     ASSERT_THAT(handle1->has_acquired_buffer(), Eq(false));
 
-    auto handle2 = client_acquire_async(q);
+    auto handle2 = client_acquire_async(*q);
     ASSERT_THAT(handle1->has_acquired_buffer(), Eq(false));
 
     for (int i = 0; i < nbuffers + 1; ++i)
-        q.compositor_acquire(this);
+        q->compositor_acquire(this);
 
     EXPECT_THAT(handle1->has_acquired_buffer(), Eq(true));
     EXPECT_THAT(handle2->has_acquired_buffer(), Eq(true));
@@ -335,28 +339,31 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order_for_synchronous_clie
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
-        ASSERT_THAT(q.framedropping_allowed(), Eq(false));
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
+        ASSERT_THAT(q->framedropping_allowed(), Eq(false));
 
         void const* main_compositor = reinterpret_cast<void const*>(0);
         void const* second_compositor = reinterpret_cast<void const*>(1);
         for (int i = 0; i < 20; i++)
         {
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             auto client_id = handle->id();
             handle->release_buffer();
 
             mg::BufferID composited_id;
             {
-                auto comp_buffer_handle = q.compositor_acquire(main_compositor);
+                auto comp_buffer_handle = q->compositor_acquire(main_compositor);
                 composited_id = comp_buffer_handle.buffer()->id();
             }
 
             EXPECT_THAT(composited_id, Eq(client_id));
 
             {
-                auto comp_buffer_handle = q.compositor_acquire(second_compositor);
+                auto comp_buffer_handle = q->compositor_acquire(second_compositor);
                 EXPECT_THAT(composited_id, Eq(comp_buffer_handle.buffer()->id()));
             }
         }
@@ -382,18 +389,21 @@ TEST_F(BufferQueueTest, framedropping_clients_never_block)
 /* Regression test for LP: #1210042 */
 TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
 {
-    mc::BufferQueue q(3, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(3, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    auto handle = client_acquire_async(q);
+    auto handle = client_acquire_async(*q);
     ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
     auto client_id = handle->id();
     handle->release_buffer();
 
-    handle = client_acquire_async(q);
+    handle = client_acquire_async(*q);
     ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
     handle->release_buffer();
 
-    auto comp_buffer_handle = q.compositor_acquire(this);
+    auto comp_buffer_handle = q->compositor_acquire(this);
     EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
 }
 
@@ -421,12 +431,15 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         std::atomic<bool> done(false);
         auto unblock = [&done] { done = true; };
         mt::AutoUnblockThread compositor(unblock,
-            compositor_thread, std::ref(q), std::ref(done));
+            compositor_thread, std::ref(*q), std::ref(done));
 
         std::unordered_set<uint32_t> ids_acquired;
         int const max_ownable_buffers = nbuffers - 1;
@@ -435,7 +448,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
             std::vector<mg::Buffer *> client_buffers;
             for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
             {
-                auto handle = client_acquire_async(q);
+                auto handle = client_acquire_async(*q);
                 handle->wait_for(std::chrono::seconds(1));
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 ids_acquired.insert(handle->id().as_value());
@@ -444,7 +457,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
 
             for (auto const& buffer : client_buffers)
             {
-                q.client_release(buffer);
+                q->client_release(buffer);
             }
         }
 
@@ -456,15 +469,18 @@ TEST_F(BufferQueueTest, compositor_can_acquire_and_release)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
         auto client_id = handle->id();
         ASSERT_NO_THROW(handle->release_buffer());
 
-        auto comp_buffer_handle = q.compositor_acquire(this);
+        auto comp_buffer_handle = q->compositor_acquire(this);
         EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
     }
 }
@@ -473,9 +489,12 @@ TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
         auto client_id = handle->id();
@@ -484,7 +503,7 @@ TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
         for (int monitor = 0; monitor < 10; monitor++)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
-            auto comp_buffer_handle = q.compositor_acquire(user_id);
+            auto comp_buffer_handle = q->compositor_acquire(user_id);
             EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
         }
     }
@@ -494,16 +513,19 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
 {  // Regression test for LP: #1420678
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         // Client generates first frame
-        auto handle1 = client_acquire_async(q);
+        auto handle1 = client_acquire_async(*q);
         ASSERT_TRUE(handle1->has_acquired_buffer());
         auto client_id1 = handle1->id();
         handle1->release_buffer();
 
         // Client generates second frame
-        auto handle2 = client_acquire_async(q);
+        auto handle2 = client_acquire_async(*q);
         ASSERT_TRUE(handle2->has_acquired_buffer());
         auto client_id2 = handle2->id();
         handle2->release_buffer();
@@ -512,7 +534,7 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
         for (int monitor = 0; monitor < 10; monitor++)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
-            auto comp_buffer_handle = q.compositor_acquire(user_id);
+            auto comp_buffer_handle = q->compositor_acquire(user_id);
             ASSERT_EQ(client_id1, comp_buffer_handle.buffer()->id());
         }
 
@@ -520,7 +542,7 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
         for (int monitor = 0; monitor < 10; monitor++)
         {
             void const* user_id = reinterpret_cast<void const*>(monitor);
-            auto comp_buffer_handle = q.compositor_acquire(user_id);
+            auto comp_buffer_handle = q->compositor_acquire(user_id);
             ASSERT_EQ(client_id2, comp_buffer_handle.buffer()->id());
         }
     }
@@ -530,7 +552,10 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < 10; ++i)
         {
@@ -539,7 +564,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
             int const max_ownable_buffers = nbuffers - 1;
             for (int i = 0; i < max_ownable_buffers; ++i)
             {
-                auto handle = client_acquire_async(q);
+                auto handle = client_acquire_async(*q);
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 buffers.push_back(handle->buffer());
             }
@@ -547,12 +572,12 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
             for (auto buffer : buffers)
             {
                 client_release_sequence.push_back(buffer->id());
-                q.client_release(buffer);
+                q->client_release(buffer);
             }
 
             for (auto const& client_id : client_release_sequence)
             {
-                auto comp_buffer_handle = q.compositor_acquire(this);
+                auto comp_buffer_handle = q->compositor_acquire(this);
                 EXPECT_THAT(client_id, Eq(comp_buffer_handle.buffer()->id()));
             }
         }
@@ -563,10 +588,13 @@ TEST_F(BufferQueueTest, compositor_acquire_never_blocks_when_there_are_no_ready_
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < 100; i++)
-            q.compositor_acquire(this);
+            q->compositor_acquire(this);
     }
 }
 
@@ -574,8 +602,11 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
-        q.allow_framedropping(false);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
+        q->allow_framedropping(false);
 
         std::atomic<bool> done(false);
         auto unblock = [&done] { done = true; };
@@ -584,7 +615,7 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
         {
             for (int nframes = 0; nframes < 100; ++nframes)
             {
-                auto handle = client_acquire_async(q);
+                auto handle = client_acquire_async(*q);
                 handle->wait_for(std::chrono::seconds(1));
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 handle->release_buffer();
@@ -597,7 +628,7 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
             {
                 {
                     std::shared_ptr<mg::Buffer> buffer;
-                    EXPECT_NO_THROW(buffer = q.compositor_acquire(this).buffer());
+                    EXPECT_NO_THROW(buffer = q->compositor_acquire(this).buffer());
                     EXPECT_THAT(buffer, Ne(nullptr));
                 }
                 std::this_thread::yield();
@@ -613,7 +644,10 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         mg::Buffer* last_client_acquired_buffer{nullptr};
 
@@ -621,7 +655,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
         {
             if (i % 10 == 0)
             {
-                auto handle = client_acquire_async(q);
+                auto handle = client_acquire_async(*q);
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 last_client_acquired_buffer = handle->buffer();
                 handle->release_buffer();
@@ -630,7 +664,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
             for (int monitor_id = 0; monitor_id < 10; monitor_id++)
             {
                 void const* user_id = reinterpret_cast<void const*>(monitor_id);
-                auto buffer_handle = q.compositor_acquire(user_id);
+                auto buffer_handle = q->compositor_acquire(user_id);
                 ASSERT_THAT(buffer_handle.buffer().get(), Eq(last_client_acquired_buffer));
             }
         }
@@ -640,19 +674,22 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
 /* Regression test for LP#1270964 */
 TEST_F(BufferQueueTest, compositor_client_interleaved)
 {
-    mc::BufferQueue q(3, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(3, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    auto handle = client_acquire_async(q);
+    auto handle = client_acquire_async(*q);
     ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
     auto first_ready_buffer_id = handle->id();
     handle->release_buffer();
 
-    handle = client_acquire_async(q);
+    handle = client_acquire_async(*q);
     ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
     // in the original bug, compositor would be given the wrong buffer here
-    auto compositor_buffer_handle = q.compositor_acquire(this);
+    auto compositor_buffer_handle = q->compositor_acquire(this);
 
     EXPECT_THAT(compositor_buffer_handle.buffer()->id(), Eq(first_ready_buffer_id));
 
@@ -664,31 +701,37 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
     // This test simulates bypass behaviour
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        mc::BufferHandle *compositor[2];
+        mc::BufferHandle compositor[2] =
+            { mc::BufferHandle(nullptr, nullptr),
+              mc::BufferHandle(nullptr, nullptr) };
 
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        *compositor[0] = q.compositor_acquire(this);
+        compositor[0] = q->compositor_acquire(this);
 
-        handle = client_acquire_async(q);
+        handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        *compositor[1] = q.compositor_acquire(this);
+        compositor[1] = q->compositor_acquire(this);
 
         for (int i = 0; i < 20; i++)
         {
             // Two compositors acquired, and they're always different...
-            ASSERT_THAT(compositor[0]->buffer()->id(), Ne(compositor[1]->buffer()->id()));
+            ASSERT_THAT(compositor[0].buffer()->id(), Ne(compositor[1].buffer()->id()));
 
             // One of the compositors (the oldest one) gets a new buffer...
             int oldest = i & 1;
-            auto handle = client_acquire_async(q);
+            compositor[oldest] = mc::BufferHandle(nullptr, nullptr);
+            auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
-            *compositor[oldest] = q.compositor_acquire(this);
+            compositor[oldest] = q->compositor_acquire(this);
         }
     }
 }
@@ -697,10 +740,13 @@ TEST_F(BufferQueueTest, snapshot_acquire_basic)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        auto comp_buffer_handle = q.compositor_acquire(this);
-        auto snapshot_handle = q.snapshot_acquire();
+        auto comp_buffer_handle = q->compositor_acquire(this);
+        auto snapshot_handle = q->snapshot_acquire();
         EXPECT_THAT(snapshot_handle.buffer()->id(),
                     Eq(comp_buffer_handle.buffer()->id()));
     }
@@ -717,14 +763,17 @@ TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown)
 
 TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown_with_snapshots)
 {
-    mc::BufferQueue q(1, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
     {
-        auto snapshot = q.snapshot_acquire();
-        q.drop_client_requests();
+        auto snapshot = q->snapshot_acquire();
+        q->drop_client_requests();
     }
 
-    auto client = client_acquire_async(q);
+    auto client = client_acquire_async(*q);
     ASSERT_FALSE(client->has_acquired_buffer());
 }
 
@@ -732,12 +781,20 @@ TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
         int const num_snapshots = 100;
 
-        mc::BufferHandle* buf[num_snapshots];
+        std::vector<mc::BufferHandle> bufs;
+        bufs.reserve(num_snapshots);
+
         for (int i = 0; i < num_snapshots; i++)
-            *buf[i] = q.snapshot_acquire();
+            bufs.push_back(std::move(mc::BufferHandle(nullptr, nullptr)));
+
+        for (int i = 0; i < num_snapshots; i++)
+            bufs[i] = q->snapshot_acquire();
     }
 }
 
@@ -745,31 +802,34 @@ TEST_F(BufferQueueTest, stress)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         std::atomic<bool> done(false);
 
         auto unblock = [&done]{ done = true;};
 
         mt::AutoUnblockThread compositor(unblock, compositor_thread,
-                                         std::ref(q),
+                                         std::ref(*q),
                                          std::ref(done));
         mt::AutoUnblockThread snapshotter1(unblock, snapshot_thread,
-                                           std::ref(q),
+                                           std::ref(*q),
                                            std::ref(done));
         mt::AutoUnblockThread snapshotter2(unblock, snapshot_thread,
-                                           std::ref(q),
+                                           std::ref(*q),
                                            std::ref(done));
 
-        q.allow_framedropping(false);
-        mt::AutoJoinThread client1(client_thread, std::ref(q), 1000);
+        q->allow_framedropping(false);
+        mt::AutoJoinThread client1(client_thread, std::ref(*q), 1000);
         client1.stop();
 
-        q.allow_framedropping(true);
-        mt::AutoJoinThread client2(client_thread, std::ref(q), 1000);
+        q->allow_framedropping(true);
+        mt::AutoJoinThread client2(client_thread, std::ref(*q), 1000);
         client2.stop();
 
-        mt::AutoJoinThread client3(switching_client_thread, std::ref(q), 1000);
+        mt::AutoJoinThread client3(switching_client_thread, std::ref(*q), 1000);
         client3.stop();
     }
 }
@@ -825,11 +885,14 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
 {
     for (int nbuffers = 2; nbuffers <= 3; nbuffers++)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
         unsigned long client_frames = 0;
         const unsigned long compose_frames = 20;
 
-        q.allow_framedropping(false);
+        q->allow_framedropping(false);
 
         std::atomic<bool> done(false);
 
@@ -839,7 +902,7 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-                q.compositor_acquire(this);
+                q->compositor_acquire(this);
 
                 if (frame == compose_frames)
                 {
@@ -851,13 +914,13 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
             }
         });
 
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
 
         while (!done.load())
         {
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             handle->wait_for(std::chrono::seconds(1));
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
@@ -880,12 +943,15 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
      */
     for (int nbuffers = 3; nbuffers <= 3; nbuffers++)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
         unsigned long client_frames = 0;
         unsigned long const compose_frames = 100;
         auto const frame_time = std::chrono::milliseconds(16);
 
-        q.allow_framedropping(false);
+        q->allow_framedropping(false);
 
         std::atomic<bool> done(false);
         std::mutex sync;
@@ -896,7 +962,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
             {
                 std::this_thread::sleep_for(frame_time);
                 sync.lock();
-                q.compositor_acquire(this);
+                q->compositor_acquire(this);
                 sync.unlock();
 
                 if (frame == compose_frames)
@@ -909,7 +975,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
             }
         });
 
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
 
@@ -917,7 +983,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
         {
             sync.lock();
             sync.unlock();
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             handle->wait_for(std::chrono::seconds(1));
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             std::this_thread::sleep_for(frame_time);
@@ -937,7 +1003,10 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         for (int width = 1; width < 100; ++width)
         {
@@ -945,14 +1014,14 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
 
             for (int subframe = 0; subframe < 3; ++subframe)
             {
-                q.resize(expect_size);
-                auto handle = client_acquire_async(q);
+                q->resize(expect_size);
+                auto handle = client_acquire_async(*q);
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 auto buffer = handle->buffer();
                 ASSERT_THAT(expect_size, Eq(buffer->size()));
                 handle->release_buffer();
 
-                auto comp_buffer_handle = q.compositor_acquire(this);
+                auto comp_buffer_handle = q->compositor_acquire(this);
                 ASSERT_THAT(expect_size, Eq(comp_buffer_handle.buffer()->size()));
             }
         }
@@ -971,7 +1040,10 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
         std::vector<mg::BufferID> history;
 
         const int width0 = 123;
@@ -980,7 +1052,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         const int dy = -3;
         int width = width0;
         int height = height0;
-        int const nbuffers_to_use = q.buffers_free_for_client();
+        int const nbuffers_to_use = q->buffers_free_for_client();
         ASSERT_THAT(nbuffers_to_use, Gt(0));
 
         int max_buffers{max_ownable_buffers(nbuffers)};
@@ -990,8 +1062,8 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             width += dx;
             height += dy;
 
-            q.resize(new_size);
-            auto handle = client_acquire_async(q);
+            q->resize(new_size);
+            auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             history.emplace_back(handle->id());
             auto buffer = handle->buffer();
@@ -1009,7 +1081,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
             width += dx;
             height += dy;
 
-            auto buffer_handle = q.compositor_acquire(this);
+            auto buffer_handle = q->compositor_acquire(this);
 
             // Verify the compositor gets resized buffers, eventually
             ASSERT_THAT(buffer_handle.buffer()->size(), Eq(expect_size));
@@ -1023,7 +1095,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
         const geom::Size final_size{width - dx, height - dy};
         for (int unchanging = 0; unchanging < 100; ++unchanging)
         {
-            auto buffer_handle = q.compositor_acquire(this);
+            auto buffer_handle = q->compositor_acquire(this);
             ASSERT_THAT(buffer_handle.buffer()->size(), Eq(final_size));
         }
     }
@@ -1034,23 +1106,23 @@ TEST_F(BufferQueueTest, framedropping_policy_never_drops_newest_frame)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         mtd::MockFrameDroppingPolicyFactory policy_factory;
-        mc::BufferQueue q(nbuffers,
-                          allocator,
-                          basic_properties,
-                          policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        auto first = client_acquire_sync(q);
-        q.client_release(first);
+        auto first = client_acquire_sync(*q);
+        q->client_release(first);
 
         // Start rendering one (don't finish)
-        auto d = q.compositor_acquire(nullptr);
+        auto d = q->compositor_acquire(nullptr);
         ASSERT_EQ(first, d.buffer().get());
 
-        auto second = client_acquire_sync(q);
-        q.client_release(second);
+        auto second = client_acquire_sync(*q);
+        q->client_release(second);
 
         // Client waits for a new frame
-        auto end = client_acquire_async(q);
+        auto end = client_acquire_async(*q);
 
         // Surface goes offscreen or occluded; trigger a timeout
         policy_factory.trigger_policies();
@@ -1069,34 +1141,34 @@ TEST_F(BufferQueueTest, framedropping_surface_never_drops_newest_frame)
 {  // Second regression test for LP: #1396006, LP: #1379685
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers,
-                          allocator,
-                          basic_properties,
-                          policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
-        q.allow_framedropping(true);
+        q->allow_framedropping(true);
 
         // Fill 'er up
         std::vector<mg::Buffer*> order;
         for (int f = 0; f < nbuffers; ++f)
         {
-            auto b = client_acquire_sync(q);
+            auto b = client_acquire_sync(*q);
             order.push_back(b);
-            q.client_release(b);
+            q->client_release(b);
         }
 
         // Composite all but one
         std::vector<std::shared_ptr<mg::Buffer>> compositing;
         for (int n = 0; n < nbuffers-1; ++n)
         {
-            auto c = q.compositor_acquire(nullptr);
+            auto c = q->compositor_acquire(nullptr);
             compositing.push_back(c.buffer());
             ASSERT_EQ(order[n], c.buffer().get());
         }
 
         // Ensure it's not the newest frame that gets dropped to satisfy the
         // client.
-        auto end = client_acquire_async(q);
+        auto end = client_acquire_async(*q);
 
         // The queue could solve this problem a few ways. It might choose to
         // defer framedropping till it's safe, or even allocate additional
@@ -1142,25 +1214,25 @@ TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
          nbuffers++)
     {
         mtd::MockFrameDroppingPolicyFactory policy_factory;
-        mc::BufferQueue q(nbuffers,
-                          allocator,
-                          basic_properties,
-                          policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < max_ownable_buffers(nbuffers); i++)
         {
-            auto client = client_acquire_sync(q);
-            q.client_release(client);
+            auto client = client_acquire_sync(*q);
+            q->client_release(client);
         }
 
         /* Queue up two pending swaps */
-        auto first_swap = client_acquire_async(q);
-        auto second_swap = client_acquire_async(q);
+        auto first_swap = client_acquire_async(*q);
+        auto second_swap = client_acquire_async(*q);
 
         ASSERT_FALSE(first_swap->has_acquired_buffer());
         ASSERT_FALSE(second_swap->has_acquired_buffer());
 
-        q.compositor_acquire(nullptr);
+        q->compositor_acquire(nullptr);
 
         EXPECT_TRUE(first_swap->has_acquired_buffer());
         EXPECT_FALSE(second_swap->has_acquired_buffer());
@@ -1180,18 +1252,21 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames_ev
     int const nbuffers{1};
     geom::Size const new_size{123,456};
 
-    mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    q.client_release(client_acquire_sync(q));
-    q.resize(new_size);
+    q->client_release(client_acquire_sync(*q));
+    q->resize(new_size);
 
-    auto const handle = client_acquire_async(q);
+    auto const handle = client_acquire_async(*q);
     EXPECT_THAT(handle->has_acquired_buffer(), Eq(false));
 
-    q.compositor_acquire(this);
+    q->compositor_acquire(this);
 
     {
-        auto buf_handle = q.compositor_acquire(this);
+        auto buf_handle = q->compositor_acquire(this);
         EXPECT_THAT(buf_handle.buffer()->size(), Eq(new_size));
     }
 }
@@ -1200,25 +1275,31 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
 {  // Regression test for LP: #1319765
     using namespace testing;
 
-    mc::BufferQueue q{2, allocator, basic_properties, policy_factory};
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(2, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    q.client_release(client_acquire_sync(q));
-    auto a = q.compositor_acquire(this);
-    q.client_release(client_acquire_sync(q));
-    auto b = q.compositor_acquire(this);
+    q->client_release(client_acquire_sync(*q));
+    auto a = q->compositor_acquire(this);
+    q->client_release(client_acquire_sync(*q));
+    auto b = q->compositor_acquire(this);
 
     ASSERT_NE(a.buffer(), b.buffer());
+    a = std::move(mc::BufferHandle(nullptr, nullptr));
 
-    q.client_release(client_acquire_sync(q));
+    q->client_release(client_acquire_sync(*q));
+
+    b = std::move(mc::BufferHandle(nullptr, nullptr));
 
     /*
      * Update to the original test case; This additional compositor acquire
      * represents the fixing of LP: #1395581 in the compositor logic.
      */
-    if (q.buffers_ready_for_compositor(this))
-        q.compositor_acquire(this);
+    if (q->buffers_ready_for_compositor(this))
+        q->compositor_acquire(this);
 
-    auto handle = client_acquire_async(q);
+    auto handle = client_acquire_async(*q);
     // With the fix, a buffer will be available instantaneously:
     ASSERT_TRUE(handle->has_acquired_buffer());
     handle->release_buffer();
@@ -1228,41 +1309,48 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
 {  // Extended regression test for LP: #1319765
     using namespace testing;
 
-    mc::BufferQueue q{2, allocator, basic_properties, policy_factory};
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(2, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
     for (int i = 0; i < 100; ++i)
     {
-        auto x = client_acquire_async(q);
+        auto x = client_acquire_async(*q);
         ASSERT_TRUE(x->has_acquired_buffer());
         x->release_buffer();
 
-        auto a = q.compositor_acquire(this);
+        auto a = q->compositor_acquire(this);
 
-        auto y = client_acquire_async(q);
+        auto y = client_acquire_async(*q);
         ASSERT_TRUE(y->has_acquired_buffer());
         y->release_buffer();
 
-        auto b = q.compositor_acquire(this);
+        auto b = q->compositor_acquire(this);
     
         ASSERT_NE(a.buffer(), b.buffer());
-    
-        auto w = client_acquire_async(q);
+
+        a = std::move(mc::BufferHandle(nullptr, nullptr));
+
+        auto w = client_acquire_async(*q);
         ASSERT_TRUE(w->has_acquired_buffer());
         w->release_buffer();
+
+        b = std::move(mc::BufferHandle(nullptr, nullptr));
 
         /*
          * Update to the original test case; This additional compositor acquire
          * represents the fixing of LP: #1395581 in the compositor logic.
          */
-        if (q.buffers_ready_for_compositor(this))
-            q.compositor_acquire(this);
+        if (q->buffers_ready_for_compositor(this))
+            q->compositor_acquire(this);
 
-        auto z = client_acquire_async(q);
+        auto z = client_acquire_async(*q);
         ASSERT_TRUE(z->has_acquired_buffer());
         z->release_buffer();
 
-        q.compositor_acquire(this);
-        q.compositor_acquire(this);
+        q->compositor_acquire(this);
+        q->compositor_acquire(this);
     }
 }
 
@@ -1272,32 +1360,37 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
  
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q{nbuffers, allocator, basic_properties, policy_factory};
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
     
         // Produce frame 1
-        q.client_release(client_acquire_sync(q));
+        q->client_release(client_acquire_sync(*q));
         // Acquire frame 1
-        auto a = q.compositor_acquire(this);
+        auto a = q->compositor_acquire(this);
     
         // Produce frame 2
-        q.client_release(client_acquire_sync(q));
+        q->client_release(client_acquire_sync(*q));
         // Acquire frame 2
-        auto b = q.compositor_acquire(this);
+        auto b = q->compositor_acquire(this);
     
         // Release frame 1
-//        a.reset();
+        a = std::move(mc::BufferHandle(nullptr, nullptr));
+
         // Produce frame 3
-        q.client_release(client_acquire_sync(q));
+        q->client_release(client_acquire_sync(*q));
         // Release frame 2
-//        b.reset();
+
+        b = std::move(mc::BufferHandle(nullptr, nullptr));
     
         // Verify frame 3 is ready for the first compositor
-        ASSERT_THAT(q.buffers_ready_for_compositor(this), Ge(1));
-        auto c = q.compositor_acquire(this);
+        ASSERT_THAT(q->buffers_ready_for_compositor(this), Ge(1));
+        auto c = q->compositor_acquire(this);
 
         // Verify frame 3 is ready for a second compositor
         int const that = 0;
-        ASSERT_THAT(q.buffers_ready_for_compositor(&that), Ge(1));
+        ASSERT_THAT(q->buffers_ready_for_compositor(&that), Ge(1));
     }
 }
 
@@ -1307,25 +1400,28 @@ TEST_F(BufferQueueTest, buffers_ready_eventually_reaches_zero)
  
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q{nbuffers, allocator, basic_properties, policy_factory};
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
     
         const int nmonitors = 3;
         int monitor[nmonitors];
 
         for (int m = 0; m < nmonitors; ++m)
         {
-            ASSERT_EQ(0, q.buffers_ready_for_compositor(&monitor[m]));
+            ASSERT_EQ(0, q->buffers_ready_for_compositor(&monitor[m]));
         }
 
         // Produce a frame
-        q.client_release(client_acquire_sync(q));
+        q->client_release(client_acquire_sync(*q));
 
         // Consume
         for (int m = 0; m < nmonitors; ++m)
         {
-            ASSERT_EQ(1, q.buffers_ready_for_compositor(&monitor[m]));
-            q.compositor_acquire(&monitor[m]);
-            ASSERT_EQ(0, q.buffers_ready_for_compositor(&monitor[m]));
+            ASSERT_EQ(1, q->buffers_ready_for_compositor(&monitor[m]));
+            q->compositor_acquire(&monitor[m]);
+            ASSERT_EQ(0, q->buffers_ready_for_compositor(&monitor[m]));
         }
     }
 }
@@ -1337,13 +1433,17 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
 
     int const nbuffers{3};
 
-    mc::BufferQueue q{nbuffers, allocator, basic_properties, policy_factory};
-    q.allow_framedropping(true);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
+    q->allow_framedropping(true);
 
     std::vector<mc::BufferHandle> buffer_handles;
 
     /* The client can never own this acquired buffer */
-    auto comp_buffer_handle = q.compositor_acquire(this);
+    auto comp_buffer_handle = q->compositor_acquire(this);
+    auto id_from_comp = comp_buffer_handle.buffer()->id();
     buffer_handles.push_back(std::move(comp_buffer_handle));
 
     /* Let client release all possible buffers so they go into
@@ -1351,31 +1451,31 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
      */
     for (int i = 0; i < nbuffers; ++i)
     {
-        auto handle = client_acquire_async(q);
+        auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         /* Check the client never got the compositor buffer acquired above */
-        ASSERT_THAT(handle->id(), Ne(comp_buffer_handle.buffer()->id()));
+        ASSERT_THAT(handle->id(), Ne(id_from_comp));
         handle->release_buffer();
     }
 
     /* Let the compositor acquire all ready buffers */
     for (int i = 0; i < nbuffers; ++i)
     {
-    	buffer_handles.push_back(q.compositor_acquire(this));
+    	buffer_handles.push_back(q->compositor_acquire(this));
     }
 
     /* At this point the queue has 0 free buffers and 0 ready buffers
      * so the next client request should not be satisfied until
      * a compositor releases its buffers */
-    auto handle = client_acquire_async(q);
+    auto handle = client_acquire_async(*q);
     /* ... unless the BufferQueue is overallocating. In that case it will
      * have succeeding in acquiring immediately.
      */ 
     if (!handle->has_acquired_buffer())
     {
         /* Release compositor buffers so that the client can get one */
-//        for (auto& buf_handle : buffer_handles)
-//        	buf_handle.reset();
+        for (auto& buf_handle : buffer_handles)
+        	buf_handle = std::move(mc::BufferHandle(nullptr, nullptr));
 
         EXPECT_THAT(handle->has_acquired_buffer(), Eq(true));
     }
@@ -1387,7 +1487,10 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
 
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         std::mutex client_buffer_guard;
         std::condition_variable client_buffer_cv;
@@ -1399,7 +1502,7 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
         {
             while (!done)
             {
-                auto buffer_handle = q.compositor_acquire(this);
+                auto buffer_handle = q->compositor_acquire(this);
 
                 {
                     std::unique_lock<std::mutex> lock(client_buffer_guard);
@@ -1419,7 +1522,7 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
 
         for (int i = 0; i < 1000; ++i)
         {
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             handle->wait_for(std::chrono::seconds(1));
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
@@ -1442,29 +1545,33 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
 {
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
+
         for (int i = 0; i < 100; ++i)
         {
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
             auto client_id = handle->id();
             std::vector<mc::BufferHandle> buffer_handles;
             for (int j = 0; j < nbuffers; j++)
             {
-                auto buffer_handle = q.compositor_acquire(this);
+                auto buffer_handle = q->compositor_acquire(this);
                 ASSERT_THAT(client_id, Ne(buffer_handle.buffer()->id()));
                 buffer_handles.push_back(std::move(buffer_handle));
             }
 
-//            for (auto& buf_handle: buffer_handles)
-//                buf_handle.reset();
+            for (auto& buf_handle: buffer_handles)
+                buf_handle = std::move(mc::BufferHandle(nullptr, nullptr));
 
             handle->release_buffer();
 
             {
                 /* Flush out one ready buffer */
-                auto buffer_handle = q.compositor_acquire(this);
+                auto buffer_handle = q->compositor_acquire(this);
                 ASSERT_THAT(client_id, Eq(buffer_handle.buffer()->id()));
             }
         }
@@ -1479,34 +1586,37 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
 {
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         void const* main_compositor = reinterpret_cast<void const*>(0);
         void const* second_compositor = reinterpret_cast<void const*>(1);
 
         /* Hold a reference to current compositor buffer*/
-        auto comp_buffer1 = q.compositor_acquire(main_compositor);
+        auto comp_buffer1 = q->compositor_acquire(main_compositor);
 
-        int const prefill = q.buffers_free_for_client();
+        int const prefill = q->buffers_free_for_client();
         ASSERT_THAT(prefill, Gt(0));
         for (int acquires = 0; acquires < prefill; ++acquires)
         {
-            auto handle = client_acquire_async(q);
+            auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
         }
 
         /* Have a second compositor advance the current compositor buffer at least twice */
         for (int acquires = 0; acquires < nbuffers; ++acquires)
-            q.compositor_acquire(second_compositor);
+            q->compositor_acquire(second_compositor);
 
-//        comp_buffer1.reset();
+        comp_buffer1 = std::move(mc::BufferHandle(nullptr, nullptr));
 
         /* An async client should still be able to cycle through all the available buffers */
         std::atomic<bool> done(false);
         auto unblock = [&done] { done = true; };
         mt::AutoUnblockThread compositor(unblock,
-           compositor_thread, std::ref(q), std::ref(done));
+           compositor_thread, std::ref(*q), std::ref(done));
 
         std::unordered_set<mg::Buffer *> unique_buffers_acquired;
         int const max_ownable_buffers = nbuffers - 1;
@@ -1515,7 +1625,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
             std::vector<mg::Buffer *> client_buffers;
             for (int acquires = 0; acquires < max_ownable_buffers; ++acquires)
             {
-                auto handle = client_acquire_async(q);
+                auto handle = client_acquire_async(*q);
                 handle->wait_for(std::chrono::seconds(1));
                 ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
                 unique_buffers_acquired.insert(handle->buffer());
@@ -1524,7 +1634,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
 
             for (auto const& buffer : client_buffers)
             {
-                q.client_release(buffer);
+                q->client_release(buffer);
             }
         }
 
@@ -1600,11 +1710,14 @@ TEST_F(BufferQueueTest, first_user_is_recorded)
 {
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
-        mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+        std::shared_ptr<mc::BufferQueue> q;
+        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_THAT(q, Ne(nullptr));
 
         {
-            auto comp = q.compositor_acquire(this);
-            EXPECT_TRUE(q.is_a_current_buffer_user(this));
+            auto comp = q->compositor_acquire(this);
+            EXPECT_TRUE(q->is_a_current_buffer_user(this));
         }
     }
 }
@@ -1612,36 +1725,42 @@ TEST_F(BufferQueueTest, first_user_is_recorded)
 TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffers_without_clients)
 {
     int const nbuffers = 3;
-    mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    q.drop_old_buffers();
+    q->drop_old_buffers();
 
-    auto comp = q.compositor_acquire(this);
-//    ASSERT_THAT(comp, Ne(nullptr));
+    auto comp = q->compositor_acquire(this);
+    ASSERT_THAT(comp.buffer(), Ne(nullptr));
 }
 
 TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_buffers)
 {
     int const nbuffers = 3;
-    mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    auto handle1 = client_acquire_async(q);
+    auto handle1 = client_acquire_async(*q);
     ASSERT_THAT(handle1->has_acquired_buffer(), Eq(true));
     handle1->release_buffer();
 
-    auto handle2 = client_acquire_async(q);
+    auto handle2 = client_acquire_async(*q);
     ASSERT_THAT(handle2->has_acquired_buffer(), Eq(true));
     handle2->release_buffer();
 
-    q.drop_old_buffers();
+    q->drop_old_buffers();
 
     {
-        auto buffer_handle = q.compositor_acquire(this);
+        auto buffer_handle = q->compositor_acquire(this);
         ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle2->id()));
     }
 
     {
-        auto buffer_handle = q.compositor_acquire(this);
+        auto buffer_handle = q->compositor_acquire(this);
         ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle2->id()));
     }
 }
@@ -1651,23 +1770,26 @@ TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_ol
     int const nbuffers = 3;
     void const* const new_compositor_id{&nbuffers};
 
-    mc::BufferQueue q(nbuffers, allocator, basic_properties, policy_factory);
+    std::shared_ptr<mc::BufferQueue> q;
+    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
+                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_THAT(q, Ne(nullptr));
 
-    auto handle1 = client_acquire_async(q);
+    auto handle1 = client_acquire_async(*q);
     ASSERT_THAT(handle1->has_acquired_buffer(), Eq(true));
     handle1->release_buffer();
 
     {
-        auto buffer_handle = q.compositor_acquire(this);
+        auto buffer_handle = q->compositor_acquire(this);
         ASSERT_THAT(buffer_handle.buffer()->id(), Eq(handle1->id()));
     }
 
-    auto handle2 = client_acquire_async(q);
+    auto handle2 = client_acquire_async(*q);
     ASSERT_THAT(handle2->has_acquired_buffer(), Eq(true));
     handle2->release_buffer();
 
-    q.drop_old_buffers();
+    q->drop_old_buffers();
 
-    auto buffer_handle2 = q.compositor_acquire(new_compositor_id);
+    auto buffer_handle2 = q->compositor_acquire(new_compositor_id);
     ASSERT_THAT(buffer_handle2.buffer()->id(), Eq(handle2->id()));
 }

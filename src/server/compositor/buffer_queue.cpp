@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include <iostream>
+
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
@@ -286,12 +288,15 @@ mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
+    std::cout<<"creating shared from this"<<std::endl;
     std::weak_ptr<BufferQueue> weak_this = shared_from_this();
+    std::cout<<"created shared from this"<<std::endl;
 
     mc::BufferHandle acquired_buffer(
         buffer_for(current_compositor_buffer, buffers),
         [weak_this](mg::Buffer* b)
         {
+        std::cout<<"releasing in lambda"<<std::endl;
             if (auto self = weak_this.lock())
             {
                 std::unique_lock<decltype(self->guard)> lock(self->guard);
@@ -300,13 +305,20 @@ mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
 
                 /* Not ready to release it yet, other compositors still reference this buffer */
                 if (contains(b, self->buffers_sent_to_compositor))
+                {
+                    std::cout<<"released in lambda1"<<std::endl;
                     return;
-
+                }
                 if (self->nbuffers <= 1)
+                {
+                    std::cout<<"released in lambda2"<<std::endl;
                     return;
-
+                }
                 if (self->current_compositor_buffer != b)
+                {
                     self->release(b, std::move(lock));
+                    std::cout<<"released in lambda3"<<std::endl;
+                }
             }
         });
 

@@ -38,6 +38,8 @@ mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
 {
     if (this != &other)
     {
+        if (release_fn)
+            release_fn(wrapped.get());
         wrapped = std::move(other.wrapped);
         release_fn = std::move(other.release_fn);
     }
@@ -48,7 +50,7 @@ mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
 mc::BufferHandle::~BufferHandle()
 {
     if (release_fn)
-    	release_fn(wrapped.get());
+        release_fn(wrapped.get());
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
