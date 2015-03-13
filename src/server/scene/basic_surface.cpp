@@ -165,7 +165,7 @@ ms::BasicSurface::~BasicSurface() noexcept
 {
     report->surface_deleted(this, surface_name);
 
-    snapshot_buffer_handle = std::move(mc::BufferHandle(nullptr, nullptr));
+    snapshot_buffer_handle = mc::BufferHandle(nullptr, nullptr);
 
     if (buffer_queue)
         buffer_queue->drop_client_requests();

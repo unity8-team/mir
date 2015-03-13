@@ -236,7 +236,7 @@ TEST_F(SurfaceCreation, test_surface_queries_bundle_for_pf)
     EXPECT_CALL(*mock_buffer_bundle, properties())
         .Times(1)
         .WillOnce(Return(mg::BufferProperties(geom::Size{0, 0},
-        		                              pf,
+                                              pf,
                                               mg::BufferUsage::undefined)));
 
     auto ret_pf = surface.pixel_format();

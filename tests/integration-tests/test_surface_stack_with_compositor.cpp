@@ -131,12 +131,7 @@ struct SurfaceStackCompositor : public testing::Test
             std::shared_ptr<mg::CursorImage>(),
             null_scene_report)}
     {
-/*        mc::BufferHandle stub_handle(mt::fake_shared(stubbuf), nullptr);
-
-        using namespace testing;
-        ON_CALL(*mock_buffer_bundle, compositor_acquire(_))
-            .WillByDefault(InvokeWithoutArgs([&](){ return std::move(stub_handle); }));
-  */  }
+    }
     std::shared_ptr<ms::SceneReport> null_scene_report{mr::null_scene_report()};
     ms::SurfaceStack stack{null_scene_report};
     std::shared_ptr<mc::CompositorReport> null_comp_report{mr::null_compositor_report()};

@@ -250,7 +250,8 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
         /* Client and compositor share the same buffer so
          * expect the new size
          */
-        ASSERT_NO_THROW(q->compositor_acquire(this).buffer());
+    	auto comp_buffer_handle = q->compositor_acquire(this);
+        ASSERT_NO_THROW(comp_buffer_handle.buffer());
 
         EXPECT_THAT(buffer->size(), Eq(expect_size));
     }
@@ -1285,12 +1286,12 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
     q->client_release(client_acquire_sync(*q));
     auto b = q->compositor_acquire(this);
 
-    ASSERT_NE(a.buffer(), b.buffer());
-    a = std::move(mc::BufferHandle(nullptr, nullptr));
+    ASSERT_NE(a.buffer().get(), b.buffer().get());
+    a = mc::BufferHandle(nullptr, nullptr);
 
     q->client_release(client_acquire_sync(*q));
 
-    b = std::move(mc::BufferHandle(nullptr, nullptr));
+    b = mc::BufferHandle(nullptr, nullptr);
 
     /*
      * Update to the original test case; This additional compositor acquire
@@ -1330,13 +1331,13 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
     
         ASSERT_NE(a.buffer(), b.buffer());
 
-        a = std::move(mc::BufferHandle(nullptr, nullptr));
+        a = mc::BufferHandle(nullptr, nullptr);
 
         auto w = client_acquire_async(*q);
         ASSERT_TRUE(w->has_acquired_buffer());
         w->release_buffer();
 
-        b = std::move(mc::BufferHandle(nullptr, nullptr));
+        b = mc::BufferHandle(nullptr, nullptr);
 
         /*
          * Update to the original test case; This additional compositor acquire
@@ -1376,13 +1377,13 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
         auto b = q->compositor_acquire(this);
     
         // Release frame 1
-        a = std::move(mc::BufferHandle(nullptr, nullptr));
+        a = mc::BufferHandle(nullptr, nullptr);
 
         // Produce frame 3
         q->client_release(client_acquire_sync(*q));
         // Release frame 2
 
-        b = std::move(mc::BufferHandle(nullptr, nullptr));
+        b = mc::BufferHandle(nullptr, nullptr);
     
         // Verify frame 3 is ready for the first compositor
         ASSERT_THAT(q->buffers_ready_for_compositor(this), Ge(1));
@@ -1460,9 +1461,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
 
     /* Let the compositor acquire all ready buffers */
     for (int i = 0; i < nbuffers; ++i)
-    {
-    	buffer_handles.push_back(q->compositor_acquire(this));
-    }
+        buffer_handles.push_back(q->compositor_acquire(this));
 
     /* At this point the queue has 0 free buffers and 0 ready buffers
      * so the next client request should not be satisfied until
@@ -1475,7 +1474,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     {
         /* Release compositor buffers so that the client can get one */
         for (auto& buf_handle : buffer_handles)
-        	buf_handle = std::move(mc::BufferHandle(nullptr, nullptr));
+            buf_handle = std::move(mc::BufferHandle(nullptr, nullptr));
 
         EXPECT_THAT(handle->has_acquired_buffer(), Eq(true));
     }
@@ -1565,7 +1564,7 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
             }
 
             for (auto& buf_handle: buffer_handles)
-                buf_handle = std::move(mc::BufferHandle(nullptr, nullptr));
+                buf_handle = mc::BufferHandle(nullptr, nullptr);
 
             handle->release_buffer();
 
@@ -1610,7 +1609,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         for (int acquires = 0; acquires < nbuffers; ++acquires)
             q->compositor_acquire(second_compositor);
 
-        comp_buffer1 = std::move(mc::BufferHandle(nullptr, nullptr));
+        comp_buffer1 = mc::BufferHandle(nullptr, nullptr);
 
         /* An async client should still be able to cycle through all the available buffers */
         std::atomic<bool> done(false);

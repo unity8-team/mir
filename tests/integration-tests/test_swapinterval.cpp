@@ -61,22 +61,12 @@ public:
     {
         return std::move(mc::BufferHandle(nullptr, nullptr));
     }
-/*    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*) override
-        { return std::make_shared<mtd::StubBuffer>(); }
-*/
 
     mc::BufferHandle snapshot_acquire() override
     {
         return std::move(mc::BufferHandle(nullptr, nullptr));
     }
-/*
-    std::shared_ptr<mg::Buffer> lock_snapshot_buffer() override
-        { return std::make_shared<mtd::StubBuffer>(); }
-*/
 
-/*    MirPixelFormat get_stream_pixel_format() override
-        { return mir_pixel_format_abgr_8888; }
-*/
     void allow_framedropping(bool) override
     {
         while (write(render_operations_fd, "a", 1) != 1) continue;
