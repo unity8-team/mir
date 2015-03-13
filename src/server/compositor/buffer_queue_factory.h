@@ -38,8 +38,8 @@ namespace compositor
 class BufferQueueFactory : public scene::BufferQueueFactory
 {
 public:
-	BufferQueueFactory(std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
-                        std::shared_ptr<FrameDroppingPolicyFactory> const& policy_factory);
+    BufferQueueFactory(std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
+                       std::shared_ptr<FrameDroppingPolicyFactory> const& policy_factory);
 
     virtual ~BufferQueueFactory() {}
 

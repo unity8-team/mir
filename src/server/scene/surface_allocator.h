@@ -41,7 +41,7 @@ class SurfaceConfigurator;
 class SurfaceAllocator : public SurfaceFactory
 {
 public:
-    SurfaceAllocator(std::shared_ptr<BufferQueueFactory> const& bq_factory,
+    SurfaceAllocator(std::shared_ptr<BufferQueueFactory> const& buffer_queue_factory,
                      std::shared_ptr<input::InputChannelFactory> const& input_factory,
                      std::shared_ptr<input::InputSender> const& input_sender,
                      std::shared_ptr<graphics::CursorImage> const& default_cursor_image,

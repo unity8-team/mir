@@ -19,8 +19,8 @@
 #include "surface_allocator.h"
 #include "mir/scene/buffer_queue_factory.h"
 #include "mir/input/input_channel_factory.h"
-#include "basic_surface.h"
 #include "mir/compositor/buffer_bundle.h"
+#include "basic_surface.h"
 
 namespace geom=mir::geometry;
 namespace mc=mir::compositor;
@@ -36,12 +36,12 @@ static inline bool has_alpha(MirPixelFormat fmt)
 }
 
 ms::SurfaceAllocator::SurfaceAllocator(
-    std::shared_ptr<BufferQueueFactory> const& bq_factory,
+    std::shared_ptr<BufferQueueFactory> const& buffer_queue_factory,
     std::shared_ptr<input::InputChannelFactory> const& input_factory,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& default_cursor_image,
     std::shared_ptr<SceneReport> const& report) :
-    buffer_queue_factory(bq_factory),
+    buffer_queue_factory(buffer_queue_factory),
     input_factory(input_factory),
     input_sender(input_sender),
     default_cursor_image(default_cursor_image),

@@ -49,7 +49,7 @@ public:
     MOCK_CONST_METHOD1(buffers_ready_for_compositor, int(void const*));
 
     // TODO: Latest gmock (1.7.0) can't handle moveable only classes.
-    // The trunk can, should be able to mock this once released.
+    // The trunk can. We should be able to mock this once released.
     compositor::BufferHandle compositor_acquire(void const*) override
         { return std::move(compositor::BufferHandle(nullptr, nullptr)); }
     compositor::BufferHandle snapshot_acquire() override

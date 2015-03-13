@@ -86,8 +86,8 @@ public:
 
     graphics::BufferProperties properties() const override
     { return graphics::BufferProperties(geometry::Size{0, 0},
-        	                            mir_pixel_format_invalid,
-        	                            graphics::BufferUsage::undefined); }
+                                        mir_pixel_format_invalid,
+                                        graphics::BufferUsage::undefined); }
 
     StubBuffer stub_client_buffer;
     std::shared_ptr<graphics::Buffer> stub_compositor_buffer;

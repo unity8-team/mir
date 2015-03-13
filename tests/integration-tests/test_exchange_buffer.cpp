@@ -88,8 +88,8 @@ struct StubQueue : public mc::BufferBundle
 
     mg::BufferProperties properties() const override
         { return mg::BufferProperties(geom::Size{0, 0},
-        	       mir_pixel_format_invalid,
-                   mg::BufferUsage::undefined); }
+                     mir_pixel_format_invalid,
+                     mg::BufferUsage::undefined); }
     geom::Size size() const override { return geom::Size{1,212121}; }
     int buffers_free_for_client() const override { return 0; }
 
@@ -100,7 +100,7 @@ struct StubQueue : public mc::BufferBundle
 
 struct StubQueueFactory : public msc::BufferQueueFactory
 {
-	StubQueueFactory(std::vector<mg::BufferID> const& ids) :
+    StubQueueFactory(std::vector<mg::BufferID> const& ids) :
         buffer_id_seq(ids)
     {}
 
