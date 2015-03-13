@@ -44,7 +44,7 @@ public:
     virtual ~BufferQueueFactory() {}
 
     virtual std::shared_ptr<BufferBundle> create_buffer_queue(
-        graphics::BufferProperties const& buffer_properties);
+        int nbuffers, graphics::BufferProperties const& buffer_properties) override;
 
 private:
     std::shared_ptr<graphics::GraphicBufferAllocator> gralloc;

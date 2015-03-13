@@ -42,7 +42,7 @@ mc::BufferQueueFactory::BufferQueueFactory(std::shared_ptr<mg::GraphicBufferAllo
 }
 
 std::shared_ptr<mc::BufferBundle> mc::BufferQueueFactory::create_buffer_queue(
-    mg::BufferProperties const& buffer_properties)
+		int nbuffers, mg::BufferProperties const& buffer_properties)
 {
-    return std::make_shared<mc::BufferQueue>(2, gralloc, buffer_properties, *policy_factory);
+    return std::make_shared<mc::BufferQueue>(nbuffers, gralloc, buffer_properties, *policy_factory);
 }

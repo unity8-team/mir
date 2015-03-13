@@ -37,16 +37,20 @@ static inline bool has_alpha(MirPixelFormat fmt)
 
 ms::SurfaceAllocator::SurfaceAllocator(
     std::shared_ptr<BufferQueueFactory> const& buffer_queue_factory,
+    int nbuffers,
     std::shared_ptr<input::InputChannelFactory> const& input_factory,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& default_cursor_image,
     std::shared_ptr<SceneReport> const& report) :
     buffer_queue_factory(buffer_queue_factory),
+    nbuffers(nbuffers),
     input_factory(input_factory),
     input_sender(input_sender),
     default_cursor_image(default_cursor_image),
     report(report)
 {
+    if (nbuffers < 2)
+        throw std::logic_error("nbuffers must be at least 2");
 }
 
 std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreationParameters const& params)
@@ -54,7 +58,7 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
     mg::BufferProperties buffer_properties{params.size,
                                            params.pixel_format,
                                            params.buffer_usage};
-    auto buffer_queue = buffer_queue_factory->create_buffer_queue(buffer_properties);
+    auto buffer_queue = buffer_queue_factory->create_buffer_queue(nbuffers, buffer_properties);
     auto actual_size = geom::Rectangle{params.top_left, buffer_queue->size()};
 
     bool nonrectangular = has_alpha(params.pixel_format);

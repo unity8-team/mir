@@ -36,7 +36,7 @@ public:
     virtual ~BufferQueueFactory() = default;
 
     virtual std::shared_ptr<compositor::BufferBundle> create_buffer_queue(
-        graphics::BufferProperties const& buffer_properties) = 0;
+            int nbuffers, graphics::BufferProperties const& buffer_properties) = 0;
 
 protected:
     BufferQueueFactory() = default;

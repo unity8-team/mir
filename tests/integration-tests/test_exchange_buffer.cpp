@@ -104,7 +104,7 @@ struct StubQueueFactory : public msc::BufferQueueFactory
         buffer_id_seq(ids)
     {}
 
-    std::shared_ptr<mc::BufferBundle> create_buffer_queue(mg::BufferProperties const&) override
+    std::shared_ptr<mc::BufferBundle> create_buffer_queue(int, mg::BufferProperties const&) override
     { return std::make_shared<StubQueue>(buffer_id_seq); }
     std::vector<mg::BufferID> const buffer_id_seq;
 };

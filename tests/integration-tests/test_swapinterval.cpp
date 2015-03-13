@@ -94,7 +94,7 @@ public:
     {
     }
 
-    std::shared_ptr<mc::BufferBundle> create_buffer_queue(mg::BufferProperties const&)
+    std::shared_ptr<mc::BufferBundle> create_buffer_queue(int, mg::BufferProperties const&) override
     {
         return std::make_shared<CountingBufferBundle>(render_operations_fd);
     }
