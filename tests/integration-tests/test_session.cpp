@@ -86,7 +86,7 @@ void swap_buffers_blocking(mf::Surface& surf, mg::Buffer*& buffer)
 
 } // anonymouse namespace
 
-TEST(ApplicationSession, DISABLED_stress_test_take_snapshot)
+TEST(ApplicationSession, stress_test_take_snapshot)
 {
     TestServerConfiguration conf;
 

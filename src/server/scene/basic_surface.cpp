@@ -136,8 +136,7 @@ ms::BasicSurface::BasicSurface(
     input_sender(input_sender),
     cursor_image_(cursor_image),
     report(report),
-    parent_(parent),
-    snapshot_buffer_handle{nullptr, nullptr}
+    parent_(parent)
 {
     report->surface_created(this, surface_name);
 }
@@ -164,8 +163,6 @@ void ms::BasicSurface::force_requests_to_complete()
 ms::BasicSurface::~BasicSurface() noexcept
 {
     report->surface_deleted(this, surface_name);
-
-    snapshot_buffer_handle = mc::BufferHandle(nullptr, nullptr);
 
     if (buffer_queue)
         buffer_queue->drop_client_requests();
@@ -245,8 +242,7 @@ void ms::BasicSurface::allow_framedropping(bool allow)
 
 std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
 {
-    snapshot_buffer_handle = buffer_queue->snapshot_acquire();
-    return snapshot_buffer_handle.buffer();
+    return buffer_queue->snapshot_acquire().buffer();
 }
 
 bool ms::BasicSurface::supports_input() const
