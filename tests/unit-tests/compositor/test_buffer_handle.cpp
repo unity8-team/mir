@@ -17,49 +17,24 @@
  */
 
 #include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/mock_buffer_bundle.h"
 #include "mir/compositor/buffer_handle.h"
-
-#include <gtest/gtest.h>
+#include "mir_test/fake_shared.h"
 
 namespace mc = mir::compositor;
+namespace mg = mir::graphics;
+namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
 
-class BufferHandleTest : public ::testing::Test
+TEST(BufferHandleTest, can_contain_handout_and_release_buffer)
 {
-protected:
-    BufferHandleTest()
-    {
-        mock_buffer = std::make_shared<mtd::StubBuffer>();
-        mock_bundle = std::make_shared<mtd::MockBufferBundle>();
-    }
+    mtd::StubBuffer mock_buffer;
 
-    std::shared_ptr<mtd::StubBuffer> mock_buffer;
-    std::shared_ptr<mtd::MockBufferBundle> mock_bundle;
-};
+    mc::BufferHandle buffer_handle(
+                         mt::fake_shared(mock_buffer),
+                         [&](mg::Buffer* b)
+                         {
+                             ASSERT_EQ(b, &mock_buffer);
+                         });
 
-TEST_F(BufferHandleTest, can_contain_handout_and_release_compositor_buffer)
-{
-    using namespace testing;
-
-    std::shared_ptr<mc::BufferHandle> buffer_handle =
-        std::make_shared<mc::CompositorBufferHandle>(mock_bundle.get(), mock_buffer);
-
-    EXPECT_CALL(*mock_bundle, compositor_release(_))
-        .Times(1);
-
-    ASSERT_EQ(buffer_handle->buffer(), mock_buffer);
-}
-
-TEST_F(BufferHandleTest, can_contain_handout_and_release_snapshot_buffer)
-{
-    using namespace testing;
-
-    std::shared_ptr<mc::BufferHandle> buffer_handle =
-        std::make_shared<mc::SnapshotBufferHandle>(mock_bundle.get(), mock_buffer);
-
-    EXPECT_CALL(*mock_bundle, snapshot_release(_))
-        .Times(1);
-
-    ASSERT_EQ(buffer_handle->buffer(), mock_buffer);
+    ASSERT_EQ(buffer_handle.buffer().get(), &mock_buffer);
 }
