@@ -240,11 +240,6 @@ void ms::BasicSurface::allow_framedropping(bool allow)
     buffer_queue->allow_framedropping(allow);
 }
 
-std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
-{
-    return buffer_queue->snapshot_acquire().buffer();
-}
-
 bool ms::BasicSurface::supports_input() const
 {
     if (server_input_channel)
@@ -387,8 +382,8 @@ void ms::BasicSurface::set_reception_mode(mi::InputReceptionMode mode)
 void ms::BasicSurface::with_most_recent_buffer_do(
     std::function<void(mg::Buffer&)> const& exec)
 {
-    auto buf = snapshot_buffer();
-    exec(*buf);
+    auto buffer_handle = buffer_queue->snapshot_acquire();
+    exec(*(buffer_handle.buffer()));
 }
 
 
