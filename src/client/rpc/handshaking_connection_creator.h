@@ -21,7 +21,7 @@
 
 #include <memory>
 #include <vector>
-#include <boost/thread/future.hpp>
+#include <future>
 
 namespace google
 {
@@ -45,7 +45,7 @@ class HandshakingConnectionCreator
 public:
     HandshakingConnectionCreator(std::vector<std::unique_ptr<ProtocolInterpreter>>&& protocols);
 
-    boost::future<std::unique_ptr<google::protobuf::RpcChannel>> connect_to(std::unique_ptr<StreamTransport> transport);
+    std::future<std::unique_ptr<google::protobuf::RpcChannel>> connect_to(std::unique_ptr<StreamTransport> transport);
 
 private:
     std::vector<std::unique_ptr<ProtocolInterpreter>> protocols;

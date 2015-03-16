@@ -97,8 +97,8 @@ public:
 
     MirSurface(
         MirConnection *allocating_connection,
-        mir::protobuf::DisplayServer::Stub& server,
-        mir::protobuf::Debug::Stub* debug,
+        mir::protobuf::DisplayServer& server,
+        mir::protobuf::Debug* debug,
         std::shared_ptr<mir::client::ClientBufferStreamFactory> const& buffer_stream_factory,
         std::shared_ptr<mir::input::receiver::InputPlatform> const& input_platform,
         MirSurfaceSpec const& spec,
@@ -146,8 +146,8 @@ private:
     void created(mir_surface_callback callback, void* context);
     MirPixelFormat convert_ipc_pf_to_geometry(google::protobuf::int32 pf) const;
 
-    mir::protobuf::DisplayServer::Stub* server{nullptr};
-    mir::protobuf::Debug::Stub* debug{nullptr};
+    mir::protobuf::DisplayServer* server{nullptr};
+    mir::protobuf::Debug* debug{nullptr};
     mir::protobuf::Surface surface;
     mir::protobuf::BufferRequest buffer_request;
     std::string error_message;

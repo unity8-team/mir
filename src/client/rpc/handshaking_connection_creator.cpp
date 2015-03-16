@@ -69,16 +69,16 @@ mclr::HandshakingConnectionCreator::HandshakingConnectionCreator(
     }
 }
 
-boost::future<std::unique_ptr<google::protobuf::RpcChannel>> mclr::HandshakingConnectionCreator::connect_to(std::unique_ptr<mclr::StreamTransport> transport)
+std::future<std::unique_ptr<google::protobuf::RpcChannel>> mclr::HandshakingConnectionCreator::connect_to(std::unique_ptr<mclr::StreamTransport> transport)
 {
-    boost::promise<std::unique_ptr<google::protobuf::RpcChannel>> protocol_interpreter;
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> protocol_interpreter;
     auto protocol_future = protocol_interpreter.get_future();
 
     class HandshakeCompleter : public mclr::StreamTransport::Observer,
                                public std::enable_shared_from_this<HandshakeCompleter>
     {
     public:
-        HandshakeCompleter(boost::promise<std::unique_ptr<google::protobuf::RpcChannel>>&& promise,
+        HandshakeCompleter(std::promise<std::unique_ptr<google::protobuf::RpcChannel>>&& promise,
                            std::vector<std::unique_ptr<mclr::ProtocolInterpreter>>&& protocolings)
             : promise{std::move(promise)},
               protocols{std::move(protocolings)}
@@ -127,7 +127,7 @@ boost::future<std::unique_ptr<google::protobuf::RpcChannel>> mclr::HandshakingCo
                 transport->unregister_observer(*this);
                 eventloop.reset();
 
-                promise.set_exception(boost::current_exception());
+                promise.set_exception(std::current_exception());
             }
         }
 
@@ -147,7 +147,7 @@ boost::future<std::unique_ptr<google::protobuf::RpcChannel>> mclr::HandshakingCo
     private:
         std::unique_ptr<mclr::StreamTransport> transport;
         std::unique_ptr<md::SimpleDispatchThread> eventloop;
-        boost::promise<std::unique_ptr<google::protobuf::RpcChannel>> promise;
+        std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promise;
         std::vector<std::unique_ptr<mclr::ProtocolInterpreter>> protocols;
     };
 

@@ -75,7 +75,7 @@ struct MirScreencastTest : public testing::Test
 
         mcl::DefaultConnectionConfiguration conf{test_socket};
 
-        rpc_channel = conf.the_rpc_channel();
+        rpc_channel = conf.make_rpc_channel().get();
         protobuf_server =
             std::make_shared<mir::protobuf::DisplayServer::Stub>(rpc_channel.get());
         eventloop =

@@ -127,13 +127,10 @@ enable_testing()
 include_directories(include/common)
 
 # Check for boost
-find_package(Boost 1.48.0 COMPONENTS date_time system program_options filesystem thread REQUIRED)
+find_package(Boost 1.48.0 COMPONENTS date_time system program_options filesystem REQUIRED)
 include_directories (
   ${Boost_INCLUDE_DIRS}
 )
-# Use Boost's implementation of C++ library proposal N3558
-add_definitions(-DBOOST_THREAD_PROVIDES_FUTURE)
-add_definitions(-DBOOST_THREAD_PROVIDES_FUTURE_CONTINUATIONS)
 
 option(
   MIR_DISABLE_EPOLL_REACTOR

@@ -94,16 +94,11 @@ mcl::DefaultConnectionConfiguration::the_surface_map()
         });
 }
 
-std::shared_ptr<google::protobuf::RpcChannel>
-mcl::DefaultConnectionConfiguration::the_rpc_channel()
+std::future<std::unique_ptr<google::protobuf::RpcChannel>>
+mcl::DefaultConnectionConfiguration::make_rpc_channel()
 {
-    return rpc_channel(
-        [this]
-        {
-            mcl::rpc::HandshakingConnectionCreator handshake{make_supported_protocols()};
-            auto future = handshake.connect_to(mcl::rpc::transport_for(the_socket_file()));
-            return future.get();
-        });
+    mcl::rpc::HandshakingConnectionCreator handshake{make_supported_protocols()};
+    return handshake.connect_to(mcl::rpc::transport_for(the_socket_file()));
 }
 
 std::vector<std::unique_ptr<mcl::rpc::ProtocolInterpreter>>

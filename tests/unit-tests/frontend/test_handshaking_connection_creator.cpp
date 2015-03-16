@@ -211,7 +211,7 @@ TEST(HandshakingConnectionCreatorTest, LazyClientTimesOutInConnect)
     std::thread watchdog{[&io_service, &m, &cv, &done]()
         {
             std::unique_lock<std::mutex> lk(m);
-            if (!cv.wait_for(lk, std::chrono::seconds{5}, [&done]() { return done; }))
+            if (!cv.wait_for(lk, std::chrono::seconds{20}, [&done]() { return done; }))
             {
                 io_service.stop();
                 FAIL()<<"Timeout waiting for client disconnect";

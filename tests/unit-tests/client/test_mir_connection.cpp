@@ -39,6 +39,9 @@
 
 #include <google/protobuf/descriptor.h>
 
+#include <thread>
+#include <boost/throw_exception.hpp>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -159,17 +162,19 @@ class TestConnectionConfiguration : public mcl::DefaultConnectionConfiguration
 public:
     TestConnectionConfiguration(
         std::shared_ptr<mcl::ClientPlatform> const& platform,
-        std::shared_ptr<mcl::rpc::MirBasicRpcChannel> const& channel)
+        std::unique_ptr<mcl::rpc::MirBasicRpcChannel> channel)
         : DefaultConnectionConfiguration("fd://-1"),
           disp_config(std::make_shared<mcl::DisplayConfiguration>()),
           platform{platform},
-          channel{channel}
+          next_channel{std::move(channel)}
     {
     }
 
-    std::shared_ptr<::google::protobuf::RpcChannel> the_rpc_channel() override
+    std::future<std::unique_ptr<::google::protobuf::RpcChannel>> make_rpc_channel() override
     {
-        return channel;
+        std::promise<std::unique_ptr<::google::protobuf::RpcChannel>> promise;
+        promise.set_value(std::move(next_channel));
+        return promise.get_future();
     }
 
     std::shared_ptr<mcl::ClientPlatformFactory> the_client_platform_factory() override
@@ -184,7 +189,7 @@ public:
 private:
     std::shared_ptr<mcl::DisplayConfiguration> disp_config;
     std::shared_ptr<mcl::ClientPlatform> const platform;
-    std::shared_ptr<mcl::rpc::MirBasicRpcChannel> const channel;
+    std::unique_ptr<mcl::rpc::MirBasicRpcChannel> next_channel;
 };
 
 }
@@ -193,17 +198,27 @@ struct MirConnectionTest : public testing::Test
 {
     MirConnectionTest()
         : mock_platform{std::make_shared<testing::NiceMock<MockClientPlatform>>()},
-          mock_channel{std::make_shared<testing::NiceMock<MockRpcChannel>>()},
-          conf{mock_platform, mock_channel},
+          conf{mock_platform, std::make_unique<testing::NiceMock<MockRpcChannel>>()},
           connection{std::make_shared<MirConnection>(conf)}
     {
+        using namespace std::literals::chrono_literals;
+        auto timeout = std::chrono::steady_clock::now() + 10s;
+        while (!mock_channel)
+        {
+            std::this_thread::sleep_for(10ms);
+            mock_channel = std::dynamic_pointer_cast<::testing::NiceMock<MockRpcChannel>>(connection->rpc_channel());
+            if (timeout < std::chrono::steady_clock::now())
+            {
+                BOOST_THROW_EXCEPTION((std::runtime_error{"Failed to wait for connection handshake"}));
+            }
+        }
         mock_platform->set_client_context(connection.get());
     }
 
     std::shared_ptr<testing::NiceMock<MockClientPlatform>> const mock_platform;
-    std::shared_ptr<testing::NiceMock<MockRpcChannel>> const mock_channel;
     TestConnectionConfiguration conf;
     std::shared_ptr<MirConnection> const connection;
+    std::shared_ptr<testing::NiceMock<MockRpcChannel>> mock_channel;
 };
 
 TEST_F(MirConnectionTest, returns_correct_egl_native_display)

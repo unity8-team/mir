@@ -351,8 +351,7 @@ struct MirClientSurfaceTest : public testing::Test
         MirWaitHandle* wait_handle = connection->connect("MirClientSurfaceTest",
                                                          null_connected_callback, 0);
         wait_handle->wait_for_all();
-        client_comm_channel = std::make_shared<mir::protobuf::DisplayServer::Stub>(
-                                  conf.the_rpc_channel().get());
+        client_comm_channel = std::make_shared<mir::protobuf::DisplayServer::Stub>(connection->rpc_channel().get());
     }
 
     std::shared_ptr<MirSurface> create_surface_with(

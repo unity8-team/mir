@@ -109,8 +109,8 @@ MirSurface::MirSurface(std::string const& error)
 
 MirSurface::MirSurface(
     MirConnection *allocating_connection,
-    mp::DisplayServer::Stub& the_server,
-    mp::Debug::Stub* debug,
+    mp::DisplayServer& the_server,
+    mp::Debug* debug,
     std::shared_ptr<mcl::ClientBufferStreamFactory> const& buffer_stream_factory,
     std::shared_ptr<mircv::InputPlatform> const& input_platform,
     MirSurfaceSpec const& spec,

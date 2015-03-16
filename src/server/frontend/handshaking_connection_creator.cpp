@@ -88,8 +88,9 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
     auto header = std::make_shared<boost::asio::streambuf>();
 
     auto deadline = std::make_shared<boost::asio::deadline_timer>(socket->get_io_service());
-    // We're all local systems here; 500ms from socket connect to header write seems generous.
-    deadline->expires_from_now(boost::posix_time::milliseconds{500});
+    // We need some sort of deadline, but also need to be able to run under valgrind
+    // Go for 10s; the cost of having open but incomplete connections is low.
+    deadline->expires_from_now(boost::posix_time::seconds{10});
     deadline->async_wait([socket](boost::system::error_code const& ec)
                          {
                              if (!ec)
@@ -145,7 +146,7 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
                                 " received: "s + std::to_string(client_header.client_data.size()) + ")"s}));
                         }
 
-                        auto buf = boost::asio::buffer(accepted_protocol_str);
+                        auto buf = boost::asio::buffer(accepted_protocol_str.data(), accepted_protocol_str.size());
                         boost::asio::write(*socket, buf, boost::asio::transfer_all());
 
                         protocol->create_connection_for(socket, *session_authorizer, connection_context, "");

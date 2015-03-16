@@ -152,9 +152,9 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
-    std::shared_ptr<google::protobuf::RpcChannel> const channel;
-    mir::protobuf::DisplayServer::Stub server;
-    mir::protobuf::Debug::Stub debug;
+    std::shared_ptr<google::protobuf::RpcChannel> channel;
+    std::unique_ptr<mir::protobuf::DisplayServer> server;
+    std::unique_ptr<mir::protobuf::Debug> debug;
     std::shared_ptr<mir::logging::Logger> const logger;
     mir::protobuf::Void void_response;
     mir::protobuf::Connection connect_result;
@@ -189,7 +189,7 @@ private:
 
     std::shared_ptr<mir::client::EventHandlerRegister> const event_handler_register;
 
-    std::unique_ptr<mir::dispatch::SimpleDispatchThread> const eventloop;
+    std::unique_ptr<mir::dispatch::SimpleDispatchThread> eventloop;
     
     std::shared_ptr<mir::client::ClientBufferStreamFactory> buffer_stream_factory;
 
