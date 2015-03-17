@@ -728,3 +728,13 @@ TEST_F(MirConnectionTest, handshake_is_completed_asynchronously)
 
     conf.resolve_rpc_future();
 }
+
+TEST_F(MirConnectionTest, pre_handshake_error_reported)
+{
+    using namespace testing;
+    ManuallyCompletedHandshakeConfiguration conf;
+    MirConnection connection{conf};
+
+    EXPECT_FALSE(connection.is_valid(&connection));
+    EXPECT_THAT(connection.get_error_message(), HasSubstr("handshake incomplete"));
+}
