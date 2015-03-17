@@ -198,8 +198,7 @@ void switching_client_thread(mc::BufferQueue &bundle, int nframes)
 TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
 {
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(1, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle = client_acquire_async(*q);
@@ -235,8 +234,7 @@ TEST_F(BufferQueueTest, buffer_queue_of_one_is_supported)
 TEST_F(BufferQueueTest, buffer_queue_of_one_supports_resizing)
 {
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(1, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     const geom::Size expect_size{10, 20};
@@ -306,8 +304,7 @@ TEST_F(BufferQueueTest, clients_can_have_multiple_pending_completions)
 {
     int const nbuffers = 3;
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     int const prefill = q->buffers_free_for_client();
@@ -341,8 +338,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order_for_synchronous_clie
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         ASSERT_THAT(q->framedropping_allowed(), Eq(false));
 
@@ -391,8 +387,7 @@ TEST_F(BufferQueueTest, framedropping_clients_never_block)
 TEST_F(BufferQueueTest, clients_dont_recycle_startup_buffer)
 {
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(3, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(3, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle = client_acquire_async(*q);
@@ -433,8 +428,7 @@ TEST_F(BufferQueueTest, async_client_cycles_through_all_buffers)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         std::atomic<bool> done(false);
@@ -471,8 +465,7 @@ TEST_F(BufferQueueTest, compositor_can_acquire_and_release)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         auto handle = client_acquire_async(*q);
@@ -491,8 +484,7 @@ TEST_F(BufferQueueTest, multiple_compositors_are_in_sync)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         auto handle = client_acquire_async(*q);
@@ -515,8 +507,7 @@ TEST_F(BufferQueueTest, multiple_fast_compositors_are_in_sync)
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         // Client generates first frame
@@ -554,8 +545,7 @@ TEST_F(BufferQueueTest, compositor_acquires_frames_in_order)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < 10; ++i)
@@ -590,8 +580,7 @@ TEST_F(BufferQueueTest, compositor_acquire_never_blocks_when_there_are_no_ready_
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < 100; i++)
@@ -604,8 +593,7 @@ TEST_F(BufferQueueTest, compositor_can_always_acquire_buffer)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         q->allow_framedropping(false);
 
@@ -646,8 +634,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         mg::Buffer* last_client_acquired_buffer{nullptr};
@@ -676,8 +663,7 @@ TEST_F(BufferQueueTest, compositor_acquire_recycles_latest_ready_buffer)
 TEST_F(BufferQueueTest, compositor_client_interleaved)
 {
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(3, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(3, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle = client_acquire_async(*q);
@@ -703,8 +689,7 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         mc::BufferHandle compositor[2] =
@@ -742,8 +727,7 @@ TEST_F(BufferQueueTest, snapshot_acquire_basic)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         auto comp_buffer_handle = q->compositor_acquire(this);
@@ -765,8 +749,7 @@ TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown)
 TEST_F(BufferQueueTest, callbacks_cant_happen_after_shutdown_with_snapshots)
 {
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(1, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(1, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     {
@@ -783,8 +766,7 @@ TEST_F(BufferQueueTest, snapshot_acquire_never_blocks)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         int const num_snapshots = 100;
 
@@ -804,8 +786,7 @@ TEST_F(BufferQueueTest, stress)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         std::atomic<bool> done(false);
@@ -887,8 +868,7 @@ TEST_F(BufferQueueTest, client_framerate_matches_compositor)
     for (int nbuffers = 2; nbuffers <= 3; nbuffers++)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         unsigned long client_frames = 0;
         const unsigned long compose_frames = 20;
@@ -945,8 +925,7 @@ TEST_F(BufferQueueTest, slow_client_framerate_matches_compositor)
     for (int nbuffers = 3; nbuffers <= 3; nbuffers++)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         unsigned long client_frames = 0;
         unsigned long const compose_frames = 100;
@@ -1005,8 +984,7 @@ TEST_F(BufferQueueTest, resize_affects_client_acquires_immediately)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         for (int width = 1; width < 100; ++width)
@@ -1042,8 +1020,7 @@ TEST_F(BufferQueueTest, compositor_acquires_resized_frames)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
         std::vector<mg::BufferID> history;
 
@@ -1108,8 +1085,7 @@ TEST_F(BufferQueueTest, framedropping_policy_never_drops_newest_frame)
     {
         mtd::MockFrameDroppingPolicyFactory policy_factory;
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         auto first = client_acquire_sync(*q);
@@ -1143,8 +1119,7 @@ TEST_F(BufferQueueTest, framedropping_surface_never_drops_newest_frame)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         q->allow_framedropping(true);
@@ -1216,8 +1191,7 @@ TEST_F(BufferQueueTest, partially_composited_client_swaps_when_policy_triggered)
     {
         mtd::MockFrameDroppingPolicyFactory policy_factory;
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < max_ownable_buffers(nbuffers); i++)
@@ -1254,8 +1228,7 @@ TEST_F(BufferQueueTest, with_single_buffer_compositor_acquires_resized_frames_ev
     geom::Size const new_size{123,456};
 
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     q->client_release(client_acquire_sync(*q));
@@ -1277,8 +1250,7 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
     using namespace testing;
 
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(2, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(2, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     q->client_release(client_acquire_sync(*q));
@@ -1311,8 +1283,7 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
     using namespace testing;
 
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(2, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(2, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     for (int i = 0; i < 100; ++i)
@@ -1362,8 +1333,7 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
     
         // Produce frame 1
@@ -1402,8 +1372,7 @@ TEST_F(BufferQueueTest, buffers_ready_eventually_reaches_zero)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
     
         const int nmonitors = 3;
@@ -1435,8 +1404,7 @@ TEST_F(BufferQueueTest, framedropping_client_acquire_does_not_block_when_no_avai
     int const nbuffers{3};
 
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
     q->allow_framedropping(true);
 
@@ -1487,8 +1455,7 @@ TEST_F(BufferQueueTest, compositor_never_owns_client_buffers)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         std::mutex client_buffer_guard;
@@ -1545,8 +1512,7 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
     for (int nbuffers = 2; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         for (int i = 0; i < 100; ++i)
@@ -1586,8 +1552,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
     for (int nbuffers = 3; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         void const* main_compositor = reinterpret_cast<void const*>(0);
@@ -1710,8 +1675,7 @@ TEST_F(BufferQueueTest, first_user_is_recorded)
     for (int nbuffers = 1; nbuffers <= max_nbuffers_to_test; ++nbuffers)
     {
         std::shared_ptr<mc::BufferQueue> q;
-        ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                                new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+        ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
         {
@@ -1725,8 +1689,7 @@ TEST_F(BufferQueueTest, gives_compositor_a_valid_buffer_after_dropping_old_buffe
 {
     int const nbuffers = 3;
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     q->drop_old_buffers();
@@ -1739,8 +1702,7 @@ TEST_F(BufferQueueTest, gives_compositor_the_newest_buffer_after_dropping_old_bu
 {
     int const nbuffers = 3;
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle1 = client_acquire_async(*q);
@@ -1770,8 +1732,7 @@ TEST_F(BufferQueueTest, gives_new_compositor_the_newest_buffer_after_dropping_ol
     void const* const new_compositor_id{&nbuffers};
 
     std::shared_ptr<mc::BufferQueue> q;
-    ASSERT_NO_THROW(q = std::shared_ptr<mc::BufferQueue>(
-                            new mc::BufferQueue(nbuffers, allocator, basic_properties, policy_factory)));
+    ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
     ASSERT_THAT(q, Ne(nullptr));
 
     auto handle1 = client_acquire_async(*q);
