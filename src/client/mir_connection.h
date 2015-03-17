@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <atomic>
+#include <condition_variable>
 
 #include <mutex>
 
@@ -152,6 +153,7 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
+    std::condition_variable handshake_done;
     std::shared_ptr<google::protobuf::RpcChannel> channel;
     std::unique_ptr<mir::protobuf::DisplayServer> server;
     std::unique_ptr<mir::protobuf::Debug> debug;

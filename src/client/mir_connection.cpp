@@ -113,12 +113,21 @@ MirConnection::MirConnection(
         surface_map(conf.the_surface_map()),
         event_handler_register(conf.the_event_handler_register())
 {
-    channel = conf.make_rpc_channel().get();
-    server = std::make_unique<mir::protobuf::DisplayServer::Stub>(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
-    debug = std::make_unique<mir::protobuf::Debug::Stub>(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
-    eventloop = std::make_unique<md::SimpleDispatchThread>(std::dynamic_pointer_cast<md::Dispatchable>(channel));
+    auto future_channel = conf.make_rpc_channel();
+    std::thread{[this](std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future_channel)
+    {
+        std::lock_guard<decltype(mutex)> lock(mutex);
 
-    connect_result.set_error("connect not called");
+        decltype(channel) tmp_channel = future_channel.get();
+        server = std::make_unique<mir::protobuf::DisplayServer::Stub>(tmp_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+        debug = std::make_unique<mir::protobuf::Debug::Stub>(tmp_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+        eventloop = std::make_unique<md::SimpleDispatchThread>(std::dynamic_pointer_cast<md::Dispatchable>(tmp_channel));
+
+        connect_result.set_error("connect not called");
+
+        channel = std::move(tmp_channel);
+        handshake_done.notify_all();
+    }, std::move(future_channel)}.detach();
 
     {
         std::lock_guard<std::mutex> lock(connection_guard);
@@ -299,12 +308,20 @@ MirWaitHandle* MirConnection::connect(
         connect_wait_handle.expect_result();
     }
 
-    server->connect(
-                0,
-                &connect_parameters,
-                &connect_result,
-                google::protobuf::NewCallback(
-                    this, &MirConnection::connected, callback, context));
+    std::thread{[this, callback, context]()
+    {
+        std::unique_lock<decltype(mutex)> lock(mutex);
+        handshake_done.wait(lock, [this]() { return channel; });
+
+        lock.unlock();
+        server->connect(
+                    0,
+                    &connect_parameters,
+                    &connect_result,
+                    google::protobuf::NewCallback(
+                        this, &MirConnection::connected, callback, context));
+    }}.detach();
+
     return &connect_wait_handle;
 }
 
