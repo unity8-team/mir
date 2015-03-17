@@ -690,6 +690,11 @@ public:
         once_and_future_rpc_channel.set_value(std::make_unique<NiceMock<MockRpcChannel>>());
     }
 
+    void set_handshake_error(std::exception_ptr exception)
+    {
+        once_and_future_rpc_channel.set_exception(exception);
+    }
+
 private:
     std::promise<std::unique_ptr<google::protobuf::RpcChannel>> once_and_future_rpc_channel;
     std::shared_ptr<mcl::ClientPlatform> platform;
@@ -721,7 +726,7 @@ private:
 TEST_F(MirConnectionTest, handshake_is_completed_asynchronously)
 {
     using namespace std::literals::chrono_literals;
-    Watchdog watchdog{1s};
+    Watchdog watchdog{60s};
 
     ManuallyCompletedHandshakeConfiguration conf;
     MirConnection connection{conf};
@@ -732,9 +737,34 @@ TEST_F(MirConnectionTest, handshake_is_completed_asynchronously)
 TEST_F(MirConnectionTest, pre_handshake_error_reported)
 {
     using namespace testing;
+    using namespace std::literals::chrono_literals;
+    Watchdog watchdog{60s};
+
     ManuallyCompletedHandshakeConfiguration conf;
     MirConnection connection{conf};
 
     EXPECT_FALSE(connection.is_valid(&connection));
     EXPECT_THAT(connection.get_error_message(), HasSubstr("handshake incomplete"));
+}
+
+TEST_F(MirConnectionTest, errors_in_handshake_reported)
+{
+    using namespace testing;
+
+    using namespace std::literals::chrono_literals;
+    Watchdog watchdog{60s};
+
+    ManuallyCompletedHandshakeConfiguration conf;
+    MirConnection connection{conf};
+    constexpr char const* msg{"you're one microscopic cog in his catastrophic plan"};
+
+    conf.set_handshake_error(std::make_exception_ptr(std::runtime_error{msg}));
+
+    while (strcasestr(connection.get_error_message(), "handshake incomplete"))
+    {
+        std::this_thread::sleep_for(10ms);
+    }
+
+    EXPECT_FALSE(connection.is_valid(&connection));
+    EXPECT_THAT(connection.get_error_message(), HasSubstr(msg));
 }
