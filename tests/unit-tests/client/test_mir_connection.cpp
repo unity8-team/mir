@@ -34,6 +34,8 @@
 #include "mir_test/test_protobuf_server.h"
 #include "mir_test/stub_server_tool.h"
 #include "mir_test_doubles/stub_client_buffer_factory.h"
+#include "mir_test/auto_unblock_thread.h"
+#include "mir_test/signal.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -52,6 +54,7 @@ namespace mev = mir::events;
 namespace md = mir::dispatch;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
+namespace mt = mir::test;
 
 namespace
 {
@@ -657,4 +660,71 @@ TEST_F(MirConnectionTest, contacts_server_if_client_platform_cannot_handle_platf
 
     EXPECT_THAT(mir_platform_message_get_opcode(returned_response), Eq(opcode));
     mir_platform_message_release(returned_response);
+}
+
+namespace
+{
+class ManuallyCompletedHandshakeConfiguration : public mcl::DefaultConnectionConfiguration
+{
+public:
+    ManuallyCompletedHandshakeConfiguration()
+        : DefaultConnectionConfiguration("fd://-1"),
+          platform{std::make_shared<testing::NiceMock<MockClientPlatform>>()}
+    {
+    }
+
+
+    std::future<std::unique_ptr<google::protobuf::RpcChannel>> make_rpc_channel() override
+    {
+        return once_and_future_rpc_channel.get_future();
+    }
+
+    std::shared_ptr<mcl::ClientPlatformFactory> the_client_platform_factory() override
+    {
+        return std::make_shared<StubClientPlatformFactory>(platform);
+    }
+
+    void resolve_rpc_future()
+    {
+        using namespace testing;
+        once_and_future_rpc_channel.set_value(std::make_unique<NiceMock<MockRpcChannel>>());
+    }
+
+private:
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> once_and_future_rpc_channel;
+    std::shared_ptr<mcl::ClientPlatform> platform;
+};
+
+class Watchdog
+{
+public:
+    template<typename Period, typename Rep>
+    Watchdog(std::chrono::duration<Period, Rep> timeout)
+        : guardian_thread{[this]() { disarm_signal.raise(); },
+                          [this, timeout]() {
+                                                if (!disarm_signal.wait_for(timeout))
+                                                {
+                                                    ::raise(SIGKILL);
+                                                }
+                                            }
+                         }
+    {
+    }
+
+private:
+    mt::Signal disarm_signal;
+    mt::AutoUnblockThread guardian_thread;
+};
+
+}
+
+TEST_F(MirConnectionTest, handshake_is_completed_asynchronously)
+{
+    using namespace std::literals::chrono_literals;
+    Watchdog watchdog{1s};
+
+    ManuallyCompletedHandshakeConfiguration conf;
+    MirConnection connection{conf};
+
+    conf.resolve_rpc_future();
 }
