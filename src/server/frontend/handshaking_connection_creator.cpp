@@ -103,9 +103,14 @@ void mir::frontend::HandshakingConnectionCreator::create_connection_for(std::sha
 
     boost::asio::async_read(*socket,
                             *header,
-                            boost::asio::transfer_exactly(2),
-                            [this, header, socket, deadline, connection_context](boost::system::error_code const&, size_t)
+                            boost::asio::transfer_exactly(sizeof(uint16_t)),
+                            [this, header, socket, deadline, connection_context](boost::system::error_code const& ec, size_t bytes_read)
     {
+        if (ec || (bytes_read != sizeof(uint16_t)))
+        {
+            BOOST_THROW_EXCEPTION((std::runtime_error{"Failed to read client handshake header"}));
+        }
+
         uint16_t total_header_size;
         std::istream header_size_data{header.get()};
 
