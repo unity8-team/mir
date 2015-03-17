@@ -17,7 +17,7 @@
  */
 
 #include "src/platforms/android/server/android_graphic_buffer_allocator.h"
-#include "src/server/compositor/buffer_queue.h"
+#include "mir/compositor/buffer_queue.h"
 #include "src/server/report/null_report_factory.h"
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/graphics/buffer_properties.h"
