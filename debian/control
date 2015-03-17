@@ -20,7 +20,6 @@ Build-Depends: cmake,
                libmirserver-dev (>= 0.6.0),
                libmtdev-dev,
                libprocess-cpp-dev,
-               libqt5gui5-gles,
                libqt5sensors5-dev,
                libqt5quicktest5,
                libubuntu-app-launch2-dev,
@@ -39,6 +38,10 @@ Build-Depends: cmake,
                qtbase5-private-gles-dev,
                qtdeclarative5-dev,
                qtdeclarative5-private-dev,
+               libqt5gui5-gles,
+               libqt5quick5-gles,
+               libqt5quickparticles5-gles,
+               libqt5quickwidgets5-gles,
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/qtmir
 # if you don't have have commit access to this branch but would like to upload
