@@ -348,12 +348,21 @@ MirWaitHandle* MirConnection::connect(
             return;
         }
 
-        server->connect(
-                    0,
-                    &connect_parameters,
-                    &connect_result,
-                    google::protobuf::NewCallback(
-                        this, &MirConnection::connected, callback, context));
+        try
+        {
+            server->connect(
+                        0,
+                        &connect_parameters,
+                        &connect_result,
+                        google::protobuf::NewCallback(
+                            this, &MirConnection::connected, callback, context));
+        }
+        catch (std::exception& err)
+        {
+            std::lock_guard<decltype(mutex)> lock(mutex);
+            connect_result.set_error(std::string{"Error in connect()"} +
+                                     boost::diagnostic_information(err));
+        }
     }}.detach();
 
     return &connect_wait_handle;
