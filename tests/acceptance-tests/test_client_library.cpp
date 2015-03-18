@@ -27,6 +27,7 @@
 #include "mir_test/fd_utils.h"
 #include "mir_test_framework/udev_environment.h"
 #include "mir_test/signal.h"
+#include "mir_test/auto_unblock_thread.h"
 
 #include "src/include/client/mir/client_buffer.h"
 
@@ -57,6 +58,7 @@ namespace mc = mir::compositor;
 namespace mcl = mir::client;
 namespace mtf = mir_test_framework;
 namespace mt = mir::test;
+
 namespace
 {
 struct ClientLibrary : mtf::HeadlessInProcessServer
@@ -866,15 +868,19 @@ namespace
 struct ThreadTrackingCallbacks
 {
     ThreadTrackingCallbacks()
-        : client_thread{pthread_self()}
     {
+    }
+
+    void current_thread_is_event_thread()
+    {
+        client_thread = pthread_self();
     }
 
     static void connection_ready(MirConnection* /*connection*/, void* ctx)
     {
         auto data = reinterpret_cast<ThreadTrackingCallbacks*>(ctx);
         EXPECT_EQ(pthread_self(), data->client_thread);
-        data->connection_ready_called = true;
+        data->connection_ready_called.raise();
     }
 
     static void event_delegate(MirSurface* /*surf*/, MirEvent const* event, void* ctx)
@@ -882,10 +888,10 @@ struct ThreadTrackingCallbacks
         auto data = reinterpret_cast<ThreadTrackingCallbacks*>(ctx);
 
         EXPECT_THAT(pthread_self(), Eq(data->client_thread));
-        data->event_received = true;
+        data->event_received.raise();
         if (mir_event_get_type(event) == mir_event_type_input)
         {
-            data->input_event_received = true;
+            data->input_event_received.raise();
         }
     }
 
@@ -906,33 +912,47 @@ struct ThreadTrackingCallbacks
     {
         auto data = reinterpret_cast<ThreadTrackingCallbacks*>(ctx);
         EXPECT_EQ(pthread_self(), data->client_thread);
-        data->buffers_swapped = true;
+        data->buffers_swapped.raise();
     }
 
-    pthread_t client_thread;
+    pthread_t client_thread{0};
     MirSurface* surf{nullptr};
-    bool buffers_swapped{false};
-    bool connection_ready_called{false};
-    bool event_received{false};
-    bool input_event_received{false};
+    mt::Signal buffers_swapped;
+    mt::Signal connection_ready_called;
+    mt::Signal event_received;
+    mt::Signal input_event_received;
 };
 
-template<typename Rep, typename Period>
-void wait_for_event_then_dispatch(MirConnection* connection,
-                                  std::chrono::duration<Rep, Period> initial_wait)
+class EventDispatchThread
 {
-    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
-    if (!mt::fd_becomes_readable(fd, initial_wait))
+public:
+    EventDispatchThread(MirConnection* connection, ThreadTrackingCallbacks& data)
+        : runner{[this]() { shutdown.raise(); },
+                 [this, connection, &data]()
+                 {
+                     using namespace std::literals::chrono_literals;
+
+                     data.current_thread_is_event_thread();
+
+                     auto const fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
+
+                     auto const end_time = std::chrono::steady_clock::now() + 60s;
+                     while(!shutdown.raised() && (std::chrono::steady_clock::now() < end_time))
+                     {
+                         if (mt::fd_becomes_readable(fd, 10ms))
+                         {
+                             mir_connection_dispatch(connection);
+                         }
+                     }
+                 }
+                }
     {
-        throw std::runtime_error{"Connection failed to become dispatchable"};
     }
-    while(mt::fd_is_readable(fd))
-    {
-        mir_connection_dispatch(connection);
-        // Hello, valgrind!
-        std::this_thread::yield();
-    }
-}
+
+private:
+    mt::Signal shutdown;
+    mt::AutoUnblockThread runner;
+};
 
 }
 
@@ -940,11 +960,14 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 {
     ThreadTrackingCallbacks data;
 
-    connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
+    auto connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
+    EventDispatchThread event_thread{connection, data};
+
+    EXPECT_TRUE(data.connection_ready_called.wait_for(std::chrono::seconds{60}));
     ASSERT_THAT(connection, IsValid());
+
 
     auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
                                                                       233, 355,
@@ -954,31 +977,29 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
                                       &data);
     mir_surface_spec_release(surface_spec);
 
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
-
-    // This should now not block
     mir_wait_for(surf_wh);
     EXPECT_THAT(data.surf, IsValid());
 
     auto buffer_stream = mir_surface_get_buffer_stream(data.surf);
     auto swap_wh = mir_buffer_stream_swap_buffers(buffer_stream, ThreadTrackingCallbacks::swap_buffers_complete, &data);
 
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
-
     mir_wait_for(swap_wh);
-    EXPECT_TRUE(data.buffers_swapped);
+    EXPECT_TRUE(data.buffers_swapped.raised());
 }
 
 TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 {
     using namespace testing;
+    using namespace std::literals::chrono_literals;
 
     ThreadTrackingCallbacks data;
 
     connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
+    EventDispatchThread event_thread{connection, data};
+
+    EXPECT_TRUE(data.connection_ready_called.wait_for(60s));
     ASSERT_THAT(connection, IsValid());
 
     auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
@@ -989,24 +1010,17 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
                                       &data);
     mir_surface_spec_release(surface_spec);
 
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
 
-    // This should now not block
     mir_wait_for(surf_wh);
     EXPECT_THAT(data.surf, IsValid());
 
-    auto configure_wh = mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
-    // Should now not block
-    mir_wait_for(configure_wh);
+    mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
 
-    EXPECT_TRUE(data.event_received);
+    EXPECT_TRUE(data.event_received.wait_for(60s));
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
-    wait_for_event_then_dispatch(connection, std::chrono::seconds{5});
-
-    EXPECT_TRUE(data.input_event_received);
+    EXPECT_TRUE(data.input_event_received.wait_for(60s));
 }
 
 namespace
