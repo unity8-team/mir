@@ -16,7 +16,7 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/shell/generic_shell.h"
+#include "mir/shell/abstract_shell.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/scene/session.h"
 
@@ -107,7 +107,7 @@ struct CustomWindowManagement : mtf::HeadlessTest
 
         server.override_the_shell([this]
            {
-                return std::make_shared<msh::GenericShell>(
+                return std::make_shared<msh::AbstractShell>(
                     server.the_input_targeter(),
                     server.the_surface_coordinator(),
                     server.the_session_coordinator(),
@@ -251,9 +251,8 @@ TEST_F(CustomWindowManagement, state_change_requests_are_associated_with_correct
 
         mt::Signal received;
 
-        EXPECT_CALL(window_manager, handle_set_state(WeakPtrEq(server_surface[i]),_))
-            .WillOnce(Invoke([&](std::shared_ptr<ms::Surface> const&, MirSurfaceState value)
-                { received.raise(); return value; }));
+        EXPECT_CALL(window_manager, set_surface_attribute(_, WeakPtrEq(server_surface[i]), mir_surface_attrib_state,_))
+            .WillOnce(WithArg<3>(Invoke([&](int value) { received.raise(); return value; })));
 
         mir_surface_set_state(client_surface[i], mir_surface_state_maximized);
 
