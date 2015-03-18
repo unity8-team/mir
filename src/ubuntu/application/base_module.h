@@ -51,28 +51,32 @@ struct HIDDEN_SYMBOL ToBackend
             if (cache == NULL) {
                 FILE *conf;
                 conf = fopen("/etc/ubuntu-platform-api/application.conf", "r");
-                if (conf == NULL) {
-                    exit_module("Unable to find module configuration file");
-                } else {
-                    if (fgets(module_name, 32, conf))
+                if (conf != NULL) {
+                    if (fgets(module_name, 32, conf)) {
                         cache = module_name;
+                        // Null terminate module blob
+                        cache[strlen(cache)-1] = '\0';
+                        fclose(conf);
+                    }
                     else
-                        exit_module("Error reading module name from file");
+                        fprintf(stderr, "Error reading module name from file.\n");
                 }
-                // Null terminate module blob
-                cache[strlen(cache)-1] = '\0';
-                fclose(conf);
             }
-            if (cache == NULL)
-                exit_module("Unable to determine backend");
+            if (cache == NULL) {
+                // No module available, use dummy.
+                fprintf(stderr, "Unable to select module, using dummy.\n");
+                strcpy(path, override_path());
+            } else {
+                strcpy(path, "libubuntu_application_api_");
+                
+                if (strlen(cache) > MAX_MODULE_NAME)
+                    exit_module("Selected module is invalid");
+                
+                strcat(path, cache);
+                strcat(path, SO_SUFFIX);
+            }
 
-            strcpy(path, "libubuntu_application_api_");
-            
-            if (strlen(cache) > MAX_MODULE_NAME)
-                exit_module("Selected module is invalid");
-            
-            strcat(path, cache);
-            strcat(path, SO_SUFFIX);
+            fprintf(stderr, "Loading module: '%s'\n", path);
         }
 
         return path;
@@ -100,8 +104,13 @@ struct HIDDEN_SYMBOL ToBackend
     static void* dlopen_fn(const char* path, int flags)
     {
         void *handle = dlopen(path, flags);
-        if (handle == NULL)
-            exit_module("Unable to load selected module.");
+        if (handle == NULL) {
+            fprintf(stderr, "Unable to load selected module, using dummy.\n");
+            fprintf(stderr, "Loading module: '%s'\n", override_path());
+            handle = dlopen(override_path(), flags);
+            if (handle == NULL)
+                exit_module("Dummy module failed to load.");
+        }
 
         return handle;
     }
