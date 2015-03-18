@@ -1,9 +1,9 @@
-qtmir-gles (0.4.4+15.04.20150306.2-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) UNRELEASED; urgency=medium
 
   * Sync with upstream
   * New build dependencies: libqtdbusmock1-dev, libqtdbustest1-dev
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Fri, 06 Mar 2015 14:21:08 +0100
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 18 Mar 2015 10:56:50 +0100
 
 qtmir-gles (0.4.4+15.04.20150227.1-0ubuntu1) vivid; urgency=medium
 
