@@ -35,6 +35,7 @@
 
 #include "mir/events/event_builders.h"
 #include "mir/logging/logger.h"
+#include "mir/signal_blocker.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -117,6 +118,8 @@ MirConnection::MirConnection(
     auto future_channel = conf.make_rpc_channel();
     std::promise<void> handshake_completion;
     handshake_done = handshake_completion.get_future();
+
+    mir::SignalBlocker block_signals;
     std::thread{[this](std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future_channel,
                        std::promise<void>&& handshake_completed)
     {
@@ -336,6 +339,7 @@ MirWaitHandle* MirConnection::connect(
         connect_wait_handle.expect_result();
     }
 
+    mir::SignalBlocker block_signals;
     std::thread{[this, callback, context]()
     {
         try
