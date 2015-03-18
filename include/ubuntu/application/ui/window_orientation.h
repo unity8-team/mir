@@ -14,6 +14,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * DEPRECATED: In favor of u_application_instance_get_mir_connection
+ * and the mir client library
+ */
+
 #ifndef UBUNTU_APPLICATION_UI_WINDOW_ORIENTATION_H
 #define UBUNTU_APPLICATION_UI_WINDOW_ORIENTATION_H
 

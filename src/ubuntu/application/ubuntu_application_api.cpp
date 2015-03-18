@@ -85,6 +85,7 @@ IMPLEMENT_FUNCTION1(instance, UAUiStage, u_application_options_get_stage, UAppli
 
 // UApplicationInstance
 IMPLEMENT_FUNCTION2(instance, UApplicationInstance*, u_application_instance_new_from_description_with_options, UApplicationDescription*, UApplicationOptions*);
+IMPLEMENT_FUNCTION1(connection, MirConnection*, u_application_instance_get_mir_connection, UApplicationInstance*);
 
 // Application Ui Helpers
 

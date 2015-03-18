@@ -1,3 +1,10 @@
+platform-api (2.9.0) UNRELEASED; urgency=medium
+
+  *  Deprecate windowing system abstraction layer in favor of directly
+     exposing MirConnection.
+
+ -- Robert Carr <robert.carr@canonical.com>  Wed, 04 Feb 2015 17:51:58 +0100
+
 platform-api (2.8.1+15.04.20150306-0ubuntu1) vivid; urgency=medium
 
   [ Ricardo Mendoza ]

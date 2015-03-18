@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 2.6)
 project(ubuntu-platform-api)
 
 set(UBUNTU_PLATFORM_API_VERSION_MAJOR 2)
-set(UBUNTU_PLATFORM_API_VERSION_MINOR 8)
-set(UBUNTU_PLATFORM_API_VERSION_PATCH 1)
+set(UBUNTU_PLATFORM_API_VERSION_MINOR 9)
+set(UBUNTU_PLATFORM_API_VERSION_PATCH 0)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 
@@ -72,6 +72,9 @@ endif()
 
 include_directories(include)
 include_directories(android/include)
+include_directories(
+  ${MIRCLIENT_INCLUDE_DIRS}
+)
 
 add_subdirectory(data/)
 add_subdirectory(doc/)
