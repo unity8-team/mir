@@ -252,6 +252,9 @@ MIR_COMMON_3.2 {
 MIR_COMMON_3.3 {
   global:
     extern "C++" {
+      mir::SignalBlocker::SignalBlocker*;
+      mir::SignalBlocker::?SignalBlocker*;
+
       mir::frontend::ProtobufHandshakeProtocol::protocol_id*;
 
       mir::frontend::ProtobufHandshakeProtocol::header_size*;
