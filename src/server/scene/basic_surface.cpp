@@ -666,7 +666,6 @@ public:
         bool shaped,
         mg::Renderable::ID id)
     : underlying_buffer_queue{bq},
-      compositor_buffer_handle{nullptr, nullptr},
       compositor_id{compositor_id},
       alpha_{alpha},
       shaped_{shaped},
@@ -682,7 +681,7 @@ public:
  
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        if (!compositor_buffer_handle.buffer())
+        if (!compositor_buffer_handle)
             compositor_buffer_handle = underlying_buffer_queue->compositor_acquire(compositor_id);
         return compositor_buffer_handle.buffer();
     }

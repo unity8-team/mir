@@ -692,32 +692,32 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
         ASSERT_NO_THROW(q = std::make_shared<mc::BufferQueue>(nbuffers, allocator, basic_properties, policy_factory));
         ASSERT_THAT(q, Ne(nullptr));
 
-        mc::BufferHandle compositor[2] =
-            { mc::BufferHandle(nullptr, nullptr),
-              mc::BufferHandle(nullptr, nullptr) };
+        mc::BufferHandle *compositor[] =
+            { new mc::BufferHandle(nullptr, nullptr),
+              new mc::BufferHandle(nullptr, nullptr) };
 
         auto handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        compositor[0] = q->compositor_acquire(this);
+        *compositor[0] = q->compositor_acquire(this);
 
         handle = client_acquire_async(*q);
         ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
         handle->release_buffer();
-        compositor[1] = q->compositor_acquire(this);
+        *compositor[1] = q->compositor_acquire(this);
 
         for (int i = 0; i < 20; i++)
         {
             // Two compositors acquired, and they're always different...
-            ASSERT_THAT(compositor[0].buffer()->id(), Ne(compositor[1].buffer()->id()));
-
+            ASSERT_THAT(compositor[0]->buffer()->id(), Ne(compositor[1]->buffer()->id()));
             // One of the compositors (the oldest one) gets a new buffer...
             int oldest = i & 1;
-            compositor[oldest] = mc::BufferHandle(nullptr, nullptr);
+            delete compositor[oldest];
             auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
-            compositor[oldest] = q->compositor_acquire(this);
+            compositor[oldest] = new mc::BufferHandle(nullptr, nullptr);
+            *compositor[oldest] = q->compositor_acquire(this);
         }
     }
 }
@@ -1254,16 +1254,18 @@ TEST_F(BufferQueueTest, double_buffered_client_is_not_blocked_prematurely)
     ASSERT_THAT(q, Ne(nullptr));
 
     q->client_release(client_acquire_sync(*q));
-    auto a = q->compositor_acquire(this);
+    auto a = new mc::BufferHandle(nullptr, nullptr);
+    *a = q->compositor_acquire(this);
     q->client_release(client_acquire_sync(*q));
-    auto b = q->compositor_acquire(this);
+    auto b = new mc::BufferHandle(nullptr, nullptr);
+    *b = q->compositor_acquire(this);
 
-    ASSERT_NE(a.buffer().get(), b.buffer().get());
-    a = mc::BufferHandle(nullptr, nullptr);
+    ASSERT_NE(a->buffer().get(), b->buffer().get());
+    delete a;
 
     q->client_release(client_acquire_sync(*q));
 
-    b = mc::BufferHandle(nullptr, nullptr);
+    delete b;
 
     /*
      * Update to the original test case; This additional compositor acquire
@@ -1292,23 +1294,25 @@ TEST_F(BufferQueueTest, composite_on_demand_never_deadlocks_with_2_buffers)
         ASSERT_TRUE(x->has_acquired_buffer());
         x->release_buffer();
 
-        auto a = q->compositor_acquire(this);
+        auto a = new mc::BufferHandle(nullptr, nullptr);
+        *a = q->compositor_acquire(this);
 
         auto y = client_acquire_async(*q);
         ASSERT_TRUE(y->has_acquired_buffer());
         y->release_buffer();
 
-        auto b = q->compositor_acquire(this);
+        auto b = new mc::BufferHandle(nullptr, nullptr);
+        *b = q->compositor_acquire(this);
     
-        ASSERT_NE(a.buffer(), b.buffer());
+        ASSERT_NE(a->buffer(), b->buffer());
 
-        a = mc::BufferHandle(nullptr, nullptr);
+        delete a;
 
         auto w = client_acquire_async(*q);
         ASSERT_TRUE(w->has_acquired_buffer());
         w->release_buffer();
 
-        b = mc::BufferHandle(nullptr, nullptr);
+        delete b;
 
         /*
          * Update to the original test case; This additional compositor acquire
@@ -1339,25 +1343,27 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
         // Produce frame 1
         q->client_release(client_acquire_sync(*q));
         // Acquire frame 1
-        auto a = q->compositor_acquire(this);
+        auto a = new mc::BufferHandle(nullptr, nullptr);
+        *a = q->compositor_acquire(this);
     
         // Produce frame 2
         q->client_release(client_acquire_sync(*q));
         // Acquire frame 2
-        auto b = q->compositor_acquire(this);
+        auto b = new mc::BufferHandle(nullptr, nullptr);
+        *b = q->compositor_acquire(this);
     
         // Release frame 1
-        a = mc::BufferHandle(nullptr, nullptr);
+        delete a;
 
         // Produce frame 3
         q->client_release(client_acquire_sync(*q));
         // Release frame 2
-
-        b = mc::BufferHandle(nullptr, nullptr);
+        delete b;
     
         // Verify frame 3 is ready for the first compositor
         ASSERT_THAT(q->buffers_ready_for_compositor(this), Ge(1));
-        auto c = q->compositor_acquire(this);
+        auto c = new mc::BufferHandle(nullptr, nullptr);
+        *c = q->compositor_acquire(this);
 
         // Verify frame 3 is ready for a second compositor
         int const that = 0;
@@ -1521,16 +1527,17 @@ TEST_F(BufferQueueTest, client_never_owns_compositor_buffers)
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
 
             auto client_id = handle->id();
-            std::vector<mc::BufferHandle> buffer_handles;
+            std::vector<mc::BufferHandle*> buffer_handles;
             for (int j = 0; j < nbuffers; j++)
             {
-                auto buffer_handle = q->compositor_acquire(this);
-                ASSERT_THAT(client_id, Ne(buffer_handle.buffer()->id()));
-                buffer_handles.push_back(std::move(buffer_handle));
+                auto buffer_handle_ptr = new mc::BufferHandle(nullptr, nullptr);
+                *buffer_handle_ptr = q->compositor_acquire(this);
+                ASSERT_THAT(client_id, Ne(buffer_handle_ptr->buffer()->id()));
+                buffer_handles.push_back(buffer_handle_ptr);
             }
 
             for (auto& buf_handle: buffer_handles)
-                buf_handle = mc::BufferHandle(nullptr, nullptr);
+                delete buf_handle;
 
             handle->release_buffer();
 
@@ -1558,8 +1565,8 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         void const* main_compositor = reinterpret_cast<void const*>(0);
         void const* second_compositor = reinterpret_cast<void const*>(1);
 
-        /* Hold a reference to current compositor buffer*/
-        auto comp_buffer1 = q->compositor_acquire(main_compositor);
+        auto comp_buffer1 = new mc::BufferHandle(nullptr, nullptr);
+        *comp_buffer1 = q->compositor_acquire(main_compositor);
 
         int const prefill = q->buffers_free_for_client();
         ASSERT_THAT(prefill, Gt(0));
@@ -1574,7 +1581,7 @@ TEST_F(BufferQueueTest, buffers_are_not_lost)
         for (int acquires = 0; acquires < nbuffers; ++acquires)
             q->compositor_acquire(second_compositor);
 
-        comp_buffer1 = mc::BufferHandle(nullptr, nullptr);
+        delete comp_buffer1;
 
         /* An async client should still be able to cycle through all the available buffers */
         std::atomic<bool> done(false);

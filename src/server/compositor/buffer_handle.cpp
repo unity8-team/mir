@@ -22,29 +22,33 @@ namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
 mc::BufferHandle::BufferHandle(std::shared_ptr<mg::Buffer> const& buffer,
-                               release_callback const& release)
+                               ReleaseCallback const& release)
                                : wrapped(buffer),
                                  release_fn(release)
 {
 }
 
 mc::BufferHandle::BufferHandle(BufferHandle&& other)
-                               : wrapped(std::move(other.wrapped)),
-                                 release_fn(std::move(other.release_fn))
+                               : wrapped(std::move(other.wrapped))
 {
+    // We can't std:move a std::function as it leaves the "other" unspecified
+    release_fn.swap(other.release_fn);
 }
 
 mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
 {
     if (this != &other)
     {
-        if (release_fn)
-            release_fn(wrapped.get());
         wrapped = std::move(other.wrapped);
         release_fn = std::move(other.release_fn);
     }
 
     return *this;
+}
+
+bool mc::BufferHandle::operator!()
+{
+    return (wrapped == nullptr);
 }
 
 mc::BufferHandle::~BufferHandle()

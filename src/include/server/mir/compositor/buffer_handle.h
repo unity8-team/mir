@@ -29,28 +29,30 @@ namespace graphics { class Buffer; }
 namespace compositor
 {
 
-typedef std::function<void(graphics::Buffer* buffer)> release_callback;
+typedef std::function<void(graphics::Buffer* buffer)> ReleaseCallback;
 
 class BufferHandle
 {
 public:
     explicit BufferHandle(
         std::shared_ptr<graphics::Buffer> const& buffer,
-        release_callback const& release);
+        ReleaseCallback const& release);
 
     BufferHandle(BufferHandle&& other);
     BufferHandle& operator=(BufferHandle&& other);
+    BufferHandle() = default;
 
-    virtual ~BufferHandle();
+    ~BufferHandle();
 
     std::shared_ptr<graphics::Buffer> buffer();
+    bool operator!();
 
 private:
     BufferHandle(BufferHandle const&) = delete;
     BufferHandle& operator=(BufferHandle const&) = delete;
 
     std::shared_ptr<graphics::Buffer> wrapped;
-    release_callback release_fn;
+    ReleaseCallback release_fn;
 };
 
 }
