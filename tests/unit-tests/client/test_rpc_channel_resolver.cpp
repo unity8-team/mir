@@ -16,10 +16,12 @@
  * Authored by: Christohper James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#include <gtest/gtest.h>
-
 #include <future>
 #include <functional>
+
+#include <google/protobuf/service.h>
+
+#include <gtest/gtest.h>
 
 namespace google
 {
@@ -35,12 +37,21 @@ namespace client
 {
 namespace rpc
 {
-class RpcChannelResolver
+class RpcFutureResolver
 {
 public:
-    void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> /*completion*/)
+    RpcFutureResolver(std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future_channel)
+        : future_channel{std::move(future_channel)}
     {
     }
+
+    void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion)
+    {
+        completion(std::move(future_channel));
+    }
+
+private:
+    std::future<std::unique_ptr<google::protobuf::RpcChannel>> future_channel;
 };
 }
 }
@@ -48,9 +59,25 @@ public:
 
 namespace mclr = mir::client::rpc;
 
-TEST(RpcChannelResolver, can_register_completed_callback)
+TEST(RpcFutureResolver, can_register_completed_callback)
 {
-    mclr::RpcChannelResolver resolver;
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
+    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
 
     resolver.set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {});
+}
+
+TEST(RpcFutureResolver, completion_is_called_immediately_if_set_on_ready_resolver)
+{
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
+    promised_rpc.set_value({});
+
+    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
+
+    bool called{false};
+    resolver.set_completion([&called](std::future<std::unique_ptr<google::protobuf::RpcChannel>>)
+    {
+        called = true;
+    });
+    EXPECT_TRUE(called);
 }
