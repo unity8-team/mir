@@ -21,6 +21,7 @@
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <atomic>
 #include <boost/throw_exception.hpp>
 
 #include <google/protobuf/service.h>
@@ -47,7 +48,8 @@ class RpcFutureResolver
 {
 public:
     RpcFutureResolver(std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future_channel)
-        : future_channel{std::move(future_channel)}
+        : future_channel{std::move(future_channel)},
+          continue_wait{true}
     {
     }
 
@@ -55,6 +57,21 @@ public:
     {
         if (wait_thread.joinable())
             wait_thread.join();
+    }
+
+    static void call_completion_when_ready(std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future,
+                                           std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion,
+                                           std::atomic<bool>& continue_wait)
+    {
+        using namespace std::literals::chrono_literals;
+        while (continue_wait)
+        {
+            if (future.wait_for(10ms) == std::future_status::ready)
+            {
+                completion(std::move(future));
+                return;
+            }
+        }
     }
 
     void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion)
@@ -72,17 +89,24 @@ public:
         }
         else
         {
-            wait_thread = std::thread{[completion](std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future)
-            {
-                future.wait();
-                completion(std::move(future));
-            }, std::move(continuation_future)};
+            wait_thread = std::thread{&call_completion_when_ready,
+                                      std::forward<std::future<std::unique_ptr<google::protobuf::RpcChannel>>>(std::move(continuation_future)),
+                                      completion,
+                                      std::ref(continue_wait)};
         }
+    }
+
+    void cancel()
+    {
+        continue_wait = false;
+        if (wait_thread.joinable())
+            wait_thread.join();
     }
 
 private:
     std::future<std::unique_ptr<google::protobuf::RpcChannel>> future_channel;
     std::thread wait_thread;
+    std::atomic<bool> continue_wait;
 };
 }
 }
@@ -136,4 +160,22 @@ TEST(RpcFutureResolver, calling_set_continuation_twice_is_an_error)
             std::logic_error);
 
     promised_rpc.set_value({});
+}
+
+TEST(RpcFutureResolver, is_cancellable)
+{
+    using namespace std::literals::chrono_literals;
+
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
+    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
+
+    auto called = std::make_shared<mt::Signal>();
+    resolver.set_completion([called](std::future<std::unique_ptr<google::protobuf::RpcChannel>>)
+    {
+        called->raise();
+    });
+
+    resolver.cancel();
+    promised_rpc.set_value({});
+    EXPECT_FALSE(called->wait_for(1s));
 }
