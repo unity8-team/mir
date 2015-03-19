@@ -8,7 +8,7 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  u_application_id_destroy@Base 0.18.1daily13.06.21
  u_application_id_new_from_stringn@Base 0.18.1daily13.06.21
  u_application_init@Base 2.0.0+14.10.20140612
- u_application_instance_get_mir_connection@Base 2.8.0
+ u_application_instance_get_mir_connection@Base 2.9.0+15.04.20150318-0ubuntu1
  u_application_instance_new_from_description_with_options@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_new@Base 0.18.1daily13.06.21
  u_application_lifecycle_delegate_ref@Base 0.18.1daily13.06.21
