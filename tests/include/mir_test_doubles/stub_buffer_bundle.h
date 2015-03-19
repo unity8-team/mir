@@ -52,12 +52,12 @@ public:
     compositor::BufferHandle compositor_acquire(void const*) override
     {
         --nready;
-        return std::move(compositor::BufferHandle(stub_compositor_buffer, nullptr));
+        return compositor::BufferHandle(stub_compositor_buffer, nullptr);
     }
 
     compositor::BufferHandle snapshot_acquire() override
     {
-        return std::move(compositor::BufferHandle(stub_compositor_buffer, nullptr));
+        return compositor::BufferHandle(stub_compositor_buffer, nullptr);
     }
 
     geometry::Size size() const override
