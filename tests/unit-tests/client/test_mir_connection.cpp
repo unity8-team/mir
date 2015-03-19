@@ -201,27 +201,17 @@ struct MirConnectionTest : public testing::Test
 {
     MirConnectionTest()
         : mock_platform{std::make_shared<testing::NiceMock<MockClientPlatform>>()},
-          conf{mock_platform, std::make_unique<testing::NiceMock<MockRpcChannel>>()},
+          mock_channel{new testing::NiceMock<MockRpcChannel>(), [](testing::NiceMock<MockRpcChannel>*) {}},
+          conf{mock_platform, std::unique_ptr<mcl::rpc::MirBasicRpcChannel>{mock_channel.get()}},
           connection{std::make_shared<MirConnection>(conf)}
     {
-        using namespace std::literals::chrono_literals;
-        auto timeout = std::chrono::steady_clock::now() + 10s;
-        while (!mock_channel)
-        {
-            std::this_thread::sleep_for(10ms);
-            mock_channel = std::dynamic_pointer_cast<::testing::NiceMock<MockRpcChannel>>(connection->rpc_channel());
-            if (timeout < std::chrono::steady_clock::now())
-            {
-                BOOST_THROW_EXCEPTION((std::runtime_error{"Failed to wait for connection handshake"}));
-            }
-        }
         mock_platform->set_client_context(connection.get());
     }
 
     std::shared_ptr<testing::NiceMock<MockClientPlatform>> const mock_platform;
+    std::shared_ptr<testing::NiceMock<MockRpcChannel>> const mock_channel;
     TestConnectionConfiguration conf;
     std::shared_ptr<MirConnection> const connection;
-    std::shared_ptr<testing::NiceMock<MockRpcChannel>> mock_channel;
 };
 
 TEST_F(MirConnectionTest, returns_correct_egl_native_display)
@@ -760,11 +750,23 @@ TEST_F(MirConnectionTest, errors_in_handshake_reported)
 
     conf.set_handshake_error(std::make_exception_ptr(std::runtime_error{msg}));
 
-    while (strcasestr(connection.get_error_message(), "handshake incomplete"))
-    {
-        std::this_thread::sleep_for(10ms);
-    }
+    connection.connect(__func__, nullptr, nullptr)->wait_for_all();
 
     EXPECT_FALSE(connection.is_valid(&connection));
     EXPECT_THAT(connection.get_error_message(), HasSubstr(msg));
+}
+
+TEST_F(MirConnectionTest, can_abandon_half_finished_connect)
+{
+    using namespace testing;
+
+    using namespace std::literals::chrono_literals;
+    Watchdog watchdog{60s};
+
+    ManuallyCompletedHandshakeConfiguration conf;
+    MirConnection connection{conf};
+
+    connection.connect(__func__, nullptr, nullptr);
+
+    EXPECT_FALSE(connection.is_valid(&connection));
 }

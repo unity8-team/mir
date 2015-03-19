@@ -28,6 +28,8 @@
 
 #include <mutex>
 
+#include "rpc/rpc_future_resolver.h"
+
 #include "mir_protobuf.pb.h"
 
 #include "mir_toolkit/mir_client_library.h"
@@ -154,7 +156,7 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
-    std::future<void> handshake_done;
+    std::unique_ptr<mir::client::rpc::RpcFutureResolver> resolver;
     std::shared_ptr<google::protobuf::RpcChannel> channel;
     std::unique_ptr<mir::protobuf::DisplayServer> server;
     std::unique_ptr<mir::protobuf::Debug> debug;

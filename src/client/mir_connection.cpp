@@ -105,6 +105,7 @@ MirConnection::MirConnection(std::string const& error_message) :
 MirConnection::MirConnection(
     mir::client::ConnectionConfiguration& conf) :
         deregisterer{this},
+        resolver{std::make_unique<mcl::rpc::RpcFutureResolver>(conf.make_rpc_channel())},
         logger(conf.the_logger()),
         connect_done{false},
         client_platform_factory(conf.the_client_platform_factory()),
@@ -115,40 +116,6 @@ MirConnection::MirConnection(
         event_handler_register(conf.the_event_handler_register())
 {
     connect_result.set_error("Protocol handshake incomplete");
-    auto future_channel = conf.make_rpc_channel();
-    std::promise<void> handshake_completion;
-    handshake_done = handshake_completion.get_future();
-
-    mir::SignalBlocker block_signals;
-    std::thread{[this](std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future_channel,
-                       std::promise<void>&& handshake_completed)
-    {
-        decltype(channel) tmp_channel;
-        try
-        {
-            tmp_channel = future_channel.get();
-        }
-        catch(std::future_error& err)
-        {
-            return;
-        }
-        catch(std::exception& err)
-        {
-            std::lock_guard<decltype(mutex)> lock(mutex);
-            connect_result.set_error(err.what());
-            return;
-        }
-
-        std::lock_guard<decltype(mutex)> lock(mutex);
-        server = std::make_unique<mir::protobuf::DisplayServer::Stub>(tmp_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
-        debug = std::make_unique<mir::protobuf::Debug::Stub>(tmp_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
-        eventloop = std::make_unique<md::SimpleDispatchThread>(std::dynamic_pointer_cast<md::Dispatchable>(tmp_channel));
-
-        connect_result.set_error("connect not called");
-
-        channel = std::move(tmp_channel);
-        handshake_completed.set_value();
-    }, std::move(future_channel), std::move(handshake_completion)}.detach();
 
     {
         std::lock_guard<std::mutex> lock(connection_guard);
@@ -159,21 +126,17 @@ MirConnection::MirConnection(
 
 MirConnection::~MirConnection() noexcept
 {
-    using namespace std::literals::chrono_literals;
-    try
-    {
-        handshake_done.wait_for(1s);
-    }
-    catch(std::future_error&)
-    {
-        // Handshake is already done or errored out, great.
-    }
-
     // We don't die while if are pending callbacks (as they touch this).
     // But, if after 500ms we don't get a call, assume it won't happen.
     connect_wait_handle.wait_for_pending(std::chrono::milliseconds(500));
 
     std::lock_guard<decltype(mutex)> lock(mutex);
+    if (resolver)
+    {
+        // Cancel any pending protocol handshake
+        resolver->cancel();
+    }
+
     if (connect_result.has_platform())
     {
         auto const& platform = connect_result.platform();
@@ -316,6 +279,9 @@ void MirConnection::connected(mir_connected_callback callback, void * context)
         native_display = platform->create_egl_native_display();
         display_configuration->set_configuration(connect_result.display_configuration());
         lifecycle_control->set_lifecycle_event_handler(default_lifecycle_event_handler);
+
+        // Handshaking is done, can free the resolver
+        resolver.reset();
     }
     catch (std::exception const& e)
     {
@@ -339,16 +305,33 @@ MirWaitHandle* MirConnection::connect(
         connect_wait_handle.expect_result();
     }
 
-    mir::SignalBlocker block_signals;
-    std::thread{[this, callback, context]()
+    resolver->set_completion([this, callback, context](std::future<std::unique_ptr<google::protobuf::RpcChannel>> resolved_channel)
     {
         try
         {
-            handshake_done.get();
+            std::lock_guard<decltype(mutex)> lock(mutex);
+
+            channel = resolved_channel.get();
+            server = std::make_unique<mir::protobuf::DisplayServer::Stub>(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+            debug = std::make_unique<mir::protobuf::Debug::Stub>(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+            eventloop = std::make_unique<md::SimpleDispatchThread>(std::dynamic_pointer_cast<md::Dispatchable>(channel));
+
+            connect_result.set_error("connect not called");
         }
         catch(std::future_error& err)
         {
-            // Oops, handshaking was cancelled.
+            // Handshaking has been cancelled
+            std::lock_guard<decltype(mutex)> lock(mutex);
+            connect_result.set_error("Protocol handshake cancelled");
+            connect_wait_handle.result_received();
+            return;
+        }
+        catch(std::exception& err)
+        {
+            std::lock_guard<decltype(mutex)> lock(mutex);
+            connect_result.set_error(std::string{"Failed to complete protocol handshake: "} +
+                                     boost::diagnostic_information(err));
+            connect_wait_handle.result_received();
             return;
         }
 
@@ -366,8 +349,9 @@ MirWaitHandle* MirConnection::connect(
             std::lock_guard<decltype(mutex)> lock(mutex);
             connect_result.set_error(std::string{"Error in connect()"} +
                                      boost::diagnostic_information(err));
+            connect_wait_handle.result_received();
         }
-    }}.detach();
+    });
 
     return &connect_wait_handle;
 }
