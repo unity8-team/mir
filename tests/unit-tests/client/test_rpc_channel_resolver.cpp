@@ -21,6 +21,7 @@
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <boost/throw_exception.hpp>
 
 #include <google/protobuf/service.h>
 
@@ -59,17 +60,23 @@ public:
     void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion)
     {
         using namespace std::literals::chrono_literals;
-        if (future_channel.wait_for(0s) == std::future_status::ready)
+
+        auto continuation_future = std::move(future_channel);
+        if (!continuation_future.valid())
         {
-            completion(std::move(future_channel));
+            BOOST_THROW_EXCEPTION((std::logic_error{"Called set_completion more than once"}));
+        }
+        if (continuation_future.wait_for(0s) == std::future_status::ready)
+        {
+            completion(std::move(continuation_future));
         }
         else
         {
-            wait_thread = std::thread{[this, completion]()
+            wait_thread = std::thread{[completion](std::future<std::unique_ptr<google::protobuf::RpcChannel>>&& future)
             {
-                future_channel.wait();
-                completion(std::move(future_channel));
-            }};
+                future.wait();
+                completion(std::move(future));
+            }, std::move(continuation_future)};
         }
     }
 
@@ -117,4 +124,16 @@ TEST(RpcFutureResolver, completion_isnt_called_until_future_is_ready)
     promised_rpc.set_value({});
 
     EXPECT_TRUE(called->wait_for(60s));
+}
+
+TEST(RpcFutureResolver, calling_set_continuation_twice_is_an_error)
+{
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
+    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
+
+    resolver.set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {});
+    EXPECT_THROW(resolver.set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {}),
+            std::logic_error);
+
+    promised_rpc.set_value({});
 }
