@@ -713,12 +713,17 @@ TEST_F(BufferQueueTest, overlapping_compositors_get_different_frames)
             // One of the compositors (the oldest one) gets a new buffer...
             int oldest = i & 1;
             delete compositor[oldest];
+            compositor[oldest] = nullptr;
             auto handle = client_acquire_async(*q);
             ASSERT_THAT(handle->has_acquired_buffer(), Eq(true));
             handle->release_buffer();
             compositor[oldest] = new mc::BufferHandle(nullptr, nullptr);
             *compositor[oldest] = q->compositor_acquire(this);
         }
+
+        for (int i = 0; i < 2; i++)
+            if (compositor[i])
+                delete compositor[i];
     }
 }
 
@@ -1368,6 +1373,8 @@ TEST_F(BufferQueueTest, buffers_ready_is_not_underestimated)
         // Verify frame 3 is ready for a second compositor
         int const that = 0;
         ASSERT_THAT(q->buffers_ready_for_compositor(&that), Ge(1));
+
+        delete c;
     }
 }
 
