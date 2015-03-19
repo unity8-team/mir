@@ -18,8 +18,13 @@
 
 #include <future>
 #include <functional>
+#include <memory>
+#include <chrono>
+#include <thread>
 
 #include <google/protobuf/service.h>
+
+#include "mir_test/signal.h"
 
 #include <gtest/gtest.h>
 
@@ -45,27 +50,39 @@ public:
     {
     }
 
+    ~RpcFutureResolver()
+    {
+        if (wait_thread.joinable())
+            wait_thread.join();
+    }
+
     void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion)
     {
-        completion(std::move(future_channel));
+        using namespace std::literals::chrono_literals;
+        if (future_channel.wait_for(0s) == std::future_status::ready)
+        {
+            completion(std::move(future_channel));
+        }
+        else
+        {
+            wait_thread = std::thread{[this, completion]()
+            {
+                future_channel.wait();
+                completion(std::move(future_channel));
+            }};
+        }
     }
 
 private:
     std::future<std::unique_ptr<google::protobuf::RpcChannel>> future_channel;
+    std::thread wait_thread;
 };
 }
 }
 }
 
 namespace mclr = mir::client::rpc;
-
-TEST(RpcFutureResolver, can_register_completed_callback)
-{
-    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
-    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
-
-    resolver.set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {});
-}
+namespace mt = mir::test;
 
 TEST(RpcFutureResolver, completion_is_called_immediately_if_set_on_ready_resolver)
 {
@@ -80,4 +97,24 @@ TEST(RpcFutureResolver, completion_is_called_immediately_if_set_on_ready_resolve
         called = true;
     });
     EXPECT_TRUE(called);
+}
+
+TEST(RpcFutureResolver, completion_isnt_called_until_future_is_ready)
+{
+    using namespace std::literals::chrono_literals;
+
+    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promised_rpc;
+
+    mclr::RpcFutureResolver resolver{promised_rpc.get_future()};
+
+    auto called = std::make_shared<mt::Signal>();
+    resolver.set_completion([called](std::future<std::unique_ptr<google::protobuf::RpcChannel>>)
+    {
+        called->raise();
+    });
+    EXPECT_FALSE(called->raised());
+
+    promised_rpc.set_value({});
+
+    EXPECT_TRUE(called->wait_for(60s));
 }
