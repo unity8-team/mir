@@ -1,3 +1,17 @@
+platform-api (2.9.0+15.04.20150320-0ubuntu1) vivid; urgency=medium
+
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+  [ Michał Sawicz ]
+  * Fix u_application_instance_get_mir_connection symbol version (LP:
+    #1433936)
+
+  [ Ricardo Mendoza ]
+  * Disable building the Android backends we no longer use.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 20 Mar 2015 01:19:10 +0000
+
 platform-api (2.9.0+15.04.20150318-0ubuntu1) vivid; urgency=medium
 
   [ Robert Carr ]
