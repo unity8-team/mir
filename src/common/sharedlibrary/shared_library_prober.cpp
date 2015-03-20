@@ -37,14 +37,6 @@ std::error_code boost_to_std_error(boost::system::error_code const& ec)
     }
     return std::error_code{};
 }
-
-// Libraries can be of the form libname.so(.X.Y)
-bool path_has_library_extension(boost::filesystem::path const& path)
-{
-    return path.extension().string() == ".so" ||
-           path.string().find(".so.") != std::string::npos;
-}
-
 }
 
 std::vector<std::shared_ptr<mir::SharedLibrary>>
@@ -65,7 +57,7 @@ mir::libraries_for_path(std::string const& path, mir::SharedLibraryProberReport&
     std::vector<std::shared_ptr<mir::SharedLibrary>> libraries;
     for (; iterator != boost::filesystem::directory_iterator() ; ++iterator)
     {
-        if (path_has_library_extension(iterator->path()))
+        if (iterator->path().extension().string() == ".so")
         {
             try
             {

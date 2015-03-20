@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,7 +14,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
- *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 #include "mir/glib_main_loop.h"
@@ -34,14 +33,10 @@ public:
     AlarmImpl(
         GMainContext* main_context,
         std::shared_ptr<mir::time::Clock> const& clock,
-        std::function<void()> const& callback,
-        std::function<void()> const& lock,
-        std::function<void()> const& unlock)
+        std::function<void()> const& callback)
         : main_context{main_context},
           clock{clock},
           callback{callback},
-          ext_lock{lock},
-          ext_unlock{unlock},
           state_{State::cancelled}
     {
     }
@@ -75,8 +70,6 @@ public:
             main_context,
             clock,
             [&] { state_ = State::triggered; callback(); },
-            ext_lock,
-            ext_unlock,
             time_point);
 
         return true;
@@ -87,8 +80,6 @@ private:
     GMainContext* main_context;
     std::shared_ptr<mir::time::Clock> const clock;
     std::function<void()> const callback;
-    std::function<void()> const ext_lock;
-    std::function<void()> const ext_unlock;
     State state_;
     mir::detail::GSourceHandle gsource;
 };
@@ -232,7 +223,7 @@ bool mir::GLibMainLoop::should_process_actions_for(void const* owner)
 
 std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_in(
     std::chrono::milliseconds delay,
-    std::function<void()> const& callback)
+    std::function<void()> callback)
 {
     auto alarm = create_alarm(callback);
 
@@ -243,7 +234,7 @@ std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_in(
 
 std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_at(
     mir::time::Timestamp t,
-    std::function<void()> const& callback)
+    std::function<void()> callback)
 {
     auto alarm = create_alarm(callback);
 
@@ -253,15 +244,7 @@ std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_at(
 }
 
 std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::create_alarm(
-    std::function<void()> const& callback)
-{
-    return create_alarm(callback, []{}, []{});
-}
-
-std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::create_alarm(
-    std::function<void()> const& callback,
-    std::function<void()> const& lock,
-    std::function<void()> const& unlock)
+    std::function<void()> callback)
 {
     auto const callback_with_exception_handling =
         [this, callback]
@@ -271,7 +254,7 @@ std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::create_alarm(
         };
 
     return std::unique_ptr<mir::time::Alarm>{
-        new AlarmImpl(main_context, clock, callback_with_exception_handling, lock, unlock)};
+        new AlarmImpl(main_context, clock, callback_with_exception_handling)};
 }
 
 void mir::GLibMainLoop::reprocess_all_sources()

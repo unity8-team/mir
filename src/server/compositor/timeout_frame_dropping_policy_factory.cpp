@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,7 +14,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
- *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 #include "mir/compositor/frame_dropping_policy.h"
@@ -35,9 +34,7 @@ class TimeoutFrameDroppingPolicy : public mc::FrameDroppingPolicy
 public:
     TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                std::chrono::milliseconds timeout,
-                               std::function<void()> const& drop_frame,
-                               std::function<void()> const& lock,
-                               std::function<void()> const& unlock);
+                               std::function<void(void)> drop_frame);
 
     void swap_now_blocking() override;
     void swap_unblocked() override;
@@ -53,9 +50,7 @@ private:
 
 TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time::Timer> const& timer,
                                                        std::chrono::milliseconds timeout,
-                                                       std::function<void()> const& drop_frame,
-                                                       std::function<void()> const& lock,
-                                                       std::function<void()> const& unlock)
+                                                       std::function<void(void)> drop_frame)
     : timeout{timeout},
       pending_swaps{0},
       alarm{timer->create_alarm([this, drop_frame]
@@ -64,7 +59,7 @@ TimeoutFrameDroppingPolicy::TimeoutFrameDroppingPolicy(std::shared_ptr<mir::time
             drop_frame();
             if (--pending_swaps > 0)
                 alarm->reschedule_in(this->timeout);
-        }, lock, unlock)}
+        })}
 {
 }
 
@@ -86,18 +81,15 @@ void TimeoutFrameDroppingPolicy::swap_unblocked()
 }
 }
 
-mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(
-    std::shared_ptr<mir::time::Timer> const& timer,
-    std::chrono::milliseconds timeout)
+mc::TimeoutFrameDroppingPolicyFactory::TimeoutFrameDroppingPolicyFactory(std::shared_ptr<mir::time::Timer> const& timer,
+                                                                         std::chrono::milliseconds timeout)
     : timer{timer},
       timeout{timeout}
 {
 }
 
-std::unique_ptr<mc::FrameDroppingPolicy>
-mc::TimeoutFrameDroppingPolicyFactory::create_policy(std::function<void()> const& drop_frame,
-    std::function<void()> const& lock,
-    std::function<void()> const& unlock) const
+
+std::unique_ptr<mc::FrameDroppingPolicy> mc::TimeoutFrameDroppingPolicyFactory::create_policy(std::function<void ()> drop_frame) const
 {
-    return std::unique_ptr<mc::FrameDroppingPolicy>{new TimeoutFrameDroppingPolicy{timer, timeout, drop_frame, lock, unlock}};
+    return std::unique_ptr<mc::FrameDroppingPolicy>{new TimeoutFrameDroppingPolicy{timer, timeout, drop_frame}};
 }

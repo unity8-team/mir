@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Canonical Ltd.
+ * Copyright © 2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,7 +14,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
- *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 
@@ -47,12 +46,9 @@ public:
 class StubFrameDroppingPolicyFactory : public mc::FrameDroppingPolicyFactory
 {
 public:
-    std::unique_ptr<mc::FrameDroppingPolicy> create_policy(
-        std::function<void()> const&,
-        std::function<void()> const&,
-        std::function<void()> const& ) const override
+    std::unique_ptr<mc::FrameDroppingPolicy> create_policy(std::function<void(void)>) const override
     {
-       return std::unique_ptr<mc::FrameDroppingPolicy>{new StubFrameDroppingPolicy};
+        return std::unique_ptr<mc::FrameDroppingPolicy>{new StubFrameDroppingPolicy};
     }
 };
 

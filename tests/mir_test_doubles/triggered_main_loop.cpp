@@ -85,9 +85,8 @@ void mtd::TriggeredMainLoop::trigger_server_actions()
         action();
 }
 
-std::unique_ptr<mir::time::Alarm>
-mtd::TriggeredMainLoop::notify_in(std::chrono::milliseconds delay,
-                                  callback const& call)
+std::unique_ptr<mir::time::Alarm> mtd::TriggeredMainLoop::notify_in(std::chrono::milliseconds delay,
+                                            callback call)
 {
     base::notify_in(delay, call);
     timeout_callbacks.push_back(call);
