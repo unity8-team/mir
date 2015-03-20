@@ -40,7 +40,7 @@ mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
     if (this != &other)
     {
         wrapped = std::move(other.wrapped);
-        release_fn = std::move(other.release_fn);
+        release_fn.swap(other.release_fn);
     }
 
     return *this;
