@@ -318,14 +318,6 @@ MirWaitHandle* MirConnection::connect(
 
             connect_result.set_error("connect not called");
         }
-        catch(std::future_error& err)
-        {
-            // Handshaking has been cancelled
-            std::lock_guard<decltype(mutex)> lock(mutex);
-            connect_result.set_error("Protocol handshake cancelled");
-            connect_wait_handle.result_received();
-            return;
-        }
         catch(std::exception& err)
         {
             std::lock_guard<decltype(mutex)> lock(mutex);
