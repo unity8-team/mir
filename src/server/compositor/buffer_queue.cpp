@@ -204,7 +204,9 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
     }
 
     auto const buffer = pop(buffers_owned_by_client);
-    ready_to_composite_queue.push_back(buffer);
+
+    // Let's push to the front so that compositors always get the freshest frame
+    ready_to_composite_queue.push_front(buffer);
 }
 
 std::shared_ptr<mg::Buffer>
@@ -229,14 +231,18 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         force_new_compositor_buffer = false;
     }
 
-    mg::Buffer* buffer_to_release = nullptr;
+    //mg::Buffer* buffer_to_release = nullptr;
+    std::vector<mg::Buffer*> to_release;
     if (!use_current_buffer)
     {
         /* No other compositors currently reference this
          * buffer so release it
          */
         if (!contains(current_compositor_buffer, buffers_sent_to_compositor))
-            buffer_to_release = current_compositor_buffer;
+        {
+            //buffer_to_release = current_compositor_buffer;
+            to_release.push_back(current_compositor_buffer);
+        }
 
         /* The current compositor buffer is
          * being changed, the new one has no users yet
@@ -244,6 +250,10 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         current_buffer_users.clear();
         current_buffer_users.push_back(user_id);
         current_compositor_buffer = pop(ready_to_composite_queue);
+
+        // Drop all old client frames
+        while (!ready_to_composite_queue.empty())
+            to_release.push_back(pop(ready_to_composite_queue));
     }
     else if (current_buffer_users.empty())
     {   // current_buffer_users and ready_to_composite_queue both empty
@@ -255,8 +265,15 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     std::shared_ptr<mg::Buffer> const acquired_buffer =
         buffer_for(current_compositor_buffer, buffers);
 
-    if (buffer_to_release)
-        release(buffer_to_release, std::move(lock));
+    if (!to_release.empty())
+    {
+        for (auto buffer : to_release)
+        {
+            if (!lock.owns_lock())
+                lock.lock();
+            release(buffer, lock);
+        }
+    }
 
     return acquired_buffer;
 }
@@ -298,7 +315,7 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
     }
 
     if (current_compositor_buffer != buffer.get())
-        release(buffer.get(), std::move(lock));
+        release(buffer.get(), lock);
 }
 
 std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
@@ -449,32 +466,12 @@ bool mc::BufferQueue::is_a_current_buffer_user(void const* user_id) const
 
 void mc::BufferQueue::release(
     mg::Buffer* buffer,
-    std::unique_lock<std::mutex> lock)
+    std::unique_lock<std::mutex>& lock)
 {
     if (!pending_client_notifications.empty())
     {
         framedrop_policy->swap_unblocked();
         give_buffer_to_client(buffer, lock);
-    }
-    else if (!frame_dropping_enabled && buffers.size() > size_t(nbuffers))
-    {
-        /*
-         * We're overallocated.
-         * If frame_dropping_enabled, keep it that way to avoid having
-         * to repeatedly reallocate. We must need the overallocation due to a
-         * greedy compositor and insufficient nbuffers (LP: #1379685).
-         * If not framedropping then we only overallocated to briefly
-         * guarantee the framedropping policy and poke the client. Safe
-         * to free it then because that's a rare occurrence.
-         */
-        for (auto i = buffers.begin(); i != buffers.end(); ++i)
-        {
-            if (i->get() == buffer)
-            {
-                buffers.erase(i);
-                break;
-            }
-        }
     }
     else
         free_buffers.push_back(buffer);
@@ -550,7 +547,7 @@ void mc::BufferQueue::drop_old_buffers()
     for (auto buffer : to_release)
     {
        std::unique_lock<decltype(guard)> lock{guard};
-       release(buffer, std::move(lock));
+       release(buffer, lock);
     }
 }
 

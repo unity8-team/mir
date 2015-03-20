@@ -76,7 +76,7 @@ private:
     void give_buffer_to_client(graphics::Buffer* buffer,
         std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
     void release(graphics::Buffer* buffer,
-        std::unique_lock<std::mutex> lock);
+        std::unique_lock<std::mutex>& lock);
     void drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
 
     mutable std::mutex guard;
