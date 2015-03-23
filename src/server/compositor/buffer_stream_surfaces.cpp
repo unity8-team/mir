@@ -21,8 +21,6 @@
 #include "buffer_bundle.h"
 #include "mir/graphics/buffer_properties.h"
 
-#include "temporary_buffers.h"
-
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
@@ -40,14 +38,11 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
 mc::BufferHandle mc::BufferStreamSurfaces::lock_compositor_buffer(
     void const* user_id)
 {
-//    return std::make_shared<mc::TemporaryCompositorBuffer>(
-//        buffer_bundle, user_id);
     return buffer_bundle->compositor_acquire(user_id);
 }
 
 mc::BufferHandle mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
-//    return std::make_shared<mc::TemporarySnapshotBuffer>(buffer_bundle);
     return buffer_bundle->snapshot_acquire();
 }
 

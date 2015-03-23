@@ -316,29 +316,6 @@ mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
     return acquired_buffer;
 }
 
-void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& /*buffer*/)
-{
-#if 0
-    std::unique_lock<decltype(guard)> lock(guard);
-
-    if (!remove(buffer.get(), buffers_sent_to_compositor))
-    {
-        BOOST_THROW_EXCEPTION(
-            std::logic_error("unexpected release: buffer was not given to compositor"));
-    }
-
-    /* Not ready to release it yet, other compositors still reference this buffer */
-    if (contains(buffer.get(), buffers_sent_to_compositor))
-        return;
-
-    if (nbuffers <= 1)
-        return;
-
-    if (current_compositor_buffer != buffer.get())
-        release(buffer.get(), std::move(lock));
-#endif
-}
-
 mc::BufferHandle mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
@@ -359,20 +336,6 @@ mc::BufferHandle mc::BufferQueue::snapshot_acquire()
                        self->snapshot_released.notify_all();
                    }
                }));
-}
-
-void mc::BufferQueue::snapshot_release(std::shared_ptr<graphics::Buffer> const& /*buffer*/)
-{
-#if 0
-    std::unique_lock<std::mutex> lock(guard);
-    if (!remove(buffer.get(), pending_snapshots))
-    {
-        BOOST_THROW_EXCEPTION(
-            std::logic_error("unexpected release: no buffers were given to snapshotter"));
-    }
-
-    snapshot_released.notify_all();
-#endif
 }
 
 mg::BufferProperties mc::BufferQueue::properties() const

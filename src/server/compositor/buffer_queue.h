@@ -53,9 +53,7 @@ public:
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
     BufferHandle compositor_acquire(void const* user_id) override;
-    void compositor_release(std::shared_ptr<graphics::Buffer> const& buffer) override;
     BufferHandle snapshot_acquire() override;
-    void snapshot_release(std::shared_ptr<graphics::Buffer> const& buffer) override;
 
     graphics::BufferProperties properties() const override;
     void allow_framedropping(bool dropping_allowed) override;
