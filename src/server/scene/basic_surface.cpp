@@ -26,6 +26,7 @@
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
 #include "mir/geometry/displacement.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include "mir/scene/scene_report.h"
 
@@ -687,9 +688,12 @@ public:
  
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        if (!compositor_buffer_handle)
-            compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
-        return compositor_buffer_handle.buffer();
+        return buffer_handle().buffer();
+    }
+
+    mc::BufferHandle buffer_handle() const override
+    {
+        return underlying_buffer_stream->lock_compositor_buffer(compositor_id);
     }
 
     geom::Rectangle screen_position() const override

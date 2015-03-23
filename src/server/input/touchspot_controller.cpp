@@ -26,10 +26,12 @@
 #include "mir/graphics/renderable.h"
 #include "mir/geometry/dimensions.h"
 #include "mir/input/scene.h"
+#include "mir/compositor/buffer_handle.h"
 
 namespace mi = mir::input;
 namespace mg = mir::graphics;
 namespace geom = mir::geometry;
+namespace mc = mir::compositor;
 
 namespace
 {
@@ -56,7 +58,13 @@ public:
     {
         return buffer_;
     }
-    
+
+    mc::BufferHandle buffer_handle() const override
+    {
+    	mc::BufferHandle handle;
+        return handle;
+    }
+
     geom::Rectangle screen_position() const override
     {
         return {position, buffer_->size()};

@@ -26,6 +26,11 @@
 
 namespace mir
 {
+namespace compositor
+{
+class BufferHandle;
+}
+
 namespace graphics
 {
 
@@ -47,6 +52,11 @@ public:
      * Return the buffer that should be composited/rendered.
      */
     virtual std::shared_ptr<Buffer> buffer() const = 0;
+
+    /**
+     * Return the buffer handle containing the buffer that should be composited/rendered.
+     */
+    virtual compositor::BufferHandle buffer_handle() const = 0;
 
     virtual geometry::Rectangle screen_position() const = 0;
 

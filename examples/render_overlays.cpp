@@ -25,6 +25,7 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir_image.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include <chrono>
 #include <csignal>
@@ -33,6 +34,7 @@
 namespace mg=mir::graphics;
 namespace mo=mir::options;
 namespace geom=mir::geometry;
+namespace mc=mir::compositor;
 
 namespace
 {
@@ -140,6 +142,12 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         return client->last_rendered();
+    }
+
+    mc::BufferHandle buffer_handle() const override
+    {
+    	mc::BufferHandle handle;
+        return handle;
     }
 
     geom::Rectangle screen_position() const override

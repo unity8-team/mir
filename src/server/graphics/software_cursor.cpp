@@ -23,12 +23,14 @@
 #include "mir/graphics/renderable.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/input/scene.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include <mutex>
 
 namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
+namespace mc = mir::compositor;
 
 namespace
 {
@@ -69,6 +71,12 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         return buffer_;
+    }
+
+    mc::BufferHandle buffer_handle() const override
+    {
+    	mc::BufferHandle handle;
+        return handle;
     }
 
     geom::Rectangle screen_position() const override
