@@ -24,18 +24,18 @@
 
 namespace mir
 {
-namespace graphics { class Buffer; }
-
-namespace compositor
+namespace graphics
 {
 
-typedef std::function<void(graphics::Buffer* buffer)> ReleaseCallback;
+class Buffer;
+
+typedef std::function<void(Buffer* buffer)> ReleaseCallback;
 
 class BufferHandle
 {
 public:
     explicit BufferHandle(
-        std::shared_ptr<graphics::Buffer> const& buffer,
+        std::shared_ptr<Buffer> const& buffer,
         ReleaseCallback const& release);
 
     BufferHandle(BufferHandle&& other);
@@ -44,14 +44,14 @@ public:
 
     ~BufferHandle();
 
-    std::shared_ptr<graphics::Buffer> buffer();
+    std::shared_ptr<Buffer> buffer();
     bool operator!();
 
 private:
     BufferHandle(BufferHandle const&) = delete;
     BufferHandle& operator=(BufferHandle const&) = delete;
 
-    std::shared_ptr<graphics::Buffer> wrapped;
+    std::shared_ptr<Buffer> wrapped;
     ReleaseCallback release_fn;
 };
 

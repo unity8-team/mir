@@ -25,7 +25,7 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir_image.h"
-#include "mir/compositor/buffer_handle.h"
+#include "mir/graphics/buffer_handle.h"
 
 #include <chrono>
 #include <csignal>
@@ -144,9 +144,9 @@ public:
         return client->last_rendered();
     }
 
-    mc::BufferHandle buffer_handle() const override
+    mg::BufferHandle buffer_handle() const override
     {
-    	mc::BufferHandle handle;
+    	mg::BufferHandle handle;
         return handle;
     }
 

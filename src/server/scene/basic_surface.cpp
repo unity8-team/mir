@@ -26,7 +26,7 @@
 #include "mir/input/input_sender.h"
 #include "mir/graphics/buffer.h"
 #include "mir/geometry/displacement.h"
-#include "mir/compositor/buffer_handle.h"
+#include "mir/graphics/buffer_handle.h"
 
 #include "mir/scene/scene_report.h"
 
@@ -691,7 +691,7 @@ public:
         return buffer_handle().buffer();
     }
 
-    mc::BufferHandle buffer_handle() const override
+    mg::BufferHandle buffer_handle() const override
     {
         return underlying_buffer_stream->lock_compositor_buffer(compositor_id);
     }

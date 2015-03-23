@@ -16,26 +16,25 @@
  * Authored by: Cemil Azizoglu <cemil.azizoglu@canonical.com>
  */
 
-#include "mir/compositor/buffer_handle.h"
+#include "mir/graphics/buffer_handle.h"
 
-namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 
-mc::BufferHandle::BufferHandle(std::shared_ptr<mg::Buffer> const& buffer,
+mg::BufferHandle::BufferHandle(std::shared_ptr<mg::Buffer> const& buffer,
                                ReleaseCallback const& release)
                                : wrapped(buffer),
                                  release_fn(release)
 {
 }
 
-mc::BufferHandle::BufferHandle(BufferHandle&& other)
+mg::BufferHandle::BufferHandle(BufferHandle&& other)
                                : wrapped(std::move(other.wrapped))
 {
     // We can't std:move a std::function as it leaves the "other" unspecified
     release_fn.swap(other.release_fn);
 }
 
-mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
+mg::BufferHandle& mg::BufferHandle::operator=(BufferHandle&& other)
 {
     if (this != &other)
     {
@@ -46,18 +45,18 @@ mc::BufferHandle& mc::BufferHandle::operator=(BufferHandle&& other)
     return *this;
 }
 
-bool mc::BufferHandle::operator!()
+bool mg::BufferHandle::operator!()
 {
     return (wrapped == nullptr);
 }
 
-mc::BufferHandle::~BufferHandle()
+mg::BufferHandle::~BufferHandle()
 {
     if (release_fn)
         release_fn(wrapped.get());
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferHandle::buffer()
+std::shared_ptr<mg::Buffer> mg::BufferHandle::buffer()
 {
     return wrapped;
 }

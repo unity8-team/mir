@@ -20,7 +20,7 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
 #include "mir/lockable_callback.h"
-#include "mir/compositor/buffer_handle.h"
+#include "mir/graphics/buffer_handle.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -240,7 +240,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
     ready_to_composite_queue.push_back(buffer);
 }
 
-mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
+mg::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
@@ -287,7 +287,7 @@ mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
 
     std::weak_ptr<BufferQueue> weak_this = shared_from_this();
 
-    mc::BufferHandle acquired_buffer(
+    mg::BufferHandle acquired_buffer(
         buffer_for(current_compositor_buffer, buffers),
         [weak_this](mg::Buffer* b)
         {
@@ -316,14 +316,14 @@ mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
     return acquired_buffer;
 }
 
-mc::BufferHandle mc::BufferQueue::snapshot_acquire()
+mg::BufferHandle mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
 
     std::weak_ptr<BufferQueue> weak_this = shared_from_this();
 
-    return std::move(mc::BufferHandle(
+    return std::move(mg::BufferHandle(
                buffer_for(current_compositor_buffer, buffers),
                [weak_this](mg::Buffer* b)
                {

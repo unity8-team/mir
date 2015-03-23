@@ -29,15 +29,16 @@
 
 namespace mir
 {
+
 namespace graphics
 {
 class Buffer;
 class GraphicBufferAllocator;
+class BufferHandle;
 }
+
 namespace compositor
 {
-
-class BufferHandle;
 
 class BufferQueue : public BufferBundle,
                     public std::enable_shared_from_this<BufferQueue>
@@ -52,8 +53,8 @@ public:
 
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
-    BufferHandle compositor_acquire(void const* user_id) override;
-    BufferHandle snapshot_acquire() override;
+    graphics::BufferHandle compositor_acquire(void const* user_id) override;
+    graphics::BufferHandle snapshot_acquire() override;
 
     graphics::BufferProperties properties() const override;
     void allow_framedropping(bool dropping_allowed) override;

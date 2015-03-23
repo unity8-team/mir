@@ -25,12 +25,10 @@
 
 namespace mir
 {
-namespace graphics { class Buffer; struct BufferProperties; }
+namespace graphics { class Buffer; struct BufferProperties; class BufferHandle; }
 
 namespace compositor
 {
-
-class BufferHandle;
 
 class BufferBundle
 {
@@ -50,8 +48,8 @@ public:
      *                     collisions, all callers should determine user_id
      *                     in the same way (e.g. always use "this" pointer).
      */
-    virtual BufferHandle compositor_acquire(void const* user_id) = 0;
-    virtual BufferHandle snapshot_acquire() = 0;
+    virtual graphics::BufferHandle compositor_acquire(void const* user_id) = 0;
+    virtual graphics::BufferHandle snapshot_acquire() = 0;
 
     virtual graphics::BufferProperties properties() const = 0;
     virtual void allow_framedropping(bool dropping_allowed) = 0;

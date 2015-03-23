@@ -26,15 +26,12 @@
 
 namespace mir
 {
-namespace compositor
-{
-class BufferHandle;
-}
 
 namespace graphics
 {
 
 class Buffer;
+class BufferHandle;
 class Renderable
 {
 public:
@@ -56,7 +53,7 @@ public:
     /**
      * Return the buffer handle containing the buffer that should be composited/rendered.
      */
-    virtual compositor::BufferHandle buffer_handle() const = 0;
+    virtual BufferHandle buffer_handle() const = 0;
 
     virtual geometry::Rectangle screen_position() const = 0;
 

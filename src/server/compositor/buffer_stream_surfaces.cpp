@@ -35,13 +35,13 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
     force_requests_to_complete();
 }
 
-mc::BufferHandle mc::BufferStreamSurfaces::lock_compositor_buffer(
+mg::BufferHandle mc::BufferStreamSurfaces::lock_compositor_buffer(
     void const* user_id)
 {
     return buffer_bundle->compositor_acquire(user_id);
 }
 
-mc::BufferHandle mc::BufferStreamSurfaces::lock_snapshot_buffer()
+mg::BufferHandle mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
     return buffer_bundle->snapshot_acquire();
 }

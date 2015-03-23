@@ -23,7 +23,7 @@
 #include "mir/geometry/size.h"
 #include "mir_toolkit/common.h"
 #include "mir/graphics/buffer_id.h"
-#include "mir/compositor/buffer_handle.h"
+#include "mir/graphics/buffer_handle.h"
 
 #include <memory>
 
@@ -32,6 +32,7 @@ namespace mir
 namespace graphics
 {
 class Buffer;
+class BufferHandle;
 }
 
 namespace compositor
@@ -45,8 +46,8 @@ public:
     virtual void acquire_client_buffer(
         std::function<void(graphics::Buffer* buffer)> complete) = 0;
     virtual void release_client_buffer(graphics::Buffer* buf) = 0;
-    virtual BufferHandle lock_compositor_buffer(void const* user_id) = 0;
-    virtual BufferHandle lock_snapshot_buffer() = 0;
+    virtual graphics::BufferHandle lock_compositor_buffer(void const* user_id) = 0;
+    virtual graphics::BufferHandle lock_snapshot_buffer() = 0;
     virtual MirPixelFormat get_stream_pixel_format() = 0;
     virtual geometry::Size stream_size() = 0;
     virtual void resize(geometry::Size const& size) = 0;

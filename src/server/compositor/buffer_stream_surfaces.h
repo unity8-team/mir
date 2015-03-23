@@ -26,6 +26,9 @@
 
 namespace mir
 {
+
+namespace graphics { class BufferHandle; }
+
 namespace compositor
 {
 
@@ -42,8 +45,8 @@ public:
     void acquire_client_buffer(std::function<void(graphics::Buffer* buffer)> complete) override;
     void release_client_buffer(graphics::Buffer* buf) override;
 
-    BufferHandle lock_compositor_buffer(void const* user_id) override;
-    BufferHandle lock_snapshot_buffer() override;
+    graphics::BufferHandle lock_compositor_buffer(void const* user_id) override;
+    graphics::BufferHandle lock_snapshot_buffer() override;
 
     MirPixelFormat get_stream_pixel_format() override;
     geometry::Size stream_size() override;

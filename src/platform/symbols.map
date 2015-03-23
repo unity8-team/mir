@@ -15,6 +15,10 @@ MIRPLATFORM_7 {
     mir::graphics::Buffer::size*;
     mir::graphics::Buffer::stride*;
     mir::graphics::Buffer::write*;
+    mir::graphics::BufferHandle::BufferHandle*;
+    mir::graphics::BufferHandle::?BufferHandle*;
+    mir::graphics::BufferHandle::buffer*;
+    mir::graphics::BufferHandle::operator*;
     mir::graphics::Cursor::?Cursor*;
     mir::graphics::Cursor::Cursor*;
     mir::graphics::Cursor::hide*;
