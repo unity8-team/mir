@@ -246,11 +246,6 @@ void ms::BasicSurface::allow_framedropping(bool allow)
     surface_buffer_stream->allow_framedropping(allow);
 }
 
-std::shared_ptr<mg::Buffer> ms::BasicSurface::snapshot_buffer() const
-{
-    return surface_buffer_stream->lock_snapshot_buffer();
-}
-
 bool ms::BasicSurface::supports_input() const
 {
     if (server_input_channel  && server_input_channel->client_fd() != -1)
@@ -393,8 +388,8 @@ void ms::BasicSurface::set_reception_mode(mi::InputReceptionMode mode)
 void ms::BasicSurface::with_most_recent_buffer_do(
     std::function<void(mg::Buffer&)> const& exec)
 {
-    auto buf = snapshot_buffer();
-    exec(*buf);
+    auto buffer_handle = surface_buffer_stream->lock_snapshot_buffer();
+    exec(*(buffer_handle.buffer()));
 }
 
 
@@ -677,7 +672,6 @@ public:
         bool shaped,
         mg::Renderable::ID id)
     : underlying_buffer_stream{stream},
-      compositor_buffer{nullptr},
       compositor_id{compositor_id},
       alpha_{alpha},
       shaped_{shaped},
@@ -693,9 +687,9 @@ public:
  
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        if (!compositor_buffer)
-            compositor_buffer = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
-        return compositor_buffer;
+        if (!compositor_buffer_handle)
+            compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        return compositor_buffer_handle.buffer();
     }
 
     geom::Rectangle screen_position() const override
@@ -714,7 +708,7 @@ public:
     { return id_; }
 private:
     std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
-    std::shared_ptr<mg::Buffer> mutable compositor_buffer;
+    mc::BufferHandle mutable compositor_buffer_handle;
     void const*const compositor_id;
     float const alpha_;
     bool const shaped_;

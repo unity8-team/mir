@@ -37,16 +37,18 @@ mc::BufferStreamSurfaces::~BufferStreamSurfaces()
     force_requests_to_complete();
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_compositor_buffer(
+mc::BufferHandle mc::BufferStreamSurfaces::lock_compositor_buffer(
     void const* user_id)
 {
-    return std::make_shared<mc::TemporaryCompositorBuffer>(
-        buffer_bundle, user_id);
+//    return std::make_shared<mc::TemporaryCompositorBuffer>(
+//        buffer_bundle, user_id);
+    return buffer_bundle->compositor_acquire(user_id);
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferStreamSurfaces::lock_snapshot_buffer()
+mc::BufferHandle mc::BufferStreamSurfaces::lock_snapshot_buffer()
 {
-    return std::make_shared<mc::TemporarySnapshotBuffer>(buffer_bundle);
+//    return std::make_shared<mc::TemporarySnapshotBuffer>(buffer_bundle);
+    return buffer_bundle->snapshot_acquire();
 }
 
 void mc::BufferStreamSurfaces::acquire_client_buffer(

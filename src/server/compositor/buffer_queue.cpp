@@ -20,6 +20,7 @@
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
 #include "mir/lockable_callback.h"
+#include "mir/compositor/buffer_handle.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -239,8 +240,7 @@ void mc::BufferQueue::client_release(graphics::Buffer* released_buffer)
     ready_to_composite_queue.push_back(buffer);
 }
 
-std::shared_ptr<mg::Buffer>
-mc::BufferQueue::compositor_acquire(void const* user_id)
+mc::BufferHandle mc::BufferQueue::compositor_acquire(void const* user_id)
 {
     std::unique_lock<decltype(guard)> lock(guard);
 
@@ -285,8 +285,30 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
 
     buffers_sent_to_compositor.push_back(current_compositor_buffer);
 
-    std::shared_ptr<mg::Buffer> const acquired_buffer =
-        buffer_for(current_compositor_buffer, buffers);
+    std::weak_ptr<BufferQueue> weak_this = shared_from_this();
+
+    mc::BufferHandle acquired_buffer(
+        buffer_for(current_compositor_buffer, buffers),
+        [weak_this](mg::Buffer* b)
+        {
+            if (auto self = weak_this.lock())
+            {
+                std::unique_lock<decltype(self->guard)> lock(self->guard);
+
+                remove(b, self->buffers_sent_to_compositor);
+
+                /* Not ready to release it yet, other compositors still reference this buffer */
+                if (contains(b, self->buffers_sent_to_compositor))
+                    return;
+
+                if (self->nbuffers <= 1)
+                    return;
+
+                if (self->current_compositor_buffer != b)
+                    self->release(b, std::move(lock));
+            }
+        });
+
 
     if (buffer_to_release)
         release(buffer_to_release, std::move(lock));
@@ -294,8 +316,9 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     return acquired_buffer;
 }
 
-void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& buffer)
+void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const& /*buffer*/)
 {
+#if 0
     std::unique_lock<decltype(guard)> lock(guard);
 
     if (!remove(buffer.get(), buffers_sent_to_compositor))
@@ -313,17 +336,34 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 
     if (current_compositor_buffer != buffer.get())
         release(buffer.get(), std::move(lock));
+#endif
 }
 
-std::shared_ptr<mg::Buffer> mc::BufferQueue::snapshot_acquire()
+mc::BufferHandle mc::BufferQueue::snapshot_acquire()
 {
     std::unique_lock<decltype(guard)> lock(guard);
     pending_snapshots.push_back(current_compositor_buffer);
-    return buffer_for(current_compositor_buffer, buffers);
+
+    std::weak_ptr<BufferQueue> weak_this = shared_from_this();
+
+    return std::move(mc::BufferHandle(
+               buffer_for(current_compositor_buffer, buffers),
+               [weak_this](mg::Buffer* b)
+               {
+                   if (auto self = weak_this.lock())
+                   {
+                       std::unique_lock<std::mutex> lock(self->guard);
+
+                       remove(b, self->pending_snapshots);
+
+                       self->snapshot_released.notify_all();
+                   }
+               }));
 }
 
-void mc::BufferQueue::snapshot_release(std::shared_ptr<graphics::Buffer> const& buffer)
+void mc::BufferQueue::snapshot_release(std::shared_ptr<graphics::Buffer> const& /*buffer*/)
 {
+#if 0
     std::unique_lock<std::mutex> lock(guard);
     if (!remove(buffer.get(), pending_snapshots))
     {
@@ -332,6 +372,7 @@ void mc::BufferQueue::snapshot_release(std::shared_ptr<graphics::Buffer> const& 
     }
 
     snapshot_released.notify_all();
+#endif
 }
 
 mg::BufferProperties mc::BufferQueue::properties() const

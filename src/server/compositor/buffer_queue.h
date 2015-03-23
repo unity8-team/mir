@@ -37,7 +37,10 @@ class GraphicBufferAllocator;
 namespace compositor
 {
 
-class BufferQueue : public BufferBundle
+class BufferHandle;
+
+class BufferQueue : public BufferBundle,
+                    public std::enable_shared_from_this<BufferQueue>
 {
 public:
     typedef std::function<void(graphics::Buffer* buffer)> Callback;
@@ -49,9 +52,9 @@ public:
 
     void client_acquire(Callback complete) override;
     void client_release(graphics::Buffer* buffer) override;
-    std::shared_ptr<graphics::Buffer> compositor_acquire(void const* user_id) override;
+    BufferHandle compositor_acquire(void const* user_id) override;
     void compositor_release(std::shared_ptr<graphics::Buffer> const& buffer) override;
-    std::shared_ptr<graphics::Buffer> snapshot_acquire() override;
+    BufferHandle snapshot_acquire() override;
     void snapshot_release(std::shared_ptr<graphics::Buffer> const& buffer) override;
 
     graphics::BufferProperties properties() const override;

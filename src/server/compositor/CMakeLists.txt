@@ -3,7 +3,6 @@ set(
 
   default_display_buffer_compositor.cpp
   default_display_buffer_compositor_factory.cpp
-  temporary_buffers.cpp
   buffer_stream_factory.cpp
   buffer_stream_surfaces.cpp
   gl_renderer.cpp
