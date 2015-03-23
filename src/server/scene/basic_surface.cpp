@@ -712,7 +712,6 @@ public:
     { return id_; }
 private:
     std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
-    mc::BufferHandle mutable compositor_buffer_handle;
     void const*const compositor_id;
     float const alpha_;
     bool const shaped_;
