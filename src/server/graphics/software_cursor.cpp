@@ -75,7 +75,7 @@ public:
 
     mc::BufferHandle buffer_handle() const override
     {
-    	mc::BufferHandle handle;
+        mc::BufferHandle handle;
         return handle;
     }
 
