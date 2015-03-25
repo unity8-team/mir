@@ -114,7 +114,7 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> create_display_buffer(
 {
     std::shared_ptr<mga::FramebufferBundle> fbs{display_buffer_builder.create_framebuffers(attribs)};
     auto cache = std::make_shared<mga::InterpreterCache>();
-    auto interpreter = std::make_shared<mga::ServerRenderWindow>(fbs, cache);
+    auto interpreter = std::make_shared<mga::ServerRenderWindow>(fbs, attribs.display_format, cache);
     auto native_window = std::make_shared<mga::MirNativeWindow>(interpreter);
     return std::unique_ptr<mga::ConfigurableDisplayBuffer>(new mga::DisplayBuffer(
         name,
@@ -135,9 +135,12 @@ mga::Display::Display(
     std::shared_ptr<GLConfig> const& gl_config,
     std::shared_ptr<DisplayReport> const& display_report,
     mga::OverlayOptimization overlay_option) :
+    display_report{display_report},
     display_buffer_builder{display_buffer_builder},
     hwc_config{display_buffer_builder->create_hwc_configuration()},
-    hotplug_subscription{hwc_config->subscribe_to_config_changes(std::bind(&mga::Display::on_hotplug, this))},
+    hotplug_subscription{hwc_config->subscribe_to_config_changes(
+        std::bind(&mga::Display::on_hotplug, this),
+        std::bind(&mga::Display::on_vsync, this, std::placeholders::_1))},
     primary_attribs(hwc_config->active_attribs_for(mga::DisplayName::primary)),
     external_attribs(hwc_config->active_attribs_for(mga::DisplayName::external)),
     config(
@@ -267,6 +270,11 @@ void mga::Display::on_hotplug()
     std::lock_guard<decltype(configuration_mutex)> lock{configuration_mutex};
     configuration_dirty = true;
     display_change_pipe->notify_change();
+}
+
+void mga::Display::on_vsync(DisplayName name) const
+{
+    display_report->report_vsync(name);
 }
 
 void mga::Display::register_configuration_change_handler(

@@ -36,9 +36,11 @@ Build-Depends: cmake,
                libumockdev-dev (>= 0.6),
                umockdev (>= 0.8.7),
                libudev-dev,
+               libgtest-dev,
                google-mock (>= 1.6.0+svn437),
                valgrind [!arm64],
                libglib2.0-dev,
+               libfreetype6-dev,
 Standards-Version: 3.9.4
 Homepage: https://launchpad.net/mir
 # If you aren't a member of ~mir-team but need to upload packaging changes,
@@ -93,7 +95,7 @@ Section: libdevel
 Architecture: i386 amd64 armhf arm64
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Depends: libmircommon3 (= ${binary:Version}), 
+Depends: libmircommon4 (= ${binary:Version}), 
          libprotobuf-dev (>= 2.4.1),
          libxkbcommon-dev,
          ${misc:Depends},
@@ -216,6 +218,7 @@ Package: mir-demos
 Architecture: i386 amd64 armhf arm64
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+Recommends: fonts-liberation
 Description: Display server for Ubuntu - demonstration programs
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
@@ -252,7 +255,7 @@ Description: Display Server for Ubuntu - stress tests and other test tools
  .
  Contains a tool for stress testing the Mir display server
 
-Package: libmircommon3
+Package: libmircommon4
 Section: libs
 Architecture: i386 amd64 armhf arm64
 Multi-Arch: same

@@ -214,12 +214,14 @@ bool me::WindowManager::handle(MirEvent const& event)
             event.key.scan_code == KEY_TAB)  // TODO: Use keycode once we support keymapping on the server side
         {
             focus_controller->focus_next();
+            if (auto const surface = focus_controller->focused_surface())
+                focus_controller->raise({surface});
             return true;
         }
         else if (event.key.modifiers & mir_key_modifier_alt &&
                  event.key.scan_code == KEY_F4)
         {
-            auto const app = focus_controller->focussed_application().lock();
+            auto const app = focus_controller->focused_session();
             if (app)
             {
                 // Ask the app to close politely. It has the right to refuse.
@@ -264,7 +266,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                  (event.key.scan_code == KEY_L) &&
                  focus_controller)
         {
-            auto const app = focus_controller->focussed_application().lock();
+            auto const app = focus_controller->focused_session();
             if (app)
             {
                 app->set_lifecycle_state(mir_lifecycle_state_will_suspend);
@@ -406,7 +408,7 @@ bool me::WindowManager::handle(MirEvent const& event)
         if (zoom_exponent || new_zoom_mag)
             force_redraw();
 
-        auto const app = focus_controller->focussed_application().lock();
+        auto const app = focus_controller->focused_session();
 
         int fingers = static_cast<int>(event.motion.pointer_count);
 
@@ -503,6 +505,8 @@ bool me::WindowManager::handle(MirEvent const& event)
             if (abs(dir.dx.as_int()) >= min_swipe_distance)
             {
                 focus_controller->focus_next();
+                if (auto const surface = focus_controller->focused_surface())
+                    focus_controller->raise({surface});
                 handled = true;
             }
         }

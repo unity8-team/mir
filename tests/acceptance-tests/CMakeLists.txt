@@ -18,6 +18,7 @@ set(
   test_client_surface_swap_buffers.cpp
   test_command_line_handling.cpp
   test_client_surfaces.cpp
+  test_custom_window_management.cpp
   test_server_shutdown.cpp
   test_client_focus_notification.cpp
   test_client_authorization.cpp
@@ -34,6 +35,8 @@ set(
   test_debug_api.cpp
   test_unresponsive_client.cpp
   test_client_platform_operation.cpp
+  test_latency.cpp
+  test_shell_control_of_surface_configuration.cpp
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")

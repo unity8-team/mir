@@ -17,7 +17,6 @@ add_library(eglapp STATIC
 
 add_library(exampleserverconfig STATIC
   server_example_canonical_window_manager.cpp
-  server_example_generic_shell.cpp
   server_example_display_configuration_policy.cpp
   server_example_input_event_filter.cpp
   server_example_log_options.cpp
@@ -26,7 +25,6 @@ add_library(exampleserverconfig STATIC
   server_example_host_lifecycle_event.cpp
   server_example_tiling_window_manager.cpp
   server_example_window_management.cpp
-  server_example_shell.cpp
 )
 
 target_link_libraries(eglapp
@@ -105,6 +103,9 @@ target_link_libraries(mir_demo_client_progressbar mirclient)
 mir_add_wrapped_executable(mir_demo_client_display_config demo_client_display_config.c)
 target_link_libraries(mir_demo_client_display_config eglapp)
 
+mir_add_wrapped_executable(mir_demo_client_eglsquare eglsquare.cpp)
+target_link_libraries(mir_demo_client_eglsquare eglapp)
+
 mir_add_wrapped_executable(mir_demo_client_flicker
   flicker.c
 )
@@ -182,8 +183,7 @@ target_link_libraries(mir_demo_standalone_render_overlays
     mircommon
 )
 
-# FIXME: Bug not fixed yet.
-if (MIR_ENABLE_TESTS AND MIR_TEST_CLIENT_ABI)
+if (MIR_ENABLE_TESTS)
   # Regression tests for LP: #1415321
 
   # To see reasons for failure:  ctest -V -R Clients-only-use-client-symbols
@@ -192,9 +192,18 @@ if (MIR_ENABLE_TESTS AND MIR_TEST_CLIENT_ABI)
     COMMAND /bin/sh -c "!(nm -u .mir_demo_client_* mir_demo_client* | grep -v @@MIR_CLIENT | grep 'U mir_')"
   )
 
+# We use a slightly weaker version of the test with clang as that generates spurious NEEDED
+if (NOT "${CMAKE_CXX_COMPILER}" MATCHES "clang")
   # To see reasons for failure:  ctest -V -R Clients-only-use-client-ABI
   add_test(NAME Clients-only-use-client-ABI
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMAND /bin/sh -c "!(objdump -p .mir_demo_client_* mir_demo_client*  | grep NEEDED | grep libmir | grep -v libmirclient)"
   )
+else()
+  # To see reasons for failure:  ctest -V -R Clients-only-use-client-ABI
+  add_test(NAME Clients-only-use-client-ABI
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    COMMAND /bin/sh -c "!(nm -u .mir_demo_client_* mir_demo_client* | grep -v @@MIR_CLIENT | grep @@MIR_)"
+  )
+endif ()
 endif ()

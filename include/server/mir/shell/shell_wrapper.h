@@ -32,9 +32,17 @@ public:
 
     void focus_next() override;
 
-    std::weak_ptr<scene::Session> focussed_application() const override;
+    std::shared_ptr<scene::Session> focused_session() const override;
 
-    void set_focus_to(std::shared_ptr<scene::Session> const& focus) override;
+    void set_focus_to(
+        std::shared_ptr<scene::Session> const& focus_session,
+        std::shared_ptr<scene::Surface> const& focus_surface) override;
+
+    std::shared_ptr<scene::Surface> focused_surface() const override;
+
+    auto surface_at(geometry::Point cursor) const -> std::shared_ptr<scene::Surface> override;
+
+    void raise(SurfaceSet const& surfaces) override;
 
     std::shared_ptr<scene::Session> open_session(
         pid_t client_pid,
@@ -42,8 +50,6 @@ public:
         std::shared_ptr<frontend::EventSink> const& sink) override;
 
     void close_session(std::shared_ptr<scene::Session> const& session) override;
-
-    void handle_surface_created(std::shared_ptr<scene::Session> const& session) override;
 
     std::shared_ptr<scene::PromptSession> start_prompt_session_for(
         std::shared_ptr<scene::Session> const& session,
@@ -68,6 +74,11 @@ public:
     int get_surface_attribute(
         std::shared_ptr<scene::Surface> const& surface,
         MirSurfaceAttrib attrib) override;
+
+    void add_display(geometry::Rectangle const& area) override;
+    void remove_display(geometry::Rectangle const& area) override;
+
+    bool handle(MirEvent const& event) override;
 
 protected:
     std::shared_ptr<Shell> const wrapped;

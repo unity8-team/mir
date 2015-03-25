@@ -18,6 +18,7 @@
 
 #include "mir/shell/abstract_shell.h"
 #include "mir/shell/input_targeter.h"
+#include "mir/shell/null_window_manager.h"
 #include "mir/scene/prompt_session.h"
 #include "mir/scene/prompt_session_manager.h"
 #include "mir/scene/session_coordinator.h"
@@ -31,13 +32,15 @@ namespace msh = mir::shell;
 
 msh::AbstractShell::AbstractShell(
     std::shared_ptr<InputTargeter> const& input_targeter,
-    std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
-    std::shared_ptr<scene::SessionCoordinator> const& session_coordinator,
-    std::shared_ptr<scene::PromptSessionManager> const& prompt_session_manager) :
+    std::shared_ptr<ms::SurfaceCoordinator> const& surface_coordinator,
+    std::shared_ptr<ms::SessionCoordinator> const& session_coordinator,
+    std::shared_ptr<ms::PromptSessionManager> const& prompt_session_manager,
+    std::function<std::shared_ptr<shell::WindowManager>(FocusController* focus_controller)> const& wm_builder) :
     input_targeter(input_targeter),
     surface_coordinator(surface_coordinator),
     session_coordinator(session_coordinator),
-    prompt_session_manager(prompt_session_manager)
+    prompt_session_manager(prompt_session_manager),
+    window_manager(wm_builder(this))
 {
 }
 
@@ -50,7 +53,9 @@ std::shared_ptr<ms::Session> msh::AbstractShell::open_session(
     std::string const& name,
     std::shared_ptr<mf::EventSink> const& sink)
 {
-    return session_coordinator->open_session(client_pid, name, sink);
+    auto const result = session_coordinator->open_session(client_pid, name, sink);
+    window_manager->add_session(result);
+    return result;
 }
 
 void msh::AbstractShell::close_session(
@@ -58,25 +63,27 @@ void msh::AbstractShell::close_session(
 {
     prompt_session_manager->remove_session(session);
     session_coordinator->close_session(session);
+    window_manager->remove_session(session);
 }
 
 mf::SurfaceId msh::AbstractShell::create_surface(
     std::shared_ptr<ms::Session> const& session,
     ms::SurfaceCreationParameters const& params)
 {
-    return session->create_surface(params);
+    auto const build = [this](std::shared_ptr<ms::Session> const& session, ms::SurfaceCreationParameters const& placed_params)
+        {
+            return session->create_surface(placed_params);
+        };
+
+    return window_manager->add_surface(session, params, build);
 }
 
 void msh::AbstractShell::destroy_surface(
     std::shared_ptr<ms::Session> const& session,
     mf::SurfaceId surface)
 {
+    window_manager->remove_surface(session, session->surface(surface));
     session->destroy_surface(surface);
-}
-
-void msh::AbstractShell::handle_surface_created(
-    std::shared_ptr<ms::Session> const& /*session*/)
-{
 }
 
 std::shared_ptr<ms::PromptSession> msh::AbstractShell::start_prompt_session_for(
@@ -100,12 +107,12 @@ void msh::AbstractShell::stop_prompt_session(
 }
 
 int msh::AbstractShell::set_surface_attribute(
-    std::shared_ptr<ms::Session> const& /*session*/,
+    std::shared_ptr<ms::Session> const& session,
     std::shared_ptr<ms::Surface> const& surface,
     MirSurfaceAttrib attrib,
     int value)
 {
-    return surface->configure(attrib, value);
+    return window_manager->set_surface_attribute(session, surface, attrib, value);
 }
 
 int msh::AbstractShell::get_surface_attribute(
@@ -119,30 +126,27 @@ int msh::AbstractShell::get_surface_attribute(
 void msh::AbstractShell::focus_next()
 {
     std::unique_lock<std::mutex> lock(focus_mutex);
-    auto focus = focus_session.lock();
+    auto session = focus_session.lock();
 
-    focus = session_coordinator->successor_of(focus);
+    session = session_coordinator->successor_of(session);
 
-    set_focus_to_locked(lock, focus);
-}
+    std::shared_ptr<ms::Surface> surface;
 
-std::weak_ptr<ms::Session> msh::AbstractShell::focussed_application() const
+    if (session)
+        surface = session->default_surface();
+
+    set_focus_to_locked(lock, session, surface);}
+
+std::shared_ptr<ms::Session> msh::AbstractShell::focused_session() const
 {
     std::unique_lock<std::mutex> lg(focus_mutex);
-    return focus_session;
+    return focus_session.lock();
 }
 
 std::shared_ptr<ms::Surface> msh::AbstractShell::focused_surface() const
 {
     std::unique_lock<std::mutex> lock(focus_mutex);
     return focus_surface.lock();
-}
-
-void msh::AbstractShell::set_focus_to(
-    std::shared_ptr<scene::Session> const& focus)
-{
-    std::unique_lock<std::mutex> lg(focus_mutex);
-    set_focus_to_locked(lg, focus);
 }
 
 void msh::AbstractShell::set_focus_to(
@@ -156,10 +160,9 @@ void msh::AbstractShell::set_focus_to(
 
 void msh::AbstractShell::set_focus_to_locked(
     std::unique_lock<std::mutex> const& /*lock*/,
+    std::shared_ptr<ms::Session> const& session,
     std::shared_ptr<ms::Surface> const& surface)
 {
-    setting_focus_to(surface);
-
     if (surface)
     {
         // Ensure the surface has really taken the focus before notifying it that it is focused
@@ -174,30 +177,6 @@ void msh::AbstractShell::set_focus_to_locked(
     {
         input_targeter->focus_cleared();
     }
-}
-
-void msh::AbstractShell::set_focus_to_locked(
-    std::unique_lock<std::mutex> const& lock,
-    std::shared_ptr<ms::Session> const& session)
-{
-    std::shared_ptr<ms::Surface> surface;
-
-    if (session)
-        surface = session->default_surface();
-
-    set_focus_to_locked(lock, session, surface);
-}
-
-void msh::AbstractShell::set_focus_to_locked(
-    std::unique_lock<std::mutex> const& lock,
-    std::shared_ptr<ms::Session> const& session,
-    std::shared_ptr<ms::Surface> const& surface)
-{
-    setting_focus_to(session);
-
-    auto old_focus = focus_session.lock();
-
-    set_focus_to_locked(lock, surface);
 
     focus_session = session;
 
@@ -211,10 +190,46 @@ void msh::AbstractShell::set_focus_to_locked(
     }
 }
 
-void msh::AbstractShell::setting_focus_to(std::shared_ptr<ms::Surface> const& /*surface*/)
+void msh::AbstractShell::add_display(geometry::Rectangle const& area)
 {
+    window_manager->add_display(area);
 }
 
-void msh::AbstractShell::setting_focus_to(std::shared_ptr<ms::Session> const& /*session*/)
+void msh::AbstractShell::remove_display(geometry::Rectangle const& area)
 {
+    window_manager->remove_display(area);
 }
+
+bool msh::AbstractShell::handle(MirEvent const& event)
+{
+    if (mir_event_get_type(&event) != mir_event_type_input)
+        return false;
+
+    auto const input_event = mir_event_get_input_event(&event);
+
+    switch (mir_input_event_get_type(input_event))
+    {
+    case mir_input_event_type_key:
+        return window_manager->handle_key_event(mir_input_event_get_key_input_event(input_event));
+
+    case mir_input_event_type_touch:
+        return window_manager->handle_touch_event(mir_input_event_get_touch_input_event(input_event));
+
+    case mir_input_event_type_pointer:
+        return window_manager->handle_pointer_event(mir_input_event_get_pointer_input_event(input_event));
+    }
+
+    return false;
+}
+
+auto msh::AbstractShell::surface_at(geometry::Point cursor) const
+-> std::shared_ptr<scene::Surface>
+{
+    return surface_coordinator->surface_at(cursor);
+}
+
+void msh::AbstractShell::raise(SurfaceSet const& surfaces)
+{
+    surface_coordinator->raise(surfaces);
+}
+
