@@ -23,12 +23,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <atomic>
-#include <condition_variable>
-#include <future>
 
 #include <mutex>
-
-#include "rpc/rpc_future_resolver.h"
 
 #include "mir_protobuf.pb.h"
 
