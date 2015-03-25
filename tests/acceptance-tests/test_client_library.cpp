@@ -926,9 +926,12 @@ struct ThreadTrackingCallbacks
 class EventDispatchThread
 {
 public:
-    EventDispatchThread(MirConnection* connection, ThreadTrackingCallbacks& data)
+    template<typename Period, typename Rep>
+    EventDispatchThread(MirConnection* connection,
+                        ThreadTrackingCallbacks& data,
+                        std::chrono::duration<Period, Rep> timeout)
         : runner{[this]() { shutdown.raise(); },
-                 [this, connection, &data]()
+                 [this, connection, &data, timeout]()
                  {
                      using namespace std::literals::chrono_literals;
 
@@ -936,7 +939,7 @@ public:
 
                      auto const fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
 
-                     auto const end_time = std::chrono::steady_clock::now() + 60s;
+                     auto const end_time = std::chrono::steady_clock::now() + timeout;
                      while(!shutdown.raised() && (std::chrono::steady_clock::now() < end_time))
                      {
                          if (mt::fd_becomes_readable(fd, 10ms))
@@ -958,14 +961,16 @@ private:
 
 TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 {
+    using namespace std::literals::chrono_literals;
+
     ThreadTrackingCallbacks data;
 
     auto connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    EventDispatchThread event_thread{connection, data};
+    EventDispatchThread event_thread{connection, data, 10min};
 
-    EXPECT_TRUE(data.connection_ready_called.wait_for(std::chrono::seconds{60}));
+    EXPECT_TRUE(data.connection_ready_called.wait_for(5min));
     ASSERT_THAT(connection, IsValid());
 
 
@@ -997,9 +1002,9 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    EventDispatchThread event_thread{connection, data};
+    EventDispatchThread event_thread{connection, data, 10min};
 
-    EXPECT_TRUE(data.connection_ready_called.wait_for(60s));
+    EXPECT_TRUE(data.connection_ready_called.wait_for(5min));
     ASSERT_THAT(connection, IsValid());
 
     auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
@@ -1016,11 +1021,13 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 
     mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
 
-    EXPECT_TRUE(data.event_received.wait_for(60s));
+    EXPECT_TRUE(data.event_received.wait_for(5min));
+
+    ASSERT_THAT(mir_surface_get_focus(data.surf), Eq(mir_surface_focused));
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
-    EXPECT_TRUE(data.input_event_received.wait_for(60s));
+    EXPECT_TRUE(data.input_event_received.wait_for(5min));
 }
 
 namespace
