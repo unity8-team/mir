@@ -101,13 +101,13 @@ public:
         std::unique_lock<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
         if (!thread_terminating.wait_for (lock,
                                           std::chrono::seconds{60},
-                                          [this]() { return terminating_thread_id != std::thread::id{}; }))
+                                          [this]() { return !terminating_threads.empty(); }))
         {
             BOOST_THROW_EXCEPTION((std::runtime_error{"Thread failed to shutdown"}));
         }
 
-        auto killed_thread_id = terminating_thread_id;
-        terminating_thread_id = std::thread::id{};
+        auto killed_thread_id = terminating_threads.back();
+        terminating_threads.pop_back();
         return killed_thread_id;
     }
 
@@ -127,7 +127,7 @@ public:
     {
         {
             std::lock_guard<decltype(terminating_thread_mutex)> lock{terminating_thread_mutex};
-            terminating_thread_id = std::this_thread::get_id();
+            terminating_threads.push_back(std::this_thread::get_id());
         }
         thread_terminating.notify_one();
         {
@@ -146,7 +146,7 @@ private:
 
     std::mutex terminating_thread_mutex;
     std::condition_variable thread_terminating;
-    std::thread::id terminating_thread_id;
+    std::vector<std::thread::id> terminating_threads;
 
     std::mutex running_flag_guard;
     std::unordered_map<std::thread::id, bool*> running_flags;
