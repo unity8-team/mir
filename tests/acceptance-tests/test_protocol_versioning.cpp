@@ -131,7 +131,7 @@ public:
 };
 }
 
-TEST_F(ProtocolVersioningTest, ClientV1ConnectsToServerV1or2)
+TEST_F(ProtocolVersioningTest, client_v1_connects_to_server_v1_or_v2)
 {
     config.the_connection_protocols()->push_back(std::make_shared<DummySessionCreator>());
     config.the_connection_protocols()->push_back(config.make_protobuf_connection_creator());
