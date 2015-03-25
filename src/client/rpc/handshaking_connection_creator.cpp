@@ -64,7 +64,7 @@ public:
 
 
 
-    ~AtomicPtr()
+    ~AtomicPtr() noexcept(noexcept(reset()))
     {
         reset();
     }
