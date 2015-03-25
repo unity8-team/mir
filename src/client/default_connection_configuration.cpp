@@ -50,11 +50,6 @@ namespace mcl = mir::client;
 
 namespace
 {
-}
-
-
-namespace
-{
 std::string const off_opt_val{"off"};
 std::string const log_opt_val{"log"};
 std::string const lttng_opt_val{"lttng"};
