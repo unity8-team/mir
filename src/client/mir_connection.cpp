@@ -347,7 +347,6 @@ MirWaitHandle* MirConnection::connect(
             std::lock_guard<decltype(mutex)> lock(mutex);
             connect_result.set_error(std::string{"Error in connect()"} +
                                      boost::diagnostic_information(err));
-            connect_wait_handle.result_received();
         }
     });
 
