@@ -17,6 +17,7 @@
  */
 
 #include "mir/shell/null_window_manager.h"
+#include "mir/scene/surface.h"
 
 namespace mf = mir::frontend;
 namespace ms = mir::scene;
@@ -71,9 +72,9 @@ bool msh::NullWindowManager::handle_pointer_event(MirPointerInputEvent const* /*
 
 int msh::NullWindowManager::set_surface_attribute(
     std::shared_ptr<scene::Session> const& /*session*/,
-    std::shared_ptr<scene::Surface> const& /*surface*/,
-    MirSurfaceAttrib /*attrib*/,
+    std::shared_ptr<scene::Surface> const& surface,
+    MirSurfaceAttrib attrib,
     int value)
 {
-    return value;
+    return surface->configure(attrib, value);
 }
