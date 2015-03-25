@@ -87,44 +87,6 @@ IMPLEMENT_FUNCTION1(instance, UAUiStage, u_application_options_get_stage, UAppli
 IMPLEMENT_FUNCTION2(instance, UApplicationInstance*, u_application_instance_new_from_description_with_options, UApplicationDescription*, UApplicationOptions*);
 IMPLEMENT_FUNCTION1(connection, MirConnection*, u_application_instance_get_mir_connection, UApplicationInstance*);
 
-// Application Ui Helpers
-
-// Clipboard
-IMPLEMENT_VOID_FUNCTION2(clipboard, ua_ui_set_clipboard_content, void*, size_t);
-IMPLEMENT_VOID_FUNCTION2(clipboard, ua_ui_get_clipboard_content, void**, size_t*);
-
-// UAUiDisplay
-IMPLEMENT_FUNCTION1(ui_display, UAUiDisplay*, ua_ui_display_new_with_index, size_t);
-IMPLEMENT_VOID_FUNCTION1(ui_display, ua_ui_display_destroy, UAUiDisplay*);
-IMPLEMENT_FUNCTION1(ui_display, uint32_t, ua_ui_display_query_horizontal_res, UAUiDisplay*);
-IMPLEMENT_FUNCTION1(ui_display, uint32_t, ua_ui_display_query_vertical_res, UAUiDisplay*);
-IMPLEMENT_FUNCTION1(ui_display, EGLNativeDisplayType, ua_ui_display_get_native_type, UAUiDisplay*);
-
-
-// UAUiWindowProperties
-IMPLEMENT_FUNCTION0(ui_window, UAUiWindowProperties*, ua_ui_window_properties_new_for_normal_window);
-IMPLEMENT_VOID_FUNCTION1(ui_window, ua_ui_window_properties_destroy, UAUiWindowProperties*);
-IMPLEMENT_VOID_FUNCTION3(ui_window, ua_ui_window_properties_set_titlen, UAUiWindowProperties*, const char*, size_t);
-IMPLEMENT_FUNCTION1(ui_window, const char*, ua_ui_window_properties_get_title, UAUiWindowProperties*);
-IMPLEMENT_VOID_FUNCTION2(ui_window, ua_ui_window_properties_set_role, UAUiWindowProperties*, UAUiWindowRole);
-IMPLEMENT_VOID_FUNCTION3(ui_window, ua_ui_window_properties_set_input_cb_and_ctx, UAUiWindowProperties*, UAUiWindowInputEventCb, void*);
-IMPLEMENT_VOID_FUNCTION3(ui_window, ua_ui_window_properties_set_event_cb_and_ctx, UAUiWindowProperties*, UAUiWindowEventCb, void*);
-IMPLEMENT_VOID_FUNCTION3(ui_window, ua_ui_window_properties_set_dimensions, UAUiWindowProperties*, uint32_t, uint32_t);
-
-// UAUiWindow
-IMPLEMENT_FUNCTION2(ui_window, UAUiWindow*, ua_ui_window_new_for_application_with_properties, UApplicationInstance*, UAUiWindowProperties*);
-IMPLEMENT_VOID_FUNCTION1(ui_window, ua_ui_window_destroy, UAUiWindow*);
-IMPLEMENT_VOID_FUNCTION3(ui_window, ua_ui_window_get_size, UAUiWindow*, uint32_t*, uint32_t*);
-IMPLEMENT_FUNCTION1(ui_window, int, ua_ui_window_is_focused, UAUiWindow*);
-IMPLEMENT_FUNCTION3(ui_window, UStatus, ua_ui_window_move, UAUiWindow*, uint32_t, uint32_t);
-IMPLEMENT_FUNCTION3(ui_window, UStatus, ua_ui_window_resize, UAUiWindow*, uint32_t, uint32_t);
-IMPLEMENT_FUNCTION1(ui_window, UStatus, ua_ui_window_hide, UAUiWindow*);
-IMPLEMENT_FUNCTION1(ui_window, UStatus, ua_ui_window_show, UAUiWindow*);
-IMPLEMENT_VOID_FUNCTION1(ui_window, ua_ui_window_request_fullscreen, UAUiWindow*);
-IMPLEMENT_FUNCTION1(ui_window, EGLNativeWindowType, ua_ui_window_get_native_type, UAUiWindow*);
-IMPLEMENT_FUNCTION1(ui_window, UApplicationUiWindowOrientation, ua_ui_window_get_orientation, UAUiWindow*);
-IMPLEMENT_FUNCTION2(ui_window, void, ua_ui_window_request_state, UAUiWindow*, UApplicationUiWindowState);
-
 // Ubuntu Application Sensors
 
 // Acceleration Sensor

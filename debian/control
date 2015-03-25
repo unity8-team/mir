@@ -70,9 +70,9 @@ Multi-Arch: same
 Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libubuntu-application-api-headers (= ${binary:Version}),
-         libubuntu-application-api2,
-         ubuntu-application-api2-touch (= ${binary:Version}),
-         ubuntu-application-api2-desktop (= ${binary:Version}),
+         libubuntu-application-api3,
+         ubuntu-application-api3-touch (= ${binary:Version}),
+         ubuntu-application-api3-desktop (= ${binary:Version}),
          libmirclient-dev,
          ${misc:Depends},
 Suggests: libubuntu-application-api-doc,
@@ -80,26 +80,26 @@ Description: Ubuntu Application API for system level capabilities (development)
  This package provides the development library and headers (via
  dependency) for the Ubuntu Application API.
 
-Package: ubuntu-application-api2-touch
+Package: ubuntu-application-api3-touch
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libubuntu-application-api2 (= ${binary:Version}),
+         libubuntu-application-api3 (= ${binary:Version}),
 Description: Implementation of the Platform API for Ubuntu Touch
  This package provides the implementation of the Platform API to
  bring up an Ubuntu Touch system.
 
-Package: ubuntu-application-api2-desktop
+Package: ubuntu-application-api3-desktop
 Section: libs
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libubuntu-application-api2 (= ${binary:Version}),
+         libubuntu-application-api3 (= ${binary:Version}),
 Description: Implementation of the Platform API for Ubuntu Desktop
  This package provides the implementation of the Platform API to
  bring up an Ubuntu Desktop system.
@@ -114,7 +114,7 @@ Multi-Arch: same
 Depends: ${misc:Depends},
          libgles2-mesa-dev,
          libubuntu-platform-hardware-api-headers (= ${binary:Version}),
-         libubuntu-platform-hardware-api2
+         libubuntu-platform-hardware-api3
 Suggests: libubuntu-application-api-doc,
 Description: Platform API for system level capabilities (development)
  This package provides the development library and headers (via
@@ -130,7 +130,7 @@ Depends: ${misc:Depends},
 Description: Platform API for system level capabilities (development)
  This package provides the developer documentation for the Platform API.
 
-Package: libubuntu-platform-hardware-api2
+Package: libubuntu-platform-hardware-api3
 Section: libs
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
@@ -143,28 +143,28 @@ Description: Hybris implementation of the hw-access parts of the Platform API (r
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the device drivers live.
 
-Package: libubuntu-application-api2
+Package: libubuntu-application-api3
 Section: libs
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         ubuntu-application-api2-test,
+         ubuntu-application-api3-test,
 Description: Hybris implementation of the Platform API (runtime)
  This package provides the hybris implementation of the Platform API.
  .
  The produced library should be used via libhybris, to communicate with the
  Android userspace, which is where the Ubuntu Application Manager lives.
 
-Package: ubuntu-application-api2-test
+Package: ubuntu-application-api3-test
 Section: libs
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         libubuntu-application-api2 (= ${binary:Version}),
+         libubuntu-application-api3 (= ${binary:Version}),
 Description: test implementation of the Platform API
  This package provides an implementation of the Platform API for testing. It
  does not communicate with actual hardware, but reads input from a text file.
@@ -174,14 +174,14 @@ Description: test implementation of the Platform API
  .
  For now this provides simulated sensors.
 
-Package: ubuntu-application-api2-examples
+Package: ubuntu-application-api3-examples
 Architecture: any
 Replaces: libplatform-api1-hybris-tests (<< 2.0.0)
 Breaks: libplatform-api1-hybris-tests (<< 2.0.0)
 Depends: ${misc:Depends},
          ${shlibs:Depends},
-         ubuntu-application-api2-test,
-         ubuntu-application-api2-touch | ubuntu-application-api2-desktop,
+         ubuntu-application-api3-test,
+         ubuntu-application-api3-touch | ubuntu-application-api3-desktop,
 Description: Binary examples for Ubuntu Application API
  This package provides a set of example programs that excercise most the
  set of APIs provided by the Application API.
@@ -224,10 +224,10 @@ Description: dummy transitional package for libplatform-hardware-api1-dev
 Package: libplatform-api1-hybris-tests
 Section: oldlibs
 Architecture: all
-Depends: ubuntu-application-api2-examples,
+Depends: ubuntu-application-api3-examples,
          ${misc:Depends},
 Description: dummy transitional package for libplatform-api1-hybris-tests
- This is a dummy transitional package, please use ubuntu-application-api2-examples
+ This is a dummy transitional package, please use ubuntu-application-api3-examples
 
 Package: libplatform-api1-doc
 Section: oldlibs

@@ -1,4 +1,4 @@
-libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
+libubuntu_application_api.so.3 libubuntu-application-api3 #MINVER#
  u_application_description_destroy@Base 0.18.1daily13.06.21
  u_application_description_new@Base 0.18.1daily13.06.21
  u_application_description_set_application_id@Base 0.18.1daily13.06.21
@@ -105,37 +105,10 @@ libubuntu_application_api.so.2 libubuntu-application-api2 #MINVER#
  ua_sensors_proximity_new@Base 0.18.1daily13.06.21
  ua_sensors_proximity_set_event_rate@Base 2.1.0+14.10.20140623.1
  ua_sensors_proximity_set_reading_cb@Base 0.18.1daily13.06.21
- ua_ui_display_destroy@Base 0.18.1daily13.06.21
- ua_ui_display_get_native_type@Base 0.18.1daily13.06.21
- ua_ui_display_new_with_index@Base 0.18.1daily13.06.21
- ua_ui_display_query_horizontal_res@Base 0.18.1daily13.06.21
- ua_ui_display_query_vertical_res@Base 0.18.1daily13.06.21
- ua_ui_get_clipboard_content@Base 0.18.1daily13.06.21
  ua_ui_session_new_with_properties@Base 0.18.1daily13.06.21
  ua_ui_session_properties_new@Base 0.18.1daily13.06.21
  ua_ui_session_properties_set_remote_pid@Base 0.18.1daily13.06.21
  ua_ui_session_properties_set_type@Base 0.18.1daily13.06.21
- ua_ui_set_clipboard_content@Base 0.18.1daily13.06.21
- ua_ui_window_destroy@Base 0.18.1daily13.06.21
- ua_ui_window_get_native_type@Base 0.18.1daily13.06.21
- ua_ui_window_get_orientation@Base 2.4.0+14.10.20140922.1
- ua_ui_window_get_size@Base 2.0.0+14.10.20140612
- ua_ui_window_hide@Base 0.18.1daily13.06.21
- ua_ui_window_is_focused@Base 2.2.0+14.10.20140728
- ua_ui_window_move@Base 0.18.1daily13.06.21
- ua_ui_window_new_for_application_with_properties@Base 0.18.1daily13.06.21
- ua_ui_window_properties_destroy@Base 0.18.1daily13.06.21
- ua_ui_window_properties_get_title@Base 0.18.1daily13.06.21
- ua_ui_window_properties_new_for_normal_window@Base 0.18.1daily13.06.21
- ua_ui_window_properties_set_dimensions@Base 2.0.0+14.10.20140612
- ua_ui_window_properties_set_event_cb_and_ctx@Base 2.2.0+14.10.20140728
- ua_ui_window_properties_set_input_cb_and_ctx@Base 0.18.1daily13.06.21
- ua_ui_window_properties_set_role@Base 0.18.1daily13.06.21
- ua_ui_window_properties_set_titlen@Base 0.18.1daily13.06.21
- ua_ui_window_request_fullscreen@Base 0.18.1daily13.06.21
- ua_ui_window_request_state@Base 2.5.0+14.10.20141001.3
- ua_ui_window_resize@Base 0.18.1daily13.06.21
- ua_ui_window_show@Base 0.18.1daily13.06.21
  ua_url_dispatcher_session@Base 0.18.3+13.10.20130823-0ubuntu1
  ua_url_dispatcher_session_open@Base 0.18.3+13.10.20130823-0ubuntu1
  uas_accelerometer_event_get_acceleration_x@Base 0.18.1daily13.06.21
