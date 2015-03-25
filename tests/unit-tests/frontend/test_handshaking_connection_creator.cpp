@@ -43,16 +43,21 @@ char const* mock_uuid = "28e0bbfb-20e6-4066-ba80-aa38a5538638";
 
 void write_client_header(int socket, mir::frontend::HandshakeProtocol& handshake)
 {
+    using namespace testing;
+
     uint16_t const client_header = htole16(handshake.header_size() + 36);
     uint16_t const total_header_size = htole16(2 + 36 + handshake.header_size());
     uuid_t id;
     handshake.protocol_id(id);
     std::array<char, 36> uuid;
     uuid_unparse(id, uuid.data());
+    std::vector<uint8_t> extra_data(handshake.header_size());
+    handshake.write_client_header(extra_data.data());
 
-    ASSERT_THAT(write(socket, &total_header_size, sizeof(total_header_size)), testing::Eq(sizeof(total_header_size)));
-    ASSERT_TRUE(write(socket, &client_header, sizeof client_header) == (sizeof client_header));
-    ASSERT_TRUE(write(socket, uuid.data(), 36) == 36);
+    ASSERT_THAT(write(socket, &total_header_size, sizeof(total_header_size)), Eq(sizeof(total_header_size)));
+    ASSERT_THAT(write(socket, &client_header, sizeof client_header), Eq(sizeof client_header));
+    ASSERT_THAT(write(socket, uuid.data(), 36), Eq(uuid.size()));
+    ASSERT_THAT(write(socket, extra_data.data(), extra_data.size()), Eq(extra_data.size()));
 }
 
 class MockHandshakeProtocol : public mir::frontend::HandshakeProtocol
@@ -249,7 +254,7 @@ TEST(HandshakingConnectionCreatorTest, incorrect_protocol_size_raises_exception)
     uint16_t const mock_header_length{8};
 
     // First we lie about the protocol size...
-    ON_CALL(*mock_handshake, header_size()).WillByDefault(Return(mock_header_length - 1));
+    ON_CALL(*mock_handshake, header_size()).WillByDefault(Return(mock_header_length + 1));
     write_client_header(socket_fds[0], *mock_handshake);
 
     auto reader = std::make_shared<boost::asio::local::stream_protocol::socket>(io_service,
@@ -260,5 +265,13 @@ TEST(HandshakingConnectionCreatorTest, incorrect_protocol_size_raises_exception)
 
     dispatcher.create_connection_for(reader, mir::frontend::ConnectionContext(nullptr));
 
-    EXPECT_THROW({ io_service.run(); }, std::runtime_error);
+    try
+    {
+        io_service.run();
+        FAIL() << "IO service did not generate an expected exception";
+    }
+    catch (std::runtime_error& err)
+    {
+        EXPECT_THAT(err.what(), HasSubstr("disagree on protocol header size"));
+    }
 }
