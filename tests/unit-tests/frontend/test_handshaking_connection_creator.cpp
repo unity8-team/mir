@@ -101,7 +101,7 @@ private:
 
 }
 
-TEST(HandshakingConnectionCreatorTest, DispatchesSingleUUIDSupported)
+TEST(HandshakingConnectionCreatorTest, dispatches_single_UUID_supported)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -127,7 +127,7 @@ TEST(HandshakingConnectionCreatorTest, DispatchesSingleUUIDSupported)
     io_service.run();
 }
 
-TEST(HandshakingConnectionCreatorTest, DispatchesToCorrectUUID)
+TEST(HandshakingConnectionCreatorTest, dispatches_to_correct_UUID)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -155,7 +155,7 @@ TEST(HandshakingConnectionCreatorTest, DispatchesToCorrectUUID)
     io_service.run();
 }
 
-TEST(HandshakingConnectionCreatorTest, NoCommonProtocolRaisesException)
+TEST(HandshakingConnectionCreatorTest, no_common_protocol_raises_exception)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -181,7 +181,7 @@ TEST(HandshakingConnectionCreatorTest, NoCommonProtocolRaisesException)
     EXPECT_THROW({ io_service.run(); }, std::runtime_error);
 }
 
-TEST(HandshakingConnectionCreatorTest, LazyClientTimesOutInConnect)
+TEST(HandshakingConnectionCreatorTest, lazy_client_times_out_in_connect)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
@@ -231,7 +231,7 @@ TEST(HandshakingConnectionCreatorTest, LazyClientTimesOutInConnect)
 }
 
 
-TEST(HandshakingConnectionCreatorTest, IncorrectProtocolSizeRaisesException)
+TEST(HandshakingConnectionCreatorTest, incorrect_protocol_size_raises_exception)
 {
     using namespace testing;
     auto authorizer = std::make_shared<mtd::StubSessionAuthorizer> ();
