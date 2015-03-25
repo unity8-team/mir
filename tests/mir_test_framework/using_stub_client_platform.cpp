@@ -16,8 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include <unistd.h>
-
 #include "mir_test_framework/using_stub_client_platform.h"
 #include "mir_toolkit/mir_client_library.h"
 
