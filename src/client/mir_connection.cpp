@@ -331,8 +331,6 @@ MirWaitHandle* MirConnection::connect(
             return;
         }
 
-        connect_result.set_error("connect not called");
-
         try
         {
             server->connect(
