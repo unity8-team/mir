@@ -103,6 +103,8 @@ public:
     {
         this->transport->register_observer(std::shared_ptr<mclr::StreamTransport::Observer>{this, [](mclr::StreamTransport::Observer*){}});
         auto dispatchable_transport = std::shared_ptr<md::Dispatchable>{this->transport.get(), [](md::Dispatchable*){}};
+
+        std::lock_guard<std::mutex> lock(mutex);
         eventloop = std::make_unique<md::SimpleDispatchThread>(dispatchable_transport);
     }
 
