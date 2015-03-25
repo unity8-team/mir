@@ -68,7 +68,6 @@ private:
     std::shared_ptr<MessageProcessorReport> const report;
     std::atomic<int> next_session_id;
 
-public:
     std::shared_ptr<detail::Connections<detail::SocketConnection>> const connections;
 };
 }
