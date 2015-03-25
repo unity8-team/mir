@@ -27,8 +27,8 @@
  * This is the base backend loader for the Platform API
  */
 
-#define API_VERSION_MAJOR   "2"
-#define API_VERSION_MINOR   "9"
+#define API_VERSION_MAJOR   "3"
+#define API_VERSION_MINOR   "0"
 #define API_VERSION_PATCH   "0"
 #define SO_SUFFIX ".so." API_VERSION_MAJOR "." API_VERSION_MINOR "." API_VERSION_PATCH
 
