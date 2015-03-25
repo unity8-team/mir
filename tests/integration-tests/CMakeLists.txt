@@ -33,7 +33,7 @@ set(
   test_swapinterval.cpp
   test_server_client_types.cpp
   test_server_shutdown.cpp
-  test_default_shell.cpp
+  test_default_window_manager.cpp
   test_session.cpp
   session_management.cpp
   surface_composition.cpp
@@ -69,7 +69,6 @@ mir_add_wrapped_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
   ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
@@ -87,7 +86,7 @@ target_link_libraries(
   mir-test-framework
   mir-test-doubles
   mirclient-debug-extension
-
+  mirclient-static
   mirdraw
   mirclientrpc
   mirclientlttngstatic
