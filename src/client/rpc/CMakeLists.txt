@@ -7,5 +7,4 @@ add_library(mirclientrpc STATIC
   stream_socket_transport.cpp
   protobuf_protocol.cpp
   handshaking_connection_creator.cpp
-  rpc_future_resolver.cpp
 )
