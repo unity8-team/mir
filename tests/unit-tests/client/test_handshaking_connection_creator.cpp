@@ -20,6 +20,7 @@
 #include "src/client/rpc/protocol_interpreter.h"
 #include "mir/frontend/handshake_protocol.h"
 #include "src/client/rpc/stream_transport.h"
+#include "src/client/rpc/rpc_channel_resolver.h"
 
 #include <sys/eventfd.h>
 #include <uuid/uuid.h>
@@ -27,16 +28,21 @@
 #include <system_error>
 #include <cstring>
 #include <endian.h>
-
+#include <chrono>
+#include <thread>
+#include <future>
 
 #include <boost/exception/all.hpp>
 
 #include "mir_test/gmock_fixes.h"
+#include "mir_test/fd_utils.h"
+#include "mir_test/signal.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace mclr = mir::client::rpc;
+namespace mt = mir::test;
 
 namespace
 {
@@ -84,8 +90,9 @@ public:
     {
     }
 
-    std::unique_ptr<google::protobuf::RpcChannel> create_interpreter_for(std::unique_ptr<mclr::StreamTransport>)
+    std::unique_ptr<google::protobuf::RpcChannel> create_interpreter_for(std::unique_ptr<mclr::StreamTransport> transport)
     {
+        transport_holder = std::move(transport);
         return std::unique_ptr<google::protobuf::RpcChannel>{ reinterpret_cast<google::protobuf::RpcChannel*>(this) };
     }
 
@@ -95,6 +102,7 @@ public:
     }
 
 private:
+    std::unique_ptr<mclr::StreamTransport> transport_holder;
     std::unique_ptr<MockClientHandshakeProtocol> protocol;
 };
 
@@ -119,7 +127,12 @@ public:
     {
         if (events & mir::dispatch::FdEvent::readable)
         {
-            for (auto& observer : observers)
+            decltype(observers) observers_copy;
+            {
+                std::lock_guard<decltype(observer_mutex)> lock(observer_mutex);
+                observers_copy = observers;
+            }
+            for (auto& observer : observers_copy)
             {
                 observer->on_data_available();
             }
@@ -134,10 +147,12 @@ public:
 
     void register_observer(std::shared_ptr<Observer> const& observer) override
     {
+        std::lock_guard<decltype(observer_mutex)> lock(observer_mutex);
         observers.push_back(observer);
     }
     void unregister_observer(Observer const& observer) override
     {
+        std::lock_guard<decltype(observer_mutex)> lock(observer_mutex);
         auto victim = std::find_if (observers.begin(), observers.end(),
                                     [&observer] (std::shared_ptr<Observer> candidate)
         {
@@ -175,6 +190,7 @@ public:
     std::vector<std::shared_ptr<Observer>> observers;
 private:
     mir::Fd event_fd;
+    std::mutex observer_mutex;
 };
 }
 
@@ -230,12 +246,12 @@ TEST(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on
     mclr::HandshakingConnectionCreator handshake{std::move(protocols)};
 
     auto* transport_observer = transport.get();
-    auto future = handshake.connect_to(std::move(transport));
+    auto resolver = handshake.connect_to(std::move(transport));
 
     std::vector<uint8_t> buffer(second_uuid.begin(), second_uuid.end());
     transport_observer->add_received_message(buffer);
 
-    auto proto = reinterpret_cast<void*>(future.get().release());
+    auto proto = reinterpret_cast<void*>(resolver->get().release());
     EXPECT_THAT(proto, Eq(second_protocol_addr));
 }
 
@@ -254,10 +270,115 @@ TEST(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mis
     mclr::HandshakingConnectionCreator handshake{std::move(protocols)};
 
     auto* transport_observer = transport.get();
-    auto future = handshake.connect_to(std::move(transport));
+    auto resolver = handshake.connect_to(std::move(transport));
 
     std::vector<uint8_t> buffer(mismatching_uuid.begin(), mismatching_uuid.end());
     transport_observer->add_received_message(buffer);
 
-    EXPECT_THROW(future.get().release(), std::runtime_error);
+    EXPECT_THROW(resolver->get().release(), std::runtime_error);
+}
+
+class RpcChannelResolver : public testing::Test
+{
+public:
+    RpcChannelResolver()
+        : transport{std::make_unique<RecordingStreamTransport>()},
+          transport_observer{transport.get()}
+    {
+    }
+
+    std::unique_ptr<mclr::RpcChannelResolver> get_resolver()
+    {
+        auto protocol = std::make_unique<MockProtocolInterpreter>(std::make_unique<MockClientHandshakeProtocol>(uuid, std::vector<uint8_t>{}));
+
+        std::vector<std::unique_ptr<mclr::ProtocolInterpreter>> protocols;
+        protocols.emplace_back(std::move(protocol));
+        mclr::HandshakingConnectionCreator handshake{std::move(protocols)};
+        return handshake.connect_to(std::move(transport));
+    }
+
+    void successfully_complete_handhake()
+    {
+        using namespace std::literals::chrono_literals;
+        std::vector<uint8_t> buffer(uuid.begin(), uuid.end());
+        transport_observer->add_received_message(buffer);
+
+        auto end = std::chrono::steady_clock::now() + 60s;
+        while (mt::fd_is_readable(transport_observer->watch_fd()) &&
+               (std::chrono::steady_clock::now() < end))
+        {
+            std::this_thread::sleep_for(10ms);
+        }
+    }
+
+private:
+    std::unique_ptr<RecordingStreamTransport> transport;
+    RecordingStreamTransport* const transport_observer;
+    std::string const uuid{"be094b17-4ca0-40fd-9394-913a4aab05f0"};
+};
+
+TEST_F(RpcChannelResolver, completion_is_called_immediately_if_set_on_ready_resolver)
+{
+    auto resolver = get_resolver();
+
+    successfully_complete_handhake();
+
+    bool called{false};
+    resolver->set_completion([&called](std::future<std::unique_ptr<google::protobuf::RpcChannel>> future)
+    {
+        future.get().release();
+        called = true;
+    });
+    EXPECT_TRUE(called);
+}
+
+TEST_F(RpcChannelResolver, completion_isnt_called_until_future_is_ready)
+{
+    using namespace std::literals::chrono_literals;
+
+    auto resolver = get_resolver();
+
+    auto called = std::make_shared<mt::Signal>();
+    resolver->set_completion([called](std::future<std::unique_ptr<google::protobuf::RpcChannel>> future)
+    {
+        future.get().release();
+        called->raise();
+    });
+    EXPECT_FALSE(called->raised());
+
+    successfully_complete_handhake();
+
+    EXPECT_TRUE(called->wait_for(60s));
+}
+
+TEST_F(RpcChannelResolver, calling_set_continuation_twice_is_an_error)
+{
+    auto resolver = get_resolver();
+
+    resolver->set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {});
+    EXPECT_THROW(resolver->set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {}),
+            std::logic_error);
+}
+
+TEST_F(RpcChannelResolver, destruction_cancels_completion)
+{
+    using namespace std::literals::chrono_literals;
+
+    auto resolver = get_resolver();
+
+    auto called_with_error = std::make_shared<mt::Signal>();
+    resolver->set_completion([called_with_error](std::future<std::unique_ptr<google::protobuf::RpcChannel>> future)
+    {
+        try
+        {
+            future.get();
+        }
+        catch(std::future_error& err)
+        {
+           called_with_error->raise();
+        }
+    });
+
+    resolver.reset();
+    EXPECT_TRUE(called_with_error->wait_for(60s));
 }

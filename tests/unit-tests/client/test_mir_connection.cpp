@@ -19,6 +19,7 @@
 #include "src/client/mir_connection.h"
 #include "src/client/default_connection_configuration.h"
 #include "src/client/rpc/mir_basic_rpc_channel.h"
+#include "src/client/rpc/rpc_channel_resolver.h"
 #include "src/client/display_configuration.h"
 #include "src/client/mir_surface.h"
 
@@ -160,6 +161,50 @@ void connected_callback(MirConnection* /*connection*/, void * /*client_context*/
 {
 }
 
+class FakeChannelResolver : public mir::client::rpc::RpcChannelResolver
+{
+public:
+    FakeChannelResolver(std::future<std::unique_ptr<google::protobuf::RpcChannel>> future_channel,
+                        std::function<void()> notify_destruction)
+        : future_channel{std::move(future_channel)},
+          notify_destruction{notify_destruction}
+    {
+    }
+
+    virtual ~FakeChannelResolver()
+    {
+        notify_destruction();
+    }
+
+    void set_completion(std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion)
+    {
+        using namespace std::literals::chrono_literals;
+        if (future_channel.wait_for(0s) == std::future_status::ready)
+        {
+            completion(std::move(future_channel));
+        }
+        else
+        {
+            future_waiter = std::make_unique<mt::AutoJoinThread>([future = std::move(future_channel), completion]() mutable
+            {
+                if (future.wait_for(60s) == std::future_status::ready)
+                {
+                    completion(std::move(future));
+                }
+            });
+        }
+    }
+
+    std::unique_ptr<google::protobuf::RpcChannel> get()
+    {
+        return future_channel.get();
+    }
+private:
+    std::future<std::unique_ptr<google::protobuf::RpcChannel>> future_channel;
+    std::function<void()> notify_destruction;
+    std::unique_ptr<mt::AutoJoinThread> future_waiter;
+};
+
 class TestConnectionConfiguration : public mcl::DefaultConnectionConfiguration
 {
 public:
@@ -173,11 +218,11 @@ public:
     {
     }
 
-    std::future<std::unique_ptr<::google::protobuf::RpcChannel>> make_rpc_channel() override
+    std::unique_ptr<mir::client::rpc::RpcChannelResolver> make_rpc_channel() override
     {
-        std::promise<std::unique_ptr<::google::protobuf::RpcChannel>> promise;
+        std::promise<std::unique_ptr<google::protobuf::RpcChannel>> promise;
         promise.set_value(std::move(next_channel));
-        return promise.get_future();
+        return std::make_unique<FakeChannelResolver>(promise.get_future(), [](){});
     }
 
     std::shared_ptr<mcl::ClientPlatformFactory> the_client_platform_factory() override
@@ -659,14 +704,15 @@ class ManuallyCompletedHandshakeConfiguration : public mcl::DefaultConnectionCon
 public:
     ManuallyCompletedHandshakeConfiguration()
         : DefaultConnectionConfiguration("fd://-1"),
+          the_once_and_future_rpc_channel{std::make_unique<std::promise<std::unique_ptr<google::protobuf::RpcChannel>>>()},
           platform{std::make_shared<testing::NiceMock<MockClientPlatform>>()}
     {
     }
 
-
-    std::future<std::unique_ptr<google::protobuf::RpcChannel>> make_rpc_channel() override
+    std::unique_ptr<mir::client::rpc::RpcChannelResolver> make_rpc_channel() override
     {
-        return once_and_future_rpc_channel.get_future();
+        return std::make_unique<FakeChannelResolver>(the_once_and_future_rpc_channel->get_future(),
+                                                     [this]() { the_once_and_future_rpc_channel.reset(); });
     }
 
     std::shared_ptr<mcl::ClientPlatformFactory> the_client_platform_factory() override
@@ -677,16 +723,16 @@ public:
     void resolve_rpc_future()
     {
         using namespace testing;
-        once_and_future_rpc_channel.set_value(std::make_unique<NiceMock<MockRpcChannel>>());
+        the_once_and_future_rpc_channel->set_value(std::make_unique<NiceMock<MockRpcChannel>>());
     }
 
     void set_handshake_error(std::exception_ptr exception)
     {
-        once_and_future_rpc_channel.set_exception(exception);
+        the_once_and_future_rpc_channel->set_exception(exception);
     }
 
 private:
-    std::promise<std::unique_ptr<google::protobuf::RpcChannel>> once_and_future_rpc_channel;
+    std::unique_ptr<std::promise<std::unique_ptr<google::protobuf::RpcChannel>>> the_once_and_future_rpc_channel;
     std::shared_ptr<mcl::ClientPlatform> platform;
 };
 

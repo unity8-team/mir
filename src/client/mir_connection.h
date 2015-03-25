@@ -58,6 +58,7 @@ class EventHandlerRegister;
 namespace rpc
 {
 class MirBasicRpcChannel;
+class RpcChannelResolver;
 }
 }
 
@@ -156,7 +157,7 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
-    std::unique_ptr<mir::client::rpc::RpcFutureResolver> resolver;
+    std::unique_ptr<mir::client::rpc::RpcChannelResolver> resolver;
     std::shared_ptr<google::protobuf::RpcChannel> channel;
     std::unique_ptr<mir::protobuf::DisplayServer> server;
     std::unique_ptr<mir::protobuf::Debug> debug;

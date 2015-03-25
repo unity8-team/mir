@@ -54,6 +54,7 @@ class EventHandlerRegister;
 namespace rpc
 {
 class ProtocolInterpreter;
+class RpcChannelResolver;
 }
 
 class ConnectionConfiguration
@@ -62,7 +63,7 @@ public:
     virtual ~ConnectionConfiguration() = default;
 
     virtual std::shared_ptr<ConnectionSurfaceMap> the_surface_map() = 0;
-    virtual std::future<std::unique_ptr<google::protobuf::RpcChannel>> make_rpc_channel() = 0;
+    virtual std::unique_ptr<rpc::RpcChannelResolver> make_rpc_channel() = 0;
     virtual std::vector<std::unique_ptr<rpc::ProtocolInterpreter>> make_supported_protocols() = 0;
     virtual std::shared_ptr<mir::logging::Logger> the_logger() = 0;
     virtual std::shared_ptr<ClientPlatformFactory> the_client_platform_factory() = 0;

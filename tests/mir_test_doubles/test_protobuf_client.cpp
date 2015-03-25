@@ -30,6 +30,7 @@
 #include "src/client/rpc/mir_protobuf_rpc_channel.h"
 #include "src/client/rpc/protobuf_protocol.h"
 #include "src/client/rpc/handshaking_connection_creator.h"
+#include "src/client/rpc/rpc_channel_resolver.h"
 #include "mir/dispatch/dispatchable.h"
 #include "mir/dispatch/simple_dispatch_thread.h"
 
@@ -51,7 +52,7 @@ std::shared_ptr<google::protobuf::RpcChannel> perform_handshake(std::unique_ptr<
                                                                  std::make_shared<mir::client::LifecycleControl>(),
                                                                  std::make_shared<mtd::NullClientEventSink>()));
     mclr::HandshakingConnectionCreator handshaker(std::move(protocols));
-    return handshaker.connect_to(std::move(transport)).get();
+    return handshaker.connect_to(std::move(transport))->get();
 }
 }
 

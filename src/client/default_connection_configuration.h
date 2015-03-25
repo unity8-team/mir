@@ -51,7 +51,7 @@ public:
     DefaultConnectionConfiguration(std::string const& socket_file);
 
     std::shared_ptr<ConnectionSurfaceMap> the_surface_map() override;
-    std::future<std::unique_ptr<google::protobuf::RpcChannel>> make_rpc_channel() override;
+    std::unique_ptr<rpc::RpcChannelResolver> make_rpc_channel() override;
     std::vector<std::unique_ptr<rpc::ProtocolInterpreter>> make_supported_protocols() override;
     std::shared_ptr<mir::logging::Logger> the_logger() override;
     std::shared_ptr<ClientPlatformFactory> the_client_platform_factory() override;

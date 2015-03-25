@@ -32,6 +32,7 @@
 #include "display_configuration.h"
 #include "connection_surface_map.h"
 #include "lifecycle_control.h"
+#include "rpc/rpc_channel_resolver.h"
 
 #include "mir/events/event_builders.h"
 #include "mir/logging/logger.h"
@@ -41,6 +42,7 @@
 #include <cstddef>
 #include <unistd.h>
 #include <signal.h>
+#include <google/protobuf/service.h>
 
 #include <boost/exception/diagnostic_information.hpp>
 
@@ -105,7 +107,7 @@ MirConnection::MirConnection(std::string const& error_message) :
 MirConnection::MirConnection(
     mir::client::ConnectionConfiguration& conf) :
         deregisterer{this},
-        resolver{std::make_unique<mcl::rpc::RpcFutureResolver>(conf.make_rpc_channel())},
+        resolver{conf.make_rpc_channel()},
         logger(conf.the_logger()),
         connect_done{false},
         client_platform_factory(conf.the_client_platform_factory()),
@@ -126,17 +128,13 @@ MirConnection::MirConnection(
 
 MirConnection::~MirConnection() noexcept
 {
+    resolver.reset();
+
     // We don't die while if are pending callbacks (as they touch this).
     // But, if after 500ms we don't get a call, assume it won't happen.
     connect_wait_handle.wait_for_pending(std::chrono::milliseconds(500));
 
     std::lock_guard<decltype(mutex)> lock(mutex);
-    if (resolver)
-    {
-        // Cancel any pending protocol handshake
-        resolver->cancel();
-    }
-
     if (connect_result.has_platform())
     {
         auto const& platform = connect_result.platform();
@@ -318,6 +316,12 @@ MirWaitHandle* MirConnection::connect(
 
             connect_result.set_error("connect not called");
         }
+        catch (std::future_error& err)
+        {
+            std::lock_guard<decltype(mutex)> lock(mutex);
+            connect_result.set_error("Handshake cancelled");
+            return;
+        }
         catch(std::exception& err)
         {
             std::lock_guard<decltype(mutex)> lock(mutex);
@@ -326,6 +330,8 @@ MirWaitHandle* MirConnection::connect(
             connect_wait_handle.result_received();
             return;
         }
+
+        connect_result.set_error("connect not called");
 
         try
         {

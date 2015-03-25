@@ -16,11 +16,12 @@
  * Authored by: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
  */
 
-#ifndef MIR_CLIENT_RPC_HANDSHAKING_CONNECTION_CREATOR_H_
-#define MIR_CLIENT_RPC_HANDSHAKING_CONNECTION_CREATOR_H_
+#ifndef MIR_CLIENT_RPC_RPC_CHANNEL_RESOLVER_H_
+#define MIR_CLIENT_RPC_RPC_CHANNEL_RESOLVER_H_
 
+#include <functional>
 #include <memory>
-#include <vector>
+#include <future>
 
 namespace google
 {
@@ -36,26 +37,16 @@ namespace client
 {
 namespace rpc
 {
-class ProtocolInterpreter;
-class StreamTransport;
-class RpcChannelResolver;
-
-class HandshakingConnectionCreator
+class RpcChannelResolver
 {
 public:
-    HandshakingConnectionCreator(std::vector<std::unique_ptr<ProtocolInterpreter>>&& protocols);
-
-    std::unique_ptr<RpcChannelResolver> connect_to(std::unique_ptr<StreamTransport> transport);
-
-private:
-    std::vector<std::unique_ptr<ProtocolInterpreter>> protocols;
-    size_t total_header_size;
-    std::vector<uint8_t> buffer;
+    virtual ~RpcChannelResolver() = default;
+    virtual void set_completion(
+        std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion) = 0;
+    virtual std::unique_ptr<google::protobuf::RpcChannel> get() = 0;
 };
-
 }
 }
 }
 
-
-#endif // MIR_CLIENT_RPC_HANDSHAKING_CONNECTION_CREATOR_H_
+#endif  // MIR_CLIENT_RPC_RPC_CHANNEL_RESOLVER_H_

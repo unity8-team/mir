@@ -41,6 +41,7 @@
 #include "mir/shared_library_prober.h"
 #include "rpc/stream_socket_transport.h"
 #include "rpc/handshaking_connection_creator.h"
+#include "rpc/rpc_channel_resolver.h"
 
 #include <dlfcn.h>
 
@@ -94,7 +95,7 @@ mcl::DefaultConnectionConfiguration::the_surface_map()
         });
 }
 
-std::future<std::unique_ptr<google::protobuf::RpcChannel>>
+std::unique_ptr<mcl::rpc::RpcChannelResolver>
 mcl::DefaultConnectionConfiguration::make_rpc_channel()
 {
     mcl::rpc::HandshakingConnectionCreator handshake{make_supported_protocols()};

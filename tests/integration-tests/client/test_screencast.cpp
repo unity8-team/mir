@@ -20,6 +20,7 @@
 #include "src/client/default_connection_configuration.h"
 #include "mir/dispatch/simple_dispatch_thread.h"
 #include "mir/dispatch/dispatchable.h"
+#include "src/client/rpc/rpc_channel_resolver.h"
 
 #include "mir/frontend/connector.h"
 #include "mir_test/test_protobuf_server.h"
@@ -75,7 +76,7 @@ struct MirScreencastTest : public testing::Test
 
         mcl::DefaultConnectionConfiguration conf{test_socket};
 
-        rpc_channel = conf.make_rpc_channel().get();
+        rpc_channel = conf.make_rpc_channel()->get();
         protobuf_server =
             std::make_shared<mir::protobuf::DisplayServer::Stub>(rpc_channel.get());
         eventloop =
