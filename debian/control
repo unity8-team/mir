@@ -52,7 +52,7 @@ Breaks: libplatform-hardware-api-headers (<< 2.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
-	 libplatform-api-headers,
+	 libubuntu-application-api-headers,
 Description: Platform API for system level capabilities (API headers)
  This package provides the library headers for the hw-access parts of the Platform API.
  .
