@@ -39,6 +39,9 @@ namespace
 template<class T>
 class AtomicPtr
 {
+private:
+    std::atomic<T*> val;
+  
 public:
     AtomicPtr()
         : val{nullptr}
@@ -62,13 +65,6 @@ public:
 
     AtomicPtr(AtomicPtr const&) = delete;
 
-
-
-    ~AtomicPtr() noexcept(noexcept(reset()))
-    {
-        reset();
-    }
-
     void reset() noexcept(noexcept(val.load()->~T()))
     {
         auto old_value = val.exchange(nullptr);
@@ -77,6 +73,11 @@ public:
             delete old_value;
         }
     }
+    ~AtomicPtr() noexcept(noexcept(val.load()->~T()))
+    {
+        reset();
+    }
+
     T* release() noexcept
     {
         return val.exchange(nullptr);
@@ -86,9 +87,6 @@ public:
     {
         return val != nullptr;
     }
-
-private:
-    std::atomic<T*> val;
 };
 
 class HandshakeCompleter : public mclr::StreamTransport::Observer,
