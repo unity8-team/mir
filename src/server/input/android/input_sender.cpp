@@ -307,7 +307,7 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         );
 }
 
-pvoid mia::InputSender::ActiveTransfer::on_surface_disappeared()
+void mia::InputSender::ActiveTransfer::on_surface_disappeared()
 {
     std::unique_lock<std::mutex> lock{transfer_mutex};
     std::vector<InputSendEntry> release_pending_responses;
