@@ -16,8 +16,8 @@
  * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_SHELL_NULL_WINDOW_MANAGER_H_
-#define MIR_SHELL_NULL_WINDOW_MANAGER_H_
+#ifndef MIR_SHELL_SKELETON_WINDOW_MANAGER_H_
+#define MIR_SHELL_SKELETON_WINDOW_MANAGER_H_
 
 #include "mir/shell/window_manager.h"
 
@@ -25,7 +25,7 @@ namespace mir
 {
 namespace shell
 {
-class NullWindowManager : public WindowManager
+class SkeletonWindowManager : public WindowManager
 {
 public:
     void add_session(std::shared_ptr<scene::Session> const& session) override;
@@ -60,4 +60,4 @@ public:
 }
 }
 
-#endif /* MIR_SHELL_NULL_WINDOW_MANAGER_H_ */
+#endif /* MIR_SHELL_SKELETON_WINDOW_MANAGER_H_ */
