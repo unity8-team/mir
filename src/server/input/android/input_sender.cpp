@@ -163,9 +163,9 @@ void mia::InputSender::InputSenderState::remove_transfer(int fd)
 
     if (transfer)
     {
-        transfer->unsubscribe();
         transfers.erase(fd);
         lock.unlock();
+        transfer->unsubscribe();
 
         transfer->on_surface_disappeared();
     }
@@ -307,7 +307,7 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         );
 }
 
-void mia::InputSender::ActiveTransfer::on_surface_disappeared()
+pvoid mia::InputSender::ActiveTransfer::on_surface_disappeared()
 {
     std::unique_lock<std::mutex> lock{transfer_mutex};
     std::vector<InputSendEntry> release_pending_responses;
@@ -378,8 +378,6 @@ void mia::InputSender::ActiveTransfer::on_response_timeout()
 
 void mia::InputSender::ActiveTransfer::enqueue_entry(mia::InputSendEntry && entry)
 {
-    subscribe();
-
     std::lock_guard<std::mutex> lock(transfer_mutex);
     if (pending_responses.empty())
     {
