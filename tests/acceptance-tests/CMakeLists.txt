@@ -37,6 +37,7 @@ set(
   test_client_platform_operation.cpp
   test_latency.cpp
   test_shell_control_of_surface_configuration.cpp
+  test_skeleton_window_manager.cpp
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa")
