@@ -1019,6 +1019,13 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     mir_wait_for(surf_wh);
     EXPECT_THAT(data.surf, IsValid());
 
+    // We need to swap buffers so that the surface is fully realised and
+    // will be a valid focus target.
+    //
+    // The shell will not focus a surface with no content.
+    auto buffer_stream = mir_surface_get_buffer_stream(data.surf);
+    mir_buffer_stream_swap_buffers_sync(buffer_stream);
+
     mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
 
     EXPECT_TRUE(data.event_received.wait_for(5min));
