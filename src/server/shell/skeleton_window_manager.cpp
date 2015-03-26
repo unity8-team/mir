@@ -16,7 +16,7 @@
  * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/shell/null_window_manager.h"
+#include "mir/shell/skeleton_window_manager.h"
 #include "mir/scene/surface.h"
 
 namespace mf = mir::frontend;
@@ -24,15 +24,15 @@ namespace ms = mir::scene;
 namespace msh = mir::shell;
 
 
-void msh::NullWindowManager::add_session(std::shared_ptr<scene::Session> const& /*session*/)
+void msh::SkeletonWindowManager::add_session(std::shared_ptr<scene::Session> const& /*session*/)
 {
 }
 
-void msh::NullWindowManager::remove_session(std::shared_ptr<scene::Session> const& /*session*/)
+void msh::SkeletonWindowManager::remove_session(std::shared_ptr<scene::Session> const& /*session*/)
 {
 }
 
-auto msh::NullWindowManager::add_surface(
+auto msh::SkeletonWindowManager::add_surface(
     std::shared_ptr<scene::Session> const& session,
     scene::SurfaceCreationParameters const& params,
     std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build)
@@ -41,36 +41,36 @@ auto msh::NullWindowManager::add_surface(
     return build(session, params);
 }
 
-void msh::NullWindowManager::remove_surface(
+void msh::SkeletonWindowManager::remove_surface(
     std::shared_ptr<scene::Session> const& /*session*/,
     std::weak_ptr<scene::Surface> const& /*surface*/)
 {
 }
 
-void msh::NullWindowManager::add_display(geometry::Rectangle const& /*area*/)
+void msh::SkeletonWindowManager::add_display(geometry::Rectangle const& /*area*/)
 {
 }
 
-void msh::NullWindowManager::remove_display(geometry::Rectangle const& /*area*/)
+void msh::SkeletonWindowManager::remove_display(geometry::Rectangle const& /*area*/)
 {
 }
 
-bool msh::NullWindowManager::handle_key_event(MirKeyInputEvent const* /*event*/)
-{
-    return false;
-}
-
-bool msh::NullWindowManager::handle_touch_event(MirTouchInputEvent const* /*event*/)
+bool msh::SkeletonWindowManager::handle_key_event(MirKeyInputEvent const* /*event*/)
 {
     return false;
 }
 
-bool msh::NullWindowManager::handle_pointer_event(MirPointerInputEvent const* /*event*/)
+bool msh::SkeletonWindowManager::handle_touch_event(MirTouchInputEvent const* /*event*/)
 {
     return false;
 }
 
-int msh::NullWindowManager::set_surface_attribute(
+bool msh::SkeletonWindowManager::handle_pointer_event(MirPointerInputEvent const* /*event*/)
+{
+    return false;
+}
+
+int msh::SkeletonWindowManager::set_surface_attribute(
     std::shared_ptr<scene::Session> const& /*session*/,
     std::shared_ptr<scene::Surface> const& surface,
     MirSurfaceAttrib attrib,
