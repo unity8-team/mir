@@ -30,6 +30,7 @@
 #include <boost/exception/all.hpp>
 #include <algorithm>
 #include <unordered_map>
+#include <sys/eventfd.h>
 
 namespace md = mir::dispatch;
 
@@ -37,56 +38,51 @@ class md::ThreadedDispatcher::ThreadShutdownRequestHandler : public md::Dispatch
 {
 public:
     ThreadShutdownRequestHandler()
+        : event_semaphore{eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE)},
+          shutting_down{false}
     {
-        int pipefds[2];
-        if (pipe2(pipefds, O_NONBLOCK | O_CLOEXEC) < 0)
+        if (event_semaphore == mir::Fd::invalid)
         {
             BOOST_THROW_EXCEPTION((std::system_error{errno,
                                                      std::system_category(),
-                                                     "Failed to create shutdown pipe for IO thread"}));
+                                                     "Failed to create shutdown eventfd"}));
         }
-
-        terminate_read_fd = mir::Fd{pipefds[0]};
-        terminate_write_fd = mir::Fd{pipefds[1]};
     }
 
     mir::Fd watch_fd() const override
     {
-        return terminate_read_fd;
+        return event_semaphore;
     }
 
     bool dispatch(md::FdEvents events) override
     {
-        char dummy;
-        if (::read(terminate_read_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
+        if (events & md::FdEvent::error)
         {
-            // We'll get a successful 0-length read when the write end is closed;
-            // this is fine, it just means we're shutting everything down.
-            if (!(events & md::FdEvent::remote_closed))
-            {
-                BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                         std::system_category(),
-                                                         "Failed to clear shutdown notification"}));
-            }
+            return false;
+        }
+
+        eventfd_t dummy;
+        if (eventfd_read(event_semaphore, &dummy) < 0)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failed to clear shutdown notification"}));
         }
         std::lock_guard<decltype(running_flag_guard)> lock{running_flag_guard};
         *running_flags.at(std::this_thread::get_id()) = false;
 
-        // Even if the remote end has been closed we're still dispatchable -
-        // we want the other dispatch threads to pick up the shutdown signal.
         return true;
     }
 
     md::FdEvents relevant_events() const override
     {
-        return md::FdEvent::readable | md::FdEvent::remote_closed;
+        return md::FdEvent::readable;
     }
 
     std::thread::id terminate_one_thread()
     {
         // First we tell a thread to die, any thread...
-        char dummy{0};
-        if (::write(terminate_write_fd, &dummy, sizeof(dummy)) != sizeof(dummy))
+        if (eventfd_write(event_semaphore, 1) < 0)
         {
             BOOST_THROW_EXCEPTION((std::system_error{errno,
                                                      std::system_category(),
@@ -111,9 +107,20 @@ public:
         return killed_thread_id;
     }
 
-    void terminate_all_threads()
+    void terminate_all_threads_async()
     {
-        terminate_write_fd = mir::Fd{};
+        eventfd_t thread_count;
+        {
+            std::lock_guard<std::mutex> lock(running_flag_guard);
+            thread_count = running_flags.size();
+            shutting_down = true;
+        }
+        if (eventfd_write(event_semaphore, thread_count) < 0)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failed to trigger thread shutdown"}));
+        }
     }
 
     void register_thread(bool& run_flag)
@@ -121,6 +128,15 @@ public:
         std::lock_guard<decltype(running_flag_guard)> lock{running_flag_guard};
 
         running_flags[std::this_thread::get_id()] = &run_flag;
+        if (shutting_down)
+        {
+            if (eventfd_write(event_semaphore, 1) < 0)
+            {
+                BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                         std::system_category(),
+                                                         "Failed to trigger thread shutdown"}));
+            }
+        }
     }
 
     void unregister_thread()
@@ -141,8 +157,7 @@ public:
     }
 
 private:
-    mir::Fd terminate_read_fd;
-    mir::Fd terminate_write_fd;
+    mir::Fd event_semaphore;
 
     std::mutex terminating_thread_mutex;
     std::condition_variable thread_terminating;
@@ -150,6 +165,7 @@ private:
 
     std::mutex running_flag_guard;
     std::unordered_map<std::thread::id, bool*> running_flags;
+    bool shutting_down;
 };
 
 md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name, std::shared_ptr<md::Dispatchable> const& dispatchee)
@@ -172,7 +188,7 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
 
-    thread_exiter->terminate_all_threads();
+    thread_exiter->terminate_all_threads_async();
 
     for (auto& thread : threadpool)
     {
@@ -184,7 +200,7 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
             //
             // However, we need to manually get the thread_exiter to mark the current
             // thread as no longer running, as we're not going to dispatch it again.
-            thread_exiter->dispatch(md::FdEvent::remote_closed);
+            thread_exiter->dispatch(md::FdEvent::readable);
             thread.detach();
         }
         else
