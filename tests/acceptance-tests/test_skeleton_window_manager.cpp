@@ -68,6 +68,11 @@ void event_callback(MirSurface* surface, MirEvent const* event, void* context)
     (*static_cast<EventCallback*>(context))(surface, event);
 }
 
+MirSurfaceState operator++(MirSurfaceState& state)
+{
+    return state = static_cast<MirSurfaceState>(state+1);
+}
+
 struct SkeletonWindowManager : ConnectedClientWithASurface
 {
     SkeletonWindowManager()
@@ -102,16 +107,7 @@ TEST_F(SkeletonWindowManager, does_not_size_surface_to_display)
 
 TEST_F(SkeletonWindowManager, allows_all_states)
 {
-    for (auto state :
-        {
-            mir_surface_state_unknown,
-            mir_surface_state_restored,
-            mir_surface_state_minimized,
-            mir_surface_state_fullscreen,
-            mir_surface_state_maximized,
-            mir_surface_state_vertmaximized,
-            mir_surface_state_horizmaximized
-        })
+    for (auto state = mir_surface_state_unknown; state != mir_surface_states; ++state)
     {
         mir_wait_for(mir_surface_set_state(surface, state));
 
@@ -135,16 +131,7 @@ TEST_F(SkeletonWindowManager, does_not_resize_on_state_changes)
 
     mir_surface_set_event_handler(surface, &event_delegate);
 
-    for (auto state :
-        {
-            mir_surface_state_unknown,
-            mir_surface_state_restored,
-            mir_surface_state_minimized,
-            mir_surface_state_fullscreen,
-            mir_surface_state_maximized,
-            mir_surface_state_vertmaximized,
-            mir_surface_state_horizmaximized
-        })
+    for (auto state = mir_surface_state_unknown; state != mir_surface_states; ++state)
     {
         mir_wait_for(mir_surface_set_state(surface, state));
     }
