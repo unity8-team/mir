@@ -65,6 +65,15 @@ int main(int argc, char *argv[])
         "varying vec2 texcoord;                                  \n"
         "uniform vec3 low_color, high_color;                     \n"
         "                                                        \n"
+        "float curve(float x)                                    \n"
+        "{                                                       \n"
+        "    float f = fract(x);                                 \n"
+        "    float p = mod(f, 0.5);                              \n"
+        "    float a = p + p + p + p - 1.0;                      \n"
+        "    float y = a * a - 1.0;                              \n"
+        "    return f <= 0.5 ? y : -y;                           \n"
+        "}                                                       \n"
+        "                                                        \n"
         "vec3 gradient(float x)                                  \n"
         "{                                                       \n"
         "    vec3 col;                                           \n"
@@ -82,16 +91,15 @@ int main(int argc, char *argv[])
         "                                                        \n"
         "void main()                                             \n"
         "{                                                       \n"
-        "    const float pi2 = 6.283185308;                      \n"
-        "    float u = texcoord.x * pi2;                         \n"
-        "    float v = texcoord.y * pi2;                         \n"
-        "    float us = (cos(1.1 * u + 7.0 * theta) +            \n"
-        "                cos(2.3 * v * cos(1.0 * theta)) +       \n"
-        "                cos(0.3 * u * cos(3.0 * theta))         \n"
+        "    float u = texcoord.x;                               \n"
+        "    float v = texcoord.y;                               \n"
+        "    float us = (curve(1.1 * u + 7.0 * theta) +          \n"
+        "                curve(2.3 * v * curve(1.0 * theta)) +   \n"
+        "                curve(0.3 * u * curve(3.0 * theta))     \n"
         "               ) / 3.0;                                 \n"
-        "    float vs = (cos(2.3 * v + 8.0 * theta) +            \n"
-        "                cos(1.3 * u * cos(3.0 * theta)) +       \n"
-        "                cos(1.7 * v * cos(2.0 * theta))         \n"
+        "    float vs = (curve(2.3 * v + 8.0 * theta) +          \n"
+        "                curve(1.3 * u * curve(3.0 * theta)) +   \n"
+        "                curve(1.7 * v * curve(2.0 * theta))     \n"
         "               ) / 3.0;                                 \n"
         "    float x = (us * vs + 1.0) / 2.0;                    \n"
         "    gl_FragColor = vec4(gradient(x), 1.0);              \n"
@@ -104,7 +112,6 @@ int main(int argc, char *argv[])
         1.0f,-1.0f,
        -1.0f,-1.0f,
     };
-    const float pi2 = 6.283185308f;
     GLuint vshader, fshader, prog;
     GLint linked, low_color, high_color, vpos, theta;
     unsigned int width = 0, height = 0;
@@ -150,9 +157,9 @@ int main(int argc, char *argv[])
     while (mir_eglapp_running())
     {
         glUniform1f(theta, angle);
-        angle += 0.005f;
-        if (angle > pi2)
-            angle -= pi2;
+        angle += 0.001f;
+        if (angle > 1.0f)
+            angle -= 1.0f;
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         mir_eglapp_swap_buffers();
     }
