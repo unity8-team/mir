@@ -27,8 +27,8 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 set(MIR_VERSION_MAJOR 0)
-set(MIR_VERSION_MINOR 11) # This should change at least with every MIRSERVER_ABI
-set(MIR_VERSION_PATCH 0)
+set(MIR_VERSION_MINOR 12) # This should change at least with every MIRSERVER_ABI
+set(MIR_VERSION_PATCH 1)
 
 add_definitions(-DMIR_VERSION_MAJOR=${MIR_VERSION_MAJOR})
 add_definitions(-DMIR_VERSION_MINOR=${MIR_VERSION_MINOR})
