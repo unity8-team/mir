@@ -49,6 +49,10 @@ struct EventCallback
             surface_event(surface, mir_event_get_surface_event(event));
             break;
 
+        case mir_event_type_resize:
+            resize_event(surface, mir_event_get_resize_event(event));
+            break;
+
         default:
             break;
         }
@@ -56,6 +60,7 @@ struct EventCallback
 
     virtual ~EventCallback() = default;
     virtual void surface_event(MirSurface* /*surface*/, MirSurfaceEvent const* /*event*/) {}
+    virtual void resize_event(MirSurface* /*surface*/, MirResizeEvent const* /*event*/) {}
 };
 
 void event_callback(MirSurface* surface, MirEvent const* event, void* context)
@@ -114,6 +119,39 @@ TEST_F(SkeletonWindowManager, allows_all_states)
     }
 }
 
+TEST_F(SkeletonWindowManager, does_not_resize_on_state_changes)
+{
+    struct ResizeEventCounter : EventCallback
+    {
+        std::atomic<unsigned> events{0};
+
+        void resize_event(MirSurface* /*surface*/, MirResizeEvent const* /*event*/) override
+        {
+            ++events;
+        }
+    } resize;
+
+    MirEventDelegate const event_delegate{event_callback, &resize};
+
+    mir_surface_set_event_handler(surface, &event_delegate);
+
+    for (auto state :
+        {
+            mir_surface_state_unknown,
+            mir_surface_state_restored,
+            mir_surface_state_minimized,
+            mir_surface_state_fullscreen,
+            mir_surface_state_maximized,
+            mir_surface_state_vertmaximized,
+            mir_surface_state_horizmaximized
+        })
+    {
+        mir_wait_for(mir_surface_set_state(surface, state));
+    }
+
+    EXPECT_THAT(resize.events, Eq(0));
+}
+
 TEST_F(SkeletonWindowManager, ignores_output_selection)
 {
     int const width = 13;
@@ -155,20 +193,16 @@ TEST_F(SkeletonWindowManager, does_not_set_focus)
 
     struct FocusEventCounter : EventCallback
     {
-        std::atomic<unsigned> focus_events{0};
+        std::atomic<unsigned> events{0};
 
-        void surface_event(MirSurface* /*surface*/, MirSurfaceEvent const* event)
+        void surface_event(MirSurface* /*surface*/, MirSurfaceEvent const* event) override
         {
             if (mir_surface_event_get_attribute(event) == mir_surface_attrib_focus)
-                ++focus_events;
+                ++events;
         }
-    } counter;
+    } focus;
 
-    MirEventDelegate const event_delegate
-    {
-        event_callback,
-        &counter
-    };
+    MirEventDelegate const event_delegate{event_callback, &focus};
 
     mir_surface_set_event_handler(surface, &event_delegate);
 
@@ -192,5 +226,5 @@ TEST_F(SkeletonWindowManager, does_not_set_focus)
         mir_surface_release_sync(surface);
     }
 
-    EXPECT_THAT(counter.focus_events, Eq(0));
+    EXPECT_THAT(focus.events, Eq(0));
 }
