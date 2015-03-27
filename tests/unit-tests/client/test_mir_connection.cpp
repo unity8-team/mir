@@ -545,15 +545,10 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
 {
     using namespace testing;
 
-    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
-    params.surface_name = __PRETTY_FUNCTION__;
-
     auto connection = std::make_shared<MirConnection>(conf);
 
-    MirEventDelegate const event_delegate = {
-        &surface_event_callback,
-        nullptr
-    };
+    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
+    params.surface_name = __PRETTY_FUNCTION__;
 
     unfocused_received = false;
 
@@ -565,7 +560,7 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
 
     surface->handle_event(*mev::make_event(mf::SurfaceId{surface->id()}, mir_surface_attrib_focus, mir_surface_focused));
 
-    surface->set_event_handler(&event_delegate);
+    surface->set_event_handler(&surface_event_callback, nullptr);
 
     wait_handle = connection->release_surface(surface, &surface_callback, nullptr);
     wait_handle->wait_for_all();
@@ -580,15 +575,10 @@ TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_
 {
     using namespace testing;
 
-    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
-    params.surface_name = __PRETTY_FUNCTION__;
-
     auto connection = std::make_shared<MirConnection>(conf);
 
-    MirEventDelegate const event_delegate = {
-        &surface_event_callback,
-        nullptr
-    };
+    MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
+    params.surface_name = __PRETTY_FUNCTION__;
 
     unfocused_received = false;
 
@@ -600,7 +590,7 @@ TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_
 
     surface->handle_event(*mev::make_event(mf::SurfaceId{surface->id()}, mir_surface_attrib_focus, mir_surface_unfocused));
 
-    surface->set_event_handler(&event_delegate);
+    surface->set_event_handler(&surface_event_callback, nullptr);
 
     wait_handle = connection->release_surface(surface, &surface_callback, nullptr);
     wait_handle->wait_for_all();
