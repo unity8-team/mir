@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <atomic>
 
 namespace msh = mir::shell;
 
@@ -37,6 +38,30 @@ using namespace testing;
 namespace
 {
 std::vector<Rectangle> const display_geometry { {{0, 0},{1, 1}}, {{0, 1},{1, 2}} };
+
+struct EventCallback
+{
+    void operator()(MirSurface* surface, MirEvent const* event)
+    {
+        switch (mir_event_get_type(event))
+        {
+        case mir_event_type_surface:
+            surface_event(surface, mir_event_get_surface_event(event));
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    virtual ~EventCallback() = default;
+    virtual void surface_event(MirSurface* /*surface*/, MirSurfaceEvent const* /*event*/) {}
+};
+
+void event_callback(MirSurface* surface, MirEvent const* event, void* context)
+{
+    (*static_cast<EventCallback*>(context))(surface, event);
+}
 
 struct SkeletonWindowManager : ConnectedClientWithASurface
 {
@@ -121,4 +146,51 @@ TEST_F(SkeletonWindowManager, ignores_output_selection)
 
     mir_surface_release_sync(surface);
     mir_display_config_destroy(config);
+}
+
+TEST_F(SkeletonWindowManager, does_not_set_focus)
+{
+    int const width = 11;
+    int const height = 9;
+
+    struct FocusEventCounter : EventCallback
+    {
+        std::atomic<unsigned> focus_events{0};
+
+        void surface_event(MirSurface* /*surface*/, MirSurfaceEvent const* event)
+        {
+            if (mir_surface_event_get_attribute(event) == mir_surface_attrib_focus)
+                ++focus_events;
+        }
+    } counter;
+
+    MirEventDelegate const event_delegate
+    {
+        event_callback,
+        &counter
+    };
+
+    mir_surface_set_event_handler(surface, &event_delegate);
+
+    MirSurface* surfaces[19] { nullptr };
+
+    for (MirSurface*& surface : surfaces)
+    {
+        MirSurfaceSpec* const spec = mir_connection_create_spec_for_normal_surface(
+            connection,
+            width,
+            height,
+            mir_pixel_format_abgr_8888);
+
+        surface = mir_surface_create_sync(spec);
+        mir_surface_spec_release(spec);
+        mir_surface_set_event_handler(surface, &event_delegate);
+    }
+
+    for (MirSurface* surface : surfaces)
+    {
+        mir_surface_release_sync(surface);
+    }
+
+    EXPECT_THAT(counter.focus_events, Eq(0));
 }
