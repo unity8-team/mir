@@ -88,3 +88,37 @@ TEST_F(SkeletonWindowManager, allows_all_states)
         EXPECT_THAT(mir_surface_get_state(surface), Eq(state));
     }
 }
+
+TEST_F(SkeletonWindowManager, ignores_output_selection)
+{
+    int const width = 13;
+    int const height= 17;
+
+    MirDisplayConfiguration* const config = mir_connection_create_display_config(connection);
+
+    MirDisplayOutput* const output = config->outputs + 0;
+
+    MirSurfaceSpec* const spec = mir_connection_create_spec_for_normal_surface(
+        connection,
+        width,
+        height,
+        mir_pixel_format_abgr_8888);
+
+    mir_surface_spec_set_fullscreen_on_output(spec, output->output_id);
+
+    MirSurface* const surface = mir_surface_create_sync(spec);
+    mir_surface_spec_release(spec);
+
+    MirSurfaceParameters params;
+    mir_surface_get_parameters(surface, &params);
+
+    MirDisplayMode* const mode = output->modes + output->current_mode;
+    EXPECT_THAT(params.width, Ne(mode->horizontal_resolution));
+    EXPECT_THAT(params.height, Ne(mode->vertical_resolution));
+
+    EXPECT_THAT(params.width, Eq(width));
+    EXPECT_THAT(params.height, Eq(height));
+
+    mir_surface_release_sync(surface);
+    mir_display_config_destroy(config);
+}
