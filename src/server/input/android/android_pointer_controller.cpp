@@ -123,11 +123,12 @@ void mia::PointerController::setSpots(const droidinput::PointerCoords* spot_coor
         
         touches.push_back({{x, y}, pressure});
     }
-    
-    touch_visualizer->visualize_touches(touches);
+    if (touch_visualizer)
+        touch_visualizer->visualize_touches(touches);
 }
 
 void mia::PointerController::clearSpots()
 {
-    touch_visualizer->visualize_touches({});
+    if (touch_visualizer)
+        touch_visualizer->visualize_touches({});
 }
