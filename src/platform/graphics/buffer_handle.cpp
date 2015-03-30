@@ -28,18 +28,22 @@ mg::BufferHandle::BufferHandle(std::shared_ptr<mg::Buffer> const& buffer,
 }
 
 mg::BufferHandle::BufferHandle(BufferHandle&& other)
-                               : wrapped(std::move(other.wrapped))
 {
-    // We can't std:move a std::function as it leaves the "other" unspecified
-    release_fn.swap(other.release_fn);
+    *this = std::move(other);
 }
 
 mg::BufferHandle& mg::BufferHandle::operator=(BufferHandle&& other)
 {
     if (this != &other)
     {
+        // If the current buffer is being assigned a null handle,
+        // we need to release the buffer.
+    	if (other.wrapped && other.release_fn && release_fn)
+            release_fn(wrapped.get());
         wrapped = std::move(other.wrapped);
         release_fn.swap(other.release_fn);
+        // other is emptied out already, prevent double release
+        other.release_fn = nullptr;
     }
 
     return *this;

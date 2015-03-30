@@ -22,6 +22,7 @@
 #include "mir/graphics/display_buffer.h"
 #include "mir/graphics/display.h"
 #include "display_helpers.h"
+#include "mir/graphics/buffer_handle.h"
 
 #include <vector>
 #include <memory>
@@ -79,9 +80,9 @@ private:
 
     BufferObject* visible_composite_frame;
     BufferObject* scheduled_composite_frame;
-    std::shared_ptr<graphics::Buffer> visible_bypass_frame;
-    std::shared_ptr<Buffer> bypass_buf{nullptr};
     BufferObject* bypass_bufobj{nullptr};
+    graphics::BufferHandle visible_bypass_buffer_handle{nullptr, nullptr};
+    graphics::BufferHandle bypass_buffer_handle{nullptr, nullptr};
     std::shared_ptr<Platform> const platform;
     std::shared_ptr<DisplayReport> const listener;
     /* DRM helper from mgm::Platform */

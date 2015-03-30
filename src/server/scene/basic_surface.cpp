@@ -673,13 +673,13 @@ public:
         bool shaped,
         mg::Renderable::ID id)
     : underlying_buffer_stream{stream},
+      buffer_handle_handed_out(false),
       compositor_id{compositor_id},
       alpha_{alpha},
       shaped_{shaped},
       screen_position_(position),
       transformation_(transform),
-      id_(id)
-    {
+      id_(id)    {
     }
 
     ~SurfaceSnapshot()
@@ -688,12 +688,23 @@ public:
  
     std::shared_ptr<mg::Buffer> buffer() const override
     {
-        return buffer_handle().buffer();
+        if (buffer_handle_handed_out)
+            // Once buffer_handle() is called, the buffer is managed elsewhere
+            return nullptr;
+        else
+        {
+            if (!compositor_buffer_handle)
+                compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        }
+        return compositor_buffer_handle.buffer();
     }
 
     mg::BufferHandle buffer_handle() const override
     {
-        return underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        if (!compositor_buffer_handle)
+            compositor_buffer_handle = underlying_buffer_stream->lock_compositor_buffer(compositor_id);
+        buffer_handle_handed_out = true;
+        return std::move(compositor_buffer_handle);
     }
 
     geom::Rectangle screen_position() const override
@@ -712,6 +723,8 @@ public:
     { return id_; }
 private:
     std::shared_ptr<mc::BufferStream> const underlying_buffer_stream;
+    mg::BufferHandle mutable compositor_buffer_handle;
+    bool mutable buffer_handle_handed_out;
     void const*const compositor_id;
     float const alpha_;
     bool const shaped_;

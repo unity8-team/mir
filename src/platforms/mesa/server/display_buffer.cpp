@@ -29,7 +29,8 @@
 
 #include <stdexcept>
 
-namespace mgm = mir::graphics::mesa;
+namespace mg = mir::graphics;
+namespace mgm = mg::mesa;
 namespace geom = mir::geometry;
 
 class mgm::BufferObject
@@ -204,7 +205,8 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
         if (bypass_it != renderable_list.rend())
         {
-            auto bypass_buffer = (*bypass_it)->buffer();
+        	bypass_buffer_handle = (*bypass_it)->buffer_handle();
+            auto bypass_buffer = bypass_buffer_handle.buffer();
             auto native = bypass_buffer->native_buffer_handle();
             auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
             auto bufobj = get_buffer_object(gbm_native->bo);
@@ -212,14 +214,13 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
                 native->flags & mir_buffer_flag_can_scanout &&
                 bypass_buffer->size() == geom::Size{fb_width,fb_height})
             {
-                bypass_buf = bypass_buffer;
                 bypass_bufobj = bufobj;
                 return true;
             }
             else
             {
-                bypass_buf = nullptr;
                 bypass_bufobj = nullptr;
+                bypass_buffer_handle = mg::BufferHandle(nullptr, nullptr);
             }
         }
     }
@@ -237,7 +238,7 @@ void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
-    bypass_buf = nullptr;
+    bypass_buffer_handle = mg::BufferHandle(nullptr, nullptr);
     bypass_bufobj = nullptr;
 }
 
@@ -256,7 +257,7 @@ void mgm::DisplayBuffer::post()
      * we can unreference the bypass buffer...
      */
     if (scheduled_composite_frame)
-        visible_bypass_frame = nullptr;
+        visible_bypass_buffer_handle = mg::BufferHandle(nullptr, nullptr);
     /*
      * Release the last flipped buffer object (which is not displayed anymore)
      * to make it available for future rendering.
@@ -268,16 +269,14 @@ void mgm::DisplayBuffer::post()
     scheduled_composite_frame = nullptr;
 
     mgm::BufferObject *bufobj;
-    if (bypass_buf)
-    {
-        bufobj = bypass_bufobj;
-    }
-    else
+    if (!bypass_buffer_handle)
     {
         bufobj = get_front_buffer_object();
         if (!bufobj)
             fatal_error("Failed to get front buffer object");
     }
+    else
+        bufobj = bypass_bufobj;
 
     /*
      * Schedule the current front buffer object for display, and wait
@@ -288,7 +287,7 @@ void mgm::DisplayBuffer::post()
      */
     if (!needs_set_crtc && !schedule_page_flip(bufobj))
     {
-        if (!bypass_buf)
+        if (!bypass_buffer_handle)
             bufobj->release();
         fatal_error("Failed to schedule page flip");
     }
@@ -302,29 +301,7 @@ void mgm::DisplayBuffer::post()
         needs_set_crtc = false;
     }
 
-    if (bypass_buf)
-    {
-        /*
-         * For composited frames we defer wait_for_page_flip till just before
-         * the next frame, but not for bypass frames. Deferring the flip of
-         * bypass frames would increase the time we held
-         * visible_bypass_frame unacceptably, resulting in client stuttering
-         * unless we allocate more buffers (which I'm trying to avoid).
-         * Also, bypass does not need the deferred page flip because it has
-         * no compositing/rendering step for which to save time for.
-         */
-        wait_for_page_flip();
-        scheduled_composite_frame = nullptr;
-
-        /*
-         * Keep a reference to the buffer being bypassed for the entire
-         * duration of the frame. This ensures the buffer doesn't get reused by
-         * the client while its on-screen, which would be seen as tearing or
-         * worse.
-         */
-        visible_bypass_frame = bypass_buf;
-    }
-    else
+    if (!bypass_buffer_handle)
     {
         /*
          * Not in clone mode? We can afford to wait for the page flip then,
@@ -352,6 +329,28 @@ void mgm::DisplayBuffer::post()
         }
 
         scheduled_composite_frame = bufobj;
+    }
+    else
+    {
+        /*
+         * For composited frames we defer wait_for_page_flip till just before
+         * the next frame, but not for bypass frames. Deferring the flip of
+         * bypass frames would increase the time we held
+         * visible_bypass_frame unacceptably, resulting in client stuttering
+         * unless we allocate more buffers (which I'm trying to avoid).
+         * Also, bypass does not need the deferred page flip because it has
+         * no compositing/rendering step for which to save time for.
+         */
+        wait_for_page_flip();
+        scheduled_composite_frame = nullptr;
+
+        /*
+         * Keep a reference to the buffer being bypassed for the entire
+         * duration of the frame. This ensures the buffer doesn't get reused by
+         * the client while its on-screen, which would be seen as tearing or
+         * worse.
+         */
+        visible_bypass_buffer_handle = std::move(bypass_buffer_handle);
     }
 }
 
