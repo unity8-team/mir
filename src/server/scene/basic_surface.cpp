@@ -689,8 +689,12 @@ public:
     std::shared_ptr<mg::Buffer> buffer() const override
     {
         if (buffer_handle_handed_out)
+        {
             // Once buffer_handle() is called, the buffer is managed elsewhere
+            BOOST_THROW_EXCEPTION(
+                std::runtime_error("Calling buffer() after buffer_handle() is called is not allowed"));
             return nullptr;
+        }
         else
         {
             if (!compositor_buffer_handle)

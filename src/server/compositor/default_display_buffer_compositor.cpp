@@ -72,11 +72,10 @@ void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& sc
      */
     scene_elements.clear();  // Those in use are still in renderable_list
 
+    report->renderables_in_frame(this, renderable_list);
+
     if (display_buffer.post_renderables_if_optimizable(renderable_list))
-    {
-        report->renderables_in_frame(this, renderable_list);
         renderer->suspend();
-    }
     else
     {
         display_buffer.make_current();
@@ -86,7 +85,6 @@ void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& sc
         renderer->render(renderable_list);
 
         display_buffer.gl_swap_buffers();
-        report->renderables_in_frame(this, renderable_list);
         report->rendered_frame(this);
 
         // Release the buffers we did use back to the clients, before starting
