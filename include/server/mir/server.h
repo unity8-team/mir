@@ -19,6 +19,7 @@
 #ifndef MIR_SERVER_H_
 #define MIR_SERVER_H_
 
+#include "mir/shell/window_manager_builder.h"
 #include "mir_toolkit/common.h"
 
 #include <functional>
@@ -30,7 +31,7 @@ namespace mir
 namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
 namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
 namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
+namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; class InputDeviceHub;}
 namespace logging { class Logger; }
 namespace options { class Option; }
 namespace shell
@@ -254,6 +255,9 @@ public:
     /// Sets an override functor for creating the surface configurator.
     void override_the_surface_configurator(Builder<scene::SurfaceConfigurator> const& surface_configurator_builder);
 
+    /// Sets an override functor for creating the window manager.
+    void override_the_window_manager_builder(shell::WindowManagerBuilder const wmb);
+
     /// Each of the wrap functions takes a wrapper functor of the same form
     template<typename T> using Wrapper = std::function<std::shared_ptr<T>(std::shared_ptr<T> const&)>;
 
@@ -339,6 +343,9 @@ public:
 
     /// \return the touch visualizer.
     auto the_touch_visualizer() const -> std::shared_ptr<input::TouchVisualizer>;
+
+    /// \return the input device hub
+    auto the_input_device_hub() const -> std::shared_ptr<input::InputDeviceHub>;
 /** @} */
 
 /** @name Client side support

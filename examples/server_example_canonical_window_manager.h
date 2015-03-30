@@ -28,6 +28,7 @@
 
 namespace mir
 {
+namespace shell { class DisplayLayout; }
 namespace examples
 {
 struct CanonicalSessionInfo
@@ -46,6 +47,7 @@ struct CanonicalSurfaceInfo
     std::weak_ptr<scene::Session> session;
     std::weak_ptr<scene::Surface> parent;
     std::vector<std::weak_ptr<scene::Surface>> children;
+    std::shared_ptr<scene::Surface> decoration;
 };
 
 // standard window management algorithm:
@@ -62,7 +64,9 @@ public:
     using Tools = BasicWindowManagerTools<CanonicalSessionInfo, CanonicalSurfaceInfo>;
     using CanonicalSessionInfoMap = typename SessionTo<CanonicalSessionInfo>::type;
 
-    explicit CanonicalWindowManagerPolicy(Tools* const tools);
+    explicit CanonicalWindowManagerPolicy(
+        Tools* const tools,
+        std::shared_ptr<shell::DisplayLayout> const& display_layout);
 
     void click(geometry::Point cursor);
 
@@ -85,11 +89,14 @@ public:
 
     void drag(geometry::Point cursor);
 
-    bool handle_key_event(MirKeyInputEvent const* event);
+    bool handle_key_event(MirKeyboardEvent const* event);
 
-    bool handle_touch_event(MirTouchInputEvent const* event);
+    bool handle_touch_event(MirTouchEvent const* event);
 
-    bool handle_pointer_event(MirPointerInputEvent const* event);
+    bool handle_pointer_event(MirPointerEvent const* event);
+
+    std::vector<std::shared_ptr<scene::Surface>> generate_decorations_for(
+        std::shared_ptr<scene::Session> const& session, std::shared_ptr<scene::Surface> const& surface);
 
 private:
     static const int modifier_mask =
@@ -112,6 +119,7 @@ private:
     void raise_tree(std::shared_ptr<scene::Surface> const& root) const;
 
     Tools* const tools;
+    std::shared_ptr<shell::DisplayLayout> const display_layout;
 
     geometry::Rectangle display_area;
     geometry::Point old_cursor{};

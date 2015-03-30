@@ -32,6 +32,7 @@
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
 #include <system_error>
+#include <cstdlib>
 
 namespace mircv = mir::input::receiver;
 namespace mircva = mircv::android;
@@ -51,6 +52,15 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     android_clock(clock)
 {
+    /*
+     * 59Hz by default. This ensures the input rate never gets ahead of the
+     * typical display rate, which would be seen as visible lag.
+     */
+    event_rate_hz = 59;
+    auto env = getenv("MIR_CLIENT_INPUT_RATE");
+    if (env != NULL)
+        event_rate_hz = atoi(env);
+
     timer_fd = mir::Fd{timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC)};
     if (timer_fd == mir::Fd::invalid)
     {
@@ -154,20 +164,16 @@ void mircva::InputReceiver::process_and_maybe_send_event()
      *      appearance of lower latency. Getting a real frame time from the
      *      graphics logic (which is messy) does not appear to be necessary to
      *      gain significant benefit.
-     *
-     * Note event_rate_hz is only 55Hz. This allows rendering to catch up and
-     * overtake the event rate every ~12th frame (200ms) on a 60Hz display.
-     * Thus on every 12th+1 frame, there will be zero buffer lag in responding
-     * to the cooked input event we have given the client.
-     * This phase control is useful as it eliminates the one frame of lag you
-     * would otherwise never catch up to if the event rate was exactly the same
-     * as the display refresh rate.
      */
 
-    std::chrono::nanoseconds const now = android_clock(SYSTEM_TIME_MONOTONIC);
-    int const event_rate_hz = 55;
-    std::chrono::nanoseconds const one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
-    std::chrono::nanoseconds frame_time = (now / one_frame) * one_frame;
+    auto frame_time = std::chrono::nanoseconds(-1);
+    if (event_rate_hz > 0)
+    {
+        std::chrono::nanoseconds const
+            now = android_clock(SYSTEM_TIME_MONOTONIC),
+            one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
+        frame_time = (now / one_frame) * one_frame;
+    }
 
     auto result = input_consumer->consume(&event_factory,
                                           true,
