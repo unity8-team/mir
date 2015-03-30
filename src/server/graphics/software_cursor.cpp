@@ -74,6 +74,7 @@ public:
 
     mg::BufferHandle buffer_handle() const override
     {
+        // Not used for software cursor.
         mg::BufferHandle handle;
         return handle;
     }
