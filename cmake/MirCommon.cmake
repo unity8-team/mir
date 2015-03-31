@@ -86,6 +86,10 @@ function (mir_discover_tests EXECUTABLE)
       add_dependencies(${CHECK_TEST_DISCOVERY_TARGET_NAME} mirplatformgraphicsmesa)
     endif()
 
+    if (MIR_BUILD_PLATFORM_X)
+      add_dependencies(${CHECK_TEST_DISCOVERY_TARGET_NAME} mirplatformgraphicsX)
+    endif()
+
     if (${ARGC} GREATER 1)
       foreach (env ${ARGN})
         list(APPEND EXTRA_ENV_FLAGS "--add-environment" "${env}")
