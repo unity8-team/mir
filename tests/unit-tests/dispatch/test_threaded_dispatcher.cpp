@@ -190,12 +190,6 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
 {
     using namespace testing;
 
-    if (RUNNING_ON_VALGRIND)
-    {
-        // Sadly we can't mark this as inconclusive under valgrind.
-        return;
-    }
-
     auto first_dispatched = std::make_shared<mt::Signal>();
     auto second_dispatched = std::make_shared<mt::Signal>();
 
@@ -204,12 +198,12 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
     auto first_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         first_dispatched->raise();
-        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{10}));
+        EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{60}));
     });
     auto second_dispatchable = std::make_shared<mt::TestDispatchable>([first_dispatched, second_dispatched]()
     {
         second_dispatched->raise();
-        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{10}));
+        EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{60}));
     });
 
     auto combined_dispatchable = std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{first_dispatchable, second_dispatchable});
@@ -219,6 +213,10 @@ TEST_F(ThreadedDispatcherTest, dispatches_multiple_dispatchees_simultaneously)
 
     first_dispatchable->trigger();
     second_dispatchable->trigger();
+
+    // Wait for dispatches to finish, so the dispatcher destructor doesn't race dispatching.
+    EXPECT_TRUE(first_dispatched->wait_for(std::chrono::seconds{60}));
+    EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{60}));
 }
 
 TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
