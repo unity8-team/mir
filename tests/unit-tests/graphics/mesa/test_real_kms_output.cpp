@@ -42,6 +42,11 @@ class NullPageFlipper : public mgm::PageFlipper
 public:
     bool schedule_flip(uint32_t,uint32_t) { return true; }
     void wait_for_flip(uint32_t) { }
+    drmVBlankReply const& last_flip() const
+    {
+        static const drmVBlankReply ret = {DRM_VBLANK_ABSOLUTE, 0, 0, 0};
+        return ret;
+    }
 };
 
 class MockPageFlipper : public mgm::PageFlipper
@@ -49,6 +54,7 @@ class MockPageFlipper : public mgm::PageFlipper
 public:
     MOCK_METHOD2(schedule_flip, bool(uint32_t,uint32_t));
     MOCK_METHOD1(wait_for_flip, void(uint32_t));
+    MOCK_CONST_METHOD0(last_flip, drmVBlankReply const&());
 };
 
 class RealKMSOutputTest : public ::testing::Test
