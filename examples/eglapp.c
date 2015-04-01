@@ -16,8 +16,6 @@
  * Author: Daniel van Vugt <daniel.van.vugt@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "eglapp.h"
 #include "mir_toolkit/mir_client_library.h"
 #include <stdio.h>
@@ -144,7 +142,12 @@ static void mir_eglapp_handle_event(MirSurface* surface, MirEvent const* ev, voi
          * support for event queuing (directing them to another thread) or
          * full single-threaded callbacks. (LP: #1194384).
          */
-        printf("Resized to %dx%d\n", ev->resize.width, ev->resize.height);
+        {
+            MirResizeEvent const* resize = mir_event_get_resize_event(ev);
+            printf("Resized to %dx%d\n",
+                   mir_resize_event_get_width(resize),
+                   mir_resize_event_get_height(resize));
+        }
         break;
     case mir_event_type_close_surface:
         printf("Received close event from server.\n");
@@ -185,11 +188,6 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     {
         EGL_CONTEXT_CLIENT_VERSION, 2,
         EGL_NONE
-    };
-    MirEventDelegate delegate = 
-    {
-        mir_eglapp_handle_event,
-        NULL
     };
     EGLConfig eglconfig;
     EGLint neglconfigs;
@@ -404,7 +402,7 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
 
     CHECK(mir_surface_is_valid(surface), "Can't create a surface");
 
-    mir_surface_set_event_handler(surface, &delegate);
+    mir_surface_set_event_handler(surface, mir_eglapp_handle_event, NULL);
     
     MirCursorConfiguration *conf = mir_cursor_configuration_from_name(cursor_name);
     mir_surface_configure_cursor(surface, conf);
