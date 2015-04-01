@@ -888,11 +888,7 @@ struct ThreadTrackingCallbacks
         EXPECT_THAT(pthread_self(), Eq(data->client_thread));
         data->surf = surf;
 
-        MirEventDelegate const delegate = {
-            &ThreadTrackingCallbacks::event_delegate,
-            data
-        };
-        mir_surface_set_event_handler(data->surf, &delegate);
+        mir_surface_set_event_handler(data->surf, &ThreadTrackingCallbacks::event_delegate, data);
     }
 
     static void swap_buffers_complete(MirBufferStream* /*stream*/, void* ctx)
@@ -1071,11 +1067,7 @@ TEST_F(ClientLibrary, rpc_blocking_doesnt_block_event_delivery_with_auto_dispatc
     EXPECT_THAT(surf, IsValid());
 
     auto signal_pair = std::make_shared<SignalPair>();
-    MirEventDelegate const delegate = {
-        &notifying_event_handler,
-        &signal_pair
-    };
-    mir_surface_set_event_handler(surf, &delegate);
+    mir_surface_set_event_handler(surf, &notifying_event_handler, &signal_pair);
 
     auto buffer_stream = mir_surface_get_buffer_stream(surf);
     auto wh = mir_buffer_stream_swap_buffers(buffer_stream, &blocking_buffer_stream_callback, &signal_pair);
