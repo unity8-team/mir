@@ -91,15 +91,7 @@ struct InputClient
         surface = mir_surface_create_sync(spec);
         mir_surface_spec_release(spec);
 
-        {
-            MirSurfaceParameters p;
-            mir_surface_get_parameters(surface, &p);
-            printf("Surface width/height %d %d\n", p.width, p.height);
-            
-        }
-
-        MirEventDelegate const event_delegate { handle_input, this };
-        mir_surface_set_event_handler(surface, &event_delegate);
+        mir_surface_set_event_handler(surface, handle_input, this);
         mir_buffer_stream_swap_buffers_sync(
             mir_surface_get_buffer_stream(surface));
 

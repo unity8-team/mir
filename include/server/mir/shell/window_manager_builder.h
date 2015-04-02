@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,31 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Robert Carr <robert.carr@canonical.com>
+ * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#ifndef MIR_TEST_DOUBLES_MOCK_SURFACE_CONFIGURATOR_H_
-#define MIR_TEST_DOUBLES_MOCK_SURFACE_CONFIGURATOR_H_
+#ifndef INCLUDE_SERVER_MIR_SHELL_WINDOW_MANAGER_BUILDER_H_
+#define INCLUDE_SERVER_MIR_SHELL_WINDOW_MANAGER_BUILDER_H_
 
-#include "mir/scene/surface_configurator.h"
-
-#include <gmock/gmock.h>
+#include <functional>
+#include <memory>
 
 namespace mir
 {
-namespace test
+namespace shell
 {
-namespace doubles
-{
+class WindowManager;
+class FocusController;
 
-struct MockSurfaceConfigurator : public scene::SurfaceConfigurator
-{
-    MOCK_METHOD3(select_attribute_value, int(scene::Surface const&, MirSurfaceAttrib, int));
-    MOCK_METHOD3(attribute_set, void(scene::Surface const&, MirSurfaceAttrib, int));
-};
-
+/// WindowManagers are built while initializing an AbstractShell, so a builder functor is needed
+using WindowManagerBuilder =
+    std::function<std::shared_ptr<WindowManager>(FocusController* focus_controller)>;
 }
 }
-}
-
-#endif /* MIR_TEST_DOUBLES_MOCK_SURFACE_CONFIGURATOR_H_ */
+#endif /* INCLUDE_SERVER_MIR_SHELL_WINDOW_MANAGER_BUILDER_H_ */
