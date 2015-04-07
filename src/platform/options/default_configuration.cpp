@@ -64,7 +64,7 @@ namespace
 {
 int const default_ipc_threads          = 1;
 int const default_nbuffers             = 2;
-bool const enable_input_default        = true;
+bool const enable_input_default        = false;
 
 // Hack around the way Qt loads mir:
 // platform_api and therefore Mir are loaded via dlopen(..., RTLD_LOCAL).
