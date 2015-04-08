@@ -217,8 +217,8 @@ private:
     {
     public:
         NotifyOnDestroy(std::unique_lock<std::mutex>&& lock,
-                             std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion,
-                             std::promise<std::unique_ptr<google::protobuf::RpcChannel>>& promise)
+                        std::function<void(std::future<std::unique_ptr<google::protobuf::RpcChannel>>)> completion,
+                        std::promise<std::unique_ptr<google::protobuf::RpcChannel>>& promise)
             : lock{std::move(lock)},
               completion{completion}
         {
