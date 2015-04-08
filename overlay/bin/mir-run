@@ -1,7 +1,6 @@
 #!/bin/sh
 
 export MIR_CLIENT_PLATFORM_PATH="$(ls -d /apps/@PACKAGE@/@VERSION@/debs/usr/lib/*/mir/client-platform)"
-export LD_LIBRARY_PATH=/apps/@PACKAGE@/@VERSION@/lib:$LD_LIBRARY_PATH
 export MIR_SOCKET=/var/lib/apps/@PACKAGE@/@VERSION@/mir_socket
 export MIR_SERVER_NAME=snappy-mir
 
