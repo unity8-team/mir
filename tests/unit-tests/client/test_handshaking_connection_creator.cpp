@@ -249,7 +249,7 @@ public:
 
     ForkGuard(ForkGuard&&) = default;
 
-    bool run_tests_in_this_process()
+    bool run_test_in_this_process()
     {
         return !process;
     }
@@ -291,19 +291,15 @@ ForkGuard maybe_fork_to_run_test(testing::Test* test)
     }
     return ForkGuard{};
 }
-
-class ClientHandshakingConnectionCreator : public testing::Test
-{
-};
 }
 
 
-TEST_F(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
+TEST(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
 {
     using namespace testing;
 
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -316,6 +312,7 @@ TEST_F(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_pr
     auto protocol = std::make_unique<MockProtocolInterpreter>(std::make_unique<MockClientHandshakeProtocol>(uuid_str, client_header));
     std::vector<std::unique_ptr<mclr::ProtocolInterpreter>> protocols;
     protocols.emplace_back(std::move(protocol));
+
     mclr::HandshakingConnectionCreator handshake{std::move(protocols)};
 
     auto* transport_observer = transport.get();
@@ -337,12 +334,12 @@ TEST_F(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_pr
     EXPECT_THAT(transport_observer->send_buffer, ContainerEq(expected_header));
 }
 
-TEST_F(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
+TEST(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
 {
     using namespace testing;
 
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -370,12 +367,12 @@ TEST_F(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_
     EXPECT_THAT(proto, Eq(second_protocol_addr));
 }
 
-TEST_F(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
+TEST(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
 {
     using namespace testing;
 
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -441,7 +438,7 @@ private:
 TEST_F(RpcChannelResolver, completion_is_called_immediately_if_set_on_ready_resolver)
 {
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -464,7 +461,7 @@ TEST_F(RpcChannelResolver, completion_isnt_called_until_future_is_ready)
     using namespace std::literals::chrono_literals;
 
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -487,7 +484,7 @@ TEST_F(RpcChannelResolver, completion_isnt_called_until_future_is_ready)
 TEST_F(RpcChannelResolver, calling_set_continuation_twice_is_an_error)
 {
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
@@ -504,7 +501,7 @@ TEST_F(RpcChannelResolver, destruction_cancels_completion)
     using namespace std::literals::chrono_literals;
 
     auto guard = maybe_fork_to_run_test(this);
-    if (!guard.run_tests_in_this_process())
+    if (!guard.run_test_in_this_process())
     {
         return;
     }
