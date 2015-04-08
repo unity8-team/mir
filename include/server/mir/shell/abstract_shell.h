@@ -20,6 +20,7 @@
 #define MIR_SHELL_ABSTRACT_SHELL_H_
 
 #include "mir/shell/shell.h"
+#include "mir/shell/window_manager_builder.h"
 
 #include <mutex>
 
@@ -38,7 +39,7 @@ public:
         std::shared_ptr<scene::SurfaceCoordinator> const& surface_coordinator,
         std::shared_ptr<scene::SessionCoordinator> const& session_coordinator,
         std::shared_ptr<scene::PromptSessionManager> const& prompt_session_manager,
-        std::function<std::shared_ptr<WindowManager>(FocusController* focus_controller)> const& wm_builder);
+        WindowManagerBuilder const& wm_builder);
 
     ~AbstractShell() noexcept;
 
@@ -50,6 +51,8 @@ public:
     void close_session(std::shared_ptr<scene::Session> const& session) override;
 
     frontend::SurfaceId create_surface(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params) override;
+
+    void modify_surface(std::shared_ptr<scene::Session> const& session, std::shared_ptr<scene::Surface> const& surface, SurfaceSpecification const& modifications) override;
 
     void destroy_surface(std::shared_ptr<scene::Session> const& session, frontend::SurfaceId surface) override;
 

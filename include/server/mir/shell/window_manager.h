@@ -31,6 +31,8 @@ namespace geometry { class Rectangle; }
 namespace scene { class Session; class Surface; class SurfaceCreationParameters; }
 namespace shell
 {
+class SurfaceSpecification;
+
 /// interface to provide window management logic
 class WindowManager
 {
@@ -44,6 +46,11 @@ public:
         scene::SurfaceCreationParameters const& params,
         std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build) = 0;
 
+    virtual void modify_surface(
+        std::shared_ptr<scene::Session> const& session,
+        std::shared_ptr<scene::Surface> const& surface,
+        SurfaceSpecification  const& modifications) = 0;
+
     virtual void remove_surface(
         std::shared_ptr<scene::Session> const& session,
         std::weak_ptr<scene::Surface> const& surface) = 0;
@@ -52,11 +59,11 @@ public:
 
     virtual void remove_display(geometry::Rectangle const& area) = 0;
 
-    virtual bool handle_key_event(MirKeyInputEvent const* event) = 0;
+    virtual bool handle_keyboard_event(MirKeyboardEvent const* event) = 0;
 
-    virtual bool handle_touch_event(MirTouchInputEvent const* event) = 0;
+    virtual bool handle_touch_event(MirTouchEvent const* event) = 0;
 
-    virtual bool handle_pointer_event(MirPointerInputEvent const* event) = 0;
+    virtual bool handle_pointer_event(MirPointerEvent const* event) = 0;
 
     virtual int set_surface_attribute(
         std::shared_ptr<scene::Session> const& session,

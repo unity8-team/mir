@@ -16,7 +16,6 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#include "mir/shell/abstract_shell.h"
 #include "mir/geometry/rectangle.h"
 #include "mir/scene/session.h"
 
@@ -105,15 +104,8 @@ struct CustomWindowManagement : mtf::HeadlessTest
 
         initial_display_layout(display_geometry);
 
-        server.override_the_shell([this]
-           {
-                return std::make_shared<msh::AbstractShell>(
-                    server.the_input_targeter(),
-                    server.the_surface_coordinator(),
-                    server.the_session_coordinator(),
-                    server.the_prompt_session_manager(),
-                    [this](msh::FocusController*) { return mt::fake_shared(window_manager); });
-           });
+        server.override_the_window_manager_builder([this]
+            (msh::FocusController*) { return mt::fake_shared(window_manager); });
     }
 
     void TearDown() override
@@ -173,6 +165,21 @@ TEST_F(CustomWindowManagement, surface_create_adds_surface)
     EXPECT_CALL(window_manager, add_surface(_,_,_));
 
     auto const surface = client.surface_create();
+
+    mir_surface_release_sync(surface);
+}
+
+TEST_F(CustomWindowManagement, surface_rename_modifies_surface)
+{
+    auto const new_title = __PRETTY_FUNCTION__;
+
+    start_server();
+    auto const client = connect_client();
+    auto const surface = client.surface_create();
+
+    EXPECT_CALL(window_manager, modify_surface(_,_,_));
+
+    mir_surface_set_title(surface, new_title);
 
     mir_surface_release_sync(surface);
 }

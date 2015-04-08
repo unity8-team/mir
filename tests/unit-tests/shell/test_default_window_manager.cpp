@@ -16,7 +16,7 @@
  * Authored by: ALan Griffiths <alan.griffiths@canonical.com>
  */
 
-#include "src/server/shell/default_window_manager.h"
+#include "mir/shell/default_window_manager.h"
 
 #include "mir/shell/abstract_shell.h"
 #include "mir/scene/session.h"
@@ -34,9 +34,9 @@
 #include "mir_test_doubles/mock_session_listener.h"
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
-#include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/null_prompt_session_manager.h"
 #include "mir_test_doubles/stub_input_targeter.h"
+#include "mir_test_doubles/stub_buffer_stream_factory.h"
 
 #include "mir_test/fake_shared.h"
 
@@ -109,6 +109,7 @@ struct DefaultWindowManager : Test
 
     NiceMock<MockSessionManager> session_manager{
         mt::fake_shared(surface_coordinator),
+        std::make_shared<mtd::StubBufferStreamFactory>(),
         mt::fake_shared(container),
         std::make_shared<mtd::NullSnapshotStrategy>(),
         mt::fake_shared(session_event_sink),
@@ -125,8 +126,7 @@ struct DefaultWindowManager : Test
             { return std::make_shared<msh::DefaultWindowManager>(
                 focus_controller,
                 mt::fake_shared(placement_strategy),
-                mt::fake_shared(session_manager),
-                std::make_shared<mtd::NullSurfaceConfigurator>());
+                mt::fake_shared(session_manager));
             }};
 
     void SetUp() override
