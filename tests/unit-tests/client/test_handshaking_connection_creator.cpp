@@ -31,8 +31,11 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <experimental/optional>
 
 #include <boost/exception/all.hpp>
+
+#include "mir_test_framework/process.h"
 
 #include "mir_test/gmock_fixes.h"
 #include "mir_test/fd_utils.h"
@@ -43,6 +46,7 @@
 
 namespace mclr = mir::client::rpc;
 namespace mt = mir::test;
+namespace mtf = mir_test_framework;
 
 namespace
 {
@@ -192,12 +196,117 @@ private:
     mir::Fd event_fd;
     std::mutex observer_mutex;
 };
+
+bool has_broken_stdcpp()
+{
+    static std::experimental::optional<bool> broken;
+    if (!broken)
+    {
+        using namespace std::literals::chrono_literals;
+        auto child = mtf::fork_and_run_in_a_different_process([]()
+        {
+            auto except = std::make_exception_ptr(0);
+            try
+            {
+                std::rethrow_exception(except);
+            }
+            catch(...)
+            {
+            }
+            if (std::uncaught_exception())
+            {
+                exit(EXIT_FAILURE);
+            }
+            exit(EXIT_SUCCESS);
+        },[](){ return 0; });
+
+        broken = child->wait_for_termination(10s).exit_code != EXIT_SUCCESS;
+
+        if (broken.value())
+        {
+            std::cerr << "*** Working around broken std::rethrow_exception behaviour ***" << std::endl;
+        }
+    }
+    return broken.value();
+}
+
+class ForkGuard
+{
+public:
+    ForkGuard()
+        : test{nullptr}
+    {
+    }
+
+    ForkGuard(pid_t pid, testing::Test* test)
+        : test{test}
+    {
+        if (pid != 0)
+        {
+            process = std::make_unique<mtf::Process>(pid);
+        }
+    }
+
+    ForkGuard(ForkGuard&&) = default;
+
+    bool run_tests_in_this_process()
+    {
+        return !process;
+    }
+
+    ~ForkGuard()
+    {
+        using namespace std::literals::chrono_literals;
+        if (process)
+        {
+            // In parent...
+            EXPECT_TRUE(process->wait_for_termination(10s).succeeded());
+        }
+        else if (test)
+        {
+            // In child...
+            exit(test->HasFailure() ? EXIT_FAILURE : EXIT_SUCCESS);
+        }
+    }
+
+private:
+    testing::Test* const test;
+    std::unique_ptr<mtf::Process> process;
+};
+
+ForkGuard maybe_fork_to_run_test(testing::Test* test)
+{
+    if(has_broken_stdcpp())
+    {
+        pid_t pid = fork();
+
+        if (pid < 0)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failure to fork"}));
+        }
+
+        return ForkGuard{pid, test};
+    }
+    return ForkGuard{};
+}
+
+class ClientHandshakingConnectionCreator : public testing::Test
+{
+};
 }
 
 
-TEST(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
+TEST_F(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_protocol)
 {
     using namespace testing;
+
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
 
     auto transport = std::make_unique<RecordingStreamTransport>();
     std::string const uuid_str{"be094b17-4ca0-40fd-9394-913a4aab05f0"};
@@ -228,9 +337,15 @@ TEST(ClientHandshakingConnectionCreator, writes_handshake_header_for_single_prot
     EXPECT_THAT(transport_observer->send_buffer, ContainerEq(expected_header));
 }
 
-TEST(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
+TEST_F(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on_server_reply)
 {
     using namespace testing;
+
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
 
     auto transport = std::make_unique<RecordingStreamTransport>();
     std::string const first_uuid{"be094b17-4ca0-40fd-9394-913a4aab05f0"};
@@ -255,9 +370,15 @@ TEST(ClientHandshakingConnectionCreator, dispatches_to_correct_protocol_based_on
     EXPECT_THAT(proto, Eq(second_protocol_addr));
 }
 
-TEST(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
+TEST_F(ClientHandshakingConnectionCreator, throws_exception_on_server_protocol_mismatch)
 {
     using namespace testing;
+
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
 
     auto transport = std::make_unique<RecordingStreamTransport>();
     std::string const client_uuid{"be094b17-4ca0-40fd-9394-913a4aab05f0"};
@@ -319,6 +440,12 @@ private:
 
 TEST_F(RpcChannelResolver, completion_is_called_immediately_if_set_on_ready_resolver)
 {
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
+
     auto resolver = get_resolver();
 
     successfully_complete_handhake();
@@ -335,6 +462,12 @@ TEST_F(RpcChannelResolver, completion_is_called_immediately_if_set_on_ready_reso
 TEST_F(RpcChannelResolver, completion_isnt_called_until_future_is_ready)
 {
     using namespace std::literals::chrono_literals;
+
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
 
     auto resolver = get_resolver();
 
@@ -353,6 +486,12 @@ TEST_F(RpcChannelResolver, completion_isnt_called_until_future_is_ready)
 
 TEST_F(RpcChannelResolver, calling_set_continuation_twice_is_an_error)
 {
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
+
     auto resolver = get_resolver();
 
     resolver->set_completion([](std::future<std::unique_ptr<google::protobuf::RpcChannel>>) {});
@@ -363,6 +502,12 @@ TEST_F(RpcChannelResolver, calling_set_continuation_twice_is_an_error)
 TEST_F(RpcChannelResolver, destruction_cancels_completion)
 {
     using namespace std::literals::chrono_literals;
+
+    auto guard = maybe_fork_to_run_test(this);
+    if (!guard.run_tests_in_this_process())
+    {
+        return;
+    }
 
     auto resolver = get_resolver();
 
