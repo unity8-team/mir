@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,23 +13,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored By: Alan Griffiths <alan@octopull.co.uk>
+ * Authored By: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir_test_framework/connected_client_with_a_surface.h"
+#ifndef MIR_EXAMPLES_CUSTOM_COMPOSITOR_H_
+#define MIR_EXAMPLES_CUSTOM_COMPOSITOR_H_
 
-namespace mtf = mir_test_framework;
-
-void mtf::ConnectedClientWithASurface::SetUp()
+namespace mir
 {
-    ConnectedClientHeadlessServer::SetUp();
+class Server;
 
-    surface = mir_connection_create_surface_sync(connection, &surface_params);
-    ASSERT_TRUE(mir_surface_is_valid(surface));
-}
-
-void mtf::ConnectedClientWithASurface::TearDown()
+namespace examples
 {
-    mir_surface_release_sync(surface);
-    ConnectedClientHeadlessServer::TearDown();
+void add_custom_compositor_option_to(Server& server);
 }
+} // namespace mir
+
+
+#endif /* MIR_EXAMPLES_CUSTOM_COMPOSITOR_H_ */

@@ -23,7 +23,7 @@
 
 namespace mir
 {
-namespace scene { class PlacementStrategy; class SurfaceConfigurator; class SessionCoordinator; }
+namespace scene { class PlacementStrategy; class SessionCoordinator; }
 
 namespace shell
 {
@@ -34,8 +34,7 @@ class DefaultWindowManager : public WindowManager
 public:
     explicit DefaultWindowManager(FocusController* focus_controller,
         std::shared_ptr<scene::PlacementStrategy> const& placement_strategy,
-        std::shared_ptr<scene::SessionCoordinator> const& session_coordinator,
-        std::shared_ptr<scene::SurfaceConfigurator> const& surface_configurator);
+        std::shared_ptr<scene::SessionCoordinator> const& session_coordinator);
 
     void add_session(std::shared_ptr<scene::Session> const& session) override;
 
@@ -46,6 +45,11 @@ public:
         scene::SurfaceCreationParameters const& params,
         std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build) override;
 
+    void modify_surface(
+        std::shared_ptr<scene::Session> const& session,
+        std::shared_ptr<scene::Surface> const& surface,
+        SurfaceSpecification const& modifications) override;
+
     void remove_surface(
         std::shared_ptr<scene::Session> const& session,
         std::weak_ptr<scene::Surface> const& surface) override;
@@ -54,7 +58,7 @@ public:
 
     void remove_display(geometry::Rectangle const& area) override;
 
-    bool handle_key_event(MirKeyboardEvent const* event) override;
+    bool handle_keyboard_event(MirKeyboardEvent const* event) override;
 
     bool handle_touch_event(MirTouchEvent const* event) override;
 
@@ -70,7 +74,6 @@ private:
     FocusController* const focus_controller;
     std::shared_ptr<scene::PlacementStrategy> const placement_strategy;
     std::shared_ptr<scene::SessionCoordinator> const session_coordinator;
-    std::shared_ptr<scene::SurfaceConfigurator> const surface_configurator;
 };
 }
 }
