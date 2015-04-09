@@ -211,11 +211,18 @@ TEST_F(SimpleDispatchThreadTest, handles_destruction_from_dispatch_callback)
     dispatchable->trigger();
     dispatchable->trigger();
 
+    // We need to get access to the dispatch thread and join it to avoid
+    // races leading to memory leak reports under valgrind
+    std::promise<std::thread> dispatch_thread_promise;
+    auto dispatch_thread_future = dispatch_thread_promise.get_future();
+
     dispatcher = new md::SimpleDispatchThread{dispatchable};
+    dispatcher->steal_thread_on_self_destruction(dispatch_thread_promise);
 
     assignment_made->raise();
 
     EXPECT_TRUE(dispatched->wait_for(10s));
+    dispatch_thread_future.get().join();
 }
 
 // Regression test for: lp #1439719

@@ -104,6 +104,7 @@ void wait_for_events_forever(std::shared_ptr<md::Dispatchable> const& dispatchee
 }
 
 md::SimpleDispatchThread::SimpleDispatchThread(std::shared_ptr<md::Dispatchable> const& dispatchee)
+    : steal_thread_promise{nullptr}
 {
     int pipefds[2];
     if (pipe(pipefds) < 0)
@@ -137,10 +138,19 @@ md::SimpleDispatchThread::~SimpleDispatchThread() noexcept
     {
         // We're being destroyed from within the dispatch callback
         // That's OK; we'll exit once we return back to wait_for_events_forever
-        eventloop.detach();
+        if (steal_thread_promise)
+            steal_thread_promise->set_value(std::move(eventloop));
+        else
+            eventloop.detach();
     }
     else if (eventloop.joinable())
     {
         eventloop.join();
     }
+}
+
+void md::SimpleDispatchThread::steal_thread_on_self_destruction(
+    std::promise<std::thread>& thread_promise)
+{
+    steal_thread_promise = &thread_promise;
 }

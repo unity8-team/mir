@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <thread>
+#include <future>
 #include "mir/fd.h"
 
 namespace mir
@@ -36,9 +37,12 @@ public:
     SimpleDispatchThread(std::shared_ptr<Dispatchable> const& dispatchee);
     ~SimpleDispatchThread() noexcept;
 
+    void steal_thread_on_self_destruction(std::promise<std::thread>& thread_promise);
+
 private:
     Fd shutdown_fd;
     std::thread eventloop;
+    std::promise<std::thread>* steal_thread_promise;
 };
 
 }
