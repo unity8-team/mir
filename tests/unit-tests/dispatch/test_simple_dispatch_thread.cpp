@@ -28,6 +28,7 @@
 #include <fcntl.h>
 
 #include <atomic>
+#include <future>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -212,10 +213,15 @@ TEST_F(SimpleDispatchThreadTest, handles_destruction_from_dispatch_callback)
     dispatchable->trigger();
 
     dispatcher = new md::SimpleDispatchThread{dispatchable};
+    auto shutdown_notifier = dispatcher->shutdown_notifier();
 
     assignment_made->raise();
 
     EXPECT_TRUE(dispatched->wait_for(10s));
+
+    EXPECT_THAT(shutdown_notifier.wait_for(10s), Eq(std::future_status::ready));
+    // Fail the test if an exception was set for some reason...
+    shutdown_notifier.get();
 }
 
 // Regression test for: lp #1439719

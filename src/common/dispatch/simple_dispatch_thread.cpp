@@ -26,11 +26,42 @@
 #include <array>
 #include <signal.h>
 #include <boost/exception/all.hpp>
+#include <mutex>
+#include <pthread.h>
 
 namespace md = mir::dispatch;
 
 namespace
 {
+/*
+ * std::promise<T>::set_at_thread_exit() is only implemented in GCC 5.
+ *
+ * This open-codes a simple work-alike for this specific usecase.
+ */
+std::once_flag thread_exit_flag;
+pthread_key_t thread_exit_key;
+
+void thread_exit_fn(void* tls_data)
+{
+    auto promise = reinterpret_cast<std::promise<void>*>(tls_data);
+    promise->set_value();
+    delete promise;
+}
+
+void set_at_nearly_thread_exit(std::unique_ptr<std::promise<void>> promise)
+{
+    std::call_once(thread_exit_flag, []() { pthread_key_create(&thread_exit_key, &thread_exit_fn); });
+
+    if (pthread_getspecific(thread_exit_key) != nullptr)
+    {
+        BOOST_THROW_EXCEPTION((std::logic_error{"Called set_at_nearly_thread_exit more than once in a thread"}));
+    }
+    int err;
+    if ((err = pthread_setspecific(thread_exit_key, promise.release())) != 0)
+    {
+        BOOST_THROW_EXCEPTION((std::system_error{err, std::system_category(), "Failed to set_at_nearly_thread_exit"}));
+    }
+}
 
 void wait_for_events_forever(std::shared_ptr<md::Dispatchable> const& dispatchee, mir::Fd shutdown_fd)
 {
@@ -104,6 +135,7 @@ void wait_for_events_forever(std::shared_ptr<md::Dispatchable> const& dispatchee
 }
 
 md::SimpleDispatchThread::SimpleDispatchThread(std::shared_ptr<md::Dispatchable> const& dispatchee)
+    : shutdown_provider{std::make_unique<std::promise<void>>()}
 {
     int pipefds[2];
     if (pipe(pipefds) < 0)
@@ -138,9 +170,16 @@ md::SimpleDispatchThread::~SimpleDispatchThread() noexcept
         // We're being destroyed from within the dispatch callback
         // That's OK; we'll exit once we return back to wait_for_events_forever
         eventloop.detach();
+        set_at_nearly_thread_exit(std::move(shutdown_provider));
     }
     else if (eventloop.joinable())
     {
         eventloop.join();
+        shutdown_provider->set_value();
     }
+}
+
+std::shared_future<void> md::SimpleDispatchThread::shutdown_notifier() const
+{
+    return shutdown_provider->get_future().share();
 }

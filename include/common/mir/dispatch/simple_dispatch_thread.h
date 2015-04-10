@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <thread>
+#include <future>
 #include "mir/fd.h"
 
 namespace mir
@@ -36,8 +37,10 @@ public:
     SimpleDispatchThread(std::shared_ptr<Dispatchable> const& dispatchee);
     ~SimpleDispatchThread() noexcept;
 
+    std::shared_future<void> shutdown_notifier() const;
 private:
     Fd shutdown_fd;
+    std::unique_ptr<std::promise<void>> shutdown_provider;
     std::thread eventloop;
 };
 
