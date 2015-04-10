@@ -44,18 +44,31 @@ function (mir_discover_tests EXECUTABLE)
   message(STATUS "Kernel version detected: " ${KERNEL_VERSION})
   # Some tests expect kernel version 3.11 and up
   if (${KERNEL_VERSION} VERSION_LESS "3.11")
-    add_test(${EXECUTABLE} ${VALGRIND_EXECUTABLE} ${VALGRIND_ARGS} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE}
-      "--gtest_filter=-*DeathTest.*:AnonymousShmFile.*:MesaBufferAllocatorTest.software_buffers_dont_bypass:MesaBufferAllocatorTest.creates_software_rendering_buffer")
-  else()
-    add_test(${EXECUTABLE} ${VALGRIND_EXECUTABLE} ${VALGRIND_ARGS} ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE}
-      "--gtest_filter=-*DeathTest.*")
+    set(EXCLUDED_TESTS "AnonymousShmFile.*:MesaBufferAllocatorTest.software_buffers_dont_bypass:MesaBufferAllocatorTest.creates_software_rendering_buffer")
   endif()
 
-  add_test(${EXECUTABLE}_death_tests ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} "--gtest_filter=*DeathTest.*")
-  if (${ARGC} GREATER 1)
-    set_property(TEST ${EXECUTABLE} PROPERTY ENVIRONMENT ${ARGN})
-    set_property(TEST ${EXECUTABLE}_death_tests PROPERTY ENVIRONMENT ${ARGN})
+  if(cmake_build_type_lower MATCHES "threadsanitizer")
+    find_program(LLVM_SYMBOLIZER llvm-symbolizer-3.6)
+    if (LLVM_SYMBOLIZER)
+      set(TSAN_EXTRA_OPTIONS "external_symbolizer_path=${LLVM_SYMBOLIZER}")
+    endif()
+    list(APPEND ARGN "--add-environment" "TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/tools/tsan-suppressions second_deadlock_stack=1 halt_on_error=1 history_size=7 ${TSAN_EXTRA_OPTIONS}")
+    # TSan does not support multi-threaded fork
+    # TSan may open fds so "surface_creation_does_not_leak_fds" will not work as written
+    # TSan deadlocks when running StreamTransportTest/0.SendsFullMessagesWhenInterrupted - disable it until understood
+    set(EXCLUDED_TESTS "${EXCLUDED_TESTS}:UnresponsiveClient.does_not_hang_server:DemoInProcessServerWithStubClientPlatform.surface_creation_does_not_leak_fds:StreamTransportTest/0.SendsFullMessagesWhenIterrupted")
   endif()
+
+  set(MAYBE_MEMCHECKED_EXECUTABLE ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE})
+  if (ENABLE_MEMCHECK_OPTION)
+    set(MAYBE_MEMCHEKCED_EXECUTABLE ${VALGRIND_EXECUTABLE} ${VALGRIND_ARGS} ${MAYBE_MEMCHECKED_EXECUTABLE})
+  endif()
+  
+  add_test(${EXECUTABLE} ${MAYBE_MEMCHECKED_EXECUTABLE} "--gtest_filter=-*DeathTest.*:${EXCLUDED_TESTS}")
+  add_test(${EXECUTABLE}_death_tests ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} "--gtest_filter=*DeathTest.*:-${EXCLUDED_TESTS}")
+
+  set_property(TEST ${EXECUTABLE} PROPERTY ENVIRONMENT ${ARGN})
+  set_property(TEST ${EXECUTABLE}_death_tests PROPERTY ENVIRONMENT ${ARGN})
 endfunction ()
 
 function (mir_add_memcheck_test)
