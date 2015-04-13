@@ -50,24 +50,28 @@ struct NestedDisplayBufferTest : testing::Test
         : egl_disp_handle{mock_egl.fake_egl_display,
                           mt::fake_shared(stub_gl_config)},
           default_rect{{100,100}, {800,600}}
-    {}
+    {
+        ON_CALL(mock_stream, current_buffer())
+            .WillByDefault(testing::Return(stub_buffer));
+    }
     testing::NiceMock<mtd::MockEGL> mock_egl;
     mtd::StubGLConfig stub_gl_config;
     NullHostSurface null_host_surface;
     mi::NullInputDispatcher null_input_dispatcher;
     mgnd::EGLDisplayHandle egl_disp_handle;
     geom::Rectangle const default_rect;
-};
-
-TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_alpha)
-{
     mgnd::DisplayBuffer db{
         egl_disp_handle,
         mt::fake_shared(null_host_surface),
         default_rect,
         mt::fake_shared(null_input_dispatcher),
         mir_pixel_format_abgr_8888};
+    testing::NiceMock<mtd::MockHostStream> mock_stream;
+    std::shared_ptr<mtd::StubBuffer> stub_buffer{std::make_shared<mtd::StubBuffer>()};
+};
 
+TEST_F(NestedDisplayBufferTest, alpha_enabled_pixel_format_enables_destination_alpha)
+{
     EXPECT_TRUE(db.uses_alpha());
 }
 
@@ -85,45 +89,22 @@ TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alph
 
 TEST_F(NestedDisplayBufferTest, post_optimized_success)
 {
-    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
-    mtd::MockHostStream mock_stream;
-    ON_CALL(mock_stream, current_buffer())
-        .WillByDefault(testing::Return(streams_buffer));
-
-    mgnd::DisplayBuffer db{
-        egl_disp_handle,
-        mt::fake_shared(null_host_surface),
-        default_rect,
-        mt::fake_shared(null_input_dispatcher),
-        mir_pixel_format_xbgr_8888};
+    geom::Rectangle position{geom::Point{22, 89}, stub_buffer->size()};
 
     EXPECT_CALL(mock_stream, swap());
     db.link_with_stream(&mock_stream);
 
-    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(
-        streams_buffer);
+    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(stub_buffer, position);
     EXPECT_TRUE(db.post_renderables_if_optimizable({renderable_from_stream}));
     db.unlink_from_stream(&mock_stream);
 }
 
 TEST_F(NestedDisplayBufferTest, unlinking_causes_rejections)
 {
-    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
-    mtd::MockHostStream mock_stream;
-    ON_CALL(mock_stream, current_buffer())
-        .WillByDefault(testing::Return(streams_buffer));
-
-    mgnd::DisplayBuffer db{
-        egl_disp_handle,
-        mt::fake_shared(null_host_surface),
-        default_rect,
-        mt::fake_shared(null_input_dispatcher),
-        mir_pixel_format_xbgr_8888};
-
     db.link_with_stream(&mock_stream);
 
     auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(
-        streams_buffer);
+        stub_buffer);
     db.post_renderables_if_optimizable({renderable_from_stream});
     db.unlink_from_stream(&mock_stream);
 
@@ -132,17 +113,6 @@ TEST_F(NestedDisplayBufferTest, unlinking_causes_rejections)
 
 TEST_F(NestedDisplayBufferTest, post_optimized_rejection_because_of_unknown_buffer)
 {
-    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
-    mtd::MockHostStream mock_stream;
-    ON_CALL(mock_stream, current_buffer())
-        .WillByDefault(testing::Return(streams_buffer));
-
-    mgnd::DisplayBuffer db{
-        egl_disp_handle,
-        mt::fake_shared(null_host_surface),
-        default_rect,
-        mt::fake_shared(null_input_dispatcher),
-        mir_pixel_format_xbgr_8888};
     db.link_with_stream(&mock_stream);
     
     auto nonstream_renderable = std::make_shared<mtd::StubRenderable>();

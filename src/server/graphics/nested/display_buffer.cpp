@@ -69,8 +69,15 @@ void mgn::detail::DisplayBuffer::release_current()
 
 void mgn::detail::DisplayBuffer::gl_swap_buffers()
 {
-    //show the primary surface
     eglSwapBuffers(egl_display, egl_surface);
+}
+
+namespace
+{
+bool buffer_is_current_in_stream(mg::Buffer& buffer, mgn::HostStream* stream)
+{
+    return buffer.id() == stream->current_buffer().lock()->id(); 
+}
 }
 
 bool mgn::detail::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& renderables)
@@ -82,18 +89,12 @@ bool mgn::detail::DisplayBuffer::post_renderables_if_optimizable(RenderableList 
     {
         auto buffer = renderable->buffer();
         auto stream_it = std::find_if(streams.begin(), streams.end(),
-            [&buffer](HostStream* stream)
-            {
-                return buffer->id() == stream->current_buffer().lock()->id(); 
-            });
-
+            [&buffer](HostStream* stream){ return buffer_is_current_in_stream(*buffer, stream); });
         //if we have any stream that needs to be rendered but we don't have a stream associated
         //we can't passthrough the render
-        if (stream_it ==  streams.end())
+        if (stream_it == streams.end())
             return false;
     }
-
-    //hide the primary surface
 
     //TODO: work out how to submit changes synchronously to the client API
     for(auto const& renderable : renderables)
@@ -101,10 +102,7 @@ bool mgn::detail::DisplayBuffer::post_renderables_if_optimizable(RenderableList 
         //TODO: arrange the surfaces via the api according to how RenderableList is structured
         auto buffer = renderable->buffer();
         auto stream_it = std::find_if(streams.begin(), streams.end(),
-            [&buffer](HostStream* stream)
-            {
-                return buffer->id() == stream->current_buffer().lock()->id(); 
-            });
+            [&buffer](HostStream* stream){ return buffer_is_current_in_stream(*buffer, stream); });
         (*stream_it)->swap();
     }
 
