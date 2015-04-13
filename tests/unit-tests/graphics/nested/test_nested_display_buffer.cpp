@@ -106,6 +106,30 @@ TEST_F(NestedDisplayBufferTest, post_optimized_success)
     db.unlink_from_stream(&mock_stream);
 }
 
+TEST_F(NestedDisplayBufferTest, unlinking_causes_rejections)
+{
+    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
+    mtd::MockHostStream mock_stream;
+    ON_CALL(mock_stream, current_buffer())
+        .WillByDefault(testing::Return(streams_buffer));
+
+    mgnd::DisplayBuffer db{
+        egl_disp_handle,
+        mt::fake_shared(null_host_surface),
+        default_rect,
+        mt::fake_shared(null_input_dispatcher),
+        mir_pixel_format_xbgr_8888};
+
+    db.link_with_stream(&mock_stream);
+
+    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(
+        streams_buffer);
+    db.post_renderables_if_optimizable({renderable_from_stream});
+    db.unlink_from_stream(&mock_stream);
+
+    EXPECT_FALSE(db.post_renderables_if_optimizable({renderable_from_stream}));
+}
+
 TEST_F(NestedDisplayBufferTest, post_optimized_rejection_because_of_unknown_buffer)
 {
     auto streams_buffer = std::make_shared<mtd::StubBuffer>();
