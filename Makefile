@@ -18,7 +18,7 @@
 all: snap
 
 snap: update-snappy-preload
-	cd snappy-preload/tools && ./make-snap -d 15.04/beta-2 -n mir -v 0 --overlay ../../overlay -p unity-system-compositor -p mir-graphics-drivers-desktop -p xkb-data ../../usc
+	cd snappy-preload/tools && ./make-snap -d 15.04/beta-2 -n mir -v 0 --overlay ../../overlay -p mir-demos -p mir-graphics-drivers-desktop ../../server
 	mv snappy-preload/tools/*.snap .
 
 update-snappy-preload: snappy-preload

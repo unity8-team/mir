@@ -7,8 +7,8 @@
 @{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/*/mir/client-platform/* r,
 
 # Socket to talk on
-/var/lib/apps/@PACKAGE@/*/mir_socket rw,
-unix (send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),
+/run/mir_socket rw,
+unix (connect, send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),
 
 # Hardware acceleration
 /dev/dri/card0 rw,

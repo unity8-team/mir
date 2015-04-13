@@ -5,5 +5,5 @@ type: framework
 services:
   - name: system-compositor
     description: "system compositor"
-    start: bin/usc
+    start: bin/server
     security-template: unconfined
