@@ -86,8 +86,8 @@ TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alph
 TEST_F(NestedDisplayBufferTest, post_optimized_success)
 {
     auto streams_buffer = std::make_shared<mtd::StubBuffer>();
-    auto mock_stream = std::make_shared<mtd::MockHostStream>();
-    ON_CALL(*mock_stream, current_buffer())
+    mtd::MockHostStream mock_stream;
+    ON_CALL(mock_stream, current_buffer())
         .WillByDefault(testing::Return(streams_buffer));
 
     mgnd::DisplayBuffer db{
@@ -97,19 +97,20 @@ TEST_F(NestedDisplayBufferTest, post_optimized_success)
         mt::fake_shared(null_input_dispatcher),
         mir_pixel_format_xbgr_8888};
 
-    EXPECT_CALL(*mock_stream, swap());
-    auto display_linkage = db.link_with_stream(mock_stream);
+    EXPECT_CALL(mock_stream, swap());
+    db.link_with_stream(&mock_stream);
 
     auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(
         streams_buffer);
     EXPECT_TRUE(db.post_renderables_if_optimizable({renderable_from_stream}));
+    db.unlink_from_stream(&mock_stream);
 }
 
 TEST_F(NestedDisplayBufferTest, post_optimized_rejection_because_of_unknown_buffer)
 {
     auto streams_buffer = std::make_shared<mtd::StubBuffer>();
-    auto mock_stream = std::make_shared<mtd::MockHostStream>();
-    ON_CALL(*mock_stream, current_buffer())
+    mtd::MockHostStream mock_stream;
+    ON_CALL(mock_stream, current_buffer())
         .WillByDefault(testing::Return(streams_buffer));
 
     mgnd::DisplayBuffer db{
@@ -118,8 +119,9 @@ TEST_F(NestedDisplayBufferTest, post_optimized_rejection_because_of_unknown_buff
         default_rect,
         mt::fake_shared(null_input_dispatcher),
         mir_pixel_format_xbgr_8888};
-    auto display_linkage = db.link_with_stream(mock_stream);
+    db.link_with_stream(&mock_stream);
     
     auto nonstream_renderable = std::make_shared<mtd::StubRenderable>();
     EXPECT_FALSE(db.post_renderables_if_optimizable({nonstream_renderable}));
+    db.unlink_from_stream(&mock_stream);
 }

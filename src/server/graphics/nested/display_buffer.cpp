@@ -119,3 +119,11 @@ void mgn::detail::DisplayBuffer::mir_event(MirEvent const& event)
         dispatcher->dispatch(event);
     }
 }
+
+void mgn::detail::DisplayBuffer::link_with_stream(HostStream*)
+{
+}
+
+void mgn::detail::DisplayBuffer::unlink_from_stream(HostStream*)
+{
+}

@@ -32,6 +32,7 @@ namespace graphics
 namespace nested
 {
 class HostSurface;
+class HostStream;
 
 namespace detail
 {
@@ -56,6 +57,9 @@ public:
     bool uses_alpha() const override;
 
     bool post_renderables_if_optimizable(RenderableList const& renderlist) override;
+
+    void link_with_stream(HostStream*);
+    void unlink_from_stream(HostStream*);
 
     DisplayBuffer(DisplayBuffer const&) = delete;
     DisplayBuffer operator=(DisplayBuffer const&) = delete;
