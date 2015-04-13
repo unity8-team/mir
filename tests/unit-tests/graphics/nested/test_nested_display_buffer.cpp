@@ -21,7 +21,10 @@
 #include "src/server/input/null_input_dispatcher.h"
 
 #include "mir_test_doubles/mock_egl.h"
+#include "mir_test_doubles/mock_host_stream.h"
 #include "mir_test_doubles/stub_gl_config.h"
+#include "mir_test_doubles/stub_buffer.h"
+#include "mir_test_doubles/stub_renderable.h"
 #include "mir_test/fake_shared.h"
 
 #include <gtest/gtest.h>
@@ -78,4 +81,45 @@ TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alph
         mir_pixel_format_xbgr_8888};
 
     EXPECT_FALSE(db.uses_alpha());
+}
+
+TEST_F(NestedDisplayBufferTest, post_optimized_success)
+{
+    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
+    auto mock_stream = std::make_shared<mtd::MockHostStream>();
+    ON_CALL(*mock_stream, current_buffer())
+        .WillByDefault(testing::Return(streams_buffer));
+
+    mgnd::DisplayBuffer db{
+        egl_disp_handle,
+        mt::fake_shared(null_host_surface),
+        default_rect,
+        mt::fake_shared(null_input_dispatcher),
+        mir_pixel_format_xbgr_8888};
+
+    EXPECT_CALL(*mock_stream, swap());
+    auto display_linkage = db.link_with_stream(mock_stream);
+
+    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(
+        streams_buffer);
+    EXPECT_TRUE(db.post_renderables_if_optimizable({renderable_from_stream}));
+}
+
+TEST_F(NestedDisplayBufferTest, post_optimized_rejection_because_of_unknown_buffer)
+{
+    auto streams_buffer = std::make_shared<mtd::StubBuffer>();
+    auto mock_stream = std::make_shared<mtd::MockHostStream>();
+    ON_CALL(*mock_stream, current_buffer())
+        .WillByDefault(testing::Return(streams_buffer));
+
+    mgnd::DisplayBuffer db{
+        egl_disp_handle,
+        mt::fake_shared(null_host_surface),
+        default_rect,
+        mt::fake_shared(null_input_dispatcher),
+        mir_pixel_format_xbgr_8888};
+    auto display_linkage = db.link_with_stream(mock_stream);
+    
+    auto nonstream_renderable = std::make_shared<mtd::StubRenderable>();
+    EXPECT_FALSE(db.post_renderables_if_optimizable({nonstream_renderable}));
 }
