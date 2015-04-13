@@ -24,6 +24,8 @@
 #include "host_surface.h"
 
 #include <EGL/egl.h>
+#include <mutex>
+#include <set>
 
 namespace mir
 {
@@ -72,6 +74,9 @@ private:
     geometry::Rectangle const area;
     std::shared_ptr<input::InputDispatcher> const dispatcher;
     EGLSurfaceHandle const egl_surface;
+
+    std::mutex stream_mutex;
+    std::set<HostStream*> streams;
 
     static void event_thunk(MirSurface* surface, MirEvent const* event, void* context);
     void mir_event(MirEvent const& event);
