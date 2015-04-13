@@ -6,10 +6,4 @@ services:
   - name: system-compositor
     description: "system compositor"
     start: bin/usc
-integration:
-  framework:
-    framework: meta/mir.framework
-  mir-run:
-    bin-path: bin/mir-run
-  system-compositor:
-    apparmor-profile: meta/apparmor.profile
+    security-template: unconfined

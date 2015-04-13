@@ -1,0 +1,25 @@
+# Actual interface with clients!
+@{CLICK_DIR}/@PACKAGE@/*/bin/mir-run ixr,
+
+# This lets mir-run access client-platform libraries
+@{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/ r,
+@{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/*/mir/client-platform/ r,
+@{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/*/mir/client-platform/* r,
+
+# Socket to talk on
+/var/lib/apps/@PACKAGE@/*/mir_socket rw,
+unix (send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),
+
+# Hardware acceleration
+/dev/dri/card0 rw,
+
+# For non-opengl apps
+# TODO: investigate more specific exemption
+# https://www.kernel.org/doc/gorman/html/understand/understand015.html
+/dev/shm/\#* rw,
+
+# udev
+/sys/devices/*/*/*/uevent r,
+/sys/devices/*/*/*/drm/card0/uevent r,
+deny /etc/udev/udev.conf r,
+deny /run/udev/data/* r,

@@ -24,4 +24,4 @@ exec 4>"$MESSAGES"
 echo -en "\x0\x4\x0\xasnappy-mir" >"$COMMANDS" &
 exec 5<"$COMMANDS"
 
-exec unity-system-compositor --file "$ROOT/mir_socket" --vt 1 --to-dm-fd 4 --from-dm-fd 5 --spinner /usr/bin/unity-system-compositor-spinner --inactivity-display-off-timeout 0 $@
+exec unity-system-compositor --file "$ROOT/mir_socket" --vt 1 --to-dm-fd 4 --from-dm-fd 5 --spinner /usr/bin/unity-system-compositor-spinner --inactivity-display-off-timeout 0 --enable-hardware-cursor true $@
