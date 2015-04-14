@@ -89,12 +89,10 @@ TEST_F(NestedDisplayBufferTest, non_alpha_pixel_format_disables_destination_alph
 
 TEST_F(NestedDisplayBufferTest, post_optimized_success)
 {
-    geom::Rectangle position{geom::Point{22, 89}, stub_buffer->size()};
-
     EXPECT_CALL(mock_stream, swap());
     db.link_with_stream(&mock_stream);
 
-    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(stub_buffer, position);
+    auto renderable_from_stream = std::make_shared<mtd::StubRenderable>(stub_buffer);
     EXPECT_TRUE(db.post_renderables_if_optimizable({renderable_from_stream}));
     db.unlink_from_stream(&mock_stream);
 }
