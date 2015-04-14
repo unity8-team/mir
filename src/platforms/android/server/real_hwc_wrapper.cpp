@@ -20,6 +20,7 @@
 #include "hwc_report.h"
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
+#include <system_error>
 #include <sstream>
 #include <algorithm>
 
@@ -149,7 +150,7 @@ void mga::RealHwcWrapper::vsync_signal_off(DisplayName display_name) const
 
 void mga::RealHwcWrapper::display_on(DisplayName display_name) const
 {
-    if (auto rc = hwc_device->blank(hwc_device.get(), display_name, 0))
+    if (auto rc = hwc_device->setPowerMode(hwc_device.get(), display_name, HWC_POWER_MODE_NORMAL))
     {
         std::stringstream ss;
         ss << "error turning display on. rc = " << std::hex << rc;
@@ -160,7 +161,7 @@ void mga::RealHwcWrapper::display_on(DisplayName display_name) const
 
 void mga::RealHwcWrapper::display_off(DisplayName display_name) const
 {
-    if (auto rc = hwc_device->blank(hwc_device.get(), display_name, 1))
+    if (auto rc = hwc_device->setPowerMode(hwc_device.get(), display_name, HWC_POWER_MODE_OFF))
     {
         std::stringstream ss;
         ss << "error turning display off. rc = " << std::hex << rc;
@@ -245,12 +246,26 @@ std::vector<mga::ConfigId> mga::RealHwcWrapper::display_configs(DisplayName disp
     std::vector<mga::ConfigId> config_ids{std::min(max_configs, num_configs)};
     for(auto& id : config_ids)
         id = mga::ConfigId{display_config[i++]};
+    
+    if (!config_ids.empty())
+    {
+        int active_config = hwc_device->getActiveConfig(hwc_device.get(), display_name);
+        if (active_config == -1)
+        {
+            int rc = hwc_device->setActiveConfig(hwc_device.get(), display_name, display_config[0]);
+            if (rc < 0)
+                BOOST_THROW_EXCEPTION(std::system_error(rc, std::system_category(), "unable to set active display config"));
+        }
+    }
+    
     return config_ids;
 }
 
 void mga::RealHwcWrapper::display_attributes(
     DisplayName display_name, ConfigId config, uint32_t const* attributes, int32_t* values) const
 {
-    hwc_device->getDisplayAttributes(
+    int rc = hwc_device->getDisplayAttributes(
         hwc_device.get(), display_name, config.as_value(), attributes, values);
+    if (rc < 0)
+        BOOST_THROW_EXCEPTION(std::system_error(rc, std::system_category(), "unable to query display attributes"));
 }
