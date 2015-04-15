@@ -6,7 +6,7 @@ mir_demo_server_minimal --file /run/mir_socket --vt 1 $@ &
 while ! [ -S /run/mir_socket ]; do
     sleep 0.1
 done
-sleep 1 # race with mir for chmod'ing the socket
+sleep 5 # race with mir for chmod'ing the socket
 chmod a+rw /run/mir_socket
 
 wait
