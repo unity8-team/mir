@@ -970,6 +970,7 @@ public:
                              mir_connection_dispatch(connection);
                          }
                      }
+                     mir_connection_release(connection);
                  }
                 }
     {
@@ -1015,7 +1016,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
     EXPECT_TRUE(data.buffers_swapped.raised());
 
     mir_surface_release_sync(data.surf);
-    mir_connection_release(connection);
+    // EventDispatchThread releases the connection for us.
 }
 
 TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
@@ -1063,7 +1064,7 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     EXPECT_TRUE(data.input_event_received.wait_for(5min));
 
     mir_surface_release_sync(data.surf);
-    mir_connection_release(connection);
+    // EventDispatchThread releases the connection for us.
 }
 
 namespace
