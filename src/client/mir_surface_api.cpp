@@ -224,6 +224,12 @@ bool mir_surface_spec_set_preferred_orientation(MirSurfaceSpec* spec, MirOrienta
     return true;
 }
 
+bool mir_surface_spec_set_buffering_mode(MirSurfaceSpec* spec, MirBufferingMode mode)
+{
+    spec->buffering_mode = mode;
+    return true;
+}
+
 void mir_surface_spec_release(MirSurfaceSpec* spec)
 {
     delete spec;

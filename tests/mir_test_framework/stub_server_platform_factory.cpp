@@ -87,3 +87,16 @@ mir::UniqueModulePtr<mtf::FakeInputDevice> mtf::add_fake_input_device(mir::input
 
     return add_device(info);
 }
+
+void mtf::set_next_vsync_interval(
+    std::chrono::milliseconds interval)
+{
+    ensure_platform_library();
+
+    using func_sig = void(*)(std::chrono::milliseconds);
+
+    auto const set_next_vsync_interval =
+        platform_graphics_lib->load_function<func_sig>("set_next_vsync_interval");
+
+    return set_next_vsync_interval(interval);
+}

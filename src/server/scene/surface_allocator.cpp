@@ -58,9 +58,17 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(SurfaceCreatio
     mg::BufferProperties buffer_properties{params.size,
                                            params.pixel_format,
                                            params.buffer_usage};
+    int buffers = nbuffers;
+    if (params.buffering_mode.is_set())
+    {
+        if (params.buffering_mode.value() == mir_buffering_mode_double)
+            buffers = 2;
+        else if (params.buffering_mode.value() == mir_buffering_mode_triple)
+            buffers = 3;
+    }
+
     auto buffer_stream = buffer_stream_factory->create_buffer_stream(
-        nbuffers,
-        buffer_properties);
+        buffers, buffer_properties);
     auto actual_size = geom::Rectangle{params.top_left, buffer_stream->stream_size()};
 
     bool nonrectangular = has_alpha(params.pixel_format);

@@ -239,6 +239,7 @@ void mf::SessionMediator::create_surface(
     COPY_IF_SET(min_height);
     COPY_IF_SET(max_width);
     COPY_IF_SET(max_height);
+    COPY_IF_SET(buffering_mode);
 
     #undef COPY_IF_SET
 

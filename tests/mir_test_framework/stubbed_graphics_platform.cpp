@@ -228,6 +228,7 @@ std::shared_ptr<mg::PlatformIpcOperations> mtf::StubGraphicPlatform::make_ipc_op
 namespace
 {
 std::shared_ptr<mg::Display> display_preset;
+std::chrono::milliseconds vsync_interval;
 }
 
 std::shared_ptr<mg::Display> mtf::StubGraphicPlatform::create_display(
@@ -238,7 +239,9 @@ std::shared_ptr<mg::Display> mtf::StubGraphicPlatform::create_display(
     if (display_preset)
         return std::move(display_preset);
 
-    return std::make_shared<mtd::StubDisplay>(display_rects);
+    auto const tmp_vsync = vsync_interval;
+    vsync_interval = std::chrono::milliseconds::zero();
+    return std::make_shared<mtd::StubDisplay>(display_rects, tmp_vsync);
 }
 
 namespace
@@ -333,4 +336,9 @@ extern "C" void set_next_display_rects(
 extern "C" void set_next_preset_display(std::shared_ptr<mir::graphics::Display> const& display)
 {
     display_preset = display;
+}
+
+extern "C" void set_next_vsync_interval(std::chrono::milliseconds interval)
+{
+    vsync_interval = interval;
 }

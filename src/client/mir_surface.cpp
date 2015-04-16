@@ -96,6 +96,7 @@ mir::protobuf::SurfaceParameters MirSurfaceSpec::serialize() const
     SERIALIZE_OPTION_IF_SET(min_height, message);
     SERIALIZE_OPTION_IF_SET(max_width, message);
     SERIALIZE_OPTION_IF_SET(max_height, message);
+    SERIALIZE_OPTION_IF_SET(buffering_mode, message);
 
     if (parent.is_set() && parent.value() != nullptr)
         message.set_parent_id(parent.value()->id());
@@ -563,6 +564,7 @@ MirWaitHandle* MirSurface::modify(MirSurfaceSpec const& spec)
     COPY_IF_SET(min_height);
     COPY_IF_SET(max_width);
     COPY_IF_SET(max_height);
+    COPY_IF_SET(buffering_mode);
     #undef COPY_IF_SET
 
     if (spec.surface_name.is_set())

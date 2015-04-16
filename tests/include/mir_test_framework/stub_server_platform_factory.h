@@ -26,6 +26,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <chrono>
 
 namespace geom = mir::geometry;
 
@@ -52,6 +53,8 @@ std::shared_ptr<mg::Platform> make_stubbed_server_graphics_platform(std::vector<
 void set_next_display_rects(std::unique_ptr<std::vector<geom::Rectangle>>&& display_rects);
 
 void set_next_preset_display(std::shared_ptr<mir::graphics::Display> const& display);
+
+void set_next_vsync_interval(std::chrono::milliseconds interval);
 
 mir::UniqueModulePtr<FakeInputDevice> add_fake_input_device(mir::input::InputDeviceInfo const& info);
 }

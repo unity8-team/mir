@@ -323,6 +323,14 @@ bool mir_surface_spec_set_fullscreen_on_output(MirSurfaceSpec* spec, uint32_t ou
 bool mir_surface_spec_set_preferred_orientation(MirSurfaceSpec* spec, MirOrientationMode mode);
 
 /**
+ * Set the requested buffering mode.
+ * \param [in] spec    Specification to mutate
+ * \param [in] mode    Requested buffering mode
+ * \return             False if buffering mode is not a valid attribute of this surface type.
+ */
+bool mir_surface_spec_set_buffering_mode(MirSurfaceSpec* spec, MirBufferingMode mode);
+
+/**
  * Release the resources held by a MirSurfaceSpec.
  *
  * \param [in] spec     Specification to release

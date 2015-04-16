@@ -166,6 +166,13 @@ typedef enum MirEdgeAttachment
     mir_edge_attachment_any = mir_edge_attachment_vertical |
                               mir_edge_attachment_horizontal
 } MirEdgeAttachment;
+
+typedef enum MirBufferingMode
+{
+    mir_buffering_mode_default = 0,
+    mir_buffering_mode_double = 2,
+    mir_buffering_mode_triple = 3
+} MirBufferingMode;
 /**@}*/
 
 #endif

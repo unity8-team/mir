@@ -151,6 +151,7 @@ bool ms::operator==(
         lhs.state == rhs.state &&
         lhs.type == rhs.type &&
         lhs.preferred_orientation == rhs.preferred_orientation &&
+        lhs.buffering_mode == rhs.buffering_mode &&
         lhs.parent_id == rhs.parent_id;
 }
 

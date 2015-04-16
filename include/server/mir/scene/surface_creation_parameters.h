@@ -87,6 +87,7 @@ struct SurfaceCreationParameters
     mir::optional_value<frontend::SurfaceId> parent_id;
     mir::optional_value<geometry::Rectangle> aux_rect;
     mir::optional_value<MirEdgeAttachment> edge_attachment;
+    mir::optional_value<MirBufferingMode> buffering_mode;
 
     std::weak_ptr<Surface> parent;
 

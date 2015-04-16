@@ -75,6 +75,7 @@ struct MirSurfaceSpec
     mir::optional_value<int> height;
     mir::optional_value<MirPixelFormat> pixel_format;
     mir::optional_value<MirBufferUsage> buffer_usage;
+    mir::optional_value<MirBufferingMode> buffering_mode;
 
     mir::optional_value<std::string> surface_name;
     mir::optional_value<uint32_t> output_id;

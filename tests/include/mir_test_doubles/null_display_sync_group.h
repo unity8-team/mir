@@ -24,6 +24,7 @@
 #include "null_display_buffer.h"
 #include "stub_display_buffer.h"
 #include <thread>
+#include <chrono>
 
 namespace mir
 {
@@ -36,12 +37,23 @@ struct StubDisplaySyncGroup : graphics::DisplaySyncGroup
 {
 public:
     StubDisplaySyncGroup(std::vector<geometry::Rectangle> const& output_rects)
-        : output_rects{output_rects}
+        : StubDisplaySyncGroup(output_rects, std::chrono::milliseconds{0})
+    {
+    }
+
+    StubDisplaySyncGroup(geometry::Size sz)
+        : StubDisplaySyncGroup({{{0,0}, sz}}, std::chrono::milliseconds{0})
+    {
+    }
+
+    StubDisplaySyncGroup(std::vector<geometry::Rectangle> const& output_rects,
+                         std::chrono::milliseconds vsync_interval)
+        : output_rects{output_rects},
+          vsync_interval{vsync_interval}
     {
         for (auto const& output_rect : output_rects)
             display_buffers.emplace_back(output_rect);
     }
-    StubDisplaySyncGroup(geometry::Size sz) : StubDisplaySyncGroup({{{0,0}, sz}}) {}
 
     void for_each_display_buffer(std::function<void(graphics::DisplayBuffer&)> const& f) override
     {
@@ -52,12 +64,16 @@ public:
     void post() override
     {
         /* yield() is needed to ensure reasonable runtime under valgrind for some tests */
-        std::this_thread::yield();
+        if (vsync_interval == vsync_interval.zero())
+            std::this_thread::yield();
+        else
+            std::this_thread::sleep_for(vsync_interval);
     }
 
 private:
     std::vector<geometry::Rectangle> const output_rects;
     std::vector<StubDisplayBuffer> display_buffers;
+    std::chrono::milliseconds vsync_interval{0};
 };
 
 struct NullDisplaySyncGroup : graphics::DisplaySyncGroup

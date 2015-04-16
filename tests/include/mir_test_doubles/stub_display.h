@@ -27,6 +27,7 @@
 #include "mir/geometry/rectangle.h"
 
 #include <vector>
+#include <chrono>
 
 namespace mir
 {
@@ -39,15 +40,21 @@ class StubDisplay : public NullDisplay
 {
 public:
     StubDisplay(std::vector<geometry::Rectangle> const& output_rects) :
-        output_rects(output_rects)
+        StubDisplay(output_rects, std::chrono::milliseconds::zero())
     {
-        for (auto const& rect : output_rects)
-            groups.emplace_back(new StubDisplaySyncGroup({rect}));
     }
 
     StubDisplay(unsigned int nbuffers) :
         StubDisplay(generate_stub_rects(nbuffers))
     {
+    }
+
+    StubDisplay(std::vector<geometry::Rectangle> const& output_rects,
+                std::chrono::milliseconds vsync_interval) :
+        output_rects(output_rects)
+    {
+        for (auto const& rect : output_rects)
+            groups.emplace_back(new StubDisplaySyncGroup({rect}, vsync_interval));
     }
 
     void for_each_display_sync_group(std::function<void(graphics::DisplaySyncGroup&)> const& f) override
