@@ -17,12 +17,12 @@
 
 all: snap
 
-snap: update-snappy-preload
-	cd snappy-preload/tools && ./make-snap -d 15.04/beta-2 -n mir -v 0 --overlay ../../overlay -p mir-demos -p mir-graphics-drivers-desktop ../../server
-	mv snappy-preload/tools/*.snap .
+snap: update-deb2snap
+	cd deb2snap && ./deb2snap -d 15.04/beta-2 -n mir -v 0 --overlay ../overlay -p mir-demos -p mir-graphics-drivers-desktop ../server
+	mv deb2snap/*.snap .
 
-update-snappy-preload: snappy-preload
-	cd snappy-preload && bzr pull && make
+update-deb2snap: deb2snap
+	cd deb2snap && bzr pull && make
 
-snappy-preload:
-	bzr branch lp:~mterry/+junk/snappy-preload
+deb2snap:
+	bzr branch lp:deb2snap
