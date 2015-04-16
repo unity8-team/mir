@@ -552,9 +552,7 @@ int ms::BasicSurface::configure(MirSurfaceAttrib attrib, int value)
         result = set_preferred_orientation(static_cast<MirOrientationMode>(result));
         break;
     default:
-        BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface "
-                                               "attribute."));
-        break;
+        BOOST_THROW_EXCEPTION(std::logic_error("Invalid surface attribute."));
     }
 
     return result;
@@ -886,16 +884,11 @@ void ms::BasicSurface::set_keymap(xkb_rule_names const& rules)
     observers.keymap_changed(rules);
 }
 
-bool ms::BasicSurface::modify(frontend::Surface::Modifications const& mods)
+void ms::BasicSurface::rename(std::string const& title)
 {
-    bool valid = true;
-
-    if (mods.name.is_set())
+    if (surface_name != title)
     {
-        surface_name = mods.name.value();
+        surface_name = title;
         observers.renamed(surface_name.c_str());
     }
-
-    // TODO: In future some specs might not be valid (LP: #1422522)
-    return valid;
 }

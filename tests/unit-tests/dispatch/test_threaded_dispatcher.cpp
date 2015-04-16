@@ -22,11 +22,13 @@
 #include "mir_test/pipe.h"
 #include "mir_test/signal.h"
 #include "mir_test/test_dispatchable.h"
+#include "mir_test_framework/process.h"
+#include "mir_test/cross_process_action.h"
 
 #include <fcntl.h>
 
 #include <atomic>
-#include <valgrind/valgrind.h>
+#include <thread>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -250,28 +252,6 @@ TEST_F(ThreadedDispatcherTest, remove_thread_decreases_concurrency)
     EXPECT_TRUE(second_dispatched->wait_for(std::chrono::seconds{10}));
 }
 
-TEST_F(ThreadedDispatcherTest, handles_destruction_from_dispatch_callback)
-{
-    using namespace testing;
-    using namespace std::chrono_literals;
-
-    auto dispatched = std::make_shared<mt::Signal>();
-    md::ThreadedDispatcher* dispatcher{nullptr};
-
-    auto dispatchable = std::make_shared<mt::TestDispatchable>([dispatched, &dispatcher]()
-                                                               {
-                                                                   delete dispatcher;
-                                                                   dispatched->raise();
-                                                               });
-
-    dispatchable->trigger();
-    dispatchable->trigger();
-
-    dispatcher = new md::ThreadedDispatcher{"Mournful", dispatchable};
-
-    EXPECT_TRUE(dispatched->wait_for(10s));
-}
-
 using ThreadedDispatcherDeathTest = ThreadedDispatcherTest;
 
 TEST_F(ThreadedDispatcherDeathTest, exceptions_in_threadpool_trigger_termination)
@@ -331,4 +311,67 @@ TEST_F(ThreadedDispatcherTest, sets_thread_names_appropriately)
     }
 
     EXPECT_TRUE(dispatched->wait_for(10s));
+}
+
+// Regression test for: lp #1439719
+// The bug involves uninitialized memory and is also sensitive to signal
+// timings, so this test does not always catch the problem. However, repeated
+// runs (~300, YMMV) consistently fail when run against the problematic code.
+TEST_F(ThreadedDispatcherTest, keeps_dispatching_after_signal_interruption)
+{
+    using namespace std::chrono_literals;
+    mt::CrossProcessAction stop_and_restart_process;
+
+    auto child = mir_test_framework::fork_and_run_in_a_different_process(
+        [&]
+        {
+            auto dispatched = std::make_shared<mt::Signal>();
+            auto dispatchable = std::make_shared<mt::TestDispatchable>(
+                [dispatched]() { dispatched->raise(); });
+
+            md::ThreadedDispatcher dispatcher{"Test thread", dispatchable};
+            // Ensure the dispatcher has started
+            dispatchable->trigger();
+            EXPECT_TRUE(dispatched->wait_for(1s));
+
+            stop_and_restart_process();
+
+            dispatched->reset();
+            // The dispatcher shouldn't have been affected by the signal
+            dispatchable->trigger();
+            EXPECT_TRUE(dispatched->wait_for(1s));
+            exit(HasFailure() ? EXIT_FAILURE : EXIT_SUCCESS);
+        },
+        []{ return 1; });
+
+    stop_and_restart_process.exec(
+        [child]
+        {
+            // Increase chances of interrupting the dispatch mechanism
+            for (int i = 0; i < 100; ++i)
+            {
+                child->stop();
+                child->cont();
+            }
+        });
+
+    auto const result = child->wait_for_termination(10s);
+    EXPECT_TRUE(result.succeeded());
+}
+
+TEST_F(ThreadedDispatcherDeathTest, destroying_dispatcher_from_a_callback_is_an_error)
+{
+    using namespace testing;
+    using namespace std::literals::chrono_literals;
+
+    EXPECT_EXIT(
+    {
+        md::ThreadedDispatcher* dispatcher;
+
+        auto dispatchable = std::make_shared<mt::TestDispatchable>([&dispatcher]() { delete dispatcher; });
+
+        dispatchable->trigger();
+        dispatcher = new md::ThreadedDispatcher("Death thread", dispatchable);
+        std::this_thread::sleep_for(10s);
+    }, KilledBySignal(SIGABRT), ".*Destroying ThreadedDispatcher.*");
 }

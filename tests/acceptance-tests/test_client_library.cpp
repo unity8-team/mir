@@ -852,6 +852,46 @@ TEST_F(ClientLibrary, DISABLED_can_create_buffer_usage_software_surface)
 
 namespace
 {
+void dummy_event_handler_one(MirSurface*, MirEvent const*, void*)
+{
+}
+
+void dummy_event_handler_two(MirSurface*, MirEvent const*, void*)
+{
+}
+}
+
+/*
+ * Regression test for LP: 1438160
+ */
+TEST_F(ClientLibrary, can_change_event_delegate)
+{
+    using namespace testing;
+
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+
+    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
+                                                                      800, 600,
+                                                                      mir_pixel_format_argb_8888);
+    auto surface = mir_surface_create_sync(surface_spec);
+    mir_surface_spec_release(surface_spec);
+
+    ASSERT_THAT(surface, IsValid());
+
+    /* TODO: When provide-event-fd lands, change this into a better test that actually
+     * tests that the correct event handler is called.
+     *
+     * Without manual dispatch, it's racy to try and test that.
+     */
+    mir_surface_set_event_handler(surface, &dummy_event_handler_one, nullptr);
+    mir_surface_set_event_handler(surface, &dummy_event_handler_two, nullptr);
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
+}
+
+namespace
+{
 struct ThreadTrackingCallbacks
 {
     ThreadTrackingCallbacks()
@@ -973,6 +1013,9 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 
     mir_wait_for(swap_wh);
     EXPECT_TRUE(data.buffers_swapped.raised());
+
+    mir_surface_release_sync(data.surf);
+    mir_connection_release(connection);
 }
 
 TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
@@ -1018,6 +1061,9 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
     EXPECT_TRUE(data.input_event_received.wait_for(5min));
+
+    mir_surface_release_sync(data.surf);
+    mir_connection_release(connection);
 }
 
 namespace

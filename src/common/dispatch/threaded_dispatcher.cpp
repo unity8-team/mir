@@ -21,6 +21,7 @@
 #include "mir/thread_name.h"
 
 #include "mir/raii.h"
+#include "mir/logging/logger.h"
 
 #include <fcntl.h>
 #include <poll.h>
@@ -194,14 +195,14 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
     {
         if (thread.get_id() == std::this_thread::get_id())
         {
-            // We're being destroyed from a thread currently in dispatch().
-            // This is ok; the thread loop's shared_ptrs keep everything necessary
-            // alive, and we'll just drop out of the end of the while(running) loop.
+            // We're being destroyed from within the dispatch callback
+            // Attempting to join the eventloop will result in a trivial deadlock.
             //
-            // However, we need to manually get the thread_exiter to mark the current
-            // thread as no longer running, as we're not going to dispatch it again.
-            thread_exiter->dispatch(md::FdEvent::readable);
-            thread.detach();
+            // The std::thread destructor will call std::terminate() for us, let's
+            // leave a useful message.
+            mir::logging::log(mir::logging::Severity::critical,
+                              "Destroying ThreadedDispatcher from within a dispatch callback. This is a programming error.",
+                              "Dispatch");
         }
         else
         {
