@@ -39,6 +39,8 @@
 #include <system/window.h>  // for ANativeWindowBuffer AKA MirNativeBuffer
 #endif
 
+#include <boost/throw_exception.hpp>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <chrono>
@@ -946,6 +948,25 @@ struct ThreadTrackingCallbacks
     mt::Signal input_event_received;
 };
 
+void pump_eventloop_until(MirConnection* connection, std::function<bool()> predicate, std::chrono::steady_clock::time_point timeout)
+{
+    using namespace std::literals::chrono_literals;
+
+    auto fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
+
+    while (!predicate() && (std::chrono::steady_clock::now() < timeout))
+    {
+        if (mt::fd_becomes_readable(fd, 10ms))
+        {
+            mir_connection_dispatch(connection);
+        }
+    }
+    if (!predicate())
+    {
+        BOOST_THROW_EXCEPTION((std::runtime_error{"Timeout waiting for state change"}));
+    }
+}
+
 class EventDispatchThread
 {
 public:
@@ -960,16 +981,9 @@ public:
 
                      data.current_thread_is_event_thread();
 
-                     auto const fd = mir::Fd{mir::IntOwnedFd{mir_connection_get_event_fd(connection)}};
-
                      auto const end_time = std::chrono::steady_clock::now() + timeout;
-                     while(!shutdown.raised() && (std::chrono::steady_clock::now() < end_time))
-                     {
-                         if (mt::fd_becomes_readable(fd, 10ms))
-                         {
-                             mir_connection_dispatch(connection);
-                         }
-                     }
+
+                     pump_eventloop_until(connection, [this]() { return shutdown.raised(); }, end_time);
                      mir_connection_release(connection);
                  }
                 }
@@ -1128,5 +1142,51 @@ TEST_F(ClientLibrary, rpc_blocking_doesnt_block_event_delivery_with_auto_dispatc
 
     mir_wait_for(wh);
     mir_surface_release_sync(surf);
+    mir_connection_release(connection);
+}
+
+namespace
+{
+void async_creation_completed(MirSurface* surf, void* ctx)
+{
+    auto called = reinterpret_cast<bool*>(ctx);
+    mir_surface_release_sync(surf);
+
+    *called = true;
+}
+}
+
+TEST_F(ClientLibrary, sync_call_completes_before_previous_undispatched_call)
+{
+    using namespace std::literals::chrono_literals;
+    using namespace testing;
+
+    auto timeout = std::chrono::steady_clock::now() + 60s;
+
+    ThreadTrackingCallbacks data;
+
+    auto connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
+    ASSERT_THAT(connection, Ne(nullptr));
+
+    pump_eventloop_until(connection, [connection]() { return mir_connection_is_valid(connection); }, timeout);
+
+    bool async_call_completed{false};
+
+    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
+                                                                      233, 355,
+                                                                      mir_pixel_format_argb_8888);
+    mir_surface_create(surface_spec, &async_creation_completed, &async_call_completed);
+
+    EXPECT_FALSE(async_call_completed);
+    auto surf = mir_surface_create_sync(surface_spec);
+
+    EXPECT_THAT(surf, IsValid());
+    EXPECT_FALSE(async_call_completed);
+
+    mir_surface_release_sync(surf);
+    EXPECT_FALSE(async_call_completed);
+
+    pump_eventloop_until(connection, [&async_call_completed]() { return async_call_completed;}, timeout);
+
     mir_connection_release(connection);
 }
