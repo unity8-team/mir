@@ -164,6 +164,7 @@ MIR_CLIENT_8.4 {   # New in Mir 0.13
     mir_surface_event_get_attribute;
     mir_surface_event_get_attribute_value;
     mir_surface_set_swapinterval;
+    mir_surface_spec_set_buffering_mode;
     mir_surface_spec_set_min_width;
     mir_surface_spec_set_min_height;
     mir_surface_spec_set_max_width;
