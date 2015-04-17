@@ -468,12 +468,7 @@ void mc::BufferQueue::release(
     mg::Buffer* buffer,
     std::unique_lock<std::mutex> lock)
 {
-    if (!pending_client_notifications.empty())
-    {
-        framedrop_policy->swap_unblocked();
-        give_buffer_to_client(buffer, lock);
-    }
-    else if (!frame_dropping_enabled && buffers.size() > size_t(nbuffers))
+    if (!frame_dropping_enabled && buffers.size() > size_t(nbuffers))
     {
         /*
          * We're overallocated.
@@ -492,6 +487,12 @@ void mc::BufferQueue::release(
                 break;
             }
         }
+        std::cerr << "Dropping overallocated buffer " << std::endl;
+    }
+    else if (!pending_client_notifications.empty())
+    {
+        framedrop_policy->swap_unblocked();
+        give_buffer_to_client(buffer, lock);
     }
     else
         free_buffers.push_back(buffer);
