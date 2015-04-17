@@ -1,5 +1,7 @@
-mir (0.13.0-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.13.0-0ubuntu1-snappymir1) vivid; urgency=medium
 
+  * PRE-RELEASE
+    - Add fix for LP: #1445538.
   * New upstream release 0.13.0 (https://launchpad.net/mir/+milestone/0.13.0)
     - Very large release as the previous 0.12 series contained only minimal
       bug fixes...
@@ -33,7 +35,7 @@ mir (0.13.0-0ubuntu1) UNRELEASED; urgency=medium
     - Bug fixes:
       . TODO: insert bug fix info at time of release.
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Thu, 12 Feb 2015 10:12:11 +0800
+ -- Daniel van Vugt <vanvugt@gmail.com>  Fri, 17 Apr 2015 11:06:09 -0500
 
 mir (0.12.0+15.04.20150228-0ubuntu1) vivid; urgency=medium
 
