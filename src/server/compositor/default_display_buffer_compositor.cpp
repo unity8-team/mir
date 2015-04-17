@@ -30,6 +30,8 @@
 #include <mutex>
 #include <cstdlib>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -95,5 +97,11 @@ void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& sc
         renderable_list.clear();
     }
 
+    static int compositions = 0;
+    if (++compositions == 180)
+    {
+        compositions = 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds{300});
+    }
     report->finished_frame(this);
 }

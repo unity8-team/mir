@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
@@ -106,6 +107,7 @@ public:
 
     void operator()() override
     {
+        std::cerr << "framedropping callback" << std::endl;
         // We ignore any ongoing snapshotting as it could lead to deadlock.
        // In order to wait the guard_lock needs to be released; a BufferQueue::release
        // call can sneak in at that time from a different thread which
@@ -497,6 +499,7 @@ void mc::BufferQueue::release(
 
 void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWait wait_type)
 {
+    std::cerr << "drop_frame" << std::endl;
     // Make sure there is a client waiting for the frame before we drop it.
     // If not, then there's nothing to do.
     if (pending_client_notifications.empty())
@@ -504,6 +507,9 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWai
 
     mg::Buffer* buffer_to_give = nullptr;
 
+// Force new buffer allocation to reproduce flicker bug
+// https://bugs.launchpad.net/mir/+bug/1444047
+#if 0
     if (!free_buffers.empty())
     {  // We expect this to usually be empty, but always check free list first
         buffer_to_give = free_buffers.back();
@@ -524,7 +530,9 @@ void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWai
         buffer_to_give = pop(ready_to_composite_queue);
     }
     else 
+#endif
     {
+        std::cerr << "drop_frame: introduce new buffer" << std::endl;
         /*
          * Insufficient nbuffers for frame dropping? This means you're either
          * trying to use frame dropping with bypass/overlays/multimonitor or
