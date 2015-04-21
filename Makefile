@@ -15,10 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+SNAPVER:=1
+VERSION="$(apt-cache policy mir-demos | grep '^ \*\*\* ' | cut -d' ' -f3)snap${SNAPVER}"
+
 all: snap
 
 snap: update-deb2snap
-	cd deb2snap && ./deb2snap -d 15.04/beta-2 -n mir -v 0 --overlay ../overlay -p mir-demos -p mir-graphics-drivers-desktop ../server
+	cd deb2snap && ./deb2snap -d 15.04/beta-2 -n mir -v ${VERSION} --overlay ../overlay -p mir-demos -p mir-graphics-drivers-desktop ../server
 	mv deb2snap/*.snap .
 
 update-deb2snap: deb2snap
