@@ -25,6 +25,7 @@
 #include "mir/graphics/egl_extensions.h"
 #include "mir/graphics/egl_error.h"
 #include "mir/graphics/buffer_properties.h"
+#include <boost/exception/errinfo_errno.hpp>
 #include <boost/throw_exception.hpp>
 
 #include <EGL/egl.h>
@@ -37,6 +38,7 @@
 #include <system_error>
 #include <gbm.h>
 #include <cassert>
+#include <fcntl.h>
 
 namespace mg  = mir::graphics;
 namespace mgm = mg::mesa;
@@ -75,16 +77,37 @@ private:
         {
             egl_display = eglGetCurrentDisplay();
             gbm_bo* bo_raw{bo.get()};
+            int prime_fd{-1};
+
+            auto device = gbm_bo_get_device(bo_raw);
+            auto gem_handle = gbm_bo_get_handle(bo_raw).u32;
+            auto drm_fd = gbm_device_get_fd(device);
+
+            auto ret = drmPrimeHandleToFD(drm_fd, gem_handle, DRM_CLOEXEC, &prime_fd);
+
+            if (ret)
+            {
+                std::string const msg("Failed to get PRIME fd from gbm bo");
+                BOOST_THROW_EXCEPTION(
+                    boost::enable_error_info(
+                        std::runtime_error(msg)) << boost::errinfo_errno(errno));
+            }
 
             const EGLint image_attrs[] =
             {
                 EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
+                EGL_WIDTH, (const EGLint)gbm_bo_get_width(bo_raw),
+                EGL_HEIGHT, (const EGLint)gbm_bo_get_height(bo_raw),
+                EGL_LINUX_DRM_FOURCC_EXT, (const EGLint)gbm_bo_get_format(bo_raw),
+                EGL_DMA_BUF_PLANE0_FD_EXT, prime_fd,
+                EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+                EGL_DMA_BUF_PLANE0_PITCH_EXT, (const EGLint)gbm_bo_get_stride(bo_raw),
                 EGL_NONE
             };
 
             egl_image = egl_extensions->eglCreateImageKHR(egl_display, EGL_NO_CONTEXT,
-                                                          EGL_NATIVE_PIXMAP_KHR,
-                                                          reinterpret_cast<void*>(bo_raw),
+                                                          EGL_LINUX_DMA_BUF_EXT,
+                                                          (EGLClientBuffer) NULL,
                                                           image_attrs);
             if (egl_image == EGL_NO_IMAGE_KHR)
                 BOOST_THROW_EXCEPTION(mg::egl_error("Failed to create EGLImage from GBM bo"));
