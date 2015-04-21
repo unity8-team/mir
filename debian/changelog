@@ -1,4 +1,4 @@
-platform-api (3.0.0+15.04.20150320-0ubuntu1) UNRELEASED; urgency=medium
+platform-api (3.0.0) UNRELEASED; urgency=medium
 
   * Remove deprecated ua_ui_* functions.
 

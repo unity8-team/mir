@@ -32,8 +32,8 @@ Vcs-Browser: https://code.launchpad.net/platform-api
 Package: libubuntu-application-api-headers
 Section: libdevel
 Architecture: any
-Replaces: libplatform-api-headers (<< 2.0.0)
-Breaks: libplatform-api-headers (<< 2.0.0)
+Replaces: libplatform-api-headers (<< 3.0.0)
+Breaks: libplatform-api-headers (<< 3.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -47,8 +47,8 @@ Description: Platform API for system level capabilities (API headers)
 Package: libubuntu-platform-hardware-api-headers
 Section: libdevel
 Architecture: any
-Replaces: libplatform-hardware-api-headers (<< 2.0.0)
-Breaks: libplatform-hardware-api-headers (<< 2.0.0)
+Replaces: libplatform-hardware-api-headers (<< 3.0.0)
+Breaks: libplatform-hardware-api-headers (<< 3.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -63,8 +63,8 @@ Description: Platform API for system level capabilities (API headers)
 Package: libubuntu-application-api-dev
 Section: libdevel
 Architecture: any
-Replaces: libplatform-api1-dev (<< 2.0.0)
-Breaks: libplatform-api1-dev (<< 2.0.0)
+Replaces: libplatform-api1-dev (<< 3.0.0)
+Breaks: libplatform-api1-dev (<< 3.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -107,8 +107,8 @@ Description: Implementation of the Platform API for Ubuntu Desktop
 Package: libubuntu-platform-hardware-api-dev
 Section: libdevel
 Architecture: any
-Replaces: libplatform-hardware-api1-dev (<< 2.0.0)
-Breaks: libplatform-hardware-api1-dev (<< 2.0.0)
+Replaces: libplatform-hardware-api1-dev (<< 3.0.0)
+Breaks: libplatform-hardware-api1-dev (<< 3.0.0)
 Pre-Depends: ${misc:Pre-Depends},
 Multi-Arch: same
 Depends: ${misc:Depends},
@@ -123,8 +123,8 @@ Description: Platform API for system level capabilities (development)
 Package: libubuntu-application-api-doc
 Section: doc
 Architecture: all
-Replaces: libplatform-api1-doc (<< 2.0.0)
-Breaks: libplatform-api1-doc (<< 2.0.0)
+Replaces: libplatform-api1-doc (<< 3.0.0)
+Breaks: libplatform-api1-doc (<< 3.0.0)
 Depends: ${misc:Depends},
          libubuntu-application-api-dev,
 Description: Platform API for system level capabilities (development)
@@ -176,8 +176,8 @@ Description: test implementation of the Platform API
 
 Package: ubuntu-application-api3-examples
 Architecture: any
-Replaces: libplatform-api1-hybris-tests (<< 2.0.0)
-Breaks: libplatform-api1-hybris-tests (<< 2.0.0)
+Replaces: libplatform-api1-hybris-tests (<< 3.0.0)
+Breaks: libplatform-api1-hybris-tests (<< 3.0.0)
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          ubuntu-application-api3-test,
