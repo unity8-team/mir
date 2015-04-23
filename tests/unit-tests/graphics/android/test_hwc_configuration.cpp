@@ -222,6 +222,7 @@ TEST_F(HwcConfiguration, no_fpe_from_malformed_refresh)
                 int i = 0;
                 while(attribute_list[i] != HWC_DISPLAY_NO_ATTRIBUTE)
                     values[i++] = 0;
+                return 0;
             }));
     auto attribs = config.active_attribs_for(mga::DisplayName::external);
     EXPECT_THAT(attribs.vrefresh_hz, Eq(0.0f));
@@ -252,6 +253,7 @@ TEST_F(HwcConfiguration, no_fpe_from_malformed_dpi)
                 int i = 0;
                 while(attribute_list[i] != HWC_DISPLAY_NO_ATTRIBUTE)
                     values[i++] = 0;
+                return 0;
             }));
     auto attribs = config.active_attribs_for(mga::DisplayName::external);
     EXPECT_THAT(attribs.mm_size, Eq(geom::Size{0,0}));
