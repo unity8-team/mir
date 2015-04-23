@@ -120,8 +120,6 @@ set(CMAKE_EXE_LINKER_FLAGS_THREADSANITIZER "-pie")
 # consume CPU time...
 add_definitions(-DLOG_NDEBUG=1)
 
-add_definitions(-DMIR_REQUIRE_DEPRECATED_EVENT_OPT_IN=1)
-
 enable_testing()
 
 include_directories(include/common)
@@ -216,7 +214,7 @@ add_subdirectory(guides/)
 add_subdirectory(cmake/)
 
 if (MIR_ENABLE_TESTS)
-  find_package(Gtest REQUIRED)
+  find_package(GtestGmock REQUIRED)
   include_directories(${GMOCK_INCLUDE_DIR} ${GTEST_INCLUDE_DIR})
   add_subdirectory(tests/)
 
@@ -234,3 +232,4 @@ enable_coverage_report(mirserver)
 include (cmake/Doxygen.cmake)
 include (cmake/ABICheck.cmake)
 
+add_subdirectory(snappy)
