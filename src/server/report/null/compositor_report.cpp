@@ -28,7 +28,15 @@ void mrn::CompositorReport::began_frame(SubCompositorId)
 {
 }
 
-void mrn::CompositorReport::finished_frame(bool, SubCompositorId)
+void mrn::CompositorReport::renderables_in_frame(SubCompositorId, mir::graphics::RenderableList const&)
+{
+}
+
+void mrn::CompositorReport::rendered_frame(SubCompositorId)
+{
+}
+
+void mrn::CompositorReport::finished_frame(SubCompositorId)
 {
 }
 

@@ -47,7 +47,7 @@ TRACEPOINT_EVENT(
         ctf_integer(int, x, x)
         ctf_integer(int, y, y)
         ctf_integer_hex(uintptr_t, id, (uintptr_t)(id))
-     )
+    )
 )
 
 TRACEPOINT_EVENT(
@@ -56,16 +56,34 @@ TRACEPOINT_EVENT(
     TP_ARGS(void const*, id),
     TP_FIELDS(
         ctf_integer_hex(uintptr_t, id, (uintptr_t)(id))
-     )
+    )
+)
+
+TRACEPOINT_EVENT(
+    mir_server_compositor,
+    rendered_frame,
+    TP_ARGS(void const*, id),
+    TP_FIELDS(
+        ctf_integer_hex(uintptr_t, id, (uintptr_t)(id))
+    )
 )
 
 TRACEPOINT_EVENT(
     mir_server_compositor,
     finished_frame,
-    TP_ARGS(int, bypassed, void const*, id),
+    TP_ARGS(void const*, id),
     TP_FIELDS(
-        ctf_integer(int, bypassed, bypassed)
         ctf_integer_hex(uintptr_t, id, (uintptr_t)(id))
+    )
+)
+
+TRACEPOINT_EVENT(
+    mir_server_compositor,
+    buffers_in_frame,
+    TP_ARGS(void const*, id, unsigned int*, buffer_ids, size_t, buffer_ids_len),
+    TP_FIELDS(
+        ctf_integer_hex(uintptr_t, id, (uintptr_t)(id))
+        ctf_sequence(unsigned int, buffer_ids, buffer_ids, size_t, buffer_ids_len)
     )
 )
 

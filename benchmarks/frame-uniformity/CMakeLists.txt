@@ -4,14 +4,14 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/tests/include/
-
-  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}
   ${MIR_ANDROID_INCLUDE_DIRECTORIES}
   ${MIR_3RD_PARTY_INCLUDE_DIRECTORIES}
 )
 
-add_executable(frame_uniformity_test_client
+mir_add_wrapped_executable(frame_uniformity_test_client NOINSTALL
   touch_measuring_client.cpp
   touch_producing_server.cpp
   frame_uniformity_test.cpp
@@ -23,17 +23,13 @@ add_executable(frame_uniformity_test_client
 target_link_libraries(frame_uniformity_test_client
   mirserver
   mirclient
-  
-  mir-test
-  mir-test-framework
-  mir-test-doubles
-  mir-test-doubles-platform
-
-  # Why does this have to come after mir-test-framework here but not in tests/acceptance-tests/
-  # /CMakeLists.txt? ~racarr
   mirplatform
+  
+  mir-test-static
+  mir-test-framework-static
+  mir-test-doubles-static
+  mir-test-doubles-platform-static
 
-  3rd_party
   ${PROTOBUF_LIBRARIES}
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}

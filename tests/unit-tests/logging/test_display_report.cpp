@@ -19,6 +19,7 @@
 #include "src/server/report/logging/display_report.h"
 #include "mir/logging/logger.h"
 #include "mir_test_doubles/mock_egl.h"
+#include "mir_test_doubles/advanceable_clock.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -33,22 +34,14 @@ namespace
 class MockLogger : public ml::Logger
 {
 public:
-    MOCK_METHOD3(log, void(Severity severity, const std::string& message, const std::string& component));
+    MOCK_METHOD3(log, void(ml::Severity severity, const std::string& message, const std::string& component));
     ~MockLogger() noexcept(true) {}
 };
 
 struct DisplayReport : public testing::Test
 {
-    DisplayReport()
-    {
-    }
-
-    void SetUp()
-    {
-        logger = std::make_shared<MockLogger>();
-    }
-
-    std::shared_ptr<MockLogger> logger;
+    std::shared_ptr<mtd::AdvanceableClock> const clock{std::make_shared<mtd::AdvanceableClock>()};
+    std::shared_ptr<MockLogger> logger{std::make_shared<MockLogger>()};
     mtd::MockEGL mock_egl;
 };
 
@@ -112,17 +105,40 @@ TEST_F(DisplayReport, eglconfig)
         .WillRepeatedly(DoAll(SetArgPointee<3>(dummy_value),Return(EGL_TRUE)));
 
     EXPECT_CALL(*logger, log(
-        ml::Logger::informational,
+        ml::Severity::informational,
         "Display EGL Configuration:",
         component));
     for(auto &i : egl_string_mapping)
     {
         EXPECT_CALL(*logger, log(
-            ml::Logger::informational,
+            ml::Severity::informational,
             "    [" + i + "] : " + std::to_string(dummy_value),
             component));
     }
 
-    mrl::DisplayReport report(logger);
+    mrl::DisplayReport report(logger, clock);
     report.report_egl_configuration(disp, config);
+}
+
+TEST_F(DisplayReport, reports_vsync)
+{
+    std::chrono::milliseconds interval(1500);
+    unsigned int display1_id {1223};
+    unsigned int display2_id {4492};
+    std::string display1_name(std::to_string(display1_id));
+    std::string display2_name(std::to_string(display2_id));
+    EXPECT_CALL(*logger, log(
+        ml::Severity::informational,
+        "2 vsync events on [" + display1_name + "] over " + std::to_string(interval.count()) + "ms",
+        component));
+    EXPECT_CALL(*logger, log(
+        ml::Severity::informational,
+        "1 vsync events on [" + display2_name + "] over " + std::to_string(interval.count()) + "ms",
+        component));
+    mrl::DisplayReport report(logger, clock);
+
+    report.report_vsync(display1_id);
+    report.report_vsync(display2_id);
+    clock->advance_by(interval);
+    report.report_vsync(display1_id);
 }

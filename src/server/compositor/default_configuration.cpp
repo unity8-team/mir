@@ -18,6 +18,7 @@
 
 #include "mir/default_server_configuration.h"
 
+#include "mir/shell/shell.h"
 #include "buffer_stream_factory.h"
 #include "default_display_buffer_compositor_factory.h"
 #include "multi_threaded_compositor.h"
@@ -63,9 +64,16 @@ mir::DefaultServerConfiguration::the_display_buffer_compositor_factory()
     return display_buffer_compositor_factory(
         [this]()
         {
-            return std::make_shared<mc::DefaultDisplayBufferCompositorFactory>(
-                the_renderer_factory(), the_compositor_report());
+            return wrap_display_buffer_compositor_factory(std::make_shared<mc::DefaultDisplayBufferCompositorFactory>(
+                the_renderer_factory(), the_compositor_report()));
         });
+}
+
+std::shared_ptr<mc::DisplayBufferCompositorFactory>
+mir::DefaultServerConfiguration::wrap_display_buffer_compositor_factory(
+    std::shared_ptr<mc::DisplayBufferCompositorFactory> const& wrapped)
+{
+    return wrapped;
 }
 
 std::shared_ptr<mc::Compositor>
@@ -78,6 +86,7 @@ mir::DefaultServerConfiguration::the_compositor()
                 the_display(),
                 the_scene(),
                 the_display_buffer_compositor_factory(),
+                the_shell(),
                 the_compositor_report(),
                 !the_options()->is_set(options::host_socket_opt));
         });
@@ -88,7 +97,7 @@ std::shared_ptr<mc::RendererFactory> mir::DefaultServerConfiguration::the_render
     return renderer_factory(
         [this]()
         {
-            return std::make_shared<mc::GLRendererFactory>(the_gl_program_factory());
+            return std::make_shared<mc::GLRendererFactory>();
         });
 }
 

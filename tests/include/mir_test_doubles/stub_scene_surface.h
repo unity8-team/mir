@@ -63,6 +63,7 @@ public:
     bool input_area_contains(mir::geometry::Point const&) const override { return false; }
 
     virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const*) const override { return nullptr; }
+    int buffers_ready_for_compositor(void const*) const override { return 0; }
 
     float alpha() const override { return 0.0f;}
     MirSurfaceType type() const override { return mir_surface_type_normal; }
@@ -70,8 +71,8 @@ public:
 
     void hide() override {}
     void show() override {}
+    bool visible() const override { return true; }
     void move_to(geometry::Point const&) override {}
-    void take_input_focus(std::shared_ptr<shell::InputTargeter> const&) override {}
     void set_input_region(std::vector<geometry::Rectangle> const&) override {}
     void allow_framedropping(bool) override {}
     void resize(geometry::Size const&) override {}
@@ -89,6 +90,8 @@ public:
     void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& /* image */) {}
     std::shared_ptr<graphics::CursorImage> cursor_image() const { return {}; }
 
+    void request_client_surface_close() override {}
+
     MirPixelFormat pixel_format() const override { return mir_pixel_format_xrgb_8888; }
 
     void swap_buffers(graphics::Buffer*, std::function<void(graphics::Buffer*)>) override {}
@@ -96,8 +99,15 @@ public:
     bool supports_input() const override { return true;}
     int client_input_fd() const override { return fd;}
     int configure(MirSurfaceAttrib, int) override { return 0; }
-    int query(MirSurfaceAttrib) override { return 0; }
+    int query(MirSurfaceAttrib) const override { return 0; }
     void with_most_recent_buffer_do(std::function<void(graphics::Buffer&)> const& ) override {}
+
+    std::shared_ptr<mir::scene::Surface> parent() const override { return nullptr; }
+
+    void set_keymap(xkb_rule_names const&) {}
+
+    void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const&, geometry::Displacement const&) {}
+    void rename(std::string const&) {}
 };
 
 }

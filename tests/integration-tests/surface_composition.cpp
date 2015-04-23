@@ -21,7 +21,6 @@
 #include "src/server/compositor/buffer_stream_surfaces.h"
 #include "src/server/compositor/buffer_queue.h"
 
-#include "mir_test_doubles/null_surface_configurator.h"
 #include "mir_test_doubles/stub_buffer_allocator.h"
 #include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
 #include "mir_test_doubles/stub_input_sender.h"
@@ -53,7 +52,6 @@ struct SurfaceComposition : Test
             create_buffer_stream(),
             create_input_channel(),
             create_input_sender(),
-            create_surface_configurator(),
             create_cursor_image(),
             mr::null_scene_report());
 
@@ -83,10 +81,6 @@ struct SurfaceComposition : Test
     auto create_cursor_image() const
     -> std::shared_ptr<mg::CursorImage>  { return {}; }
 
-    auto create_surface_configurator() const
-    -> std::shared_ptr<ms::SurfaceConfigurator>
-    { return std::make_shared<mtd::NullSurfaceConfigurator>(); }
-
     auto create_input_sender() const
     -> std::shared_ptr<mi::InputSender>
     { return std::make_shared<mtd::StubInputSender>(); }
@@ -108,16 +102,23 @@ TEST_F(SurfaceComposition, does_not_send_client_buffers_to_dead_surfaces)
 
     mg::Buffer* old_buffer{nullptr};
 
+    bool called_back = true;
     auto const callback = [&] (mg::Buffer* new_buffer)
         {
             // If surface is dead then callback is not expected
             EXPECT_THAT(surface.get(), NotNull());
             old_buffer = new_buffer;
+            called_back = true;
         };
 
     // Exhaust the buffers to ensure we have a pending swap to complete
-    for (auto i = 0; i != number_of_buffers; ++i)
+    // But also be careful to not pass a formerly released non-null old_buffer
+    // in to swap_buffers...
+    while (called_back)
+    {
+        called_back = false;
         surface->swap_buffers(old_buffer, callback);
+    }
 
     auto const renderable = surface->compositor_snapshot(this);
 

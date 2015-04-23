@@ -19,6 +19,7 @@
 #include "src/server/report/null/input_report.h"
 #include "mir/input/input_manager.h"
 #include "mir/input/input_dispatcher.h"
+#include "mir/events/event_private.h"
 #include "src/server/input/android/android_input_dispatcher.h"
 #include "src/server/input/android/event_filter_dispatcher_policy.h"
 #include "src/server/input/android/common_input_thread.h"
@@ -29,7 +30,7 @@
 #include "mir_test_doubles/mock_event_filter.h"
 #include "mir_test_doubles/stub_input_enumerator.h"
 #include "mir_test/fake_shared.h"
-#include "mir_test/client_event_matchers.h"
+#include "mir_test/event_matchers.h"
 
 #include "InputEnumerator.h"
 #include "InputDispatcher.h"

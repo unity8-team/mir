@@ -29,7 +29,7 @@ class Renderable;
 }
 namespace compositor
 {
-
+class Decoration;
 class SceneElement
 {
 public:
@@ -38,10 +38,10 @@ public:
     virtual std::shared_ptr<graphics::Renderable> renderable() const = 0;
     virtual void rendered() = 0;
     virtual void occluded() = 0;
-    
-    // Query whether the SceneElement represents a window-surface, which at the discretion of the compositor
-    // may be eligible for window decoration.
-    virtual bool is_a_surface() const = 0;
+
+    //TODO: Decoration is opaque on purpose. It is only used by an internal example,
+    //      and this function should be removed from the public API.
+    virtual std::unique_ptr<Decoration> decoration() const = 0; 
 
 protected:
     SceneElement() = default;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Canonical Ltd.
+ * Copyright © 2012-2014 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,16 +19,12 @@
 #ifndef MIR_TEST_DOUBLES_STUB_BUFFER_H_
 #define MIR_TEST_DOUBLES_STUB_BUFFER_H_
 
-#ifdef ANDROID
-#include "mir_test_doubles/stub_android_native_buffer.h"
-#else
-#include "stub_gbm_native_buffer.h"
-#endif
-
 #include "mir/graphics/buffer_basic.h"
 #include "mir/graphics/buffer_properties.h"
 #include "mir/geometry/size.h"
 #include "mir/graphics/buffer_id.h"
+#include <vector>
+#include <string.h>
 
 namespace mir
 {
@@ -105,22 +101,29 @@ public:
     virtual std::shared_ptr<graphics::NativeBuffer> native_buffer_handle() const override { return native_buffer; }
     virtual void gl_bind_to_texture() override {}
 
-    virtual bool can_bypass() const override { return true; }
+    void write(unsigned char const* pixels, size_t len) override
+    {
+        if (pixels) written_pixels.assign(pixels, pixels + len);
+    }
+    void read(std::function<void(unsigned char const*)> const& do_with_pixels) override
+    {
+        if (written_pixels.size() == 0)
+        {
+            auto length = buf_size.width.as_int()*buf_size.height.as_int()*MIR_BYTES_PER_PIXEL(buf_pixel_format);
+            written_pixels.resize(length);
+            memset(written_pixels.data(), 0, length);
+        }
+        do_with_pixels(written_pixels.data());
+    }
 
     std::shared_ptr<graphics::NativeBuffer> const native_buffer;
     geometry::Size const buf_size;
     MirPixelFormat const buf_pixel_format;
     geometry::Stride const buf_stride;
     graphics::BufferID const buf_id;
+    std::vector<unsigned char> written_pixels;
 
-    std::shared_ptr<graphics::NativeBuffer> create_native_buffer()
-    {
-#ifndef ANDROID
-        return std::make_shared<StubGBMNativeBuffer>(geometry::Size{0,0});
-#else
-        return std::make_shared<StubAndroidNativeBuffer>();
-#endif
-    }
+    std::shared_ptr<graphics::NativeBuffer> create_native_buffer();
 };
 }
 }

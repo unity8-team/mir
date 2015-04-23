@@ -1,4 +1,3 @@
-#include "mir/graphics/basic_platform.h"
 #include "mir/graphics/display_buffer.h"
 
 #include "src/server/graphics/offscreen/display.h"
@@ -21,23 +20,6 @@ namespace mr = mir::report;
 namespace
 {
 
-class StubBasicPlatform : public mg::BasicPlatform
-{
-public:
-    StubBasicPlatform(EGLNativeDisplayType native_display)
-        : native_display{native_display}
-    {
-    }
-
-    EGLNativeDisplayType egl_native_display() const
-    {
-        return native_display;
-    }
-
-private:
-    EGLNativeDisplayType const native_display;
-};
-
 class OffscreenDisplayTest : public ::testing::Test
 {
 public:
@@ -58,6 +40,7 @@ public:
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
     ::testing::NiceMock<mtd::MockGL> mock_gl;
+    EGLNativeDisplayType const native_display{reinterpret_cast<EGLNativeDisplayType>(0x12345)};
 };
 
 }
@@ -65,17 +48,13 @@ public:
 TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
 {
     using namespace ::testing;
-
-    EGLNativeDisplayType const native_display{
-        reinterpret_cast<EGLNativeDisplayType>(0x12345)};
-
     InSequence s;
     EXPECT_CALL(mock_egl, eglGetDisplay(native_display));
     EXPECT_CALL(mock_egl, eglInitialize(mock_egl.fake_egl_display, _, _));
     EXPECT_CALL(mock_egl, eglTerminate(mock_egl.fake_egl_display));
 
     mgo::Display display{
-        std::make_shared<StubBasicPlatform>(native_display),
+        native_display,
         std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 }
@@ -83,22 +62,18 @@ TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
 TEST_F(OffscreenDisplayTest, orientation_normal)
 {
     using namespace ::testing;
-
-    EGLNativeDisplayType const native_display{
-        reinterpret_cast<EGLNativeDisplayType>(0x12345)};
-
     mgo::Display display{
-        std::make_shared<StubBasicPlatform>(native_display),
+        native_display,
         std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 
     int count = 0;
-    display.for_each_display_buffer(
-        [&](mg::DisplayBuffer& db)
-        {
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer& db) {
             ++count;
             EXPECT_EQ(mir_orientation_normal, db.orientation());
         });
+    });
 
     EXPECT_TRUE(count);
 }
@@ -108,25 +83,32 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
     using namespace ::testing;
 
     GLuint const fbo{66};
-    EGLNativeDisplayType const native_display{
-        reinterpret_cast<EGLNativeDisplayType>(0x12345)};
-
     /* Creates GL framebuffer objects */
     EXPECT_CALL(mock_gl, glGenFramebuffers(1,_))
         .Times(AtLeast(1))
         .WillRepeatedly(SetArgPointee<1>(fbo));
 
+    /* Provide unique EGL contexts */
+    std::vector<int> contexts;
+    EXPECT_CALL(mock_egl, eglCreateContext(_,_,_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(WithoutArgs(Invoke(
+            [&] ()
+            {
+                contexts.push_back(0);
+                return reinterpret_cast<EGLContext>(&contexts.back());
+            })));
+
     mgo::Display display{
-        std::make_shared<StubBasicPlatform>(native_display),
+        native_display,
         std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 
     Mock::VerifyAndClearExpectations(&mock_gl);
 
     /* Binds the GL framebuffer objects */
-    display.for_each_display_buffer(
-        [this](mg::DisplayBuffer& db)
-        {
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer& db) {
             EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,Ne(EGL_NO_CONTEXT)));
             EXPECT_CALL(mock_gl, glBindFramebuffer(_,Ne(0)));
 
@@ -135,6 +117,14 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
             Mock::VerifyAndClearExpectations(&mock_egl);
             Mock::VerifyAndClearExpectations(&mock_gl);
         });
+    });
+
+    /* Contexts are released at teardown */
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer&) {
+            EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,EGL_NO_CONTEXT));
+        });
+    });
 }
 
 TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
@@ -143,8 +133,6 @@ TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
 
     GLuint const old_fbo{66};
     GLuint const new_fbo{67};
-    EGLNativeDisplayType const native_display{
-        reinterpret_cast<EGLNativeDisplayType>(0x12345)};
 
     EXPECT_CALL(mock_gl, glGetIntegerv(GL_FRAMEBUFFER_BINDING, _))
         .WillOnce(SetArgPointee<1>(old_fbo));
@@ -160,7 +148,7 @@ TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
 
     EXPECT_THROW({
         mgo::Display display(
-            std::make_shared<StubBasicPlatform>(native_display),
+            native_display,
             std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
             mr::null_display_report());
     }, std::runtime_error);

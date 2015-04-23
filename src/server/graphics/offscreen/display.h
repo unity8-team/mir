@@ -33,7 +33,6 @@ namespace mir
 namespace graphics
 {
 
-class BasicPlatform;
 class DisplayConfigurationPolicy;
 class DisplayReport;
 
@@ -59,17 +58,27 @@ private:
     EGLDisplay egl_display;
 };
 
+class DisplaySyncGroup : public graphics::DisplaySyncGroup
+{
+public:
+    DisplaySyncGroup(std::unique_ptr<DisplayBuffer> output);
+    void for_each_display_buffer(std::function<void(DisplayBuffer&)> const&) override;
+    void post() override;
+private:
+    std::unique_ptr<DisplayBuffer> const output;
+};
+
 }
 
 class Display : public graphics::Display
 {
 public:
-    Display(std::shared_ptr<BasicPlatform> const& basic_platform,
+    Display(EGLNativeDisplayType egl_native_display,
             std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
             std::shared_ptr<DisplayReport> const& listener);
     ~Display() noexcept;
 
-    void for_each_display_buffer(std::function<void(DisplayBuffer&)> const& f) override;
+    void for_each_display_sync_group(std::function<void(DisplaySyncGroup&)> const& f) override;
 
     std::unique_ptr<graphics::DisplayConfiguration> configuration() const override;
     void configure(graphics::DisplayConfiguration const& conf) override;
@@ -90,12 +99,11 @@ public:
     std::unique_ptr<GLContext> create_gl_context() override;
 
 private:
-    std::shared_ptr<BasicPlatform> const basic_platform;
     detail::EGLDisplayHandle const egl_display;
     SurfacelessEGLContext const egl_context_shared;
     mutable std::mutex configuration_mutex;
     DisplayConfiguration current_display_configuration;
-    std::vector<std::unique_ptr<DisplayBuffer>> display_buffers;
+    std::vector<std::unique_ptr<DisplaySyncGroup>> display_sync_groups;
 };
 
 }

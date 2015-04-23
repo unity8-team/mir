@@ -36,15 +36,14 @@ namespace scene
 {
 class BufferStreamFactory;
 class SceneReport;
-class SurfaceConfigurator;
 
 class SurfaceAllocator : public SurfaceFactory
 {
 public:
     SurfaceAllocator(std::shared_ptr<BufferStreamFactory> const& bb_factory,
+                     int buffers,
                      std::shared_ptr<input::InputChannelFactory> const& input_factory,
                      std::shared_ptr<input::InputSender> const& input_sender,
-                     std::shared_ptr<SurfaceConfigurator> const& configurator,
                      std::shared_ptr<graphics::CursorImage> const& default_cursor_image,
                      std::shared_ptr<SceneReport> const& report);
 
@@ -52,9 +51,9 @@ public:
 
 private:
     std::shared_ptr<BufferStreamFactory> const buffer_stream_factory;
+    int const nbuffers;
     std::shared_ptr<input::InputChannelFactory> const input_factory;
     std::shared_ptr<input::InputSender> const input_sender;
-    std::shared_ptr<SurfaceConfigurator> const configurator;
     std::shared_ptr<graphics::CursorImage> const default_cursor_image;
     std::shared_ptr<SceneReport> const report;
 };

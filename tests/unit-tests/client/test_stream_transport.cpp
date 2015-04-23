@@ -22,6 +22,7 @@
 
 #include "mir_test/auto_unblock_thread.h"
 #include "mir_test/signal.h"
+#include "mir_test/fd_utils.h"
 #include "mir/raii.h"
 
 #include <sys/socket.h>
@@ -43,6 +44,8 @@
 #include <gmock/gmock.h>
 
 namespace mclr = mir::client::rpc;
+namespace mt = mir::test;
+namespace md = mir::dispatch;
 
 namespace
 {
@@ -71,12 +74,6 @@ public:
         transport = std::make_shared<TransportMechanism>(transport_fd);
     }
 
-    virtual ~StreamTransportTest()
-    {
-        // We don't care about errors, so unconditionally close the test fd.
-        close(test_fd);
-    }
-
     mir::Fd transport_fd;
     mir::Fd test_fd;
     std::shared_ptr<TransportMechanism> transport;
@@ -85,218 +82,471 @@ public:
 typedef ::testing::Types<mclr::StreamSocketTransport> Transports;
 TYPED_TEST_CASE(StreamTransportTest, Transports);
 
-TYPED_TEST(StreamTransportTest, NoticesRemoteDisconnect)
+TYPED_TEST(StreamTransportTest, ReturnsValidWatchFd)
 {
-    using namespace testing;
-    auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
-
-    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([done]()
-                                                               { done->raise(); }));
-
-    this->transport->register_observer(observer);
-
-    close(this->test_fd);
-
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{1}));
+    // A valid fd is >= 0, and we know that stdin, stdout, and stderr aren't correct.
+    EXPECT_GE(this->transport->watch_fd(), 3);
 }
 
-TYPED_TEST(StreamTransportTest, NoticesRemoteDisconnectWhileReadingInIOLoop)
+TYPED_TEST(StreamTransportTest, watch_fd_is_pollable)
+{
+    pollfd socket_readable;
+    socket_readable.events = POLLIN;
+    socket_readable.fd = this->transport->watch_fd();
+
+    ASSERT_TRUE(mt::std_call_succeeded(poll(&socket_readable, 1, 0)));
+
+    EXPECT_FALSE(socket_readable.revents & POLLERR);
+    EXPECT_FALSE(socket_readable.revents & POLLNVAL);
+}
+
+TYPED_TEST(StreamTransportTest, watch_fd_notifies_readable_when_data_pending)
+{
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+}
+
+TYPED_TEST(StreamTransportTest, watch_fd_remains_unreadable_until_event_pending)
+{
+    EXPECT_FALSE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+}
+
+TYPED_TEST(StreamTransportTest, watch_fd_is_no_longer_readable_after_event_processing)
 {
     using namespace testing;
-    auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
-    bool data_notified{false};
-    bool finished_read{false};
 
-    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([done]()
-                                                               { done->raise(); }));
+    uint64_t dummy{0xdeadbeef};
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+
     ON_CALL(*observer, on_data_available())
-        .WillByDefault(Invoke([this, &data_notified, &finished_read]()
+        .WillByDefault(Invoke([dummy, this]()
                               {
-                                  data_notified = true;
-                                  char buffer[8];
-                                  this->transport->receive_data(buffer, sizeof(buffer));
-                                  finished_read = true;
+                                  decltype(dummy) buffer;
+                                  this->transport->receive_data(&buffer, sizeof(dummy));
                               }));
 
     this->transport->register_observer(observer);
 
-    uint32_t dummy{0xdeadbeef};
     EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
 
-    close(this->test_fd);
+    ASSERT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
 
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{1}));
-    EXPECT_TRUE(data_notified);
-    EXPECT_FALSE(finished_read);
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_FALSE(mt::fd_is_readable(this->test_fd));
 }
 
-TYPED_TEST(StreamTransportTest, NotifiesOnDataAvailable)
+TYPED_TEST(StreamTransportTest, no_events_dispatched_until_dispatch_called)
 {
     using namespace testing;
 
     auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
-
-    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([done]()
-                                                                 { done->raise(); }));
-
-    this->transport->register_observer(observer);
+    bool data_available{false};
+    bool disconnected{false};
 
     uint64_t dummy{0xdeadbeef};
     EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+    ::close(this->test_fd);
 
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{1}));
-}
-
-TYPED_TEST(StreamTransportTest, DoesntNotifyUntilDataAvailable)
-{
-    using namespace testing;
-
-    auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
-
-    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([done]()
-                                                                 { done->raise(); }));
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([this, dummy, &data_available]()
+                                                                 {
+                                                                     decltype(dummy) buffer;
+                                                                     this->transport->receive_data(&buffer, sizeof(buffer));
+                                                                     data_available = true;
+                                                                 }));
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected]()
+                                                               { disconnected = true; }));
 
     this->transport->register_observer(observer);
 
     std::this_thread::sleep_for(std::chrono::seconds{1});
+    EXPECT_FALSE(data_available);
+    EXPECT_FALSE(disconnected);
 
-    EXPECT_FALSE(done->raised());
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()) &&
+           this->transport->dispatch(md::FdEvent::readable | md::FdEvent::remote_closed))
+        ;
 
-    uint64_t dummy{0xdeadbeef};
-    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
-
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(data_available);
+    EXPECT_TRUE(disconnected);
 }
 
-TYPED_TEST(StreamTransportTest, KeepsNotifyingOfAvailableDataUntilAllIsRead)
+TYPED_TEST(StreamTransportTest, dispatches_single_event_at_a_time)
 {
     using namespace testing;
 
     auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
+    bool data_available{false};
+    bool disconnected{false};
+
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+    ::close(this->test_fd);
+
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([this, dummy, &data_available]()
+                                                                 {
+                                                                     decltype(dummy) buffer;
+                                                                     this->transport->receive_data(&buffer, sizeof(buffer));
+                                                                     data_available = true;
+                                                                 }));
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected]()
+                                                               { disconnected = true; }));
+
+    this->transport->register_observer(observer);
+
+    EXPECT_FALSE(data_available);
+    EXPECT_FALSE(disconnected);
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    this->transport->dispatch(md::FdEvent::readable | md::FdEvent::remote_closed);
+
+    EXPECT_TRUE(data_available xor disconnected);
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    this->transport->dispatch(md::FdEvent::readable | md::FdEvent::remote_closed);
+
+    EXPECT_TRUE(data_available);
+    EXPECT_TRUE(disconnected);
+}
+
+TYPED_TEST(StreamTransportTest, notices_remote_disconnect)
+{
+    using namespace testing;
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    bool disconnected{false};
+
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected]()
+                                                               { disconnected = true; }));
+
+    this->transport->register_observer(observer);
+
+    close(this->test_fd);
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()) &&
+           this->transport->dispatch(md::FdEvent::remote_closed))
+        ;
+
+    EXPECT_TRUE(disconnected);
+}
+
+TYPED_TEST(StreamTransportTest, notices_remote_disconnect_while_reading)
+{
+    using namespace testing;
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    bool disconnected{false};
+    bool receive_error_detected{false};
+
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected]()
+                                                               { disconnected = true; }));
+    this->transport->register_observer(observer);
+
+    mir::test::AutoJoinThread closer{[this]()
+                                     {
+                                         std::this_thread::sleep_for(std::chrono::seconds{1});
+                                         ::close(this->test_fd);
+                                     }};
+
+    try
+    {
+        char buffer[8];
+        this->transport->receive_data(buffer, sizeof(buffer));
+    }
+    catch (std::runtime_error)
+    {
+        receive_error_detected = true;
+    }
+
+    // There should now be a disconnect event pending...
+    EXPECT_TRUE(mt::fd_is_readable(this->transport->watch_fd()));
+
+    this->transport->dispatch(md::FdEvent::remote_closed);
+
+    EXPECT_TRUE(disconnected);
+    EXPECT_TRUE(receive_error_detected);
+}
+
+TYPED_TEST(StreamTransportTest, notifies_on_data_available)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    bool notified_data_available{false};
+
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&notified_data_available]()
+                                                                 { notified_data_available = true; }));
+
+    this->transport->register_observer(observer);
+
+    uint64_t dummy{0xdeadbeef};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_TRUE(notified_data_available);
+}
+
+TYPED_TEST(StreamTransportTest, keeps_notifying_of_available_data_until_all_data_is_read)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
 
     std::array<uint8_t, sizeof(int) * 256> data;
     data.fill(0);
-    std::atomic<size_t> bytes_left{data.size()};
+    size_t bytes_left{data.size()};
 
     ON_CALL(*observer, on_data_available())
-        .WillByDefault(Invoke([done, &bytes_left, this]()
+        .WillByDefault(Invoke([&bytes_left, this]()
                               {
                                   int dummy;
                                   this->transport->receive_data(&dummy, sizeof(dummy));
-                                  bytes_left.fetch_sub(sizeof(dummy));
-                                  if (bytes_left.load() == 0)
-                                  {
-                                      done->raise();
-                                  }
+                                  bytes_left -= sizeof(dummy);
                               }));
 
     this->transport->register_observer(observer);
 
     EXPECT_EQ(data.size(), write(this->test_fd, data.data(), data.size()));
 
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{5}));
-    EXPECT_EQ(0, bytes_left.load());
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()) &&
+           this->transport->dispatch(md::FdEvent::readable))
+        ;
+
+    EXPECT_EQ(0, bytes_left);
 }
 
-TYPED_TEST(StreamTransportTest, StopsNotifyingOnceAllDataIsRead)
+TYPED_TEST(StreamTransportTest, stops_notifying_once_all_data_is_read)
 {
     using namespace testing;
-    int const buffer_size{256};
 
     auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
+
+    std::array<uint8_t, sizeof(int) * 256> data;
+    data.fill(0);
+    size_t bytes_left{data.size()};
 
     ON_CALL(*observer, on_data_available())
-        .WillByDefault(Invoke([this, done]()
+        .WillByDefault(Invoke([&bytes_left, this]()
                               {
-                                  if (done->raised())
-                                  {
-                                      FAIL() << "on_data_available called without new data available";
-                                  }
-                                  uint8_t dummy_buffer[buffer_size];
-                                  this->transport->receive_data(dummy_buffer, sizeof(dummy_buffer));
-                                  done->raise();
+                                  int dummy;
+                                  this->transport->receive_data(&dummy, sizeof(dummy));
+                                  bytes_left -= sizeof(dummy);
                               }));
+
     this->transport->register_observer(observer);
 
-    EXPECT_FALSE(done->raised());
-    uint8_t dummy_buffer[buffer_size];
-    memset(dummy_buffer, 0xab, sizeof(dummy_buffer));
-    EXPECT_EQ(sizeof(dummy_buffer), write(this->test_fd, dummy_buffer, sizeof(dummy_buffer)));
+    EXPECT_EQ(data.size(), write(this->test_fd, data.data(), data.size()));
 
-    EXPECT_TRUE(done->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (bytes_left > 0)
+    {
+        this->transport->dispatch(md::FdEvent::readable);
+    }
 
-    std::this_thread::sleep_for(std::chrono::seconds{1});
+    EXPECT_FALSE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
 }
 
-TYPED_TEST(StreamTransportTest, DoesntSendDataAvailableNotificationOnDisconnect)
+TYPED_TEST(StreamTransportTest, doesnt_send_data_available_notification_on_disconnect)
 {
     using namespace testing;
-    int const buffer_size{256};
 
     auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto read_done = std::make_shared<mir::test::Signal>();
-    auto disconnect_done = std::make_shared<mir::test::Signal>();
-    std::atomic<int> notify_count{0};
+    int notify_count{0};
+    bool disconnected{false};
 
+    uint64_t dummy{0xdeedfaac};
+    EXPECT_EQ(sizeof(dummy), write(this->test_fd, &dummy, sizeof(dummy)));
+
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected]()
+                                                               { disconnected = true; }));
     ON_CALL(*observer, on_data_available())
-        .WillByDefault(Invoke([this, read_done, &notify_count]()
+        .WillByDefault(Invoke([dummy, &notify_count, this]()
                               {
                                   notify_count++;
-                                  uint8_t dummy_buffer[buffer_size];
-                                  this->transport->receive_data(dummy_buffer, sizeof(dummy_buffer));
-                                  read_done->raise();
+
+                                  decltype(dummy) buffer;
+                                  this->transport->receive_data(&buffer, sizeof(buffer));
                               }));
-    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([this, disconnect_done]()
-                                                               { disconnect_done->raise(); }));
 
     this->transport->register_observer(observer);
 
-    EXPECT_FALSE(read_done->raised());
-    uint8_t dummy_buffer[buffer_size];
-    memset(dummy_buffer, 0xab, sizeof(dummy_buffer));
-    EXPECT_EQ(sizeof(dummy_buffer), write(this->test_fd, dummy_buffer, sizeof(dummy_buffer)));
-
-    EXPECT_TRUE(read_done->wait_for(std::chrono::seconds{1}));
-    EXPECT_EQ(1, notify_count);
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()))
+    {
+        this->transport->dispatch(md::FdEvent::readable);
+    }
 
     ::close(this->test_fd);
-    EXPECT_TRUE(disconnect_done->wait_for(std::chrono::seconds{1}));
+
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()) &&
+           this->transport->dispatch(md::FdEvent::remote_closed | md::FdEvent::readable))
+        ;
 
     EXPECT_EQ(1, notify_count);
+    EXPECT_TRUE(disconnected);
 }
 
-TYPED_TEST(StreamTransportTest, ReadsCorrectData)
+
+TYPED_TEST(StreamTransportTest, notifies_all_observers)
+{
+    using namespace testing;
+
+    constexpr int const observer_count{10};
+
+    std::array<bool, observer_count> read_notified;
+    std::array<bool, observer_count> disconnect_notified;
+
+    read_notified.fill(false);
+    disconnect_notified.fill(false);
+
+    for (int i = 0; i < observer_count; ++i)
+    {
+        auto observer = std::make_shared<NiceMock<MockObserver>>();
+
+        ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&disconnected = disconnect_notified[i]]() mutable
+                                                                   { disconnected = true; }));
+        ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&read = read_notified[i]]() mutable
+                                                                     { read = true; }));
+
+        this->transport->register_observer(observer);
+    }
+
+    this->transport->dispatch(md::FdEvent::readable);
+    this->transport->dispatch(md::FdEvent::remote_closed);
+
+    for (auto const& read_flag : read_notified)
+    {
+        EXPECT_TRUE(read_flag);
+    }
+    for (auto const& disconnected_flag : disconnect_notified)
+    {
+        EXPECT_TRUE(disconnected_flag);
+    }
+}
+
+/*
+ * TODO: ThreadSafeList doesn't report any error when trying to remove a non-existent element.
+ *
+ * It probably should, but let's not do that now.
+ */
+TYPED_TEST(StreamTransportTest, DISABLED_unregistering_a_not_registered_observer_is_an_error)
 {
     using namespace testing;
 
     auto observer = std::make_shared<NiceMock<MockObserver>>();
-    auto done = std::make_shared<mir::test::Signal>();
+    EXPECT_THROW(this->transport->unregister_observer(observer), std::logic_error);
+}
+
+TYPED_TEST(StreamTransportTest, unregistering_an_observer_prevents_further_observation)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    int notification_count{0};
+
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&notification_count]()
+                                                                 { ++notification_count; }));
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&notification_count]()
+                                                               { ++notification_count; }));
+
+    this->transport->register_observer(observer);
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_THAT(notification_count, Eq(1));
+
+    this->transport->unregister_observer(observer);
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    // No new notification of readability...
+    EXPECT_THAT(notification_count, Eq(1));
+
+    // Likewise, no notification of disconnection.
+    this->transport->dispatch(md::FdEvent::remote_closed);
+    EXPECT_THAT(notification_count, Eq(1));
+}
+
+TYPED_TEST(StreamTransportTest, unregistering_in_a_callback_succeeds)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
+    int notification_count{0};
+
+    // g++ has trouble lambda-capturing observer (whose type involves anonymous namespace)
+    std::shared_ptr<mclr::StreamTransport::Observer> frig{observer};
+
+    // Pass the observer shared_ptr by reference here to avoid a trivial reference cycle.
+    ON_CALL(*observer, on_data_available()).WillByDefault(Invoke([&notification_count, this, &frig]()
+    {
+        ++notification_count;
+        this->transport->unregister_observer(frig);
+    }));
+    ON_CALL(*observer, on_disconnected()).WillByDefault(Invoke([&notification_count]()
+    {
+        ++notification_count;
+    }));
+
+    this->transport->register_observer(observer);
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    EXPECT_THAT(notification_count, Eq(1));
+
+    this->transport->dispatch(md::FdEvent::readable);
+
+    // No new notification of readability...
+    EXPECT_THAT(notification_count, Eq(1));
+
+    // Likewise, no notification of disconnection.
+    this->transport->dispatch(md::FdEvent::remote_closed);
+    EXPECT_THAT(notification_count, Eq(1));
+}
+
+TYPED_TEST(StreamTransportTest, reads_correct_data)
+{
+    using namespace testing;
+
+    auto observer = std::make_shared<NiceMock<MockObserver>>();
 
     std::string expected{"I am the very model of a modern major general"};
     std::vector<char> received(expected.size());
 
     ON_CALL(*observer, on_data_available())
-        .WillByDefault(Invoke([done, &received, this]()
+        .WillByDefault(Invoke([&received, this]()
                               {
                                   this->transport->receive_data(received.data(), received.size());
-                                  done->raise();
                               }));
 
     this->transport->register_observer(observer);
 
     EXPECT_EQ(expected.size(), write(this->test_fd, expected.data(), expected.size()));
 
-    ASSERT_TRUE(done->wait_for(std::chrono::seconds{1}));
+    EXPECT_TRUE(mt::fd_becomes_readable(this->transport->watch_fd(), std::chrono::seconds{1}));
+    while (mt::fd_is_readable(this->transport->watch_fd()) &&
+           this->transport->dispatch(md::FdEvent::readable))
+           ;
+
     EXPECT_EQ(0, memcmp(expected.data(), received.data(), expected.size()));
 }
 
-TYPED_TEST(StreamTransportTest, WritesCorrectData)
+TYPED_TEST(StreamTransportTest, writes_correct_data)
 {
     using namespace testing;
 
@@ -395,7 +645,7 @@ private:
 };
 }
 
-TYPED_TEST(StreamTransportTest, ReadsFullDataFromMultipleChunks)
+TYPED_TEST(StreamTransportTest, reads_full_data_from_multiple_chunks)
 {
     size_t const chunk_size{8};
     std::vector<uint8_t> expected(chunk_size * 4);
@@ -427,7 +677,7 @@ TYPED_TEST(StreamTransportTest, ReadsFullDataFromMultipleChunks)
     EXPECT_EQ(expected, received);
 }
 
-TYPED_TEST(StreamTransportTest, ReadsFullDataWhenInterruptedWithSignals)
+TYPED_TEST(StreamTransportTest, reads_full_data_when_interrupted_with_signals)
 {
     SocketBlockThreshold sockopt{this->test_fd, this->transport_fd};
 
@@ -585,7 +835,7 @@ public:
 };
 }
 
-TYPED_TEST(StreamTransportTest, ReadsDataWithFds)
+TYPED_TEST(StreamTransportTest, reads_data_with_fds)
 {
     size_t const chunk_size{8};
     int const num_chunks{4};
@@ -636,7 +886,7 @@ TYPED_TEST(StreamTransportTest, ReadsDataWithFds)
     }
 }
 
-TYPED_TEST(StreamTransportTest, ReadsFdsFromMultipleChunks)
+TYPED_TEST(StreamTransportTest, reads_fds_from_multiple_chunks)
 {
     size_t const chunk_size{8};
     int const num_chunks{4};
@@ -694,7 +944,7 @@ TYPED_TEST(StreamTransportTest, ReadsFdsFromMultipleChunks)
     }
 }
 
-TYPED_TEST(StreamTransportTest, ReadsFullDataAndFdsWhenInterruptedWithSignals)
+TYPED_TEST(StreamTransportTest, reads_full_data_and_fds_when_interrupted_with_signals)
 {
     SocketBlockThreshold sockopt{this->test_fd, this->transport_fd};
 
@@ -816,7 +1066,7 @@ constexpr int cmsg_space_alias(int starting_fd_count, int max_count)
 }
 }
 
-TYPED_TEST(StreamTransportTest, ReceivingMoreFdsThanExpectedOnCmsgBoundaryIsAnError)
+TYPED_TEST(StreamTransportTest, receiving_more_fds_than_expected_on_cmsg_boundary_is_an_error)
 {
     constexpr int num_fds{cmsg_space_boundary(1)};
 
@@ -845,7 +1095,7 @@ TYPED_TEST(StreamTransportTest, ReceivingMoreFdsThanExpectedOnCmsgBoundaryIsAnEr
     EXPECT_TRUE(receive_done->wait_for(std::chrono::seconds{1}));
 }
 
-TYPED_TEST(StreamTransportTest, ReceivingMoreFdsThanRequestedWithSameCmsgSpaceIsAnError)
+TYPED_TEST(StreamTransportTest, receiving_more_fds_than_requested_with_same_cmsg_space_is_an_error)
 {
     constexpr int num_fds{cmsg_space_alias(1, 20)};
 
@@ -885,7 +1135,7 @@ TYPED_TEST(StreamTransportTest, ReceivingMoreFdsThanRequestedWithSameCmsgSpaceIs
  *
  * Rad.
  */
-TYPED_TEST(StreamTransportTest, DISABLED_ReceivingMoreFdsThanExpectedInMultipleChunksRaisesException)
+TYPED_TEST(StreamTransportTest, DISABLED_receiving_more_fds_than_expected_in_multiple_chunks_raises_exception)
 {
     size_t const chunk_size{8};
     int const num_chunks{4};
@@ -934,7 +1184,7 @@ TYPED_TEST(StreamTransportTest, DISABLED_ReceivingMoreFdsThanExpectedInMultipleC
     }
 }
 
-TYPED_TEST(StreamTransportTest, MismatchedFdExpectationsHaveAppropriateErrorMessages)
+TYPED_TEST(StreamTransportTest, mismatched_fd_expectations_have_appropriate_error_messages)
 {
     constexpr int num_fds{5};
 
@@ -973,7 +1223,7 @@ TYPED_TEST(StreamTransportTest, MismatchedFdExpectationsHaveAppropriateErrorMess
     }
 }
 
-TYPED_TEST(StreamTransportTest, SendsFullMessagesWhenInterrupted)
+TYPED_TEST(StreamTransportTest, sends_full_messages_when_interrupted)
 {
     SocketBlockThreshold socketopt(this->transport_fd, this->test_fd);
 
@@ -1024,7 +1274,7 @@ TYPED_TEST(StreamTransportTest, SendsFullMessagesWhenInterrupted)
     EXPECT_EQ(expected, received);
 }
 
-TYPED_TEST(StreamTransportTest, ReadingZeroBytesIsAnError)
+TYPED_TEST(StreamTransportTest, reading_zero_bytes_is_an_error)
 {
     EXPECT_THROW(this->transport->receive_data(nullptr, 0),
                  std::logic_error);
@@ -1034,7 +1284,7 @@ TYPED_TEST(StreamTransportTest, ReadingZeroBytesIsAnError)
                  std::logic_error);
 }
 
-TYPED_TEST(StreamTransportTest, ReceivingDataWithoutAskingForFdsIsAnErrorWhenThereAreFds)
+TYPED_TEST(StreamTransportTest, receiving_data_without_asking_for_fds_is_an_error_when_there_are_fds)
 {
     constexpr int num_fds{1};
 

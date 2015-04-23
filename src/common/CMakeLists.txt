@@ -1,3 +1,5 @@
+add_definitions(-DMIR_LOG_COMPONENT_FALLBACK="mircommon")
+
 set(MIR_GENERATED_INCLUDE_DIRECTORIES)
 set(MIR_COMMON_SOURCES)
 set(MIR_COMMON_REFERENCES)
@@ -8,14 +10,18 @@ endif()
 
 add_subdirectory(fd)
 add_subdirectory(geometry)
-add_subdirectory(input)
 add_subdirectory(logging)
 add_subdirectory(report/lttng)
 add_subdirectory(env)
 add_subdirectory(sharedlibrary)
 add_subdirectory(thread)
 add_subdirectory(time)
-list(APPEND MIR_COMMON_SOURCES $<TARGET_OBJECTS:mirtime>)
+add_subdirectory(dispatch)
+
+list(APPEND MIR_COMMON_SOURCES
+  $<TARGET_OBJECTS:mirtime>
+  ${CMAKE_CURRENT_SOURCE_DIR}/log.cpp
+  )
 
 set(PREFIX "${CMAKE_INSTALL_PREFIX}")
 set(EXEC_PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -27,10 +33,6 @@ set(
   ${MIR_GENERATED_INCLUDE_DIRECTORIES}
   PARENT_SCOPE)
 
-
-MESSAGE( STATUS "MIR_COMMON_SOURCES. . . : ${MIR_COMMON_SOURCES}" )
-MESSAGE( STATUS "MIR_COMMON_REFERENCES . : ${MIR_COMMON_REFERENCES}" )
-
 add_library(mircommon
   SHARED
   ${MIR_COMMON_SOURCES}
@@ -41,7 +43,7 @@ target_link_libraries(mircommon
 )
 
 # TODO we need a place to manage ABI and related versioning but use this as placeholder
-set(MIRCOMMON_ABI 3)
+set(MIRCOMMON_ABI 4)
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 set_target_properties(mircommon

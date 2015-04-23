@@ -16,13 +16,17 @@
  * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
+#define MIR_LOG_COMPONENT "Server"
 #include "mir/server.h"
 
 #include "mir/emergency_cleanup.h"
 #include "mir/fd.h"
 #include "mir/frontend/connector.h"
+#include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/options/default_configuration.h"
 #include "mir/default_server_configuration.h"
+#include "mir/logging/logger.h"
+#include "mir/log.h"
 #include "mir/main_loop.h"
 #include "mir/report_exception.h"
 #include "mir/run_mir.h"
@@ -38,42 +42,47 @@ namespace mo = mir::options;
 
 #define FOREACH_WRAPPER(MACRO)\
     MACRO(cursor_listener)\
+    MACRO(display_buffer_compositor_factory)\
     MACRO(display_configuration_policy)\
-    MACRO(session_coordinator)\
-    MACRO(surface_coordinator)
+    MACRO(shell)
 
 #define FOREACH_OVERRIDE(MACRO)\
     MACRO(compositor)\
     MACRO(display_buffer_compositor_factory)\
     MACRO(gl_config)\
+    MACRO(host_lifecycle_event_listener)\
     MACRO(input_dispatcher)\
     MACRO(logger)\
-    MACRO(placement_strategy)\
     MACRO(prompt_session_listener)\
     MACRO(prompt_session_manager)\
     MACRO(server_status_listener)\
     MACRO(session_authorizer)\
     MACRO(session_listener)\
-    MACRO(shell_focus_setter)\
-    MACRO(surface_configurator)
+    MACRO(session_mediator_report)\
+    MACRO(shell)
 
 #define FOREACH_ACCESSOR(MACRO)\
     MACRO(the_compositor)\
     MACRO(the_composite_event_filter)\
+    MACRO(the_cursor_listener)\
+    MACRO(the_cursor)\
     MACRO(the_display)\
     MACRO(the_focus_controller)\
     MACRO(the_gl_config)\
     MACRO(the_graphics_platform)\
+    MACRO(the_input_targeter)\
+    MACRO(the_logger)\
     MACRO(the_main_loop)\
     MACRO(the_prompt_session_listener)\
     MACRO(the_session_authorizer)\
     MACRO(the_session_coordinator)\
     MACRO(the_session_listener)\
     MACRO(the_prompt_session_manager)\
+    MACRO(the_shell)\
     MACRO(the_shell_display_layout)\
-    MACRO(the_surface_configurator)\
     MACRO(the_surface_coordinator)\
-    MACRO(the_touch_visualizer)
+    MACRO(the_touch_visualizer)\
+    MACRO(the_input_device_hub)
 
 #define MIR_SERVER_BUILDER(name)\
     std::function<std::result_of<decltype(&mir::DefaultServerConfiguration::the_##name)(mir::DefaultServerConfiguration*)>::type()> name##_builder;
@@ -107,6 +116,8 @@ struct mir::Server::Self
         [](options::DefaultConfiguration&){}};
 
     FOREACH_OVERRIDE(MIR_SERVER_BUILDER)
+
+    shell::WindowManagerBuilder wmb;
 
     FOREACH_WRAPPER(MIR_SERVER_WRAPPER)
 };
@@ -163,7 +174,7 @@ public:
     auto create_renderer_for(mir::geometry::Rectangle const&, mir::compositor::DestinationAlpha)
     -> std::unique_ptr<mir::compositor::Renderer>
     {
-        return std::unique_ptr<mir::compositor::Renderer>(new StubRenderer());
+        return std::make_unique<StubRenderer>();
     }
 };
 }
@@ -181,26 +192,28 @@ struct mir::Server::ServerConfiguration : mir::DefaultServerConfiguration
     // TODO this is an ugly frig to avoid exposing the render factory to end users and tests running headless
     auto the_renderer_factory() -> std::shared_ptr<compositor::RendererFactory> override
     {
-        auto const graphics_lib = the_options()->get<std::string>(options::platform_graphics_lib);
+        auto const& options = the_options();
+        if (options->is_set(options::platform_graphics_lib))
+        {
+            auto const graphics_lib = options->get<std::string>(options::platform_graphics_lib);
 
-        if (graphics_lib != "libmirplatformstub.so")
-            return mir::DefaultServerConfiguration::the_renderer_factory();
-        else
-            return std::make_shared<StubRendererFactory>();
+            if (graphics_lib.find("graphics-dummy.so") != std::string::npos)
+                return std::make_shared<StubRendererFactory>();
+        }
+        return mir::DefaultServerConfiguration::the_renderer_factory();
     }
 
     using mir::DefaultServerConfiguration::the_options;
 
-    // TODO the MIR_SERVER_CONFIG_OVERRIDE macro expects a CachePtr named
-    // TODO "placement_strategy" not "shell_placement_strategy".
-    // Unfortunately, "shell_placement_strategy" is currently part of our
-    // published API and used by qtmir: we cannot just rename it to remove
-    // this ugliness. (Yet.)
-    decltype(shell_placement_strategy)& placement_strategy = shell_placement_strategy;
-
     FOREACH_OVERRIDE(MIR_SERVER_CONFIG_OVERRIDE)
 
     FOREACH_WRAPPER(MIR_SERVER_CONFIG_WRAP)
+
+    auto the_window_manager_builder() -> shell::WindowManagerBuilder override
+    {
+        if (self->wmb) return self->wmb;
+        return mir::DefaultServerConfiguration::the_window_manager_builder();
+    }
 
     Self* const self;
 };
@@ -346,11 +359,14 @@ void mir::Server::apply_settings()
     auto const config = std::make_shared<ServerConfiguration>(options, self);
     self->server_config = config;
     self->options = config->the_options();
+
+    mir::logging::set_logger(config->the_logger());
 }
 
 void mir::Server::run()
 try
 {
+    mir::log_info("Starting");
     verify_accessing_allowed(self->server_config);
 
     auto const emergency_cleanup = self->server_config->the_emergency_cleanup();
@@ -376,8 +392,14 @@ catch (...)
         mir::report_exception(std::cerr);
 }
 
+auto mir::Server::supported_pixel_formats() const -> std::vector<MirPixelFormat>
+{
+    return self->server_config->the_buffer_allocator()->supported_pixel_formats();
+}
+
 void mir::Server::stop()
 {
+    mir::log_info("Stopping");
     if (self->server_config)
         if (auto const main_loop = the_main_loop())
             main_loop->stop();
@@ -433,6 +455,12 @@ void mir::Server::override_the_##name(decltype(Self::name##_builder) const& valu
 FOREACH_OVERRIDE(MIR_SERVER_OVERRIDE)
 
 #undef MIR_SERVER_OVERRIDE
+
+void mir::Server::override_the_window_manager_builder(shell::WindowManagerBuilder const wmb)
+{
+    verify_setting_allowed(self->server_config);
+    self->wmb = wmb;
+}
 
 #define MIR_SERVER_WRAP(name)\
 void mir::Server::wrap_##name(decltype(Self::name##_wrapper) const& value)\

@@ -21,6 +21,7 @@
 #include "mir/frontend/surface.h"
 #include "mir/geometry/size.h"
 #include "mir/input/input_channel.h"
+#include "mir/events/event_private.h"
 
 #include "mir_test/fake_shared.h"
 #include "mir_test_doubles/mock_input_surface.h"

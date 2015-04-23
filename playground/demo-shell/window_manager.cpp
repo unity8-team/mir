@@ -18,6 +18,7 @@
  */
 
 #include "window_manager.h"
+#include "demo_compositor.h"
 
 #include "mir/shell/focus_controller.h"
 #include "mir/scene/session.h"
@@ -25,6 +26,7 @@
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_configuration.h"
 #include "mir/compositor/compositor.h"
+#include "mir/events/event_private.h"
 
 #include <linux/input.h>
 
@@ -36,6 +38,7 @@ namespace me = mir::examples;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
+namespace mi = mir::input;
 
 namespace
 {
@@ -60,6 +63,18 @@ void me::WindowManager::set_display(std::shared_ptr<mg::Display> const& dpy)
 void me::WindowManager::set_compositor(std::shared_ptr<mc::Compositor> const& cptor)
 {
     compositor = cptor;
+}
+
+void me::WindowManager::set_input_scene(std::shared_ptr<mi::Scene> const& s)
+{
+    input_scene = s;
+}
+
+void me::WindowManager::force_redraw()
+{
+    // This is clumsy, but the only option our architecture allows us for now
+    // Same hack as used in TouchspotController...
+    input_scene->emit_scene_changed();
 }
 
 namespace
@@ -114,6 +129,73 @@ float measure_pinch(MirMotionEvent const& motion,
 
 } // namespace
 
+
+void me::WindowManager::toggle(ColourEffect which)
+{
+    colour_effect = (colour_effect == which) ? none : which;
+    me::DemoCompositor::for_each([this](me::DemoCompositor& c)
+    {
+        c.set_colour_effect(colour_effect);
+    });
+    force_redraw();
+}
+
+void me::WindowManager::save_edges(scene::Surface& surf,
+                                   geometry::Point const& p)
+{
+    int width = surf.size().width.as_int();
+    int height = surf.size().height.as_int();
+
+    int left = surf.top_left().x.as_int();
+    int right = left + width;
+    int top = surf.top_left().y.as_int();
+    int bottom = top + height;
+
+    int leftish = left + width/3;
+    int rightish = right - width/3;
+    int topish = top + height/3;
+    int bottomish = bottom - height/3;
+
+    int click_x = p.x.as_int();
+    xedge = (click_x <= leftish) ? left_edge :
+            (click_x >= rightish) ? right_edge :
+            hmiddle;
+
+    int click_y = p.y.as_int();
+    yedge = (click_y <= topish) ? top_edge :
+            (click_y >= bottomish) ? bottom_edge :
+            vmiddle;
+}
+
+void me::WindowManager::resize(scene::Surface& surf,
+                               geometry::Point const& cursor) const
+{
+    int width = surf.size().width.as_int();
+    int height = surf.size().height.as_int();
+
+    int left = surf.top_left().x.as_int();
+    int right = left + width;
+    int top = surf.top_left().y.as_int();
+    int bottom = top + height;
+
+    geometry::Displacement drag = cursor - old_cursor;
+    int dx = drag.dx.as_int();
+    int dy = drag.dy.as_int();
+
+    if (xedge == left_edge && dx < width)
+        left = old_pos.x.as_int() + dx;
+    else if (xedge == right_edge)
+        right = old_pos.x.as_int() + old_size.width.as_int() + dx;
+    
+    if (yedge == top_edge && dy < height)
+        top = old_pos.y.as_int() + dy;
+    else if (yedge == bottom_edge)
+        bottom = old_pos.y.as_int() + old_size.height.as_int() + dy;
+
+    surf.move_to({left, top});
+    surf.resize({right-left, bottom-top});
+}
+
 bool me::WindowManager::handle(MirEvent const& event)
 {
     // TODO: Fix android configuration and remove static hack ~racarr
@@ -130,7 +212,29 @@ bool me::WindowManager::handle(MirEvent const& event)
         if (event.key.modifiers & mir_key_modifier_alt &&
             event.key.scan_code == KEY_TAB)  // TODO: Use keycode once we support keymapping on the server side
         {
-            focus_controller->focus_next();
+            focus_controller->focus_next_session();
+            if (auto const surface = focus_controller->focused_surface())
+                focus_controller->raise({surface});
+            return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_GRAVE)
+        {
+            if (auto const prev = focus_controller->focused_surface())
+            {
+                auto const app = focus_controller->focused_session();
+                auto const next = app->surface_after(prev);
+                focus_controller->set_focus_to(app, next);
+                focus_controller->raise({next});
+            }
+            return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_alt &&
+                 event.key.scan_code == KEY_F4)
+        {
+            auto const surf = focus_controller->focused_surface();
+            if (surf)
+                surf->request_client_surface_close();
             return true;
         }
         else if ((event.key.modifiers & mir_key_modifier_alt &&
@@ -166,7 +270,7 @@ bool me::WindowManager::handle(MirEvent const& event)
                  (event.key.scan_code == KEY_L) &&
                  focus_controller)
         {
-            auto const app = focus_controller->focussed_application().lock();
+            auto const app = focus_controller->focused_session();
             if (app)
             {
                 app->set_lifecycle_state(mir_lifecycle_state_will_suspend);
@@ -262,6 +366,18 @@ bool me::WindowManager::handle(MirEvent const& event)
             compositor->start();
             return true;
         }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_N)
+        {
+            toggle(inverse);
+            return true;
+        }
+        else if (event.key.modifiers & mir_key_modifier_meta &&
+                 event.key.scan_code == KEY_C)
+        {
+            toggle(contrast);
+            return true;
+        }
     }
     else if (event.type == mir_event_type_motion &&
              focus_controller)
@@ -271,98 +387,114 @@ bool me::WindowManager::handle(MirEvent const& event)
         // FIXME: https://bugs.launchpad.net/mir/+bug/1311699
         MirMotionAction action = static_cast<MirMotionAction>(event.motion.action & ~0xff00);
 
-        auto const app = focus_controller->focussed_application().lock();
+        float new_zoom_mag = 0.0f;  // zero means unchanged
+
+        if (event.motion.modifiers & mir_key_modifier_meta &&
+            action == mir_motion_action_scroll)
+        {
+            zoom_exponent += event.motion.pointer_coordinates[0].vscroll;
+
+            // Negative exponents do work too, but disable them until
+            // there's a clear edge to the desktop.
+            if (zoom_exponent < 0)
+                zoom_exponent = 0;
+    
+            new_zoom_mag = powf(1.2f, zoom_exponent);
+            handled = true;
+        }
+
+        me::DemoCompositor::for_each(
+            [new_zoom_mag,&cursor](me::DemoCompositor& c)
+            {
+                if (new_zoom_mag > 0.0f)
+                    c.zoom(new_zoom_mag);
+                c.on_cursor_movement(cursor);
+            });
+
+        if (zoom_exponent || new_zoom_mag)
+            force_redraw();
 
         int fingers = static_cast<int>(event.motion.pointer_count);
 
         if (action == mir_motion_action_down || fingers > max_fingers)
             max_fingers = fingers;
 
-        if (app)
+        auto const surf = focus_controller->focused_surface();
+        if (surf &&
+            (event.motion.modifiers & mir_key_modifier_alt ||
+             fingers >= 3))
         {
-            // FIXME: We need to be able to select individual surfaces in
-            //        future and not just the "default" one.
-            auto const surf = app->default_surface();
+            geometry::Displacement pinch_dir;
+            auto pinch_diam =
+                measure_pinch(event.motion, pinch_dir);
 
-            if (surf &&
-                (event.motion.modifiers & mir_key_modifier_alt ||
-                 fingers >= 3))
+            // Start of a gesture: When the latest finger/button goes down
+            if (action == mir_motion_action_down ||
+                action == mir_motion_action_pointer_down)
             {
-                geometry::Displacement pinch_dir;
-                auto pinch_diam =
-                    measure_pinch(event.motion, pinch_dir);
-
-                // Start of a gesture: When the latest finger/button goes down
-                if (action == mir_motion_action_down ||
-                    action == mir_motion_action_pointer_down)
-                {
-                    click = cursor;
-                    handled = true;
-                }
-                else if (event.motion.action == mir_motion_action_move &&
-                         max_fingers <= 3)  // Avoid accidental movement
-                {
-                    geometry::Displacement drag = cursor - old_cursor;
-
-                    if (event.motion.button_state ==
-                        mir_motion_button_tertiary)
-                    {  // Resize by mouse middle button
-                        int width = old_size.width.as_int() +
-                                    drag.dx.as_int();
-                        int height = old_size.height.as_int() +
-                                     drag.dy.as_int();
-                        surf->resize({width, height});
-                    }
-                    else
-                    { // Move surface (by mouse or 3 fingers)
-                        surf->move_to(old_pos + drag);
-                    }
-
-                    if (fingers == 3)
-                    {  // Resize by pinch/zoom
-                        float diam_delta = pinch_diam - old_pinch_diam;
-                        /*
-                         * Resize vector (dx,dy) has length=diam_delta and
-                         * direction=pinch_dir, so solve for (dx,dy)...
-                         */
-                        float lenlen = diam_delta * diam_delta;
-                        int x = pinch_dir.dx.as_int();
-                        int y = pinch_dir.dy.as_int();
-                        int xx = x * x;
-                        int yy = y * y;
-                        int xxyy = xx + yy;
-                        int dx = sqrtf(lenlen * xx / xxyy);
-                        int dy = sqrtf(lenlen * yy / xxyy);
-                        if (diam_delta < 0.0f)
-                        {
-                            dx = -dx;
-                            dy = -dy;
-                        }
-
-                        int width = old_size.width.as_int() + dx;
-                        int height = old_size.height.as_int() + dy;
-                        surf->resize({width, height});
-                    }
-
-                    handled = true;
-                }
-                else if (action == mir_motion_action_scroll)
-                {
-                    float alpha = surf->alpha();
-                    alpha += 0.1f *
-                             event.motion.pointer_coordinates[0].vscroll;
-                    if (alpha < 0.0f)
-                        alpha = 0.0f;
-                    else if (alpha > 1.0f)
-                        alpha = 1.0f;
-                    surf->set_alpha(alpha);
-                    handled = true;
-                }
-
-                old_pos = surf->top_left();
-                old_size = surf->size();
-                old_pinch_diam = pinch_diam;
+                click = cursor;
+                save_edges(*surf, click);
+                handled = true;
             }
+            else if (event.motion.action == mir_motion_action_move &&
+                     max_fingers <= 3)  // Avoid accidental movement
+            {
+                geometry::Displacement drag = cursor - old_cursor;
+
+                if (event.motion.button_state ==
+                    mir_motion_button_tertiary)
+                {  // Resize by mouse middle button
+                    resize(*surf, cursor);
+                }
+                else
+                { // Move surface (by mouse or 3 fingers)
+                    surf->move_to(old_pos + drag);
+                }
+
+                if (fingers == 3)
+                {  // Resize by pinch/zoom
+                    float diam_delta = pinch_diam - old_pinch_diam;
+                    /*
+                     * Resize vector (dx,dy) has length=diam_delta and
+                     * direction=pinch_dir, so solve for (dx,dy)...
+                     */
+                    float lenlen = diam_delta * diam_delta;
+                    int x = pinch_dir.dx.as_int();
+                    int y = pinch_dir.dy.as_int();
+                    int xx = x * x;
+                    int yy = y * y;
+                    int xxyy = xx + yy;
+                    int dx = sqrtf(lenlen * xx / xxyy);
+                    int dy = sqrtf(lenlen * yy / xxyy);
+                    if (diam_delta < 0.0f)
+                    {
+                        dx = -dx;
+                        dy = -dy;
+                    }
+
+                    int width = old_size.width.as_int() + dx;
+                    int height = old_size.height.as_int() + dy;
+                    surf->resize({width, height});
+                }
+
+                handled = true;
+            }
+            else if (action == mir_motion_action_scroll)
+            {
+                float alpha = surf->alpha();
+                alpha += 0.1f *
+                         event.motion.pointer_coordinates[0].vscroll;
+                if (alpha < 0.0f)
+                    alpha = 0.0f;
+                else if (alpha > 1.0f)
+                    alpha = 1.0f;
+                surf->set_alpha(alpha);
+                handled = true;
+            }
+
+            old_pos = surf->top_left();
+            old_size = surf->size();
+            old_pinch_diam = pinch_diam;
         }
 
         if (max_fingers == 4 && action == mir_motion_action_up)
@@ -370,7 +502,9 @@ bool me::WindowManager::handle(MirEvent const& event)
             geometry::Displacement dir = cursor - click;
             if (abs(dir.dx.as_int()) >= min_swipe_distance)
             {
-                focus_controller->focus_next();
+                focus_controller->focus_next_session();
+                if (auto const surface = focus_controller->focused_surface())
+                    focus_controller->raise({surface});
                 handled = true;
             }
         }

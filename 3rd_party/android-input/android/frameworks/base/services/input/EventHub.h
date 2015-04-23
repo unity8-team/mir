@@ -18,8 +18,6 @@
 #ifndef _RUNTIME_EVENT_HUB_H
 #define _RUNTIME_EVENT_HUB_H
 
-#include "mir/udev/wrapper.h"
-
 #include <androidfw/Input.h>
 #include <androidfw/InputDevice.h>
 #include <androidfw/Keyboard.h>
@@ -34,6 +32,8 @@
 #include <std/Vector.h>
 #include <std/KeyedVector.h>
 
+#include "mir/fd.h"
+
 #include <linux/input.h>
 #include <sys/epoll.h>
 
@@ -41,6 +41,7 @@
 
 namespace mir
 {
+namespace udev { class Monitor; }
 namespace input
 {
 class InputReport;
@@ -65,7 +66,7 @@ enum {
  * A raw event as retrieved from the EventHub.
  */
 struct RawEvent {
-    nsecs_t when;
+    std::chrono::nanoseconds when;
     int32_t deviceId;
     int32_t type;
     int32_t code;
@@ -201,12 +202,9 @@ public:
      * If the device needs to remain awake longer than that, then the caller is responsible
      * for taking care of it (say, by poking the power manager user activity timer).
      *
-     * The timeout is advisory only.  If the device is asleep, it will not wake just to
-     * service the timeout.
-     *
      * Returns the number of events obtained, or 0 if the timeout expired.
      */
-    virtual size_t getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSize) = 0;
+    virtual size_t getEvents(RawEvent* buffer, size_t bufferSize) = 0;
 
     /*
      * Query current input state.
@@ -234,7 +232,7 @@ public:
     virtual bool setKeyboardLayoutOverlay(int32_t deviceId, const sp<KeyCharacterMap>& map) = 0;
 
     /* Control the vibrator. */
-    virtual void vibrate(int32_t deviceId, nsecs_t duration) = 0;
+    virtual void vibrate(int32_t deviceId, std::chrono::nanoseconds duration) = 0;
     virtual void cancelVibrate(int32_t deviceId) = 0;
 
     /* Requests the EventHub to reopen all input devices on the next call to getEvents(). */
@@ -242,6 +240,9 @@ public:
 
     /* Wakes up getEvents() if it is blocked on a read. */
     virtual void wake() = 0;
+
+    /* Ensures that fd() readable after given timeout */
+    virtual void wakeIn(int32_t timeout) = 0;
 
     /* Dump EventHub state to a string. */
     virtual void dump(String8& dump) = 0;
@@ -251,6 +252,9 @@ public:
 
     /* Flush all pending events not yet read from the input devices */
     virtual void flush() = 0;
+
+    /* Epoll fd used by EventHub */
+    virtual mir::Fd fd() = 0;
 };
 
 class EventHub : public EventHubInterface
@@ -287,7 +291,7 @@ public:
     virtual bool markSupportedKeyCodes(int32_t deviceId, size_t numCodes,
             const int32_t* keyCodes, uint8_t* outFlags) const;
 
-    virtual size_t getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSize);
+    virtual size_t getEvents(RawEvent* buffer, size_t bufferSize);
 
     virtual bool hasScanCode(int32_t deviceId, int32_t scanCode) const;
     virtual bool hasLed(int32_t deviceId, int32_t led) const;
@@ -299,19 +303,25 @@ public:
     virtual sp<KeyCharacterMap> getKeyCharacterMap(int32_t deviceId) const;
     virtual bool setKeyboardLayoutOverlay(int32_t deviceId, const sp<KeyCharacterMap>& map);
 
-    virtual void vibrate(int32_t deviceId, nsecs_t duration);
+    virtual void vibrate(int32_t deviceId, std::chrono::nanoseconds duration);
     virtual void cancelVibrate(int32_t deviceId);
 
     virtual void requestReopenDevices();
 
     virtual void wake();
+    virtual void wakeIn(int32_t timeout);
 
     virtual void dump(String8& dump);
     virtual void monitor();
     virtual void flush();
+    virtual mir::Fd fd();
 
     virtual ~EventHub();
 
+    // Ids used for epoll notifications not associated with devices.
+    static const uint32_t EPOLL_ID_UDEV = 0x80000001;
+    static const uint32_t EPOLL_ID_WAKE = 0x80000002;
+    static const uint32_t EPOLL_ID_TIMER = 0x80000003;
 private:
     std::shared_ptr<mir::input::InputReport> const input_report;
 
@@ -406,14 +416,11 @@ private:
     bool mNeedToScanDevices;
     Vector<String8> mExcludedDevices;
 
-    int mEpollFd;
-    mir::udev::Monitor device_listener;
+    mir::Fd mEpollFd;
+    mir::Fd mTimerFd;
+    std::unique_ptr<mir::udev::Monitor> const device_listener;
     int mWakeReadPipeFd;
     int mWakeWritePipeFd;
-
-    // Ids used for epoll notifications not associated with devices.
-    static const uint32_t EPOLL_ID_UDEV = 0x80000001;
-    static const uint32_t EPOLL_ID_WAKE = 0x80000002;
 
     // Epoll FD list size hint.
     static const int EPOLL_SIZE_HINT = 8;

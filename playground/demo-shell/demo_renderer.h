@@ -20,30 +20,53 @@
 #define MIR_EXAMPLES_DEMO_RENDERER_H_
 
 #include "mir/compositor/gl_renderer.h"
+#include "mir/compositor/decoration.h"
+#include "typo_glcache.h"
 
-#include <unordered_set>
+#include <unordered_map>
 
 namespace mir
 {
 namespace examples
 {
 
+enum ColourEffect
+{
+    none,
+    inverse,
+    contrast,
+    neffects
+};
+
+typedef std::unordered_map<graphics::Renderable::ID,
+                           std::unique_ptr<compositor::Decoration>> DecorMap;
+
 class DemoRenderer : public compositor::GLRenderer
 {
 public:
     DemoRenderer(
-        graphics::GLProgramFactory const& factory,
         geometry::Rectangle const& display_area,
         compositor::DestinationAlpha dest_alpha,
         float const titlebar_height,
         float const shadow_radius);
     ~DemoRenderer();
 
-    void begin(std::unordered_set<graphics::Renderable::ID> renderables_not_to_decorate) const;
+    void begin(DecorMap&&) const;
     
-    void tessellate(
-        std::vector<graphics::GLPrimitive>& primitives,
-        graphics::Renderable const& renderable) const override;
+    bool would_embellish(
+        graphics::Renderable const& renderable,
+        geometry::Rectangle const&) const;
+
+    void set_colour_effect(ColourEffect);
+
+protected:
+    void tessellate(std::vector<graphics::GLPrimitive>& primitives,
+                    graphics::Renderable const& renderable) const override;
+
+    void draw(graphics::Renderable const& renderable,
+              GLRenderer::Program const& prog) const override;
+
+private:
     void tessellate_shadow(
         std::vector<graphics::GLPrimitive>& primitives,
         graphics::Renderable const& renderable,
@@ -51,19 +74,20 @@ public:
     void tessellate_frame(
         std::vector<graphics::GLPrimitive>& primitives,
         graphics::Renderable const& renderable,
-        float titlebar_height) const;
-    bool would_embellish(
-        graphics::Renderable const& renderable,
-        geometry::Rectangle const&) const;
+        float titlebar_height,
+        char const* name) const;
 
-private:
     float const titlebar_height;
     float const shadow_radius;
     float const corner_radius;
     GLuint shadow_corner_tex;
     GLuint titlebar_corner_tex;
+
+    ColourEffect colour_effect;
+    Program inverse_program, contrast_program;
     
-    mutable std::unordered_set<graphics::Renderable::ID> decoration_skip_list;
+    mutable DecorMap decor_map;
+    mutable typo::GLCache title_cache;
 };
 
 } // namespace examples

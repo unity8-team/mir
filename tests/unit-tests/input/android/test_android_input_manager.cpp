@@ -57,7 +57,7 @@ struct MockEventHub : public droidinput::EventHubInterface
     MOCK_CONST_METHOD5(mapKey, droidinput::status_t(int32_t, int32_t, int32_t, int32_t*, uint32_t*));
     MOCK_CONST_METHOD3(mapAxis, droidinput::status_t(int32_t, int32_t, droidinput::AxisInfo*));
     MOCK_METHOD1(setExcludedDevices, void(droidinput::Vector<droidinput::String8> const&));
-    MOCK_METHOD3(getEvents, size_t(int, droidinput::RawEvent*, size_t));
+    MOCK_METHOD2(getEvents, size_t(droidinput::RawEvent*, size_t));
     MOCK_CONST_METHOD2(getScanCodeState, int32_t(int32_t, int32_t));
     MOCK_CONST_METHOD2(getKeyCodeState, int32_t(int32_t, int32_t));
     MOCK_CONST_METHOD2(getSwitchState, int32_t(int32_t, int32_t));
@@ -69,13 +69,15 @@ struct MockEventHub : public droidinput::EventHubInterface
     MOCK_CONST_METHOD2(getVirtualKeyDefinitions, void(int32_t, droidinput::Vector<droidinput::VirtualKeyDefinition>&));
     MOCK_CONST_METHOD1(getKeyCharacterMap, droidinput::sp<droidinput::KeyCharacterMap>(int32_t));
     MOCK_METHOD2(setKeyboardLayoutOverlay, bool(int32_t, const droidinput::sp<droidinput::KeyCharacterMap>&));
-    MOCK_METHOD2(vibrate, void(int32_t, nsecs_t));
+    MOCK_METHOD2(vibrate, void(int32_t, std::chrono::nanoseconds));
     MOCK_METHOD1(cancelVibrate, void(int32_t));
     MOCK_METHOD0(requestReopenDevices, void());
     MOCK_METHOD0(wake, void());
+    MOCK_METHOD1(wakeIn, void(int32_t));
     MOCK_METHOD1(dump, void(droidinput::String8&));
     MOCK_METHOD0(monitor, void());
     MOCK_METHOD0(flush, void());
+    MOCK_METHOD0(fd, mir::Fd());
 };
 
 struct MockInputThread : public mia::InputThread

@@ -21,6 +21,7 @@
 #include "mir/scene/surface.h"
 
 #include "mir_test_framework/interprocess_client_server_test.h"
+#include "mir_test_framework/any_surface.h"
 
 #include "mir_test/cross_process_action.h"
 #include "mir_test/fake_shared.h"
@@ -76,7 +77,7 @@ TEST_F(UnresponsiveClient, does_not_hang_server)
 
     run_in_server([&]
         {
-            std::thread {
+            mt::AutoJoinThread t{
                 [&] {
                     server_send_events.exec([&]
                         {
@@ -89,7 +90,7 @@ TEST_F(UnresponsiveClient, does_not_hang_server)
                                     });
                             }
                         });
-                }}.detach();
+                }};
 
             server_finish.exec([]{});
         });
@@ -103,15 +104,7 @@ TEST_F(UnresponsiveClient, does_not_hang_server)
             {
                 connection = mir_connect_sync(mir_test_socket, __PRETTY_FUNCTION__);
 
-                MirSurfaceParameters const request_params =
-                {
-                    __PRETTY_FUNCTION__,
-                    100, 100,
-                    mir_pixel_format_abgr_8888,
-                    mir_buffer_usage_hardware,
-                    mir_display_output_id_invalid
-                };
-                surface = mir_connection_create_surface_sync(connection, &request_params);
+                surface = mtf::make_any_surface(connection);
             });
 
         client_release.exec([&]

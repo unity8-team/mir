@@ -93,7 +93,7 @@ public:
     droidinput::status_t mapAxis(int32_t deviceId, int32_t scanCode,
             droidinput::AxisInfo* outAxisInfo) const override;
     void setExcludedDevices(const droidinput::Vector<droidinput::String8>& devices) override;
-    size_t getEvents(int timeoutMillis, droidinput::RawEvent* buffer, size_t bufferSize) override;
+    size_t getEvents(droidinput::RawEvent* buffer, size_t bufferSize) override;
     int32_t getScanCodeState(int32_t deviceId, int32_t scanCode) const override;
     int32_t getKeyCodeState(int32_t deviceId, int32_t keyCode) const override;
     int32_t getSwitchState(int32_t deviceId, int32_t sw) const override;
@@ -108,13 +108,16 @@ public:
     droidinput::sp<droidinput::KeyCharacterMap> getKeyCharacterMap(int32_t deviceId) const override;
     bool setKeyboardLayoutOverlay(int32_t deviceId,
             const droidinput::sp<droidinput::KeyCharacterMap>& map) override;
-    void vibrate(int32_t deviceId, nsecs_t duration) override;
+    void vibrate(int32_t deviceId, std::chrono::nanoseconds duration) override;
     void cancelVibrate(int32_t deviceId) override;
     void requestReopenDevices() override;
+    void wakeIn(int32_t) override;
     void wake() override;
+    void wake(droidinput::RawEvent const&);
     void dump(droidinput::String8& dump) override;
     void monitor() override;
     void flush() override;
+    mir::Fd fd() override;
 
     void synthesize_builtin_keyboard_added();
     void synthesize_builtin_cursor_added();
@@ -125,7 +128,7 @@ public:
     void synthesize_event(synthesis::ButtonParameters const& parameters);
     void synthesize_event(synthesis::MotionParameters const& parameters);
     void synthesize_event(synthesis::TouchParameters const& parameters);
-    void synthesize_event(nsecs_t when, int32_t deviceId, int32_t type, int32_t code, int32_t value);
+    void synthesize_event(std::chrono::nanoseconds when, int32_t deviceId, int32_t type, int32_t code, int32_t value);
 
     void addDevice(int32_t deviceId, const std::string& name, uint32_t classes);
     void removeDevice(int32_t deviceId);
@@ -164,7 +167,8 @@ public:
 private:
     const KeyInfo* getKey(const FakeDevice* device, int32_t scanCode, int32_t usageCode) const;
     bool throw_in_get_events = false;
-
+    mir::Fd trigger_fd;  // event fd used internally when events are added to the list, with that fd() could be used to
+                         // wake an epoll_wait
 };
 }
 }

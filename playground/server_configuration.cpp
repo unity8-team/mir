@@ -21,8 +21,8 @@
 #include "mir/input/composite_event_filter.h"
 #include "mir/main_loop.h"
 
-#include "example_display_configuration_policy.h"
-#include "example_input_event_filter.h"
+#include "server_example_display_configuration_policy.h"
+#include "server_example_input_event_filter.h"
 
 namespace me = mir::examples;
 namespace mg = mir::graphics;
@@ -62,11 +62,15 @@ me::ServerConfiguration::the_display_configuration_policy()
 std::shared_ptr<mir::input::CompositeEventFilter>
 me::ServerConfiguration::the_composite_event_filter()
 {
-    if (!quit_filter)
-        quit_filter = std::make_shared<me::QuitFilter>([this] { the_main_loop()->stop(); });
+    return composite_event_filter(
+        [this]() -> std::shared_ptr<mir::input::CompositeEventFilter>
+        {
+            if (!quit_filter)
+                quit_filter = std::make_shared<me::QuitFilter>([this] { the_main_loop()->stop(); });
 
-    auto composite_filter = DefaultServerConfiguration::the_composite_event_filter();
-    composite_filter->append(quit_filter);
+            auto composite_filter = DefaultServerConfiguration::the_composite_event_filter();
+            composite_filter->append(quit_filter);
 
-    return composite_filter;
+            return composite_filter;
+        });
 }

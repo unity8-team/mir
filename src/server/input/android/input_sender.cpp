@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -15,6 +15,8 @@
  *
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
+
+#include "mir/events/event_private.h"
 
 #include "input_sender.h"
 #include "input_send_entry.h"
@@ -244,8 +246,8 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_key_event(uint32_t s
         event.scan_code,
         event.modifiers,
         event.repeat_count,
-        event.down_time,
-        event.event_time
+        std::chrono::nanoseconds(event.down_time),
+        std::chrono::nanoseconds(event.event_time)
         );
 }
 
@@ -288,8 +290,8 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         0.0f,  // event.y_offset,
         event.x_precision,
         event.y_precision,
-        event.down_time,
-        event.event_time,
+        std::chrono::nanoseconds(event.down_time),
+        std::chrono::nanoseconds(event.event_time),
         event.pointer_count,
         properties,
         coords
@@ -402,10 +404,10 @@ mia::InputSendEntry mia::InputSender::ActiveTransfer::unqueue_entry(uint32_t seq
 
 void mia::InputSender::ActiveTransfer::update_timer()
 {
-    if (send_timer)
-        send_timer->reschedule_in(input_send_timeout);
-    else
-        send_timer = state.main_loop->notify_in(input_send_timeout, [this](){on_response_timeout();});
+    if (send_timer == nullptr)
+        send_timer = state.main_loop->create_alarm([this]{ on_response_timeout(); });
+
+    send_timer->reschedule_in(input_send_timeout);
 }
 
 void mia::InputSender::ActiveTransfer::cancel_timer()

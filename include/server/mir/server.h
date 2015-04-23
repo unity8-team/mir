@@ -19,26 +19,35 @@
 #ifndef MIR_SERVER_H_
 #define MIR_SERVER_H_
 
+#include "mir/shell/window_manager_builder.h"
+#include "mir_toolkit/common.h"
+
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace mir
 {
 namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
-namespace frontend { class SessionAuthorizer; class Session; }
-namespace graphics { class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
+namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
+namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
+namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; class InputDeviceHub;}
 namespace logging { class Logger; }
 namespace options { class Option; }
-namespace shell { class FocusController; class FocusSetter; class DisplayLayout; }
+namespace shell
+{
+class DisplayLayout;
+class FocusController;
+class HostLifecycleEventListener;
+class InputTargeter;
+class Shell;
+}
 namespace scene
 {
-class PlacementStrategy;
 class PromptSessionListener;
 class PromptSessionManager;
 class SessionListener;
 class SessionCoordinator;
-class SurfaceConfigurator;
 class SurfaceCoordinator;
 }
 
@@ -70,6 +79,9 @@ public:
     /// Applies any configuration options, hooks, or custom implementations.
     /// Must be called before calling run() or accessing any mir subsystems.
     void apply_settings();
+
+    /// The pixel formats that may be used when creating surfaces
+    auto supported_pixel_formats() const -> std::vector<MirPixelFormat>;
 
     /// Run the Mir server until it exits
     void run();
@@ -204,14 +216,15 @@ public:
     /// Sets an override functor for creating the gl config.
     void override_the_gl_config(Builder<graphics::GLConfig> const& gl_config_builder);
 
+    /// Sets an override functor for creating the host lifecycle event listener.
+    void override_the_host_lifecycle_event_listener(
+        Builder<shell::HostLifecycleEventListener> const& host_lifecycle_event_listener_builder);
+
     /// Sets an override functor for creating the input dispatcher.
     void override_the_input_dispatcher(Builder<input::InputDispatcher> const& input_dispatcher_builder);
 
     /// Sets an override functor for creating the logger.
     void override_the_logger(Builder<logging::Logger> const& logger_builder);
-
-    /// Sets an override functor for creating the placement strategy.
-    void override_the_placement_strategy(Builder<scene::PlacementStrategy> const& placement_strategy_builder);
 
     /// Sets an override functor for creating the prompt session listener.
     void override_the_prompt_session_listener(Builder<scene::PromptSessionListener> const& prompt_session_listener_builder);
@@ -228,11 +241,14 @@ public:
     /// Sets an override functor for creating the session listener.
     void override_the_session_listener(Builder<scene::SessionListener> const& session_listener_builder);
 
-    /// Sets an override functor for creating the shell focus setter.
-    void override_the_shell_focus_setter(Builder<shell::FocusSetter> const& focus_setter_builder);
+    /// Sets an override functor for creating the session mediator report.
+    void override_the_session_mediator_report(Builder<frontend::SessionMediatorReport> const& session_mediator_builder);
 
-    /// Sets an override functor for creating the surface configurator.
-    void override_the_surface_configurator(Builder<scene::SurfaceConfigurator> const& surface_configurator_builder);
+    /// Sets an override functor for creating the shell.
+    void override_the_shell(Builder<shell::Shell> const& wrapper);
+
+    /// Sets an override functor for creating the window manager.
+    void override_the_window_manager_builder(shell::WindowManagerBuilder const wmb);
 
     /// Each of the wrap functions takes a wrapper functor of the same form
     template<typename T> using Wrapper = std::function<std::shared_ptr<T>(std::shared_ptr<T> const&)>;
@@ -240,14 +256,15 @@ public:
     /// Sets a wrapper functor for creating the cursor listener.
     void wrap_cursor_listener(Wrapper<input::CursorListener> const& wrapper);
 
+    /// Sets a wrapper functor for creating the per-display rendering code.
+    void wrap_display_buffer_compositor_factory(
+        Wrapper<compositor::DisplayBufferCompositorFactory> const& wrapper);
+
     /// Sets a wrapper functor for creating the display configuration policy.
     void wrap_display_configuration_policy(Wrapper<graphics::DisplayConfigurationPolicy> const& wrapper);
 
-    /// Sets a wrapper functor for creating the session coordinator.
-    void wrap_session_coordinator(Wrapper<scene::SessionCoordinator> const& wrapper);
-
-    /// Sets a wrapper functor for creating the surface coordinator.
-    void wrap_surface_coordinator(Wrapper<scene::SurfaceCoordinator> const& wrapper);
+    /// Sets a wrapper functor for creating the shell.
+    void wrap_shell(Wrapper<shell::Shell> const& wrapper);
 /** @} */
 
 /** @name Getting access to Mir subsystems
@@ -265,6 +282,9 @@ public:
     /// \return the cursor listener.
     auto the_cursor_listener() const -> std::shared_ptr<input::CursorListener>;
 
+    /// \return the cursor
+    auto the_cursor() const -> std::shared_ptr<graphics::Cursor>;
+
     /// \return the focus controller.
     auto the_focus_controller() const -> std::shared_ptr<shell::FocusController>;
 
@@ -276,6 +296,12 @@ public:
 
     /// \return the graphics platform.
     auto the_graphics_platform() const -> std::shared_ptr<graphics::Platform>;
+
+    /// \return the input targeter.
+    auto the_input_targeter() const -> std::shared_ptr<shell::InputTargeter>;
+
+    /// \return the logger.
+    auto the_logger() const -> std::shared_ptr<logging::Logger>;
 
     /// \return the main loop.
     auto the_main_loop() const -> std::shared_ptr<MainLoop>;
@@ -295,17 +321,20 @@ public:
     /// \return the session listener.
     auto the_session_listener() const -> std::shared_ptr<scene::SessionListener>;
 
+    /// \return the shell.
+    auto the_shell() const -> std::shared_ptr<shell::Shell>;
+
     /// \return the display layout.
     auto the_shell_display_layout() const -> std::shared_ptr<shell::DisplayLayout>;
-
-    /// \return the surface configurator.
-    auto the_surface_configurator() const -> std::shared_ptr<scene::SurfaceConfigurator>;
 
     /// \return the surface coordinator.
     auto the_surface_coordinator() const -> std::shared_ptr<scene::SurfaceCoordinator>;
 
     /// \return the touch visualizer.
     auto the_touch_visualizer() const -> std::shared_ptr<input::TouchVisualizer>;
+
+    /// \return the input device hub
+    auto the_input_device_hub() const -> std::shared_ptr<input::InputDeviceHub>;
 /** @} */
 
 /** @name Client side support

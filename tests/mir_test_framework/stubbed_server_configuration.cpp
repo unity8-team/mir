@@ -19,7 +19,7 @@
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/command_line_server_configuration.h"
 
-#include "stubbed_graphics_platform.h"
+#include "mir_test_framework/stub_server_platform_factory.h"
 
 #include "mir/options/default_configuration.h"
 #include "mir/graphics/cursor.h"
@@ -32,12 +32,14 @@
 #include "src/server/input/null_input_manager.h"
 #include "src/server/input/null_input_dispatcher.h"
 #include "src/server/input/null_input_targeter.h"
+#include "mir_test_doubles/null_logger.h"
 
 namespace geom = mir::geometry;
 namespace mc = mir::compositor;
 namespace msh = mir::shell;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
+namespace ml = mir::logging;
 namespace mo = mir::options;
 namespace mtd = mir::test::doubles;
 namespace mtf = mir_test_framework;
@@ -46,6 +48,7 @@ namespace
 {
 class StubCursor : public mg::Cursor
 {
+    void show() override {}
     void show(mg::CursorImage const&) override {}
     void hide() override {}
     void move_to(geom::Point) override {}
@@ -76,6 +79,7 @@ mtf::StubbedServerConfiguration::StubbedServerConfiguration(
           namespace po = boost::program_options;
 
           result->add_options()
+                  (mtd::logging_opt, po::value<bool>()->default_value(false), mtd::logging_descr)
                   ("tests-use-real-graphics", po::value<bool>()->default_value(false), "Use real graphics in tests.")
                   ("tests-use-real-input", po::value<bool>()->default_value(false), "Use real input in tests.");
 
@@ -89,7 +93,7 @@ std::shared_ptr<mg::Platform> mtf::StubbedServerConfiguration::the_graphics_plat
 {
     if (!graphics_platform)
     {
-        graphics_platform = std::make_shared<StubGraphicPlatform>(display_rects);
+        graphics_platform = mtf::make_stubbed_server_graphics_platform(display_rects);
     }
 
     return graphics_platform;
@@ -152,4 +156,12 @@ std::shared_ptr<mi::InputSender> mtf::StubbedServerConfiguration::the_input_send
 std::shared_ptr<mg::Cursor> mtf::StubbedServerConfiguration::the_cursor()
 {
     return std::make_shared<StubCursor>();
+}
+
+std::shared_ptr<ml::Logger> mtf::StubbedServerConfiguration::the_logger()
+{
+    if (the_options()->get<bool>(mtd::logging_opt))
+        return DefaultServerConfiguration::the_logger();
+
+    return std::make_shared<mtd::NullLogger>();
 }

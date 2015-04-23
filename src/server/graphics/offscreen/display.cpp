@@ -18,8 +18,8 @@
 
 #include "display.h"
 #include "display_buffer.h"
-#include "mir/graphics/basic_platform.h"
 #include "mir/graphics/display_configuration_policy.h"
+#include "mir/graphics/egl_error.h"
 #include "mir/geometry/size.h"
 
 #include <boost/throw_exception.hpp>
@@ -33,13 +33,10 @@ namespace
 {
 
 mgo::detail::EGLDisplayHandle
-create_and_initialize_display(mg::BasicPlatform& basic_platform)
+create_and_initialize_display(EGLNativeDisplayType egl_native_display)
 {
-    mgo::detail::EGLDisplayHandle egl_display{
-        basic_platform.egl_native_display()};
-
+    mgo::detail::EGLDisplayHandle egl_display{egl_native_display};
     egl_display.initialize();
-
     return egl_display;
 }
 
@@ -49,7 +46,7 @@ mgo::detail::EGLDisplayHandle::EGLDisplayHandle(EGLNativeDisplayType native_disp
     : egl_display{eglGetDisplay(native_display)}
 {
     if (egl_display == EGL_NO_DISPLAY)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to get EGL display"));
+        BOOST_THROW_EXCEPTION(mg::egl_error("Failed to get EGL display"));
 }
 
 mgo::detail::EGLDisplayHandle::EGLDisplayHandle(EGLDisplayHandle&& other)
@@ -63,7 +60,7 @@ void mgo::detail::EGLDisplayHandle::initialize()
     int major, minor;
 
     if (eglInitialize(egl_display, &major, &minor) == EGL_FALSE)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to initialize EGL"));
+        BOOST_THROW_EXCEPTION(mg::egl_error("Failed to initialize EGL"));
 
     if ((major != 1) || (minor != 4))
         BOOST_THROW_EXCEPTION(std::runtime_error("EGL version 1.4 needed"));
@@ -75,12 +72,26 @@ mgo::detail::EGLDisplayHandle::~EGLDisplayHandle() noexcept
         eglTerminate(egl_display);
 }
 
+mgo::detail::DisplaySyncGroup::DisplaySyncGroup(std::unique_ptr<mg::DisplayBuffer> output) :
+    output(std::move(output))
+{
+}
+
+void mgo::detail::DisplaySyncGroup::for_each_display_buffer(
+    std::function<void(mg::DisplayBuffer&)> const& f)
+{
+    f(*output);
+}
+
+void mgo::detail::DisplaySyncGroup::post()
+{
+}
+
 mgo::Display::Display(
-    std::shared_ptr<BasicPlatform> const& basic_platform,
+    EGLNativeDisplayType egl_native_display,
     std::shared_ptr<DisplayConfigurationPolicy> const& initial_conf_policy,
     std::shared_ptr<DisplayReport> const&)
-    : basic_platform{basic_platform},
-      egl_display{create_and_initialize_display(*basic_platform)},
+    : egl_display{create_and_initialize_display(egl_native_display)},
       egl_context_shared{egl_display, EGL_NO_CONTEXT},
       current_display_configuration{geom::Size{1024,768}}
 {
@@ -99,21 +110,20 @@ mgo::Display::~Display() noexcept
 {
 }
 
-void mgo::Display::for_each_display_buffer(
-    std::function<void(mg::DisplayBuffer&)> const& f)
+void mgo::Display::for_each_display_sync_group(
+    std::function<void(mg::DisplaySyncGroup&)> const& f)
 {
     std::lock_guard<std::mutex> lock{configuration_mutex};
 
-    for (auto& db_ptr : display_buffers)
-        f(*db_ptr);
+    for (auto& dg_ptr : display_sync_groups)
+        f(*dg_ptr);
 }
 
 std::unique_ptr<mg::DisplayConfiguration> mgo::Display::configuration() const
 {
     std::lock_guard<std::mutex> lock{configuration_mutex};
-    return std::unique_ptr<mg::DisplayConfiguration>(
-        new mgo::DisplayConfiguration(current_display_configuration)
-    );
+    return std::make_unique<mgo::DisplayConfiguration>(
+        current_display_configuration);
 }
 
 void mgo::Display::configure(mg::DisplayConfiguration const& conf)
@@ -126,7 +136,7 @@ void mgo::Display::configure(mg::DisplayConfiguration const& conf)
 
     std::lock_guard<std::mutex> lock{configuration_mutex};
 
-    display_buffers.clear();
+    display_sync_groups.clear();
 
     conf.for_each_output(
         [this] (DisplayConfigurationOutput const& output)
@@ -137,7 +147,8 @@ void mgo::Display::configure(mg::DisplayConfiguration const& conf)
                     SurfacelessEGLContext{egl_display, egl_context_shared},
                     output.extents()};
 
-                display_buffers.push_back(std::unique_ptr<mg::DisplayBuffer>(raw_db));
+                display_sync_groups.emplace_back(
+                    new mgo::detail::DisplaySyncGroup(std::unique_ptr<mg::DisplayBuffer>(raw_db)));
             }
         });
 }
@@ -170,6 +181,5 @@ std::shared_ptr<mg::Cursor> mgo::Display::create_hardware_cursor(std::shared_ptr
 
 std::unique_ptr<mg::GLContext> mgo::Display::create_gl_context()
 {
-    return std::unique_ptr<GLContext>{
-        new SurfacelessEGLContext{egl_display, egl_context_shared}};
+    return std::make_unique<SurfacelessEGLContext>(egl_display, egl_context_shared);
 }

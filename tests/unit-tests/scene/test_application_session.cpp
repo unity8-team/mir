@@ -17,6 +17,7 @@
  */
 
 #include "src/server/scene/application_session.h"
+#include "mir/events/event_private.h"
 #include "mir/graphics/buffer.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/scene/null_session_listener.h"
@@ -25,8 +26,11 @@
 #include "mir_test_doubles/mock_surface.h"
 #include "mir_test_doubles/mock_session_listener.h"
 #include "mir_test_doubles/stub_display_configuration.h"
+#include "mir_test_doubles/stub_buffer_stream_factory.h"
+#include "mir_test_doubles/stub_buffer_stream.h"
 #include "mir_test_doubles/null_snapshot_strategy.h"
 #include "mir_test_doubles/null_event_sink.h"
+#include "mir_test_doubles/mock_event_sink.h"
 #include "mir_test_doubles/null_prompt_session.h"
 
 #include <gmock/gmock.h>
@@ -36,8 +40,10 @@ namespace mc = mir::compositor;
 namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace mi = mir::input;
+namespace mg = mir::graphics;
+namespace geom = mir::geometry;
 namespace mt = mir::test;
-namespace mtd = mir::test::doubles;
+namespace mtd = mt::doubles;
 
 namespace
 {
@@ -45,6 +51,12 @@ static std::shared_ptr<mtd::MockSurface> make_mock_surface()
 {
     return std::make_shared<testing::NiceMock<mtd::MockSurface> >();
 }
+
+struct MockBufferStreamFactory : public ms::BufferStreamFactory
+{
+    MOCK_METHOD2(create_buffer_stream, std::shared_ptr<mc::BufferStream>(int, mg::BufferProperties const&));
+};
+
 
 class MockSnapshotStrategy : public ms::SnapshotStrategy
 {
@@ -75,19 +87,122 @@ MATCHER(IsNullSnapshot, "")
 MATCHER_P(EqPromptSessionEventState, state, "") {
   return arg.type == mir_event_type_prompt_session_state_change && arg.prompt_session.new_state == state;
 }
+
+MATCHER_P(HasParent, parent, "")
+{
+    return arg.parent.lock() == parent;
 }
 
-TEST(ApplicationSession, create_and_destroy_surface)
+struct StubSurfaceCoordinator : public ms::SurfaceCoordinator
+{
+    void raise(std::weak_ptr<ms::Surface> const&) override
+    {
+    }
+    void raise(SurfaceSet const&) override
+    {
+    }
+    std::shared_ptr<ms::Surface> add_surface(ms::SurfaceCreationParameters const&,
+        ms::Session*) override
+    {
+        return make_mock_surface();
+    }
+    void remove_surface(std::weak_ptr<ms::Surface> const&) override
+    {
+    }
+    auto surface_at(mir::geometry::Point) const -> std::shared_ptr<ms::Surface>
+    {
+        return std::shared_ptr<ms::Surface>{};
+    }
+};
+
+struct ApplicationSession : public testing::Test
+{
+    ApplicationSession()
+        : event_sink(std::make_shared<mtd::NullEventSink>()),
+          stub_session_listener(std::make_shared<ms::NullSessionListener>()),
+          stub_surface_coordinator(std::make_shared<StubSurfaceCoordinator>()),
+          null_snapshot_strategy(std::make_shared<mtd::NullSnapshotStrategy>()),
+          pid(0),
+          name("test-session-name")
+    {
+    }
+
+    std::shared_ptr<ms::ApplicationSession> make_application_session_with_stubs()
+    {
+        return std::make_shared<ms::ApplicationSession>(
+           stub_surface_coordinator, stub_buffer_stream_factory,
+           pid, name,
+           null_snapshot_strategy,
+           stub_session_listener,
+           event_sink);
+    }
+    
+    std::shared_ptr<ms::ApplicationSession> make_application_session_with_coordinator(
+        std::shared_ptr<ms::SurfaceCoordinator> const& surface_coordinator)
+    {
+        return std::make_shared<ms::ApplicationSession>(
+           surface_coordinator, stub_buffer_stream_factory,
+           pid, name,
+           null_snapshot_strategy,
+           stub_session_listener,
+           event_sink);
+    }
+    
+    std::shared_ptr<ms::ApplicationSession> make_application_session_with_listener(
+        std::shared_ptr<ms::SessionListener> const& session_listener)
+    {
+        return std::make_shared<ms::ApplicationSession>(
+           stub_surface_coordinator, stub_buffer_stream_factory,
+           pid, name,
+           null_snapshot_strategy,
+           session_listener,
+           event_sink);
+    }
+
+
+    std::shared_ptr<ms::ApplicationSession> make_application_session_with_buffer_stream_factory(
+        std::shared_ptr<ms::BufferStreamFactory> const& buffer_stream_factory)
+    {
+        return std::make_shared<ms::ApplicationSession>(
+           stub_surface_coordinator, buffer_stream_factory,
+           pid, name,
+           null_snapshot_strategy,
+           stub_session_listener,
+           event_sink);
+    }
+
+    std::shared_ptr<mtd::NullEventSink> const event_sink;
+    std::shared_ptr<ms::NullSessionListener> const stub_session_listener;
+    std::shared_ptr<StubSurfaceCoordinator> const stub_surface_coordinator;
+    std::shared_ptr<ms::SnapshotStrategy> const null_snapshot_strategy;
+    std::shared_ptr<mtd::StubBufferStreamFactory> const stub_buffer_stream_factory = std::make_shared<mtd::StubBufferStreamFactory>();
+    
+    pid_t pid;
+    std::string name;
+};
+
+}
+
+TEST_F(ApplicationSession, uses_coordinator_to_create_surface)
 {
     using namespace ::testing;
 
-    auto mock_surface = make_mock_surface();
-
-    mtd::NullEventSink sender;
     NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
-
+    auto mock_surface = make_mock_surface();
     EXPECT_CALL(surface_coordinator, add_surface(_, _))
         .WillOnce(Return(mock_surface));
+
+    auto session = make_application_session_with_coordinator(mt::fake_shared(surface_coordinator));
+
+    ms::SurfaceCreationParameters params;
+    auto surf = session->create_surface(params);
+
+    session->destroy_surface(surf);
+}
+
+TEST_F(ApplicationSession, notifies_listener_of_create_and_destroy_surface)
+{
+    using namespace ::testing;
 
     mtd::MockSessionListener listener;
     EXPECT_CALL(listener, surface_created(_, _))
@@ -95,103 +210,149 @@ TEST(ApplicationSession, create_and_destroy_surface)
     EXPECT_CALL(listener, destroying_surface(_, _))
         .Times(1);
 
-    ms::ApplicationSession session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        mt::fake_shared(listener),
-        mt::fake_shared(sender));
+    auto session = make_application_session_with_listener(mt::fake_shared(listener));
 
     ms::SurfaceCreationParameters params;
-    auto surf = session.create_surface(params);
+    auto surf = session->create_surface(params);
 
-    session.destroy_surface(surf);
+    session->destroy_surface(surf);
 }
 
-TEST(ApplicationSession, listener_notified_of_surface_destruction_on_session_destruction)
+TEST_F(ApplicationSession, notifies_listener_of_surface_destruction_via_session_destruction)
 {
     using namespace ::testing;
 
     auto mock_surface = make_mock_surface();
-
-    mtd::NullEventSink sender;
-    NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
-    ON_CALL(surface_coordinator, add_surface(_,_)).WillByDefault(Return(mock_surface));
 
     mtd::MockSessionListener listener;
     EXPECT_CALL(listener, surface_created(_, _)).Times(1);
     EXPECT_CALL(listener, destroying_surface(_, _)).Times(1);
 
     {
-        ms::ApplicationSession session(
-            mt::fake_shared(surface_coordinator),
-            __LINE__,
-            "Foo",
-            std::make_shared<mtd::NullSnapshotStrategy>(),
-            mt::fake_shared(listener),
-            mt::fake_shared(sender));
+        auto session = make_application_session_with_listener(mt::fake_shared(listener));
 
         ms::SurfaceCreationParameters params;
-        session.create_surface(params);
+        session->create_surface(params);
     }
 }
 
-TEST(ApplicationSession, default_surface_is_first_surface)
+TEST_F(ApplicationSession, throws_on_get_invalid_surface)
 {
     using namespace ::testing;
 
-    mtd::NullEventSink sender;
-    NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
+    auto app_session = make_application_session_with_stubs();
 
-    EXPECT_CALL(surface_coordinator, add_surface(_, _))
-        .Times(3)
-        .WillRepeatedly(Return(make_mock_surface()));
+    mf::SurfaceId invalid_surface_id(1);
 
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
-
-
-    ms::SurfaceCreationParameters params;
-    auto id1 = app_session.create_surface(params);
-    auto id2 = app_session.create_surface(params);
-    auto id3 = app_session.create_surface(params);
-
-    auto default_surf = app_session.default_surface();
-    EXPECT_EQ(app_session.get_surface(id1), default_surf);
-    app_session.destroy_surface(id1);
-
-    default_surf = app_session.default_surface();
-    EXPECT_EQ(app_session.get_surface(id2), default_surf);
-    app_session.destroy_surface(id2);
-
-    default_surf = app_session.default_surface();
-    EXPECT_EQ(app_session.get_surface(id3), default_surf);
-    app_session.destroy_surface(id3);
+    EXPECT_THROW({
+            app_session->get_surface(invalid_surface_id);
+    }, std::runtime_error);
 }
 
-TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
+TEST_F(ApplicationSession, throws_on_destroy_invalid_surface)
 {
     using namespace ::testing;
 
-    mtd::NullEventSink sender;
+    auto app_session = make_application_session_with_stubs();
+
+    mf::SurfaceId invalid_surface_id(1);
+
+    EXPECT_THROW({
+            app_session->destroy_surface(invalid_surface_id);
+    }, std::runtime_error);
+}
+
+TEST_F(ApplicationSession, default_surface_is_first_surface)
+{
+    using namespace ::testing;
+
+    auto app_session = make_application_session_with_stubs();
+
+    ms::SurfaceCreationParameters params;
+    auto id1 = app_session->create_surface(params);
+    auto id2 = app_session->create_surface(params);
+    auto id3 = app_session->create_surface(params);
+
+    auto default_surf = app_session->default_surface();
+    EXPECT_EQ(app_session->get_surface(id1), default_surf);
+    app_session->destroy_surface(id1);
+
+    default_surf = app_session->default_surface();
+    EXPECT_EQ(app_session->get_surface(id2), default_surf);
+    app_session->destroy_surface(id2);
+
+    default_surf = app_session->default_surface();
+    EXPECT_EQ(app_session->get_surface(id3), default_surf);
+    app_session->destroy_surface(id3);
+}
+
+TEST_F(ApplicationSession, foreign_surface_has_no_successor)
+{
+    auto session1 = make_application_session_with_stubs();
+    ms::SurfaceCreationParameters params;
+    auto id1 = session1->create_surface(params);
+    auto surf1 = session1->surface(id1);
+    auto id2 = session1->create_surface(params);
+
+    auto session2 = make_application_session_with_stubs();
+
+    EXPECT_THROW({session2->surface_after(surf1);},
+                 std::runtime_error);
+
+    session1->destroy_surface(id1);
+    session1->destroy_surface(id2);
+}
+
+TEST_F(ApplicationSession, surface_after_one_is_self)
+{
+    auto session = make_application_session_with_stubs();
+    ms::SurfaceCreationParameters params;
+    auto id = session->create_surface(params);
+    auto surf = session->surface(id);
+
+    EXPECT_EQ(surf, session->surface_after(surf));
+
+    session->destroy_surface(id);
+}
+
+TEST_F(ApplicationSession, surface_after_cycles_through_all)
+{
+    auto app_session = make_application_session_with_stubs();
+
+    ms::SurfaceCreationParameters params;
+
+    int const N = 3;
+    std::shared_ptr<ms::Surface> surf[N];
+    mf::SurfaceId id[N];
+
+    for (int i = 0; i < N; ++i)
+    {
+        id[i] = app_session->create_surface(params);
+        surf[i] = app_session->surface(id[i]);
+
+        if (i > 0)
+            ASSERT_NE(surf[i], surf[i-1]);
+    }
+
+    for (int i = 0; i < N-1; ++i)
+        ASSERT_EQ(surf[i+1], app_session->surface_after(surf[i]));
+
+    EXPECT_EQ(surf[0], app_session->surface_after(surf[N-1]));
+
+    for (int i = 0; i < N; ++i)
+        app_session->destroy_surface(id[i]);
+}
+
+TEST_F(ApplicationSession, session_visbility_propagates_to_surfaces)
+{
+    using namespace ::testing;
+
     auto mock_surface = make_mock_surface();
 
     NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
     ON_CALL(surface_coordinator, add_surface(_, _)).WillByDefault(Return(mock_surface));
 
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
+    auto app_session = make_application_session_with_coordinator(mt::fake_shared(surface_coordinator));
 
     {
         InSequence seq;
@@ -200,102 +361,58 @@ TEST(ApplicationSession, session_visbility_propagates_to_surfaces)
     }
 
     ms::SurfaceCreationParameters params;
-    auto surf = app_session.create_surface(params);
+    auto surf = app_session->create_surface(params);
 
-    app_session.hide();
-    app_session.show();
+    app_session->hide();
+    app_session->show();
 
-    app_session.destroy_surface(surf);
+    app_session->destroy_surface(surf);
 }
 
-TEST(ApplicationSession, get_invalid_surface_throw_behavior)
+TEST_F(ApplicationSession, takes_snapshot_of_default_surface)
 {
     using namespace ::testing;
 
-    mtd::NullEventSink sender;
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
-
-    mf::SurfaceId invalid_surface_id(1);
-
-    EXPECT_THROW({
-            app_session.get_surface(invalid_surface_id);
-    }, std::runtime_error);
-}
-
-TEST(ApplicationSession, destroy_invalid_surface_throw_behavior)
-{
-    using namespace ::testing;
-
-    mtd::NullEventSink sender;
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
-
-    mf::SurfaceId invalid_surface_id(1);
-
-    EXPECT_THROW({
-            app_session.destroy_surface(invalid_surface_id);
-    }, std::runtime_error);
-}
-
-TEST(ApplicationSession, takes_snapshot_of_default_surface)
-{
-    using namespace ::testing;
-
+    auto mock_surface = make_mock_surface();
     NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
-    mtd::NullEventSink sender;
-    auto const default_surface = make_mock_surface();
-    auto const default_surface_buffer_access =
-        std::static_pointer_cast<ms::SurfaceBufferAccess>(default_surface);
-    auto const snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
 
-    EXPECT_CALL(surface_coordinator, add_surface(_,_))
-        .WillOnce(Return(default_surface));
+    EXPECT_CALL(surface_coordinator, add_surface(_, _))
+        .WillOnce(Return(mock_surface));
+
+    auto const default_surface_buffer_access =
+        std::static_pointer_cast<ms::SurfaceBufferAccess>(mock_surface);
+    auto const snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
 
     EXPECT_CALL(*snapshot_strategy,
                 take_snapshot_of(default_surface_buffer_access, _));
 
     ms::ApplicationSession app_session(
         mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
+        stub_buffer_stream_factory,
+        pid, name,
         snapshot_strategy,
         std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
+        event_sink);
 
     auto surface = app_session.create_surface(ms::SurfaceCreationParameters{});
     app_session.take_snapshot(ms::SnapshotCallback());
     app_session.destroy_surface(surface);
 }
 
-TEST(ApplicationSession, returns_null_snapshot_if_no_default_surface)
+TEST_F(ApplicationSession, returns_null_snapshot_if_no_default_surface)
 {
     using namespace ::testing;
 
-    mtd::NullEventSink sender;
-    mtd::MockSurfaceCoordinator surface_coordinator;
     auto snapshot_strategy = std::make_shared<MockSnapshotStrategy>();
     MockSnapshotCallback mock_snapshot_callback;
 
     ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
+        stub_surface_coordinator,
+        stub_buffer_stream_factory,
+        pid, name,
         snapshot_strategy,
         std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
+        event_sink);
 
     EXPECT_CALL(*snapshot_strategy, take_snapshot_of(_,_)).Times(0);
     EXPECT_CALL(mock_snapshot_callback, operator_call(IsNullSnapshot()));
@@ -303,115 +420,140 @@ TEST(ApplicationSession, returns_null_snapshot_if_no_default_surface)
     app_session.take_snapshot(std::ref(mock_snapshot_callback));
 }
 
+TEST_F(ApplicationSession, process_id)
+{
+    using namespace ::testing;
+
+    pid_t const session_pid{__LINE__};
+
+    ms::ApplicationSession app_session(
+        stub_surface_coordinator,
+        stub_buffer_stream_factory,
+        session_pid, name,
+        null_snapshot_strategy,
+        std::make_shared<ms::NullSessionListener>(),
+        event_sink);
+
+    EXPECT_THAT(app_session.process_id(), Eq(session_pid));
+}
+
+TEST_F(ApplicationSession, fowards_parent_info_to_coordinator)
+{
+    using namespace ::testing;
+
+    NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
+    auto mock_surface = make_mock_surface();
+    EXPECT_CALL(surface_coordinator, add_surface(_, _))
+        .WillOnce(Return(mock_surface));
+
+    auto session = make_application_session_with_coordinator(mt::fake_shared(surface_coordinator));
+
+    // Create parent surface
+    ms::SurfaceCreationParameters params;
+    auto parent_id = session->create_surface(params);
+    auto parent = session->get_surface(parent_id);
+
+    EXPECT_CALL(surface_coordinator, add_surface(HasParent(parent), _))
+        .WillOnce(Return(mock_surface));
+
+    params.with_parent_id(parent_id);
+    auto child_id = session->create_surface(params);
+
+    session->destroy_surface(parent_id);
+    session->destroy_surface(child_id);
+}
+
+TEST_F(ApplicationSession, surface_ids_are_bufferstream_ids)
+{
+    using namespace ::testing;
+
+    auto app_session = make_application_session_with_stubs();
+
+    ms::SurfaceCreationParameters params;
+
+    auto id1 = app_session->create_surface(params);
+    EXPECT_TRUE(app_session->get_buffer_stream(mf::BufferStreamId(id1.as_value())) != nullptr);
+
+    app_session->destroy_surface(id1);
+
+    EXPECT_THROW({
+            app_session->get_buffer_stream(mf::BufferStreamId(id1.as_value()));
+    }, std::runtime_error);
+}
+
+TEST_F(ApplicationSession, buffer_stream_constructed_with_requested_parameters)
+{
+    using namespace ::testing;
+    
+    geom::Size const buffer_size{geom::Width{1}, geom::Height{1}};
+
+    mtd::StubBufferStream stream;
+    MockBufferStreamFactory factory;
+
+    mg::BufferProperties properties(buffer_size, mir_pixel_format_argb_8888, mg::BufferUsage::software);
+    
+    EXPECT_CALL(factory, create_buffer_stream(_, properties)).Times(1)
+        .WillOnce(Return(mt::fake_shared(stream)));
+
+    auto session = make_application_session_with_buffer_stream_factory(mt::fake_shared(factory));
+    auto id = session->create_buffer_stream(properties);
+
+    EXPECT_TRUE(session->get_buffer_stream(id) != nullptr);
+    
+    session->destroy_buffer_stream(id);
+    
+    EXPECT_THROW({
+            session->get_buffer_stream(id);
+    }, std::runtime_error);
+}
+
 namespace
 {
-class MockEventSink : public mf::EventSink
+struct ApplicationSessionSender : public ApplicationSession
 {
-public:
-    MOCK_METHOD1(handle_event, void(MirEvent const&));
-    MOCK_METHOD1(handle_lifecycle_event, void(MirLifecycleState));
-    MOCK_METHOD1(handle_display_config_change, void(mir::graphics::DisplayConfiguration const&));
+    ApplicationSessionSender()
+        : app_session(stub_surface_coordinator, stub_buffer_stream_factory, pid, name,null_snapshot_strategy, stub_session_listener, mt::fake_shared(sender))
+    {
+    }
+
+    mtd::MockEventSink sender;
+    ms::ApplicationSession app_session;
 };
 }
-TEST(ApplicationSession, display_config_sender)
+
+TEST_F(ApplicationSessionSender, display_config_sender)
 {
     using namespace ::testing;
 
     mtd::StubDisplayConfig stub_config;
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    MockEventSink sender;
-
     EXPECT_CALL(sender, handle_display_config_change(testing::Ref(stub_config)))
         .Times(1);
-
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
 
     app_session.send_display_config(stub_config);
 }
 
-TEST(ApplicationSession, lifecycle_event_sender)
+TEST_F(ApplicationSessionSender, lifecycle_event_sender)
 {
     using namespace ::testing;
 
     MirLifecycleState exp_state = mir_lifecycle_state_will_suspend;
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    MockEventSink sender;
-
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
 
     EXPECT_CALL(sender, handle_lifecycle_event(exp_state)).Times(1);
-
     app_session.set_lifecycle_state(mir_lifecycle_state_will_suspend);
 }
 
-TEST(ApplicationSession, process_id)
+TEST_F(ApplicationSessionSender, start_prompt_session)
 {
     using namespace ::testing;
-
-    pid_t const pid{__LINE__};
-
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    MockEventSink sender;
-
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        pid,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
-
-    EXPECT_THAT(app_session.process_id(), Eq(pid));
-}
-
-TEST(ApplicationSession, start_prompt_session)
-{
-    using namespace ::testing;
-
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    MockEventSink sender;
-
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
 
     EXPECT_CALL(sender, handle_event(EqPromptSessionEventState(mir_prompt_session_state_started))).Times(1);
-
     app_session.start_prompt_session();
 }
 
-TEST(ApplicationSession, stop_prompt_session)
+TEST_F(ApplicationSessionSender, stop_prompt_session)
 {
     using namespace ::testing;
 
-    mtd::MockSurfaceCoordinator surface_coordinator;
-    MockEventSink sender;
-
-    ms::ApplicationSession app_session(
-        mt::fake_shared(surface_coordinator),
-        __LINE__,
-        "Foo",
-        std::make_shared<mtd::NullSnapshotStrategy>(),
-        std::make_shared<ms::NullSessionListener>(),
-        mt::fake_shared(sender));
-
     EXPECT_CALL(sender, handle_event(EqPromptSessionEventState(mir_prompt_session_state_stopped))).Times(1);
-
     app_session.stop_prompt_session();
 }

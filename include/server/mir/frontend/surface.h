@@ -20,9 +20,13 @@
 #ifndef MIR_FRONTEND_SURFACE_H_
 #define MIR_FRONTEND_SURFACE_H_
 
+#include "mir/frontend/buffer_stream.h"
 #include "mir/geometry/size.h"
+#include "mir/geometry/displacement.h"
+
 #include "mir_toolkit/common.h"
 
+#include <string>
 #include <memory>
 
 namespace mir
@@ -30,7 +34,6 @@ namespace mir
 namespace graphics
 {
 class Buffer;
-class InternalSurface;
 class CursorImage;
 }
 
@@ -38,7 +41,7 @@ namespace frontend
 {
 class ClientBufferTracker;
 
-class Surface
+class Surface : public BufferStream
 {
 public:
     virtual ~Surface() = default;
@@ -52,17 +55,9 @@ public:
     virtual bool supports_input() const = 0;
     virtual int client_input_fd() const = 0;
 
-    virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
-    virtual int query(MirSurfaceAttrib attrib) = 0;
-
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) = 0;
-
-    /**
-     *  swap_buffers_blocking() is a convenience wrapper around swap_buffers()
-     *  it forces the current thread to block until complete() is called.
-     *  Use with care!
-     */
-    void swap_buffers_blocking(graphics::Buffer*& buffer);
+    virtual void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& image,
+        geometry::Displacement const& hotspot) = 0;
 
 protected:
     Surface() = default;
@@ -70,8 +65,6 @@ protected:
     Surface& operator=(Surface const&) = delete;
 };
 
-auto as_internal_surface(std::shared_ptr<Surface> const& surface)
-    -> std::shared_ptr<graphics::InternalSurface>;
 }
 }
 

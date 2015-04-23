@@ -18,6 +18,8 @@
 
 #include "src/client/mir_event_distributor.h"
 
+#include "mir/events/event_private.h"
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <mir_test/wait_condition.h>

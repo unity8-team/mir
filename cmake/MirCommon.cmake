@@ -30,8 +30,10 @@ if(ENABLE_MEMCHECK_OPTION)
   if(VALGRIND_EXECUTABLE)
     set(VALGRIND_ARGS "--error-exitcode=1" "--trace-children=yes" "--leak-check=full" "--show-leak-kinds=definite" "--errors-for-leak-kinds=definite")
     set(VALGRIND_ARGS ${VALGRIND_ARGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_generic")
+    set(VALGRIND_ARGS ${VALGRIND_ARGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_glibc_2.21")
     set(DISCOVER_FLAGS "--enable-memcheck")
     set(DISCOVER_FLAGS ${DISCOVER_FLAGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_generic")
+    set(DISCOVER_FLAGS ${DISCOVER_FLAGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_glibc_2.21")
     if (TARGET_ARCH STREQUAL "arm-linux-gnueabihf")
         set(VALGRIND_ARGS ${VALGRIND_ARGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_armhf")
         set(DISCOVER_FLAGS ${DISCOVER_FLAGS} "--suppressions=${CMAKE_SOURCE_DIR}/tools/valgrind_suppressions_armhf")
@@ -89,10 +91,22 @@ function (mir_discover_tests EXECUTABLE)
         list(APPEND EXTRA_ENV_FLAGS "--add-environment" "${env}")
       endforeach()
     endif()
+    
+    if(cmake_build_type_lower MATCHES "threadsanitizer")
+        find_program(LLVM_SYMBOLIZER llvm-symbolizer-3.6)
+        if (LLVM_SYMBOLIZER)
+            set(TSAN_EXTRA_OPTIONS "external_symbolizer_path=${LLVM_SYMBOLIZER}")
+        endif()
+        list(APPEND EXTRA_ENV_FLAGS "--add-environment" "TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/tools/tsan-suppressions second_deadlock_stack=1 halt_on_error=1 history_size=7 ${TSAN_EXTRA_OPTIONS}")
+        # TSan does not support multi-threaded fork
+        # TSan may open fds so "surface_creation_does_not_leak_fds" will not work as written
+        # TSan deadlocks when running StreamTransportTest/0.SendsFullMessagesWhenInterrupted - disable it until understood
+        set(EXCLUDED_TESTS "UnresponsiveClient.does_not_hang_server:DemoInProcessServerWithStubClientPlatform.surface_creation_does_not_leak_fds:StreamTransportTest/0.SendsFullMessagesWhenInterrupted")
+    endif()
 
     add_custom_target(
       ${TEST_DISCOVERY_TARGET_NAME} ALL
-      ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests | ${CMAKE_BINARY_DIR}/mir_gtest/mir_discover_gtest_tests --executable=${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} ${DISCOVER_FLAGS}
+      ${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --gtest_list_tests | ${CMAKE_BINARY_DIR}/mir_gtest/mir_discover_gtest_tests --executable=${EXECUTABLE_OUTPUT_PATH}/${EXECUTABLE} --exclusions=${EXCLUDED_TESTS} ${DISCOVER_FLAGS}
       ${EXTRA_ENV_FLAGS}
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Discovering Tests in ${EXECUTABLE}" VERBATIM)
@@ -167,4 +181,29 @@ function (mir_precompiled_header TARGET HEADER)
     add_custom_target(${TARGET}_pch DEPENDS ${TARGET}_precompiled.hpp.gch)
     add_dependencies(${TARGET} ${TARGET}_pch)
   endif()
+endfunction()
+
+function (mir_add_wrapped_executable TARGET)
+  set(REAL_EXECUTABLE .${TARGET}-uninstalled)
+
+  list(GET ARGN 0 modifier)
+  if ("${modifier}" STREQUAL "NOINSTALL")
+    list(REMOVE_AT ARGN 0)
+  else()
+    install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/${REAL_EXECUTABLE}
+      DESTINATION ${CMAKE_INSTALL_BINDIR}
+      RENAME ${TARGET}
+    )
+  endif()
+
+  add_executable(${TARGET} ${ARGN})
+  set_target_properties(${TARGET} PROPERTIES
+    OUTPUT_NAME ${REAL_EXECUTABLE}
+    SKIP_BUILD_RPATH TRUE
+  )
+
+  add_custom_target(${TARGET}-wrapped
+    ln -fs wrapper ${CMAKE_BINARY_DIR}/bin/${TARGET}
+  )
+  add_dependencies(${TARGET} ${TARGET}-wrapped)
 endfunction()

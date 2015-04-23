@@ -120,26 +120,5 @@ TEST_F(SessionManagement, creating_a_surface_adds_it_to_scene)
     auto const session = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
 
     EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(1);
-    session->create_surface(params);
-}
-
-TEST_F(SessionManagement, focus_on_a_session_raises_its_surface)
-{
-    EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(AnyNumber());
-
-    auto const session1 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto const surface1 = session1->create_surface(params);
-
-    auto const session2 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto surface2 = session2->create_surface(params);
-
-    auto const focus_controller = builder.the_focus_controller();
-    auto const shell_session = std::dynamic_pointer_cast<ms::Session>(session1);
-
-    EXPECT_CALL(*test_surface_stack, raise(WeakPtrTo(session1->get_surface(surface1)))).Times(1);
-
-    focus_controller->set_focus_to(shell_session);
-
-    session1->destroy_surface(surface1);
-    session2->destroy_surface(surface2);
+    session_manager->create_surface(session, params);
 }

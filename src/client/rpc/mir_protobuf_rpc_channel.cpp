@@ -26,6 +26,7 @@
 #include "../lifecycle_control.h"
 #include "../event_sink.h"
 #include "mir/variable_length_array.h"
+#include "mir/events/event_private.h"
 
 #include "mir_protobuf.pb.h"  // For Buffer frig
 #include "mir_protobuf_wire.pb.h"
@@ -38,6 +39,7 @@
 
 namespace mcl = mir::client;
 namespace mclr = mir::client::rpc;
+namespace md = mir::dispatch;
 
 namespace
 {
@@ -82,7 +84,6 @@ void mclr::MirProtobufRpcChannel::notify_disconnected()
     pending_calls.force_completion();
 }
 
-
 template<class MessageType>
 void mclr::MirProtobufRpcChannel::receive_any_file_descriptors_for(MessageType* response)
 {
@@ -113,22 +114,29 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
     mir::protobuf::Buffer* buffer = nullptr;
     mir::protobuf::Platform* platform = nullptr;
     mir::protobuf::SocketFD* socket_fd = nullptr;
+    mir::protobuf::PlatformOperationMessage* platform_operation_message = nullptr;
 
     if (message_type == "mir.protobuf.Buffer")
     {
         buffer = static_cast<mir::protobuf::Buffer*>(response);
     }
+    else if (message_type == "mir.protobuf.BufferStream")
+    {
+        auto buffer_stream = static_cast<mir::protobuf::BufferStream*>(response);
+        if (buffer_stream && buffer_stream->has_buffer())
+            buffer = buffer_stream->mutable_buffer();
+    }
     else if (message_type == "mir.protobuf.Surface")
     {
         surface = static_cast<mir::protobuf::Surface*>(response);
-        if (surface && surface->has_buffer())
-            buffer = surface->mutable_buffer();
+        if (surface && surface->has_buffer_stream() && surface->buffer_stream().has_buffer())
+            buffer = surface->mutable_buffer_stream()->mutable_buffer();
     }
     else if (message_type == "mir.protobuf.Screencast")
     {
         auto screencast = static_cast<mir::protobuf::Screencast*>(response);
-        if (screencast && screencast->has_buffer())
-            buffer = screencast->mutable_buffer();
+        if (screencast && screencast->has_buffer_stream() && screencast->buffer_stream().has_buffer())
+            buffer = screencast->mutable_buffer_stream()->mutable_buffer();
     }
     else if (message_type == "mir.protobuf.Platform")
     {
@@ -144,11 +152,17 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
     {
         socket_fd = static_cast<mir::protobuf::SocketFD*>(response);
     }
+    else if (message_type == "mir.protobuf.PlatformOperationMessage")
+    {
+        platform_operation_message =
+            static_cast<mir::protobuf::PlatformOperationMessage*>(response);
+    }
 
     receive_any_file_descriptors_for(surface);
     receive_any_file_descriptors_for(buffer);
     receive_any_file_descriptors_for(platform);
     receive_any_file_descriptors_for(socket_fd);
+    receive_any_file_descriptors_for(platform_operation_message);
     complete->Run();
 }
 
@@ -167,6 +181,13 @@ void mclr::MirProtobufRpcChannel::CallMethod(
         for (auto& fd : buffer->buffer().fd())
             fds.emplace_back(mir::Fd{IntOwnedFd{fd}});
     }
+    else if (parameters->GetTypeName() == "mir.protobuf.PlatformOperationMessage")
+    {
+        auto const* request =
+            reinterpret_cast<mir::protobuf::PlatformOperationMessage const*>(parameters);
+        for (auto& fd : request->fd())
+            fds.emplace_back(mir::Fd{IntOwnedFd{fd}});
+    }
 
     auto const& invocation = invocation_for(method, parameters, fds.size());
 
@@ -175,7 +196,6 @@ void mclr::MirProtobufRpcChannel::CallMethod(
     std::shared_ptr<google::protobuf::Closure> callback(
         google::protobuf::NewPermanentCallback(this, &MirProtobufRpcChannel::receive_file_descriptors, response, complete));
 
-    // Only save details after serialization succeeds
     pending_calls.save_completion_details(invocation, response, callback);
 
     send_message(invocation, invocation, fds);
@@ -265,6 +285,12 @@ void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& even
                     surface_map->with_surface_do(e.orientation.surface_id, send_e);
                     break;
 
+                case mir_event_type_close_surface:
+                    surface_map->with_surface_do(e.close_surface.surface_id, send_e);
+                    break;
+                case mir_event_type_keymap:
+                    surface_map->with_surface_do(e.keymap.surface_id, send_e);
+                    break;
                 default:
                     event_sink->handle_event(e);
                 }
@@ -325,12 +351,29 @@ void mclr::MirProtobufRpcChannel::on_data_available()
     }
     catch (std::exception const& x)
     {
+        // TODO: This is dangerous as an error in result processing could cause a wait handle
+        // to never fire. Could perhaps fix by catching and setting error on the response before invoking
+        // callback ~racarr
         rpc_report->result_processing_failed(result, x);
-        // Eat this exception as it doesn't affect rpc
     }
 }
 
 void mclr::MirProtobufRpcChannel::on_disconnected()
 {
     notify_disconnected();
+}
+
+mir::Fd mir::client::rpc::MirProtobufRpcChannel::watch_fd() const
+{
+    return transport->watch_fd();
+}
+
+bool mir::client::rpc::MirProtobufRpcChannel::dispatch(md::FdEvents events)
+{
+    return transport->dispatch(events);
+}
+
+md::FdEvents mclr::MirProtobufRpcChannel::relevant_events() const
+{
+    return transport->relevant_events();
 }

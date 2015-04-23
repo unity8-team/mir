@@ -20,7 +20,7 @@
 #include "mir/fatal.h"
 #include "mir/options/default_configuration.h"
 #include "mir/abnormal_exit.h"
-#include "mir/asio_main_loop.h"
+#include "mir/glib_main_loop.h"
 #include "mir/default_server_status_listener.h"
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
@@ -29,7 +29,6 @@
 #include "mir/options/program_option.h"
 #include "mir/frontend/session_credentials.h"
 #include "mir/frontend/session_authorizer.h"
-#include "mir/scene/surface_configurator.h"
 #include "mir/graphics/cursor.h"
 #include "mir/scene/null_session_listener.h"
 #include "mir/graphics/display.h"
@@ -101,25 +100,6 @@ mir::DefaultServerConfiguration::the_prompt_session_listener()
         });
 }
 
-std::shared_ptr<ms::SurfaceConfigurator> mir::DefaultServerConfiguration::the_surface_configurator()
-{
-    struct DefaultSurfaceConfigurator : public ms::SurfaceConfigurator
-    {
-        int select_attribute_value(ms::Surface const&, MirSurfaceAttrib, int requested_value)
-        {
-            return requested_value;
-        }
-        void attribute_set(ms::Surface const&, MirSurfaceAttrib, int)
-        {
-        }
-    };
-    return surface_configurator(
-        [this]()
-        {
-            return std::make_shared<DefaultSurfaceConfigurator>();
-        });
-}
-
 std::shared_ptr<mf::SessionAuthorizer>
 mir::DefaultServerConfiguration::the_session_authorizer()
 {
@@ -152,8 +132,6 @@ mir::DefaultServerConfiguration::the_session_authorizer()
         });
 }
 
-mir::CachedPtr<mir::time::Clock> mir::DefaultServerConfiguration::clock;
-
 std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 {
     return clock(
@@ -166,9 +144,9 @@ std::shared_ptr<mir::time::Clock> mir::DefaultServerConfiguration::the_clock()
 std::shared_ptr<mir::MainLoop> mir::DefaultServerConfiguration::the_main_loop()
 {
     return main_loop(
-        [this]()
+        [this]() -> std::shared_ptr<mir::MainLoop>
         {
-            return std::make_shared<mir::AsioMainLoop>(the_clock());
+            return std::make_shared<mir::GLibMainLoop>(the_clock());
         });
 }
 

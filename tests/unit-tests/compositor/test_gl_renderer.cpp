@@ -17,17 +17,13 @@
  */
 
 #include <functional>
-#include <string>
-#include <cstring>
 #include <stdexcept>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <mir/geometry/rectangle.h>
-#include <mir/graphics/gl_texture_cache.h>
 #include <mir/graphics/gl_texture.h>
 #include <mir/compositor/gl_renderer.h>
 #include <mir/compositor/destination_alpha.h>
-#include "src/server/graphics/program_factory.h"
 #include <mir_test/fake_shared.h>
 #include <mir_test_doubles/mock_buffer.h>
 #include <mir_test_doubles/mock_renderable.h>
@@ -51,19 +47,6 @@ namespace mg=mir::graphics;
 
 namespace
 {
-
-struct MockGLTextureCache : public mg::GLTextureCache
-{
-    MockGLTextureCache()
-    {
-        ON_CALL(*this, load(testing::_))
-            .WillByDefault(testing::Return(std::make_shared<mg::GLTexture>())); 
-    }
-    MOCK_METHOD1(load, std::shared_ptr<mg::GLTexture>(mg::Renderable const&));
-    MOCK_METHOD0(invalidate, void());
-    MOCK_METHOD0(drop_unused, void());
-};
-
 const GLint stub_v_shader = 1;
 const GLint stub_f_shader = 2;
 const GLint stub_program = 1;
@@ -75,29 +58,27 @@ const GLint screen_to_gl_coords_uniform_location = 5;
 const GLint tex_uniform_location = 6;
 const GLint display_transform_uniform_location = 7;
 const GLint centre_uniform_location = 8;
-const std::string stub_info_log = "something failed!";
-const size_t stub_info_log_length = stub_info_log.size();
-
 
 void SetUpMockProgramData(mtd::MockGL &mock_gl)
 {
     /* Uniforms and Attributes */
-    EXPECT_CALL(mock_gl, glUseProgram(stub_program));
+    ON_CALL(mock_gl, glGetAttribLocation(stub_program, "position"))
+        .WillByDefault(Return(position_attr_location));
+    ON_CALL(mock_gl, glGetAttribLocation(stub_program, "texcoord"))
+        .WillByDefault(Return(texcoord_attr_location));
 
-    EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-        .WillOnce(Return(tex_uniform_location));
-    EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-        .WillOnce(Return(display_transform_uniform_location));
-    EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-        .WillOnce(Return(transform_uniform_location));
-    EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-        .WillOnce(Return(alpha_uniform_location));
-    EXPECT_CALL(mock_gl, glGetAttribLocation(stub_program, _))
-        .WillOnce(Return(position_attr_location));
-    EXPECT_CALL(mock_gl, glGetAttribLocation(stub_program, _))
-        .WillOnce(Return(texcoord_attr_location));
-    EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-        .WillOnce(Return(centre_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "tex"))
+        .WillByDefault(Return(tex_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "centre"))
+        .WillByDefault(Return(centre_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "display_transform"))
+        .WillByDefault(Return(display_transform_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "transform"))
+        .WillByDefault(Return(transform_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "screen_to_gl_coords"))
+        .WillByDefault(Return(screen_to_gl_coords_uniform_location));
+    ON_CALL(mock_gl, glGetUniformLocation(stub_program, "alpha"))
+        .WillByDefault(Return(alpha_uniform_location));
 }
 
 class GLRenderer :
@@ -135,6 +116,8 @@ public:
 
         mock_buffer = std::make_shared<mtd::MockBuffer>();
         EXPECT_CALL(*mock_buffer, gl_bind_to_texture()).Times(AnyNumber());
+        EXPECT_CALL(*mock_buffer, id())
+            .WillRepeatedly(Return(mir::graphics::BufferID(789)));
         EXPECT_CALL(*mock_buffer, size())
             .WillRepeatedly(Return(mir::geometry::Size{123, 456}));
 
@@ -152,17 +135,13 @@ public:
 
         InSequence s;
         SetUpMockProgramData(mock_gl);
-        EXPECT_CALL(mock_gl, glUniform1i(tex_uniform_location, 0));
 
         EXPECT_CALL(mock_gl, glGetUniformLocation(stub_program, _))
-            .WillOnce(Return(screen_to_gl_coords_uniform_location));
+            .WillRepeatedly(Return(screen_to_gl_coords_uniform_location));
 
         display_area = {{1, 2}, {3, 4}};
-        mock_texture_cache.reset(new testing::NiceMock<MockGLTextureCache>());
     }
 
-    mg::ProgramFactory program_factory;
-    std::unique_ptr<MockGLTextureCache> mock_texture_cache;
     testing::NiceMock<mtd::MockGL> mock_gl;
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
     mir::geometry::Rectangle display_area;
@@ -173,47 +152,6 @@ public:
 
 }
 
-TEST_F(GLRenderer, render_is_done_in_sequence)
-{
-    InSequence seq;
-
-    EXPECT_CALL(mock_gl, glClearColor(_, _, _, _));
-    EXPECT_CALL(mock_gl, glClear(_));
-    EXPECT_CALL(mock_gl, glUseProgram(stub_program));
-    EXPECT_CALL(*renderable, shaped())
-        .WillOnce(Return(true));
-    EXPECT_CALL(mock_gl, glEnable(GL_BLEND));
-    EXPECT_CALL(mock_gl, glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
-    EXPECT_CALL(mock_gl, glActiveTexture(GL_TEXTURE0));
-
-    EXPECT_CALL(mock_gl, glUniform2f(centre_uniform_location, _, _));
-    EXPECT_CALL(*renderable, transformation())
-        .WillOnce(Return(trans));
-    EXPECT_CALL(mock_gl, glUniformMatrix4fv(transform_uniform_location, 1, GL_FALSE, _));
-    EXPECT_CALL(*renderable, alpha())
-        .WillOnce(Return(0.0f));
-    EXPECT_CALL(mock_gl, glUniform1f(alpha_uniform_location, _));
-
-    EXPECT_CALL(mock_gl, glEnableVertexAttribArray(position_attr_location));
-    EXPECT_CALL(mock_gl, glEnableVertexAttribArray(texcoord_attr_location));
-    EXPECT_CALL(*mock_texture_cache, load(_));
-
-    EXPECT_CALL(mock_gl, glVertexAttribPointer(position_attr_location, 3,
-                                               GL_FLOAT, GL_FALSE, _, _));
-    EXPECT_CALL(mock_gl, glVertexAttribPointer(texcoord_attr_location, 2,
-                                               GL_FLOAT, GL_FALSE, _, _));
-
-    EXPECT_CALL(mock_gl, glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
-
-    EXPECT_CALL(mock_gl, glDisableVertexAttribArray(texcoord_attr_location));
-    EXPECT_CALL(mock_gl, glDisableVertexAttribArray(position_attr_location));
-
-    EXPECT_CALL(*mock_texture_cache, drop_unused());
-
-    mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, mc::DestinationAlpha::opaque);
-    renderer.render(renderable_list);
-}
-
 TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
 {
     InSequence seq;
@@ -221,7 +159,7 @@ TEST_F(GLRenderer, disables_blending_for_rgbx_surfaces)
         .WillOnce(Return(false));
     EXPECT_CALL(mock_gl, glDisable(GL_BLEND));
 
-    mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, mc::DestinationAlpha::opaque);
+    mc::GLRenderer renderer(display_area, mc::DestinationAlpha::opaque);
     renderer.render(renderable_list);
 }
 
@@ -231,10 +169,8 @@ TEST_F(GLRenderer, binds_for_every_primitive_when_tessellate_is_overridden)
     struct OverriddenTessellateRenderer : public mc::GLRenderer
     {
         OverriddenTessellateRenderer(
-            mg::GLProgramFactory const& program_factory,
-            std::unique_ptr<mg::GLTextureCache> && texture_cache, 
             mir::geometry::Rectangle const& display_area, unsigned int num_primitives) :
-            GLRenderer(program_factory, std::move(texture_cache), display_area, mc::DestinationAlpha::opaque),
+            GLRenderer(display_area, mc::DestinationAlpha::opaque),
             num_primitives(num_primitives)
         {
         }
@@ -256,9 +192,9 @@ TEST_F(GLRenderer, binds_for_every_primitive_when_tessellate_is_overridden)
 
     int bind_count = 6;
     EXPECT_CALL(mock_gl, glBindTexture(GL_TEXTURE_2D, _))
-        .Times(bind_count);
+        .Times(AtLeast(bind_count));
 
-    OverriddenTessellateRenderer renderer(program_factory, std::move(mock_texture_cache), display_area, bind_count);
+    OverriddenTessellateRenderer renderer(display_area, bind_count);
     renderer.render(renderable_list);
 }
 
@@ -270,8 +206,7 @@ TEST_F(GLRenderer, opaque_alpha_channel)
     EXPECT_CALL(mock_gl, glClear(_));
     EXPECT_CALL(mock_gl, glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE));
 
-    mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area,
-        mc::DestinationAlpha::opaque);
+    mc::GLRenderer renderer(display_area, mc::DestinationAlpha::opaque);
 
     renderer.render(renderable_list);
 }
@@ -280,7 +215,7 @@ TEST_F(GLRenderer, generates_alpha_channel_content)
 {
     EXPECT_CALL(mock_gl, glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
 
-    mc::GLRenderer renderer(program_factory, std::move(mock_texture_cache), display_area,
+    mc::GLRenderer renderer(display_area,
         mc::DestinationAlpha::generate_from_source);
 
     renderer.render(renderable_list);

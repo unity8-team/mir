@@ -30,13 +30,6 @@ namespace doubles
 
 struct StubSession : public frontend::Session
 {
-    frontend::SurfaceId create_surface(scene::SurfaceCreationParameters const& /* params */) override
-    {
-        return frontend::SurfaceId{0};
-    }
-    void destroy_surface(frontend::SurfaceId /* surface */) override
-    {
-    }
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId /* surface */) const override
     {
         return std::shared_ptr<frontend::Surface>();
@@ -45,11 +38,17 @@ struct StubSession : public frontend::Session
     {
         return std::string();
     }
-    void hide() override
+
+    std::shared_ptr<frontend::BufferStream> get_buffer_stream(frontend::BufferStreamId) const override
+    {
+        return nullptr;
+    }
+    void destroy_buffer_stream(frontend::BufferStreamId) override
     {
     }
-    void show() override
+    frontend::BufferStreamId create_buffer_stream(graphics::BufferProperties const&) override
     {
+        return frontend::BufferStreamId();
     }
 };
 

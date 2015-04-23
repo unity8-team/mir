@@ -17,6 +17,7 @@
  */
 
 #include "mir/input/vt_filter.h"
+#include "mir/events/event_private.h"
 
 #include <linux/input.h>
 #include <linux/vt.h>

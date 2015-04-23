@@ -24,21 +24,21 @@
 
 namespace ml = mir::logging;
 
-void ml::DumbConsoleLogger::log(ml::Logger::Severity severity,
+void ml::DumbConsoleLogger::log(ml::Severity severity,
                                 const std::string& message,
                                 const std::string& component)
 {
 
     static const char* lut[5] =
-            {
-                "CC",
-                "EE",
-                "WW",
-                "II",
-                "DD"
-            };
+    {
+        "<CRITICAL> ",
+        "<ERROR> ",
+        "<WARNING> ",
+        "",
+        "<DEBUG> "
+    };
 
-    std::ostream& out = severity < Logger::informational ? std::cerr : std::cout;
+    std::ostream& out = severity < ml::Severity::informational ? std::cerr : std::cout;
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -48,9 +48,8 @@ void ml::DumbConsoleLogger::log(ml::Logger::Severity severity,
 
     out << "["
         << now
-        << "] ("
-        << lut[severity]
-        << ") "
+        << "] "
+        << lut[static_cast<int>(severity)]
         << component
         << ": "
         << message

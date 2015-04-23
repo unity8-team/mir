@@ -61,7 +61,7 @@ public:
 
     bool post_renderables_if_optimizable(graphics::RenderableList const&) override;
 
-    void post_update() override;
+    void gl_swap_buffers() override;
 
     MirOrientation orientation() const override;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -14,9 +14,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
+ *              Alberto Aguirre <alberto.aguirre@canonical.com>
  */
 
 #include "mir/glib_main_loop.h"
+#include "mir/lockable_callback_wrapper.h"
+#include "mir/basic_callback.h"
 
 #include <stdexcept>
 #include <algorithm>
@@ -33,11 +36,14 @@ public:
     AlarmImpl(
         GMainContext* main_context,
         std::shared_ptr<mir::time::Clock> const& clock,
-        std::function<void()> const& callback)
+        std::shared_ptr<mir::LockableCallback> const& callback,
+        std::function<void()> const& exception_handler)
         : main_context{main_context},
           clock{clock},
-          callback{callback},
-          state_{State::cancelled}
+          state_{State::cancelled},
+          exception_handler{exception_handler},
+          wrapped_callback{std::make_shared<mir::LockableCallbackWrapper>(
+              callback, [this] { state_ = State::triggered; })}
     {
     }
 
@@ -69,7 +75,8 @@ public:
         gsource = mir::detail::add_timer_gsource(
             main_context,
             clock,
-            [&] { state_ = State::triggered; callback(); },
+            wrapped_callback,
+            exception_handler,
             time_point);
 
         return true;
@@ -79,8 +86,9 @@ private:
     mutable std::mutex alarm_mutex;
     GMainContext* main_context;
     std::shared_ptr<mir::time::Clock> const clock;
-    std::function<void()> const callback;
     State state_;
+    std::function<void()> exception_handler;
+    std::shared_ptr<mir::LockableCallback> wrapped_callback;
     mir::detail::GSourceHandle gsource;
 };
 
@@ -117,6 +125,7 @@ mir::GLibMainLoop::GLibMainLoop(
 
 void mir::GLibMainLoop::run()
 {
+    main_loop_exception = nullptr;
     running = true;
 
     while (running)
@@ -124,6 +133,9 @@ void mir::GLibMainLoop::run()
         before_iteration_hook();
         g_main_context_iteration(main_context, TRUE);
     }
+
+    if (main_loop_exception)
+        std::rethrow_exception(main_loop_exception);
 }
 
 void mir::GLibMainLoop::stop()
@@ -140,7 +152,14 @@ void mir::GLibMainLoop::register_signal_handler(
     std::initializer_list<int> sigs,
     std::function<void(int)> const& handler)
 {
-    signal_sources.add(sigs, handler);
+    auto const handler_with_exception_handling =
+        [this, handler] (int sig)
+        {
+            try { handler(sig); }
+            catch (...) { handle_exception(std::current_exception()); }
+        };
+
+    signal_sources.add(sigs, handler_with_exception_handling);
 }
 
 void mir::GLibMainLoop::register_fd_handler(
@@ -148,8 +167,15 @@ void mir::GLibMainLoop::register_fd_handler(
     void const* owner,
     std::function<void(int)> const& handler)
 {
+    auto const handler_with_exception_handling =
+        [this, handler] (int fd)
+        {
+            try { handler(fd); }
+            catch (...) { handle_exception(std::current_exception()); }
+        };
+
     for (auto fd : fds)
-        fd_sources.add(fd, owner, handler);
+        fd_sources.add(fd, owner, handler_with_exception_handling);
 }
 
 void mir::GLibMainLoop::unregister_fd_handler(
@@ -160,7 +186,15 @@ void mir::GLibMainLoop::unregister_fd_handler(
 
 void mir::GLibMainLoop::enqueue(void const* owner, ServerAction const& action)
 {
-    detail::add_server_action_gsource(main_context, owner, action,
+    auto const action_with_exception_handling =
+        [this, action]
+        {
+            try { action(); }
+            catch (...) { handle_exception(std::current_exception()); }
+        };
+
+    detail::add_server_action_gsource(main_context, owner,
+        action_with_exception_handling,
         [this] (void const* owner)
         {
             return should_process_actions_for(owner);
@@ -195,33 +229,23 @@ bool mir::GLibMainLoop::should_process_actions_for(void const* owner)
     return iter == do_not_process.end();
 }
 
-std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_in(
-    std::chrono::milliseconds delay,
-    std::function<void()> callback)
+std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::create_alarm(
+    std::function<void()> const& callback)
 {
-    auto alarm = create_alarm(callback);
-
-    alarm->reschedule_in(delay);
-
-    return alarm;
-}
-
-std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::notify_at(
-    mir::time::Timestamp t,
-    std::function<void()> callback)
-{
-    auto alarm = create_alarm(callback);
-
-    alarm->reschedule_for(t);
-
-    return alarm;
+    return create_alarm(std::make_shared<BasicCallback>(callback));
 }
 
 std::unique_ptr<mir::time::Alarm> mir::GLibMainLoop::create_alarm(
-    std::function<void()> callback)
+    std::shared_ptr<LockableCallback> const& callback)
 {
-    return std::unique_ptr<mir::time::Alarm>{
-        new AlarmImpl(main_context, clock, callback)};
+    auto const exception_hander =
+        [this]
+        {
+            handle_exception(std::current_exception());
+        };
+
+    return std::make_unique<AlarmImpl>(
+        main_context, clock, callback, exception_hander);
 }
 
 void mir::GLibMainLoop::reprocess_all_sources()
@@ -264,4 +288,10 @@ void mir::GLibMainLoop::reprocess_all_sources()
 
     std::unique_lock<std::mutex> reprocessed_lock{reprocessed_mutex};
     reprocessed_cv.wait(reprocessed_lock, [&] { return reprocessed == true; });
+}
+
+void mir::GLibMainLoop::handle_exception(std::exception_ptr const& e)
+{
+    main_loop_exception = e;
+    stop();
 }

@@ -1,21 +1,42 @@
 include(CMakeDependentOption)
 
+add_definitions(-DTEST_RECORDINGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/input_recordings/")
+
+if (MIR_BUILD_PLATFORM_ANDROID)
+  add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+endif()
+
+if (MIR_BUILD_PLATFORM_MESA)
+  add_definitions(-DMIR_BUILD_PLATFORM_MESA)
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
+
+  ${ANDROID_HEADERS_INCLUDE_DIRS}
+  ${DRM_INCLUDE_DIRS}
+  ${GBM_INCLUDE_DIRS}
+  ${UMOCKDEV_INCLUDE_DIRS}
+
   ${PROJECT_SOURCE_DIR}/src/include/platform
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
+  ${PROJECT_SOURCE_DIR}/src/include/common
+  ${PROJECT_SOURCE_DIR}/src/platforms/common/client
   ${GLIB_INCLUDE_DIRS}
 )
 
-add_definitions(
-  -DTEST_RECORDINGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/input_recordings/"
-  -DMIR_CLIENT_DRIVER_BINARY="${MIR_CLIENT_DRIVER_BINARY}"
-)
-
-include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${UMOCKDEV_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
 # TODO: Aim to remove
 include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
+
+add_library(example SHARED library_example.cpp)
+target_link_libraries(example mircommon)
+set_target_properties(
+  example PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}
+  OUTPUT_NAME example
+  PREFIX ""
+)
 
 # Umockdev uses glib, which uses the deprecated "register" allocation specifier
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dregister=")
@@ -25,7 +46,6 @@ set(
 
   test_gmock_fixes.cpp
   test_recursive_read_write_mutex.cpp
-  test_asio_main_loop.cpp
   test_glib_main_loop.cpp
   shared_library_test.cpp
   test_raii.cpp
@@ -36,7 +56,10 @@ set(
   test_thread_safe_list.cpp
   test_fatal.cpp
   test_fd.cpp
+  test_flags.cpp
   test_shared_library_prober.cpp
+  test_lockable_callback.cpp
+  test_module_deleter.cpp
 )
 
 add_subdirectory(options/)
@@ -50,16 +73,15 @@ add_subdirectory(graphics/)
 add_subdirectory(input/)
 add_subdirectory(android_input/)
 add_subdirectory(scene/)
-add_subdirectory(draw/)
 add_subdirectory(examples/)
 add_subdirectory(thread/)
+add_subdirectory(dispatch/)
 
 link_directories(${LIBRARY_OUTPUT_PATH})
 
-add_executable(mir_unit_tests 
+mir_add_wrapped_executable(mir_unit_tests
   ${UNIT_TEST_SOURCES}
   ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
@@ -74,17 +96,20 @@ target_link_libraries(
   mir_unit_tests
 
   mirdraw
-  mirtestdraw
-  mirclientrpc
-  mirclientlttngstatic
   demo-shell
+  mircommon
 
-  mir-test
-  mir-test-doubles
-  mir-test-doubles-platform
-  mir-test-framework
+  mirclient-static
+  mirclientrpc-static
+  mirclientlttng-static
 
-  3rd_party
+  mir-test-static
+  mir-test-framework-static
+  mir-test-doubles-static
+  mir-test-doubles-platform-static
+
+  android-input-static
+  xcursorloader-static
 
   ${PROTOBUF_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
@@ -92,17 +117,27 @@ target_link_libraries(
   ${GMOCK_MAIN_LIBRARY}
   ${Boost_LIBRARIES}
   ${UMOCKDEV_LIBRARIES}
+  # Mesa platform dependencies
+  ${DRM_LDFLAGS} ${DRM_LIBRARIES}
+  ${GBM_LDFLAGS} ${GBM_LIBRARIES}
+  # Android platform dependencies
+  ${LIBHARDWARE_LIBRARIES}
+  ${ANDROID_PROPERTIES_LIBRARIES}
+  # Shared platform dependencies
+  ${EGL_LDFLAGS} ${EGL_LIBRARIES}
+  ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} # Link in pthread.
   ${LIBHARDWARE_LDFLAGS} ${LIBHARDWARE_LIBRARIES}
   ${DRM_LDFLAGS} ${DRM_LIBRARIES}
   ${MIR_PLATFORM_REFERENCES}
   ${MIR_COMMON_REFERENCES}
   ${MIR_SERVER_REFERENCES}
+  ${XKBCOMMON_LIBRARIES}
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "android")
+if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_unit_tests 
-  mirsharedandroid
+  mirsharedandroid-static
   ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
@@ -117,11 +152,6 @@ CMAKE_DEPENDENT_OPTION(
 if (MIR_RUN_UNIT_TESTS)
   mir_discover_tests(mir_unit_tests LD_PRELOAD=libumockdev-preload.so.0 G_SLICE=always-malloc G_DEBUG=gc-friendly)
 endif (MIR_RUN_UNIT_TESTS)
-
-install(
-    TARGETS mir_unit_tests
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
 
 add_custom_command(TARGET mir_unit_tests POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory

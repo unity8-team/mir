@@ -20,11 +20,12 @@
 #define MIR_TEST_FRAMEWORK_INTERPROCESS_CLIENT_SERVER_TEST_H_
 
 #include "mir_test_framework/headless_test.h"
-#include "mir_test_framework/cross_process_sync.h"
+#include "mir_test/cross_process_sync.h"
 
 namespace mir_test_framework
 {
 class Process;
+class Result;
 
 class InterprocessClientServerTest : public HeadlessTest
 {
@@ -39,6 +40,8 @@ public:
 
     void run_in_client(std::function<void()> const& client_code);
 
+    auto new_client_process(std::function<void()> const& client_code) -> std::shared_ptr<Process>;
+
     bool is_test_process() const;
 
     pid_t client_pid() const { return client_process_id; }
@@ -50,13 +53,19 @@ public:
 
     void expect_server_signalled(int signal);
 
+    void stop_server();
+
+    bool sigkill_server_process();
+
+    Result wait_for_shutdown_server_process();
+
 private:
 
     pid_t test_process_id{getpid()};
     pid_t server_process_id{0};
     pid_t client_process_id{0};
     std::shared_ptr<Process> server_process;
-    CrossProcessSync shutdown_sync;
+    mir::test::CrossProcessSync shutdown_sync;
     char const* process_tag = "test";
     std::function<void()> server_setup = []{};
     bool server_signal_expected{false};

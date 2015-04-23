@@ -5,6 +5,7 @@ set(
 
   egl_extensions.cpp
   egl_resources.cpp
+  egl_error.cpp
   display_configuration.cpp
   buffer_basic.cpp
   pixel_format_utils.cpp
@@ -12,6 +13,7 @@ set(
   gl_program.cpp
   gl_texture.cpp
   tessellation_helpers.cpp
+  platform_probe.cpp
 )
 
 add_library(mirplatformgraphicscommon OBJECT
@@ -20,12 +22,3 @@ add_library(mirplatformgraphicscommon OBJECT
 )
 
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-
-if (MIR_BUILD_PLATFORM_ANDROID)
-  add_subdirectory(android/)
-endif()
-
-if (MIR_BUILD_PLATFORM_MESA)
-  add_subdirectory(mesa/)
-endif()
-

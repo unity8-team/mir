@@ -126,10 +126,42 @@ inline X operator+(X lhs, DeltaX rhs) { return X(lhs.as_int() + rhs.as_int()); }
 inline Y operator+(Y lhs, DeltaY rhs) { return Y(lhs.as_int() + rhs.as_int()); }
 inline X operator-(X lhs, DeltaX rhs) { return X(lhs.as_int() - rhs.as_int()); }
 inline Y operator-(Y lhs, DeltaY rhs) { return Y(lhs.as_int() - rhs.as_int()); }
+inline X& operator+=(X& lhs, DeltaX rhs) { return lhs = X(lhs.as_int() + rhs.as_int()); }
+inline Y& operator+=(Y& lhs, DeltaY rhs) { return lhs = Y(lhs.as_int() + rhs.as_int()); }
+inline X& operator-=(X& lhs, DeltaX rhs) { return lhs = X(lhs.as_int() - rhs.as_int()); }
+inline Y& operator-=(Y& lhs, DeltaY rhs) { return lhs = Y(lhs.as_int() - rhs.as_int()); }
+
+// Adding deltas to Width and Height is fine
+inline Width operator+(Width lhs, DeltaX rhs) { return Width(lhs.as_int() + rhs.as_int()); }
+inline Height operator+(Height lhs, DeltaY rhs) { return Height(lhs.as_int() + rhs.as_int()); }
+inline Width operator-(Width lhs, DeltaX rhs) { return Width(lhs.as_int() - rhs.as_int()); }
+inline Height operator-(Height lhs, DeltaY rhs) { return Height(lhs.as_int() - rhs.as_int()); }
 
 // Subtracting coordinates is fine
 inline DeltaX operator-(X lhs, X rhs) { return DeltaX(lhs.as_int() - rhs.as_int()); }
 inline DeltaY operator-(Y lhs, Y rhs) { return DeltaY(lhs.as_int() - rhs.as_int()); }
+
+//Subtracting Width and Height is fine
+inline DeltaX operator-(Width lhs, Width rhs) { return DeltaX(lhs.as_int() - rhs.as_int()); }
+inline DeltaY operator-(Height lhs, Height rhs) { return DeltaY(lhs.as_int() - rhs.as_int()); }
+
+// Multiplying by a scalar value is fine
+template<typename Scalar>
+inline Width operator*(Scalar scale, Width const& w) { return Width{scale*w.as_int()}; }
+template<typename Scalar>
+inline Height operator*(Scalar scale, Height const& h) { return Height{scale*h.as_int()}; }
+template<typename Scalar>
+inline DeltaX operator*(Scalar scale, DeltaX const& dx) { return DeltaX{scale*dx.as_int()}; }
+template<typename Scalar>
+inline DeltaY operator*(Scalar scale, DeltaY const& dy) { return DeltaY{scale*dy.as_int()}; }
+template<typename Scalar>
+inline Width operator*(Width const& w, Scalar scale) { return scale*w; }
+template<typename Scalar>
+inline Height operator*(Height const& h, Scalar scale) { return scale*h; }
+template<typename Scalar>
+inline DeltaX operator*(DeltaX const& dx, Scalar scale) { return scale*dx; }
+template<typename Scalar>
+inline DeltaY operator*(DeltaY const& dy, Scalar scale) { return scale*dy; }
 
 template<typename Target, typename Source>
 inline Target dim_cast(Source s) { return Target(s.as_int()); }

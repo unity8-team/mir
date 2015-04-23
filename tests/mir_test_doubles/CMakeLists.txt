@@ -1,6 +1,7 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/common
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/src/include/client
 
@@ -17,7 +18,10 @@ set(
   test_protobuf_socket_server.cpp
   mock_timer.cpp
   mock_frame_dropping_policy_factory.cpp
+  null_logger.cpp
   platform_factory.cpp
+  triggered_main_loop.cpp
+  stub_buffer.cpp
 )
 
 set(
@@ -27,30 +31,33 @@ set(
   ${CMAKE_CURRENT_SOURCE_DIR}/mock_gl.cpp
 )
 
-if (MIR_TEST_PLATFORM STREQUAL "mesa")
-include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
-list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
-  ${CMAKE_CURRENT_SOURCE_DIR}/mock_drm.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/mock_gbm.cpp
-)
-elseif (MIR_TEST_PLATFORM STREQUAL "android")
-list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
-  ${CMAKE_CURRENT_SOURCE_DIR}/mock_android_hw.cpp
-)
+if (MIR_BUILD_PLATFORM_MESA)
+  include_directories(${DRM_INCLUDE_DIRS} ${GBM_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
+  list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/mock_drm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mock_gbm.cpp
+  )
+endif()
+
+if (MIR_BUILD_PLATFORM_ANDROID)
+  include_directories(SYSTEM ${ANDROID_HEADERS_INCLUDE_DIRS})
+  list(APPEND MIR_TEST_DOUBLES_PLATFORM_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/mock_android_hw.cpp
+  )
 endif()
 
 add_library(
-  mir-test-doubles STATIC
+  mir-test-doubles-static STATIC
   ${TEST_UTILS_SRCS})
 
-add_dependencies(mir-test-doubles GMock)
+add_dependencies(mir-test-doubles-static GMock)
 
-uses_android_input(mir-test-doubles)
+uses_android_input(mir-test-doubles-static)
 
 target_link_libraries(
-  mir-test-doubles
+  mir-test-doubles-static
 
-  3rd_party
+  mirserver
 
   ${PROTOBUF_LIBRARIES}
   ${Boost_LIBRARIES}
@@ -60,11 +67,11 @@ target_link_libraries(
 )
 
 add_library(
-  mir-test-doubles-platform STATIC
+  mir-test-doubles-platform-static STATIC
   ${MIR_TEST_DOUBLES_PLATFORM_SRCS})
 
 target_link_libraries(
-  mir-test-doubles-platform
+  mir-test-doubles-platform-static
 
   -ldl
   ${GMOCK_LIBRARY}

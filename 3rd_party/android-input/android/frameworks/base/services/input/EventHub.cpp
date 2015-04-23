@@ -24,6 +24,7 @@
 #define release_wake_lock(id) {}
 
 #include "mir/input/input_report.h"
+#include "mir/udev/wrapper.h"
 
 #include <cutils/properties.h>
 #include <std/Log.h>
@@ -51,6 +52,7 @@
 #include <sys/inotify.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
+#include <sys/timerfd.h>
 // <mir changes>
 // Needed to build on android platform (PATH_MAX)
 #ifdef HAVE_ANDROID_OS
@@ -207,31 +209,34 @@ void EventHub::Device::close() {
 
 const uint32_t EventHub::EPOLL_ID_UDEV;
 const uint32_t EventHub::EPOLL_ID_WAKE;
+const uint32_t EventHub::EPOLL_ID_TIMER;
 const int EventHub::EPOLL_SIZE_HINT;
 const int EventHub::EPOLL_MAX_EVENTS;
 
 EventHub::EventHub(std::shared_ptr<mi::InputReport> const& input_report) :
         input_report(input_report),
-        device_listener{mir::udev::Context()},
+        device_listener{new mir::udev::Monitor{mir::udev::Context()}},
         mBuiltInKeyboardId(NO_BUILT_IN_KEYBOARD), mNextDeviceId(1),
         mOpeningDevices(0), mClosingDevices(0),
         mNeedToSendFinishedDeviceScan(false),
         mNeedToReopenDevices(false), mNeedToScanDevices(true),
+        mEpollFd{epoll_create(EPOLL_SIZE_HINT)},
+        mTimerFd{timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC)},
         mPendingEventCount(0), mPendingEventIndex(0), mPendingUdevEvent(false) {
     acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_ID);
 
-    mEpollFd = epoll_create(EPOLL_SIZE_HINT);
     LOG_ALWAYS_FATAL_IF(mEpollFd < 0, "Could not create epoll instance.  errno=%d", errno);
+    LOG_ALWAYS_FATAL_IF(mTimerFd < 0, "Could not create timerfd.  errno=%d", errno);
 
-    device_listener.filter_by_subsystem("input");
-    device_listener.enable();
+    device_listener->filter_by_subsystem("input");
+    device_listener->enable();
 
 
     struct epoll_event eventItem;
     memset(&eventItem, 0, sizeof(eventItem));
     eventItem.events = EPOLLIN;
     eventItem.data.u32 = EPOLL_ID_UDEV;
-    int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, device_listener.fd(), &eventItem);
+    int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, device_listener->fd(), &eventItem);
     LOG_ALWAYS_FATAL_IF(result != 0, "Could not add Udev monitor to epoll instance.  errno=%d", errno);
 
     int wakeFds[2];
@@ -253,6 +258,11 @@ EventHub::EventHub(std::shared_ptr<mi::InputReport> const& input_report) :
     result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mWakeReadPipeFd, &eventItem);
     LOG_ALWAYS_FATAL_IF(result != 0, "Could not add wake read pipe to epoll instance.  errno=%d",
             errno);
+
+    eventItem.data.u32 = EPOLL_ID_TIMER;
+    result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mTimerFd, &eventItem);
+    LOG_ALWAYS_FATAL_IF(result != 0, "Could not add timer fd to epoll instance.  errno=%d",
+                        errno);
 }
 
 EventHub::~EventHub(void) {
@@ -264,7 +274,6 @@ EventHub::~EventHub(void) {
         delete device;
     }
 
-    ::close(mEpollFd);
     ::close(mWakeReadPipeFd);
     ::close(mWakeWritePipeFd);
 
@@ -579,7 +588,7 @@ bool EventHub::setKeyboardLayoutOverlay(int32_t deviceId,
     return false;
 }
 
-void EventHub::vibrate(int32_t deviceId, nsecs_t duration) {
+void EventHub::vibrate(int32_t deviceId, std::chrono::nanoseconds duration) {
     AutoMutex _l(mLock);
     Device* device = getDeviceLocked(deviceId);
     if (device && !device->isVirtual()) {
@@ -589,7 +598,7 @@ void EventHub::vibrate(int32_t deviceId, nsecs_t duration) {
         effect.id = device->ffEffectId;
         effect.u.rumble.strong_magnitude = 0xc000;
         effect.u.rumble.weak_magnitude = 0xc000;
-        effect.replay.length = (duration + 999999LL) / 1000000LL;
+        effect.replay.length = (duration + std::chrono::nanoseconds(999999)) / std::chrono::nanoseconds(1000000LL);
         effect.replay.delay = 0;
         if (ioctl(device->fd, EVIOCSFF, &effect)) {
             ALOGW("Could not upload force feedback effect to device %s due to error %d.",
@@ -653,7 +662,7 @@ EventHub::Device* EventHub::getDeviceByPathLocked(const char* devicePath) const 
     return NULL;
 }
 
-size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSize) {
+size_t EventHub::getEvents(RawEvent* buffer, size_t bufferSize) {
     ALOG_ASSERT(bufferSize >= 1);
 
     AutoMutex _l(mLock);
@@ -664,7 +673,7 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
     size_t capacity = bufferSize;
     bool awoken = false;
     for (;;) {
-        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+        std::chrono::nanoseconds now = systemTime(SYSTEM_TIME_MONOTONIC);
 
         // Reopen input devices if needed.
         if (mNeedToReopenDevices) {
@@ -754,6 +763,19 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                 continue;
             }
 
+            if (eventItem.data.u32 == EPOLL_ID_TIMER) {
+                if (eventItem.events & EPOLLIN) {
+                    ALOGV("awoken after wakeIn()");
+                    awoken = true;
+                    uint64_t timeout_count;
+                    read(mTimerFd, &timeout_count, sizeof timeout_count);
+                } else {
+                    ALOGW("Received unexpected epoll event 0x%08x for wake read pipe.",
+                          eventItem.events);
+                }
+                continue;
+            }
+
             ssize_t deviceIndex = mDevices.indexOfKey(eventItem.data.u32);
             if (deviceIndex < 0) {
                 ALOGW("Received unexpected epoll event 0x%08x for unknown device id %d.",
@@ -801,8 +823,8 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                         // The systemTime(SYSTEM_TIME_MONOTONIC) function we use everywhere
                         // calls clock_gettime(CLOCK_MONOTONIC) which is implemented as a
                         // system call that also queries ktime_get_ts().
-                        event->when = nsecs_t(iev.time.tv_sec) * 1000000000LL
-                                + nsecs_t(iev.time.tv_usec) * 1000LL;
+                        event->when = std::chrono::nanoseconds(iev.time.tv_sec) * 1000000000LL
+                                + std::chrono::nanoseconds(iev.time.tv_usec) * 1000LL;
                         ALOGV("event time %lld, now %lld", event->when, now);
 #else
                         event->when = now;
@@ -812,7 +834,7 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                         event->code = iev.code;
                         event->value = iev.value;
 
-                        input_report->received_event_from_kernel(event->when, event->type, event->code, event->value);
+                        input_report->received_event_from_kernel(event->when.count(), event->type, event->code, event->value);
 
                         event += 1;
                     }
@@ -862,15 +884,13 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
         // when this happens, the EventHub holds onto its own user wake lock while the client
         // is processing events.  Thus the system can only sleep if there are no events
         // pending or currently being processed.
-        //
-        // The timeout is advisory only.  If the device is asleep, it will not wake just to
-        // service the timeout.
         mPendingEventIndex = 0;
 
         mLock.unlock(); // release lock before poll, must be before release_wake_lock
         release_wake_lock(WAKE_LOCK_ID);
 
-        int pollResult = epoll_wait(mEpollFd, mPendingEventItems, EPOLL_MAX_EVENTS, timeoutMillis);
+        // blocking wait timeout is handled through timer fd
+        int pollResult = epoll_wait(mEpollFd, mPendingEventItems, EPOLL_MAX_EVENTS, -1);
 
         acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_ID);
         mLock.lock(); // reacquire lock after poll, must be after acquire_wake_lock
@@ -899,6 +919,15 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
 
     // All done, return the number of events we read.
     return event - buffer;
+}
+
+void EventHub::wakeIn(int32_t timeoutMillis) {
+    itimerspec delay;
+    std::memset(&delay, 0, sizeof delay);
+
+    delay.it_value.tv_sec = timeoutMillis / 1000;
+    delay.it_value.tv_nsec = (timeoutMillis % 1000) * 1000000LL;
+    timerfd_settime(mTimerFd, 0, &delay, nullptr);
 }
 
 void EventHub::wake() {
@@ -935,7 +964,7 @@ void EventHub::scanDevicesLocked() {
 
 void EventHub::handleUdevEventsLocked()
 {
-    device_listener.process_events([this](mir::udev::Monitor::EventType type, mir::udev::Device const& dev){
+    device_listener->process_events([this](mir::udev::Monitor::EventType type, mir::udev::Device const& dev){
         if (type == mir::udev::Monitor::ADDED)
         {
             if (dev.devnode() != nullptr)
@@ -1336,7 +1365,7 @@ bool EventHub::isExternalDeviceLocked(Device* device) {
 }
 
 bool EventHub::hasKeycodeLocked(Device* device, int keycode) const {
-    if (!device->keyMap.haveKeyLayout() || !device->keyBitmask) {
+    if (!device->keyMap.haveKeyLayout()) {
         return false;
     }
     
@@ -1497,6 +1526,11 @@ bool EventHub::hasDeviceByPathLocked(String8 const& path)
         if (device->path == path) return true;
     }
     return false;
+}
+
+mir::Fd EventHub::fd()
+{
+    return mEpollFd;
 }
 
 }; // namespace android

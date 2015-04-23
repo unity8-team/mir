@@ -17,26 +17,26 @@
  */
 
 #include "mir/frontend/session_mediator_report.h"
-#include "mir/graphics/native_platform.h"
+#include "mir/graphics/platform.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_configuration.h"
-#include "mir/display_server.h"
-#include "mir/run_mir.h"
-#include "mir/shell/focus_controller.h"
+#include "mir/main_loop.h"
+#include "mir/scene/session_coordinator.h"
 #include "mir/scene/session.h"
 #include "mir/shell/host_lifecycle_event_listener.h"
 
-#include "mir_test_framework/in_process_server.h"
-#include "mir_test_framework/stubbed_server_configuration.h"
+#include "mir_test_framework/headless_in_process_server.h"
 #include "mir_test_framework/using_stub_client_platform.h"
+#include "mir_test_framework/headless_nested_server_runner.h"
+#include "mir_test_framework/any_surface.h"
 #include "mir_test/wait_condition.h"
+#include "mir_test/spin_wait.h"
 
 #include "mir_test_doubles/mock_egl.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <future>
 #include <mutex>
 #include <condition_variable>
 
@@ -79,117 +79,12 @@ struct MockSessionMediatorReport : mf::SessionMediatorReport
     void session_error(const std::string&, const char*, const std::string&) override {};
 };
 
-struct HostServerConfiguration : mtf::StubbedServerConfiguration
-{
-    using mtf::StubbedServerConfiguration::StubbedServerConfiguration;
-
-    virtual std::shared_ptr<mf::SessionMediatorReport>  the_session_mediator_report()
-    {
-        if (!mock_session_mediator_report)
-            mock_session_mediator_report = std::make_shared<MockSessionMediatorReport>();
-
-        return mock_session_mediator_report;
-    }
-
-    std::shared_ptr<MockSessionMediatorReport> mock_session_mediator_report;
-};
-
-struct FakeCommandLine
-{
-    static int const argc = 7;
-    char const* argv[argc];
-
-    FakeCommandLine(std::string const& host_socket)
-    {
-        char const** to = argv;
-        for(auto from : { "dummy-exe-name", "--file", "NestedServer", "--host-socket", host_socket.c_str(), "--enable-input", "off"})
-        {
-            *to++ = from;
-        }
-
-        EXPECT_THAT(to - argv, Eq(argc)); // Check the array size matches parameter list
-    }
-};
-
-struct NativePlatformAdapter : mg::NativePlatform
-{
-    NativePlatformAdapter(std::shared_ptr<mg::Platform> const& adaptee) :
-        adaptee(adaptee),
-        ipc_ops(adaptee->make_ipc_operations())
-    {
-    }
-
-    void initialize(std::shared_ptr<mg::NestedContext> const& /*nested_context*/) override {}
-
-    std::shared_ptr<mg::GraphicBufferAllocator> create_buffer_allocator() override
-    {
-        return adaptee->create_buffer_allocator();
-    }
-
-    std::shared_ptr<mg::PlatformIPCPackage> connection_ipc_package() override
-    {
-        return ipc_ops->connection_ipc_package();
-    }
-
-    std::shared_ptr<mg::InternalClient> create_internal_client() override
-    {
-        return adaptee->create_internal_client();
-    }
-
-    std::shared_ptr<mg::BufferWriter> make_buffer_writer() override
-    {
-        return adaptee->make_buffer_writer();
-    }
-
-    void fill_buffer_package(
-        mg::BufferIpcMessage* message,
-        mg::Buffer const* buffer,
-        mg::BufferIpcMsgType msg_type) const override
-    {
-        return ipc_ops->pack_buffer(*message, *buffer, msg_type);
-    }
-    
-    std::shared_ptr<mg::Platform> const adaptee;
-    std::shared_ptr<mg::PlatformIpcOperations> const ipc_ops;
-};
-
 struct MockHostLifecycleEventListener : msh::HostLifecycleEventListener
 {
-    MockHostLifecycleEventListener(
-        std::shared_ptr<msh::HostLifecycleEventListener> const& wrapped) :
-        wrapped(wrapped)
-    {
-    }
-
     MOCK_METHOD1(lifecycle_event_occurred, void (MirLifecycleState));
-
-    std::shared_ptr<msh::HostLifecycleEventListener> const wrapped;
 };
 
-struct NestedServerConfiguration : FakeCommandLine, public mir::DefaultServerConfiguration
-{
-    NestedServerConfiguration(
-        std::string const& host_socket,
-        std::shared_ptr<mg::Platform> const& graphics_platform) :
-        FakeCommandLine(host_socket),
-        DefaultServerConfiguration(FakeCommandLine::argc, FakeCommandLine::argv),
-        graphics_platform(graphics_platform)
-    {
-    }
-
-    std::shared_ptr<mg::NativePlatform> the_graphics_native_platform() override
-    {
-        return graphics_native_platform(
-            [this]() -> std::shared_ptr<mg::NativePlatform>
-            {
-                return std::make_shared<NativePlatformAdapter>(graphics_platform);
-            });
-    }
-
-    std::shared_ptr<mg::Platform> const graphics_platform;
-};
-
-struct NestedMockEGL : mir::test::doubles::MockEGL
+struct NestedMockEGL : NiceMock<mir::test::doubles::MockEGL>
 {
     NestedMockEGL()
     {
@@ -233,38 +128,6 @@ private:
     }
 };
 
-class NestedMirRunner
-{
-public:
-    NestedMirRunner(mir::ServerConfiguration& nested_config) :
-        nested_run_mir{
-            std::async(std::launch::async, [&]
-            {
-                mir::run_mir(nested_config, [&](mir::DisplayServer& server)
-                    {
-                        std::lock_guard<decltype(nested_mutex)> lock{nested_mutex};
-                        nested_server = &server;
-                        nested_cv.notify_one();
-                    });
-            })}
-    {
-        std::unique_lock<decltype(nested_mutex)> lock{nested_mutex};
-        nested_cv.wait(lock, [&] { return nested_server != nullptr; });
-    }
-
-    ~NestedMirRunner() noexcept
-    {
-        std::lock_guard<decltype(nested_mutex)> lock{nested_mutex};
-        nested_server->stop();
-    }
-
-private:
-    std::mutex nested_mutex;
-    std::condition_variable nested_cv;
-    mir::DisplayServer* nested_server{nullptr};
-
-    std::future<void> nested_run_mir;
-};
 
 std::vector<geom::Rectangle> const display_geometry
 {
@@ -272,27 +135,62 @@ std::vector<geom::Rectangle> const display_geometry
     {{480, 0}, {1920, 1080}}
 };
 
-struct NestedServer : mtf::InProcessServer, HostServerConfiguration
+std::chrono::seconds const timeout{10};
+
+class NestedMirRunner : public mtf::HeadlessNestedServerRunner
 {
-    NestedServer() : HostServerConfiguration(display_geometry) {}
+public:
+    NestedMirRunner(std::string const& connection_string)
+        : mtf::HeadlessNestedServerRunner(connection_string)
+    {
+        server.override_the_host_lifecycle_event_listener([this]
+           {
+               return the_mock_host_lifecycle_event_listener();
+           });
+        start_server();
+    }
+
+    ~NestedMirRunner()
+    {
+        stop_server();
+    }
+
+    std::shared_ptr<MockHostLifecycleEventListener> the_mock_host_lifecycle_event_listener()
+    {
+        return mock_host_lifecycle_event_listener([this]
+            {
+                return std::make_shared<NiceMock<MockHostLifecycleEventListener>>();
+            });
+    }
+
+private:
+    mir::CachedPtr<MockHostLifecycleEventListener> mock_host_lifecycle_event_listener;
+};
+
+struct NestedServer : mtf::HeadlessInProcessServer
+{
+    NestedServer() { add_to_environment("MIR_SERVER_ENABLE_INPUT","off"); }
 
     NestedMockEGL mock_egl;
     mtf::UsingStubClientPlatform using_stub_client_platform;
 
-    virtual mir::DefaultServerConfiguration& server_config()
-    {
-        return *this;
-    }
+    std::shared_ptr<MockSessionMediatorReport> mock_session_mediator_report;
 
     void SetUp() override
     {
-        mtf::InProcessServer::SetUp();
-        connection_string = new_connection();
+        initial_display_layout(display_geometry);
+        server.override_the_session_mediator_report([this]
+            {
+                mock_session_mediator_report = std::make_shared<MockSessionMediatorReport>();
+                return mock_session_mediator_report;
+            });
+
+        mtf::HeadlessInProcessServer::SetUp();
     }
 
     void trigger_lifecycle_event(MirLifecycleState const lifecycle_state)
     {
-        auto const app = the_focus_controller()->focussed_application().lock();
+        auto const app = server.the_session_coordinator()->successor_of({});
 
         EXPECT_TRUE(app != nullptr) << "Nested server not connected";
 
@@ -301,28 +199,23 @@ struct NestedServer : mtf::InProcessServer, HostServerConfiguration
            app->set_lifecycle_state(lifecycle_state);
         }
     }
-
-    std::string connection_string;
 };
 }
 
 TEST_F(NestedServer, nested_platform_connects_and_disconnects)
 {
-    NestedServerConfiguration nested_config{connection_string, the_graphics_platform()};
-
     InSequence seq;
     EXPECT_CALL(*mock_session_mediator_report, session_connect_called(_)).Times(1);
     EXPECT_CALL(*mock_session_mediator_report, session_disconnect_called(_)).Times(1);
 
-    NestedMirRunner nested_mir{nested_config};
+    NestedMirRunner{new_connection()};
 }
 
 TEST_F(NestedServer, sees_expected_outputs)
 {
-    NestedServerConfiguration nested_config{connection_string, the_graphics_platform()};
-    NestedMirRunner nested_mir{nested_config};
+    NestedMirRunner nested_mir{new_connection()};
 
-    auto const display = nested_config.the_display();
+    auto const display = nested_mir.server.the_display();
     auto const display_config = display->configuration();
 
     std::vector<geom::Rectangle> outputs;
@@ -343,71 +236,56 @@ TEST_F(NestedServer, sees_expected_outputs)
 // TODO it may not have much long term value, but decide that later.
 TEST_F(NestedServer, on_exit_display_objects_should_be_destroyed)
 {
-    struct MyServerConfiguration : NestedServerConfiguration
+    std::weak_ptr<mir::graphics::Display> my_display;
+
     {
-        using NestedServerConfiguration::NestedServerConfiguration;
+        NestedMirRunner nested_mir{new_connection()};
 
-        std::shared_ptr<mir::graphics::Display> the_display() override
-        {
-            auto const& temp = NestedServerConfiguration::the_display();
-            my_display = temp;
-            return temp;
-        }
+        my_display = nested_mir.server.the_display();
+    }
 
-        std::weak_ptr<mir::graphics::Display> my_display;
-    };
-
-    MyServerConfiguration config{connection_string, the_graphics_platform()};
-
-    NestedMirRunner{config};
-
-    EXPECT_FALSE(config.my_display.lock()) << "after run_mir() exits the display should be released";
+    EXPECT_FALSE(my_display.lock()) << "after run_mir() exits the display should be released";
 }
 
 TEST_F(NestedServer, receives_lifecycle_events_from_host)
 {
-    struct MyServerConfiguration : NestedServerConfiguration
-    {
-        using NestedServerConfiguration::NestedServerConfiguration;
-
-        std::shared_ptr<msh::HostLifecycleEventListener> the_host_lifecycle_event_listener() override
-        {
-            return host_lifecycle_event_listener([this]()
-               -> std::shared_ptr<msh::HostLifecycleEventListener>
-               {
-                   return the_mock_host_lifecycle_event_listener();
-               });
-        }
-
-        std::shared_ptr<MockHostLifecycleEventListener> the_mock_host_lifecycle_event_listener()
-        {
-            return mock_host_lifecycle_event_listener([this]
-                {
-                    return std::make_shared<MockHostLifecycleEventListener>(
-                        NestedServerConfiguration::the_host_lifecycle_event_listener());
-                });
-        }
-
-        mir::CachedPtr<MockHostLifecycleEventListener> mock_host_lifecycle_event_listener;
-    };
-
-    MyServerConfiguration nested_config{connection_string, the_graphics_platform()};
-
-    NestedMirRunner nested_mir{nested_config};
+    NestedMirRunner nested_mir{new_connection()};
 
     mir::test::WaitCondition events_processed;
 
     InSequence seq;
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
+    EXPECT_CALL(*(nested_mir.the_mock_host_lifecycle_event_listener()),
         lifecycle_event_occurred(mir_lifecycle_state_resumed)).Times(1);
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
+    EXPECT_CALL(*(nested_mir.the_mock_host_lifecycle_event_listener()),
         lifecycle_event_occurred(mir_lifecycle_state_will_suspend))
         .WillOnce(WakeUp(&events_processed));
-    EXPECT_CALL(*(nested_config.the_mock_host_lifecycle_event_listener()),
+    EXPECT_CALL(*(nested_mir.the_mock_host_lifecycle_event_listener()),
         lifecycle_event_occurred(mir_lifecycle_connection_lost)).Times(AtMost(1));
 
     trigger_lifecycle_event(mir_lifecycle_state_resumed);
     trigger_lifecycle_event(mir_lifecycle_state_will_suspend);
 
     events_processed.wait_for_at_most_seconds(5);
+}
+
+TEST_F(NestedServer, client_may_connect_to_nested_server_and_create_surface)
+{
+    NestedMirRunner nested_mir{new_connection()};
+
+    auto c = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
+    auto surface = mtf::make_any_surface(c);
+    mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
+
+    bool became_exposed_and_focused = mir::test::spin_wait_for_condition_or_timeout(
+        [surface]
+        {
+            return mir_surface_get_visibility(surface) == mir_surface_visibility_exposed
+                && mir_surface_get_focus(surface) == mir_surface_focused;
+        },
+        std::chrono::seconds{10});
+
+    EXPECT_TRUE(became_exposed_and_focused);  
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(c);
 }

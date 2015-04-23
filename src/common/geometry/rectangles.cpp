@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -34,9 +34,7 @@ T clamp(T x, T min, T max)
 
 geom::Rectangle rect_from_points(geom::Point const& tl, geom::Point const& br)
 {
-    return {tl,
-            geom::Size{geom::Width{br.x.as_int() - tl.x.as_int()},
-                       geom::Height{br.y.as_int() - tl.y.as_int()}}};
+    return {tl, as_size(br-tl)};
 }
 
 }
@@ -53,6 +51,12 @@ geom::Rectangles::Rectangles(std::initializer_list<Rectangle> const& rects)
 void geom::Rectangles::add(geom::Rectangle const& rect)
 {
     rectangles.push_back(rect);
+}
+
+void geom::Rectangles::remove(Rectangle const& rect)
+{
+    auto const i = std::find(rectangles.begin(), rectangles.end(), rect);
+    if (i != rectangles.end()) rectangles.erase(i);
 }
 
 void geom::Rectangles::clear()

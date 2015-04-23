@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -19,6 +19,7 @@
 
 #include "mir/graphics/graphic_buffer_allocator.h"
 #include "mir/graphics/buffer_id.h"
+#include "mir/lockable_callback.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -91,6 +92,46 @@ void replace(mg::Buffer const* item, std::shared_ptr<mg::Buffer> const& new_buff
 }
 }
 
+namespace mir
+{
+namespace compositor
+{
+class BufferQueue::LockableCallback : public mir::LockableCallback
+{
+public:
+    LockableCallback(BufferQueue* const q)
+        : q{q}
+    {
+    }
+
+    void operator()() override
+    {
+        // We ignore any ongoing snapshotting as it could lead to deadlock.
+       // In order to wait the guard_lock needs to be released; a BufferQueue::release
+       // call can sneak in at that time from a different thread which
+       // can invoke framedrop_policy methods
+        q->drop_frame(guard_lock, BufferQueue::ignore_snapshot);
+    }
+
+    void lock() override
+    {
+        // This lock is aquired before the framedrop policy acquires any locks of its own.
+        guard_lock = std::move(std::unique_lock<std::mutex>{q->guard});
+    }
+
+    void unlock() override
+    {
+        if (guard_lock.owns_lock())
+            guard_lock.unlock();
+    }
+
+private:
+    BufferQueue* const q;
+    std::unique_lock<std::mutex> guard_lock;
+};
+}
+}
+
 mc::BufferQueue::BufferQueue(
     int nbuffers,
     std::shared_ptr<graphics::GraphicBufferAllocator> const& gralloc,
@@ -98,6 +139,7 @@ mc::BufferQueue::BufferQueue(
     mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
       frame_dropping_enabled{false},
+      current_compositor_buffer_valid{false},
       the_properties{props},
       force_new_compositor_buffer{false},
       callbacks_allowed{true},
@@ -132,42 +174,8 @@ mc::BufferQueue::BufferQueue(
     if (nbuffers == 1)
         free_buffers.push_back(current_compositor_buffer);
 
-    framedrop_policy = policy_provider.create_policy([this]
-    {
-       std::unique_lock<decltype(guard)> lock{guard};
-
-       if (pending_client_notifications.empty())
-       {
-           /*
-            * This framedrop handler may be in the process of being dispatched
-            * when we try to cancel it by calling swap_unblocked() when we
-            * get a buffer to give back to the client. In this case we cannot
-            * cancel and this function may be called without any pending client
-            * notifications. This is a benign race that we can deal with by
-            * just ignoring the framedrop request.
-            */
-           return;
-       }
-
-       if (ready_to_composite_queue.empty())
-       {
-           /*
-            * NOTE: This can only happen under two circumstances:
-            * 1) Client is single buffered. Don't do that, it's a bad idea.
-            * 2) Client already has a buffer, and is asking for a new one
-            *    without submitting the old one.
-            *
-            *    This shouldn't be exposed to the client as swap_buffers
-            *    blocking, as the client already has something to render to.
-            *
-            *    Our current implementation will never hit this case. If we
-            *    later want clients to be able to own multiple buffers simultaneously
-            *    then we might want to add an entry to the CompositorReport here.
-            */
-           return;
-       }
-       drop_frame(std::move(lock));
-    });
+    framedrop_policy = policy_provider.create_policy(
+        std::make_shared<BufferQueue::LockableCallback>(this));
 }
 
 void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
@@ -180,7 +188,7 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     {
         auto const buffer = free_buffers.back();
         free_buffers.pop_back();
-        give_buffer_to_client(buffer, std::move(lock));
+        give_buffer_to_client(buffer, lock);
         return;
     }
 
@@ -193,14 +201,14 @@ void mc::BufferQueue::client_acquire(mc::BufferQueue::Callback complete)
     {
         auto const& buffer = gralloc->alloc_buffer(the_properties);
         buffers.push_back(buffer);
-        give_buffer_to_client(buffer.get(), std::move(lock));
+        give_buffer_to_client(buffer.get(), lock);
         return;
     }
 
     /* Last resort, drop oldest buffer from the ready queue */
-    if (frame_dropping_enabled && !ready_to_composite_queue.empty())
+    if (frame_dropping_enabled)
     {
-        drop_frame(std::move(lock));
+        drop_frame(lock, wait_for_snapshot);
         return;
     }
 
@@ -237,7 +245,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     std::unique_lock<decltype(guard)> lock(guard);
 
     bool use_current_buffer = false;
-    if (!current_buffer_users.empty() && !is_a_current_buffer_user(user_id))
+    if (!is_a_current_buffer_user(user_id))
     {
         use_current_buffer = true;
         current_buffer_users.push_back(user_id);
@@ -268,6 +276,7 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         current_buffer_users.clear();
         current_buffer_users.push_back(user_id);
         current_compositor_buffer = pop(ready_to_composite_queue);
+        current_compositor_buffer_valid = true;
     }
     else if (current_buffer_users.empty())
     {   // current_buffer_users and ready_to_composite_queue both empty
@@ -301,25 +310,6 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 
     if (nbuffers <= 1)
         return;
-
-    /*
-     * We can't release the current_compositor_buffer because we need to keep
-     * a compositor buffer always-available. But there might be a new
-     * compositor buffer available to take its place immediately. Moving to
-     * that one immediately will free up the old compositor buffer, allowing
-     * us to call back the client with a buffer where otherwise we couldn't.
-     */
-    if (current_compositor_buffer == buffer.get() &&
-        !ready_to_composite_queue.empty())
-    {
-        current_compositor_buffer = pop(ready_to_composite_queue);
-
-        // Ensure current_compositor_buffer gets reused by the next
-        // compositor_acquire:
-        current_buffer_users.clear();
-        void const* const impossible_user_id = this;
-        current_buffer_users.push_back(impossible_user_id);
-    }
 
     if (current_compositor_buffer != buffer.get())
         release(buffer.get(), std::move(lock));
@@ -373,7 +363,7 @@ void mc::BufferQueue::force_requests_to_complete()
         {
             free_buffers.push_back(pop(ready_to_composite_queue));
         }
-        give_buffer_to_client(buffer, std::move(lock));
+        give_buffer_to_client(buffer, lock, ignore_snapshot);
     }
 }
 
@@ -383,15 +373,19 @@ void mc::BufferQueue::resize(geometry::Size const& new_size)
     the_properties.size = new_size;
 }
 
-int mc::BufferQueue::buffers_ready_for_compositor() const
+int mc::BufferQueue::buffers_ready_for_compositor(void const* user_id) const
 {
     std::lock_guard<decltype(guard)> lock(guard);
 
-    /*TODO: this api also needs to know the caller user id
-     * as the number of buffers that are truly ready
-     * vary depending on concurrent compositors.
-     */
-    return ready_to_composite_queue.size();
+    int count = ready_to_composite_queue.size();
+    if (!is_a_current_buffer_user(user_id))
+    {
+        // The virtual front of the ready queue isn't actually in the ready
+        // queue, but is the current_compositor_buffer, so count that too:
+        ++count;
+    }
+
+    return count;
 }
 
 int mc::BufferQueue::buffers_free_for_client() const
@@ -409,7 +403,15 @@ int mc::BufferQueue::buffers_free_for_client() const
 
 void mc::BufferQueue::give_buffer_to_client(
     mg::Buffer* buffer,
-    std::unique_lock<std::mutex> lock)
+    std::unique_lock<std::mutex>& lock)
+{
+    give_buffer_to_client(buffer, lock, wait_for_snapshot);
+}
+
+void mc::BufferQueue::give_buffer_to_client(
+    mg::Buffer* buffer,
+    std::unique_lock<std::mutex>& lock,
+    SnapshotWait wait_type)
 {
     /* Clears callback */
     auto give_to_client_cb = std::move(pending_client_notifications.front());
@@ -429,7 +431,7 @@ void mc::BufferQueue::give_buffer_to_client(
     }
 
     /* Don't give to the client just yet if there's a pending snapshot */
-    if (!resize_buffer && contains(buffer, pending_snapshots))
+    if (wait_type == wait_for_snapshot && !resize_buffer && contains(buffer, pending_snapshots))
     {
         snapshot_released.wait(lock,
             [&]{ return !contains(buffer, pending_snapshots); });
@@ -453,6 +455,7 @@ void mc::BufferQueue::give_buffer_to_client(
 
 bool mc::BufferQueue::is_a_current_buffer_user(void const* user_id) const
 {
+    if (!current_compositor_buffer_valid) return true;
     int const size = current_buffer_users.size();
     int i = 0;
     while (i < size && current_buffer_users[i] != user_id) ++i;
@@ -466,26 +469,84 @@ void mc::BufferQueue::release(
     if (!pending_client_notifications.empty())
     {
         framedrop_policy->swap_unblocked();
-        give_buffer_to_client(buffer, std::move(lock));
+        give_buffer_to_client(buffer, lock);
+    }
+    else if (!frame_dropping_enabled && buffers.size() > size_t(nbuffers))
+    {
+        /*
+         * We're overallocated.
+         * If frame_dropping_enabled, keep it that way to avoid having
+         * to repeatedly reallocate. We must need the overallocation due to a
+         * greedy compositor and insufficient nbuffers (LP: #1379685).
+         * If not framedropping then we only overallocated to briefly
+         * guarantee the framedropping policy and poke the client. Safe
+         * to free it then because that's a rare occurrence.
+         */
+        for (auto i = buffers.begin(); i != buffers.end(); ++i)
+        {
+            if (i->get() == buffer)
+            {
+                buffers.erase(i);
+                break;
+            }
+        }
     }
     else
         free_buffers.push_back(buffer);
 }
 
-void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex> lock)
+void mc::BufferQueue::drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWait wait_type)
 {
-    auto buffer_to_give = pop(ready_to_composite_queue);
-    /* Advance compositor buffer so it always points to the most recent
-     * client content
-     */
-    if (!contains(current_compositor_buffer, buffers_sent_to_compositor))
-    {
-       current_buffer_users.clear();
-       void const* const impossible_user_id = this;
-       current_buffer_users.push_back(impossible_user_id);
-       std::swap(buffer_to_give, current_compositor_buffer);
+    // Make sure there is a client waiting for the frame before we drop it.
+    // If not, then there's nothing to do.
+    if (pending_client_notifications.empty())
+        return;
+
+    mg::Buffer* buffer_to_give = nullptr;
+
+    if (!free_buffers.empty())
+    {  // We expect this to usually be empty, but always check free list first
+        buffer_to_give = free_buffers.back();
+        free_buffers.pop_back();
     }
-    give_buffer_to_client(buffer_to_give, std::move(lock));
+    else if (!ready_to_composite_queue.empty() &&
+             !contains(current_compositor_buffer, buffers_sent_to_compositor))
+    {
+        // Remember current_compositor_buffer is implicitly the front
+        // of the ready queue.
+        buffer_to_give = current_compositor_buffer;
+        current_compositor_buffer = pop(ready_to_composite_queue);
+        current_buffer_users.clear();
+        current_compositor_buffer_valid = true;
+    }
+    else if (ready_to_composite_queue.size() > 1)
+    {
+        buffer_to_give = pop(ready_to_composite_queue);
+    }
+    else 
+    {
+        /*
+         * Insufficient nbuffers for frame dropping? This means you're either
+         * trying to use frame dropping with bypass/overlays/multimonitor or
+         * have chosen nbuffers too low, or some combination thereof. So
+         * consider the options...
+         *  1. Crash. No, that's really unhelpful.
+         *  2. Drop the visible frame. Probably not; that looks pretty awful.
+         *     Not just tearing but you'll see very ugly polygon rendering
+         *     artifacts.
+         *  3. Drop the newest ready frame. Absolutely not; that will cause
+         *     indefinite freezes or at least stuttering.
+         *  4. Just give a warning and carry on at regular frame rate
+         *     as if framedropping was disabled. That's pretty nice, but we
+         *     can do better still...
+         *  5. Overallocate; more buffers! Yes, see below.
+         */
+        auto const& buffer = gralloc->alloc_buffer(the_properties);
+        buffers.push_back(buffer);
+        buffer_to_give = buffer.get();
+    }
+        
+    give_buffer_to_client(buffer_to_give, lock, wait_type);
 }
 
 void mc::BufferQueue::drop_old_buffers()
