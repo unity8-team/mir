@@ -1,5 +1,13 @@
 #!/bin/sh
 
+# Wait for the tty to be brought up (we want to steal VT from it, not have it
+# be stolen by agetty)
+while ! pidof /sbin/agetty; do
+    sleep 0.1
+done
+sleep 1 # give it a moment to come up
+
+# OK, now we can start the server
 mir_demo_server_minimal --file /run/mir_socket --vt 1 $@ &
 
 # Can't use --arw-file with vivid version of mir_demo_server_minimal...
