@@ -21,7 +21,6 @@
 #include "real_kms_output.h"
 #include "page_flipper.h"
 #include "mir/fatal.h"
-#include <vector>
 #include <string.h> // strcmp
 
 namespace mg = mir::graphics;

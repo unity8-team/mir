@@ -16,12 +16,13 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "display_buffer.h"
+
 #include "host_connection.h"
 #include "mir/input/input_dispatcher.h"
 #include "mir/graphics/pixel_format_utils.h"
+#include "mir/graphics/egl_error.h"
+#include "mir/events/event_private.h"
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -56,7 +57,7 @@ geom::Rectangle mgn::detail::DisplayBuffer::view_area() const
 void mgn::detail::DisplayBuffer::make_current()
 {
     if (eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) != EGL_TRUE)
-        BOOST_THROW_EXCEPTION(std::runtime_error("Nested Mir Display Error: Failed to update EGL surface.\n"));
+        BOOST_THROW_EXCEPTION(mg::egl_error("Nested Mir Display Error: Failed to update EGL surface"));
 }
 
 void mgn::detail::DisplayBuffer::release_current()

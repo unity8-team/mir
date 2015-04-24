@@ -16,8 +16,6 @@
  * Authored by: Robert Carr <racarr@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "application_session.h"
 #include "snapshot_strategy.h"
 #include "default_session_container.h"
@@ -131,6 +129,24 @@ std::shared_ptr<ms::Surface> ms::ApplicationSession::surface(mf::SurfaceId id) c
     std::unique_lock<std::mutex> lock(surfaces_and_streams_mutex);
 
     return checked_find(id)->second;
+}
+
+std::shared_ptr<ms::Surface> ms::ApplicationSession::surface_after(std::shared_ptr<ms::Surface> const& before) const
+{
+    std::lock_guard<std::mutex> lock(surfaces_and_streams_mutex);
+    auto i = surfaces.begin();
+    for (; i != surfaces.end(); ++i)
+    {
+        if (i->second == before)
+            break;
+    }
+    if (i == surfaces.end())
+        BOOST_THROW_EXCEPTION(std::runtime_error("surface_after: surface is not a member of this session"));
+
+    ++i;
+    if (i == surfaces.end())
+        i = surfaces.begin();
+    return i->second;
 }
 
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)

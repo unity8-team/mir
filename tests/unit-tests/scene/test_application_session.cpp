@@ -16,9 +16,8 @@
  * Authored By: Robert Carr <racarr@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "src/server/scene/application_session.h"
+#include "mir/events/event_private.h"
 #include "mir/graphics/buffer.h"
 #include "mir/scene/surface_creation_parameters.h"
 #include "mir/scene/null_session_listener.h"
@@ -285,6 +284,63 @@ TEST_F(ApplicationSession, default_surface_is_first_surface)
     default_surf = app_session->default_surface();
     EXPECT_EQ(app_session->get_surface(id3), default_surf);
     app_session->destroy_surface(id3);
+}
+
+TEST_F(ApplicationSession, foreign_surface_has_no_successor)
+{
+    auto session1 = make_application_session_with_stubs();
+    ms::SurfaceCreationParameters params;
+    auto id1 = session1->create_surface(params);
+    auto surf1 = session1->surface(id1);
+    auto id2 = session1->create_surface(params);
+
+    auto session2 = make_application_session_with_stubs();
+
+    EXPECT_THROW({session2->surface_after(surf1);},
+                 std::runtime_error);
+
+    session1->destroy_surface(id1);
+    session1->destroy_surface(id2);
+}
+
+TEST_F(ApplicationSession, surface_after_one_is_self)
+{
+    auto session = make_application_session_with_stubs();
+    ms::SurfaceCreationParameters params;
+    auto id = session->create_surface(params);
+    auto surf = session->surface(id);
+
+    EXPECT_EQ(surf, session->surface_after(surf));
+
+    session->destroy_surface(id);
+}
+
+TEST_F(ApplicationSession, surface_after_cycles_through_all)
+{
+    auto app_session = make_application_session_with_stubs();
+
+    ms::SurfaceCreationParameters params;
+
+    int const N = 3;
+    std::shared_ptr<ms::Surface> surf[N];
+    mf::SurfaceId id[N];
+
+    for (int i = 0; i < N; ++i)
+    {
+        id[i] = app_session->create_surface(params);
+        surf[i] = app_session->surface(id[i]);
+
+        if (i > 0)
+            ASSERT_NE(surf[i], surf[i-1]);
+    }
+
+    for (int i = 0; i < N-1; ++i)
+        ASSERT_EQ(surf[i+1], app_session->surface_after(surf[i]));
+
+    EXPECT_EQ(surf[0], app_session->surface_after(surf[N-1]));
+
+    for (int i = 0; i < N; ++i)
+        app_session->destroy_surface(id[i]);
 }
 
 TEST_F(ApplicationSession, session_visbility_propagates_to_surfaces)
