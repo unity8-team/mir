@@ -21,8 +21,13 @@ Build-Depends: cmake,
                libmtdev-dev,
                libprocess-cpp-dev,
                libqt5gui5-gles,
-               libqt5sensors5-dev,
+               libqt5quick5-gles,
+               libqt5quickparticles5-gles,
                libqt5quicktest5,
+               libqt5quickwidgets5-gles,
+               libqt5sensors5-dev,
+               libqtdbusmock1-dev (>= 0.2),
+               libqtdbustest1-dev (>= 0.2),
                libubuntu-app-launch2-dev,
                libubuntu-application-api-dev (>= 2.1.0),
                libudev-dev,
@@ -49,7 +54,7 @@ Vcs-Browser: http://bazaar.launchpad.net/~mir-team/qtmir/gles/files
 X-Auto-Uploader: no-rewrite-version
 
 Package: qtmir-android
-Architecture: i386 amd64
+Architecture: amd64 i386
 Multi-Arch: same
 Conflicts: libqtmir,
            qtmir-desktop,
