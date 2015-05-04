@@ -256,25 +256,6 @@ void new_mir_surface_set_event_handler(MirSurface* surface,
     surface->set_event_handler(callback, context);
 }
 
-// Deprecated but ABI backward compatible --->
-typedef struct MirEventDelegate
-{
-    mir_surface_event_callback callback;
-    void *context;
-} MirEventDelegate;
-
-__asm__(".symver old_mir_surface_set_event_handler,mir_surface_set_event_handler@MIR_CLIENT_8");
-extern "C"
-void old_mir_surface_set_event_handler(MirSurface* surface,
-                                       MirEventDelegate const* delegate)
-{
-    if (delegate)
-        surface->set_event_handler(delegate->callback, delegate->context);
-    else
-        surface->set_event_handler(nullptr, nullptr);
-}
-// <--- Deprecated
-
 MirEGLNativeWindowType mir_surface_get_egl_native_window(MirSurface* surface)
 {
     return mir_buffer_stream_get_egl_native_window(
