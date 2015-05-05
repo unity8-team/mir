@@ -34,6 +34,7 @@
 
 #include "mir/events/event_builders.h"
 #include "mir/logging/logger.h"
+#include "mir/require.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -342,7 +343,7 @@ mir::Fd MirConnection::watch_fd() const
 
 void MirConnection::dispatch()
 {
-    if (eventloop) abort();
+    mir::require(!eventloop);
 
     dispatcher->dispatch(md::FdEvent::readable);
 }
