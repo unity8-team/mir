@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
 
     if (surf != NULL)
     {
-        mir_surface_set_swapinterval(surf, swap_interval);
+        mir_surface_set_swap_interval(surf, swap_interval);
         mir_surface_set_event_handler(surf, &on_event, &canvas);
     
         canvas.width = width;

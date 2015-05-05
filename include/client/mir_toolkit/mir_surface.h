@@ -596,7 +596,7 @@ MirSurfaceState mir_surface_get_state(MirSurface *surface);
  *   \return              A wait handle that can be passed to mir_wait_for,
  *                        or NULL if the interval could not be supported
  */
-MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surface, int interval);
+MirWaitHandle* mir_surface_set_swap_interval(MirSurface* surface, int interval);
 
 /**
  * Query the swapinterval that the surface is operating with.

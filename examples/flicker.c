@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     assert(strcmp(mir_surface_get_error_message(surface), "") == 0);
     puts("Surface created");
 
-    mir_surface_set_swapinterval(surface, swapinterval);
+    mir_surface_set_swap_interval(surface, swapinterval);
 
     uint32_t pattern[2] = {0};
     fill_pattern(pattern, pixel_format);

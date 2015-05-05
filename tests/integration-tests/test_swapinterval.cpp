@@ -174,14 +174,14 @@ TEST_F(SwapIntervalSignalTest, swapinterval_test)
             //1 is the default swapinterval
             EXPECT_EQ(1, mir_surface_get_swapinterval(surface));
 
-            mir_wait_for(mir_surface_set_swapinterval(surface, 0));
+            mir_wait_for(mir_surface_set_swap_interval(surface, 0));
             EXPECT_EQ(0, mir_surface_get_swapinterval(surface));
 
-            mir_wait_for(mir_surface_set_swapinterval(surface, 1));
+            mir_wait_for(mir_surface_set_swap_interval(surface, 1));
             EXPECT_EQ(1, mir_surface_get_swapinterval(surface));
 
             //swapinterval 2 not supported
-            EXPECT_EQ(NULL, mir_surface_set_swapinterval(surface, 2));
+            EXPECT_EQ(NULL, mir_surface_set_swap_interval(surface, 2));
             EXPECT_EQ(1, mir_surface_get_swapinterval(surface));
 
             set_flag(swapinterval_set);
