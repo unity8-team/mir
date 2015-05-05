@@ -228,6 +228,9 @@ if (MIR_ENABLE_TESTS)
 
   mir_add_test(NAME package-abis
     COMMAND /bin/sh -c "cd ${PROJECT_SOURCE_DIR} && tools/update_package_abis.sh --check --verbose")
+
+  mir_add_test(NAME code-formatting
+    COMMAND "${CMAKE_SOURCE_DIR}/tools/check-formatting.sh" "${CMAKE_SOURCE_DIR}/tools/files-to-check-for-formatting" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif ()
 
 enable_coverage_report(mirserver)
