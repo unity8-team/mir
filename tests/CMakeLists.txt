@@ -69,6 +69,7 @@ if (MIR_BUILD_UNIT_TESTS)
   add_subdirectory(unit-tests/)
 endif (MIR_BUILD_UNIT_TESTS)
 
+add_subdirectory(privileged-tests/)
 add_subdirectory(mir_test/)
 add_subdirectory(mir_test_framework/)
 add_subdirectory(mir_test_doubles/)
