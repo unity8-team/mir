@@ -13,7 +13,7 @@ do
     (diff $file $TEMPFILE > /dev/null) || FAILED=""$FAILED" "$file
 done
     
-if [ $FAILED ]
+if [ "$FAILED" ]
 then
     for error in $FAILED
     do
