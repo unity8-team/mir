@@ -180,7 +180,7 @@ public:
 
 }
 
-TEST_F(MirProtobufRpcChannelTest, ReadsFullMessages)
+TEST_F(MirProtobufRpcChannelTest, reads_full_messages)
 {
     std::vector<uint8_t> empty_message(sizeof(uint16_t));
     std::vector<uint8_t> small_message(sizeof(uint16_t) + 8);
@@ -203,7 +203,7 @@ TEST_F(MirProtobufRpcChannelTest, ReadsFullMessages)
     EXPECT_TRUE(transport->all_data_consumed());
 }
 
-TEST_F(MirProtobufRpcChannelTest, ReadsAllQueuedMessages)
+TEST_F(MirProtobufRpcChannelTest, reads_all_queued_messages)
 {
     std::vector<uint8_t> empty_message(sizeof(uint16_t));
     std::vector<uint8_t> small_message(sizeof(uint16_t) + 8);
@@ -221,7 +221,7 @@ TEST_F(MirProtobufRpcChannelTest, ReadsAllQueuedMessages)
     EXPECT_TRUE(transport->all_data_consumed());
 }
 
-TEST_F(MirProtobufRpcChannelTest, SendsMessagesAtomically)
+TEST_F(MirProtobufRpcChannelTest, sends_messages_atomically)
 {
     mir::protobuf::DisplayServer::Stub channel_user{channel.get(), mir::protobuf::DisplayServer::STUB_DOESNT_OWN_CHANNEL};
     mir::protobuf::ConnectParameters message;
@@ -232,7 +232,7 @@ TEST_F(MirProtobufRpcChannelTest, SendsMessagesAtomically)
     EXPECT_EQ(transport->sent_messages.size(), 1);
 }
 
-TEST_F(MirProtobufRpcChannelTest, SetsCorrectSizeWhenSendingMessage)
+TEST_F(MirProtobufRpcChannelTest, sets_correct_size_when_sending_message)
 {
     mir::protobuf::DisplayServer::Stub channel_user{channel.get(), mir::protobuf::DisplayServer::STUB_DOESNT_OWN_CHANNEL};
     mir::protobuf::ConnectParameters message;
@@ -245,7 +245,7 @@ TEST_F(MirProtobufRpcChannelTest, SetsCorrectSizeWhenSendingMessage)
     EXPECT_EQ(transport->sent_messages.front().size() - sizeof(uint16_t), message_header);
 }
 
-TEST_F(MirProtobufRpcChannelTest, ReadsFds)
+TEST_F(MirProtobufRpcChannelTest, reads_fds)
 {
     mir::protobuf::DisplayServer::Stub channel_user{channel.get(), mir::protobuf::DisplayServer::STUB_DOESNT_OWN_CHANNEL};
     mir::protobuf::Buffer reply;
@@ -299,7 +299,7 @@ TEST_F(MirProtobufRpcChannelTest, ReadsFds)
     }
 }
 
-TEST_F(MirProtobufRpcChannelTest, NotifiesOfDisconnectOnWriteError)
+TEST_F(MirProtobufRpcChannelTest, notifies_of_disconnect_on_write_error)
 {
     using namespace ::testing;
 
@@ -327,7 +327,7 @@ TEST_F(MirProtobufRpcChannelTest, NotifiesOfDisconnectOnWriteError)
     EXPECT_TRUE(disconnected);
 }
 
-TEST_F(MirProtobufRpcChannelTest, ForwardsDisconnectNotification)
+TEST_F(MirProtobufRpcChannelTest, forwards_disconnect_notification)
 {
     using namespace ::testing;
 
@@ -349,7 +349,7 @@ TEST_F(MirProtobufRpcChannelTest, ForwardsDisconnectNotification)
     EXPECT_TRUE(disconnected);
 }
 
-TEST_F(MirProtobufRpcChannelTest, NotifiesOfDisconnectOnlyOnce)
+TEST_F(MirProtobufRpcChannelTest, notifies_of_disconnect_only_once)
 {
     using namespace ::testing;
 
