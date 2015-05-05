@@ -19,7 +19,6 @@
 #include "mir/dispatch/multiplexing_dispatchable.h"
 
 #include <iostream>
-#include <atomic>
 #include <thread>
 #include <vector>
 #include <memory>

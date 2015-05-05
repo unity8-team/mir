@@ -131,6 +131,48 @@ std::shared_ptr<ms::Surface> ms::ApplicationSession::surface(mf::SurfaceId id) c
     return checked_find(id)->second;
 }
 
+std::shared_ptr<ms::Surface> ms::ApplicationSession::surface_after(std::shared_ptr<ms::Surface> const& before) const
+{
+    std::lock_guard<std::mutex> lock(surfaces_and_streams_mutex);
+    auto current = surfaces.begin();
+    for (; current != surfaces.end(); ++current)
+    {
+        if (current->second == before)
+            break;
+    }
+
+    if (current == surfaces.end())
+        BOOST_THROW_EXCEPTION(std::runtime_error("surface_after: surface is not a member of this session"));
+
+    auto const can_take_focus = [](Surfaces::value_type const &s)
+        {
+            switch (s.second->type())
+            {
+            case mir_surface_type_normal:       /**< AKA "regular"                       */
+            case mir_surface_type_utility:      /**< AKA "floating"                      */
+            case mir_surface_type_dialog:
+            case mir_surface_type_satellite:    /**< AKA "toolbox"/"toolbar"             */
+            case mir_surface_type_freestyle:
+            case mir_surface_type_menu:
+            case mir_surface_type_inputmethod:  /**< AKA "OSK" or handwriting etc.       */
+                return true;
+
+            case mir_surface_type_gloss:
+            case mir_surface_type_tip:          /**< AKA "tooltip"                       */
+            default:
+                // Cannot have input focus - skip it
+                return false;
+            }
+        };
+
+    auto next = std::find_if(++current, end(surfaces), can_take_focus);
+
+    if (next == surfaces.end())
+        next = std::find_if(begin(surfaces), current, can_take_focus);
+
+    return next->second;
+}
+
 void ms::ApplicationSession::take_snapshot(SnapshotCallback const& snapshot_taken)
 {
     if (auto surface = default_surface())

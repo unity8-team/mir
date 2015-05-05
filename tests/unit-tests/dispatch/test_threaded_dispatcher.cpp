@@ -375,3 +375,29 @@ TEST_F(ThreadedDispatcherDeathTest, destroying_dispatcher_from_a_callback_is_an_
         std::this_thread::sleep_for(10s);
     }, KilledBySignal(SIGABRT), ".*Destroying ThreadedDispatcher.*");
 }
+
+TEST_F(ThreadedDispatcherTest, executes_exception_handler_with_current_exception)
+{
+    using namespace testing;
+    using namespace std::chrono_literals;
+    auto dispatched = std::make_shared<mt::Signal>();
+    std::exception_ptr exception;
+
+    auto dispatchable = std::make_shared<mt::TestDispatchable>(
+        []()
+        {
+            throw std::runtime_error("thrown");
+        });
+
+    md::ThreadedDispatcher dispatcher{"Walruses",
+                                      dispatchable,
+        [&dispatched,&exception]()
+        {
+            exception = std::current_exception();
+            if (exception)
+                dispatched->raise();
+        }};
+    dispatchable->trigger();
+    EXPECT_TRUE(dispatched->wait_for(10s));
+    EXPECT_THAT(exception, Not(Eq(nullptr)));
+}

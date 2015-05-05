@@ -169,10 +169,18 @@ private:
     bool shutting_down;
 };
 
-md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name, std::shared_ptr<md::Dispatchable> const& dispatchee)
+md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name, std::shared_ptr<Dispatchable> const& dispatchee)
+    : ThreadedDispatcher(name, dispatchee, [](){ throw; })
+{
+}
+
+md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name,
+                                           std::shared_ptr<md::Dispatchable> const& dispatchee,
+                                           std::function<void()> const& exception_handler)
     : name_base{name},
       thread_exiter{std::make_shared<ThreadShutdownRequestHandler>()},
-      dispatcher{std::make_shared<MultiplexingDispatchable>()}
+      dispatcher{std::make_shared<MultiplexingDispatchable>()},
+      exception_handler{exception_handler}
 {
 
     // We rely on exactly one thread at a time getting a shutdown message
@@ -182,7 +190,7 @@ md::ThreadedDispatcher::ThreadedDispatcher(std::string const& name, std::shared_
     // as desired.
     dispatcher->add_watch(dispatchee, md::DispatchReentrancy::reentrant);
 
-    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher);
+    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher, exception_handler);
 }
 
 md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
@@ -214,7 +222,7 @@ md::ThreadedDispatcher::~ThreadedDispatcher() noexcept
 void md::ThreadedDispatcher::add_thread()
 {
     std::lock_guard<decltype(thread_pool_mutex)> lock{thread_pool_mutex};
-    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher);
+    threadpool.emplace_back(&dispatch_loop, name_base, thread_exiter, dispatcher, exception_handler);
 }
 
 void md::ThreadedDispatcher::remove_thread()
@@ -236,7 +244,8 @@ void md::ThreadedDispatcher::remove_thread()
 
 void md::ThreadedDispatcher::dispatch_loop(std::string const& name,
                                            std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
-                                           std::shared_ptr<Dispatchable> dispatcher)
+                                           std::shared_ptr<Dispatchable> dispatcher,
+                                           std::function<void()> const& exception_handler)
 {
     sigset_t all_signals;
     sigfillset(&all_signals);
@@ -262,17 +271,24 @@ void md::ThreadedDispatcher::dispatch_loop(std::string const& name,
         thread_register->unregister_thread();
     });
 
-    struct pollfd waiter;
-    waiter.fd = dispatcher->watch_fd();
-    waiter.events = POLL_IN;
-    while (running)
+    try
     {
-        if (poll(&waiter, 1, -1) < 0)
+        struct pollfd waiter;
+        waiter.fd = dispatcher->watch_fd();
+        waiter.events = POLL_IN;
+        while (running)
         {
-            BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                     std::system_category(),
-                                                     "Failed to wait for event"}));
+            if (poll(&waiter, 1, -1) < 0)
+            {
+                BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                         std::system_category(),
+                                                         "Failed to wait for event"}));
+            }
+            dispatcher->dispatch(md::FdEvent::readable);
         }
-        dispatcher->dispatch(md::FdEvent::readable);
+    }
+    catch(...)
+    {
+        exception_handler();
     }
 }

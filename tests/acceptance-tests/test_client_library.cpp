@@ -21,6 +21,8 @@
 #include "mir_test_framework/headless_in_process_server.h"
 #include "mir_test_framework/using_stub_client_platform.h"
 #include "mir_test_framework/stub_platform_helpers.h"
+#include "mir_test_framework/using_stub_client_platform.h"
+#include "mir_test_framework/any_surface.h"
 #include "mir_test/validity_matchers.h"
 #include "mir_test/fd_utils.h"
 #include "mir_test_framework/udev_environment.h"
@@ -144,6 +146,8 @@ struct ClientLibrary : mtf::HeadlessInProcessServer
                                             mir_surface_state_minimized));
         }
     }
+    
+    mtf::UsingStubClientPlatform using_stub_client_platform;
 };
 }
 
@@ -209,16 +213,12 @@ TEST_F(ClientLibrary, can_set_surface_types)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 640, 480, mir_pixel_format_abgr_8888);
 
-    mir_wait_for(mir_connection_create_surface(connection, &request_params, create_surface_callback, this));
+    mir_wait_for(mir_surface_create(spec, create_surface_callback, this));
+    mir_surface_spec_release(spec);
 
     EXPECT_THAT(mir_surface_get_type(surface), Eq(mir_surface_type_normal));
 
@@ -255,16 +255,12 @@ TEST_F(ClientLibrary, can_set_surface_state)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 640, 480, mir_pixel_format_abgr_8888);
 
-    surface = mir_connection_create_surface_sync(connection, &request_params);
+    mir_wait_for(mir_surface_create(spec, create_surface_callback, this));
+    mir_surface_spec_release(spec);
 
     EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_restored));
 
@@ -297,16 +293,12 @@ TEST_F(ClientLibrary, receives_surface_dpi_value)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 640, 480, mir_pixel_format_abgr_8888);
 
-    surface = mir_connection_create_surface_sync(connection, &request_params);
+    surface = mir_surface_create_sync(spec);
+    mir_surface_spec_release(spec);
 
     // Expect zero (not wired up to detect the physical display yet)
     EXPECT_THAT(mir_surface_get_dpi(surface), Eq(0));
@@ -320,16 +312,12 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters parm =
-    {
-        __PRETTY_FUNCTION__,
-        1280, 1024,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 1280, 1024, mir_pixel_format_abgr_8888);
+    mir_surface_spec_set_buffer_usage(spec, mir_buffer_usage_hardware);
 
-    surface = mir_connection_create_surface_sync(connection, &parm);
+    surface = mir_surface_create_sync(spec);
 
     MirNativeBuffer *native;
     auto bs = mir_surface_get_buffer_stream(surface);
@@ -339,10 +327,10 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
     EXPECT_TRUE(native->flags & mir_buffer_flag_can_scanout);
     mir_surface_release_sync(surface);
 
-    parm.width = 100;
-    parm.height = 100;
+    mir_surface_spec_set_width(spec, 100);
+    mir_surface_spec_set_height(spec, 100);
 
-    surface = mir_connection_create_surface_sync(connection, &parm);
+    surface = mir_surface_create_sync(spec);
     bs = mir_surface_get_buffer_stream(surface);
     mir_buffer_stream_get_current_buffer(bs, &native);
     EXPECT_FALSE(native->flags & mir_buffer_flag_can_scanout);
@@ -350,11 +338,12 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
     EXPECT_FALSE(native->flags & mir_buffer_flag_can_scanout);
     mir_surface_release_sync(surface);
 
-    parm.width = 800;
-    parm.height = 600;
-    parm.buffer_usage = mir_buffer_usage_software;
 
-    surface = mir_connection_create_surface_sync(connection, &parm);
+    mir_surface_spec_set_width(spec, 800);
+    mir_surface_spec_set_height(spec, 600);
+    mir_surface_spec_set_buffer_usage(spec, mir_buffer_usage_software);
+
+    surface = mir_surface_create_sync(spec);
     bs = mir_surface_get_buffer_stream(surface);
     mir_buffer_stream_get_current_buffer(bs, &native);
     EXPECT_FALSE(native->flags & mir_buffer_flag_can_scanout);
@@ -362,9 +351,9 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
     EXPECT_FALSE(native->flags & mir_buffer_flag_can_scanout);
     mir_surface_release_sync(surface);
 
-    parm.buffer_usage = mir_buffer_usage_hardware;
+    mir_surface_spec_set_buffer_usage(spec, mir_buffer_usage_hardware);
 
-    surface = mir_connection_create_surface_sync(connection, &parm);
+    surface = mir_surface_create_sync(spec);
     bs = mir_surface_get_buffer_stream(surface);
     mir_buffer_stream_get_current_buffer(bs, &native);
     EXPECT_TRUE(native->flags & mir_buffer_flag_can_scanout);
@@ -372,6 +361,7 @@ TEST_F(ClientLibrary, surface_scanout_flag_toggles)
     EXPECT_TRUE(native->flags & mir_buffer_flag_can_scanout);
     mir_surface_release_sync(surface);
 
+    mir_surface_spec_release(spec);
     mir_connection_release(connection);
 }
 #endif
@@ -385,14 +375,10 @@ TEST_F(ClientLibrary, gets_buffer_dimensions)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters parm =
-    {
-        __PRETTY_FUNCTION__,
-        0, 0,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 0, 0, mir_pixel_format_abgr_8888);
+    mir_surface_spec_set_buffer_usage(spec, mir_buffer_usage_hardware);
 
     struct {int width, height;} const sizes[] =
     {
@@ -403,27 +389,28 @@ TEST_F(ClientLibrary, gets_buffer_dimensions)
 
     for (auto const& size : sizes)
     {
-        parm.width = size.width;
-        parm.height = size.height;
+        mir_surface_spec_set_width(spec, size.width);
+        mir_surface_spec_set_height(spec, size.height);
 
-        surface = mir_connection_create_surface_sync(connection, &parm);
+        surface = mir_surface_create_sync(spec);
         auto bs = mir_surface_get_buffer_stream(surface);
 
         MirNativeBuffer *native = NULL;
         mir_buffer_stream_get_current_buffer(bs, &native);
         ASSERT_THAT(native, NotNull());
-        EXPECT_THAT(native->width, Eq(parm.width));
-        ASSERT_THAT(native->height, Eq(parm.height));
+        EXPECT_THAT(native->width, Eq(size.width));
+        ASSERT_THAT(native->height, Eq(size.height));
 
         mir_buffer_stream_swap_buffers_sync(bs);
         mir_buffer_stream_get_current_buffer(bs, &native);
         ASSERT_THAT(native, NotNull());
-        EXPECT_THAT(native->width, Eq(parm.width));
-        ASSERT_THAT(native->height, Eq(parm.height));
+        EXPECT_THAT(native->width, Eq(size.width));
+        ASSERT_THAT(native->height, Eq(size.height));
 
         mir_surface_release_sync(surface);
     }
 
+    mir_surface_spec_release(spec);
     mir_connection_release(connection);
 }
 
@@ -434,20 +421,16 @@ TEST_F(ClientLibrary, creates_multiple_surfaces)
 
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
+    auto const spec =
+        mir_connection_create_spec_for_normal_surface(
+            connection, 640, 480, mir_pixel_format_abgr_8888);
+
+    mir_surface_spec_set_buffer_usage(spec, mir_buffer_usage_hardware);
     for (int i = 0; i != n_surfaces; ++i)
     {
         old_surface_count = current_surface_count();
 
-        MirSurfaceParameters const request_params =
-        {
-            __PRETTY_FUNCTION__,
-            640, 480,
-            mir_pixel_format_abgr_8888,
-            mir_buffer_usage_hardware,
-            mir_display_output_id_invalid
-        };
-
-        mir_wait_for(mir_connection_create_surface(connection, &request_params, create_surface_callback, this));
+        mir_wait_for(mir_surface_create(spec, create_surface_callback, this));
 
         ASSERT_THAT(current_surface_count(), Eq(old_surface_count + 1));
     }
@@ -463,6 +446,7 @@ TEST_F(ClientLibrary, creates_multiple_surfaces)
         ASSERT_THAT(current_surface_count(), Eq(old_surface_count - 1));
     }
 
+    mir_surface_spec_release(spec);
     mir_connection_release(connection);
 }
 
@@ -470,16 +454,7 @@ TEST_F(ClientLibrary, client_library_accesses_and_advances_buffers)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
-
-    mir_wait_for(mir_connection_create_surface(connection, &request_params, create_surface_callback, this));
+    surface = mtf::make_any_surface(connection);
 
     buffers = 0;
     mir_wait_for(mir_buffer_stream_swap_buffers(mir_surface_get_buffer_stream(surface), next_buffer_callback, this));
@@ -496,16 +471,7 @@ TEST_F(ClientLibrary, fully_synchronous_client)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_software,
-        mir_display_output_id_invalid
-    };
-
-    surface = mir_connection_create_surface_sync(connection, &request_params);
+    surface = mtf::make_any_surface(connection);
 
     mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
     EXPECT_TRUE(mir_surface_is_valid(surface));
@@ -522,16 +488,7 @@ TEST_F(ClientLibrary, highly_threaded_client)
 {
     connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_software,
-        mir_display_output_id_invalid
-    };
-
-    surface = mir_connection_create_surface_sync(connection, &request_params);
+    surface = mtf::make_any_surface(connection);
 
     std::thread a(nosey_thread, surface);
     std::thread b(nosey_thread, surface);
@@ -588,17 +545,8 @@ TEST_F(ClientLibrary, MultiSurfaceClientTracksBufferFdsCorrectly)
 {
     mir_wait_for(mir_connect(new_connection().c_str(), __PRETTY_FUNCTION__, connection_callback, this));
 
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
-
-    MirSurface* surf_one = mir_connection_create_surface_sync(connection, &request_params);
-    MirSurface* surf_two = mir_connection_create_surface_sync(connection, &request_params);
+    auto const surf_one = mtf::make_any_surface(connection);
+    auto const surf_two = mtf::make_any_surface(connection);
 
     ASSERT_THAT(surf_one, NotNull());
     ASSERT_THAT(surf_two, NotNull());

@@ -39,6 +39,9 @@ class ThreadedDispatcher
 {
 public:
     ThreadedDispatcher(std::string const& name, std::shared_ptr<Dispatchable> const& dispatchee);
+    ThreadedDispatcher(std::string const& name,
+                       std::shared_ptr<Dispatchable> const& dispatchee,
+                       std::function<void()> const& exception_handler);
     ~ThreadedDispatcher() noexcept;
 
     void add_thread();
@@ -56,9 +59,12 @@ private:
     std::mutex thread_pool_mutex;
     std::vector<std::thread> threadpool;
 
+    std::function<void()> const exception_handler;
+
     static void dispatch_loop(std::string const& name,
                               std::shared_ptr<ThreadShutdownRequestHandler> thread_register,
-                              std::shared_ptr<Dispatchable> dispatcher);
+                              std::shared_ptr<Dispatchable> dispatcher,
+                              std::function<void()> const& exception_handler);
 
 };
 
