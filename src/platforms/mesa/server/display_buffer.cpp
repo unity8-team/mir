@@ -258,7 +258,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     // Important: Don't acquire the bypass_buf before finish_previous_frame()
     auto bypass_buf = renderable.buffer();
 
-    // Detect potential performance flaws as a hard error...
+    // Test for any latency performance regression...
     if (outputs.size() == 1 && bypass_buf.use_count() > 2)
         fatal_error("Bypass renderable's buffer() was acquired too early.");
 
@@ -279,7 +279,13 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     scheduled_bypass_frame = bypass_buf;
     bypassed = true;
 
-    if (outputs.size() == 1)  // Clone mode triple buffers to avoid stutter
+    /*
+     * Single output modes should throttle the compositor loop to minimize
+     * latency (double buffered pattern). Clone mode however needs triple
+     * buffers (defer finish_previous_frame) to keep up as it waits for
+     * multiple displays' vsyncs per frame...
+     */
+    if (outputs.size() == 1)
         finish_previous_frame();
 
     return true;
@@ -301,7 +307,13 @@ void mgm::DisplayBuffer::post_egl()
 
     scheduled_composite_frame = bufobj;
 
-    if (outputs.size() == 1)  // Clone mode triple buffers to avoid stutter
+    /*
+     * Single output modes should throttle the compositor loop to minimize
+     * latency (double buffered pattern). Clone mode however needs triple
+     * buffers (defer finish_previous_frame) to keep up as it waits for
+     * multiple displays' vsyncs per frame...
+     */
+    if (outputs.size() == 1)
         finish_previous_frame();
 }
 
