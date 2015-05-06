@@ -76,7 +76,7 @@ private:
     BufferObject* get_front_buffer_object();
     BufferObject* get_buffer_object(struct gbm_bo *bo);
     bool schedule_page_flip(BufferObject* bufobj);
-    void finish_previous_frame();
+    void finish_scheduled_frame();
     bool post_bypass(graphics::Renderable const&);
     void post_egl();
     void set_crtc(BufferObject const&);

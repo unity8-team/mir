@@ -221,7 +221,7 @@ void mgm::DisplayBuffer::gl_swap_buffers()
         fatal_error("Failed to perform buffer swap");
 }
 
-void mgm::DisplayBuffer::finish_previous_frame()
+void mgm::DisplayBuffer::finish_scheduled_frame()
 {
     /*
      * We might not have waited for the previous frame to page flip yet.
@@ -253,7 +253,7 @@ void mgm::DisplayBuffer::post()
 
 bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
 {
-    finish_previous_frame();
+    finish_scheduled_frame();
 
     bool use_adaptive_wait = (outputs.size() == 1);
     if (use_adaptive_wait)
@@ -264,7 +264,7 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
         single->adaptive_wait();
     }
 
-    // Important: Don't acquire the bypass_buf before finish_previous_frame()
+    // Important: Don't acquire the bypass_buf before finish_scheduled_frame()
     auto bypass_buf = renderable.buffer();
 
     // Test for any latency performance regression...
@@ -291,18 +291,18 @@ bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
     /*
      * Single output modes should throttle the compositor loop to minimize
      * latency (double buffered pattern). Clone mode however needs triple
-     * buffers (defer finish_previous_frame) to keep up as it waits for
+     * buffers (defer finish_scheduled_frame) to keep up as it waits for
      * multiple displays' vsyncs per frame...
      */
     if (outputs.size() == 1)
-        finish_previous_frame();
+        finish_scheduled_frame();
 
     return true;
 }
 
 void mgm::DisplayBuffer::post_egl()
 {
-    finish_previous_frame();
+    finish_scheduled_frame();
 
     mgm::BufferObject *bufobj = get_front_buffer_object();
     if (!bufobj)
@@ -319,11 +319,11 @@ void mgm::DisplayBuffer::post_egl()
     /*
      * Single output modes should throttle the compositor loop to minimize
      * latency (double buffered pattern). Clone mode however needs triple
-     * buffers (defer finish_previous_frame) to keep up as it waits for
+     * buffers (defer finish_scheduled_frame) to keep up as it waits for
      * multiple displays' vsyncs per frame...
      */
     if (outputs.size() == 1)
-        finish_previous_frame();
+        finish_scheduled_frame();
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
