@@ -1,3 +1,9 @@
+qtmir-gles (0.4.4+15.04.20150505-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Alan Griffiths <alan@Octopull-desktop>  Wed, 06 May 2015 11:58:48 +0100
+
 qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) vivid; urgency=medium
 
   [ Michał Sawicz ]
