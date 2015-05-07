@@ -3600,10 +3600,10 @@ Thomas Voss
       </p>
       <CODE_SNIPPET>
         // When it requires multiple lines, indent 4 spaces, putting the colon on
-        // the constructor declaration line and commas at the end of the line.
-        MyClass::MyClass(int var) :
-            some_var_(var),            // 4 space indent
-            some_other_var_(var + 1)
+        // the first initializer line and commas at the end of the line.
+        MyClass::MyClass(int var)
+            : some_var_(var),            // 4 space indent
+              some_other_var_(var + 1)
         {
             ...
             do_something();
