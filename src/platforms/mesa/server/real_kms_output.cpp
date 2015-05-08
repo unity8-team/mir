@@ -16,7 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#define MIR_LOG_COMPONENT "RealKMSOutput"
 #include "mir/log.h"
 #include "real_kms_output.h"
 #include "page_flipper.h"

@@ -1,3 +1,4 @@
+add_definitions(-DMIR_LOG_COMPONENT_FALLBACK="mirplatformmesa")
 set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
 
 configure_file(
