@@ -80,14 +80,14 @@ public:
         return !rectangular;
     }
 
-    void set_buffer(std::weak_ptr<graphics::Buffer> b)
+    void set_buffer(std::shared_ptr<graphics::Buffer> b)
     {
         buf = b;
     }
 
     std::shared_ptr<graphics::Buffer> buffer() const override
     {
-        return buf.lock();
+        return buf;
     }
 
     geometry::Rectangle screen_position() const override
@@ -96,7 +96,7 @@ public:
     }
 
 private:
-    std::weak_ptr<graphics::Buffer> buf;
+    std::shared_ptr<graphics::Buffer> buf;
     mir::geometry::Rectangle rect;
     float opacity;
     bool rectangular;
