@@ -1,10 +1,11 @@
-qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) vivid; urgency=medium
 
+  [ Michał Sawicz ]
   * Sync with upstream
   * wrap-and-sort
   * New build dependencies: libqtdbusmock1-dev, libqtdbustest1-dev
 
- -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 18 Mar 2015 10:56:50 +0100
+ -- CI Train Bot <ci-train-bot@canonical.com>  Wed, 18 Mar 2015 10:52:48 +0000
 
 qtmir-gles (0.4.4+15.04.20150317-0ubuntu2) vivid; urgency=medium
 
