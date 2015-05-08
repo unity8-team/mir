@@ -178,13 +178,6 @@ public:
                 for (auto& compositor : compositors)
                 {
                     target.ensure_current(std::get<0>(compositor));
-                    //
-                    // FIXME: This is snapshotting the scene almost a frame
-                    //        too early, causing visible lag in surface
-                    //        positions (because it copies the surface rect
-                    //        out of BasicSurface and into Renderable before
-                    //        going to sleep).
-                    //
                     std::get<1>(compositor)->composite(scene->scene_elements_for(comp_id));
                 }
                 group.post();
