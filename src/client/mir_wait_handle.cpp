@@ -74,3 +74,9 @@ void MirWaitHandle::wait_for_one()  // wait for any single result
     --expecting;
 }
 
+bool MirWaitHandle::ready()
+{
+    std::lock_guard<std::mutex> lock{guard};
+
+    return received == expecting;
+}

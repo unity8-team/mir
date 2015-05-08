@@ -39,6 +39,7 @@ public:
     void wait_for_all();
     void wait_for_one();
     void wait_for_pending(std::chrono::milliseconds limit);
+    bool ready();
 
 private:
     std::mutex guard;

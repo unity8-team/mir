@@ -39,6 +39,7 @@
 #include <unordered_set>
 #include <cstddef>
 #include <cstring>
+#include <poll.h>
 
 namespace mcl = mir::client;
 
@@ -98,7 +99,20 @@ public:
             try
             {
                 auto wait_handle = connection->disconnect();
-                wait_handle->wait_for_all();
+                if (connection->watch_fd() != mir::Fd::invalid)
+                {
+                    pollfd fd;
+                    fd.fd = connection->watch_fd();
+                    fd.events = POLLIN;
+                    while(!wait_handle->ready() && (poll(&fd, 1, -1) > 0))
+                    {
+                        connection->dispatch();
+                    }
+                }
+                else
+                {
+                    wait_handle->wait_for_all();
+                }
             }
             catch (std::exception const& ex)
             {
