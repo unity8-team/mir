@@ -98,7 +98,6 @@ mgm::DisplayBuffer::DisplayBuffer(
     EGLContext shared_context)
     : visible_composite_frame{nullptr},
       scheduled_composite_frame{nullptr},
-      bypassed{false},
       platform(platform),
       listener(listener),
       drm(*platform->drm),
@@ -144,7 +143,7 @@ mgm::DisplayBuffer::DisplayBuffer(
     if (!scheduled_composite_frame)
         fatal_error("Failed to get frontbuffer");
 
-    set_crtc(*scheduled_composite_frame);
+    set_crtc(scheduled_composite_frame);
 
     egl.release_current();
 
@@ -201,8 +200,23 @@ bool mgm::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
         auto bypass_it = std::find_if(renderable_list.rbegin(), renderable_list.rend(), bypass_match);
         if (bypass_it != renderable_list.rend())
         {
-            auto& renderable = **bypass_it;
-            return post_bypass(renderable);
+            auto bypass_buffer = (*bypass_it)->buffer();
+            auto native = bypass_buffer->native_buffer_handle();
+            auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
+            auto bufobj = get_buffer_object(gbm_native->bo);
+            if (bufobj &&
+                native->flags & mir_buffer_flag_can_scanout &&
+                bypass_buffer->size() == geom::Size{fb_width,fb_height})
+            {
+                bypass_buf = bypass_buffer;
+                bypass_bufobj = bufobj;
+                return true;
+            }
+            else
+            {
+                bypass_buf = nullptr;
+                bypass_bufobj = nullptr;
+            }
         }
     }
 
@@ -219,9 +233,20 @@ void mgm::DisplayBuffer::gl_swap_buffers()
 {
     if (!egl.swap_buffers())
         fatal_error("Failed to perform buffer swap");
+    bypass_buf = nullptr;
+    bypass_bufobj = nullptr;
 }
 
-void mgm::DisplayBuffer::finish_scheduled_frame()
+void mgm::DisplayBuffer::set_crtc(BufferObject const* forced_frame)
+{
+    for (auto& output : outputs)
+    {
+        if (!output->set_crtc(forced_frame->get_drm_fb_id()))
+            fatal_error("Failed to set DRM CRTC");
+    }
+}
+
+void mgm::DisplayBuffer::post()
 {
     /*
      * We might not have waited for the previous frame to page flip yet.
@@ -231,99 +256,62 @@ void mgm::DisplayBuffer::finish_scheduled_frame()
      */
     wait_for_page_flip();
 
-    // Make sure we hold a reference to some visible framebuffer always.
-    // Ideally only one most of the time.
-    if (scheduled_bypass_frame || scheduled_composite_frame)
+    mgm::BufferObject *bufobj;
+    if (bypass_buf)
     {
-        visible_bypass_frame = scheduled_bypass_frame;
-        scheduled_bypass_frame = nullptr;
-    
-        if (visible_composite_frame)
-            visible_composite_frame->release();
-        visible_composite_frame = scheduled_composite_frame;
-        scheduled_composite_frame = nullptr;
+        bufobj = bypass_bufobj;
     }
-}
-
-void mgm::DisplayBuffer::post()
-{
-    if (!bypassed)
-        post_egl();
-}
-
-bool mgm::DisplayBuffer::post_bypass(graphics::Renderable const& renderable)
-{
-    finish_scheduled_frame();
-
-    bool use_adaptive_wait = (outputs.size() == 1);
-    if (use_adaptive_wait)
+    else
     {
-        auto& single = outputs.front();
-        if (!visible_bypass_frame)
-            single->reset_adaptive_wait();
-        single->adaptive_wait();
+        bufobj = get_front_buffer_object();
+        if (!bufobj)
+            fatal_error("Failed to get front buffer object");
     }
-
-    // Important: Don't acquire the bypass_buf before finish_scheduled_frame()
-    auto bypass_buf = renderable.buffer();
-
-    // Test for any latency performance regression...
-    if (outputs.size() == 1 && bypass_buf.use_count() > 2)
-        fatal_error("Bypass renderable's buffer() was acquired too early.");
-
-    auto native = bypass_buf->native_buffer_handle();
-    auto gbm_native = static_cast<mgm::GBMNativeBuffer*>(native.get());
-    auto bufobj = get_buffer_object(gbm_native->bo);
-    if (!bufobj ||
-        !(native->flags & mir_buffer_flag_can_scanout) ||
-        bypass_buf->size() != geom::Size{fb_width,fb_height})
-    {
-        // Bypass failed. Fall back to GL.
-        return false;
-    }
-
-    if (!schedule_page_flip(bufobj))
-        fatal_error("Failed to schedule bypass page flip");
-
-    scheduled_bypass_frame = bypass_buf;
-    bypassed = true;
 
     /*
-     * Single output modes should throttle the compositor loop to minimize
-     * latency (double buffered pattern). Clone mode however needs triple
-     * buffers (defer finish_scheduled_frame) to keep up as it waits for
-     * multiple displays' vsyncs per frame...
+     * Schedule the current front buffer object for display, and wait
+     * for it to be actually displayed (flipped).
+     *
+     * If the flip fails, release the buffer object to make it available
+     * for future rendering.
      */
-    if (outputs.size() == 1)
-        finish_scheduled_frame();
-
-    return true;
-}
-
-void mgm::DisplayBuffer::post_egl()
-{
-    finish_scheduled_frame();
-
-    mgm::BufferObject *bufobj = get_front_buffer_object();
-    if (!bufobj)
-        fatal_error("Failed to get front buffer object");
-
-    if (!schedule_page_flip(bufobj))
+    if (!needs_set_crtc && !schedule_page_flip(bufobj))
     {
-        bufobj->release();
-        fatal_error("Failed to schedule EGL page flip");
+        if (!bypass_buf)
+            bufobj->release();
+        fatal_error("Failed to schedule page flip");
+    }
+    else if (needs_set_crtc)
+    {
+        set_crtc(bufobj);
+        needs_set_crtc = false;
     }
 
-    scheduled_composite_frame = bufobj;
-
-    /*
-     * Single output modes should throttle the compositor loop to minimize
-     * latency (double buffered pattern). Clone mode however needs triple
-     * buffers (defer finish_scheduled_frame) to keep up as it waits for
-     * multiple displays' vsyncs per frame...
-     */
-    if (outputs.size() == 1)
-        finish_scheduled_frame();
+    if (bypass_buf)
+    {
+        /*
+         * For composited frames we defer wait_for_page_flip till just before
+         * the next frame, but not for bypass frames. Deferring the flip of
+         * bypass frames would increase the time we held
+         * visible_bypass_frame unacceptably, resulting in client stuttering
+         * unless we allocate more buffers (which I'm trying to avoid).
+         * Also, bypass does not need the deferred page flip because it has
+         * no compositing/rendering step for which to save time for.
+         */
+        scheduled_bypass_frame = bypass_buf;
+        wait_for_page_flip();
+    }
+    else
+    {
+        /*
+         * Not in clone mode? We can afford to wait for the page flip then,
+         * making us double-buffered (noticeably less laggy than the triple
+         * buffering that clone mode requires).
+         */
+        scheduled_composite_frame = bufobj;
+        if (outputs.size() == 1)
+            wait_for_page_flip();
+    }
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
@@ -379,24 +367,9 @@ mgm::BufferObject* mgm::DisplayBuffer::get_buffer_object(
     return bufobj;
 }
 
-void mgm::DisplayBuffer::set_crtc(BufferObject const& bufobj)
-{
-    for (auto& output : outputs)
-    {
-        if (!output->set_crtc(bufobj.get_drm_fb_id()))
-            fatal_error("Failed to set DRM CRTC");
-    }
-    needs_set_crtc = false;
-}
 
 bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 {
-    if (needs_set_crtc)
-    {
-        set_crtc(*bufobj);
-        return true;
-    }
-
     /*
      * Schedule the current front buffer object for display. Note that
      * the page flip is asynchronous and synchronized with vertical refresh.
@@ -412,12 +385,36 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 
 void mgm::DisplayBuffer::wait_for_page_flip()
 {
+    bool waited = page_flips_pending;
+
     if (page_flips_pending)
     {
         for (auto& output : outputs)
             output->wait_for_page_flip();
 
         page_flips_pending = false;
+    }
+
+    if (scheduled_bypass_frame || scheduled_composite_frame)
+    {
+        // Why are both of these grouped into a single statement?
+        // Because in either case both types of frame need releasing each time.
+
+        visible_bypass_frame = scheduled_bypass_frame;
+        scheduled_bypass_frame = nullptr;
+    
+        if (visible_composite_frame)
+            visible_composite_frame->release();
+        visible_composite_frame = scheduled_composite_frame;
+        scheduled_composite_frame = nullptr;
+    }
+
+    if (waited && outputs.size() == 1)
+    {
+         auto& single = outputs.front();
+         // TODO:
+         //single->reset_adaptive_wait();
+         single->adaptive_wait();
     }
 }
 
@@ -427,19 +424,6 @@ void mgm::DisplayBuffer::make_current()
     {
         fatal_error("Failed to make EGL surface current");
     }
-
-    // To be effective, this needs to be done before rendering starts:
-    if (outputs.size() == 1)
-    {
-        auto& single = outputs.front();
-        if (visible_bypass_frame)
-            single->reset_adaptive_wait();
-        single->adaptive_wait();
-    }
-
-    // A compositor might not even call post_renderables_if_optimizable,
-    // so make sure the flag is correct in that case:
-    bypassed = false;
 }
 
 void mgm::DisplayBuffer::release_current()
