@@ -1,3 +1,9 @@
+qtmir-gles (0.4.4+15.04.20150511.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Gerry Boland <gerry.boland@canonical.com>  Mon, 11 May 2015 11:58:26 +0100
+
 qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) vivid; urgency=medium
 
   [ Michał Sawicz ]
