@@ -1,8 +1,8 @@
-qtmir-gles (0.4.4+15.04.20150508.1-0ubuntu1) vivid; urgency=medium
+qtmir-gles (0.4.4+15.04.20150511-0ubuntu1) vivid; urgency=medium
 
   * Sync with upstream
 
- -- Gerry Boland <gerry.boland@canonical.com>  Fri, 08 May 2015 11:58:26 +0100
+ -- Gerry Boland <gerry.boland@canonical.com>  Mon, 11 May 2015 11:58:26 +0100
 
 qtmir-gles (0.4.4+15.04.20150318-0ubuntu1) vivid; urgency=medium
 
