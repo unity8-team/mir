@@ -1,4 +1,4 @@
-MIR_CLIENT_8 {
+MIR_CLIENT_9 {
  global:
     mir_arrow_cursor_name;
     mir_busy_cursor_name;
@@ -81,10 +81,6 @@ MIR_CLIENT_8 {
     mir_vsplit_resize_cursor_name;
     mir_wait_for;
     mir_wait_for_one;
- local: *;
-};
-MIR_CLIENT_8.1 {
- global:
     mir_connection_create_spec_for_normal_surface;
     mir_surface_create;
     mir_surface_create_sync;
@@ -94,25 +90,15 @@ MIR_CLIENT_8.1 {
     mir_surface_spec_set_name;
     mir_surface_spec_set_pixel_format;
     mir_surface_spec_set_width;
-} MIR_CLIENT_8;
-
-MIR_CLIENT_8.2 {
- global:
     mir_surface_get_preferred_orientation;
     mir_surface_set_preferred_orientation;
     mir_surface_spec_set_preferred_orientation;
-} MIR_CLIENT_8.1;
-
-MIR_CLIENT_8.3 {   # New in Mir 0.11
- global:
+# New in Mir 0.11
     mir_connection_create_spec_for_dialog;
     mir_connection_create_spec_for_menu;
     mir_connection_create_spec_for_tooltip;
     mir_connection_platform_operation;
-} MIR_CLIENT_8.2;
-
-MIR_CLIENT_8.4 {   # New in Mir 0.13
- global:
+# New in Mir 0.13
     mir_connection_create_spec_for_changes;
     mir_surface_apply_spec;
     mir_surface_set_event_handler;
@@ -196,9 +182,9 @@ MIR_CLIENT_8.4 {   # New in Mir 0.13
     mir_buffer_stream_release;
     mir_buffer_stream_release_sync;
     mir_buffer_stream_is_valid;
-} MIR_CLIENT_8.3;
+};
 
-MIR_CLIENT_DETAIL_8 {
+MIR_CLIENT_DETAIL_9 {  # Why not put this in MIR_CLIENT_9?
   global:
     extern "C++" { 
       mir::events::make_event*;
