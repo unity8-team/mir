@@ -46,6 +46,7 @@ void mir_wait_for(MirWaitHandle *wait_handle);
  */
 void mir_wait_for_one(MirWaitHandle *wait_handle);
 
+bool mir_wait_handle_ready(MirWaitHandle* wait_handle);
 
 #ifdef __cplusplus
 }

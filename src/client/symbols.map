@@ -199,6 +199,7 @@ MIR_CLIENT_8.4 {   # New in Mir 0.13
     mir_connect_with_manual_dispatch;
     mir_connection_get_event_fd;
     mir_connection_dispatch;
+    mir_wait_handle_ready;
 } MIR_CLIENT_8.3;
 
 MIR_CLIENT_DETAIL_8 {

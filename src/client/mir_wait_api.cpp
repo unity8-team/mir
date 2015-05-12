@@ -30,3 +30,12 @@ void mir_wait_for_one(MirWaitHandle* wait_handle)
     if (wait_handle)
         wait_handle->wait_for_one();
 }
+
+bool mir_wait_handle_ready(MirWaitHandle* wait_handle)
+{
+    if (wait_handle)
+    {
+        return wait_handle->ready();
+    }
+    return true;
+}
