@@ -26,6 +26,8 @@
 
 #include <mutex>
 
+#include "rpc/mir_protobuf_rpc_channel.h"
+
 #include "mir_protobuf.pb.h"
 
 #include "mir_toolkit/mir_client_library.h"
@@ -53,10 +55,6 @@ class DisplayConfiguration;
 class LifecycleControl;
 class EventHandlerRegister;
 
-namespace rpc
-{
-class MirBasicRpcChannel;
-}
 }
 
 namespace input
@@ -157,6 +155,7 @@ public:
     mir::protobuf::DisplayServer& display_server();
     std::shared_ptr<mir::logging::Logger> const& the_logger() const;
 
+    void process_next_request_first();
 private:
     void populate_server_package(MirPlatformPackage& platform_package) override;
     // MUST be first data member so it is destroyed last.
@@ -169,7 +168,7 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
-    std::shared_ptr<google::protobuf::RpcChannel> const channel;
+    std::shared_ptr<mir::client::rpc::MirProtobufRpcChannel> const channel;
     mir::protobuf::DisplayServer::Stub server;
     mir::protobuf::Debug::Stub debug;
     std::shared_ptr<mir::logging::Logger> const logger;

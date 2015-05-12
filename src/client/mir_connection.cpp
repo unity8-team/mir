@@ -24,6 +24,7 @@
 #include "mir/client_platform.h"
 #include "mir/client_platform_factory.h"
 #include "rpc/mir_basic_rpc_channel.h"
+#include "rpc/mir_protobuf_rpc_channel.h"
 #include "mir/dispatch/dispatchable.h"
 #include "mir/dispatch/multiplexing_dispatchable.h"
 #include "mir/dispatch/threaded_dispatcher.h"
@@ -44,6 +45,7 @@
 #include <boost/exception/diagnostic_information.hpp>
 
 namespace mcl = mir::client;
+namespace mclr = mir::client::rpc;
 namespace md = mir::dispatch;
 namespace mircv = mir::input::receiver;
 namespace mev = mir::events;
@@ -109,7 +111,7 @@ MirConnection::MirConnection(mir::client::ConnectionConfiguration& conf) :
 MirConnection::MirConnection(
     mir::client::ConnectionConfiguration& conf, DispatchType dispatch) :
         deregisterer{this},
-        channel(conf.the_rpc_channel()),
+        channel{std::dynamic_pointer_cast<mclr::MirProtobufRpcChannel>(conf.the_rpc_channel())},
         server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         debug(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         logger(conf.the_logger()),
@@ -120,7 +122,7 @@ MirConnection::MirConnection(
         lifecycle_control(conf.the_lifecycle_control()),
         surface_map(conf.the_surface_map()),
         event_handler_register(conf.the_event_handler_register()),
-        dispatcher{std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{std::dynamic_pointer_cast<md::Dispatchable>(channel)})},
+        dispatcher{std::shared_ptr<md::MultiplexingDispatchable>(new md::MultiplexingDispatchable{channel})},
         eventloop{dispatch == DispatchType::automatic ?
                       new md::ThreadedDispatcher{"I/O loop", dispatcher} :
                       nullptr
@@ -608,4 +610,9 @@ mir::protobuf::DisplayServer& MirConnection::display_server()
 std::shared_ptr<mir::logging::Logger> const& MirConnection::the_logger() const
 {
     return logger;
+}
+
+void MirConnection::process_next_request_first()
+{
+    channel->process_next_request_first();
 }
