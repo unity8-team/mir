@@ -845,12 +845,8 @@ namespace
 struct ThreadTrackingCallbacks
 {
     ThreadTrackingCallbacks()
+        : client_thread{pthread_self()}
     {
-    }
-
-    void current_thread_is_event_thread()
-    {
-        client_thread = pthread_self();
     }
 
     static void connection_ready(MirConnection* /*connection*/, void* ctx)
@@ -888,7 +884,7 @@ struct ThreadTrackingCallbacks
         data->buffers_swapped.raise();
     }
 
-    pthread_t client_thread{0};
+    pthread_t const client_thread;
     MirSurface* surf{nullptr};
     mt::Signal buffers_swapped;
     mt::Signal connection_ready_called;
@@ -914,51 +910,29 @@ void pump_eventloop_until(MirConnection* connection, std::function<bool()> predi
         BOOST_THROW_EXCEPTION((std::runtime_error{"Timeout waiting for state change"}));
     }
 }
-
-class EventDispatchThread
-{
-public:
-    template<typename Period, typename Rep>
-    EventDispatchThread(MirConnection* connection,
-                        ThreadTrackingCallbacks& data,
-                        std::chrono::duration<Period, Rep> timeout)
-        : runner{[this]() { shutdown.raise(); },
-                 [this, connection, &data, timeout]()
-                 {
-                     using namespace std::literals::chrono_literals;
-
-                     data.current_thread_is_event_thread();
-
-                     auto const end_time = std::chrono::steady_clock::now() + timeout;
-
-                     pump_eventloop_until(connection, [this]() { return shutdown.raised(); }, end_time);
-                     mir_connection_release(connection);
-                 }
-                }
-    {
-    }
-
-private:
-    mt::Signal shutdown;
-    mt::AutoUnblockThread runner;
-};
-
 }
 
 TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
 {
     using namespace std::literals::chrono_literals;
 
+    auto const test_timeout = std::chrono::steady_clock::now() + 10min;
+
     ThreadTrackingCallbacks data;
 
     auto connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    EventDispatchThread event_thread{connection, data, 10min};
 
-    EXPECT_TRUE(data.connection_ready_called.wait_for(5min));
+    pump_eventloop_until(
+        connection,
+        [&data]()
+    {
+        return data.connection_ready_called.raised();
+    },
+        test_timeout);
+
     ASSERT_THAT(connection, IsValid());
-
 
     auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
                                                                       233, 355,
@@ -968,17 +942,30 @@ TEST_F(ClientLibrary, manual_dispatch_handles_callbacks_in_parent_thread)
                                       &data);
     mir_surface_spec_release(surface_spec);
 
-    mir_wait_for(surf_wh);
+    pump_eventloop_until(
+        connection,
+        [surf_wh]()
+    {
+        return mir_wait_handle_ready(surf_wh);
+    },
+        test_timeout);
+
     EXPECT_THAT(data.surf, IsValid());
 
     auto buffer_stream = mir_surface_get_buffer_stream(data.surf);
     auto swap_wh = mir_buffer_stream_swap_buffers(buffer_stream, ThreadTrackingCallbacks::swap_buffers_complete, &data);
 
-    mir_wait_for(swap_wh);
+    pump_eventloop_until(
+        connection,
+        [swap_wh]()
+    {
+        return mir_wait_handle_ready(swap_wh);
+    },
+        test_timeout);
     EXPECT_TRUE(data.buffers_swapped.raised());
 
     mir_surface_release_sync(data.surf);
-    // EventDispatchThread releases the connection for us.
+    mir_connection_release(connection);
 }
 
 TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
@@ -986,14 +973,22 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     using namespace testing;
     using namespace std::literals::chrono_literals;
 
+    auto const test_timeout = std::chrono::steady_clock::now() + 10min;
+
     ThreadTrackingCallbacks data;
 
     connection = mir_connect_with_manual_dispatch(new_connection().c_str(), __PRETTY_FUNCTION__, &ThreadTrackingCallbacks::connection_ready, &data);
 
     ASSERT_THAT(connection, Ne(nullptr));
-    EventDispatchThread event_thread{connection, data, 10min};
 
-    EXPECT_TRUE(data.connection_ready_called.wait_for(5min));
+    pump_eventloop_until(
+        connection,
+        [&data]()
+    {
+        return data.connection_ready_called.raised();
+    },
+        test_timeout);
+
     ASSERT_THAT(connection, IsValid());
 
     auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
@@ -1005,7 +1000,14 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
     mir_surface_spec_release(surface_spec);
 
 
-    mir_wait_for(surf_wh);
+    pump_eventloop_until(
+        connection,
+        [surf_wh]()
+    {
+        return mir_wait_handle_ready(surf_wh);
+    },
+        test_timeout);
+
     EXPECT_THAT(data.surf, IsValid());
 
     // We need to swap buffers so that the surface is fully realised and
@@ -1017,16 +1019,28 @@ TEST_F(ClientLibrary, manual_dispatch_handles_events_in_parent_thread)
 
     mir_surface_set_state(data.surf, mir_surface_state_fullscreen);
 
-    EXPECT_TRUE(data.event_received.wait_for(5min));
+    pump_eventloop_until(
+        connection,
+        [&data]()
+    {
+        return data.event_received.raised();
+    },
+        test_timeout);
 
     ASSERT_THAT(mir_surface_get_focus(data.surf), Eq(mir_surface_focused));
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 
-    EXPECT_TRUE(data.input_event_received.wait_for(5min));
+    pump_eventloop_until(
+        connection,
+        [&data]()
+    {
+        return data.input_event_received.raised();
+    },
+        test_timeout);
 
     mir_surface_release_sync(data.surf);
-    // EventDispatchThread releases the connection for us.
+    mir_connection_release(connection);
 }
 
 namespace
