@@ -223,6 +223,11 @@ bool MirSurface::is_valid(MirSurface* query)
     return false;
 }
 
+MirConnection* MirSurface::get_connection() const
+{
+    return connection;
+}
+
 MirWaitHandle* MirSurface::get_create_wait_handle()
 {
     return &create_wait_handle;

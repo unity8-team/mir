@@ -153,6 +153,8 @@ public:
     MirWaitHandle* modify(MirSurfaceSpec const& changes);
 
     static bool is_valid(MirSurface* query);
+
+    MirConnection* get_connection() const;
 private:
     mutable std::mutex mutex; // Protects all members of *this
 
