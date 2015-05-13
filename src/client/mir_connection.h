@@ -26,7 +26,7 @@
 
 #include <mutex>
 
-#include "rpc/mir_protobuf_rpc_channel.h"
+#include "rpc/mir_basic_rpc_channel.h"
 
 #include "mir_protobuf.pb.h"
 
@@ -168,7 +168,7 @@ private:
 
     std::mutex mutex; // Protects all members of *this (except release_wait_handles)
 
-    std::shared_ptr<mir::client::rpc::MirProtobufRpcChannel> const channel;
+    std::shared_ptr<mir::client::rpc::MirBasicRpcChannel> const channel;
     mir::protobuf::DisplayServer::Stub server;
     mir::protobuf::Debug::Stub debug;
     std::shared_ptr<mir::logging::Logger> const logger;

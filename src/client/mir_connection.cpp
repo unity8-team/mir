@@ -111,7 +111,7 @@ MirConnection::MirConnection(mir::client::ConnectionConfiguration& conf) :
 MirConnection::MirConnection(
     mir::client::ConnectionConfiguration& conf, DispatchType dispatch) :
         deregisterer{this},
-        channel{std::dynamic_pointer_cast<mclr::MirProtobufRpcChannel>(conf.the_rpc_channel())},
+        channel{conf.the_rpc_channel()},
         server(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         debug(channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL),
         logger(conf.the_logger()),

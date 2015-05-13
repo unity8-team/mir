@@ -85,7 +85,7 @@ mcl::DefaultConnectionConfiguration::the_surface_map()
         });
 }
 
-std::shared_ptr<google::protobuf::RpcChannel>
+std::shared_ptr<mcl::rpc::MirBasicRpcChannel>
 mcl::DefaultConnectionConfiguration::the_rpc_channel()
 {
     return rpc_channel(

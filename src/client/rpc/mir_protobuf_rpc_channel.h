@@ -51,8 +51,7 @@ class RpcReport;
 
 class MirProtobufRpcChannel :
         public MirBasicRpcChannel,
-        public StreamTransport::Observer,
-        public dispatch::Dispatchable
+        public StreamTransport::Observer
 {
 public:
     MirProtobufRpcChannel(std::unique_ptr<StreamTransport> transport,
@@ -85,7 +84,7 @@ public:
      *
      * No messages are discarded, only delayed.
      */
-    void process_next_request_first();
+    void process_next_request_first() override;
 private:
     virtual void CallMethod(const google::protobuf::MethodDescriptor* method, google::protobuf::RpcController*,
         const google::protobuf::Message* parameters, google::protobuf::Message* response,

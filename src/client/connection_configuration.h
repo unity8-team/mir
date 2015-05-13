@@ -49,13 +49,18 @@ class LifecycleControl;
 class EventSink;
 class EventHandlerRegister;
 
+namespace rpc
+{
+class MirBasicRpcChannel;
+}
+
 class ConnectionConfiguration
 {
 public:
     virtual ~ConnectionConfiguration() = default;
 
     virtual std::shared_ptr<ConnectionSurfaceMap> the_surface_map() = 0;
-    virtual std::shared_ptr<google::protobuf::RpcChannel> the_rpc_channel() = 0;
+    virtual std::shared_ptr<rpc::MirBasicRpcChannel> the_rpc_channel() = 0;
     virtual std::shared_ptr<mir::logging::Logger> the_logger() = 0;
     virtual std::shared_ptr<ClientPlatformFactory> the_client_platform_factory() = 0;
     virtual std::shared_ptr<input::receiver::InputPlatform> the_input_platform() = 0;

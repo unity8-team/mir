@@ -20,8 +20,6 @@
 
 #include <memory>
 
-namespace google { namespace protobuf { class RpcChannel; } }
-
 namespace mir
 {
 namespace client
@@ -34,8 +32,9 @@ class EventSink;
 namespace rpc
 {
 class RpcReport;
+class MirBasicRpcChannel;
 
-std::shared_ptr<google::protobuf::RpcChannel>
+std::shared_ptr<MirBasicRpcChannel>
 make_rpc_channel(std::string const& name,
                  std::shared_ptr<SurfaceMap> const& map,
                  std::shared_ptr<DisplayConfiguration> const& disp_conf,

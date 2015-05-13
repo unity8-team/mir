@@ -19,6 +19,8 @@
 #ifndef MIR_CLIENT_RPC_MIR_BASIC_RPC_CHANNEL_H_
 #define MIR_CLIENT_RPC_MIR_BASIC_RPC_CHANNEL_H_
 
+#include "mir/dispatch/dispatchable.h"
+
 #include <google/protobuf/service.h>
 #include <google/protobuf/descriptor.h>
 
@@ -90,12 +92,15 @@ private:
 };
 }
 
-class MirBasicRpcChannel : public google::protobuf::RpcChannel
+class MirBasicRpcChannel
+    : public google::protobuf::RpcChannel,
+      public mir::dispatch::Dispatchable
 {
 public:
     MirBasicRpcChannel();
     ~MirBasicRpcChannel();
 
+    virtual void process_next_request_first() = 0;
 protected:
     mir::protobuf::wire::Invocation invocation_for(
         google::protobuf::MethodDescriptor const* method,

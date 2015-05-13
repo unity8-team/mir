@@ -59,8 +59,7 @@ namespace mt = mir::test;
 namespace
 {
 
-struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel,
-                        public mir::dispatch::Dispatchable
+struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel
 {
     MockRpcChannel()
     {
@@ -94,14 +93,18 @@ struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel,
         complete->Run();
     }
 
+    // MirBasicRpcChannel
+    MOCK_METHOD0(process_next_request_first,void());
+
+    // Dispatchable
+    MOCK_CONST_METHOD0(watch_fd, mir::Fd());
+    MOCK_METHOD1(dispatch, bool(md::FdEvents));
+    MOCK_CONST_METHOD0(relevant_events, md::FdEvents());
+
     MOCK_METHOD2(connect, void(mp::ConnectParameters const*,mp::Connection*));
     MOCK_METHOD1(configure_display_sent, void(mp::DisplayConfiguration const*));
     MOCK_METHOD2(platform_operation,
                  void(mp::PlatformOperationMessage const*, mp::PlatformOperationMessage*));
-
-    MOCK_CONST_METHOD0(watch_fd, mir::Fd());
-    MOCK_METHOD1(dispatch, bool(md::FdEvents));
-    MOCK_CONST_METHOD0(relevant_events, md::FdEvents());
 
     void trigger()
     {
@@ -192,7 +195,7 @@ public:
     {
     }
 
-    std::shared_ptr<::google::protobuf::RpcChannel> the_rpc_channel() override
+    std::shared_ptr<mcl::rpc::MirBasicRpcChannel> the_rpc_channel() override
     {
         return channel;
     }
