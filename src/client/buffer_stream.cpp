@@ -87,13 +87,16 @@ void populate_buffer_package(
 // TODO: It seems like a bit of a wart that we have to pass the Logger specifically here...perhaps
 // due to the lack of an easily mockable client configuration interface (passing around
 // connection can complicate unit tests ala MirSurface and test_client_mir_surface.cpp)
-mcl::BufferStream::BufferStream(mp::DisplayServer& server,
+mcl::BufferStream::BufferStream(
+    MirConnection* allocating_connection,
+    mp::DisplayServer& server,
     mcl::BufferStreamMode mode,
     std::shared_ptr<mcl::ClientPlatform> const& client_platform,
     mp::BufferStream const& protobuf_bs,
     std::shared_ptr<mcl::PerfReport> const& perf_report,
     std::string const& surface_name)
-    : display_server(server),
+    : connection{allocating_connection},
+      display_server(server),
       mode(mode),
       client_platform(client_platform),
       protobuf_bs(protobuf_bs),
@@ -106,13 +109,16 @@ mcl::BufferStream::BufferStream(mp::DisplayServer& server,
     perf_report->name_surface(surface_name.c_str());
 }
 
-mcl::BufferStream::BufferStream(mp::DisplayServer& server,
+mcl::BufferStream::BufferStream(
+    MirConnection* allocating_connection,
+    mp::DisplayServer& server,
     std::shared_ptr<mcl::ClientPlatform> const& client_platform,
     mp::BufferStreamParameters const& parameters,
     std::shared_ptr<mcl::PerfReport> const& perf_report,
     mir_buffer_stream_callback callback,
     void *context)
-    : display_server(server),
+    : connection{allocating_connection},
+      display_server(server),
       mode(BufferStreamMode::Producer),
       client_platform(client_platform),
       buffer_depository{client_platform->create_buffer_factory(), mir::frontend::client_buffer_cache_size},
@@ -402,4 +408,9 @@ bool mcl::BufferStream::valid() const
 void mcl::BufferStream::set_buffer_cache_size(unsigned int cache_size)
 {
     buffer_depository.set_max_buffers(cache_size);
+}
+
+MirConnection* mcl::BufferStream::get_connection() const
+{
+    return connection;
 }

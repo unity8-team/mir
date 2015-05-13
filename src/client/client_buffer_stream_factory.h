@@ -25,6 +25,8 @@
 
 #include <memory>
 
+class MirConnection;
+
 namespace mir
 {
 namespace client
@@ -34,13 +36,21 @@ class BufferStream;
 class ClientBufferStreamFactory
 {
 public:
-    virtual std::shared_ptr<ClientBufferStream> make_consumer_stream(protobuf::DisplayServer& server,
-       protobuf::BufferStream const& protobuf_bs, std::string const& surface_name) = 0;
-    virtual std::shared_ptr<ClientBufferStream> make_producer_stream(protobuf::DisplayServer& server,
-       protobuf::BufferStream const& protobuf_bs, std::string const& surface_name) = 0;
+    virtual std::shared_ptr<ClientBufferStream> make_consumer_stream(
+        MirConnection* allocating_connection,
+        protobuf::DisplayServer& server,
+        protobuf::BufferStream const& protobuf_bs,
+        std::string const& surface_name) = 0;
+    virtual std::shared_ptr<ClientBufferStream> make_producer_stream(
+       MirConnection* allocating_connection,
+       protobuf::DisplayServer& server,
+       protobuf::BufferStream const& protobuf_bs,
+       std::string const& surface_name) = 0;
 
     // For creating buffer stream owned by client.
-    virtual ClientBufferStream* make_producer_stream(protobuf::DisplayServer& server,
+    virtual ClientBufferStream* make_producer_stream(
+       MirConnection* allocating_connection,
+       protobuf::DisplayServer& server,
        protobuf::BufferStreamParameters const& params,
        mir_buffer_stream_callback callback, void* context) = 0;
 

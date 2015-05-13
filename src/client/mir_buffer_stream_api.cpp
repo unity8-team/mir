@@ -74,7 +74,7 @@ try
     params.set_pixel_format(format);
     params.set_buffer_usage(buffer_usage);
 
-    return connection->get_client_buffer_stream_factory()->make_producer_stream(connection->display_server(), params, callback, context)
+    return connection->get_client_buffer_stream_factory()->make_producer_stream(connection, connection->display_server(), params, callback, context)
         ->get_create_wait_handle();
 }
 catch (std::exception const& ex)

@@ -41,6 +41,7 @@ struct MirScreencast
 {
 public:
     MirScreencast(
+        MirConnection* allocating_connection,
         mir::geometry::Rectangle const& region,
         mir::geometry::Size const& size,
         MirPixelFormat pixel_format,
@@ -66,6 +67,7 @@ private:
     void released(
         mir_screencast_callback callback, void* context);
 
+    MirConnection* const allocating_connection;
     mir::protobuf::DisplayServer& server;
     mir::geometry::Size const output_size;
     std::shared_ptr<mir::client::ClientBufferStreamFactory> const buffer_stream_factory;

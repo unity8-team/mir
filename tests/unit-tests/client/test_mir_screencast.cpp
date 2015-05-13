@@ -166,7 +166,7 @@ public:
         using namespace ::testing;
 
         ON_CALL(*mock_buffer_stream_factory,
-        make_consumer_stream(_,_,_)).WillByDefault(
+        make_consumer_stream(_,_,_,_)).WillByDefault(
             Return(mt::fake_shared(mock_bs)));
     }
 
@@ -191,6 +191,7 @@ TEST_F(MirScreencastTest, creates_screencast_on_construction)
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -215,6 +216,7 @@ TEST_F(MirScreencastTest, releases_screencast_on_release)
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -232,6 +234,7 @@ TEST_F(MirScreencastTest, executes_callback_on_creation)
     EXPECT_CALL(mock_cb, call(_, &mock_cb));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -246,6 +249,7 @@ TEST_F(MirScreencastTest, executes_callback_on_release)
     using namespace testing;
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, stub_server,
@@ -268,6 +272,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             default_region,
             invalid_size,
             default_pixel_format, stub_server,
@@ -277,6 +282,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             invalid_region,
             default_size,
             default_pixel_format, stub_server,
@@ -286,6 +292,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
 
     EXPECT_THROW({
         MirScreencast screencast(
+            nullptr,
             default_region,
             default_size,
             mir_pixel_format_invalid, stub_server,
@@ -302,6 +309,7 @@ TEST_F(MirScreencastTest, is_invalid_if_server_create_screencast_fails)
         .WillOnce(DoAll(SetCreateError(), RunClosure()));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,
@@ -323,6 +331,7 @@ TEST_F(MirScreencastTest, calls_callback_on_creation_failure)
     EXPECT_CALL(mock_cb, call(_,&mock_cb));
 
     MirScreencast screencast{
+        nullptr,
         default_region,
         default_size,
         default_pixel_format, mock_server,

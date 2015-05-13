@@ -56,6 +56,7 @@ MirScreencast* mir_connection_create_screencast_sync(
 
         std::unique_ptr<MirScreencast> screencast_uptr{
             new MirScreencast{
+                connection,
                 region,
                 size,
                 parameters->pixel_format,

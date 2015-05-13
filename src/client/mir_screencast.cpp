@@ -30,13 +30,15 @@ namespace mp = mir::protobuf;
 namespace geom = mir::geometry;
 
 MirScreencast::MirScreencast(
+    MirConnection* allocating_connection,
     geom::Rectangle const& region,
     geom::Size const& size,
     MirPixelFormat pixel_format,
     mir::protobuf::DisplayServer& server,
     std::shared_ptr<mcl::ClientBufferStreamFactory> const& buffer_stream_factory,
     mir_screencast_callback callback, void* context)
-    : server(server),
+    : allocating_connection{allocating_connection},
+      server(server),
       output_size{size},
       buffer_stream_factory{buffer_stream_factory}
 {
@@ -102,12 +104,16 @@ void MirScreencast::request_and_wait_for_configure(MirSurfaceAttrib, int)
 }
 
 void MirScreencast::screencast_created(
-    mir_screencast_callback callback, void* context)
+    mir_screencast_callback callback,
+    void* context)
 {
     if (!protobuf_screencast.has_error())
     {
-        buffer_stream = buffer_stream_factory->make_consumer_stream(server,
-            protobuf_screencast.buffer_stream(), "MirScreencast");
+        buffer_stream = buffer_stream_factory->make_consumer_stream(
+            allocating_connection,
+            server,
+            protobuf_screencast.buffer_stream(),
+            "MirScreencast");
     }
 
     callback(this, context);

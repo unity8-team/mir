@@ -32,6 +32,7 @@ namespace doubles
 struct StubClientBufferStreamFactory : public client::ClientBufferStreamFactory
 {
     std::shared_ptr<client::ClientBufferStream> make_consumer_stream(
+        MirConnection* /* allocating_connection */,
         protobuf::DisplayServer& /* server */,
         protobuf::BufferStream const& /* protobuf_bs */,
         std::string const& /* surface_name */) override
@@ -40,6 +41,7 @@ struct StubClientBufferStreamFactory : public client::ClientBufferStreamFactory
     }
 
     std::shared_ptr<client::ClientBufferStream> make_producer_stream(
+        MirConnection* /* allocating_connection */,
         protobuf::DisplayServer& /* server */,
         protobuf::BufferStream const& /* protobuf_bs */,
         std::string const& /* surface_name */) override
@@ -47,7 +49,9 @@ struct StubClientBufferStreamFactory : public client::ClientBufferStreamFactory
         return nullptr;
     }
 
-    client::ClientBufferStream* make_producer_stream(protobuf::DisplayServer& /* server */,
+    client::ClientBufferStream* make_producer_stream(
+       MirConnection* /* allocating_connection */,
+       protobuf::DisplayServer& /* server */,
        protobuf::BufferStreamParameters const& /* params */,
        mir_buffer_stream_callback /* callback */, void* /* context */) override
     {
