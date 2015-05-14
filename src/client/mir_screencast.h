@@ -61,6 +61,7 @@ public:
 
     mir::client::ClientBufferStream* get_buffer_stream();
 
+    MirConnection* get_connection();
 private:
     void screencast_created(
         mir_screencast_callback callback, void* context);

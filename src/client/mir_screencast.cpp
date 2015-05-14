@@ -131,3 +131,8 @@ mir::client::ClientBufferStream* MirScreencast::get_buffer_stream()
 {
     return buffer_stream.get();
 }
+
+MirConnection* MirScreencast::get_connection()
+{
+    return allocating_connection;
+}
