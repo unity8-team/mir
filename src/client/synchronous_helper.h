@@ -28,7 +28,7 @@
 template<typename Result>
 void assign_result(Result* result, void* ctx)
 {
-    auto assignee = reinterpret_cast<void**>(ctx);
+    auto assignee = reinterpret_cast<Result**>(ctx);
     if (assignee)
     {
         *assignee = result;
@@ -118,6 +118,10 @@ void make_synchronous_call(MirConnection* connection,
                            Callable&& function,
                            Args&&... args)
 {
+    static_assert(
+        std::is_same<typename std::result_of<Callable(Args...)>::type, MirWaitHandle*>::value,
+        "Second parameter must be a function that returns a MirWaitHandle*");
+
     if (connection->watch_fd() != mir::Fd::invalid)
     {
         std::tuple<Args...> arguments{args...};
