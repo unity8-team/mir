@@ -1109,12 +1109,15 @@ TEST_F(ClientLibrary, rpc_blocking_doesnt_block_event_delivery_with_auto_dispatc
 
 namespace
 {
-void async_creation_completed(MirSurface* surf, void* ctx)
+void async_release_completed(MirSurface*, void* ctx)
 {
     auto called = reinterpret_cast<bool*>(ctx);
-    mir_surface_release_sync(surf);
-
     *called = true;
+}
+
+void async_creation_completed(MirSurface* surf, void* ctx)
+{
+    mir_surface_release(surf, &async_release_completed, ctx);
 }
 }
 
