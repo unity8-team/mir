@@ -152,7 +152,11 @@ void mcl::BufferStream::created(mir_buffer_stream_callback callback, void *conte
     egl_native_window_ = client_platform->create_egl_native_window(this);
 
     if (callback)
-        callback(reinterpret_cast<MirBufferStream*>(this), context);
+    {
+        // Fun fact! The offset of mcl::ClientBufferStream's vtable in *this is *not* 0!
+        auto cbs_object = static_cast<mcl::ClientBufferStream*>(this);
+        callback(reinterpret_cast<MirBufferStream*>(cbs_object), context);
+    }
     create_wait_handle.result_received();
 }
 
@@ -388,7 +392,11 @@ void mcl::BufferStream::released(
     mir_buffer_stream_callback callback, void* context)
 {
     if (callback)
-        callback(reinterpret_cast<MirBufferStream*>(this), context);
+    {
+        // Fun fact! The offset of mcl::ClientBufferStream's vtable in *this is *not* 0!
+        auto cbs_object = static_cast<mcl::ClientBufferStream*>(this);
+        callback(reinterpret_cast<MirBufferStream*>(cbs_object), context);
+    }
     release_wait_handle.result_received();
 }
 
