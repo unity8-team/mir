@@ -117,7 +117,7 @@ private:
     std::mutex read_mutex;
     std::mutex write_mutex;
 
-    bool prioritise_next_request;
+    bool prioritise_next_request{false};
     std::experimental::optional<uint32_t> id_to_wait_for;
 
     /* We use the guarantee that the transport's destructor blocks until
