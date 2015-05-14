@@ -24,6 +24,8 @@
 
 #include "mir/uncaught.h"
 
+#include "synchronous_helper.h"
+
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -44,9 +46,14 @@ MirPromptSession *mir_connection_create_prompt_session_sync(
         if (state_change_callback)
             prompt_session->register_prompt_session_state_change_callback(state_change_callback, context);
 
-        mir_wait_for(prompt_session->start(application_pid,
-                     null_callback,
-                     nullptr));
+        make_synchronous_call(
+            connection,
+            std::mem_fn(&MirPromptSession::start),
+            prompt_session,
+            application_pid,
+            &assign_result<MirPromptSession>,
+            static_cast<void*>(nullptr));
+
         return prompt_session;
     }
     catch (std::exception const& ex)

@@ -25,6 +25,8 @@
 
 #include "mir/uncaught.h"
 
+#include "synchronous_helper.h"
+
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -64,7 +66,18 @@ MirScreencast* mir_connection_create_screencast_sync(
                 connection->get_client_buffer_stream_factory(),
                 null_callback, nullptr}};
 
-        screencast_uptr->creation_wait_handle()->wait_for_all();
+
+        if (connection->watch_fd() != mir::Fd::invalid)
+        {
+            dispatch_connection_until(connection, [&screencast_uptr]()
+            {
+                return screencast_uptr->creation_wait_handle()->ready();
+            });
+        }
+        else
+        {
+            screencast_uptr->creation_wait_handle()->wait_for_all();
+        }
 
         if (screencast_uptr->valid())
         {
@@ -83,7 +96,11 @@ MirScreencast* mir_connection_create_screencast_sync(
 
 void mir_screencast_release_sync(MirScreencast* screencast)
 {
-    screencast->release(null_callback, nullptr)->wait_for_all();
+    make_synchronous_call(screencast->get_connection(),
+                          std::mem_fn(&MirScreencast::release),
+                          screencast,
+                          &assign_result<MirScreencast>,
+                          static_cast<void*>(nullptr));
     delete screencast;
 }
 

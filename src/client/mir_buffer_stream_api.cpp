@@ -28,6 +28,8 @@
 
 #include "mir/uncaught.h"
 
+#include "synchronous_helper.h"
+
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -49,13 +51,6 @@ void finish_release(MirBufferStream *stream, void *context)
     mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(stream);
     delete bs;
 }
-// assign_result is compatible with all 2-parameter callbacks
-void assign_result(void* result, void** context)
-{
-    if (context)
-        *context = result;
-}
-
 }
 
 
@@ -89,10 +84,14 @@ MirBufferStream* mir_connection_create_buffer_stream_sync(MirConnection *connect
     MirBufferUsage buffer_usage)
 try
 {
-    mcl::BufferStream *stream = nullptr;
-    mir_connection_create_buffer_stream(connection, width, height, format, buffer_usage,
-        reinterpret_cast<mir_buffer_stream_callback>(assign_result), &stream)->wait_for_all();
-    return reinterpret_cast<MirBufferStream*>(dynamic_cast<mcl::ClientBufferStream*>(stream));
+    MirBufferStream* stream = nullptr;
+    make_synchronous_call(connection,
+                          mir_connection_create_buffer_stream,
+                          connection,
+                          width, height, format, buffer_usage,
+                          &assign_result<MirBufferStream>,
+                          &stream);
+    return stream;
 }
 catch (std::exception const& ex)
 {
@@ -113,7 +112,11 @@ MirWaitHandle *mir_buffer_stream_release(
 void mir_buffer_stream_release_sync(MirBufferStream *buffer_stream)
 {
     mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(buffer_stream);
-    bs->release(nullptr, nullptr)->wait_for_all();
+    make_synchronous_call(bs->get_connection(),
+                          std::mem_fn(&mcl::ClientBufferStream::release),
+                          bs,
+                          &assign_result<MirBufferStream>,
+                          static_cast<void*>(nullptr));
     delete bs;
 }
 
@@ -148,9 +151,13 @@ catch (std::exception const& ex)
 
 void mir_buffer_stream_swap_buffers_sync(MirBufferStream* buffer_stream)
 {
-    mir_wait_for(mir_buffer_stream_swap_buffers(buffer_stream,
-        reinterpret_cast<mir_buffer_stream_callback>(assign_result),
-        nullptr));
+    mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(buffer_stream);
+    make_synchronous_call(
+        bs->get_connection(),
+        &mir_buffer_stream_swap_buffers,
+        buffer_stream,
+        &assign_result<MirBufferStream>,
+        static_cast<void*>(nullptr));
 }
 
 void mir_buffer_stream_get_graphics_region(

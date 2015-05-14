@@ -26,23 +26,12 @@
 #include "mir_surface.h"
 #include "error_connections.h"
 #include "mir/uncaught.h"
+#include "synchronous_helper.h"
 
 #include <boost/exception/diagnostic_information.hpp>
 #include <functional>
 
 namespace mcl = mir::client;
-
-namespace
-{
-
-// assign_result is compatible with all 2-parameter callbacks
-void assign_result(void* result, void** context)
-{
-    if (context)
-        *context = result;
-}
-
-}
 
 MirSurfaceSpec* mir_connection_create_spec_for_normal_surface(MirConnection* connection,
                                                               int width, int height,
@@ -128,9 +117,12 @@ MirSurface* mir_surface_create_sync(MirSurfaceSpec* requested_specification)
 {
     MirSurface* surface = nullptr;
 
-    mir_wait_for(mir_surface_create(requested_specification,
-        reinterpret_cast<mir_surface_callback>(assign_result),
-        &surface));
+    make_synchronous_call(
+        requested_specification->connection,
+        &mir_surface_create,
+        requested_specification,
+        &assign_result<MirSurface>,
+        &surface);
 
     return surface;
 }
@@ -364,9 +356,11 @@ MirWaitHandle* mir_surface_release(
 
 void mir_surface_release_sync(MirSurface* surface)
 {
-    mir_wait_for(mir_surface_release(surface,
-        reinterpret_cast<mir_surface_callback>(assign_result),
-        nullptr));
+    make_synchronous_call(surface->get_connection(),
+                          mir_surface_release,
+                          surface,
+                          &assign_result<MirSurface>,
+                          static_cast<void*>(nullptr));
 }
 
 int mir_surface_get_id(MirSurface* /*surface*/)
