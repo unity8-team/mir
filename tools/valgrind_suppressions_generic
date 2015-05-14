@@ -12,3 +12,48 @@
    fun:ioctl
    fun:_ZN7android8EventHub16openDeviceLockedEPKc
 }
+{
+   GDBus? Sadface.
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:g_malloc
+   fun:g_slice_alloc
+   fun:g_slice_alloc0
+   fun:get_dispatch
+   fun:g_main_context_dispatch
+   fun:g_main_context_iterate.isra.29
+   fun:g_main_loop_run
+   fun:gdbus_shared_thread_func
+   fun:g_thread_proxy
+   fun:start_thread
+   fun:clone
+}
+{
+   GDBus? Sadface.
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:g_malloc
+   fun:g_slice_alloc
+   fun:g_slice_alloc0
+   fun:g_main_context_push_thread_default
+   fun:gdbus_shared_thread_func
+   fun:g_thread_proxy
+   fun:start_thread
+   fun:clone
+}
+{
+   GDBus? Sadface.
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:g_malloc0
+   fun:g_slice_alloc
+   fun:g_slice_alloc0
+   fun:g_main_context_push_thread_default
+   fun:gdbus_shared_thread_func
+   fun:g_thread_proxy
+   fun:start_thread
+   fun:clone
+}
