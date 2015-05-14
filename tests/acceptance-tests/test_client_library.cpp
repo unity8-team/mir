@@ -1144,6 +1144,7 @@ TEST_F(ClientLibrary, sync_call_completes_before_previous_undispatched_call)
 
     EXPECT_FALSE(async_call_completed);
     auto surf = mir_surface_create_sync(surface_spec);
+    mir_surface_spec_release(surface_spec);
 
     EXPECT_THAT(surf, IsValid());
     EXPECT_FALSE(async_call_completed);
