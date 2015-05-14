@@ -70,6 +70,7 @@ add_library(mirclientobjects OBJECT
   buffer_stream.cpp
   mir_buffer_stream_api.cpp
   default_client_buffer_stream_factory.cpp
+  synchronous_helper.cpp
   ${MIR_CLIENT_SOURCES}
 )
 
