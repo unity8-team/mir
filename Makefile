@@ -21,7 +21,7 @@ VERSION="$(shell apt-cache policy mir-demos | grep '^ \*\*\* ' | cut -d' ' -f3)s
 all: snap
 
 snap: update-deb2snap
-	cd deb2snap && ./deb2snap -d 15.04/beta-2 -n mir -v ${VERSION} --overlay ../overlay -p mir-demos -p mir-graphics-drivers-desktop ../server
+	cd deb2snap && ./deb2snap -d 15.04 -n mir -v ${VERSION} --overlay ../overlay -p mir-demos -p mir-graphics-drivers-desktop ../server
 	mv deb2snap/*.snap .
 
 update-deb2snap: deb2snap
