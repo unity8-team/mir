@@ -159,9 +159,9 @@ int main(int argc, char *argv[])
     mir_surface_set_event_handler(surface, on_event, &state);
 
     float const opacity = mir_eglapp_background_opacity;
-    std::array<Color, 3> colors{Color{opacity, 0.0f, 0.0f, opacity},
+    std::array<Color, 3> colors{{Color{opacity, 0.0f, 0.0f, opacity},
         Color{0.0f, opacity, 0.0f, opacity},
-        Color{0.0f, 0.0f, opacity, opacity}};
+        Color{0.0f, 0.0f, opacity, opacity}}};
 
     /* This is probably the simplest GL you can do */
     while (mir_eglapp_running())
