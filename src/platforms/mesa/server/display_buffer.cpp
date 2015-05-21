@@ -407,9 +407,7 @@ void mgm::DisplayBuffer::wait_for_page_flip()
     if (waited && outputs.size() == 1)
     {
          auto& single = outputs.front();
-         // TODO:
-         //single->reset_adaptive_wait();
-         single->adaptive_wait();
+         single->adaptive_wait(visible_composite_frame ? 1 : 2);
     }
 }
 

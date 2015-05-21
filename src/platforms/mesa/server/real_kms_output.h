@@ -50,8 +50,7 @@ public:
     bool schedule_page_flip(uint32_t fb_id);
     void wait_for_page_flip();
 
-    void adaptive_wait() override;
-    void reset_adaptive_wait() override;
+    void adaptive_wait(int render_type) override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
@@ -84,6 +83,7 @@ private:
     long frame_time_usec = 0;
     long render_time_estimate = 0;
     int frame_skips = 0;
+    int last_render_type = 0;
     bool idle = true;
 
     std::mutex power_mutex;

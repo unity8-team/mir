@@ -307,13 +307,13 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     }
 }
 
-void mgm::RealKMSOutput::reset_adaptive_wait()
+void mgm::RealKMSOutput::adaptive_wait(int render_type)
 {
-    render_time_estimate = 0;
-}
+    if (render_type != last_render_type)
+        render_time_estimate = 0;
 
-void mgm::RealKMSOutput::adaptive_wait()
-{
+    last_render_type = render_type;
+
     if (render_time_estimate >= render_time_too_large)
         return;
 
