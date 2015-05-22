@@ -386,7 +386,7 @@ void mgm::DisplayBuffer::wait_for_page_flip()
         {
             auto& single = outputs.front();
             bool render_method_changed =
-                (visible_bypass_frame && scheduled_bypass_frame) ||
+                (visible_bypass_frame && scheduled_composite_frame) ||
                 (visible_composite_frame && scheduled_bypass_frame);
 
             if (render_method_changed)
