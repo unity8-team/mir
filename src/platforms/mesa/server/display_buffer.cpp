@@ -380,10 +380,21 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 
 void mgm::DisplayBuffer::wait_for_page_flip()
 {
-    bool waited = page_flips_pending;
-
     if (page_flips_pending)
     {
+        if (outputs.size() == 1)
+        {
+            auto& single = outputs.front();
+            bool render_method_changed =
+                (visible_bypass_frame && scheduled_bypass_frame) ||
+                (visible_composite_frame && scheduled_bypass_frame);
+
+            if (render_method_changed)
+                single->reset_adaptive_wait();
+
+            single->adaptive_wait();
+        }
+
         for (auto& output : outputs)
             output->wait_for_page_flip();
 
@@ -402,14 +413,6 @@ void mgm::DisplayBuffer::wait_for_page_flip()
             visible_composite_frame->release();
         visible_composite_frame = scheduled_composite_frame;
         scheduled_composite_frame = nullptr;
-    }
-
-    if (waited && outputs.size() == 1)
-    {
-         auto& single = outputs.front();
-         // TODO:
-         //single->reset_adaptive_wait();
-         single->adaptive_wait();
     }
 }
 
