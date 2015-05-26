@@ -1,4 +1,4 @@
-qtmir-gles (0.4.4+15.04.20150513-0ubuntu2) wily; urgency=medium
+qtmir-gles (0.4.5) UNRELEASED; urgency=medium
 
   [ Albert Astals Cid ]
   * Sync with upstream
