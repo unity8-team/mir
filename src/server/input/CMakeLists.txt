@@ -18,6 +18,7 @@ set(
   xcursor_loader.cpp
   builtin_cursor_images.cpp
   touchspot_controller.cpp
+  touch_stream_rewriter.cpp
 )
 
 add_subdirectory(android)
