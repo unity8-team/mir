@@ -252,7 +252,8 @@ void mgm::DisplayBuffer::post()
      * each frame. Just remember wait_for_page_flip() must be called at some
      * point before the next schedule_page_flip().
      */
-    wait_for_page_flip();
+    if (sync_to_vblank)
+        wait_for_page_flip();
 
     mgm::BufferObject *bufobj;
     if (bypass_buf)
@@ -266,8 +267,26 @@ void mgm::DisplayBuffer::post()
             fatal_error("Failed to get front buffer object");
     }
 
-    if (!sync_to_vblank)
-        needs_set_crtc = true;  // Force the non-page-flipping code path
+    if (needs_set_crtc || !sync_to_vblank)
+    {
+        set_crtc(bufobj);
+        needs_set_crtc = false;
+
+        visible_bypass_frame = nullptr;
+        if (visible_composite_frame && visible_composite_frame != bufobj)
+            visible_composite_frame->release();
+
+        if (bypass_buf)
+            visible_bypass_frame = bypass_buf;
+        else
+            visible_composite_frame = bufobj;
+
+        scheduled_bypass_frame = nullptr;
+        scheduled_composite_frame = nullptr;
+        bypass_buf = nullptr;
+        bypass_bufobj = nullptr;
+        return;
+    }
 
     /*
      * Schedule the current front buffer object for display, and wait
@@ -276,16 +295,11 @@ void mgm::DisplayBuffer::post()
      * If the flip fails, release the buffer object to make it available
      * for future rendering.
      */
-    if (!needs_set_crtc && !schedule_page_flip(bufobj))
+    if (!schedule_page_flip(bufobj))
     {
         if (!bypass_buf)
             bufobj->release();
         fatal_error("Failed to schedule page flip");
-    }
-    else if (needs_set_crtc)
-    {
-        set_crtc(bufobj);
-        needs_set_crtc = false;
     }
 
     if (bypass_buf)
