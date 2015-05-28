@@ -16,6 +16,7 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "Here"
 #include "display_buffer.h"
 #include "platform.h"
 #include "kms_output.h"
@@ -23,6 +24,7 @@
 #include "bypass.h"
 #include "gbm_buffer.h"
 #include "mir/fatal.h"
+#include "mir/log.h"
 
 #include <boost/throw_exception.hpp>
 #include <GLES2/gl2.h>
@@ -107,6 +109,7 @@ mgm::DisplayBuffer::DisplayBuffer(
       area(area),
       rotation(rot),
       needs_set_crtc{false},
+      sync_to_vblank{false}, // XXX
       page_flips_pending{false}
 {
     uint32_t area_width = area.size.width.as_uint32_t();
@@ -263,6 +266,9 @@ void mgm::DisplayBuffer::post()
             fatal_error("Failed to get front buffer object");
     }
 
+    if (!sync_to_vblank)
+        needs_set_crtc = true;  // Force the non-page-flipping code path
+
     /*
      * Schedule the current front buffer object for display, and wait
      * for it to be actually displayed (flipped).
@@ -380,6 +386,7 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 
 void mgm::DisplayBuffer::wait_for_page_flip()
 {
+    mir::log_info("wait_for_page_flip(s): %s", page_flips_pending?"Y":"n");
     if (page_flips_pending)
     {
         for (auto& output : outputs)

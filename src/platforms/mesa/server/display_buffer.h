@@ -93,6 +93,7 @@ private:
     uint32_t fb_width, fb_height;
     MirOrientation rotation;
     std::atomic<bool> needs_set_crtc;
+    bool sync_to_vblank;
     bool page_flips_pending;
 };
 
