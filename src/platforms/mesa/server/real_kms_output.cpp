@@ -290,7 +290,7 @@ void mgm::RealKMSOutput::wait_for_page_flip()
 
     if (frame_skips >= 3)  // Only repeated frame skips need action...
     {
-        render_time_estimate += 100;
+        render_time_estimate += 1000;
         if (render_time_estimate >= frame_time_usec)
         {
             render_time_estimate = render_time_too_large;
@@ -313,6 +313,7 @@ void mgm::RealKMSOutput::wait_for_page_flip()
 
 void mgm::RealKMSOutput::reset_adaptive_wait()
 {
+    mir::log_info("Output latency reset to zero.");
     render_time_estimate = 0;
 }
 
