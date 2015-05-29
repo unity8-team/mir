@@ -142,11 +142,10 @@ mgm::DisplayBuffer::DisplayBuffer(
 
     listener->report_successful_egl_buffer_swap_on_construction();
 
-    scheduled_composite_frame = get_front_buffer_object();
-    if (!scheduled_composite_frame)
+    visible_composite_frame = get_front_buffer_object();
+    if (!visible_composite_frame)
         fatal_error("Failed to get frontbuffer");
-
-    set_crtc(scheduled_composite_frame);
+    set_crtc(visible_composite_frame);
 
     egl.release_current();
 
@@ -252,8 +251,7 @@ void mgm::DisplayBuffer::post()
      * each frame. Just remember wait_for_page_flip() must be called at some
      * point before the next schedule_page_flip().
      */
-    if (sync_to_vblank)
-        wait_for_page_flip();
+    wait_for_page_flip();
 
     mgm::BufferObject *bufobj;
     if (bypass_buf)
@@ -404,7 +402,6 @@ bool mgm::DisplayBuffer::schedule_page_flip(BufferObject* bufobj)
 
 void mgm::DisplayBuffer::wait_for_page_flip()
 {
-    mir::log_info("wait_for_page_flip(s): %s", page_flips_pending?"Y":"n");
     if (page_flips_pending)
     {
         for (auto& output : outputs)
