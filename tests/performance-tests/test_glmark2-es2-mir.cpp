@@ -18,7 +18,7 @@ struct GLMark2Test : testing::Test, mtf::AsyncServerRunner
 {
     void SetUp() override
     {
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
         /*
          * Workaround instability that causes freezes when combining
          * Android overlays with high-speed frame dropping (LP: #1391261).

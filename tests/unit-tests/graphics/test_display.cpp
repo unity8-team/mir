@@ -28,7 +28,7 @@
 #include "mir_test_doubles/stub_gl_program_factory.h"
 #include "mir_test_doubles/platform_factory.h"
 #include "src/server/graphics/default_display_configuration_policy.h"
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
 #include "mir_test_framework/udev_environment.h"
@@ -42,7 +42,7 @@
 
 namespace mg = mir::graphics;
 namespace mtd = mir::test::doubles;
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
 namespace mtf = mir_test_framework;
 #endif
 
@@ -61,7 +61,7 @@ public:
         mock_egl.provide_egl_extensions();
         mock_gl.provide_gles_extensions();
 
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
         fake_devices.add_standard_device("standard-drm-devices");
 #endif
     }
@@ -77,7 +77,7 @@ public:
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
     ::testing::NiceMock<mtd::MockGL> mock_gl;
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
     ::testing::NiceMock<mtd::HardwareAccessMock> hw_access_mock;
 #else
     ::testing::NiceMock<mtd::MockDRM> mock_drm;

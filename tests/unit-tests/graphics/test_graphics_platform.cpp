@@ -24,7 +24,7 @@
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "mir_test_doubles/platform_factory.h"
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
 #include "mir_test_framework/udev_environment.h"
@@ -41,7 +41,7 @@ namespace ml = mir::logging;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 namespace mo = mir::options;
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
 namespace mtf = mir_test_framework;
 #endif
 
@@ -52,7 +52,7 @@ public:
     {
         using namespace testing;
 
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
         ON_CALL(mock_gbm, gbm_bo_get_width(_))
         .WillByDefault(Return(320));
 
@@ -75,7 +75,7 @@ public:
 
     ::testing::NiceMock<mtd::MockEGL> mock_egl;
     ::testing::NiceMock<mtd::MockGL> mock_gl;
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
     ::testing::NiceMock<mtd::HardwareAccessMock> hw_access_mock;
 #else
     ::testing::NiceMock<mtd::MockDRM> mock_drm;

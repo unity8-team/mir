@@ -20,7 +20,7 @@
 
 #include "mir/graphics/platform.h"
 
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
 #include "src/platforms/mesa/server/kms/platform.h"
 #endif
 
@@ -31,7 +31,7 @@
 
 namespace mtd = mir::test::doubles;
 
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 auto mtd::create_platform_with_null_dependencies()
     -> std::shared_ptr<graphics::Platform>
 {

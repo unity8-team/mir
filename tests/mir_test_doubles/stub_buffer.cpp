@@ -18,7 +18,7 @@
 
 #include "mir_test_doubles/stub_buffer.h"
 
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/stub_android_native_buffer.h"
 #else
 #include "mir_test_doubles/stub_gbm_native_buffer.h"
@@ -29,7 +29,7 @@ namespace mtd=mir::test::doubles;
 auto mtd::StubBuffer::create_native_buffer()
 -> std::shared_ptr<graphics::NativeBuffer>
 {
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
     return std::make_shared<StubGBMNativeBuffer>(geometry::Size{0,0});
 #else
     return std::make_shared<StubAndroidNativeBuffer>();

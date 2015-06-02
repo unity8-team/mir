@@ -9,7 +9,6 @@ list(
 )
 
 #include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
-#add_definitions(-DANDROID)
 
 set(
   INTEGRATION_TESTS_SRCS

@@ -28,7 +28,7 @@
 #include "mir/fd.h"
 #include "mir_test/pipe.h"
 
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/stub_android_native_buffer.h"
 #endif
 
@@ -65,7 +65,7 @@ public:
 
     std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override
     {
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
         auto native_buffer = std::make_shared<mg::NativeBuffer>();
         native_buffer->data_items = 1;
         native_buffer->data[0] = 0xDEADBEEF;
@@ -124,7 +124,7 @@ class StubIpcOps : public mg::PlatformIpcOperations
     {
         if (msg_type == mg::BufferIpcMsgType::full_msg)
         {
-#ifndef ANDROID
+#ifdef MIR_BUILD_PLATFORM_KMS
             auto native_handle = buffer.native_buffer_handle();
             for(auto i=0; i<native_handle->data_items; i++)
             {
