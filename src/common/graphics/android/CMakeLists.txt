@@ -1,5 +1,7 @@
 include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 
+add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+
 add_library(
   mirsharedandroid-static STATIC
 

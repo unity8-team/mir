@@ -9,6 +9,7 @@ list(
 )
 
 #include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
+add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
 
 set(
   INTEGRATION_TESTS_SRCS

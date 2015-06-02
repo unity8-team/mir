@@ -2,6 +2,14 @@ include(CMakeDependentOption)
 
 add_definitions(-DTEST_RECORDINGS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/input_recordings/")
 
+if (MIR_BUILD_PLATFORM_ANDROID)
+  add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+endif()
+
+if (MIR_BUILD_PLATFORM_KMS)
+  add_definitions(-DMIR_BUILD_PLATFORM_KMS)
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
 
