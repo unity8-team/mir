@@ -48,7 +48,7 @@ typedef struct MirBufferPackage
              /**< \see http://www.khronos.org/registry/egl/extensions/EXT/EGL_EXT_buffer_age.txt */
 } MirBufferPackage;
 
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 struct ANativeWindowBuffer;
 typedef struct ANativeWindowBuffer MirNativeBuffer;
 #else

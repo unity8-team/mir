@@ -65,7 +65,7 @@ struct StubClientBuffer : client::ClientBuffer
 
     std::shared_ptr<graphics::NativeBuffer> native_buffer_handle() const override
     {
-#ifdef MIR_BUILD_PLATFORM_KMS
+#ifndef MIR_BUILD_PLATFORM_ANDROID
         return package;
 #else
         return std::shared_ptr<graphics::NativeBuffer>();

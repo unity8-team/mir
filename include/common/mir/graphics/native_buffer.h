@@ -19,7 +19,7 @@
 #ifndef MIR_GRAPHICS_NATIVE_BUFFER_H_
 #define MIR_GRAPHICS_NATIVE_BUFFER_H_
 
-#ifndef ANDROID
+#ifndef MIR_BUILD_PLATFORM_ANDROID
 #include <mir_toolkit/mir_native_buffer.h>
 #endif
 
@@ -28,7 +28,7 @@ namespace mir
 namespace graphics
 {
 
-#ifdef ANDROID
+#ifdef MIR_BUILD_PLATFORM_ANDROID
 //just a fwd dcl
 class NativeBuffer;
 #else

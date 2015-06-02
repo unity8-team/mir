@@ -24,7 +24,7 @@
 #include "mir_test_doubles/mock_egl.h"
 #include "mir_test_doubles/mock_gl.h"
 #include "mir_test_doubles/platform_factory.h"
-#ifdef MIR_BUILD_PLATFORM_KMS
+#ifndef MIR_BUILD_PLATFORM_ANDROID
 #include "mir_test_doubles/mock_drm.h"
 #include "mir_test_doubles/mock_gbm.h"
 #include "mir_test_framework/udev_environment.h"
@@ -41,7 +41,7 @@ namespace ml = mir::logging;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
 namespace mo = mir::options;
-#ifdef MIR_BUILD_PLATFORM_KMS
+#ifndef MIR_BUILD_PLATFORM_ANDROID
 namespace mtf = mir_test_framework;
 #endif
 
@@ -52,7 +52,7 @@ public:
     {
         using namespace testing;
 
-#ifdef MIR_BUILD_PLATFORM_KMS
+#ifndef MIR_BUILD_PLATFORM_ANDROID
         ON_CALL(mock_gbm, gbm_bo_get_width(_))
         .WillByDefault(Return(320));
 

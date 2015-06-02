@@ -1,7 +1,5 @@
 include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
 
-add_definitions( -DANDROID )
-
 add_library(
   mirsharedandroid-static STATIC
 
