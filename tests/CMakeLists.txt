@@ -29,7 +29,7 @@ if (MIR_TEST_PLATFORM STREQUAL "android")
   add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
 endif()
 
-if MIR_BUILD_PLATFORM_ANDROID
+if (MIR_BUILD_PLATFORM_ANDROID)
   #avoid complaints about poor quality android headers
   include_directories(SYSTEM ${LIBHARDWARE_INCLUDE_DIRS})
   add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
