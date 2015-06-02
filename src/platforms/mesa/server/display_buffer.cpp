@@ -312,6 +312,10 @@ void mgm::DisplayBuffer::post()
             wait_for_page_flip();
     }
 
+    // Buffer lifetimes are managed exclusively by scheduled*/visible* now
+    bypass_buf = nullptr;
+    bypass_bufobj = nullptr;
+
     if (outputs.size() == 1)
     {
         auto& single = outputs.front();
