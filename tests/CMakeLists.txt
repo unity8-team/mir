@@ -26,7 +26,7 @@ if (HAS_W_INCONSISTENT_MISSING_OVERRIDE)
 endif()
 
 if (MIR_TEST_PLATFORM STREQUAL "android")
-  add_definitions(-DMIR_BUILD_PLATFORM_ANDROID)
+  add_definitions(-DANDROID)
 endif()
 
 if (MIR_BUILD_PLATFORM_ANDROID)
