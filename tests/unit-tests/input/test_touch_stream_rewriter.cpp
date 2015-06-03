@@ -1,5 +1,4 @@
-/*
- * Copyright © 2015 Canonical Ltd.
+/* © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,41 +21,64 @@
 #include "mir/events/event_builders.h"
 
 #include "mir_test/fake_shared.h"
-#incldue "mir_test_doubles/mock_input_dispatcher.h"
+#include "mir_test/event_matchers.h"
+#include "mir_test_doubles/mock_input_dispatcher.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-namespace mi = mi::input;
+// TODO: Remove
+#include "mir/event_printer.h"
+#include <iostream>
+
+namespace mi = mir::input;
 namespace mev = mir::events;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
 
 using namespace ::testing;
 
+
+namespace mir
+{
+struct PrintingDispatcher : public mtd::MockInputDispatcher
+{
+    void dispatch(MirEvent const& ev) override
+    {
+        std::cout << "Stuff: " << ev << std::endl;
+    }
+};
+}
+
 namespace
 {
+
 struct TouchStreamRewriter : public ::testing::Test
 {
+    TouchStreamRewriter()
+        : rewriter(mt::fake_shared(next_dispatcher))
+    {
+    }
+    
     mtd::MockInputDispatcher next_dispatcher;
-    mi::TouchStreamRewriter rewriter(mt::fake_shared(next_dispatcher));
+    //    mir::PrintingDispatcher next_dispatcher;
+    mi::TouchStreamRewriter rewriter;
 };
 
-
-mev::EventUPtr make_touch(MirTouchId id, MirTouchAction action)
+void add_another_touch(mir::EventUPtr const& ev, MirTouchId id, MirTouchAction action)
+{
+    mev::add_touch(*ev, id, action, mir_touch_tooltype_finger,
+                   0, 0, 0, 0, 0, 0);
+}
+    
+mir::EventUPtr make_touch(MirTouchId id, MirTouchAction action)
 {
     auto ev = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0),
-                              mir_input_event_modifiers_none);
+                              mir_input_event_modifier_none);
     add_another_touch(ev, id, action);
     return ev;
 }
 
-void add_another_touch(mev::EventUPtr const& ev, MirTouchId id, MirTouchAction action)
-{
-    mev::add_touch(*ev, id, action, mir_touch_tooltype_finger,
-                   0, 0, 0, 0, 0);
-}
-    
 }
 
 // TODO: Should we test that actions are split? The thing is with the
@@ -75,11 +97,11 @@ TEST_F(TouchStreamRewriter, missing_touch_downs_are_inserted)
     add_another_touch(expected_ev_two, 1, mir_touch_action_down);
 
     InSequence seq;
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*expected_ev_one)));
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*expected_ev_two)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_one)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_two)));
 
     // DO we really want this?
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*touch)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*touch)));
     
     rewriter.dispatch(*touch);
 }
@@ -98,11 +120,13 @@ TEST_F(TouchStreamRewriter, missing_touch_releases_are_inserted)
     add_another_touch(expected_release_insert, 1, mir_touch_action_up);
 
     InSequence seq;
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*touch_one)));
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*touch_two)));
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*expected_release_insert)));
-    EXPECT_CALL(next_dispatcher, dispatch(MirTouchEventMatches(*touch_three)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*touch_one)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*touch_two)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_release_insert)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*touch_three)));
 
-    dispatcher.dispatch(*touch);
+    rewriter.dispatch(*touch_one);
+    rewriter.dispatch(*touch_two);
+    rewriter.dispatch(*touch_three);
 }
 

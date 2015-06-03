@@ -45,9 +45,10 @@ private:
 
     std::shared_ptr<InputDispatcher> const next_dispatcher;
 
-    std::unordered_map<MirInputDeviceId, events::EventUPtr> last_event_by_device;
+    std::unordered_map<MirInputDeviceId, EventUPtr> last_event_by_device;
 
-    void handle_touch_event(MirInputDeviceId, MirTouchInputEvent const* event);
+    void handle_touch_event(MirInputDeviceId, MirTouchEvent const* event);
+    void ensure_stream_validity_locked(std::lock_guard<std::mutex> const& lg, MirTouchEvent const* ev, MirTouchEvent const* last_ev);
 };
 
 }
