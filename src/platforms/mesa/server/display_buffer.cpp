@@ -30,6 +30,8 @@
 #include <GLES2/gl2.h>
 
 #include <stdexcept>
+#include <chrono>
+#include <thread>
 
 namespace mgm = mir::graphics::mesa;
 namespace geom = mir::geometry;
@@ -270,6 +272,11 @@ void mgm::DisplayBuffer::post()
         set_crtc(bufobj);
         needs_set_crtc = false;
 
+#if 0
+        if (!bypass_buf)
+            bufobj->release();
+#endif
+
         visible_bypass_frame = nullptr;
         if (visible_composite_frame && visible_composite_frame != bufobj)
             visible_composite_frame->release();
@@ -283,6 +290,9 @@ void mgm::DisplayBuffer::post()
         scheduled_composite_frame = nullptr;
         bypass_buf = nullptr;
         bypass_bufobj = nullptr;
+
+        // Limit to 200Hz, also limits the maximum number of tears visible
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
         return;
     }
 
