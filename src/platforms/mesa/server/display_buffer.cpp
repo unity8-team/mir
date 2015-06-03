@@ -253,7 +253,8 @@ void mgm::DisplayBuffer::post()
      * each frame. Just remember wait_for_page_flip() must be called at some
      * point before the next schedule_page_flip().
      */
-    wait_for_page_flip();
+    if (sync_to_vblank)
+        wait_for_page_flip();
 
     mgm::BufferObject *bufobj;
     if (bypass_buf)
@@ -286,8 +287,8 @@ void mgm::DisplayBuffer::post()
         bypass_buf = nullptr;
         bypass_bufobj = nullptr;
 
-        // Limit to 200Hz, also limits the maximum number of tears visible
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        // Limit to 100Hz, also limits the maximum number of tears visible
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         return;
     }
 
