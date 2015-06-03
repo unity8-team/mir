@@ -20,8 +20,11 @@
 #define MIR_INPUT_TOUCH_STREAM_REWRITER_H_
 
 #include "mir/input/input_dispatcher.h"
+#include "mir/events/event_builders.h"
 
 #include <memory>
+#include <unordered_map>
+#include <mutex>
 
 namespace mir
 {
@@ -38,7 +41,13 @@ public:
     void stop() override;
     
 private:
+    std::mutex state_guard;
+
     std::shared_ptr<InputDispatcher> const next_dispatcher;
+
+    std::unordered_map<MirInputDeviceId, events::EventUPtr> last_event_by_device;
+
+    void handle_touch_event(MirInputDeviceId, MirTouchInputEvent const* event);
 };
 
 }
