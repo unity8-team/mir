@@ -272,11 +272,6 @@ void mgm::DisplayBuffer::post()
         set_crtc(bufobj);
         needs_set_crtc = false;
 
-#if 0
-        if (!bypass_buf)
-            bufobj->release();
-#endif
-
         visible_bypass_frame = nullptr;
         if (visible_composite_frame && visible_composite_frame != bufobj)
             visible_composite_frame->release();
