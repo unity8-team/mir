@@ -48,7 +48,8 @@ public:
     virtual bool schedule_page_flip(uint32_t fb_id) = 0;
     virtual void wait_for_page_flip() = 0;
 
-    virtual void sleep_one_frame_minus(unsigned) {}    // Optional optimization to implement
+    virtual void adaptive_wait() {}       // These are optional optimizations
+    virtual void reset_adaptive_wait() {} // ...
 
     virtual void set_cursor(gbm_bo* buffer) = 0;
     virtual void move_cursor(geometry::Point destination) = 0;

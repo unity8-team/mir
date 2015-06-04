@@ -50,7 +50,8 @@ public:
     bool schedule_page_flip(uint32_t fb_id);
     void wait_for_page_flip();
 
-    void sleep_one_frame_minus(unsigned usec) override;
+    void adaptive_wait() override;
+    void reset_adaptive_wait() override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
@@ -78,9 +79,11 @@ private:
     MirPowerMode power_mode;
     int dpms_enum_id;
 
-    drmVBlankReply prev_flip = {DRM_VBLANK_RELATIVE, 0, 0, 0};
+    drmVBlankReply prev_flip =   {DRM_VBLANK_RELATIVE, 0, 0, 0},
+                   prev_vblank = {DRM_VBLANK_RELATIVE, 0, 0, 0};
     long frame_time_usec = 0;
-    int frame_count = 0;
+    long render_time_estimate = 0;
+    int frame_skips = 0;
     bool idle = true;
 
     std::mutex power_mutex;

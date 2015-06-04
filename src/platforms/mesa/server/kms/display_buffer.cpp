@@ -282,6 +282,8 @@ void mgm::DisplayBuffer::post()
         needs_set_crtc = false;
     }
 
+    bool render_method_changed = false;
+
     if (bypass_buf)
     {
         /*
@@ -294,9 +296,8 @@ void mgm::DisplayBuffer::post()
          * no compositing/rendering step for which to save time for.
          */
         scheduled_bypass_frame = bypass_buf;
+        render_method_changed = !!visible_composite_frame;
         wait_for_page_flip();
-        if (outputs.size() == 1)
-            outputs.front()->sleep_one_frame_minus(1000);
     }
     else
     {
@@ -306,18 +307,24 @@ void mgm::DisplayBuffer::post()
          * buffering that clone mode requires).
          */
         scheduled_composite_frame = bufobj;
+        render_method_changed = !!visible_bypass_frame;
         if (outputs.size() == 1)
-        {
             wait_for_page_flip();
-
-            // XXX testing only:
-            outputs.front()->sleep_one_frame_minus(3000);
-        }
     }
 
     // Buffer lifetimes are managed exclusively by scheduled*/visible* now
     bypass_buf = nullptr;
     bypass_bufobj = nullptr;
+
+    if (outputs.size() == 1)
+    {
+        auto& single = outputs.front();
+
+        if (render_method_changed)
+            single->reset_adaptive_wait();
+
+        single->adaptive_wait();
+    }
 }
 
 mgm::BufferObject* mgm::DisplayBuffer::get_front_buffer_object()
