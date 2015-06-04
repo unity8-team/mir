@@ -262,33 +262,24 @@ void mgm::RealKMSOutput::wait_for_page_flip()
         fatal_error("Output %s has no associated CRTC to wait on",
                    connector_name(connector.get()).c_str());
     }
-
     page_flipper->wait_for_flip(current_crtc->crtc_id);
+
     auto latest_flip = page_flipper->last_flip();
-
-    if (latest_flip.sequence == prev_flip.sequence + 1)
-    {
-        frame_skips = 0;
-        frame_time_usec = latest_flip.tval_usec - prev_flip.tval_usec;
-        if (frame_time_usec < 0)
-            frame_time_usec += 1000000L;
-    }
-    else
-    {
-        ++frame_skips;
-    }
-
+    frame_count = latest_flip.sequence - prev_flip.sequence;
+    frame_time_usec =
+        (latest_flip.tval_sec * 1000000LL + latest_flip.tval_usec) -
+        (prev_flip.tval_sec * 1000000LL + prev_flip.tval_usec);
     prev_flip = latest_flip;
 }
 
 void mgm::RealKMSOutput::sleep_one_frame_minus(unsigned minus_usec)
 {
-    if (!frame_skips)
+    if (frame_count > 0)
     {   // The compositor is trying to keep up full frame rate and
         // frame_time_usec is therefore fairly accurate...
         auto prev_vblank_abs = prev_flip.tval_sec * 1000000LL
                              + prev_flip.tval_usec;
-        auto next_vblank_abs = prev_vblank_abs + frame_time_usec;
+        auto next_vblank_abs = prev_vblank_abs + (frame_time_usec / frame_count);
         auto wakeup_abs = next_vblank_abs - minus_usec;
 
         struct timespec wakeup;
