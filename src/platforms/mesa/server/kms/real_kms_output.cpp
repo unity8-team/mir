@@ -29,8 +29,6 @@ namespace geom = mir::geometry;
 namespace
 {
 
-long const render_time_too_large = 0x7fffffff;
-
 bool encoder_is_used(mgm::DRMModeResources const& resources, uint32_t encoder_id)
 {
     bool encoder_used{false};
@@ -266,81 +264,38 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     }
 
     page_flipper->wait_for_flip(current_crtc->crtc_id);
-    prev_flip = page_flipper->last_flip();
+    auto latest_flip = page_flipper->last_flip();
 
-    if (render_time_estimate >= render_time_too_large)
-    {
-        return;
-    }
-    else if (prev_flip.sequence == prev_vblank.sequence + 1)
+    if (latest_flip.sequence == prev_flip.sequence + 1)
     {
         frame_skips = 0;
-        frame_time_usec = prev_flip.tval_usec - prev_vblank.tval_usec;
+        frame_time_usec = latest_flip.tval_usec - prev_flip.tval_usec;
         if (frame_time_usec < 0)
             frame_time_usec += 1000000L;
-    }
-    else if (idle)
-    {
-        frame_skips = 0;
     }
     else
     {
         ++frame_skips;
     }
 
-    if (frame_skips >= 3)  // Only repeated frame skips need action...
-    {
-        render_time_estimate += 1000;
-        if (render_time_estimate >= frame_time_usec)
-        {
-            render_time_estimate = render_time_too_large;
-            mir::log_info("Frame skipping! Your compositor or hardware is "
-                          "too slow to render smoothly.");
-        }
-        else
-        {
-            // This is probably too verbose and should go away eventually...
-            mir::log_info("Output latency adjusted to %ld.%03ldms, "
-                          "with frame time %ld.%03ldms",
-                          render_time_estimate/1000,
-                          render_time_estimate%1000,
-                          frame_time_usec/1000,
-                          frame_time_usec%1000
-                          );
-        }
-    }
+    prev_flip = latest_flip;
 }
 
-void mgm::RealKMSOutput::adaptive_wait()
+void mgm::RealKMSOutput::sleep_one_frame_minus(unsigned minus_usec)
 {
-    if (render_time_estimate >= render_time_too_large)
-        return;
-
-    // Only ever query the previous vblank. Actually waiting for the next one
-    // will guarantee that any page flip you then try and schedule will miss.
-    // That's not really how the hardware works, just a Linux DRM limitation.
-    drmVBlank io;
-    io.request.type = DRM_VBLANK_RELATIVE;
-    io.request.sequence = 0;
-    io.request.signal = 0;
-    int err = drmWaitVBlank(drm_fd, &io);
-    if (err)
-        return;
-    prev_vblank = io.reply;
-
-    // Is the compositor trying to keep up or just doesn't have much work?
-    idle = (prev_vblank.sequence != prev_flip.sequence);
-
-    if (!idle)
-    {   // The compositor is trying to keep up full frame rate...
-        auto prev_vblank_abs = prev_vblank.tval_sec * 1000000LL
-                             + prev_vblank.tval_usec;
+    if (!frame_skips)
+    {   // The compositor is trying to keep up full frame rate and
+        // frame_time_usec is therefore fairly accurate...
+        auto prev_vblank_abs = prev_flip.tval_sec * 1000000LL
+                             + prev_flip.tval_usec;
         auto next_vblank_abs = prev_vblank_abs + frame_time_usec;
-        auto wakeup_abs = next_vblank_abs - render_time_estimate;
+        auto wakeup_abs = next_vblank_abs - minus_usec;
 
         struct timespec wakeup;
         wakeup.tv_sec = wakeup_abs / 1000000;
         wakeup.tv_nsec = (wakeup_abs % 1000000) * 1000;
+
+        int err = 0;
         do
         {
             err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &wakeup, NULL);

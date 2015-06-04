@@ -296,7 +296,7 @@ void mgm::DisplayBuffer::post()
         scheduled_bypass_frame = bypass_buf;
         wait_for_page_flip();
         if (outputs.size() == 1)
-            outputs.front()->adaptive_wait();
+            outputs.front()->sleep_one_frame_minus(1000);
     }
     else
     {
@@ -307,7 +307,12 @@ void mgm::DisplayBuffer::post()
          */
         scheduled_composite_frame = bufobj;
         if (outputs.size() == 1)
+        {
             wait_for_page_flip();
+
+            // XXX testing only:
+            outputs.front()->sleep_one_frame_minus(3000);
+        }
     }
 
     // Buffer lifetimes are managed exclusively by scheduled*/visible* now
