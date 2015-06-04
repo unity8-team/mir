@@ -311,12 +311,6 @@ void mgm::RealKMSOutput::wait_for_page_flip()
     }
 }
 
-void mgm::RealKMSOutput::reset_adaptive_wait()
-{
-    mir::log_info("Output latency reset to zero.");
-    render_time_estimate = 0;
-}
-
 void mgm::RealKMSOutput::adaptive_wait()
 {
     if (render_time_estimate >= render_time_too_large)

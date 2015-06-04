@@ -51,7 +51,6 @@ public:
     void wait_for_page_flip();
 
     void adaptive_wait() override;
-    void reset_adaptive_wait() override;
 
     void set_cursor(gbm_bo* buffer);
     void move_cursor(geometry::Point destination);
