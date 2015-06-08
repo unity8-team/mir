@@ -110,29 +110,18 @@ mir::EventUPtr add_missing_down(MirTouchEvent const* valid_ev, MirTouchEvent con
 mir::EventUPtr add_missing_up(MirTouchEvent const* valid_ev, MirTouchId missing_an_up_id)
 {
     // Because we can only have one action per ev, we copy the last valid (Delivered) event and replace all the actions
-    // with change, then we will add a missing down for touch "missing_id" 
+    // with change, then we will change the action for the ID which should have gone up to an up.
     auto ret = convert_touch_actions_to_change(valid_ev);
     auto index = index_for_id(valid_ev, missing_an_up_id);
 
-    // TODO: Asserts, etc (for index)
-
     ret->motion.pointer_coordinates[index].action = mir_touch_action_up;
 
-    /*    mev::add_touch(*ret, missing_id, mir_touch_action_up,
-                   mir_touch_event_tooltype(ev, index),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_x),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_y),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_pressure),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_major),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_minor),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_size));*/
     return ret;
 }    
 }
 
 typedef std::unordered_set<MirTouchId> TouchSet;
 
-// Rework the case where there is no last_ev
 void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std::mutex> const& lg, MirTouchEvent const* ev, MirTouchEvent const* last_ev)
 {
     TouchSet expected;
@@ -177,13 +166,12 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
 
     auto it = last_event_by_device.find(id);
     MirTouchEvent const* last_ev = nullptr;
-    auto unfortunate_hack = mev::make_event(id, std::chrono::nanoseconds(0), mir_input_event_modifier_none);
+    auto default_ev = mev::make_event(id, std::chrono::high_resolution_clock::now().time_since_epoch(), mir_input_event_modifier_none); 
 
     if (it == last_event_by_device.end())
     {
         last_event_by_device.insert(std::make_pair(id, copy_event(ev)));
-        // Fix modifiers, timestamp, etc...
-        last_ev = reinterpret_cast<MirTouchEvent const*>(unfortunate_hack.get());
+        last_ev = reinterpret_cast<MirTouchEvent const*>(default_ev.get());
     }
     else
     {
@@ -192,7 +180,8 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
     
     ensure_stream_validity_locked(lg, ev, last_ev);
 
-    // TODO: Lol...
+    // Seems to be no better way to replace a non default constructible value type in an unordered_map
+    // C++17 will give us insert_or_assign
     last_event_by_device.erase(id);
     last_event_by_device.insert(std::make_pair(id, copy_event(ev)));
     

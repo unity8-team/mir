@@ -44,6 +44,7 @@
 #include "null_input_channel_factory.h"
 #include "default_input_device_hub.h"
 #include "default_input_manager.h"
+#include "touch_stream_rewriter.h"
 
 #include "mir/input/touch_visualizer.h"
 #include "mir/input/platform.h"
@@ -210,7 +211,11 @@ bool mir::DefaultServerConfiguration::is_key_repeat_enabled() const
 std::shared_ptr<mi::InputDispatcher>
 mir::DefaultServerConfiguration::the_input_dispatcher()
 {
-    return the_event_filter_chain_dispatcher();
+    return input_dispatcher(
+        [this]()
+        {
+            return std::make_shared<mi::TouchStreamRewriter>(the_event_filter_chain_dispatcher());
+        });
 }
 
 std::shared_ptr<mi::InputDispatcher>
