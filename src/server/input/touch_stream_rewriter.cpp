@@ -107,21 +107,25 @@ mir::EventUPtr add_missing_down(MirTouchEvent const* valid_ev, MirTouchEvent con
     return ret;
 }
 
-mir::EventUPtr add_missing_up(MirTouchEvent const* valid_ev, MirTouchEvent const* ev, MirTouchId missing_id)
+mir::EventUPtr add_missing_up(MirTouchEvent const* valid_ev, MirTouchId missing_an_up_id)
 {
     // Because we can only have one action per ev, we copy the last valid (Delivered) event and replace all the actions
     // with change, then we will add a missing down for touch "missing_id" 
     auto ret = convert_touch_actions_to_change(valid_ev);
-    auto index = index_for_id(ev, missing_id);
+    auto index = index_for_id(valid_ev, missing_an_up_id);
 
-    mev::add_touch(*ret, missing_id, mir_touch_action_up,
+    // TODO: Asserts, etc (for index)
+
+    ret->motion.pointer_coordinates[index].action = mir_touch_action_up;
+
+    /*    mev::add_touch(*ret, missing_id, mir_touch_action_up,
                    mir_touch_event_tooltype(ev, index),
                    mir_touch_event_axis_value(ev, index, mir_touch_axis_x),
                    mir_touch_event_axis_value(ev, index, mir_touch_axis_y),
                    mir_touch_event_axis_value(ev, index, mir_touch_axis_pressure),
                    mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_major),
                    mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_minor),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_size));
+                   mir_touch_event_axis_value(ev, index, mir_touch_axis_size));*/
     return ret;
 }    
 }
@@ -145,7 +149,7 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
     {
         auto id = mir_touch_event_id(ev, i);
         found.insert(id);
-        if (expected.find(id) == expected.end())
+        if (expected.find(id) == expected.end() && mir_touch_event_action(ev, i) != mir_touch_action_down)
         {
             auto inject_ev = add_missing_down(last_ev, ev, id);
             next_dispatcher->dispatch(*inject_ev);
@@ -159,7 +163,7 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
     {
         if (found.find(expected_id) == found.end())
         {
-            auto inject_ev = add_missing_up(last_ev, ev, expected_id);
+            auto inject_ev = add_missing_up(last_ev, expected_id);
             next_dispatcher->dispatch(*inject_ev);
             ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
         }
@@ -187,6 +191,11 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
     }
     
     ensure_stream_validity_locked(lg, ev, last_ev);
+
+    // TODO: Lol...
+    last_event_by_device.erase(id);
+    last_event_by_device.insert(std::make_pair(id, copy_event(ev)));
+    
     next_dispatcher->dispatch(*reinterpret_cast<MirEvent const*>(ev));
 }
 
