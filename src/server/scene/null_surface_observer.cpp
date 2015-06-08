@@ -25,7 +25,6 @@ void ms::NullSurfaceObserver::attrib_changed(MirSurfaceAttrib /*attrib*/, int /*
 void ms::NullSurfaceObserver::resized_to(geometry::Size const& /*size*/) {}
 void ms::NullSurfaceObserver::moved_to(geometry::Point const& /*top_left*/) {}
 void ms::NullSurfaceObserver::hidden_set_to(bool /*hide*/) {}
-void ms::NullSurfaceObserver::frame_posted(int /*frames_available*/) {}
 void ms::NullSurfaceObserver::alpha_set_to(float /*alpha*/) {}
 void ms::NullSurfaceObserver::orientation_set_to(MirOrientation /*orientation*/) {}
 void ms::NullSurfaceObserver::transformation_set_to(glm::mat4 const& /*t*/) {}
@@ -34,3 +33,7 @@ void ms::NullSurfaceObserver::cursor_image_set_to(mg::CursorImage const& /*image
 void ms::NullSurfaceObserver::client_surface_close_requested() {}
 void ms::NullSurfaceObserver::keymap_changed(xkb_rule_names const& /* names */) {}
 void ms::NullSurfaceObserver::renamed(char const*) {}
+void ms::NullSurfaceObserver::streams_repositioned() {}
+
+void ms::NullStreamObserver::frame_posted(int /*frames_available*/) {}
+void ms::NullStreamObserver::resized_to(geometry::Size const& /*size*/) {}

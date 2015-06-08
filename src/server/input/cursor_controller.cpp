@@ -62,10 +62,6 @@ struct UpdateCursorOnSurfaceChanges : ms::NullSurfaceObserver
     {
         cursor_controller->update_cursor_image();
     }
-    void frame_posted(int) override
-    {
-        // Frame posting wont trigger a cursor update
-    }
     void alpha_set_to(float) override
     {
         cursor_controller->update_cursor_image();

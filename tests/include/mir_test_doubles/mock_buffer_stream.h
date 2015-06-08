@@ -58,8 +58,8 @@ struct MockBufferStream : public compositor::BufferStream
     MOCK_METHOD1(release_client_buffer, void(graphics::Buffer*));
     MOCK_METHOD1(lock_compositor_buffer,
                  std::shared_ptr<graphics::Buffer>(void const*));
-    MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::SurfaceObserver> const&));
-    MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::SurfaceObserver> const&));
+    MOCK_METHOD1(add_observer, void(std::shared_ptr<scene::StreamObserver> const&));
+    MOCK_METHOD1(remove_observer, void(std::weak_ptr<scene::StreamObserver> const&));
 
     MOCK_METHOD0(get_stream_pixel_format, MirPixelFormat());
     MOCK_METHOD0(stream_size, geometry::Size());

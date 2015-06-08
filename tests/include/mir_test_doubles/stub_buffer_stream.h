@@ -76,8 +76,8 @@ public:
         fn(*stub_compositor_buffer);
     }
     MirPixelFormat pixel_format() const { return mir_pixel_format_abgr_8888; }
-    void add_observer(std::shared_ptr<scene::SurfaceObserver> const&) {}
-    void remove_observer(std::weak_ptr<scene::SurfaceObserver> const&) {}
+    void add_observer(std::shared_ptr<scene::StreamObserver> const&) {}
+    void remove_observer(std::weak_ptr<scene::StreamObserver> const&) {}
     bool has_submitted_buffer() const { return true; }
 
     StubBuffer stub_client_buffer;

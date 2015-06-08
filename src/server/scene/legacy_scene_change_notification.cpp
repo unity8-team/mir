@@ -48,9 +48,9 @@ void ms::LegacySceneChangeNotification::add_surface_observer(ms::Surface* surfac
             was_visible = surface->visible();
         };
 
-    auto observer = std::make_shared<ms::LegacySurfaceChangeNotification>(
-        notifier, buffer_notify_change);
+    auto observer = std::make_shared<ms::LegacySurfaceChangeNotification>(notifier);
     surface->add_observer(observer);
+    surface->add_observer(std::make_shared<ms::LegacyStreamChangeNotification>(buffer_notify_change));
     
     {
         std::unique_lock<decltype(surface_observers_guard)> lg(surface_observers_guard);

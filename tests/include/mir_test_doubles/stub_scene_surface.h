@@ -80,6 +80,8 @@ public:
     void set_alpha(float) override {}
     void set_orientation(MirOrientation) {}
 
+    void add_observer(std::shared_ptr<scene::StreamObserver> const&) override {}
+    void remove_observer(std::weak_ptr<scene::StreamObserver> const&) override {}
     void add_observer(std::shared_ptr<scene::SurfaceObserver> const&) override {}
     void remove_observer(std::weak_ptr<scene::SurfaceObserver> const&) override {}
 

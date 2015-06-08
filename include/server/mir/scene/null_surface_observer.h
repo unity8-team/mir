@@ -35,7 +35,6 @@ public:
     void resized_to(geometry::Size const& size) override;
     void moved_to(geometry::Point const& top_left) override;
     void hidden_set_to(bool hide) override;
-    void frame_posted(int frames_available) override;
     void alpha_set_to(float alpha) override;
     void orientation_set_to(MirOrientation orientation) override;
     void transformation_set_to(glm::mat4 const& t) override;
@@ -44,11 +43,19 @@ public:
     void client_surface_close_requested() override;
     void keymap_changed(xkb_rule_names const& names) override;
     void renamed(char const* name) override;
+    void streams_repositioned() override;
 
 protected:
     NullSurfaceObserver(NullSurfaceObserver const&) = delete;
     NullSurfaceObserver& operator=(NullSurfaceObserver const&) = delete;
 };
+
+class NullStreamObserver : public StreamObserver
+{
+    void frame_posted(int frames_available) override;
+    void resized_to(geometry::Size const& size) override;
+};
+
 }
 }
 

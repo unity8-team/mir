@@ -222,8 +222,7 @@ TEST_F(BufferStreamTest, notifies_on_swap)
     };
     NiceMock<MockCallback> mock_cb;
     EXPECT_CALL(mock_cb, call()).Times(3);
-    auto observer = std::make_shared<mir::scene::LegacySurfaceChangeNotification>(
-        []{ FAIL() << "buffer stream shouldnt notify of scene changes.";},
+    auto observer = std::make_shared<mir::scene::LegacyStreamChangeNotification>(
         std::bind(&MockCallback::call, &mock_cb));
 
     mc::BufferStreamSurfaces buffer_stream(mock_bundle);

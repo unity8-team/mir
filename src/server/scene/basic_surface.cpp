@@ -70,12 +70,23 @@ void ms::SurfaceObservers::hidden_set_to(bool hide)
         { observer->hidden_set_to(hide); });
 }
 
-void ms::SurfaceObservers::frame_posted(int frames_available)
+void ms::StreamObservers::frame_posted(int frames_available)
 {
-    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
+    for_each([&](std::shared_ptr<StreamObserver> const& observer)
         { observer->frame_posted(frames_available); });
 }
 
+void ms::StreamObservers::resized_to(geom::Size const& size)
+{
+    for_each([&](std::shared_ptr<StreamObserver> const& observer)
+        { observer->resized_to(size); });
+}
+
+void ms::SurfaceObservers::streams_repositioned()
+{
+    for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
+        { observer->streams_repositioned(); });
+}
 void ms::SurfaceObservers::alpha_set_to(float alpha)
 {
     for_each([&](std::shared_ptr<SurfaceObserver> const& observer)
@@ -557,7 +568,7 @@ std::shared_ptr<mg::CursorImage> ms::BasicSurface::cursor_image() const
 
 namespace
 {
-struct FramePostObserver : public ms::NullSurfaceObserver
+struct FramePostObserver : public ms::NullStreamObserver
 {
     FramePostObserver(std::function<void()> const& exec)
         : exec(exec)
@@ -729,11 +740,24 @@ MirSurfaceVisibility ms::BasicSurface::set_visibility(MirSurfaceVisibility new_v
     return new_visibility;
 }
 
+void ms::BasicSurface::add_observer(std::shared_ptr<StreamObserver> const& observer)
+{
+    for (auto& info : layers) 
+        info.stream->add_observer(observer);
+}
+
+void ms::BasicSurface::remove_observer(std::weak_ptr<StreamObserver> const& observer)
+{
+    auto o = observer.lock();
+    if (!o)
+        BOOST_THROW_EXCEPTION(std::runtime_error("Invalid observer (previously destroyed)"));
+    for (auto& info : layers) 
+        info.stream->remove_observer(observer);
+}
+
 void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)
 {
     observers.add(observer);
-    for (auto& info : layers) 
-        info.stream->add_observer(observer);
 }
 
 void ms::BasicSurface::remove_observer(std::weak_ptr<SurfaceObserver> const& observer)
@@ -742,8 +766,6 @@ void ms::BasicSurface::remove_observer(std::weak_ptr<SurfaceObserver> const& obs
     if (!o)
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid observer (previously destroyed)"));
     observers.remove(o);
-    for (auto& info : layers) 
-        info.stream->remove_observer(observer);
 }
 
 std::shared_ptr<ms::Surface> ms::BasicSurface::parent() const
@@ -844,15 +866,18 @@ void ms::BasicSurface::rename(std::string const& title)
 
 void ms::BasicSurface::set_streams(std::list<scene::StreamInfo> const& s)
 {
-    std::unique_lock<std::mutex> lk(guard);
-
-    if (s.end() == std::find_if(s.begin(), s.end(),
-        [this] (ms::StreamInfo const& info) { return info.stream == surface_buffer_stream; }))
     {
-        BOOST_THROW_EXCEPTION(std::logic_error("cannot remove the created-with buffer stream yet"));
-    }
+        std::unique_lock<std::mutex> lk(guard);
 
-    layers = s;
+        if (s.end() == std::find_if(s.begin(), s.end(),
+            [this] (ms::StreamInfo const& info) { return info.stream == surface_buffer_stream; }))
+        {
+            BOOST_THROW_EXCEPTION(std::logic_error("cannot remove the created-with buffer stream yet"));
+        }
+
+        layers = s;
+    }
+    observers.streams_repositioned();
 }
 
 mg::RenderableList ms::BasicSurface::generate_renderables(mc::CompositorID id) const

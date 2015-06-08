@@ -93,7 +93,7 @@ struct BasicSurfaceTest : public testing::Test
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     void const* compositor_id{nullptr};
     std::shared_ptr<ms::LegacySurfaceChangeNotification> observer =
-        std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb, [this](int){mock_change_cb();});
+        std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb);
     std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
     testing::NiceMock<mtd::MockInputSender> mock_sender;
 

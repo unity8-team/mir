@@ -139,6 +139,8 @@ public:
 
     void add_observer(std::shared_ptr<SurfaceObserver> const& observer) override;
     void remove_observer(std::weak_ptr<SurfaceObserver> const& observer) override;
+    void add_observer(std::shared_ptr<StreamObserver> const& observer) override;
+    void remove_observer(std::weak_ptr<StreamObserver> const& observer) override;
 
     int dpi() const;
 

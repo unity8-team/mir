@@ -125,12 +125,12 @@ MirPixelFormat mc::BufferStreamSurfaces::pixel_format() const
     return buffer_bundle->properties().format;
 }
 
-void mc::BufferStreamSurfaces::add_observer(std::shared_ptr<scene::SurfaceObserver> const& observer)
+void mc::BufferStreamSurfaces::add_observer(std::shared_ptr<scene::StreamObserver> const& observer)
 {
     observers.add(observer);
 }
 
-void mc::BufferStreamSurfaces::remove_observer(std::weak_ptr<scene::SurfaceObserver> const& observer)
+void mc::BufferStreamSurfaces::remove_observer(std::weak_ptr<scene::StreamObserver> const& observer)
 {
     if (auto o = observer.lock())
         observers.remove(o);

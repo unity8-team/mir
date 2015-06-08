@@ -32,6 +32,7 @@ namespace geometry
 {
 struct Size;
 struct Point;
+struct Displacement;
 }
 namespace graphics
 {
@@ -40,6 +41,19 @@ class CursorImage;
 
 namespace scene
 {
+
+class StreamObserver
+{
+public:
+    virtual void frame_posted(int frames_available) = 0;
+    virtual void resized_to(geometry::Size const& size) = 0;
+protected:
+    StreamObserver() = default;
+    virtual ~StreamObserver() = default;
+    StreamObserver(StreamObserver const&) = delete;
+    StreamObserver& operator=(StreamObserver const&) = delete;
+};
+
 class SurfaceObserver
 {
 public:
@@ -47,7 +61,6 @@ public:
     virtual void resized_to(geometry::Size const& size) = 0;
     virtual void moved_to(geometry::Point const& top_left) = 0;
     virtual void hidden_set_to(bool hide) = 0;
-    virtual void frame_posted(int frames_available) = 0;
     virtual void alpha_set_to(float alpha) = 0;
     virtual void orientation_set_to(MirOrientation orientation) = 0;
     virtual void transformation_set_to(glm::mat4 const& t) = 0;
@@ -56,6 +69,7 @@ public:
     virtual void client_surface_close_requested() = 0;
     virtual void keymap_changed(xkb_rule_names const& names) = 0;
     virtual void renamed(char const* name) = 0;
+    virtual void streams_repositioned() = 0;
 
 protected:
     SurfaceObserver() = default;

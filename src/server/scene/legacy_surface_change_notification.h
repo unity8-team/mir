@@ -30,17 +30,24 @@ namespace mir
 {
 namespace scene
 {
+class LegacyStreamChangeNotification : public ms::StreamObserver
+{
+public:
+    LegacyStreamChangeNotification(std::function<void(int)> const& stream_change);
+    void frame_posted(int frames_available) override;
+    void resized_to(geometry::Size const& size) override;
+private:
+    std::function<void(int)> const notify_buffer_change;
+};
+
 class LegacySurfaceChangeNotification : public ms::SurfaceObserver
 {
 public:
-    LegacySurfaceChangeNotification(
-        std::function<void()> const& notify_scene_change,
-        std::function<void(int)> const& notify_buffer_change);
+    LegacySurfaceChangeNotification(std::function<void()> const& notify_scene_change);
 
     void resized_to(geometry::Size const& /*size*/) override;
     void moved_to(geometry::Point const& /*top_left*/) override;
     void hidden_set_to(bool /*hide*/) override;
-    void frame_posted(int frames_available) override;
     void alpha_set_to(float /*alpha*/) override;
     void orientation_set_to(MirOrientation orientation) override;
     void transformation_set_to(glm::mat4 const& /*t*/) override;
@@ -50,10 +57,10 @@ public:
     void client_surface_close_requested() override;
     void keymap_changed(xkb_rule_names const& names) override;
     void renamed(char const*) override;
+    void streams_repositioned() override;
 
 private:
     std::function<void()> const notify_scene_change;
-    std::function<void(int)> const notify_buffer_change;
 };
 }
 }

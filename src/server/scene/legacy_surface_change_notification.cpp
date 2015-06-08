@@ -23,11 +23,24 @@ namespace mg = mir::graphics;
 namespace mi = mir::input;
 namespace geom = mir::geometry;
 
-ms::LegacySurfaceChangeNotification::LegacySurfaceChangeNotification(
-    std::function<void()> const& notify_scene_change,
+ms::LegacyStreamChangeNotification::LegacyStreamChangeNotification(
     std::function<void(int)> const& notify_buffer_change) :
-    notify_scene_change(notify_scene_change),
     notify_buffer_change(notify_buffer_change)
+{
+}
+
+void ms::LegacyStreamChangeNotification::frame_posted(int frames_available)
+{
+    notify_buffer_change(frames_available);
+}
+
+void ms::LegacyStreamChangeNotification::resized_to(geometry::Size const&)
+{
+}
+
+ms::LegacySurfaceChangeNotification::LegacySurfaceChangeNotification(
+    std::function<void()> const& notify_scene_change) :
+    notify_scene_change(notify_scene_change)
 {
 }
 
@@ -46,9 +59,9 @@ void ms::LegacySurfaceChangeNotification::hidden_set_to(bool /*hide*/)
     notify_scene_change();
 }
 
-void ms::LegacySurfaceChangeNotification::frame_posted(int frames_available)
+void ms::LegacySurfaceChangeNotification::streams_repositioned()
 {
-    notify_buffer_change(frames_available);
+    notify_scene_change();
 }
 
 void ms::LegacySurfaceChangeNotification::alpha_set_to(float /*alpha*/)

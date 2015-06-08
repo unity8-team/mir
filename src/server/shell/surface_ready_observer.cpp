@@ -35,6 +35,7 @@ msh::SurfaceReadyObserver::SurfaceReadyObserver(
 msh::SurfaceReadyObserver::~SurfaceReadyObserver()
     = default;
 
+#if 0
 void msh::SurfaceReadyObserver::frame_posted(int)
 {
     if (auto const s = surface.lock())
@@ -43,3 +44,4 @@ void msh::SurfaceReadyObserver::frame_posted(int)
         s->remove_observer(shared_from_this());
     }
 }
+#endif
