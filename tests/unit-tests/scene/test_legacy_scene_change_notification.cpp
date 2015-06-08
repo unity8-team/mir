@@ -66,7 +66,8 @@ TEST_F(LegacySceneChangeNotificationTest, fowards_all_observations_to_callback)
 
 TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_surfaces)
 {
-    EXPECT_CALL(surface, add_observer(testing::_))
+    using namespace testing;
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
 
     ms::LegacySceneChangeNotification observer(scene_change_callback, buffer_change_callback);
@@ -75,7 +76,8 @@ TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_surfaces)
 
 TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_existing_surfaces)
 {
-    EXPECT_CALL(surface, add_observer(testing::_))
+    using namespace testing;
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
 
     ms::LegacySceneChangeNotification observer(scene_change_callback, buffer_change_callback);
@@ -85,8 +87,8 @@ TEST_F(LegacySceneChangeNotificationTest, registers_observer_with_existing_surfa
 TEST_F(LegacySceneChangeNotificationTest, observes_surface_changes)
 {
     using namespace ::testing;
-    std::shared_ptr<ms::SurfaceObserver> surface_observer;
-    EXPECT_CALL(surface, add_observer(_)).Times(1)
+    std::shared_ptr<ms::StreamObserver> surface_observer;
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::StreamObserver> const&>(_)))
         .WillOnce(SaveArg<0>(&surface_observer));
    
     int buffer_num{3}; 
@@ -95,7 +97,7 @@ TEST_F(LegacySceneChangeNotificationTest, observes_surface_changes)
 
     ms::LegacySceneChangeNotification observer(scene_change_callback, buffer_change_callback);
     observer.surface_added(&surface);
-//    surface_observer->frame_posted(buffer_num);
+    surface_observer->frame_posted(buffer_num);
 }
 
 TEST_F(LegacySceneChangeNotificationTest, redraws_on_rename)
@@ -104,7 +106,7 @@ TEST_F(LegacySceneChangeNotificationTest, redraws_on_rename)
 
     std::shared_ptr<ms::SurfaceObserver> surface_observer;
 
-    EXPECT_CALL(surface, add_observer(_)).Times(1)
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::SurfaceObserver> const&>(_)))
         .WillOnce(SaveArg<0>(&surface_observer));
     EXPECT_CALL(scene_callback, invoke()).Times(1);
 
@@ -118,9 +120,9 @@ TEST_F(LegacySceneChangeNotificationTest, destroying_observer_unregisters_surfac
 {
     using namespace ::testing;
     
-    EXPECT_CALL(surface, add_observer(_))
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
-    EXPECT_CALL(surface, remove_observer(_))
+    EXPECT_CALL(surface, remove_observer(Matcher<std::weak_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
     {
         ms::LegacySceneChangeNotification observer(scene_change_callback, buffer_change_callback);
@@ -131,9 +133,9 @@ TEST_F(LegacySceneChangeNotificationTest, destroying_observer_unregisters_surfac
 TEST_F(LegacySceneChangeNotificationTest, ending_observation_unregisters_observers)
 {
     using namespace ::testing;
-    EXPECT_CALL(surface, add_observer(_))
+    EXPECT_CALL(surface, add_observer(Matcher<std::shared_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
-    EXPECT_CALL(surface, remove_observer(_))
+    EXPECT_CALL(surface, remove_observer(Matcher<std::weak_ptr<ms::SurfaceObserver> const&>(_)))
         .Times(1);
 
     ms::LegacySceneChangeNotification observer(scene_change_callback, buffer_change_callback);

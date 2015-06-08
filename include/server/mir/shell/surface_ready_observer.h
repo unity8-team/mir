@@ -30,7 +30,7 @@ namespace scene { class Session; class Surface; }
 
 namespace shell
 {
-class SurfaceReadyObserver : public scene::NullSurfaceObserver,
+class SurfaceReadyObserver : public scene::NullStreamObserver,
     public std::enable_shared_from_this<SurfaceReadyObserver>
 {
 public:
@@ -46,7 +46,8 @@ public:
     ~SurfaceReadyObserver();
 
 private:
-//    void frame_posted(int) override;
+    void frame_posted(int) override;
+    void resized_to(geometry::Size const&) override;
 
     ActivateFunction const activate;
     std::weak_ptr<scene::Session> const session;
