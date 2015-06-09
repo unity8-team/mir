@@ -171,13 +171,14 @@ TEST_F(TouchStreamRewriter, multiple_missing_releases_are_inserted)
     auto const& expected_ev_1 = touch_1;
     auto const& expected_ev_2 = touch_2;
     auto const& expected_ev_3 = touch_3;
-    auto expected_ev_4 = make_touch(0, mir_touch_action_up);
-    add_another_touch(touch_2, 1, mir_touch_action_change);
-    add_another_touch(touch_2, 2, mir_touch_action_down);
-    auto expected_ev_5 = make_touch(1, mir_touch_action_up);
-    add_another_touch(touch_2, 2, mir_touch_action_change);
+    auto expected_ev_4 = make_touch(0, mir_touch_action_change);
+    add_another_touch(expected_ev_4, 1, mir_touch_action_up);
+    add_another_touch(expected_ev_4, 2, mir_touch_action_change);
+    auto expected_ev_5 = make_touch(0, mir_touch_action_up);
+    add_another_touch(expected_ev_5, 2, mir_touch_action_change);
     auto const& expected_ev_6 = touch_4;
 
+    InSequence seq;
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_1)));
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_2)));
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_3)));

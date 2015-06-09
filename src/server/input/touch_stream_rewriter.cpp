@@ -117,12 +117,33 @@ mir::EventUPtr add_missing_up(MirTouchEvent const* valid_ev, MirTouchId missing_
     ret->motion.pointer_coordinates[index].action = mir_touch_action_up;
 
     return ret;
-}    
+}
+
+mir::EventUPtr remove_id_from(MirTouchEvent const* ev, MirTouchId id_to_remove)
+{
+    auto ret = convert_touch_actions_to_change(ev);
+    ret->motion.pointer_count = 0;
+    for (size_t i = 0; i < mir_touch_event_point_count(ev); i++)
+    {
+        auto id = mir_touch_event_id(ev, i);
+        if (id == id_to_remove)
+            continue;
+        mev::add_touch(*ret, id, mir_touch_event_action(ev, i),
+            mir_touch_event_tooltype(ev, i),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_x),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_y),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_pressure),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_touch_major),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_touch_minor),
+            mir_touch_event_axis_value(ev, i, mir_touch_axis_size));
+    }
+    return ret;
+}
 }
 
 typedef std::unordered_set<MirTouchId> TouchSet;
 
-void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std::mutex> const& lg, MirTouchEvent const* ev, MirTouchEvent const* last_ev)
+void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std::mutex> const&, MirTouchEvent const* ev, MirTouchEvent const* last_ev)
 {
     TouchSet expected;
     for (size_t i = 0; i < mir_touch_event_point_count(last_ev); i++)
@@ -138,25 +159,35 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
     {
         auto id = mir_touch_event_id(ev, i);
         found.insert(id);
-        if (expected.find(id) == expected.end() && mir_touch_event_action(ev, i) != mir_touch_action_down)
-        {
-            auto inject_ev = add_missing_down(last_ev, ev, id);
-            next_dispatcher->dispatch(*inject_ev);
-            ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
-            return;
-        }
     }
 
     // Insert missing touch releases
+    TouchSet missing;
+    auto last_ev_copy = convert_touch_actions_to_change(last_ev);
     for (auto const& expected_id : expected)
     {
         if (found.find(expected_id) == found.end())
         {
-            auto inject_ev = add_missing_up(last_ev, expected_id);
+            auto inject_ev = add_missing_up((MirTouchEvent*)last_ev_copy.get(), expected_id);
             next_dispatcher->dispatch(*inject_ev);
-            ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
+            last_ev_copy = remove_id_from((MirTouchEvent*)inject_ev.get(), expected_id);
         }
     }
+    
+
+    for (size_t i = 0; i < mir_touch_event_point_count(ev); i++)
+    {
+        auto id = mir_touch_event_id(ev, i);
+        if (expected.find(id) == expected.end() && mir_touch_event_action(ev, i) != mir_touch_action_down)
+        {
+            auto inject_ev = add_missing_down((MirTouchEvent*)last_ev_copy.get(), ev, id);
+            next_dispatcher->dispatch(*inject_ev);
+            //            ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
+            last_ev_copy = std::move(inject_ev);
+            //            return;
+        }
+    }
+
 }
 
 
