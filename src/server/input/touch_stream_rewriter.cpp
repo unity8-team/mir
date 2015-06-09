@@ -190,8 +190,10 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
 
 void mi::TouchStreamRewriter::start()
 {
+    next_dispatcher->start();
 }
 
 void mi::TouchStreamRewriter::stop()
 {
+    next_dispatcher->stop();
 }
