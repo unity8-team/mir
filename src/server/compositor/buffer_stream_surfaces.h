@@ -21,7 +21,7 @@
 #define MIR_COMPOSITOR_BUFFER_STREAM_SCENE_H_
 
 #include "mir/compositor/buffer_stream.h"
-#include "mir/scene/surface_observers.h"
+#include "mir/scene/stream_observers.h"
 
 #include <mutex>
 

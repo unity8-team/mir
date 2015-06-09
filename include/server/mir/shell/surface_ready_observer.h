@@ -19,7 +19,7 @@
 #ifndef MIR_SHELL_SURFACE_READY_OBSERVER_H_
 #define MIR_SHELL_SURFACE_READY_OBSERVER_H_
 
-#include "mir/scene/null_surface_observer.h"
+#include "mir/scene/null_stream_observer.h"
 
 #include <functional>
 #include <memory>

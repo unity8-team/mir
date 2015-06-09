@@ -30,16 +30,6 @@ namespace mir
 {
 namespace scene
 {
-class LegacyStreamChangeNotification : public ms::StreamObserver
-{
-public:
-    LegacyStreamChangeNotification(std::function<void(int)> const& stream_change);
-    void frame_posted(int frames_available) override;
-    void resized_to(geometry::Size const& size) override;
-private:
-    std::function<void(int)> const notify_buffer_change;
-};
-
 class LegacySurfaceChangeNotification : public ms::SurfaceObserver
 {
 public:

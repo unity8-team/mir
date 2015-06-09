@@ -19,6 +19,7 @@
 #include "legacy_surface_change_notification.h"
 
 #include "mir/scene/legacy_scene_change_notification.h"
+#include "legacy_stream_change_notification.h"
 #include "mir/scene/surface.h"
 
 #include <boost/throw_exception.hpp>

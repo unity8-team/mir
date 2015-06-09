@@ -29,7 +29,7 @@
 #include "mir/geometry/displacement.h"
 
 #include "mir/scene/scene_report.h"
-#include "mir/scene/null_surface_observer.h"
+#include "mir/scene/null_stream_observer.h"
 
 #include <boost/throw_exception.hpp>
 

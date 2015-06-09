@@ -49,13 +49,6 @@ protected:
     NullSurfaceObserver(NullSurfaceObserver const&) = delete;
     NullSurfaceObserver& operator=(NullSurfaceObserver const&) = delete;
 };
-
-class NullStreamObserver : public StreamObserver
-{
-    void frame_posted(int frames_available) override;
-    void resized_to(geometry::Size const& size) override;
-};
-
 }
 }
 

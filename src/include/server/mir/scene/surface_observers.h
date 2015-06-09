@@ -48,16 +48,6 @@ public:
     void streams_repositioned() override;
 };
 
-class StreamObservers : public StreamObserver, BasicObservers<StreamObserver>
-{
-public:
-    using BasicObservers<StreamObserver>::add;
-    using BasicObservers<StreamObserver>::remove;
-    using BasicObservers<StreamObserver>::for_each;
-    void frame_posted(int frames_available) override;
-    void resized_to(geometry::Size const& size) override;
-};
-
 }
 }
 

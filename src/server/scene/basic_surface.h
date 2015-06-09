@@ -22,6 +22,7 @@
 #include "mir/scene/surface.h"
 #include "mir/basic_observers.h"
 #include "mir/scene/surface_observers.h"
+#include "mir/scene/stream_observers.h"
 
 #include "mir/geometry/rectangle.h"
 

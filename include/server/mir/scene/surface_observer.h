@@ -42,18 +42,6 @@ class CursorImage;
 namespace scene
 {
 
-class StreamObserver
-{
-public:
-    virtual void frame_posted(int frames_available) = 0;
-    virtual void resized_to(geometry::Size const& size) = 0;
-protected:
-    StreamObserver() = default;
-    virtual ~StreamObserver() = default;
-    StreamObserver(StreamObserver const&) = delete;
-    StreamObserver& operator=(StreamObserver const&) = delete;
-};
-
 class SurfaceObserver
 {
 public:

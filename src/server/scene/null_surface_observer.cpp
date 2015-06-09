@@ -17,6 +17,7 @@
  */
 
 #include "mir/scene/null_surface_observer.h"
+#include "mir/scene/null_stream_observer.h"
 
 namespace ms = mir::scene;
 namespace mg = mir::graphics;
