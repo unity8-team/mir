@@ -32,7 +32,6 @@ namespace geometry
 {
 struct Size;
 struct Point;
-struct Displacement;
 }
 namespace graphics
 {
@@ -41,7 +40,6 @@ class CursorImage;
 
 namespace scene
 {
-
 class SurfaceObserver
 {
 public:

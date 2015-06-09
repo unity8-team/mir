@@ -71,11 +71,12 @@ MIR_SERVER_32 {
     mir::scene::NullSessionListener::?NullSessionListener*;
     mir::scene::NullSessionListener::NullSessionListener*;
     mir::scene::NullSessionListener::operator*;
+    mir::scene::NullStreamObserver::frame_posted*;
+    mir::scene::NullStreamObserver::resized_to*;
     mir::scene::NullSurfaceObserver::alpha_set_to*;
     mir::scene::NullSurfaceObserver::attrib_changed*;
     mir::scene::NullSurfaceObserver::client_surface_close_requested*;
     mir::scene::NullSurfaceObserver::cursor_image_set_to*;
-    mir::scene::NullSurfaceObserver::frame_posted*;
     mir::scene::NullSurfaceObserver::hidden_set_to*;
     mir::scene::NullSurfaceObserver::keymap_changed*;
     mir::scene::NullSurfaceObserver::moved_to*;
@@ -281,11 +282,13 @@ MIR_SERVER_32 {
     non-virtual?thunk?to?mir::LockableCallback::?LockableCallback*;
     non-virtual?thunk?to?mir::scene::CoordinateTranslator::?CoordinateTranslator*;
     non-virtual?thunk?to?mir::scene::NullSessionListener::?NullSessionListener*;
+    non-virtual?thunk?to?mir::scene::NullStreamObserver::frame_posted*;
+    non-virtual?thunk?to?mir::scene::NullStreamObserver::resized_to*;
+    non-virtual?thunk?to?mir::scene::NullSurfaceObserver::attrib_changed*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::alpha_set_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::attrib_changed*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::client_surface_close_requested*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::cursor_image_set_to*;
-    non-virtual?thunk?to?mir::scene::NullSurfaceObserver::frame_posted*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::hidden_set_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::keymap_changed*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::moved_to*;
@@ -293,6 +296,7 @@ MIR_SERVER_32 {
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::orientation_set_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::reception_mode_set_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::resized_to*;
+    non-virtual?thunk?to?mir::scene::NullSurfaceObserver::streams_repositioned*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::transformation_set_to*;
     non-virtual?thunk?to?mir::scene::Observer::?Observer*;
     non-virtual?thunk?to?mir::scene::PlacementStrategy::?PlacementStrategy*;
@@ -376,6 +380,7 @@ MIR_SERVER_32 {
     typeinfo?for?mir::MainLoop;
     typeinfo?for?mir::scene::CoordinateTranslator;
     typeinfo?for?mir::scene::NullSessionListener;
+    typeinfo?for?mir::scene::NullStreamObserver;
     typeinfo?for?mir::scene::NullSurfaceObserver;
     typeinfo?for?mir::scene::Observer;
     typeinfo?for?mir::scene::PlacementStrategy;
@@ -433,6 +438,7 @@ MIR_SERVER_32 {
     vtable?for?mir::MainLoop;
     vtable?for?mir::scene::CoordinateTranslator;
     vtable?for?mir::scene::NullSessionListener;
+    vtable?for?mir::scene::NullStreamObserver;
     vtable?for?mir::scene::NullSurfaceObserver;
     vtable?for?mir::scene::Observer;
     vtable?for?mir::scene::PlacementStrategy;
