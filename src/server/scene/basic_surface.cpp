@@ -742,6 +742,8 @@ MirSurfaceVisibility ms::BasicSurface::set_visibility(MirSurfaceVisibility new_v
 
 void ms::BasicSurface::add_observer(std::shared_ptr<StreamObserver> const& observer)
 {
+    stream_observers.add(observer);
+    std::lock_guard<std::mutex> lg(guard);
     for (auto& info : layers) 
         info.stream->add_observer(observer);
 }
@@ -751,8 +753,10 @@ void ms::BasicSurface::remove_observer(std::weak_ptr<StreamObserver> const& obse
     auto o = observer.lock();
     if (!o)
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid observer (previously destroyed)"));
+    std::lock_guard<std::mutex> lg(guard);
     for (auto& info : layers) 
         info.stream->remove_observer(observer);
+    stream_observers.remove(o);
 }
 
 void ms::BasicSurface::add_observer(std::shared_ptr<SurfaceObserver> const& observer)
@@ -875,7 +879,17 @@ void ms::BasicSurface::set_streams(std::list<scene::StreamInfo> const& s)
             BOOST_THROW_EXCEPTION(std::logic_error("cannot remove the created-with buffer stream yet"));
         }
 
+        stream_observers.for_each([this](std::shared_ptr<StreamObserver> const& observer) {
+            for(auto& layer : layers)
+                layer.stream->remove_observer(observer);
+        });
+
         layers = s;
+
+        stream_observers.for_each([this](std::shared_ptr<StreamObserver> const& observer) {
+            for(auto& layer : layers)
+                layer.stream->add_observer(observer);
+        });
     }
     observers.streams_repositioned();
 }

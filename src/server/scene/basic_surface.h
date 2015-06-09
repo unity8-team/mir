@@ -159,6 +159,8 @@ private:
     MirOrientationMode set_preferred_orientation(MirOrientationMode mode);
 
     SurfaceObservers observers;
+    StreamObservers stream_observers;
+
     std::mutex mutable guard;
     std::string surface_name;
     geometry::Rectangle surface_rect;
