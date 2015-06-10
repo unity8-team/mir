@@ -221,18 +221,19 @@ std::ostream& mir::operator<<(std::ostream& out, MirInputEvent const& event)
     case mir_input_event_type_touch:
         {
             auto touch_event = mir_input_event_get_touch_event(&event);
-            out << "touch_event(when=" << event_time << ", from=" << device_id << ", touch = {";
+            out << "touch_event(when=" /* << event_time << ", from=" << device_id <<*/ ", touch = {";
 
             for (unsigned int index = 0, count = mir_touch_event_point_count(touch_event); index != count; ++index)
                 out << "{id=" << mir_touch_event_id(touch_event, index)
                     << ", action=" << mir_touch_event_action(touch_event, index)
                     << ", tool=" << mir_touch_event_tooltype(touch_event, index)
-                    << ", x=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_x)
-                    << ", y=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_y)
+                    //                    << ", x=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_x)
+                    //                    << ", y=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_y)
                     << ", pressure=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_pressure)
-                    << ", major=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_touch_major)
-                    << ", minor=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_touch_minor)
-                    << ", size=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_size) << '}';
+                    //                    << ", major=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_touch_major)
+                    //                    << ", minor=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_touch_minor)
+                    //                    << ", size=" << mir_touch_event_axis_value(touch_event, index, mir_touch_axis_size) << '}';
+                    << '}'; // TODO: Remove
 
             return out << ", modifiers=" << mir_touch_event_modifiers(touch_event) << ')';
         }

@@ -22,12 +22,24 @@
 
 #include "mir/events/event_private.h"
 
+#include "mir/event_printer.h" // TODO: Remove
+
 #include <string.h>
 
 #include <unordered_set>
+#include <iostream> // TODO: Remove
 
 namespace mi = mir::input;
 namespace mev = mir::events;
+
+namespace mir
+{
+void print_and_dispatch(std::shared_ptr<mi::InputDispatcher> const& next_dispatcher, MirEvent const& event)
+{
+    std::cout << "Dispatching event to next dispatcher: " << std::endl << "   " << event << std::endl;
+    next_dispatcher->dispatch(event);
+}
+}
 
 mi::TouchStreamRewriter::TouchStreamRewriter(std::shared_ptr<mi::InputDispatcher> const& next_dispatcher)
     : next_dispatcher(next_dispatcher)
@@ -180,7 +192,8 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
         {
             printf("Inserting missing release %d \n", (int) expected_id);
             auto inject_ev = add_missing_up((MirTouchEvent*)last_ev_copy.get(), expected_id);
-            next_dispatcher->dispatch(*inject_ev);
+            //            next_dispatcher->dispatch(*inject_ev);
+            print_and_dispatch(next_dispatcher, *inject_ev);
             last_ev_copy = remove_id_from((MirTouchEvent*)inject_ev.get(), expected_id);
         }
     }
@@ -194,10 +207,9 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
             
             auto inject_ev = add_missing_down((MirTouchEvent*)last_ev_copy.get(), ev, id);
             printf("Inserting missing down %d \n", (int) id);
-            next_dispatcher->dispatch(*inject_ev);
-            //            ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
+            //            next_dispatcher->dispatch(*inject_ev);
+            print_and_dispatch(next_dispatcher, *inject_ev);
             last_ev_copy = std::move(inject_ev);
-            //            return;
         }
     }
 
@@ -221,6 +233,11 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
     {
         last_ev = mir_input_event_get_touch_event(mir_event_get_input_event(it->second.get()));
     }
+
+    std::cout << "Preparing to ensure stream validity" << std::endl
+        << "last_ev: " << *reinterpret_cast<MirEvent const*>(last_ev) << std::endl
+        << "ev: " << *reinterpret_cast<MirEvent const*>(ev) << std::endl;
+
     
     ensure_stream_validity_locked(lg, ev, last_ev);
 
@@ -228,8 +245,9 @@ void mi::TouchStreamRewriter::handle_touch_event(MirInputDeviceId id, MirTouchEv
     // C++17 will give us insert_or_assign
     last_event_by_device.erase(id);
     last_event_by_device.insert(std::make_pair(id, copy_event(ev)));
-    
-    next_dispatcher->dispatch(*reinterpret_cast<MirEvent const*>(ev));
+
+    std::cout << "Forwarding initial event" << std::endl;
+    print_and_dispatch(next_dispatcher, *reinterpret_cast<MirEvent const*>(ev));
 }
 
 void mi::TouchStreamRewriter::start()

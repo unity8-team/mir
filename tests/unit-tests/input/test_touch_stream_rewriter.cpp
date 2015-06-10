@@ -63,7 +63,7 @@ struct TouchStreamRewriter : public ::testing::Test
     }
     
     mtd::MockInputDispatcher next_dispatcher;
-    //mir::PrintingDispatcher next_dispatcher;
+    //    mir::PrintingDispatcher next_dispatcher;
     mi::TouchStreamRewriter rewriter;
 };
 
@@ -223,6 +223,33 @@ TEST_F(TouchStreamRewriter, missing_up_and_down_is_inserted)
     rewriter.dispatch(*touch_2);
     rewriter.dispatch(*touch_3);
     rewriter.dispatch(*touch_4);
+}
+
+TEST_F(TouchStreamRewriter, missing_up_and_down_and_up_is_inserted)
+{
+    auto touch_1 = make_touch(0, mir_touch_action_down);
+    auto touch_2 = make_touch(0, mir_touch_action_change);
+    add_another_touch(touch_2, 1, mir_touch_action_down);
+    auto touch_3 = make_touch(1, mir_touch_action_change);
+    add_another_touch(touch_3, 2, mir_touch_action_up);
+
+    auto const& expected_ev_1 = touch_1;
+    auto const& expected_ev_2 = touch_2;
+    auto expected_ev_3 = make_touch(0, mir_touch_action_up);
+    add_another_touch(expected_ev_3, 1, mir_touch_action_change);
+    auto expected_ev_4 = make_touch(1, mir_touch_action_change);
+    add_another_touch(expected_ev_4, 2, mir_touch_action_down);
+    auto const& expected_ev_5 = touch_3;
+
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_1)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_2)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_3)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_4)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_5)));
+
+    rewriter.dispatch(*touch_1);
+    rewriter.dispatch(*touch_2);
+    rewriter.dispatch(*touch_3);
 }
 
 TEST_F(TouchStreamRewriter, down_is_inserted_before_released_touch_reappears)
