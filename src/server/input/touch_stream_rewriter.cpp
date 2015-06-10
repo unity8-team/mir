@@ -168,6 +168,7 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
     {
         if (found.find(expected_id) == found.end())
         {
+            printf("Inserting missing release %d \n", (int) expected_id);
             auto inject_ev = add_missing_up((MirTouchEvent*)last_ev_copy.get(), expected_id);
             next_dispatcher->dispatch(*inject_ev);
             last_ev_copy = remove_id_from((MirTouchEvent*)inject_ev.get(), expected_id);
@@ -180,7 +181,9 @@ void mi::TouchStreamRewriter::ensure_stream_validity_locked(std::lock_guard<std:
         auto id = mir_touch_event_id(ev, i);
         if (expected.find(id) == expected.end() && mir_touch_event_action(ev, i) != mir_touch_action_down)
         {
+            
             auto inject_ev = add_missing_down((MirTouchEvent*)last_ev_copy.get(), ev, id);
+            printf("Inserting missing down %d \n", (int) id);
             next_dispatcher->dispatch(*inject_ev);
             //            ensure_stream_validity_locked(lg, ev, reinterpret_cast<MirTouchEvent*>(inject_ev.get()));
             last_ev_copy = std::move(inject_ev);
