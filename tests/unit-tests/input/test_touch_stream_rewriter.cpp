@@ -259,3 +259,22 @@ TEST_F(TouchStreamRewriter, down_is_inserted_before_released_touch_reappears)
     rewriter.dispatch(*touch_5);
         
 }
+
+TEST_F(TouchStreamRewriter, up_and_down_inserted_when_id_changes)
+{
+    auto touch_1 = make_touch(0, mir_touch_action_down);
+    auto touch_2 = make_touch(1, mir_touch_action_change);
+
+    auto const& expected_ev_1 = touch_1;
+    auto expected_ev_2 = make_touch(0, mir_touch_action_up);
+    auto expected_ev_3 = make_touch(1, mir_touch_action_down);
+    auto const& expected_ev_4 = touch_2;
+
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_1)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_2)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_3)));
+    EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_4)));
+
+    rewriter.dispatch(*touch_1);
+    rewriter.dispatch(*touch_2);
+}
