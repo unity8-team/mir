@@ -244,6 +244,7 @@ TEST_F(TouchStreamRewriter, down_is_inserted_before_released_touch_reappears)
     add_another_touch(expected_ev_5, 1, mir_touch_action_down);
     auto const& expected_ev_6 = touch_5;
 
+    InSequence seq;
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_1)));
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_2)));
     EXPECT_CALL(next_dispatcher, dispatch(mt::MirTouchEventMatches(*expected_ev_3)));

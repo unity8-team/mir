@@ -78,7 +78,7 @@ mir::EventUPtr convert_touch_actions_to_change(MirTouchEvent const* ev)
     return ret;
 }
 
-size_t index_for_id(MirTouchEvent const* touch_ev, MirTouchId id)
+int index_for_id(MirTouchEvent const* touch_ev, MirTouchId id)
 {
     MirEvent const* ev = reinterpret_cast<MirEvent const*>(touch_ev);
     for (size_t i = 0; i < ev->motion.pointer_count; i++)
@@ -86,7 +86,7 @@ size_t index_for_id(MirTouchEvent const* touch_ev, MirTouchId id)
         if (ev->motion.pointer_coordinates[i].id == id)
             return i;
     }
-    return 0;
+    return -1;
 }
 
 mir::EventUPtr add_missing_down(MirTouchEvent const* valid_ev, MirTouchEvent const* ev, MirTouchId missing_id)
@@ -96,15 +96,25 @@ mir::EventUPtr add_missing_down(MirTouchEvent const* valid_ev, MirTouchEvent con
     auto ret = convert_touch_actions_to_change(valid_ev);
     auto index = index_for_id(ev, missing_id);
 
-    mev::add_touch(*ret, missing_id, mir_touch_action_down,
-                   mir_touch_event_tooltype(ev, index),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_x),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_y),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_pressure),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_major),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_minor),
-                   mir_touch_event_axis_value(ev, index, mir_touch_axis_size));
-    return ret;
+    // If the last_event was a touch up for the point which has reappeared then
+    // we do not want to add a duplicate ID but rather replace the existing bit
+    if (auto existing_index = index_for_id((MirTouchEvent const*)ret.get(), missing_id) >= 0)
+    {
+        ret->motion.pointer_coordinates[existing_index].action = mir_touch_action_down;
+    }
+    else
+    {
+        mev::add_touch(*ret, missing_id, mir_touch_action_down,
+            mir_touch_event_tooltype(ev, index),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_x),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_y),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_pressure),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_major),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_touch_minor),
+            mir_touch_event_axis_value(ev, index, mir_touch_axis_size));
+    }
+    
+  return ret;
 }
 
 mir::EventUPtr add_missing_up(MirTouchEvent const* valid_ev, MirTouchId missing_an_up_id)
