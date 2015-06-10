@@ -284,7 +284,6 @@ MIR_SERVER_32 {
     non-virtual?thunk?to?mir::scene::NullSessionListener::?NullSessionListener*;
     non-virtual?thunk?to?mir::scene::NullStreamObserver::frame_posted*;
     non-virtual?thunk?to?mir::scene::NullStreamObserver::resized_to*;
-    non-virtual?thunk?to?mir::scene::NullSurfaceObserver::attrib_changed*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::alpha_set_to*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::attrib_changed*;
     non-virtual?thunk?to?mir::scene::NullSurfaceObserver::client_surface_close_requested*;
