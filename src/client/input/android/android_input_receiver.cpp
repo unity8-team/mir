@@ -51,23 +51,6 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     input_consumer(std::make_shared<droidinput::InputConsumer>(input_channel)),
     android_clock(clock)
 {
-    /*
-     * 59Hz by default. This ensures the input rate never gets ahead of the
-     * typical display rate, which would be seen as visible lag.
-     */
-    event_rate_hz = 59;
-    auto env = getenv("MIR_CLIENT_INPUT_RATE");
-    if (env != NULL)
-        event_rate_hz = atoi(env);
-
-    timer_fd = mir::Fd{timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC)};
-    if (timer_fd == mir::Fd::invalid)
-    {
-        BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                 std::system_category(),
-                                                 "Failed to create IO timer"}));
-    }
-
     int pipefds[2];
     if (pipe(pipefds) < 0)
     {
@@ -77,12 +60,6 @@ mircva::InputReceiver::InputReceiver(droidinput::sp<droidinput::InputChannel> co
     }
     notify_receiver_fd = mir::Fd{pipefds[0]};
     notify_sender_fd = mir::Fd{pipefds[1]};
-
-    dispatcher.add_watch(timer_fd, [this]()
-    {
-        consume_wake_notification(timer_fd);
-        process_and_maybe_send_event();
-    });
 
     dispatcher.add_watch(notify_receiver_fd, [this]()
     {
@@ -150,29 +127,7 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     droidinput::InputEvent *android_event;
     uint32_t event_sequence_id;
 
-    /*
-     * Enable "Project Butter" input resampling in InputConsumer::consume():
-     *   consumeBatches = true, so as to ensure the "cooked" event rate that
-     *      clients experience is at least the minimum of event_rate_hz
-     *      and the raw device event rate.
-     *   frame_time = A regular interval. This provides a virtual frame
-     *      interval during which InputConsumer will collect raw events,
-     *      resample them and emit a "cooked" event back to us at roughly every
-     *      60th of a second. "cooked" events are both smoothed and
-     *      extrapolated/predicted into the future (for tool=finger) giving the
-     *      appearance of lower latency. Getting a real frame time from the
-     *      graphics logic (which is messy) does not appear to be necessary to
-     *      gain significant benefit.
-     */
-
     auto frame_time = std::chrono::nanoseconds(-1);
-    if (event_rate_hz > 0)
-    {
-        std::chrono::nanoseconds const
-            now = android_clock(SYSTEM_TIME_MONOTONIC),
-            one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
-        frame_time = (now / one_frame) * one_frame;
-    }
 
     auto result = input_consumer->consume(&event_factory,
                                           true,
@@ -206,21 +161,9 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     }
     else if (input_consumer->hasPendingBatch())
     {
-        /* TODO: Feed in vsync-ish events (or work out when consume() would
-         *       actually generate an event) rather than polling at 1000Hz
-         */
-        using namespace std::chrono;
-        using namespace std::literals::chrono_literals;
-        struct itimerspec const msec_delay = {
-            { 0, 0 },
-            { 0, duration_cast<nanoseconds>(1ms).count() }
-        };
-        if (timerfd_settime(timer_fd, 0, &msec_delay, NULL) < 0)
-        {
-            BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                     std::system_category(),
-                                                     "Failed to arm timer"}));
-        }
+        BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                 std::system_category(),
+                                                 "Logic error in InputConsumer"}));
     }
 }
 

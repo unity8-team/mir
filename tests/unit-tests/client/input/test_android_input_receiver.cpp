@@ -285,7 +285,7 @@ TEST_F(AndroidInputReceiverSetup, DISABLED_slow_raw_input_doesnt_cause_frameskip
     EXPECT_EQ(mir_event_type_motion, ev.type);
 }
 
-TEST_F(AndroidInputReceiverSetup, rendering_does_not_lag_behind_input)
+TEST_F(AndroidInputReceiverSetup, DISABLED_rendering_does_not_lag_behind_input)
 {
     using namespace testing;
     using namespace std::chrono;

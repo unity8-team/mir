@@ -83,7 +83,6 @@ private:
     dispatch::MultiplexingDispatchable dispatcher;
     Fd notify_receiver_fd;
     Fd notify_sender_fd;
-    Fd timer_fd;
 
     droidinput::sp<droidinput::InputChannel> input_channel;
     std::function<void(MirEvent*)> const handler;
@@ -94,7 +93,6 @@ private:
     droidinput::PreallocatedInputEventFactory event_factory;
 
     AndroidClock const android_clock;
-    int event_rate_hz;
 
     void process_and_maybe_send_event();
     static void consume_wake_notification(mir::Fd const& fd);
