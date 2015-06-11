@@ -1,3 +1,5 @@
+# Description: clients are allowed to use mir
+# Usage: common
 # Actual interface with clients!
 @{CLICK_DIR}/@PACKAGE@/*/bin/mir-run ixr,
 

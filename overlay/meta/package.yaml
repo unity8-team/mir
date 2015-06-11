@@ -1,9 +1,11 @@
 name: @PACKAGE@
 version: @VERSION@
+vendor: Mir team <mir-devel@lists.ubuntu.com>
+source: http://launchpad.net/mir
 architecture: @ARCH@
 type: framework
 services:
   - name: system-compositor
     description: "system compositor"
     start: bin/server
-    security-template: unconfined
+    security-template: nondefault
