@@ -1,8 +1,9 @@
-qtmir-gles (0.4.5+15.10.20150611-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.5+15.10.20150611-0ubuntu1) wily; urgency=medium
 
+  [ Michael Zanetti ]
   * Sync with upstream
 
- -- Michael Zanetti <michael.zanetti@canonical.com>  Tue, 02 Jun 2015 11:41:40 +0000
+ -- CI Train Bot <ci-train-bot@canonical.com>  Thu, 11 Jun 2015 11:18:31 +0000
 
 qtmir-gles (0.4.4+15.04.20150513-0ubuntu1) vivid; urgency=medium
 
