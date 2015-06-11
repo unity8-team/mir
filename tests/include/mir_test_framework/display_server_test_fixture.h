@@ -33,26 +33,6 @@ namespace mir_test_framework
 using namespace ::mir;
 
 // The test fixture sets up and tears down a display server for use
-// in display server test cases.
-class DefaultDisplayServerTestFixture : public testing::Test
-{
-public:
-    DefaultDisplayServerTestFixture();
-    ~DefaultDisplayServerTestFixture();
-
-    static void SetUpTestCase();
-    static void TearDownTestCase();
-
-    void launch_client_process(TestingClientConfiguration& config);
-
-private:
-    static TestingProcessManager process_manager;
-    static TestingServerConfiguration default_parameters;
-
-    virtual void TearDown();
-};
-
-// The test fixture sets up and tears down a display server for use
 // in display server tests.
 class BespokeDisplayServerTestFixture : public testing::Test
 {
@@ -83,7 +63,6 @@ private:
 
 }
 
-using mir_test_framework::DefaultDisplayServerTestFixture;
 using mir_test_framework::BespokeDisplayServerTestFixture;
 using mir_test_framework::TestingClientConfiguration;
 using mir_test_framework::TestingServerConfiguration;

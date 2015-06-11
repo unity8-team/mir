@@ -18,41 +18,9 @@
 
 #include "mir_test_framework/display_server_test_fixture.h"
 #include "mir_test_framework/testing_client_configuration.h"
-#include "src/client/mir_connection.h"
 
 namespace mc = mir::compositor;
 namespace mtf = mir_test_framework;
-
-mtf::TestingProcessManager mir_test_framework::DefaultDisplayServerTestFixture::process_manager;
-mtf::TestingServerConfiguration mir_test_framework::DefaultDisplayServerTestFixture::default_parameters;
-
-void DefaultDisplayServerTestFixture::launch_client_process(TestingClientConfiguration& config)
-{
-    process_manager.launch_client_process(config, *default_parameters.the_options());
-}
-
-void DefaultDisplayServerTestFixture::SetUpTestCase()
-{
-    process_manager.launch_server_process(default_parameters);
-}
-
-
-void DefaultDisplayServerTestFixture::TearDown()
-{
-    process_manager.tear_down_clients();
-}
-
-void DefaultDisplayServerTestFixture::TearDownTestCase()
-{
-    process_manager.tear_down_server();
-}
-
-DefaultDisplayServerTestFixture::DefaultDisplayServerTestFixture()
-{
-}
-
-DefaultDisplayServerTestFixture::~DefaultDisplayServerTestFixture() {}
-
 
 void BespokeDisplayServerTestFixture::launch_server_process(TestingServerConfiguration& functor)
 {

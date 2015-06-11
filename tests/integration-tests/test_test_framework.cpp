@@ -58,22 +58,6 @@ TEST_F(BespokeDisplayServerTestFixture, DISABLED_failing_without_server)
 {
 }
 
-TEST_F(DefaultDisplayServerTestFixture, demonstrate_multiple_clients)
-{
-    struct Client : TestingClientConfiguration
-    {
-        void exec()
-        {
-            SCOPED_TRACE("Demo Client");
-        }
-    } demo;
-
-    for(int i = 0; i != 10; ++i)
-    {
-        launch_client_process(demo);
-    }
-}
-
 namespace
 {
 struct DemoInProcessServer : mir_test_framework::InProcessServer
