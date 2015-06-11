@@ -8,4 +8,4 @@ services:
   - name: system-compositor
     description: "system compositor"
     start: bin/server
-    security-template: nondefault
+    security-template: unconfined
