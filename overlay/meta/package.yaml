@@ -8,4 +8,6 @@ services:
   - name: system-compositor
     description: "system compositor"
     start: bin/server
-    security-template: unconfined
+    security-policy:
+        apparmor: ./meta/mir.apparmor
+        seccomp: ./meta/mir.seccomp
