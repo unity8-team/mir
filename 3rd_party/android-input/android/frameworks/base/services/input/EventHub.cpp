@@ -20,11 +20,10 @@
 
 #include "EventHub.h"
 
-#define acquire_wake_lock(lock, id) {}
-#define release_wake_lock(id) {}
-
 #include "mir/input/input_report.h"
 #include "mir/udev/wrapper.h"
+
+#include <hardware_legacy/power.h>
 
 #include <cutils/properties.h>
 #include <std/Log.h>

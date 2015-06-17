@@ -15,6 +15,11 @@ add_definitions(
   -DANDROID_SMP=1
   )
 
+# Required by power.c:
+set(CMAKE_C_FLAGS
+  "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -std=c99 -Wno-unused-function"
+)
+
 # This is stuff for which we want non-android versions
 set(
   UTIL_SOURCES
@@ -28,6 +33,7 @@ set(
 add_library(
   android-input-static STATIC
   # The stuff that we want
+  hardware/libhardware_legacy/power/power.c
   frameworks/base/services/input/EventHub.cpp
   frameworks/base/services/input/InputApplication.cpp
   frameworks/base/services/input/InputDispatcher.cpp
