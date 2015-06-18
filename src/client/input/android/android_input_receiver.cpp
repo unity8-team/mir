@@ -168,8 +168,8 @@ void mircva::InputReceiver::process_and_maybe_send_event()
 
     if (event_rate_hz > 0)
     {
-        std::chrono::nanoseconds const now =
-            android_clock(SYSTEM_TIME_MONOTONIC),
+        std::chrono::nanoseconds const
+            now = android_clock(SYSTEM_TIME_MONOTONIC),
             one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
         frame_time = (now / one_frame) * one_frame;
         delay_to_next_frame = frame_time + one_frame - now;
