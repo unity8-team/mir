@@ -164,15 +164,15 @@ void mircva::InputReceiver::process_and_maybe_send_event()
      *      gain significant benefit.
      */
 
-    auto frame_time = std::chrono::nanoseconds(-1);
-    std::chrono::nanoseconds one_frame(0);
+    std::chrono::nanoseconds frame_time(-1), delay_to_next_frame(1000000);
 
     if (event_rate_hz > 0)
     {
         std::chrono::nanoseconds const now =
-            android_clock(SYSTEM_TIME_MONOTONIC);
-        one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
+            android_clock(SYSTEM_TIME_MONOTONIC),
+            one_frame = std::chrono::nanoseconds(1000000000ULL / event_rate_hz);
         frame_time = (now / one_frame) * one_frame;
+        delay_to_next_frame = frame_time + one_frame - now;
     }
 
     auto result = input_consumer->consume(&event_factory,
@@ -207,17 +207,9 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     }
     else if (input_consumer->hasPendingBatch())
     {
-        std::chrono::nanoseconds delay_ns(1000000);
-
-        // Try to sleep all the way till we expect the next cooked event.
-        // Waking up any earlier is just a waste of time (unless you want
-        // sub-frame latency for touch-release events... do we?).
-        if (one_frame > delay_ns)
-            delay_ns = one_frame;
-
         struct itimerspec const delay = {
             { 0, 0 },
-            { 0, delay_ns.count() }
+            { 0, delay_to_next_frame.count() }
         };
         if (timerfd_settime(timer_fd, 0, &delay, NULL) < 0)
         {
