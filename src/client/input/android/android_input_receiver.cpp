@@ -175,29 +175,24 @@ void mircva::InputReceiver::process_and_maybe_send_event()
         delay_to_next_frame = frame_time + one_frame - now;
     }
 
-    do
+    auto result = input_consumer->consume(&event_factory,
+                                          true,
+                                          frame_time,
+                                          &event_sequence_id,
+                                          &android_event);
+    if (result == droidinput::OK)
     {
-        auto result = input_consumer->consume(&event_factory,
-                                              true,
-                                              frame_time,
-                                              &event_sequence_id,
-                                              &android_event);
-        if (result == droidinput::OK)
-        {
-            auto ev = mia::Lexicon::translate(android_event);
-            map_key_event(xkb_mapper, *ev);
-            report->received_event(*ev);
-            handler(ev.get());
-    
-            // TODO: It would be handy in future if handler returned a bool
-            //       indicating whether the event was used so that if not it
-            //       might get passed on to someone else - passed into here:
-            input_consumer->sendFinishedSignal(event_sequence_id, true);
-        }
-    } while (delay_to_next_frame <= std::chrono::nanoseconds::zero() &&
-             (input_consumer->hasPendingBatch() ||
-              input_consumer->hasDeferredEvent()));
+        auto ev = mia::Lexicon::translate(android_event);
 
+        map_key_event(xkb_mapper, *ev);
+
+        input_consumer->sendFinishedSignal(event_sequence_id, true);
+
+        report->received_event(*ev);
+
+        // Send the event on its merry way.
+        handler(ev.get());
+    }
     if (input_consumer->hasDeferredEvent())
     {
         // input_consumer->consume() can read an event from the fd and find that the event cannot
