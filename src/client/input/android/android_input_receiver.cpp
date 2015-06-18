@@ -164,7 +164,7 @@ void mircva::InputReceiver::process_and_maybe_send_event()
      *      gain significant benefit.
      */
 
-    std::chrono::nanoseconds frame_time(-1), delay_to_next_frame(1000000);
+    std::chrono::nanoseconds frame_time(-1), delay_to_next_frame(0);
 
     if (event_rate_hz > 0)
     {
