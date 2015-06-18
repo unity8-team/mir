@@ -209,7 +209,7 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     {
         struct itimerspec const delay = {
             { 0, 0 },
-            { 0, delay_to_next_frame.count() }
+            { 0, static_cast<long>(delay_to_next_frame.count()) }
         };
         if (timerfd_settime(timer_fd, 0, &delay, NULL) < 0)
         {
