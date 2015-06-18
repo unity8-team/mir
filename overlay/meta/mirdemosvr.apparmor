@@ -1,4 +1,4 @@
-# Description: mir-compositor apparmor security profile
+# Description: mir-demo-server apparmor security profile
 # Usage: Mir
 
 #include <tunables/global>
@@ -40,20 +40,6 @@
 # udev
 /sys/devices/*/*/*/uevent rw,
 /sys/devices/*/*/*/drm/card0/uevent rw,
-
-ptrace peer=**,
-/bin/dash mrix,
-/bin/sleep mrix,
-/bin/pidof mrix,
-/bin/sed mrix,
-/bin/cp mrix,
-/sbin/killall5 ixr,
-/proc r,
-/proc/**/stat r,
-/proc/**/cmdline r,
-/etc/udev/udev.conf r,
-capability sys_ptrace,
-capability chown,
-capability fowner,
-capability sys_ptrace,
+/sys/bus r,
+/sys/class r,
 }

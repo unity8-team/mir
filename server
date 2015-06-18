@@ -2,17 +2,32 @@
 
 # Wait for the tty to be brought up (we want to steal VT from it, not have it
 # be stolen by agetty)
+#count = 0
 while ! pidof /sbin/agetty; do
     sleep 0.1
+#    count =`expr $count + 1`
+#      if [ "$count" -gt 50 ]
+#      then
+#        break
+#      fi
 done
+
+
 sleep 1 # give it a moment to come up
 
 # OK, now we can start the server
 mir_demo_server --window-manager fullscreen --file /run/mir_socket --vt 1 $@ &
 
 # Can't use --arw-file with vivid version of mir_demo_server_minimal...
+
+#mircount = 0
 while ! [ -S /run/mir_socket ]; do
     sleep 0.1
+#    mircount =`expr $mircount + 1`
+#      if [ "$mircount" -gt 50 ]
+#      then
+#        break
+#      fi
 done
 sleep 5 # race with mir for chmod'ing the socket
 chmod a+rw /run/mir_socket

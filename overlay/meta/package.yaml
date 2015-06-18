@@ -11,3 +11,9 @@ services:
     security-policy:
         apparmor: ./meta/mir.apparmor
         seccomp: ./meta/mir.seccomp
+binaries:
+  -name: mir_demo_server
+    exec: debs/usr/bin/mir_demo_server
+    security-policy:
+        apparmor: ./meta/mirdemosvr.apparmor
+        seccomp: ./meta/mirdemosvr.seccomp

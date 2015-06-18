@@ -1,4 +1,4 @@
-# Description: mir-compositor apparmor security profile
+# Description: mir-demo-server apparmor security profile
 # Usage: Mir
 @unrestricted
 access
@@ -33,10 +33,7 @@ fchmodat
 #fchown
 #fchown32
 #fchownat
-
-# needed for chmod'ing the mir socket so apps can use
-lchown
-
+#lchown
 #lchown32
 
 clock_getres
