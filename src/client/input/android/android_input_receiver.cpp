@@ -207,6 +207,12 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     }
     else if (input_consumer->hasPendingBatch())
     {
+        /*
+         * Input resampling means consume will only factor in raw events
+         * that occurred 5ms or more before frame_time. So consume() is not
+         * going to change its answer until we provide a different frame_time.
+         * Stay asleep till then...
+         */
         struct itimerspec const delay = {
             { 0, 0 },
             { 0, static_cast<long>(delay_to_next_frame.count()) }
