@@ -448,6 +448,8 @@ int msh::CanonicalWindowManagerPolicy::handle_set_state(std::shared_ptr<ms::Surf
 
     if (info.state == value)
     {
+        if (info.state == mir_surface_state_minimized)
+            return mir_surface_state_hidden;
         return info.state;
     }
 

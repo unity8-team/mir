@@ -486,3 +486,20 @@ TEST_F(SurfaceModifications, surface_spec_with_fixed_aspect_ratio_and_size_range
         EXPECT_THAT(actual, Eq(expected_size));
     };
 }
+
+TEST_F(SurfaceModifications, minimized_state_is_mapped_to_hidden)
+{
+    EXPECT_THAT(mir_surface_get_state(surface), Ne(mir_surface_state_hidden));
+
+    mir_wait_for(mir_surface_set_state(surface, mir_surface_state_minimized));
+    EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_hidden));
+}
+
+TEST_F(SurfaceModifications, minimized_state_is_mapped_to_hidden_when_already_minimized)
+{
+    mir_wait_for(mir_surface_set_state(surface, mir_surface_state_minimized));
+    EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_hidden));
+
+    mir_wait_for(mir_surface_set_state(surface, mir_surface_state_minimized));
+    EXPECT_THAT(mir_surface_get_state(surface), Eq(mir_surface_state_hidden));
+}
