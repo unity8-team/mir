@@ -181,25 +181,13 @@ void mircva::InputReceiver::process_and_maybe_send_event()
     if (result == droidinput::OK)
     {
         auto ev = mia::Lexicon::translate(android_event);
-
         map_key_event(xkb_mapper, *ev);
-
         report->received_event(*ev);
-
-        /*
-         * TODO: In future handler() should return a bool from the client
-         *       indicating if the event was interesting and got used. That
-         *       bool should then be passed into sendFinishedSignal so any
-         *       unhandled events can be passed on elsewhere.
-         */
         handler(ev.get());
 
-        /*
-         * Only tell the server we're finished with the event when handler
-         * has returned. This allows the server some knowledge of how long
-         * we're taking to process the input and it will hold a wake lock for
-         * the full duration, giving us more responsive performance.
-         */
+        // TODO: It would be handy in future if handler returned a bool
+        //       indicating whether the event was used so that if not it might
+        //       get passed on to someone else - passed into here:
         input_consumer->sendFinishedSignal(event_sequence_id, true);
     }
     if (input_consumer->hasDeferredEvent())

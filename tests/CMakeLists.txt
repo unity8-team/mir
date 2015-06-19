@@ -45,7 +45,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/server
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/common
-  ${PROJECT_SOURCE_DIR}/src/platforms/mesa/include
 )
 
 option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" ON)
@@ -81,3 +80,4 @@ add_subdirectory(client-language/)
 add_subdirectory(mir-stress/)
 
 mir_add_memcheck_test()
+mir_add_detect_fd_leaks_test()
