@@ -68,9 +68,12 @@ void mi::DefaultInputManager::add_platform(std::shared_ptr<Platform> const& plat
 
 void mi::DefaultInputManager::start()
 {
-    auto expected = State::stopped;
-    if (!state.compare_exchange_strong(expected, State::running))
+    std::unique_lock<std::mutex> start_guard(start_stop_exclusion);
+
+    if (state == State::running)
         return;
+
+    state = State::running;
 
     multiplexer->add_watch(queue);
     multiplexer->add_watch(legacy_dispatchable);
@@ -114,9 +117,12 @@ void mi::DefaultInputManager::start()
 
 void mi::DefaultInputManager::stop()
 {
-    auto expected = State::running;
-    if (!state.compare_exchange_strong(expected, State::stopped))
+    std::unique_lock<std::mutex> start_guard(start_stop_exclusion);
+
+    if (state == State::stopped)
         return;
+
+    state = State::stopped;
 
     auto const stop_promise = std::make_shared<std::promise<void>>();
 

@@ -23,7 +23,7 @@
 
 #include <vector>
 #include <thread>
-#include <atomic>
+#include <mutex>
 
 namespace mir
 {
@@ -62,7 +62,8 @@ private:
     {
         running, stopped
     };
-    std::atomic<State> state;
+    State state;
+    std::mutex start_stop_exclusion;
 };
 
 }
