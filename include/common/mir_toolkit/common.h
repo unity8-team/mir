@@ -113,6 +113,9 @@ typedef enum MirPromptSessionState
     mir_prompt_session_state_suspended
 } MirPromptSessionState;
 
+#define MIR_FOURCC(a,b,c,d) ((a) | ((b) << 8) | ((c) << 16) | ((d) << 24))
+#define MIR_EXTRACT_FOURCC(f,i) (((f) >> ((i)*8)) & 0xff)
+
 /**
  * The order of components in a format enum matches the
  * order of the components as they would be written in an
@@ -124,17 +127,32 @@ typedef enum MirPromptSessionState
  */
 typedef enum MirPixelFormat
 {
-    mir_pixel_format_invalid,
-    mir_pixel_format_abgr_8888,
-    mir_pixel_format_xbgr_8888,
-    mir_pixel_format_argb_8888,
-    mir_pixel_format_xrgb_8888,
-    mir_pixel_format_bgr_888,
-    mir_pixel_formats
+    mir_pixel_format_invalid = 0,
+    mir_pixel_format_abgr_8888 = 1,
+    mir_pixel_format_xbgr_8888 = 2,
+    mir_pixel_format_argb_8888 = 3,
+    mir_pixel_format_xrgb_8888 = 4,
+    mir_pixel_format_bgr_888 = 5,
+
+    /* DRM-compatible formats (TODO: Add more later) */
+    mir_pixel_format_xrgb_1555 = MIR_FOURCC('X','R','1','5'),
+    mir_pixel_format_xbgr_1555 = MIR_FOURCC('X','B','1','5'),
+    mir_pixel_format_rgbx_5551 = MIR_FOURCC('R','X','1','5'),
+    mir_pixel_format_bgrx_5551 = MIR_FOURCC('B','X','1','5'),
+    mir_pixel_format_argb_1555 = MIR_FOURCC('A','R','1','5'),
+    mir_pixel_format_abgr_1555 = MIR_FOURCC('A','B','1','5'),
+    mir_pixel_format_rgba_5551 = MIR_FOURCC('R','A','1','5'),
+    mir_pixel_format_bgra_5551 = MIR_FOURCC('B','A','1','5'),
+    mir_pixel_format_rgb_565   = MIR_FOURCC('R','G','1','6'),
+    mir_pixel_format_bgr_565   = MIR_FOURCC('B','G','1','6'),
+
+    mir_pixel_formats = 15
 } MirPixelFormat;
 
 /* This could be improved... https://bugs.launchpad.net/mir/+bug/1236254 */
-#define MIR_BYTES_PER_PIXEL(f) (((f) == mir_pixel_format_bgr_888) ? 3 : 4)
+#define MIR_BYTES_PER_PIXEL(f) ((f) == mir_pixel_format_bgr_888 ? 3 : \
+                                MIR_EXTRACT_FOURCC((f),2) == '1' ? 2 : \
+                                4)
 
 /** Direction relative to the "natural" orientation of the display */
 typedef enum MirOrientation
