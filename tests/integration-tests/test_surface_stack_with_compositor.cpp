@@ -116,15 +116,6 @@ private:
     mg::DisplayBuffer& secondary;
 };
 
-class BypassStubBuffer : public mtd::StubBuffer
-{
-public:
-    bool can_bypass() const override
-    {
-        return true;
-    }
-};
-
 struct SurfaceStackCompositor : public testing::Test
 {
     SurfaceStackCompositor() :
@@ -152,7 +143,7 @@ struct SurfaceStackCompositor : public testing::Test
     std::shared_ptr<mtd::MockBufferStream> mock_buffer_stream;
     std::shared_ptr<ms::BasicSurface> stub_surface;
     ms::SurfaceCreationParameters default_params;
-    BypassStubBuffer stubbuf;
+    mtd::StubBuffer stubbuf;
     CountingDisplayBuffer stub_primary_db;
     CountingDisplayBuffer stub_secondary_db;
     StubDisplay stub_display{stub_primary_db, stub_secondary_db};
@@ -208,7 +199,7 @@ TEST_F(SurfaceStackCompositor, adding_a_surface_that_has_been_swapped_triggers_a
 TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
+    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
         .WillByDefault(Return(5));
 
     mc::MultiThreadedCompositor mt_compositor(
@@ -228,7 +219,7 @@ TEST_F(SurfaceStackCompositor, compositor_runs_until_all_surfaces_buffers_are_co
 TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffers_are_consumed)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
+    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
         .WillByDefault(Return(5));
 
     stub_surface->resize(geom::Size{10,10});
@@ -250,7 +241,7 @@ TEST_F(SurfaceStackCompositor, bypassed_compositor_runs_until_all_surfaces_buffe
 TEST_F(SurfaceStackCompositor, an_empty_scene_retriggers)
 {
     using namespace testing;
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
+    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
         .WillByDefault(Return(0));
 
     mc::MultiThreadedCompositor mt_compositor(
@@ -310,7 +301,8 @@ TEST_F(SurfaceStackCompositor, removing_a_surface_triggers_composition)
 
 TEST_F(SurfaceStackCompositor, buffer_updates_trigger_composition)
 {
-    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor())
+    using namespace testing;
+    ON_CALL(*mock_buffer_stream, buffers_ready_for_compositor(_))
         .WillByDefault(testing::Return(1));
     stack.add_surface(stub_surface, default_params.depth, default_params.input_mode);
     stub_surface->swap_buffers(&stubbuf, [](mg::Buffer*){});

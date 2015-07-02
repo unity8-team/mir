@@ -93,7 +93,8 @@ struct InputClient
 
         MirEventDelegate const event_delegate { handle_input, this };
         mir_surface_set_event_handler(surface, &event_delegate);
-        mir_surface_swap_buffers_sync(surface);
+        mir_buffer_stream_swap_buffers_sync(
+            mir_surface_get_buffer_stream(surface));
 
         wait_for_surface_to_become_focused_and_exposed();
 
@@ -270,7 +271,7 @@ TEST_F(TestClientInput, clients_receive_us_english_mapped_keys)
         mis::a_key_down_event().of_scancode(KEY_4));
 }
 
-TEST_F(TestClientInput, clients_receive_pointer_inside_window)
+TEST_F(TestClientInput, clients_receive_pointer_inside_window_and_crossing_events)
 {
     using namespace testing;
 
@@ -284,7 +285,8 @@ TEST_F(TestClientInput, clients_receive_pointer_inside_window)
                 handle_input(
                     mt::PointerEventWithPosition(
                         InputClient::surface_width - 1,
-                        InputClient::surface_height - 1)))
+                        InputClient::surface_height - 1)));
+    EXPECT_CALL(client.handler, handle_input(mt::PointerLeaveEvent()))
         .WillOnce(mt::WakeUp(&client.all_events_received));
     // But we should not receive an event for the second movement outside of our surface!
 

@@ -22,6 +22,8 @@
 #include "mir/input/input_region.h"
 #include "mir/geometry/rectangle.h"
 
+#include <sstream>
+
 namespace mi = mir::input;
 namespace mia = mir::input::android;
 
@@ -50,8 +52,20 @@ void mia::InputReaderPolicy::getReaderConfiguration(droidinput::InputReaderConfi
         height,
         default_display_orientation);
 
-    out_config->pointerVelocityControlParameters.acceleration = 1.0;
-    
+    auto gu_scale = 16.0f;
+    auto gu_env = getenv("GRID_UNIT_PX");
+
+    if (gu_env)
+    {
+        std::istringstream in(gu_env);
+        in >> gu_scale;
+    }
+
+    out_config->pointerVelocityControlParameters.lowThreshold = 150.0f;
+    out_config->pointerVelocityControlParameters.highThreshold = 500.0f;
+    out_config->pointerVelocityControlParameters.acceleration = 3.0f + gu_scale/16.0f;
+    out_config->wheelVelocityControlParameters.acceleration = 4.0f + gu_scale/16.0f;
+
     // This only enables passing through the touch coordinates from the InputReader to the TouchVisualizer
     // the touch visualizer still decides whether or not to render anything.
     out_config->showTouches = true;

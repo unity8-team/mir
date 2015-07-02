@@ -70,7 +70,7 @@ void VelocityControl::move(std::chrono::nanoseconds eventTime, float* deltaX, fl
 
         float vx, vy;
         float scale = mParameters.scale;
-        if (mVelocityTracker.getVelocity(0, &vx, &vy)) {
+        if (mVelocityTracker.getVelocity(1, &vx, &vy)) {
             float speed = hypotf(vx, vy) * scale;
             if (speed >= mParameters.highThreshold) {
                 // Apply full acceleration above the high speed threshold.
