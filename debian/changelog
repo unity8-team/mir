@@ -1,3 +1,14 @@
+mir (0.13.3+15.10.20150617-0ubuntu2) UNRELEASED; urgency=medium
+
+  * Orientation override and pointer acceleration
+    - Improvements:
+      . activates pointer acceleration path in android input stack
+    - Features:
+      . adds an interface to override the orienation of displays
+      . rotates the cursor according to the changed orientation
+
+ -- Andreas Pokorny <andreas.pokorny@canonical.com>  Thu, 02 Jul 2015 13:33:06 +0200
+
 mir (0.13.3+15.10.20150617-0ubuntu1) wily; urgency=medium
 
   [ Alberto Aguirre ]
