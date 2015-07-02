@@ -28,6 +28,7 @@
 
 #include <gbm.h>
 
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -76,6 +77,7 @@ public:
     void show() override;
     void show(CursorImage const& cursor_image) override;
     void hide() override;
+    void override_orientation(uint32_t screen, MirOrientation) override;
 
     void move_to(geometry::Point position) override;
 
@@ -113,6 +115,7 @@ private:
     uint32_t buffer_height;
 
     std::shared_ptr<CurrentConfiguration> const current_configuration;
+    std::map<uint32_t, MirOrientation> overrides;
 };
 }
 }

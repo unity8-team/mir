@@ -23,6 +23,7 @@
 #include "mir/geometry/size.h"
 #include "mir/geometry/point.h"
 
+#include "mir_toolkit/common.h"
 #include <memory>
 
 namespace mir
@@ -38,6 +39,7 @@ public:
     virtual void hide() = 0;
 
     virtual void move_to(geometry::Point position) = 0;
+    virtual void override_orientation(uint32_t screen, MirOrientation orientation) = 0;
 
 protected:
     Cursor() = default;

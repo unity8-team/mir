@@ -54,6 +54,7 @@ class StubCursor : public mg::Cursor
     void show(mg::CursorImage const&) override {}
     void hide() override {}
     void move_to(geom::Point) override {}
+    void override_orientation(uint32_t, MirOrientation) override {}
 };
 
 class StubRendererFactory : public mc::RendererFactory

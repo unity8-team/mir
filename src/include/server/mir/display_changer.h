@@ -41,6 +41,7 @@ public:
 
     virtual void pause_display_config_processing() = 0;
     virtual void resume_display_config_processing() = 0;
+    virtual void register_change_callback(std::function<void(graphics::DisplayConfiguration const&)> const& change_callback) = 0;
 
 protected:
     DisplayChanger() = default;

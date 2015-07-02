@@ -20,14 +20,18 @@
 #define MIR_INPUT_DISPLAY_INPUT_REGION_H_
 
 #include "mir/input/input_region.h"
+#include "mir/geometry/overrides.h"
+#include "mir/geometry/rectangles.h"
 
 #include <memory>
+#include <mutex>
 
 namespace mir
 {
+class DisplayChanger;
 namespace graphics
 {
-class Display;
+class DisplayConfiguration;
 }
 namespace input
 {
@@ -35,13 +39,19 @@ namespace input
 class DisplayInputRegion : public InputRegion
 {
 public:
-    DisplayInputRegion(std::shared_ptr<graphics::Display> const& display);
+    DisplayInputRegion(mir::graphics::DisplayConfiguration const& initial_conf,
+        std::shared_ptr<mir::DisplayChanger> const& display_changer);
 
+    void override_orientation(uint32_t display_id, MirOrientation orientation) override;
+    MirOrientation get_orientation(geometry::Point const& point) override;
     geometry::Rectangle bounding_rectangle();
     void confine(geometry::Point& point);
 
 private:
-    std::shared_ptr<graphics::Display> const display;
+    std::mutex rectangles_lock;
+    mir::geometry::Overrides overrides;
+    mir::geometry::Rectangles rectangles;
+
 };
 
 }
