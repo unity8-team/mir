@@ -20,6 +20,7 @@
 #include "mir/graphics/cursor.h"
 #include "mir/graphics/cursor_image.h"
 #include "mir/input/cursor_images.h"
+#include "mir/compositor/compositor_report.h"
 
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/fake_event_hub_server_configuration.h"
@@ -38,7 +39,10 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <atomic>
+
 namespace mg = mir::graphics;
+namespace mc = mir::compositor;
 namespace mi = mir::input;
 namespace mis = mir::input::synthesis;
 namespace ms = mir::scene;
@@ -107,8 +111,16 @@ MATCHER_P(CursorNamed, name, "")
 
 struct CursorClient
 {
+    CursorClient(
+        std::string const& connect_string, std::string const& client_name,
+        std::function<bool()> const& is_client_visible_in_host_framebuffer)
+        : connect_string{connect_string}, client_name{client_name},
+          is_client_visible_in_host_framebuffer{is_client_visible_in_host_framebuffer}
+    {
+    }
+
     CursorClient(std::string const& connect_string, std::string const& client_name)
-        : connect_string{connect_string}, client_name{client_name}
+        : CursorClient{connect_string, client_name, [] { return true; }}
     {
     }
 
@@ -159,10 +171,11 @@ struct CursorClient
     void wait_for_surface_to_become_focused_and_exposed(MirSurface* surface)
     {
         bool success = mt::spin_wait_for_condition_or_timeout(
-            [surface]
+            [surface, this]
             {
                 return mir_surface_get_visibility(surface) == mir_surface_visibility_exposed &&
-                    mir_surface_get_focus(surface) == mir_surface_focused;
+                    mir_surface_get_focus(surface) == mir_surface_focused &&
+                    is_client_visible_in_host_framebuffer();
             },
             std::chrono::seconds{5});
 
@@ -177,6 +190,7 @@ struct CursorClient
 
     std::thread client_thread;
     mir::test::WaitCondition teardown;
+    std::function<bool()> const is_client_visible_in_host_framebuffer;
 };
 
 struct DisabledCursorClient : CursorClient
@@ -212,6 +226,37 @@ struct NamedCursorClient : CursorClient
     std::string const cursor_name;
 };
 
+struct ClientVisibilityCompositorReport : mc::CompositorReport
+{
+    void added_display(
+        int /*width*/, int /*height*/,
+        int /*x*/, int /*y*/, SubCompositorId /*id*/) override
+    {
+    }
+
+    void began_frame(SubCompositorId /*id*/) override {}
+
+    void renderables_in_frame(
+        SubCompositorId /*id*/,
+        mg::RenderableList const& renderables) override
+    {
+        latest_num_renderables = renderables.size();
+    }
+
+    void rendered_frame(SubCompositorId /*id*/) override {}
+    void finished_frame(SubCompositorId /*id*/) override {}
+    void started() override {}
+    void stopped() override {}
+    void scheduled() override {}
+
+    bool is_client_visible()
+    {
+        return latest_num_renderables > 0;
+    }
+
+    std::atomic<size_t> latest_num_renderables;
+};
+
 struct TestServerConfiguration : mtf::FakeEventHubServerConfiguration
 {
     auto the_window_manager_builder() -> msh::WindowManagerBuilder override
@@ -238,9 +283,15 @@ struct TestServerConfiguration : mtf::FakeEventHubServerConfiguration
         return std::make_shared<NamedCursorImages>();
     }
 
+    std::shared_ptr<mc::CompositorReport> the_compositor_report() override
+    {
+        return mt::fake_shared(client_visibility_compositor_report);
+    }
+
     MockCursor cursor;
     mtf::SurfaceGeometries client_geometries;
     mtf::SurfaceDepths client_depths;
+    ClientVisibilityCompositorReport client_visibility_compositor_report;
 };
 
 struct TestClientCursorAPI : mtf::InProcessServer
@@ -467,7 +518,7 @@ TEST_F(TestClientCursorAPI, cursor_request_applied_from_buffer_stream)
 
     client.run();
 
-    expectations_satisfied.wait_for_at_most_seconds(500);
+    expectations_satisfied.wait_for_at_most_seconds(10);
 
     expect_client_shutdown();
 }
@@ -503,10 +554,18 @@ TEST_F(TestClientCursorAPI, cursor_passed_through_nested_server)
         .WillOnce(mt::WakeUp(&expectations_satisfied));
 
     { // Ensure we finalize the client prior stopping the nested server
-    FullscreenDisabledCursorClient client{nested_mir.new_connection(), client_name_1};
+
+    auto const is_client_visible_in_host_framebuffer =
+        [report = &server_configuration_.client_visibility_compositor_report]
+        {
+            return report->is_client_visible();
+        };
+
+    FullscreenDisabledCursorClient client{nested_mir.new_connection(), client_name_1,
+                                          is_client_visible_in_host_framebuffer};
     client.run();
 
-    expectations_satisfied.wait_for_at_most_seconds(60);
+    expectations_satisfied.wait_for_at_most_seconds(10);
     expect_client_shutdown();
     }
     
