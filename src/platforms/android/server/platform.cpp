@@ -30,6 +30,7 @@
 #include "mir/graphics/android/native_buffer.h"
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/display_report.h"
+#include "mir/graphics/display_configuration_policy.h"
 #include "mir/options/option.h"
 #include "mir/options/configuration.h"
 #include "mir/abnormal_exit.h"
@@ -115,12 +116,16 @@ std::shared_ptr<mga::GraphicBufferAllocator> mga::Platform::create_mga_buffer_al
 }
 
 std::shared_ptr<mg::Display> mga::Platform::create_display(
-        std::shared_ptr<mg::DisplayConfigurationPolicy> const&,
+        std::shared_ptr<mg::DisplayConfigurationPolicy> const& conf_policy,
         std::shared_ptr<mg::GLProgramFactory> const& gl_program_factory,
         std::shared_ptr<mg::GLConfig> const& gl_config)
 {
-    return std::make_shared<mga::Display>(
+    auto display = std::make_shared<mga::Display>(
             display_buffer_builder, gl_program_factory, gl_config, display_report, overlay_option);
+    auto con = display->configuration();
+    conf_policy->apply_to(*con);
+    display->configure(*con);
+    return display;
 }
 
 std::shared_ptr<mg::PlatformIpcOperations> mga::Platform::make_ipc_operations() const
