@@ -124,7 +124,7 @@ std::unique_ptr<mga::ConfigurableDisplayBuffer> create_display_buffer(
         native_window,
         gl_context,
         *gl_program_factory,
-        mir_orientation_normal,
+        config.orientation,
         overlay_option));
 }
 }
