@@ -1,4 +1,4 @@
-# Description: mir-compositor apparmor security profile
+sudo vi# Description: mir-compositor apparmor security profile
 # Usage: Mir
 @unrestricted
 access
