@@ -1,0 +1,5 @@
+# Description: clients are allowed to use mir
+# Usage: common
+
+# needed to connect to mir
+socketpair

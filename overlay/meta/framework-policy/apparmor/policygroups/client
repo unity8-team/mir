@@ -12,16 +12,20 @@
 /run/mir_socket rw,
 unix (connect, send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),
 
-# Hardware acceleration
-/dev/dri/card0 rw,
-
 # For non-opengl apps
-# TODO: investigate more specific exemption
 # https://www.kernel.org/doc/gorman/html/understand/understand015.html
 /dev/shm/\#* rw,
 
 # udev
-/sys/devices/*/*/*/uevent r,
-/sys/devices/*/*/*/drm/card0/uevent r,
 deny /etc/udev/udev.conf r,
 deny /run/udev/data/* r,
+
+# this is an information leak until AppArmor implements kernel variables
+owner @{PROC}/@{pid}/cmdline r,
+
+# FIXME: these should be part of (hw-)assign, not this policy group
+/dev/dri/card0 rw, # hardware acceleration
+/sys/devices/*/*/*/drm/card0/uevent r,
+
+# FIXME: this is too lenient, please adjust for specific accesses
+/sys/devices/*/*/*/uevent r,
