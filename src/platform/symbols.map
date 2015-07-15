@@ -1,4 +1,4 @@
-MIRPLATFORM_7 {
+MIRPLATFORM_9 {
  global:
   extern "C++" {
 # The following symbols come from running a script over the generated docs. Vis:
@@ -154,6 +154,8 @@ MIRPLATFORM_7 {
     mir::options::session_mediator_report_opt*;
     mir::options::shared_library_prober_report_opt*;
     mir::options::touchspots_opt*;
+    # Why are server-only options here in libmirplatform?...
+    mir::options::composite_delay_opt*; 
     non-virtual?thunk?to?mir::graphics::Cursor::?Cursor*;
     non-virtual?thunk?to?mir::graphics::CursorImage::?CursorImage*;
     non-virtual?thunk?to?mir::graphics::DisplayConfigurationPolicy::?DisplayConfigurationPolicy*;
@@ -276,13 +278,4 @@ MIRPLATFORM_7 {
   };
  local: *;
 };
-
-# Why are server-only options here in libmirplatform?...
-MIRPLATFORM_7.1 {
-  global:
-    extern "C++" {
-      mir::options::composite_delay_opt*; 
-    };
-  local: *;
-} MIRPLATFORM_7;
 
