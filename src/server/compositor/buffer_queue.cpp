@@ -137,7 +137,7 @@ mc::BufferQueue::BufferQueue(
     graphics::BufferProperties const& props,
     mc::FrameDroppingPolicyFactory const& policy_provider)
     : nbuffers{nbuffers},
-      frame_deadlines_threshold{100},
+      frame_deadlines_threshold{50},
       frame_deadlines_met{0},
       frame_dropping_enabled{false},
       current_compositor_buffer_valid{false},

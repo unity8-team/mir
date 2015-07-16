@@ -1505,7 +1505,7 @@ TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
     std::unordered_set<mg::Buffer *> buffers_acquired;
 
     int delay = q.scaling_delay();
-    EXPECT_THAT(delay, Gt(60));  // expect a sane default
+    EXPECT_THAT(delay, Ge(50));  // expect a sane default
 
     // Now shorten it or else the test will run too long:
     delay = 10;
