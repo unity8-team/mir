@@ -1504,10 +1504,14 @@ TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
 
     std::unordered_set<mg::Buffer *> buffers_acquired;
 
-    int const delay = q.scaling_delay();
-    EXPECT_EQ(3, delay);  // expect a sane default
+    int delay = q.scaling_delay();
+    EXPECT_THAT(delay, Gt(60));  // expect a sane default
 
-    for (int frame = 0; frame < 10; frame++)
+    // Now shorten it or else the test will run too long:
+    delay = 10;
+    q.set_scaling_delay(delay);
+
+    for (int frame = 0; frame < delay*2; frame++)
     {
         auto handle = client_acquire_async(q);
         handle->wait_for(std::chrono::seconds(1));
@@ -1522,7 +1526,7 @@ TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
 
     // Now check what happens if the client becomes slow...
     buffers_acquired.clear();
-    for (int frame = 0; frame < 10; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         auto handle = client_acquire_async(q);
         handle->wait_for(std::chrono::seconds(1));
@@ -1541,7 +1545,7 @@ TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
 
     // And what happens if the client becomes fast again?...
     buffers_acquired.clear();
-    for (int frame = 0; frame < 10; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         auto handle = client_acquire_async(q);
         handle->wait_for(std::chrono::seconds(1));
@@ -1571,9 +1575,10 @@ TEST_P(WithThreeOrMoreBuffers, greedy_compositors_need_triple_buffers)
        overlapping_compositor_thread, std::ref(q), std::ref(done));
 
     std::unordered_set<mg::Buffer *> buffers_acquired;
-    int const delay = q.scaling_delay();
+    int delay = 10;
+    q.set_scaling_delay(delay);
 
-    for (int frame = 0; frame < 10; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         auto handle = client_acquire_async(q);
         handle->wait_for(std::chrono::seconds(1));
