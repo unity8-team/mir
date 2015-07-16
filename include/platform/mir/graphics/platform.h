@@ -109,6 +109,8 @@ enum PlatformPriority : uint32_t
     supported = 128,    /**< Capable of providing a functioning Platform on this device,
                          *   possibly with degraded performance or features.
                          */
+    better = 192,       /**< Capable of providing a functioning Platform on this device.
+                         */
     best = 256          /**< Capable of providing a Platform with the best features and
                          *   performance this device is capable of.
                          */
