@@ -25,7 +25,6 @@
 #include "mir_connection.h"
 #include "mir_surface.h"
 #include "error_connections.h"
-#include "mir/uncaught.h"
 
 #include <boost/exception/diagnostic_information.hpp>
 #include <functional>
@@ -255,9 +254,8 @@ MirWaitHandle* mir_surface_release(
     {
         return surface->release_surface(callback, context);
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -291,9 +289,8 @@ MirWaitHandle* mir_surface_set_state(MirSurface* surf, MirSurfaceState state)
     {
         return surf ? surf->configure(mir_surface_attrib_state, state) : nullptr;
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -318,9 +315,8 @@ MirSurfaceState mir_surface_get_state(MirSurface* surf)
             state = static_cast<MirSurfaceState>(s);
         }
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return state;
@@ -340,9 +336,8 @@ MirWaitHandle* mir_surface_set_swapinterval(MirSurface* surf, int interval)
     {
         return surf ? surf->configure(mir_surface_attrib_swapinterval, interval) : nullptr;
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -355,9 +350,8 @@ int mir_surface_get_swapinterval(MirSurface* surf)
     {
         swap_interval = surf ? surf->attrib(mir_surface_attrib_swapinterval) : -1;
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return swap_interval;
@@ -374,9 +368,8 @@ int mir_surface_get_dpi(MirSurface* surf)
             dpi = surf->attrib(mir_surface_attrib_dpi);
         }
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return dpi;
@@ -393,9 +386,8 @@ MirSurfaceFocusState mir_surface_get_focus(MirSurface* surf)
             state = static_cast<MirSurfaceFocusState>(surf->attrib(mir_surface_attrib_focus));
         }
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return state;
@@ -412,9 +404,8 @@ MirSurfaceVisibility mir_surface_get_visibility(MirSurface* surf)
             state = static_cast<MirSurfaceVisibility>(surf->attrib(mir_surface_attrib_visibility));
         }
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return state;
@@ -429,9 +420,8 @@ MirWaitHandle* mir_surface_configure_cursor(MirSurface* surface, MirCursorConfig
         if (surface)
             result = surface->configure_cursor(cursor);
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return result;
@@ -447,9 +437,8 @@ MirOrientationMode mir_surface_get_preferred_orientation(MirSurface *surf)
     {
         mode = static_cast<MirOrientationMode>(surf->attrib(mir_surface_attrib_preferred_orientation));
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return mode;
@@ -464,9 +453,8 @@ MirWaitHandle* mir_surface_set_preferred_orientation(MirSurface *surf, MirOrient
     {
         result = surf->set_preferred_orientation(mode);
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     }
 
     return result;
@@ -477,9 +465,8 @@ try
 {
     return reinterpret_cast<MirBufferStream*>(surface->get_buffer_stream());
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return nullptr;
 }
 
@@ -491,9 +478,8 @@ try
     spec->connection = connection;
     return spec;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     std::abort();  // If we just failed to allocate a MirSurfaceSpec returning isn't safe
 }
 
@@ -510,9 +496,8 @@ try
 
     surface->modify(*spec);
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     // Keep calm and carry on
 }
 
@@ -529,9 +514,8 @@ try
     }
     spec->streams = copy;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 
@@ -541,9 +525,8 @@ try
     mir::require(spec);
     spec->parent = parent;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 void mir_surface_spec_set_type(MirSurfaceSpec* spec, MirSurfaceType type)
@@ -551,9 +534,8 @@ try
 {
     spec->type = type;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 void mir_surface_spec_set_width_increment(MirSurfaceSpec* spec, unsigned width_inc)
@@ -561,9 +543,8 @@ try
 {
     spec->width_inc = width_inc;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 void mir_surface_spec_set_height_increment(MirSurfaceSpec* spec, unsigned height_inc)
@@ -571,9 +552,8 @@ try
 {
     spec->height_inc = height_inc;
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 void mir_surface_spec_set_min_aspect_ratio(MirSurfaceSpec* spec, unsigned width, unsigned height)
@@ -581,9 +561,8 @@ try
 {
     spec->min_aspect = {width, height};
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 void mir_surface_spec_set_max_aspect_ratio(MirSurfaceSpec* spec, unsigned width, unsigned height)
@@ -591,9 +570,8 @@ try
 {
     spec->max_aspect = {width, height};
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
 }
 
 MirWaitHandle* mir_surface_request_persistent_id(MirSurface* surface, mir_surface_id_callback callback, void* context)

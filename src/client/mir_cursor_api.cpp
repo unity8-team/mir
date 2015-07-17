@@ -21,8 +21,6 @@
 #include "mir_toolkit/mir_cursor_configuration.h"
 #include "cursor_configuration.h"
 
-#include "mir/uncaught.h"
-
 #include <memory>
 
 namespace mcl = mir::client;
@@ -67,9 +65,8 @@ MirCursorConfiguration* mir_cursor_configuration_from_name(char const* name)
     {
         return new MirCursorConfiguration(name);
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -81,9 +78,8 @@ MirCursorConfiguration* mir_cursor_configuration_from_buffer_stream(MirBufferStr
     {
         return new MirCursorConfiguration(reinterpret_cast<mcl::ClientBufferStream const*>(stream), hotspot_x, hotspot_y);
     }
-    catch (std::exception const& ex)
+    catch (std::exception const&)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }

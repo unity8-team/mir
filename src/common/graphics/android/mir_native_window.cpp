@@ -20,8 +20,6 @@
 #include "mir/graphics/android/android_driver_interpreter.h"
 #include "mir/graphics/android/sync_fence.h"
 
-#include "mir/uncaught.h"
-
 #include <iostream>
 
 namespace mg=mir::graphics;
@@ -153,9 +151,8 @@ try
 
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -178,9 +175,8 @@ try
     }
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -200,9 +196,8 @@ try
     }
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -212,9 +207,8 @@ try
     driver_interpreter->driver_returns_buffer(buffer, fence);
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -227,9 +221,8 @@ try
     cancelled_buffers.push_back(buffer);
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -239,9 +232,8 @@ try
     *value = driver_interpreter->driver_requests_info(key);
     return 0;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }
 
@@ -267,8 +259,7 @@ try
     va_end(args);
     return ret;
 }
-catch (std::exception const& e)
+catch (std::exception const&)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return -1;
 }

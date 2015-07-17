@@ -21,7 +21,6 @@
 #include <cstring>
 
 #include "mir/client_buffer.h"
-#include "mir/uncaught.h"
 
 #include "native_surface.h"
 
@@ -80,7 +79,6 @@ try
 }
 catch (std::exception const& e)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return MIR_MESA_FALSE;
 }
 
@@ -93,7 +91,6 @@ try
 }
 catch (std::exception const& e)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return MIR_MESA_FALSE;
 }
 
@@ -108,6 +105,5 @@ try
 }
 catch (std::exception const& e)
 {
-    MIR_LOG_DRIVER_BOUNDARY_EXCEPTION(e);
     return MIR_MESA_FALSE;
 }

@@ -26,8 +26,6 @@
 
 #include "mir/client_buffer.h"
 
-#include "mir/uncaught.h"
-
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -59,9 +57,8 @@ try
         width, height, format, buffer_usage, callback, context);
     return stream->get_create_wait_handle();
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return nullptr;
 }
 
@@ -76,9 +73,8 @@ try
         reinterpret_cast<mir_buffer_stream_callback>(assign_result), &stream)->wait_for_all();
     return reinterpret_cast<MirBufferStream*>(dynamic_cast<mcl::ClientBufferStream*>(stream));
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return nullptr;
 }
 
@@ -102,9 +98,10 @@ try
     mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(buffer_stream);
     *buffer_package_out = bs->get_current_buffer_package();
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    // TODO: Invent better error handling than simply leaving the result
+    //       structure uninitialized
 }
 
 MirWaitHandle* mir_buffer_stream_swap_buffers(
@@ -119,9 +116,8 @@ try
                 callback(reinterpret_cast<MirBufferStream*>(bs), context);
     });
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return nullptr;
 }
 
@@ -146,9 +142,10 @@ try
     region_out->pixel_format = secured_region->format;
     region_out->vaddr = secured_region->vaddr.get();
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    // TODO: Invent better error handling than simply leaving the result
+    //       structure uninitialized
 }
 
 MirEGLNativeWindowType mir_buffer_stream_get_egl_native_window(MirBufferStream* buffer_stream)
@@ -157,9 +154,8 @@ try
     mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(buffer_stream);
     return reinterpret_cast<MirEGLNativeWindowType>(bs->egl_native_window());
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
     return MirEGLNativeWindowType();
 }
 
@@ -169,9 +165,10 @@ try
     mcl::ClientBufferStream *bs = reinterpret_cast<mcl::ClientBufferStream*>(buffer_stream);
     return bs->platform_type();
 }
-catch (std::exception const& ex)
+catch (std::exception const&)
 {
-    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    // FIXME: We need an "error" or "invalid" enum value here. Returning
+    //        a default value like this is misleading.
     return MirPlatformType();
 }
 

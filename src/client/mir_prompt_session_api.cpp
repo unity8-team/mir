@@ -22,8 +22,6 @@
 #include "mir_prompt_session.h"
 #include "mir_connection.h"
 
-#include "mir/uncaught.h"
-
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
@@ -52,7 +50,6 @@ MirPromptSession *mir_connection_create_prompt_session_sync(
     catch (std::exception const& ex)
     {
         // TODO callback with an error
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
@@ -71,7 +68,6 @@ MirWaitHandle* mir_prompt_session_new_fds_for_prompt_providers(
     }
     catch (std::exception const& ex)
     {
-        MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
 }
