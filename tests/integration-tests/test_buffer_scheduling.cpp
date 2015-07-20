@@ -933,21 +933,21 @@ TEST_P(WithThreeOrMoreBuffers, buffers_are_not_lost)
 TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
 {
     //BufferQueue specific for now
-    auto discard = queue.scaling_delay();
+    auto delay = queue.scaling_delay();
 
-    for (int frame = 0; frame < 20; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         producer.produce();
         consumer.consume();
     }
     // Expect double-buffers as the steady state for fast clients
     auto log = producer.production_log();
-    log.erase(log.begin(), log.begin() + discard);
+    log.erase(log.begin(), log.begin() + delay);
     EXPECT_THAT(unique_ids_in(log), Eq(2));
     producer.reset_log();
 
     // Now check what happens if the client becomes slow...
-    for (int frame = 0; frame < 20; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         producer.produce();
         consumer.consume();
@@ -955,19 +955,19 @@ TEST_P(WithThreeOrMoreBuffers, queue_size_scales_with_client_performance)
     }
 
     log = producer.production_log();
-    log.erase(log.begin(), log.begin() + discard);
+    log.erase(log.begin(), log.begin() + delay);
     EXPECT_THAT(unique_ids_in(log), Ge(3));
     producer.reset_log();
 
     // And what happens if the client becomes fast again?...
-    for (int frame = 0; frame < 20; frame++)
+    for (int frame = 0; frame < delay*2; frame++)
     {
         producer.produce();
         consumer.consume();
     }
     // Expect double-buffers as the steady state for fast clients
     log = producer.production_log();
-    log.erase(log.begin(), log.begin() + discard);
+    log.erase(log.begin(), log.begin() + delay);
     EXPECT_THAT(unique_ids_in(log), Eq(2));
 }
 
