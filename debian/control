@@ -164,6 +164,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+Breaks: unity-system-compositor (<< 0.0.5+15.10.20150716.1)
 Description: Display server for Ubuntu - client library
  Mir is a display server running on linux systems, with a focus on efficiency,
  robust operation and a well-defined driver model.
