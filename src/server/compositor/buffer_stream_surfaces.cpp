@@ -135,3 +135,10 @@ void mc::BufferStreamSurfaces::remove_observer(std::weak_ptr<scene::SurfaceObser
     if (auto o = observer.lock())
         observers.remove(o);
 }
+
+void mc::BufferStreamSurfaces::allocate_buffer(graphics::BufferProperties const&)
+{
+}
+void mc::BufferStreamSurfaces::remove_buffer(graphics::BufferID)
+{
+}
