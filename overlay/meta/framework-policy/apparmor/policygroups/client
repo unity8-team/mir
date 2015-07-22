@@ -29,3 +29,5 @@ owner @{PROC}/@{pid}/cmdline r,
 
 # FIXME: this is too lenient, please adjust for specific accesses
 /sys/devices/*/*/*/uevent r,
+
+/usr/share/applications/ r,

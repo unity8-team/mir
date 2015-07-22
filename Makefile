@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SNAPVER:=1
+SNAPVER:=1.1
 VERSION="$(shell apt-cache policy mir-demos | grep '^ \*\*\* ' | cut -c1-7,10-17 --complement | cut -d' ' -f3)snap${SNAPVER}"
 
 all: snap

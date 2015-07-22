@@ -10,6 +10,10 @@
   #include <abstractions/base>
   #include <abstractions/nameservice>
 
+capability dac_override,
+capability sys_tty_config,
+capability sys_admin,
+
   # Read-only for the install directory
   @{CLICK_DIR}/@{APP_PKGNAME}/                   r,
   @{CLICK_DIR}/@{APP_PKGNAME}/@{APP_VERSION}/    r,
@@ -38,9 +42,11 @@
 /dev/shm/\#* rw,
 
 # udev
-/sys/devices/*/*/*/uevent rw,
-/sys/devices/*/*/*/drm/card0/uevent rw,
-/dev/tty wr,
+/sys/devices/**/uevent r,
+/sys/devices/**/ r,
+/dev/input/* rw,
+/dev/tty* wr,
+/run/udev/data/* r,
 
 ptrace peer=**,
 /bin/dash mrix,
@@ -51,11 +57,13 @@ ptrace peer=**,
 /sbin/killall5 ixr,
 /usr/bin/expr ixr,
 /usr/bin/chmod ixr,
+/bin/chmod ixr,
 /proc/ r,
 /proc/*/stat r,
 /proc/*/cmdline r,
 /sys/bus/ r,
 /sys/class/ r,
+/sys/class/input/ r,
 /sys/class/drm/ r,
 /etc/udev/udev.conf r,
 capability sys_ptrace,
