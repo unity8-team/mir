@@ -61,6 +61,11 @@ struct MockProtobufServer : public mp::DisplayServer
                       mp::BufferRequest const* /*request*/,
                       mp::Buffer* /*response*/,
                       google::protobuf::Closure* /*done*/));
+    MOCK_METHOD4(allocate_buffers,
+                 void(google::protobuf::RpcController* /*controller*/,
+                      mp::BufferAllocation const* /*request*/,
+                      mp::Void* /*response*/,
+                      google::protobuf::Closure* /*done*/));
 };
 
 struct StubClientPlatform : public mcl::ClientPlatform
@@ -524,4 +529,19 @@ TEST_F(ClientBufferStreamTest, waiting_client_can_unblock_on_shutdown)
     EXPECT_THROW({
         bs->request_and_wait_for_next_buffer();
     }, std::runtime_error);
+}
+
+TEST_F(ClientBufferStreamTest, requests_buffers_if_not_given_buffers_at_startup)
+{
+    using namespace ::testing;
+    using namespace std::literals::chrono_literals;
+
+    EXPECT_CALL(mock_protobuf_server, allocate_buffers(_,_,_,_))
+        .WillOnce(RunProtobufClosure());
+
+    mp::BufferStream protobuf_bs;
+    mp::BufferStreamId bs_id;
+    bs_id.set_value(1);
+    *protobuf_bs.mutable_id() = bs_id;
+    auto bs = make_buffer_stream(protobuf_bs, mock_client_buffer_factory);
 }
