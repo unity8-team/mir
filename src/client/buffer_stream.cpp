@@ -146,10 +146,15 @@ void mcl::BufferStream::created(mir_buffer_stream_callback callback, void *conte
 {
     if (!protobuf_bs->has_id() || protobuf_bs->has_error())
         BOOST_THROW_EXCEPTION(std::runtime_error("Can not create buffer stream: " + std::string(protobuf_bs->error())));
-    if (!protobuf_bs->has_buffer())
-        BOOST_THROW_EXCEPTION(std::runtime_error("Buffer stream did not come with a buffer"));
 
-    process_buffer(protobuf_bs->buffer());
+    if (!protobuf_bs->has_buffer())
+        BOOST_THROW_EXCEPTION(std::runtime_error("kaboomo"));
+
+    if (protobuf_bs->buffer().fd().empty() && protobuf_bs->buffer().data().empty())
+        ensure_buffers_present(geom::Size(protobuf_bs->buffer().width(), protobuf_bs->buffer().height()));
+    else
+        process_buffer(protobuf_bs->buffer());
+ 
     egl_native_window_ = client_platform->create_egl_native_window(this);
 
     if (connection)
@@ -160,8 +165,24 @@ void mcl::BufferStream::created(mir_buffer_stream_callback callback, void *conte
     create_wait_handle.result_received();
 }
 
-mcl::BufferStream::~BufferStream()
+void mcl::BufferStream::ensure_buffers_present(geom::Size sz)
 {
+    auto initial_nbuffers = 3u;
+    auto request = mcl::make_protobuf_object<mp::BufferAllocation>();
+    *request->mutable_id() = protobuf_bs->id();
+
+    for(auto i = 0u; i < initial_nbuffers; i++)
+    {
+        auto buf_params = request->add_buffer_requests();
+        buf_params->set_width(sz.width.as_int());
+        buf_params->set_height(sz.height.as_int());
+        buf_params->set_pixel_format(protobuf_bs->pixel_format());
+        buf_params->set_buffer_usage(protobuf_bs->buffer_usage());
+    }
+    display_server.allocate_buffers(nullptr, request.get(), protobuf_void.get(), 
+        google::protobuf::NewCallback(google::protobuf::DoNothing));
+
+    //should wait for primed... but rpc thread gets jammed.
 }
 
 void mcl::BufferStream::process_buffer(mp::Buffer const& buffer)

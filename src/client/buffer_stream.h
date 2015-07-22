@@ -76,8 +76,6 @@ public:
         mir_buffer_stream_callback callback,
         void *context);
         
-    virtual ~BufferStream();
-
     MirWaitHandle *get_create_wait_handle() override;
     MirWaitHandle *release(mir_buffer_stream_callback callback, void* context) override;
     
@@ -114,6 +112,7 @@ protected:
     BufferStream& operator=(BufferStream const&) = delete;
 
 private:
+    void ensure_buffers_present(geometry::Size sz);
     void created(mir_buffer_stream_callback callback, void* context);
     void process_buffer(protobuf::Buffer const& buffer);
     void process_buffer(protobuf::Buffer const& buffer, std::unique_lock<std::mutex> const&);
