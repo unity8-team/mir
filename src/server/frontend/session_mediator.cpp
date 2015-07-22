@@ -376,6 +376,8 @@ void mf::SessionMediator::allocate_buffers(
     mir::protobuf::Void*,
     google::protobuf::Closure*)
 {
+    //auto id = buffer->id()
+    //stream->allocate_buffer(properties);
     BOOST_THROW_EXCEPTION(std::runtime_error("not supported yet"));
 }
 

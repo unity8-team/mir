@@ -1007,3 +1007,30 @@ TEST_F(SessionMediator, sends_a_buffer_when_submit_buffer_is_called)
 
     mediator.submit_buffer(nullptr, &request, &null, null_callback.get());
 }
+
+TEST_F(SessionMediator, allocates_from_the_correct_stream)
+{
+    using namespace testing;
+    int num_requests = 3u;
+    mp::Void null;
+    mp::BufferAllocation request;
+    request.set_id(0);
+    mg::BufferProperties properties{geom::Size{34, 84}, mir_pixel_format_agbr_8888, mg:BufferUsage::hardware};
+    for(auto i = 0u; i < num_requests; i++)
+    {
+        auto buffer_request = request.add_buffer_requests();
+        buffer_request->width(properties.size.width.as_int());
+        buffer_request->width(properties.size.height.as_int());
+        buffer_request->pixel_format(properties.pixel_format);
+        buffer_request->buffer_usage(properties.usage);
+    }
+
+    mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
+    mediator.create_surface(nullptr, &surface_parameters, &surface_response, null_callback.get());
+
+    auto mock_stream = stubbed_session->mock_primary_stream_at(mf::SurfaceId{0});
+    EXPECT_CALL(*mock_stream, allocate_buffer(properties));
+        .Times(num_requests);
+
+    mediator.allocate_buffers(nullptr, &request, &null, null_callback.get());
+}
