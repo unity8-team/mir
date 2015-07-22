@@ -112,7 +112,7 @@ protected:
     BufferStream& operator=(BufferStream const&) = delete;
 
 private:
-    void ensure_buffers_present(geometry::Size sz);
+    void alloc_buffers();
     void created(mir_buffer_stream_callback callback, void* context);
     void process_buffer(protobuf::Buffer const& buffer);
     void process_buffer(protobuf::Buffer const& buffer, std::unique_lock<std::mutex> const&);
@@ -121,6 +121,7 @@ private:
     void on_configured();
     void release_cpu_region();
     MirWaitHandle* submit(std::function<void()> const& done, std::unique_lock<std::mutex> lk);
+    void finalize_initialization(mir_buffer_stream_callback callback, void *context);
 
     mutable std::mutex mutex; // Protects all members of *this
 
@@ -152,6 +153,9 @@ private:
     std::shared_ptr<MemoryRegion> secured_region;
     
     geometry::Size cached_buffer_size;
+    bool was_created = false;
+    mir_buffer_stream_callback deferred_callback;
+    void *deferred_context;
 };
 
 }

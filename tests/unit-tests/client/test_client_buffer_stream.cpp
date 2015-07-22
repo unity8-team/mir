@@ -534,7 +534,9 @@ TEST_F(ClientBufferStreamTest, waiting_client_can_unblock_on_shutdown)
 TEST_F(ClientBufferStreamTest, requests_buffers_if_not_given_buffers_at_startup)
 {
     using namespace ::testing;
-    using namespace std::literals::chrono_literals;
+    MockClientBuffer mock_client_buffer;
+    ON_CALL(mock_client_buffer_factory, create_buffer(_,_,_))
+        .WillByDefault(Return(mt::fake_shared(mock_client_buffer)));
 
     EXPECT_CALL(mock_protobuf_server, allocate_buffers(_,_,_,_))
         .WillOnce(RunProtobufClosure());
@@ -548,4 +550,9 @@ TEST_F(ClientBufferStreamTest, requests_buffers_if_not_given_buffers_at_startup)
     *protobuf_bs.mutable_id() = bs_id;
     *protobuf_bs.mutable_buffer() = buffer;
     auto bs = make_buffer_stream(protobuf_bs, mock_client_buffer_factory);
+
+    MirBufferPackage buffer_package = a_buffer_package();
+    fill_protobuf_buffer_from_package(&buffer, buffer_package);
+    bs->buffer_available(buffer);
+    EXPECT_THAT(bs->get_current_buffer(), NotNull());
 }
