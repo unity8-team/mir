@@ -1,3 +1,10 @@
+qtmir-gles (0.4.5+15.10.20150722-0ubuntu1) UNRELEASED; urgency=medium
+
+  [ Andreas Pokorny ]
+  * sync with upstream
+
+ -- Andreas Pokorny <andreas.pokorny@canonical.com>  Thu, 09 Jul 2015 14:43:52 +0200
+
 qtmir-gles (0.4.5+15.10.20150617-0ubuntu1) wily; urgency=medium
 
   [ Gerry Boland ]
