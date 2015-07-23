@@ -564,14 +564,10 @@ TEST_F(ClientBufferStreamTest, requests_buffers_if_not_given_buffers_at_startup)
     EXPECT_CALL(mock_protobuf_server, allocate_buffers(_,_,_,_))
         .WillOnce(RunProtobufClosure());
 
-    mp::Buffer buffer;
     mp::BufferStream protobuf_bs;
     mp::BufferStreamId bs_id;
-    buffer.set_height(1);
-    buffer.set_width(2);
     bs_id.set_value(1);
     *protobuf_bs.mutable_id() = bs_id;
-    *protobuf_bs.mutable_buffer() = buffer;
     auto bs = make_buffer_stream(protobuf_bs, mock_client_buffer_factory);
 
     MirBufferPackage buffer_package = a_buffer_package();

@@ -233,15 +233,19 @@ public:
         ::google::protobuf::Closure* done) override;
 
 private:
-    void pack_protobuf_buffer(protobuf::Buffer& protobuf_buffer,
-                              graphics::Buffer* graphics_buffer,
-                              graphics::BufferIpcMsgType msg_type);
+    enum class MsgType
+    {
+        full,
+        id_only,
+        size_only
+    };
+    void pack_protobuf_buffer(protobuf::Buffer&, graphics::Buffer*, MsgType);
 
     void advance_buffer(
         BufferStreamId surf_id,
         BufferStream& buffer_stream,
         graphics::Buffer* old_buffer,
-        std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete);
+        std::function<void(graphics::Buffer*, MsgType)> complete);
 
     virtual std::function<void(std::shared_ptr<Session> const&)> prompt_session_connect_handler() const;
 

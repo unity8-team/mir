@@ -154,16 +154,18 @@ void mf::SessionMediator::advance_buffer(
     BufferStreamId stream_id,
     BufferStream& stream,
     graphics::Buffer* old_buffer,
-    std::function<void(graphics::Buffer*, graphics::BufferIpcMsgType)> complete)
+    std::function<void(graphics::Buffer*, MsgType)> complete)
 {
     stream.swap_buffers(
         old_buffer,
         [this, stream_id, complete](mg::Buffer* new_buffer)
         {
-            if (buffer_stream_tracker.track_buffer(stream_id, new_buffer))
-                complete(new_buffer, mg::BufferIpcMsgType::update_msg);
+            if (!new_buffer)
+                complete(new_buffer, MsgType::size_only);
+            else if (buffer_stream_tracker.track_buffer(stream_id, new_buffer))
+                complete(new_buffer, MsgType::id_only);
             else
-                complete(new_buffer, mg::BufferIpcMsgType::full_msg);
+                complete(new_buffer, MsgType::full);
         });
 }
 
@@ -293,15 +295,22 @@ void mf::SessionMediator::create_surface(
     }
 
     advance_buffer(stream_id, *stream, buffer_stream_tracker.last_buffer(stream_id),
-        [this, surf_id, response, done, session]
-        (graphics::Buffer* client_buffer, graphics::BufferIpcMsgType msg_type)
+        [this, surf_id, response, done, session, client_size]
+        (graphics::Buffer* client_buffer, MsgType msg_type)
         {
             response->mutable_buffer_stream()->mutable_id()->set_value(
                surf_id.as_value());
-            pack_protobuf_buffer(*response->mutable_buffer_stream()->mutable_buffer(),
-                         client_buffer,
-                         msg_type);
 
+            if (!client_buffer)
+            {
+                response->mutable_buffer_stream()->mutable_buffer()->set_width(client_size.width.as_uint32_t());
+                response->mutable_buffer_stream()->mutable_buffer()->set_height(client_size.height.as_uint32_t());
+            }
+            else
+            {
+                pack_protobuf_buffer(
+                    *response->mutable_buffer_stream()->mutable_buffer(), client_buffer, msg_type);
+            }
             done->Run();
         });
 }
@@ -327,7 +336,7 @@ void mf::SessionMediator::next_buffer(
 
     advance_buffer(stream_id, *stream, buffer_stream_tracker.last_buffer(stream_id),
         [this, response, done]
-        (graphics::Buffer* client_buffer, graphics::BufferIpcMsgType msg_type)
+        (graphics::Buffer* client_buffer, MsgType msg_type)
         {
             pack_protobuf_buffer(*response, client_buffer, msg_type);
             done->Run();
@@ -356,7 +365,7 @@ void mf::SessionMediator::exchange_buffer(
     auto const& surface = session->get_buffer_stream(stream_id);
     advance_buffer(stream_id, *surface, buffer_stream_tracker.buffer_from(buffer_id),
         [this, response, done]
-        (graphics::Buffer* new_buffer, graphics::BufferIpcMsgType msg_type)
+        (graphics::Buffer* new_buffer, MsgType msg_type)
         {
             pack_protobuf_buffer(*response, new_buffer, msg_type);
             done->Run();
@@ -384,6 +393,7 @@ void mf::SessionMediator::submit_buffer(
     stream->swap_buffers(old_buffer,
         [this, stream_id, done](mg::Buffer* new_buffer)
         {
+            if (!new_buffer) return;
             if (buffer_stream_tracker.track_buffer(stream_id, new_buffer))
                 event_sink->send_buffer(stream_id, *new_buffer, mg::BufferIpcMsgType::update_msg);
             else
@@ -635,7 +645,7 @@ void mf::SessionMediator::create_screencast(
     mir::protobuf::Screencast* protobuf_screencast,
     google::protobuf::Closure* done)
 {
-    static auto const msg_type = mg::BufferIpcMsgType::full_msg;
+    static auto const msg_type = MsgType::full;
 
     geom::Rectangle const region{
         {parameters->region().left(), parameters->region().top()},
@@ -677,7 +687,7 @@ void mf::SessionMediator::screencast_buffer(
     mir::protobuf::Buffer* protobuf_buffer,
     google::protobuf::Closure* done)
 {
-    static auto const msg_type = mg::BufferIpcMsgType::update_msg;
+    static auto const msg_type = MsgType::id_only;
     ScreencastSessionId const screencast_session_id{
         protobuf_screencast_id->value()};
 
@@ -721,7 +731,7 @@ void mf::SessionMediator::create_buffer_stream(google::protobuf::RpcController*,
 
     advance_buffer(buffer_stream_id, *stream, buffer_stream_tracker.last_buffer(buffer_stream_id),
         [this, response, done, session]
-        (graphics::Buffer* client_buffer, graphics::BufferIpcMsgType msg_type)
+        (graphics::Buffer* client_buffer, MsgType msg_type)
         {
             auto buffer = response->mutable_buffer();
             pack_protobuf_buffer(*buffer, client_buffer, msg_type);
@@ -996,12 +1006,16 @@ void mf::SessionMediator::request_persistent_surface_id(
 void mf::SessionMediator::pack_protobuf_buffer(
     protobuf::Buffer& protobuf_buffer,
     graphics::Buffer* graphics_buffer,
-    mg::BufferIpcMsgType buffer_msg_type)
+    MsgType msg_type)
 {
     protobuf_buffer.set_buffer_id(graphics_buffer->id().as_value());
 
     mfd::ProtobufBufferPacker packer{&protobuf_buffer};
-    ipc_operations->pack_buffer(packer, *graphics_buffer, buffer_msg_type);
+
+    if (msg_type == MsgType::full)
+        ipc_operations->pack_buffer(packer, *graphics_buffer, mg::BufferIpcMsgType::full_msg);
+    else if (msg_type == MsgType::id_only)
+        ipc_operations->pack_buffer(packer, *graphics_buffer, mg::BufferIpcMsgType::update_msg);
 
     for(auto const& fd : packer.fds())
         resource_cache->save_fd(&protobuf_buffer, fd);
