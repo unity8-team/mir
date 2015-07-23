@@ -146,12 +146,12 @@ void mcl::BufferStream::created(mir_buffer_stream_callback callback, void *conte
 {
     if (!protobuf_bs->has_id() || protobuf_bs->has_error())
         BOOST_THROW_EXCEPTION(std::runtime_error("Can not create buffer stream: " + std::string(protobuf_bs->error())));
-
-    if (!protobuf_bs->has_buffer())
-        BOOST_THROW_EXCEPTION(std::runtime_error("kaboomo"));
+    if (!protobuf_bs->has_buffer() || !protobuf_bs->buffer().has_width() || !protobuf_bs->buffer().has_height())
+        BOOST_THROW_EXCEPTION(std::runtime_error("Buffer stream did not come with a buffer"));
 
     if (protobuf_bs->buffer().fd().empty() && protobuf_bs->buffer().data().empty())
     {
+        //we were given a size, but we're operating in self-allocation mode
         alloc_buffers();
         deferred_callback = callback;
         deferred_context = context;

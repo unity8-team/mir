@@ -268,6 +268,24 @@ TEST_F(ClientBufferStreamTest, protobuf_requirements)
     EXPECT_THROW({
         make_buffer_stream(no_buffer_bs);
     }, std::runtime_error);
+
+}
+
+TEST_F(ClientBufferStreamTest, width_and_height_are_required_in_response)
+{
+    auto valid_bs = a_protobuf_buffer_stream(default_pixel_format, default_buffer_usage, a_buffer_package());
+    auto no_buffer_width_bs = valid_bs;
+    no_buffer_width_bs.mutable_buffer()->clear_width();
+
+    EXPECT_THROW({
+        make_buffer_stream(no_buffer_width_bs);
+    }, std::runtime_error);
+
+    auto no_buffer_height_bs = valid_bs;
+    no_buffer_height_bs.mutable_buffer()->clear_height();
+    EXPECT_THROW({
+        make_buffer_stream(no_buffer_height_bs);
+    }, std::runtime_error);
 }
 
 TEST_F(ClientBufferStreamTest, uses_buffer_message_from_server)
