@@ -93,7 +93,8 @@ mcl::BufferStream::BufferStream(
     std::shared_ptr<mcl::ClientPlatform> const& client_platform,
     mp::BufferStream const& protobuf_bs,
     std::shared_ptr<mcl::PerfReport> const& perf_report,
-    std::string const& surface_name)
+    std::string const& surface_name,
+    geom::Size ideal_size)
     : connection(connection),
       display_server(server),
       mode(mode),
@@ -102,7 +103,8 @@ mcl::BufferStream::BufferStream(
       buffer_depository{client_platform->create_buffer_factory(), mir::frontend::client_buffer_cache_size},
       swap_interval_(1),
       perf_report(perf_report),
-      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()}
+      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()},
+      ideal_buffer_size{ideal_size}
 {
     created(nullptr, nullptr);
     perf_report->name_surface(surface_name.c_str());
@@ -124,7 +126,8 @@ mcl::BufferStream::BufferStream(
       buffer_depository{client_platform->create_buffer_factory(), mir::frontend::client_buffer_cache_size},
       swap_interval_(1),
       perf_report(perf_report),
-      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()}
+      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()},
+      ideal_buffer_size{parameters.width(), parameters.height()}
 {
     perf_report->name_surface(std::to_string(reinterpret_cast<long int>(this)).c_str());
 
@@ -146,20 +149,17 @@ void mcl::BufferStream::created(mir_buffer_stream_callback callback, void *conte
 {
     if (!protobuf_bs->has_id() || protobuf_bs->has_error())
         BOOST_THROW_EXCEPTION(std::runtime_error("Can not create buffer stream: " + std::string(protobuf_bs->error())));
-    if (!protobuf_bs->has_buffer() || !protobuf_bs->buffer().has_width() || !protobuf_bs->buffer().has_height())
-        BOOST_THROW_EXCEPTION(std::runtime_error("Buffer stream did not come with a buffer"));
 
-    if (protobuf_bs->buffer().fd().empty() && protobuf_bs->buffer().data().empty())
-    {
-        //we were given a size, but we're operating in self-allocation mode
-        alloc_buffers();
-        deferred_callback = callback;
-        deferred_context = context;
-    }
-    else
+    if (protobuf_bs->has_buffer())
     {
         process_buffer(protobuf_bs->buffer());
         finalize_initialization(callback, context);
+    }
+    else
+    {
+        alloc_buffers();
+        deferred_callback = callback;
+        deferred_context = context;
     }
 }
 

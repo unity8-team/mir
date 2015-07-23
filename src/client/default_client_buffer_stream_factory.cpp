@@ -59,20 +59,20 @@ mcl::DefaultClientBufferStreamFactory::DefaultClientBufferStreamFactory(
 
 std::shared_ptr<mcl::ClientBufferStream> mcl::DefaultClientBufferStreamFactory::make_consumer_stream(
     MirConnection* connection, mp::DisplayServer& server,
-    mp::BufferStream const& protobuf_bs, std::string const& surface_name)
+    mp::BufferStream const& protobuf_bs, std::string const& surface_name, geometry::Size sz)
 {
     return std::make_shared<mcl::BufferStream>(
         connection, server, mcl::BufferStreamMode::Consumer, client_platform,
-        protobuf_bs, make_perf_report(logger), surface_name);
+        protobuf_bs, make_perf_report(logger), surface_name, sz);
 }
 
 std::shared_ptr<mcl::ClientBufferStream> mcl::DefaultClientBufferStreamFactory::make_producer_stream(
     MirConnection* connection, mp::DisplayServer& server,
-    mp::BufferStream const& protobuf_bs, std::string const& surface_name)
+    mp::BufferStream const& protobuf_bs, std::string const& surface_name, geometry::Size sz)
 {
     return std::make_shared<mcl::BufferStream>(
         connection, server, mcl::BufferStreamMode::Producer, client_platform,
-        protobuf_bs, make_perf_report(logger), surface_name);
+        protobuf_bs, make_perf_report(logger), surface_name, sz);
 }
 
 

@@ -30,6 +30,7 @@
 
 #include "mir_toolkit/mir_client_library.h"
 
+#include "mir/geometry/size.h"
 #include "mir/client_platform.h"
 #include "mir/client_context.h"
 
@@ -125,7 +126,7 @@ public:
     std::shared_ptr<mir::client::ClientPlatform> get_client_platform();
 
     std::shared_ptr<mir::client::ClientBufferStream> make_consumer_stream(
-       mir::protobuf::BufferStream const& protobuf_bs, std::string const& surface_name);
+       mir::protobuf::BufferStream const& protobuf_bs, std::string const& surface_name, mir::geometry::Size);
 
     mir::client::ClientBufferStream* create_client_buffer_stream(
         int width, int height,

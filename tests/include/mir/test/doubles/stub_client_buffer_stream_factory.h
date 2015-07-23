@@ -35,7 +35,8 @@ struct StubClientBufferStreamFactory : public client::ClientBufferStreamFactory
         MirConnection*,
         protobuf::DisplayServer& /* server */,
         protobuf::BufferStream const& /* protobuf_bs */,
-        std::string const& /* surface_name */) override
+        std::string const& /* surface_name */,
+        geometry::Size) override
     {
         return nullptr;
     }
@@ -44,7 +45,8 @@ struct StubClientBufferStreamFactory : public client::ClientBufferStreamFactory
         MirConnection*,
         protobuf::DisplayServer& /* server */,
         protobuf::BufferStream const& /* protobuf_bs */,
-        std::string const& /* surface_name */) override
+        std::string const& /* surface_name */,
+        geometry::Size) override
     {
         return nullptr;
     }

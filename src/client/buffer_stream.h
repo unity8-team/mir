@@ -65,7 +65,8 @@ public:
         std::shared_ptr<ClientPlatform> const& native_window_factory,
         mir::protobuf::BufferStream const& protobuf_bs,
         std::shared_ptr<PerfReport> const& perf_report,
-        std::string const& surface_name);
+        std::string const& surface_name,
+        geometry::Size ideal_size);
     // For surfaceless buffer streams
     BufferStream(
         MirConnection* connection,
@@ -153,6 +154,7 @@ private:
     std::shared_ptr<MemoryRegion> secured_region;
     
     geometry::Size cached_buffer_size;
+    geometry::Size ideal_buffer_size;
     bool was_created = false;
     mir_buffer_stream_callback deferred_callback;
     void *deferred_context;
