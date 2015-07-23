@@ -1063,7 +1063,7 @@ TEST_F(SessionMediator, removes_buffer_from_the_correct_stream)
     mediator.release_buffers(nullptr, &request, &null, null_callback.get());
 }
 
-TEST_F(SessionMediator, packs_buffer_size_on_construction_if_swap_buffers_returns_nullptr)
+TEST_F(SessionMediator, can_handle_if_swapbuffers_returns_nullptr)
 { 
     using namespace testing;
     mf::SurfaceId surf_id{0};
@@ -1073,7 +1073,6 @@ TEST_F(SessionMediator, packs_buffer_size_on_construction_if_swap_buffers_return
 
     mediator.connect(nullptr, &connect_parameters, &connection, null_callback.get());
     mediator.create_surface(nullptr, &surface_parameters, &surface_response, null_callback.get());
-    ASSERT_TRUE(surface_response.has_buffer());
-    EXPECT_TRUE(surface_response.buffer().has_width());
-    EXPECT_TRUE(surface_response.buffer().has_height());
+    EXPECT_FALSE(surface_response.has_buffer());
+    EXPECT_TRUE(surface_response.has_id());
 }
