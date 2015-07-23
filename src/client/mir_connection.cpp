@@ -505,9 +505,9 @@ mir::client::ClientBufferStream* MirConnection::create_client_buffer_stream(
 }
 
 std::shared_ptr<mir::client::ClientBufferStream> MirConnection::make_consumer_stream(
-   mir::protobuf::BufferStream const& protobuf_bs, std::string const& surface_name, mir::geometry::Size sz)
+   mir::protobuf::BufferStream const& protobuf_bs, std::string const& surface_name, mir::geometry::Size size)
 {
-    return buffer_stream_factory->make_consumer_stream(this, server, protobuf_bs, surface_name, sz);
+    return buffer_stream_factory->make_consumer_stream(this, server, protobuf_bs, surface_name, size);
 }
 
 EGLNativeDisplayType MirConnection::egl_native_display()

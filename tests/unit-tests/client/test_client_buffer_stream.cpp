@@ -149,7 +149,7 @@ struct ClientBufferStreamTest : public testing::Test
         mcl::BufferStreamMode mode=mcl::BufferStreamMode::Producer)
     {
         return std::make_shared<mcl::BufferStream>(nullptr, mock_protobuf_server, mode,
-            std::make_shared<StubClientPlatform>(mt::fake_shared(buffer_factory)), protobuf_bs, perf_report, "");
+            std::make_shared<StubClientPlatform>(mt::fake_shared(buffer_factory)), protobuf_bs, perf_report, "", geom::Size{});
     }
 };
 
@@ -464,7 +464,7 @@ TEST_F(ClientBufferStreamTest, passes_name_to_perf_report)
     auto bs = std::make_shared<mcl::BufferStream>(
         nullptr, mock_protobuf_server, mcl::BufferStreamMode::Producer,
         std::make_shared<StubClientPlatform>(mt::fake_shared(stub_client_buffer_factory)),
-        protobuf_bs, mt::fake_shared(mock_perf_report), name);
+        protobuf_bs, mt::fake_shared(mock_perf_report), name, geom::Size{});
 }
 
 TEST_F(ClientBufferStreamTest, receives_unsolicited_buffer)
@@ -546,6 +546,7 @@ TEST_F(ClientBufferStreamTest, requests_buffers_if_not_given_buffers_at_startup)
     *protobuf_bs.mutable_id() = bs_id;
     auto bs = make_buffer_stream(protobuf_bs, mock_client_buffer_factory);
 
+    mp::Buffer buffer;
     MirBufferPackage buffer_package = a_buffer_package();
     fill_protobuf_buffer_from_package(&buffer, buffer_package);
     bs->buffer_available(buffer);
