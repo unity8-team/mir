@@ -454,8 +454,10 @@ void mcl::BufferStream::buffer_available(mir::protobuf::Buffer const& buffer)
     {
         process_buffer(buffer, lock);
         finalize_initialization(deferred_callback, deferred_context);
+        return;
     }
-    else if (on_incoming_buffer)
+
+    if (on_incoming_buffer)
     {
         process_buffer(buffer, lock);
         next_buffer_wait_handle.result_received();
