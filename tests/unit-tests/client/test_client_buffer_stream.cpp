@@ -68,6 +68,7 @@ struct MockProtobufServer : public mp::DisplayServer
                       google::protobuf::Closure* /*done*/));
 };
 
+// TODO: Deduplicate this class
 struct StubClientPlatform : public mcl::ClientPlatform
 {
     StubClientPlatform(
@@ -102,6 +103,10 @@ struct StubClientPlatform : public mcl::ClientPlatform
     MirPlatformMessage* platform_operation(MirPlatformMessage const* /* request */)
     {
         return nullptr;
+    }
+    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const override
+    {
+        return mir_pixel_format_invalid;
     }
     static EGLNativeWindowType egl_native_window;
     std::shared_ptr<mcl::ClientBufferFactory> const buffer_factory;
