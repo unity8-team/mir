@@ -1,6 +1,5 @@
 # Description: mir-demo-server apparmor security profile
 # Usage: Mir
-@unrestricted
 access
 faccessat
 

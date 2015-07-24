@@ -1,6 +1,5 @@
 sudo vi# Description: mir-compositor apparmor security profile
 # Usage: Mir
-@unrestricted
 access
 faccessat
 
@@ -36,7 +35,6 @@ fchmodat
 
 # needed for chmod'ing the mir socket so apps can use
 lchown
-
 #lchown32
 
 clock_getres
@@ -44,6 +42,7 @@ clock_gettime
 clock_nanosleep
 clone
 close
+connect
 creat
 dup
 dup2
@@ -106,6 +105,7 @@ ugetrlimit
 
 getrusage
 getsid
+getsockname
 gettid
 gettimeofday
 getuid
@@ -137,7 +137,7 @@ ipc
 kill
 link
 linkat
-
+listen
 listxattr
 llistxattr
 flistxattr
@@ -295,7 +295,7 @@ set_mempolicy
 set_robust_list
 setsid
 set_tid_address
-
+setsockopt
 setxattr
 fsetxattr
 lsetxattr
@@ -315,6 +315,7 @@ sigreturn
 sigsuspend
 sigtimedwait
 sigwaitinfo
+socket
 splice
 
 stat
