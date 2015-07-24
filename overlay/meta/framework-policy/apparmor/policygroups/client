@@ -11,6 +11,7 @@
 # Socket to talk on
 /run/mir_socket rw,
 unix (connect, send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),
+#unix (receive, send) type=seqpacket addr=none,
 
 # For non-opengl apps
 # https://www.kernel.org/doc/gorman/html/understand/understand015.html
