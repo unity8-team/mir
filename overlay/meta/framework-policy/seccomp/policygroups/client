@@ -3,3 +3,4 @@
 
 # needed to connect to mir
 socketpair
+lchown

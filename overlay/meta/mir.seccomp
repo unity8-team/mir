@@ -1,11 +1,12 @@
 sudo vi# Description: mir-compositor apparmor security profile
 # Usage: Mir
 access
+accept
 faccessat
 
 alarm
 brk
-
+bind
 # ARM private syscalls
 breakpoint
 cacheflush
@@ -106,6 +107,7 @@ ugetrlimit
 getrusage
 getsid
 getsockname
+getsockopt
 gettid
 gettimeofday
 getuid
@@ -212,6 +214,7 @@ readahead
 readdir
 readlink
 readlinkat
+recvmsg
 remap_file_pages
 
 removexattr
@@ -259,6 +262,7 @@ semop
 semtimedop
 sendfile
 sendfile64
+sendmsg
 
 # snappy doesn't currently support per-app UID/GIDs so don't allow this family
 # of syscalls. To properly support these, we need to have syscall arg filtering
@@ -316,6 +320,7 @@ sigsuspend
 sigtimedwait
 sigwaitinfo
 socket
+socketpair
 splice
 
 stat

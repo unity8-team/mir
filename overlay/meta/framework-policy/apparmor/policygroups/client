@@ -8,6 +8,9 @@
 @{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/*/mir/client-platform/ r,
 @{CLICK_DIR}/@PACKAGE@/*/debs/usr/lib/*/mir/client-platform/* r,
 
+capability chown,
+capability fowner,
+
 # Socket to talk on
 /run/mir_socket rw,
 unix (connect, send, receive) peer=(label=@PACKAGE@_system-compositor_@VERSION@),

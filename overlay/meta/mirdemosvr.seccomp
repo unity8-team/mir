@@ -1,6 +1,7 @@
 # Description: mir-demo-server apparmor security profile
 # Usage: Mir
 access
+accept
 faccessat
 
 alarm
