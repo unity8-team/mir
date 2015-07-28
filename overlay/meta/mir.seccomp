@@ -263,6 +263,7 @@ semtimedop
 sendfile
 sendfile64
 sendmsg
+sendto
 
 # snappy doesn't currently support per-app UID/GIDs so don't allow this family
 # of syscalls. To properly support these, we need to have syscall arg filtering
