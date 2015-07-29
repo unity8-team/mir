@@ -93,7 +93,7 @@ TEST_F(X11GraphicsPlatformTest, probe_returns_unsupported_when_no_drm_udev_devic
     mtf::UdevEnvironment udev_environment;
     mir::options::ProgramOption options;
 
-    mir::SharedLibrary platform_lib{mtf::server_platform("server-mesa-x11")};
+    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-mesa-x11")};
     auto probe = platform_lib.load_function<mg::PlatformProbe>(probe_platform);
     EXPECT_EQ(mg::PlatformPriority::unsupported, probe(options));
 }
@@ -107,7 +107,7 @@ TEST_F(X11GraphicsPlatformTest, probe_returns_unsupported_when_x_cannot_open_dis
     EXPECT_CALL(mock_x11, XOpenDisplay(_))
         .WillRepeatedly(Return(nullptr));
 
-    mir::SharedLibrary platform_lib{mtf::server_platform("server-mesa-x11")};
+    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-mesa-x11")};
     auto probe = platform_lib.load_function<mg::PlatformProbe>(probe_platform);
     EXPECT_EQ(mg::PlatformPriority::unsupported, probe(options));
 }
@@ -119,7 +119,7 @@ TEST_F(X11GraphicsPlatformTest, probe_returns_best_when_drm_render_nodes_exist)
 
     udev_environment.add_standard_device("standard-drm-render-nodes");
 
-    mir::SharedLibrary platform_lib{mtf::server_platform("server-mesa-x11")};
+    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-mesa-x11")};
     auto probe = platform_lib.load_function<mg::PlatformProbe>(probe_platform);
     EXPECT_EQ(mg::PlatformPriority::best, probe(options));
 }
