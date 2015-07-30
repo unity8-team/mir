@@ -19,13 +19,12 @@
 #include "mir_protobuf_rpc_channel.h"
 #include "rpc_report.h"
 
-#include "mir/protobuf/google_protobuf_guard.h"
 #include "../surface_map.h"
 #include "../mir_surface.h"
 #include "../display_configuration.h"
 #include "../lifecycle_control.h"
 #include "../event_sink.h"
-#include "../make_protobuf_object.h"
+#include "mir/make_protobuf_object.h"
 #include "mir/variable_length_array.h"
 #include "mir/events/event_private.h"
 
@@ -237,7 +236,7 @@ void mclr::MirProtobufRpcChannel::send_message(
 
 void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& event)
 {
-    auto seq = mcl::make_protobuf_object<mir::protobuf::EventSequence>();
+    auto seq = mir::make_protobuf_object<mir::protobuf::EventSequence>();
 
     seq->ParseFromString(event);
 
@@ -249,14 +248,6 @@ void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& even
     if (seq->has_lifecycle_event())
     {
         lifecycle_control->call_lifecycle_event_handler(seq->lifecycle_event().new_state());
-    }
-
-    if (seq->has_buffer_request())
-    {
-        surface_map->with_stream_do(mf::BufferStreamId(seq->buffer_request().id().value()),
-        [&] (mcl::ClientBufferStream* stream) {
-            stream->buffer_available(seq->buffer_request().buffer());
-        });
     }
 
     int const nevents = seq->event_size();
@@ -329,7 +320,7 @@ void mclr::MirProtobufRpcChannel::on_data_available()
      */
     std::lock_guard<decltype(read_mutex)> lock(read_mutex);
 
-    auto result = mcl::make_protobuf_object<mir::protobuf::wire::Result>();
+    auto result = mir::make_protobuf_object<mir::protobuf::wire::Result>();
     try
     {
         uint16_t message_size;

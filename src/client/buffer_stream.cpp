@@ -19,9 +19,9 @@
 #define MIR_LOG_COMPONENT "MirBufferStream"
 
 #include "buffer_stream.h"
-#include "make_protobuf_object.h"
 
 #include "mir_connection.h"
+#include "mir/make_protobuf_object.h"
 #include "mir/frontend/client_constants.h"
 
 #include "mir/log.h"
@@ -98,11 +98,11 @@ mcl::BufferStream::BufferStream(
       display_server(server),
       mode(mode),
       client_platform(client_platform),
-      protobuf_bs{mcl::make_protobuf_object<mir::protobuf::BufferStream>(protobuf_bs)},
+      protobuf_bs{mir::make_protobuf_object<mir::protobuf::BufferStream>(protobuf_bs)},
       buffer_depository{client_platform->create_buffer_factory(), mir::frontend::client_buffer_cache_size},
       swap_interval_(1),
       perf_report(perf_report),
-      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()}
+      protobuf_void{mir::make_protobuf_object<mir::protobuf::Void>()}
 {
     created(nullptr, nullptr);
     perf_report->name_surface(surface_name.c_str());
@@ -120,11 +120,11 @@ mcl::BufferStream::BufferStream(
       display_server(server),
       mode(BufferStreamMode::Producer),
       client_platform(client_platform),
-      protobuf_bs{mcl::make_protobuf_object<mir::protobuf::BufferStream>()},
+      protobuf_bs{mir::make_protobuf_object<mir::protobuf::BufferStream>()},
       buffer_depository{client_platform->create_buffer_factory(), mir::frontend::client_buffer_cache_size},
       swap_interval_(1),
       perf_report(perf_report),
-      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()}
+      protobuf_void{mir::make_protobuf_object<mir::protobuf::Void>()}
 {
     perf_report->name_surface(std::to_string(reinterpret_cast<long int>(this)).c_str());
 
@@ -167,11 +167,7 @@ mcl::BufferStream::~BufferStream()
 void mcl::BufferStream::process_buffer(mp::Buffer const& buffer)
 {
     std::unique_lock<decltype(mutex)> lock(mutex);
-    process_buffer(buffer, lock);
-}
-
-void mcl::BufferStream::process_buffer(protobuf::Buffer const& buffer, std::unique_lock<std::mutex> const&)
-{
+    
     auto buffer_package = std::make_shared<MirBufferPackage>();
     populate_buffer_package(*buffer_package, buffer);
     
@@ -206,42 +202,11 @@ MirWaitHandle* mcl::BufferStream::next_buffer(std::function<void()> const& done)
 
     secured_region.reset();
 
-    if (using_exchange_buffer)
-        return exchange(done, std::move(lock));
-    return submit(done, std::move(lock));
-}
-
-MirWaitHandle* mcl::BufferStream::submit(std::function<void()> const& done, std::unique_lock<std::mutex> lock)
-{
-    //always submit what we have, whether we have a buffer, or will have to wait for an async reply
-    auto request = mcl::make_protobuf_object<mp::BufferRequest>();
-    request->mutable_id()->set_value(protobuf_bs->id().value());
-    request->mutable_buffer()->set_buffer_id(protobuf_bs->buffer().buffer_id());
-    display_server.submit_buffer(nullptr, request.get(), protobuf_void.get(),
-        google::protobuf::NewCallback(google::protobuf::DoNothing));
-
-    if (incoming_buffers.empty())
-    {
-        next_buffer_wait_handle.expect_result();
-        on_incoming_buffer = done; 
-    }
-    else
-    {
-        process_buffer(incoming_buffers.front(), lock);
-        incoming_buffers.pop();
-        done();
-    }
-    return &next_buffer_wait_handle;
-}
-
-MirWaitHandle* mcl::BufferStream::exchange(
-    std::function<void()> const& done, std::unique_lock<std::mutex> lock)
-{
     // TODO: We can fix the strange "ID casting" used below in the second phase
     // of buffer stream which generalizes and clarifies the server side logic.
     if (mode == mcl::BufferStreamMode::Producer)
     {
-        auto request = mcl::make_protobuf_object<mp::BufferRequest>();
+        auto request = mir::make_protobuf_object<mp::BufferRequest>();
         request->mutable_id()->set_value(protobuf_bs->id().value());
         request->mutable_buffer()->set_buffer_id(protobuf_bs->buffer().buffer_id());
 
@@ -258,7 +223,7 @@ MirWaitHandle* mcl::BufferStream::exchange(
     }
     else
     {
-        auto screencast_id = mcl::make_protobuf_object<mp::ScreencastId>();
+        auto screencast_id = mir::make_protobuf_object<mp::ScreencastId>();
         screencast_id->set_value(protobuf_bs->id().value());
 
         lock.unlock();
@@ -353,8 +318,8 @@ void mcl::BufferStream::request_and_wait_for_configure(MirSurfaceAttrib attrib, 
         BOOST_THROW_EXCEPTION(std::logic_error("Attempt to set swap interval on screencast is invalid"));
     }
 
-    auto setting = mcl::make_protobuf_object<mp::SurfaceSetting>();
-    auto result = mcl::make_protobuf_object<mp::SurfaceSetting>();
+    auto setting = mir::make_protobuf_object<mp::SurfaceSetting>();
+    auto result = mir::make_protobuf_object<mp::SurfaceSetting>();
     setting->mutable_surfaceid()->set_value(protobuf_bs->id().value());
     setting->set_attrib(attrib);
     setting->set_ivalue(value);
@@ -429,22 +394,4 @@ bool mcl::BufferStream::valid() const
 void mcl::BufferStream::set_buffer_cache_size(unsigned int cache_size)
 {
     buffer_depository.set_max_buffers(cache_size);
-}
-
-void mcl::BufferStream::buffer_available(mir::protobuf::Buffer const& buffer)
-{
-    std::unique_lock<decltype(mutex)> lock(mutex);
-    using_exchange_buffer = false; //this stream uses async exchange from here on out
-
-    if (on_incoming_buffer)
-    {
-        process_buffer(buffer, lock);
-        next_buffer_wait_handle.result_received();
-        on_incoming_buffer();
-        on_incoming_buffer = std::function<void()>{};
-    }
-    else
-    {
-        incoming_buffers.push(buffer);
-    }
 }
