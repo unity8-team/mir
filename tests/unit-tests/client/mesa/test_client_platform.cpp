@@ -147,7 +147,11 @@ TEST_F(MesaClientPlatformTest, returns_gbm_compatible_pixel_formats_only)
         .WillOnce(DoAll(SetArgPointee<3>(0), Return(EGL_TRUE)))
         .WillOnce(DoAll(SetArgPointee<3>(666), Return(EGL_FALSE)));
 
-    EXPECT_EQ(mir_pixel_format_argb_8888, platform->get_egl_pixel_format(d, c));
-    EXPECT_EQ(mir_pixel_format_xrgb_8888, platform->get_egl_pixel_format(d, c));
-    EXPECT_EQ(mir_pixel_format_invalid, platform->get_egl_pixel_format(d, c));
+    // TODO: more tests
+    EXPECT_EQ(mir_pixel_format_argb_8888,
+              platform->get_egl_pixel_format(d, c, nullptr));
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, nullptr));
+    EXPECT_EQ(mir_pixel_format_invalid,
+              platform->get_egl_pixel_format(d, c, nullptr));
 }

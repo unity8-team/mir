@@ -244,7 +244,8 @@ struct StubClientPlatform : public mcl::ClientPlatform
         return nullptr;
     }
 
-    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const override
+    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig,
+                                        EGLint const*) const override
     {
         return mir_pixel_format_invalid;
     }

@@ -189,10 +189,15 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(MirConnection *con
  *   \param [in] connection  The connection
  *   \param [in] egldisplay  The EGLDisplay for the given config
  *   \param [in] eglconfig   The EGLConfig you have chosen to use
+ *   \param [in] attribs     (Optional) The attribute list used to choose the
+ *                           above eglconfig (or NULL). If provided, this may
+ *                           allow Mir to choose a higher performing pixel
+ *                           format.
  *   \return                 The MirPixelFormat to use in surface creation
  */
 MirPixelFormat mir_connection_get_egl_pixel_format(
-    MirConnection *connection, void *egldisplay, void *eglconfig);
+    MirConnection *connection, void *egldisplay, void *eglconfig,
+    int const* attribs);
 
 /**
  * Get the list of possible formats that a surface can be created with.

@@ -66,7 +66,8 @@ void create_and_run_scroll_surface(MirConnection *connection)
     assert(n == 1);
 
     MirPixelFormat pixel_format =
-        mir_connection_get_egl_pixel_format(connection, disp, egl_config);
+        mir_connection_get_egl_pixel_format(connection, disp, egl_config,
+                                            attribs);
 
     printf("Mir chose pixel format %d\n", pixel_format);
 

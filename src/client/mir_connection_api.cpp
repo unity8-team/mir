@@ -253,10 +253,11 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(
     return connection->egl_native_display();
 }
 
+// TODO: 3 parameter version
 MirPixelFormat mir_connection_get_egl_pixel_format(MirConnection* connection,
-    EGLDisplay disp, EGLConfig conf)
+    EGLDisplay disp, EGLConfig conf, EGLint const* attribs)
 {
-    return connection->egl_pixel_format(disp, conf);
+    return connection->egl_pixel_format(disp, conf, attribs);
 }
 
 void mir_connection_get_available_surface_formats(

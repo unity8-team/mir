@@ -138,7 +138,7 @@ extern "C" EGLAPI EGLBoolean EGLAPIENTRY
     __attribute__((weak));
 
 MirPixelFormat mcla::AndroidClientPlatform::get_egl_pixel_format(
-    EGLDisplay disp, EGLConfig conf) const
+    EGLDisplay disp, EGLConfig conf, EGLint const*) const
 {
     MirPixelFormat mir_format = mir_pixel_format_invalid;
 

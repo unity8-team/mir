@@ -363,7 +363,8 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     CHECK(neglconfigs > 0, "No EGL config available");
 
     MirPixelFormat pixel_format =
-        mir_connection_get_egl_pixel_format(connection, egldisplay, eglconfig);
+        mir_connection_get_egl_pixel_format(connection, egldisplay, eglconfig,
+                                            attribs);
 
     printf("Using Mir pixel format %d.\n", pixel_format);
 

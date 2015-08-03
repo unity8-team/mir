@@ -152,7 +152,8 @@ public:
     static bool is_valid(MirConnection *connection);
 
     EGLNativeDisplayType egl_native_display();
-    MirPixelFormat       egl_pixel_format(EGLDisplay, EGLConfig) const;
+    MirPixelFormat       egl_pixel_format(EGLDisplay, EGLConfig,
+                                          EGLint const*) const;
 
     void on_surface_created(int id, MirSurface* surface);
     void on_stream_created(int id, mir::client::ClientBufferStream* stream);

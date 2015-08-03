@@ -104,7 +104,8 @@ class ConfigurableFailurePlatform : public mir::client::ClientPlatform
         BOOST_THROW_EXCEPTION(std::runtime_error{exception_text});
         return nullptr;
     }
-    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const override
+    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig,
+                                        EGLint const*) const override
     {
         return mir_pixel_format_invalid;
     }

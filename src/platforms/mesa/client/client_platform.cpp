@@ -193,9 +193,24 @@ extern "C" EGLAPI EGLBoolean EGLAPIENTRY
     __attribute__((weak));
 
 MirPixelFormat mclm::ClientPlatform::get_egl_pixel_format(
-    EGLDisplay disp, EGLConfig conf) const
+    EGLDisplay disp, EGLConfig conf, EGLint const* attribs) const
 {
     MirPixelFormat mir_format = mir_pixel_format_invalid;
+
+    bool force_opaque = false;  // Don't guess attribs if unavailable
+    if (attribs)
+    {
+        // Optimize our choice of pixel format for the best chance of enabling
+        // composite bypass/overlays... (LP: #1480755)
+        force_opaque = true;
+        EGLint const* a = attribs;
+        while (a[0] != EGL_NONE)
+        {
+            if (a[0] == EGL_ALPHA_SIZE && a[1] > 0)
+                force_opaque = false;
+            a += 2;
+        }
+    }
 
     /*
      * This is based on gbm_dri_is_format_supported() however we can't call it
@@ -217,7 +232,8 @@ MirPixelFormat mclm::ClientPlatform::get_egl_pixel_format(
     {
         // GBM is very limited, which at least makes this simple...
         if (a == 8)
-            mir_format = mir_pixel_format_argb_8888;
+            mir_format = force_opaque ? mir_pixel_format_xrgb_8888 :
+                                        mir_pixel_format_argb_8888;
         else if (a == 0)
             mir_format = mir_pixel_format_xrgb_8888;
     }

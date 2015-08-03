@@ -65,7 +65,8 @@ public:
     virtual std::shared_ptr<EGLNativeWindowType> create_egl_native_window(EGLNativeSurface *surface) = 0;
     virtual std::shared_ptr<EGLNativeDisplayType> create_egl_native_display() = 0;
     virtual MirNativeBuffer* convert_native_buffer(graphics::NativeBuffer*) const = 0;
-    virtual MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const = 0;
+    virtual MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig,
+                                                EGLint const*) const = 0;
 };
 
 }

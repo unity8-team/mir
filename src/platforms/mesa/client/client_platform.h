@@ -48,7 +48,8 @@ public:
     std::shared_ptr<EGLNativeWindowType> create_egl_native_window(EGLNativeSurface *surface) override;
     std::shared_ptr<EGLNativeDisplayType> create_egl_native_display() override;
     MirNativeBuffer* convert_native_buffer(graphics::NativeBuffer*) const override;
-    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const override;
+    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig,
+                                        EGLint const*) const override;
 
 private:
     ClientContext* const context;
