@@ -213,4 +213,17 @@ TEST_F(MesaClientPlatformTest, takes_opacity_hint_from_attribs)
     };
     EXPECT_EQ(mir_pixel_format_xrgb_8888,
               platform->get_egl_pixel_format(d, c, dontcare_request));
+
+    EGLint const missing_request[] =
+    {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+        EGL_RED_SIZE, 5,
+        EGL_GREEN_SIZE, 5,
+        EGL_BLUE_SIZE, 5,
+        EGL_NONE
+    };
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, missing_request));
 }
