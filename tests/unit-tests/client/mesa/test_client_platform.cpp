@@ -185,8 +185,6 @@ TEST_F(MesaClientPlatformTest, takes_opacity_hint_from_attribs)
     };
     EXPECT_EQ(mir_pixel_format_xrgb_8888,
               platform->get_egl_pixel_format(d, c, opaque_request));
-    EXPECT_EQ(mir_pixel_format_xrgb_8888,
-              platform->get_egl_pixel_format(d, c, opaque_request));
 
     EGLint const translucent_request[] =
     {
@@ -201,8 +199,6 @@ TEST_F(MesaClientPlatformTest, takes_opacity_hint_from_attribs)
     };
     EXPECT_EQ(mir_pixel_format_argb_8888,
               platform->get_egl_pixel_format(d, c, translucent_request));
-    EXPECT_EQ(mir_pixel_format_xrgb_8888,
-              platform->get_egl_pixel_format(d, c, translucent_request));
 
     EGLint const dontcare_request[] =
     {
@@ -215,8 +211,6 @@ TEST_F(MesaClientPlatformTest, takes_opacity_hint_from_attribs)
         EGL_ALPHA_SIZE, EGL_DONT_CARE,
         EGL_NONE
     };
-    EXPECT_EQ(mir_pixel_format_xrgb_8888,
-              platform->get_egl_pixel_format(d, c, dontcare_request));
     EXPECT_EQ(mir_pixel_format_xrgb_8888,
               platform->get_egl_pixel_format(d, c, dontcare_request));
 }
