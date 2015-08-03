@@ -198,7 +198,7 @@ MirPixelFormat mclm::ClientPlatform::get_egl_pixel_format(
     MirPixelFormat mir_format = mir_pixel_format_invalid;
 
     bool force_opaque = false;  // Don't guess attribs if unavailable
-    if (0 && attribs)
+    if (attribs)
     {
         // Optimize our choice of pixel format for the best chance of enabling
         // composite bypass/overlays... (LP: #1480755)
