@@ -90,6 +90,7 @@ private:
     std::mutex do_not_process_mutex;
     std::vector<void const*> do_not_process;
     std::function<void()> before_iteration_hook;
+    std::mutex main_loop_exception_mutex;
     std::exception_ptr main_loop_exception;
 };
 

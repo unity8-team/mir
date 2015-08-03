@@ -125,7 +125,11 @@ mir::GLibMainLoop::GLibMainLoop(
 
 void mir::GLibMainLoop::run()
 {
-    main_loop_exception = nullptr;
+    {
+        std::lock_guard<decltype(main_loop_exception_mutex)> guard{main_loop_exception_mutex};
+        main_loop_exception = nullptr;
+    }
+
     running = true;
 
     while (running)
@@ -134,8 +138,14 @@ void mir::GLibMainLoop::run()
         g_main_context_iteration(main_context, TRUE);
     }
 
-    if (main_loop_exception)
-        std::rethrow_exception(main_loop_exception);
+    std::exception_ptr an_exception;
+    {
+        std::lock_guard<decltype(main_loop_exception_mutex)> guard{main_loop_exception_mutex};
+        an_exception = main_loop_exception;
+    }
+
+    if (an_exception)
+        std::rethrow_exception(an_exception);
 }
 
 void mir::GLibMainLoop::stop()
@@ -292,6 +302,10 @@ void mir::GLibMainLoop::reprocess_all_sources()
 
 void mir::GLibMainLoop::handle_exception(std::exception_ptr const& e)
 {
-    main_loop_exception = e;
+    {
+        std::lock_guard<decltype(main_loop_exception_mutex)> guard{main_loop_exception_mutex};
+        main_loop_exception = e;
+    }
+
     stop();
 }
