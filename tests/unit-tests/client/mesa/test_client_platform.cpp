@@ -147,11 +147,76 @@ TEST_F(MesaClientPlatformTest, returns_gbm_compatible_pixel_formats_only)
         .WillOnce(DoAll(SetArgPointee<3>(0), Return(EGL_TRUE)))
         .WillOnce(DoAll(SetArgPointee<3>(666), Return(EGL_FALSE)));
 
-    // TODO: more tests
     EXPECT_EQ(mir_pixel_format_argb_8888,
               platform->get_egl_pixel_format(d, c, nullptr));
     EXPECT_EQ(mir_pixel_format_xrgb_8888,
               platform->get_egl_pixel_format(d, c, nullptr));
     EXPECT_EQ(mir_pixel_format_invalid,
               platform->get_egl_pixel_format(d, c, nullptr));
+}
+
+TEST_F(MesaClientPlatformTest, takes_opacity_hint_from_attribs)
+{   // Regression test for LP: #1480755
+    using namespace testing;
+
+    auto const d = reinterpret_cast<EGLDisplay>(0x1234);
+    auto const c = reinterpret_cast<EGLConfig>(0x5678);
+
+    // Emulate the i915 Haswell driver which likes to return 8888 always
+    EXPECT_CALL(mock_egl, eglGetConfigAttrib(d, c, EGL_RED_SIZE, _))
+        .WillRepeatedly(DoAll(SetArgPointee<3>(8), Return(EGL_TRUE)));
+    EXPECT_CALL(mock_egl, eglGetConfigAttrib(d, c, EGL_GREEN_SIZE, _))
+        .WillRepeatedly(DoAll(SetArgPointee<3>(8), Return(EGL_TRUE)));
+    EXPECT_CALL(mock_egl, eglGetConfigAttrib(d, c, EGL_BLUE_SIZE, _))
+        .WillRepeatedly(DoAll(SetArgPointee<3>(8), Return(EGL_TRUE)));
+    EXPECT_CALL(mock_egl, eglGetConfigAttrib(d, c, EGL_ALPHA_SIZE, _))
+        .WillRepeatedly(DoAll(SetArgPointee<3>(8), Return(EGL_TRUE)));
+
+    EGLint const opaque_request[] =
+    {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+        EGL_RED_SIZE, 5,
+        EGL_GREEN_SIZE, 5,
+        EGL_BLUE_SIZE, 5,
+        EGL_ALPHA_SIZE, 0,
+        EGL_NONE
+    };
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, opaque_request));
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, opaque_request));
+
+    EGLint const translucent_request[] =
+    {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+        EGL_RED_SIZE, 4,
+        EGL_GREEN_SIZE, 4,
+        EGL_BLUE_SIZE, 4,
+        EGL_ALPHA_SIZE, 4,
+        EGL_NONE
+    };
+    EXPECT_EQ(mir_pixel_format_argb_8888,
+              platform->get_egl_pixel_format(d, c, translucent_request));
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, translucent_request));
+
+    EGLint const dontcare_request[] =
+    {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
+        EGL_RED_SIZE, 5,
+        EGL_GREEN_SIZE, 5,
+        EGL_BLUE_SIZE, 5,
+        EGL_ALPHA_SIZE, EGL_DONT_CARE,
+        EGL_NONE
+    };
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, dontcare_request));
+    EXPECT_EQ(mir_pixel_format_xrgb_8888,
+              platform->get_egl_pixel_format(d, c, dontcare_request));
 }
