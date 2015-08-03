@@ -253,12 +253,23 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(
     return connection->egl_native_display();
 }
 
-// TODO: 3 parameter version
-MirPixelFormat mir_connection_get_egl_pixel_format(MirConnection* connection,
+extern "C" {
+
+__asm__(".symver mir_connection_get_egl_pixel_format4,mir_connection_get_egl_pixel_format@@MIR_CLIENT_9.2");
+MirPixelFormat mir_connection_get_egl_pixel_format4(MirConnection* connection,
     EGLDisplay disp, EGLConfig conf, EGLint const* attribs)
 {
     return connection->egl_pixel_format(disp, conf, attribs);
 }
+
+__asm__(".symver mir_connection_get_egl_pixel_format3,mir_connection_get_egl_pixel_format@MIR_CLIENT_9.1");
+MirPixelFormat mir_connection_get_egl_pixel_format3(MirConnection* connection,
+    EGLDisplay disp, EGLConfig conf)
+{
+    return mir_connection_get_egl_pixel_format4(connection, disp, conf, nullptr);
+}
+
+} // extern "C"
 
 void mir_connection_get_available_surface_formats(
     MirConnection* connection,
