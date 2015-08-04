@@ -166,7 +166,7 @@ void mir::GLibMainLoop::register_signal_handler(
         [this, handler] (int sig)
         {
             try { handler(sig); }
-            catch (...) { handle_exception(std::current_exception()); }
+            catch (std::exception const&) { handle_exception(std::current_exception()); }
         };
 
     signal_sources.add(sigs, handler_with_exception_handling);
@@ -181,7 +181,7 @@ void mir::GLibMainLoop::register_fd_handler(
         [this, handler] (int fd)
         {
             try { handler(fd); }
-            catch (...) { handle_exception(std::current_exception()); }
+            catch (std::exception const&) { handle_exception(std::current_exception()); }
         };
 
     for (auto fd : fds)
@@ -200,7 +200,7 @@ void mir::GLibMainLoop::enqueue(void const* owner, ServerAction const& action)
         [this, action]
         {
             try { action(); }
-            catch (...) { handle_exception(std::current_exception()); }
+            catch (std::exception const&) { handle_exception(std::current_exception()); }
         };
 
     detail::add_server_action_gsource(main_context, owner,
