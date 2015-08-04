@@ -300,11 +300,11 @@ void mc::MultiThreadedCompositor::start()
             destroy_compositing_threads(lk);
         }};
 
+    create_compositing_threads();
+
     lk.unlock();
     scene->add_observer(observer);
     lk.lock();
-
-    create_compositing_threads();
 
     /* Optional first render */
     if (compose_on_start)
