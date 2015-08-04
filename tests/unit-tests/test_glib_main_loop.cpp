@@ -67,6 +67,7 @@ void execute_in_forked_process(
             OnScopeExit on_scope_exit{cleanup};
             f();
         }
+        std::cout << "exit forked process - had failure? " << test->HasFailure() << std::endl;
         exit(test->HasFailure() ? EXIT_FAILURE : EXIT_SUCCESS);
     }
     else
@@ -74,7 +75,8 @@ void execute_in_forked_process(
         mir_test_framework::Process child{pid};
         // Note: valgrind on armhf can very slow when dealing with forks,
         // so give it enough time.
-        auto const result = child.wait_for_termination(std::chrono::seconds{10});
+        auto const result = child.wait_for_termination(std::chrono::seconds{30});
+        std::cout << result << std::endl;
         EXPECT_TRUE(result.succeeded());
     }
 }

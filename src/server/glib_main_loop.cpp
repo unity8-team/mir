@@ -194,13 +194,14 @@ void mir::GLibMainLoop::unregister_fd_handler(
     fd_sources.remove_all_owned_by(owner);
 }
 
+#include <iostream>
 void mir::GLibMainLoop::enqueue(void const* owner, ServerAction const& action)
 {
     auto const action_with_exception_handling =
         [this, action]
         {
             try { action(); }
-            catch (std::exception const&) { handle_exception(std::current_exception()); }
+            catch (...) { std::cout << "action exception" <<std::endl; handle_exception(std::current_exception()); }
         };
 
     detail::add_server_action_gsource(main_context, owner,
