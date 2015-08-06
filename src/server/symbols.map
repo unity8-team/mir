@@ -590,6 +590,7 @@ MIR_SERVER_33 {
     mir::DefaultServerConfiguration::the_buffer_stream_factory*;
     mir::DefaultServerConfiguration::the_clock*;
     mir::DefaultServerConfiguration::the_composite_event_filter*;
+    mir::DefaultServerConfiguration::the_cookie_provider*;
     mir::DefaultServerConfiguration::the_event_filter_chain_dispatcher*;
     mir::DefaultServerConfiguration::the_surface_input_dispatcher;
     mir::DefaultServerConfiguration::the_compositor*;

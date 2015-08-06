@@ -24,6 +24,7 @@
 #include "mir/default_server_status_listener.h"
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
+#include "mir/cookie_factory.h"
 
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/options/program_option.h"
@@ -40,6 +41,15 @@
 #include "mir/default_configuration.h"
 #include "mir/scene/null_prompt_session_listener.h"
 #include "default_emergency_cleanup.h"
+
+#include <vector>
+#include <array>
+#include <linux/random.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
@@ -170,6 +180,61 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
         []()
         {
             return std::make_shared<DefaultEmergencyCleanup>();
+        });
+}
+
+namespace
+{
+// Until getrandom gets a glibc wrapper we can just syscall it...
+int getrandom(void* buf, size_t buflen, unsigned int flags)
+{
+    return syscall(__NR_getrandom, buf, buflen, flags);
+}
+
+template<size_t length>
+void fill_with_random_data(std::array<uint8_t, length>& buffer)
+{
+    if (length < 256)
+    {
+        // getrandom is exactly what we want. It will guarantee we get
+        // appropriate random data from urandom.
+        //
+        // Sadly, it's not necessarily implemented on the kernel we have to use.
+        if (getrandom(buffer.data(), buffer.size(), 0) == static_cast<ssize_t>(buffer.size()))
+        {
+            return;
+        }
+    }
+    auto rnd_source = mir::Fd{open("/dev/urandom", O_RDONLY)};
+    if (rnd_source == mir::Fd::invalid)
+    {
+        BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                 std::system_category(),
+                                                 "Failed to open /dev/urandom"}));
+    }
+    size_t read_bytes{0};
+    while (read_bytes < buffer.size())
+    {
+        auto last_read = read(rnd_source, buffer.data() + read_bytes, buffer.size() - read_bytes);
+        if (last_read < 0 && errno != EINTR)
+        {
+            BOOST_THROW_EXCEPTION((std::system_error{errno,
+                                                     std::system_category(),
+                                                     "Failed to read from /dev/urandom"}));
+        }
+        read_bytes += last_read;
+    }
+}
+}
+
+std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_provider()
+{
+    return cookie_provider(
+        []()
+        {
+            std::array<uint8_t, 16> seed;
+            fill_with_random_data(seed);
+            return std::make_shared<mir::CookieFactory>(std::vector<uint8_t>(seed.begin(), seed.end()));
         });
 }
 

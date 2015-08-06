@@ -40,6 +40,7 @@ namespace mir
 class ServerActionQueue;
 class SharedLibrary;
 class SharedLibraryProberReport;
+class CookieFactory;
 
 namespace dispatch
 {
@@ -186,6 +187,7 @@ public:
     std::shared_ptr<graphics::Platform>     the_graphics_platform() override;
     std::shared_ptr<input::InputDispatcher> the_input_dispatcher() override;
     std::shared_ptr<EmergencyCleanup>  the_emergency_cleanup() override;
+    std::shared_ptr<CookieFactory>          the_cookie_provider() override;
     /**
      * Function to call when a "fatal" error occurs. This implementation allows
      * the default strategy to be overridden by --on-fatal-error-abort to force a
@@ -438,6 +440,7 @@ protected:
     CachedPtr<SharedLibraryProberReport> shared_library_prober_report;
     CachedPtr<shell::Shell> shell;
     CachedPtr<scene::ApplicationNotRespondingDetector> application_not_responding_detector;
+    CachedPtr<CookieFactory> cookie_provider;
 
 private:
     std::shared_ptr<options::Configuration> const configuration_options;
