@@ -19,7 +19,7 @@
 #include "mir/client_platform.h"
 #include "src/client/probing_client_platform_factory.h"
 
-#include "mir_test_doubles/mock_client_context.h"
+#include "mir/test/doubles/mock_client_context.h"
 #include "mir_test_framework/executable_path.h"
 #include "mir_test_framework/stub_platform_helpers.h"
 
@@ -35,11 +35,11 @@ std::vector<std::shared_ptr<mir::SharedLibrary>>
 all_available_modules()
 {
     std::vector<std::shared_ptr<mir::SharedLibrary>> modules;
-#ifdef MIR_BUILD_PLATFORM_MESA
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform("mesa.so")));
+#ifdef MIR_BUILD_PLATFORM_MESA_KMS
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform("mesa")));
 #endif
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform("android.so")));
+    modules.push_back(std::make_shared<mir::SharedLibrary>(mtf::client_platform("android")));
 #endif
     return modules;
 }
@@ -73,7 +73,7 @@ TEST(ProbingClientPlatformFactory, ThrowsErrorWhenNoPlatformPluginProbesSuccessf
                  std::runtime_error);
 }
 
-#ifdef MIR_BUILD_PLATFORM_MESA
+#ifdef MIR_BUILD_PLATFORM_MESA_KMS
 TEST(ProbingClientPlatformFactory, CreatesMesaPlatformWhenAppropriate)
 #else
 TEST(ProbingClientPlatformFactory, DISABLED_CreatesMesaPlatformWhenAppropriate)

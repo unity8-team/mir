@@ -17,9 +17,8 @@
  *              Alan Griffiths <alan@octopull.co.uk>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "mir/frontend/connector.h"
+#include "mir/events/event_private.h"
 
 #include "src/server/report/null_report_factory.h"
 #include "src/server/frontend/resource_cache.h"
@@ -30,13 +29,13 @@
 
 #include "mir_protobuf.pb.h"
 
-#include "mir_test_doubles/stub_ipc_factory.h"
-#include "mir_test_doubles/stub_session_authorizer.h"
-#include "mir_test_doubles/mock_rpc_report.h"
-#include "mir_test/stub_server_tool.h"
-#include "mir_test/test_protobuf_client.h"
-#include "mir_test/test_protobuf_server.h"
-#include "mir_test_doubles/stub_ipc_factory.h"
+#include "mir/test/doubles/stub_ipc_factory.h"
+#include "mir/test/doubles/stub_session_authorizer.h"
+#include "mir/test/doubles/mock_rpc_report.h"
+#include "mir/test/stub_server_tool.h"
+#include "mir/test/test_protobuf_client.h"
+#include "mir/test/test_protobuf_server.h"
+#include "mir/test/doubles/stub_ipc_factory.h"
 #include "mir_test_framework/testing_server_configuration.h"
 
 #include <gtest/gtest.h>
@@ -141,7 +140,6 @@ TEST_F(PublishedSocketConnector, create_surface_results_in_a_callback)
     EXPECT_CALL(*client, create_surface_done()).Times(1);
 
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -156,7 +154,6 @@ TEST_F(PublishedSocketConnector, connection_sets_app_name)
     client->connect_parameters.set_application_name(__PRETTY_FUNCTION__);
 
     client->display_server.connect(
-        0,
         &client->connect_parameters,
         &client->connection,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::connect_done));
@@ -174,7 +171,6 @@ TEST_F(PublishedSocketConnector, create_surface_sets_surface_name)
     client->connect_parameters.set_application_name(__PRETTY_FUNCTION__);
 
     client->display_server.connect(
-        0,
         &client->connect_parameters,
         &client->connection,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::connect_done));
@@ -184,7 +180,6 @@ TEST_F(PublishedSocketConnector, create_surface_sets_surface_name)
     client->surface_parameters.set_surface_name(__PRETTY_FUNCTION__);
 
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -201,7 +196,6 @@ TEST_F(PublishedSocketConnector,
     EXPECT_CALL(*client, create_surface_done()).Times(1);
 
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -225,7 +219,6 @@ TEST_F(PublishedSocketConnector, double_disconnection_does_not_break)
 
     EXPECT_CALL(*client, create_surface_done()).Times(1);
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -234,7 +227,6 @@ TEST_F(PublishedSocketConnector, double_disconnection_does_not_break)
 
     EXPECT_CALL(*client, disconnect_done()).Times(1);
     client->display_server.disconnect(
-        0,
         &client->ignored,
         &client->ignored,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::disconnect_done));
@@ -256,7 +248,6 @@ TEST_F(PublishedSocketConnector, double_disconnection_does_not_break)
     try
     {
         client->display_server.disconnect(
-            0,
             &client->ignored,
             &client->ignored,
             google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::disconnect_done));
@@ -278,7 +269,6 @@ TEST_F(PublishedSocketConnector, getting_and_advancing_buffers)
     EXPECT_CALL(*client, disconnect_done()).Times(testing::AtLeast(0));
 
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -291,7 +281,6 @@ TEST_F(PublishedSocketConnector, getting_and_advancing_buffers)
     for (int i = 0; i != 8; ++i)
     {
         client->display_server.next_buffer(
-            0,
             &client->surface.id(),
             client->surface.mutable_buffer(),
             google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::next_buffer_done));
@@ -301,7 +290,6 @@ TEST_F(PublishedSocketConnector, getting_and_advancing_buffers)
     }
 
     client->display_server.disconnect(
-        0,
         &client->ignored,
         &client->ignored,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::disconnect_done));
@@ -314,7 +302,6 @@ TEST_F(PublishedSocketConnector,
 {
     EXPECT_CALL(*client, create_surface_done()).Times(1);
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -323,7 +310,6 @@ TEST_F(PublishedSocketConnector,
 
     EXPECT_CALL(*client, disconnect_done()).Times(1);
     client->display_server.disconnect(
-        0,
         &client->ignored,
         &client->ignored,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::disconnect_done));
@@ -340,7 +326,6 @@ TEST_F(PublishedSocketConnector, drm_auth_magic_is_processed_by_the_server)
     EXPECT_CALL(*client, drm_auth_magic_done()).Times(1);
 
     client->display_server.drm_auth_magic(
-        0,
         &magic,
         &status,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::drm_auth_magic_done));
@@ -367,7 +352,6 @@ TEST_F(PublishedSocketConnector, disorderly_disconnection_handled)
 
     EXPECT_CALL(*client, create_surface_done()).Times(AnyNumber());
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -402,7 +386,6 @@ TEST_F(PublishedSocketConnector, configure_display)
         .Times(1);
 
     client->display_server.configure_display(
-        0,
         &client->disp_config,
         &client->disp_config_response,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::display_configure_done));
@@ -421,7 +404,6 @@ TEST_F(PublishedSocketConnector, connection_using_socket_fd)
     EXPECT_CALL(*client, connect_done()).Times(1);
 
     client->display_server.connect(
-        0,
         &client->connect_parameters,
         &client->connection,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::connect_done));
@@ -430,7 +412,6 @@ TEST_F(PublishedSocketConnector, connection_using_socket_fd)
     EXPECT_CALL(*client, disconnect_done()).Times(testing::AtLeast(0));
 
     client->display_server.create_surface(
-        0,
         &client->surface_parameters,
         &client->surface,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::create_surface_done));
@@ -443,7 +424,6 @@ TEST_F(PublishedSocketConnector, connection_using_socket_fd)
     for (int i = 0; i != next_buffer_calls; ++i)
     {
         client->display_server.next_buffer(
-            0,
             &client->surface.id(),
             client->surface.mutable_buffer(),
             google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::next_buffer_done));
@@ -453,7 +433,6 @@ TEST_F(PublishedSocketConnector, connection_using_socket_fd)
     }
 
     client->display_server.disconnect(
-        0,
         &client->ignored,
         &client->ignored,
         google::protobuf::NewCallback(client.get(), &mt::TestProtobufClient::disconnect_done));

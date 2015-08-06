@@ -43,6 +43,7 @@ mir::DefaultServerConfiguration::the_connection_creator()
             return std::make_shared<mf::ProtobufConnectionCreator>(
                 new_ipc_factory(session_authorizer),
                 session_authorizer,
+                the_graphics_platform()->make_ipc_operations(),
                 the_message_processor_report());
         });
 }
@@ -64,12 +65,17 @@ mir::DefaultServerConfiguration::the_connector()
             }
             else
             {
-                return std::make_shared<mf::PublishedSocketConnector>(
+                auto const result = std::make_shared<mf::PublishedSocketConnector>(
                     the_socket_file(),
                     the_connection_creator(),
                     threads,
                     *the_emergency_cleanup(),
                     the_connector_report());
+
+                if (the_options()->is_set(options::arw_server_socket_opt))
+                    chmod(the_socket_file().c_str(), S_IRUSR|S_IWUSR| S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+
+                return result;
             }
         });
 }
@@ -106,6 +112,7 @@ mir::DefaultServerConfiguration::the_prompt_connection_creator()
             return std::make_shared<mf::ProtobufConnectionCreator>(
                 new_ipc_factory(session_authorizer),
                 session_authorizer,
+                the_graphics_platform()->make_ipc_operations(),
                 the_message_processor_report());
         });
 }
@@ -159,5 +166,6 @@ mir::DefaultServerConfiguration::new_ipc_factory(
                 the_screencast(),
                 session_authorizer,
                 the_cursor_images(),
-                translator);
+                translator,
+                the_application_not_responding_detector());
 }

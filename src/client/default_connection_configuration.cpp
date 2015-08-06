@@ -39,8 +39,6 @@
 #include "mir_event_distributor.h"
 #include "mir/shared_library_prober.h"
 
-#include <dlfcn.h>
-
 namespace mcl = mir::client;
 
 namespace
@@ -52,22 +50,6 @@ std::string const lttng_opt_val{"lttng"};
 // Shove this here until we properly manage the lifetime of our
 // loadable modules
 std::shared_ptr<mcl::ProbingClientPlatformFactory> the_platform_prober;
-
-// Hack around the way Qt loads mir:
-// qtmir and therefore Mir are loaded via dlopen(..., RTLD_LOCAL).
-// While this is sensible for a plugin it would mean that some symbols
-// cannot be resolved by the Mir platform plugins. This hack makes the
-// necessary symbols global.
-void ensure_loaded_with_rtld_global()
-{
-    Dl_info info;
-
-    // Cast dladdr itself to work around g++-4.8 warnings (LP: #1366134)
-    typedef int (safe_dladdr_t)(void(*func)(), Dl_info *info);
-    safe_dladdr_t *safe_dladdr = (safe_dladdr_t*)&dladdr;
-    safe_dladdr(&ensure_loaded_with_rtld_global, &info);
-    dlopen(info.dli_fname,  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
-}
 }
 
 mcl::DefaultConnectionConfiguration::DefaultConnectionConfiguration(
@@ -85,14 +67,14 @@ mcl::DefaultConnectionConfiguration::the_surface_map()
         });
 }
 
-std::shared_ptr<google::protobuf::RpcChannel>
+std::shared_ptr<mir::client::rpc::MirBasicRpcChannel>
 mcl::DefaultConnectionConfiguration::the_rpc_channel()
 {
     return rpc_channel(
         [this]
         {
             return mcl::rpc::make_rpc_channel(
-                the_socket_file(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_event_sink());
+                the_socket_file(), the_surface_map(), the_display_configuration(), the_rpc_report(), the_lifecycle_control(), the_ping_handler(), the_event_sink());
         });
 }
 
@@ -112,7 +94,6 @@ mcl::DefaultConnectionConfiguration::the_client_platform_factory()
     return client_platform_factory(
         [this]
         {
-            ensure_loaded_with_rtld_global();
             auto const platform_override = getenv("MIR_CLIENT_PLATFORM_LIB");
             std::vector<std::shared_ptr<mir::SharedLibrary>> platform_plugins;
             if (platform_override)
@@ -202,6 +183,15 @@ std::shared_ptr<mcl::LifecycleControl> mcl::DefaultConnectionConfiguration::the_
         });
 }
 
+std::shared_ptr<mcl::PingHandler> mcl::DefaultConnectionConfiguration::the_ping_handler()
+{
+    return ping_handler(
+        []
+        {
+            return std::make_shared<mcl::PingHandler>();
+        });
+}
+
 std::shared_ptr<mcl::EventSink> mcl::DefaultConnectionConfiguration::the_event_sink()
 {
     return event_distributor(
@@ -226,7 +216,7 @@ std::shared_ptr<mir::SharedLibraryProberReport> mir::client::DefaultConnectionCo
         [this] () -> std::shared_ptr<mir::SharedLibraryProberReport>
         {
             auto val_raw = getenv("MIR_CLIENT_SHARED_LIBRARY_PROBER_REPORT");
-            std::string const val{val_raw ? val_raw : log_opt_val};
+            std::string const val{val_raw ? val_raw : off_opt_val};
             if (val == log_opt_val)
                 return std::make_shared<mir::logging::SharedLibraryProberReport>(the_logger());
             else if (val == lttng_opt_val)

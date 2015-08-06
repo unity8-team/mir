@@ -17,7 +17,9 @@
  */
 
 #include "mir_screencast.h"
-#include "client_buffer_stream_factory.h"
+#include "mir_connection.h"
+#include "mir_protobuf.pb.h"
+#include "make_protobuf_object.h"
 #include "client_buffer_stream.h"
 #include "mir/frontend/client_constants.h"
 #include "mir_toolkit/mir_native_buffer.h"
@@ -29,23 +31,18 @@ namespace mcl = mir::client;
 namespace mp = mir::protobuf;
 namespace geom = mir::geometry;
 
-namespace
-{
-
-void null_callback(MirScreencast*, void*) {}
-
-}
-
 MirScreencast::MirScreencast(
     geom::Rectangle const& region,
     geom::Size const& size,
     MirPixelFormat pixel_format,
-    mir::protobuf::DisplayServer& server,
-    std::shared_ptr<mcl::ClientBufferStreamFactory> const& buffer_stream_factory,
+    mir::client::rpc::DisplayServer& server,
+    MirConnection* connection,
     mir_screencast_callback callback, void* context)
     : server(server),
+      connection{connection},
       output_size{size},
-      buffer_stream_factory{buffer_stream_factory}
+      protobuf_screencast{mcl::make_protobuf_object<mir::protobuf::Screencast>()},
+      protobuf_void{mcl::make_protobuf_object<mir::protobuf::Void>()}
 {
     if (output_size.width.as_int()  == 0 ||
         output_size.height.as_int() == 0 ||
@@ -55,9 +52,9 @@ MirScreencast::MirScreencast(
     {
         BOOST_THROW_EXCEPTION(std::runtime_error("Invalid parameters"));
     }
-    protobuf_screencast.set_error("Not initialized");
+    protobuf_screencast->set_error("Not initialized");
 
-    mir::protobuf::ScreencastParameters parameters;
+    mp::ScreencastParameters parameters;
 
     parameters.mutable_region()->set_left(region.top_left.x.as_int());
     parameters.mutable_region()->set_top(region.top_left.y.as_int());
@@ -69,9 +66,8 @@ MirScreencast::MirScreencast(
 
     create_screencast_wait_handle.expect_result();
     server.create_screencast(
-        nullptr,
         &parameters,
-        &protobuf_screencast,
+        protobuf_screencast.get(),
         google::protobuf::NewCallback(
             this, &MirScreencast::screencast_created,
             callback, context));
@@ -84,53 +80,23 @@ MirWaitHandle* MirScreencast::creation_wait_handle()
 
 bool MirScreencast::valid()
 {
-    return !protobuf_screencast.has_error();
-}
-
-MirSurfaceParameters MirScreencast::get_parameters() const
-{
-    return buffer_stream->get_parameters();
-}
-
-std::shared_ptr<mcl::ClientBuffer> MirScreencast::get_current_buffer()
-{
-    return buffer_stream->get_current_buffer();
+    return !protobuf_screencast->has_error();
 }
 
 MirWaitHandle* MirScreencast::release(
         mir_screencast_callback callback, void* context)
 {
-    mir::protobuf::ScreencastId screencast_id;
-    screencast_id.set_value(protobuf_screencast.screencast_id().value());
+    mp::ScreencastId screencast_id;
+    screencast_id.set_value(protobuf_screencast->screencast_id().value());
     
     release_wait_handle.expect_result();
     server.release_screencast(
-        nullptr,
         &screencast_id,
-        &protobuf_void,
+        protobuf_void.get(),
         google::protobuf::NewCallback(
             this, &MirScreencast::released, callback, context));
 
     return &release_wait_handle;
-}
-
-MirWaitHandle* MirScreencast::next_buffer(
-    mir_screencast_callback callback, void* context)
-{
-    return buffer_stream->next_buffer([&, callback, context]() {
-        if (callback)
-            callback(this, context);
-    });
-}
-
-EGLNativeWindowType MirScreencast::egl_native_window()
-{
-    return buffer_stream->egl_native_window();
-}
-
-void MirScreencast::request_and_wait_for_next_buffer()
-{
-    next_buffer(null_callback, nullptr)->wait_for_all();
 }
 
 void MirScreencast::request_and_wait_for_configure(MirSurfaceAttrib, int)
@@ -140,10 +106,10 @@ void MirScreencast::request_and_wait_for_configure(MirSurfaceAttrib, int)
 void MirScreencast::screencast_created(
     mir_screencast_callback callback, void* context)
 {
-    if (!protobuf_screencast.has_error())
+    if (!protobuf_screencast->has_error() && connection)
     {
-        buffer_stream = buffer_stream_factory->make_consumer_stream(server,
-            protobuf_screencast.buffer_stream(), "MirScreencast");
+        buffer_stream = connection->make_consumer_stream(
+            protobuf_screencast->buffer_stream(), "MirScreencast");
     }
 
     callback(this, context);
@@ -154,5 +120,14 @@ void MirScreencast::released(
     mir_screencast_callback callback, void* context)
 {
     callback(this, context);
+    if (connection)
+        connection->release_consumer_stream(buffer_stream.get());
+    buffer_stream.reset();
+
     release_wait_handle.result_received();
+}
+
+mir::client::ClientBufferStream* MirScreencast::get_buffer_stream()
+{
+    return buffer_stream.get();
 }

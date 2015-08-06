@@ -22,7 +22,7 @@
 #include "mir/input/surface.h"
 #include "mir/graphics/cursor.h"
 #include "mir/scene/observer.h"
-#include "mir/scene/surface_observer.h"
+#include "mir/scene/null_surface_observer.h"
 #include "mir/scene/surface.h"
 
 #include <functional>
@@ -39,7 +39,7 @@ namespace geom = mir::geometry;
 namespace
 {
 
-struct UpdateCursorOnSurfaceChanges : ms::SurfaceObserver
+struct UpdateCursorOnSurfaceChanges : ms::NullSurfaceObserver
 {
     UpdateCursorOnSurfaceChanges(mi::CursorController* cursor_controller)
         : cursor_controller(cursor_controller)
@@ -64,7 +64,14 @@ struct UpdateCursorOnSurfaceChanges : ms::SurfaceObserver
     }
     void frame_posted(int) override
     {
-        // Frame posting wont trigger a cursor update
+        // The first frame posted will trigger a cursor update, since it
+        // changes the visibility status of the surface, and can thus affect
+        // the cursor.
+        if (!first_frame_posted)
+        {
+            first_frame_posted = true;
+            cursor_controller->update_cursor_image();
+        }
     }
     void alpha_set_to(float) override
     {
@@ -92,6 +99,7 @@ struct UpdateCursorOnSurfaceChanges : ms::SurfaceObserver
     }
 
     mi::CursorController* const cursor_controller;
+    bool first_frame_posted = false;
 };
 
 struct UpdateCursorOnSceneChanges : ms::Observer

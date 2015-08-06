@@ -5,12 +5,15 @@ add_definitions(
 
 include_directories(
   ${PROJECT_SOURCE_DIR}/include/platform
-  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/server
+  ${PROJECT_SOURCE_DIR}/src/include/platform
+  ${PROJECT_SOURCE_DIR}/src/include/client
   ${PROJECT_SOURCE_DIR}/src/include/server
   ${PROJECT_SOURCE_DIR}/include/cookie
   ${GLIB_INCLUDE_DIRS}
 )
+add_definitions(-DMIR_SERVER_INPUT_PLATFORM_VERSION="${MIR_SERVER_INPUT_PLATFORM_VERSION}")
 
 add_definitions(-DMIR_SERVER_PLATFORM_PATH="${MIR_SERVER_PLATFORM_PATH}")
 add_definitions(-DMIR_SERVER_GRAPHICS_PLATFORM_VERSION="${MIR_SERVER_GRAPHICS_PLATFORM_VERSION}")
@@ -48,6 +51,8 @@ add_library(mirserverobjects OBJECT
   glib_main_loop_sources.cpp
   default_emergency_cleanup.cpp
   server.cpp
+  lockable_callback_wrapper.cpp
+  basic_callback.cpp
 )
 
 set(MIR_SERVER_OBJECTS
@@ -72,6 +77,7 @@ set(MIR_SERVER_REFERENCES
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
   ${GLIB_LDFLAGS} ${GLIB_LIBRARIES}
+  ${UUID_LDFLAGS} ${UUID_LIBRARIES}
 )
 
 set(MIR_SERVER_OBJECTS ${MIR_SERVER_OBJECTS} PARENT_SCOPE)
@@ -88,14 +94,16 @@ target_link_libraries(mirserver LINK_PUBLIC
   mircommon
   mirprotobuf
   mircookie
-  3rd_party
-  xcursorloader
+  android-input-static
+  xcursorloader-static
+
   ${GLog_LIBRARY}
   ${GFlags_LIBRARY}
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
   ${UDEV_LDFLAGS} ${UDEV_LIBRARIES}
   ${GLIB_LDFLAGS} ${GLIB_LIBRARIES}
+  ${UUID_LDFLAGS} ${UUID_LIBRARIES}
 )
 
 install(TARGETS mirserver
@@ -108,7 +116,7 @@ install(DIRECTORY
   ${CMAKE_SOURCE_DIR}/include/server/mir DESTINATION "include/mirserver"
 )
 
-set(MIRSERVER_ABI 29) # Be sure to increment MIR_VERSION_MINOR at the same time
+set(MIRSERVER_ABI 33) # Be sure to increment MIR_VERSION_MINOR at the same time
 set(symbol_map ${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 set_target_properties(

@@ -18,10 +18,10 @@
 
 #include "src/server/compositor/screencast_display_buffer.h"
 
-#include "mir_test_doubles/mock_buffer.h"
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/mock_gl.h"
-#include "mir_test_doubles/stub_renderable.h"
+#include "mir/test/doubles/mock_buffer.h"
+#include "mir/test/doubles/stub_buffer.h"
+#include "mir/test/doubles/mock_gl.h"
+#include "mir/test/doubles/stub_renderable.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -153,7 +153,7 @@ TEST_F(ScreencastDisplayBufferTest, rejects_attempt_to_optimize)
     geom::Rectangle const rect{{100,100}, {800,600}};
     mtd::StubBuffer stub_buffer;
 
-    std::list<std::shared_ptr<mg::Renderable>> renderables{
+    mg::RenderableList renderables{
         std::make_shared<mtd::StubRenderable>(),
         std::make_shared<mtd::StubRenderable>(),
         std::make_shared<mtd::StubRenderable>()};
@@ -163,12 +163,3 @@ TEST_F(ScreencastDisplayBufferTest, rejects_attempt_to_optimize)
     EXPECT_FALSE(db.post_renderables_if_optimizable(renderables));
 }
 
-TEST_F(ScreencastDisplayBufferTest, does_not_use_alpha)
-{
-    geom::Rectangle const rect{{100,100}, {800,600}};
-    mtd::StubBuffer stub_buffer;
-
-    mc::ScreencastDisplayBuffer db{rect, stub_buffer};
-
-    EXPECT_FALSE(db.uses_alpha());
-}

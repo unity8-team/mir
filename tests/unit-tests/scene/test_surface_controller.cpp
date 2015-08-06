@@ -19,12 +19,11 @@
 #include "src/server/scene/surface_controller.h"
 #include "src/server/scene/surface_stack_model.h"
 #include "mir/scene/surface_factory.h"
-#include "mir/scene/placement_strategy.h"
 #include "mir/scene/surface_creation_parameters.h"
-#include "mir_test_doubles/stub_scene_session.h"
+#include "mir/test/doubles/stub_scene_session.h"
 
-#include "mir_test_doubles/mock_surface.h"
-#include "mir_test/fake_shared.h"
+#include "mir/test/doubles/mock_surface.h"
+#include "mir/test/fake_shared.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -40,8 +39,8 @@ namespace
 {
 struct MockSurfaceAllocator : public ms::SurfaceFactory
 {
-    MOCK_METHOD1(create_surface, std::shared_ptr<ms::Surface>(
-        ms::SurfaceCreationParameters const&));
+    MOCK_METHOD2(create_surface, std::shared_ptr<ms::Surface>(
+        std::shared_ptr<mir::compositor::BufferStream> const&, ms::SurfaceCreationParameters const&));
 };
 
 struct MockSurfaceStackModel : public ms::SurfaceStackModel
@@ -49,9 +48,11 @@ struct MockSurfaceStackModel : public ms::SurfaceStackModel
     MOCK_METHOD3(add_surface, void(
         std::shared_ptr<ms::Surface> const&,
         ms::DepthId depth,
-        mir::input::InputReceptionMode input_mode));
+        mir::input::InputReceptionMode));
     MOCK_METHOD1(remove_surface, void(std::weak_ptr<ms::Surface> const&));
     MOCK_METHOD1(raise, void(std::weak_ptr<ms::Surface> const&));
+    MOCK_CONST_METHOD1(surface_at, std::shared_ptr<ms::Surface>(geom::Point));
+    void raise(SurfaceSet const&) override {}
 };
 
 struct SurfaceController : testing::Test
@@ -65,7 +66,7 @@ struct SurfaceController : testing::Test
     void SetUp()
     {
         using namespace ::testing;
-        ON_CALL(mock_surface_allocator, create_surface(_)).WillByDefault(Return(expect_surface));
+        ON_CALL(mock_surface_allocator, create_surface(_,_)).WillByDefault(Return(expect_surface));
     }
 };
 }
@@ -79,14 +80,12 @@ TEST_F(SurfaceController, add_and_remove_surface)
         mt::fake_shared(model));
 
     InSequence seq;
-    EXPECT_CALL(mock_surface_allocator, create_surface(_)).Times(1).WillOnce(Return(expect_surface));
     EXPECT_CALL(model, add_surface(_,_,_)).Times(1);
     EXPECT_CALL(model, remove_surface(_)).Times(1);
-
-    auto actual_surface = controller.add_surface(ms::a_surface(), &session);
-
-    EXPECT_THAT(actual_surface, Eq(expect_surface));
-    controller.remove_surface(actual_surface);
+    
+    auto params = ms::a_surface();
+    controller.add_surface(expect_surface, params.depth, params.input_mode, &session);
+    controller.remove_surface(expect_surface);
 }
 
 TEST_F(SurfaceController, raise_surface)

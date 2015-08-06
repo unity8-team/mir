@@ -1,22 +1,451 @@
-mir (0.11.0-0ubuntu1) UNRELEASED; urgency=medium
+mir (0.15.0-0ubuntu1) UNRELEASED; urgency=medium
 
-  * New upstream release 0.11.0 (https://launchpad.net/mir/+milestone/0.11.0)
+  * New upstream release 0.15.0 (https://launchpad.net/mir/+milestone/0.15.0)
+    - ABI summary: Only servers and graphics drivers need rebuilding;
+      . Mirclient ABI unchanged at 9
+      . Mirserver ABI bumped to 33
+      . Mircommon ABI unchanged at 5
+      . Mirplatform ABI bumped to 9
     - Enhancements:
-      . Lots more major plumbing in the Android code, on the path to supporting
-        external displays.
+      . Add support for Mir-on-X11.
+      . Latency reduction optimizations (around ~15ms reduction in total):
+        Reduced input event resampling latency by 5ms. Reduced output latency
+        (in system compositors) by around 10ms with the introduction of
+        "predictive bypass". And we're not finished; future Mir releases
+        should reduce latency further.
+      . Introduced a python3-based Mir performance framework.
+      . Lots of preparation for an architectural overhaul of buffer swapping,
+        required in the least to support future optimizations like nested
+        bypass.
+      . Added a new cursor: crosshair
+      . Added support for 15/16-bit client pixel formats ("high colour").
+      . Added a new client function to make picking the right pixel format
+        for a given EGLConfig super simple: mir_connection_get_egl_pixel_format
+      . Added application-not-responding detection
+      . Added client API for specifying input region shape.
+      . Fixed the remaining threading flaws identified by ThreadSanitizer and
+        turned it on permanently for all continuous integration in future.
+      . Added support for relative pointer motion events (e.g. for gaming).
+    - Bug fixes:
+      . TODO: Fill this in after branching lp:mir/0.15
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 27 Jul 2015 12:02:19 +0800
+
+mir (0.14.0+15.10.20150723.1-0ubuntu1) wily; urgency=medium
+
+  [ Andreas Pokorny ]
+  * Fix missing ABI renaming in Mirplatform
+  * Bump Mirserver platform graphics to 3
+  * Fix mirprotobuf ABI break
+  * Fix g++-5.0 compilation (LP: #1475994)
+
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Thu, 23 Jul 2015 16:33:09 +0000
+
+mir (0.14.0+15.10.20150715-0ubuntu1) wily; urgency=medium
+
+  [ Andreas Pokorny ]
+  * New upstream release 0.14.0 (https://launchpad.net/mir/+milestone/0.14.0)
+    - ABI summary: All clients and all servers need building;
+      . Mirclient ABI bumped to 9
+      . Mirserver ABI bumped to 32
+      . Mircommon ABI bumped to 5
+      . Mirplatform ABI bumped to 8
+    - Enhancements:
+      . mir_demo_server: tweaks, features and improvements 
+      . More MirEvent-2.0 related changes and unifications
+      . New SurfaceInputDispatcher to replace the android InputDispatcher
+      . New Threaded dispatcher for Dispatchable added
+      . Rework of the relationship of surfaces and buffer streams to allow
+        attaching multiple buffer streams to a surface.
+      . Preparation work for new buffer semantics
+      . fd leaks in tests eliminated and leak check activated for unit and
+        integration tests
+      . Further TSAN reported issues removed
+      . Preparation work for mir-on-x: splitting of mesa platform in common
+        and KMS parts
+      . Further rework of input stack focused on test infrastructure
+      . Persistent id request for surfaces added
+      . Integration-tests cleaning: switch tests to in-process server
+      . A first end-to-end input test added in privileged-tests
+      . "mesa" platform renamed to "mesa-kms" (LP: #1381330)
+      . [enhancement] Mir servers should allow client connections only after
+        server start-up has finished  (LP: #1451844)
+      . build-dependency on g++-4.9 dropped (LP: #1452320)
+    - Bug fixes:
+      . Crash because uncaught exception in mir::events::add_touch 
+        (LP: #1437357)
+      . [vegetahd] android buffer allocator does consider hwc alignment
+        constraints  (LP: #1461314)
+      . [regression] Touch input does not work at all any more  (LP: #1464174)
+      . Mir emits a mir_motion_action_hover_exit event before of a 
+        mir_motion_action_pointer_down  (LP: #1419048)
+      . [testsfail] NestedInput.nested_event_filter_receives_keyboard_from_host
+        failure in CI  (LP: #1462033)
+      . [testsfail] InputEvents.reach_nested_client in CI  (LP: #1463315)
+      . [regression] titlebar in "canonical" example WM + KeyRepeatDispatcher
+        causes deadlock  (LP: #1464690)
+      . CI failure in
+        TestClientInput.clients_receive_many_button_events_inside_window
+        (LP: #1465231)
+      . mir-client-platform-mesa-dev package dependency is incorrect
+        (LP: #1465642)
+      . Repeat input events keep being emitted even when user switches to
+        different VT  (LP: #1465669)
+      . libmirprotobuf's ABI can be broken when modifying protobuf message
+        definitions  (LP: #1465883)
+      . Spurious Failure in ClientLibrary.highly_threaded_client
+        (LP: #1466492)
+      . failure in CI in BufferStreamArrangement.arrangements_are_applied
+        (LP: #1466594)
+      . [arale] software buffers have flickering line artefacts  (LP: #1418035)
+      . can't load app purchase UI without a U1 account  (LP: #1450377)
+      . [arale] Software cursor appears slightly corrupt on arale (black
+        spots in place of white)  (LP: #1451309)
+      . [regression] Dragging windows by the titlebar is incredibly slow
+        and laggy  (LP: #1454128)
+      . [regression] Opacity controls (Alt+mousewheel) don't work any more
+        (LP: #1454518)
+      . [regression] No API for creating freestyle surfaces  (LP: #1457987)
+      . [vivid-overlay] input-stub.so fails to load on i386  (LP: #1458689)
+      . client API version has wrong version  (LP: #1461312)
+      . abi-dump-base make target is broken  (LP: #1461697)
+      . Stopping input in a nested server stops VT switching  (LP: #1465585)
+      . Pointer events are not mapped to correct output by nested Mir
+        (LP: #1465692)
+      . Loading libmirclient.so twice leads to a segfault in libmirprotobuf.so
+        (LP: #1391976)
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Wed, 15 Jul 2015 12:05:19 +0000
+
+mir (0.13.3+15.10.20150617-0ubuntu1) wily; urgency=medium
+
+  [ Alberto Aguirre ]
+  * New upstream release 0.13.3 (https://launchpad.net/mir/+milestone/0.13.3)
+    - Bug fixes:
+      . mir-client-platform-mesa-dev package dep is incorrect (LP: #1465642)
+      . Avoid allocating mir protobuf message objects on stack (LP: #1465883)
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Wed, 17 Jun 2015 20:02:15 +0000
+
+mir (0.13.2+15.10.20150605-0ubuntu1) wily; urgency=medium
+
+  [ Alberto Aguirre ]
+  * New upstream release 0.13.2 (https://launchpad.net/mir/+milestone/0.13.2)
+    - Bug fixes:
+      . Wrong client API version (LP: #1461312)
+      . Add quirk to force buffer width alignment on some devices (LP: #1461314)
+
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 05 Jun 2015 17:51:40 +0000
+
+mir (0.13.1+15.10.20150520.1-0ubuntu1) wily; urgency=medium
+
+  * Bump upstream version number to add test binaries to orig tarball.
+  * Do minimal porting required to prepare for building on ppc/ppc64el.
+  * Disable testsuite on powerpc until big-endian porting is complete.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Wed, 03 Jun 2015 16:27:46 -0600
+
+mir (0.13.1+15.04.20150520-0ubuntu1) vivid; urgency=medium
+
+  [ Cemil Azizoglu ]
+  * New upstream release 0.13.1 (https://launchpad.net/mir/+milestone/0.13.1)
+    - ABI summary: No ABI break. Servers and clients do not need rebuilding.
+      . Mirclient ABI unchanged at 8
+      . Mircommon ABI unchanged at 4
+      . Mirplatform ABI unchanged at 7
+      . Mirserver ABI unchanged at 31
+    - Bug fixes:
+      . Can't load app purchase UI without a U1 account (LP: #1450377)
+      . Crash because uncaught exception in mir::events::add_touch (LP: #1437357)
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Wed, 20 May 2015 21:20:15 +0000
+
+mir (0.13.0+15.04.20150512-0ubuntu1) vivid; urgency=medium
+
+  [ Alan Griffiths ]
+  * New upstream release 0.13.0 (https://launchpad.net/mir/+milestone/0.13.0)
+    - Very large release as the previous 0.12 series contained only minimal
+      bug fixes...
+    - Enhancements:
+      . New demo clients for input testing: mir_demo_client_eglsquare and
+        mir_demo_client_target.
+      . Demo clients: mir_demo_client_tooltip, mir_demo_client_animated_cursor
+      . mir_demo_client_fingerpaint now processes input asynchronously to
+        drawing for a more fluid experience.
+      . New, default window manager in mir_demo_server
+      . mir_demo_server option (--arw-file) to make socket filename globally rw
+      . mir_demo_server demonstrates use of config file
+      . Added support to mir_proving_server for rendering window title strings
+      . Demo servers (mir_proving_server, mir_demo_server): Introduce support
+        for Alt+` switching of windows in multi-window clients.
+      . Added client API support for constructing input method surfaces.
+      . Introduce "buffer streams" properly. This is a generalization of the
+        most basic functionality of a surface.
+      . Log useful OpenGL information on server start-up.
+      . Add support for HWC 1.4
+      . Add display and fencing information to the layers in the HWC report
+      . Add a report_vsync method to display report
+      . Support for second display when running on "android" driver stack
+      . Server buffering strategy is configurable by --nbuffers=N
+        (or environment MIR_SERVER_NBUFFERS=N)
+      . Explicit support for configuring window management in libmirserver.
+      . Remove surface configurator & placement strategy configuration points
+      . Added experimental environment variable MIR_CLIENT_INPUT_RATE=Hz for
+        tweaking the input resampling rate a client experiences (0 = off).
+        Also raised the default input rate from 55Hz to 59Hz for visibly
+        smoother touch scrolling.
+      . Added keymap setting support for surfaces.
+      . Improved automated testing of latency.
+      . Replaced and rewrote automated ABI checking.
+      . New client APIs for basic window management; setting window titles,
+        self-resizing, size constraints and changing type.
+      . Introduced dynamically loadable input platforms.
+      . Work towards libinput integration
+      . Added proof-of-concept support for Snappy packaging for Ubuntu Core.
+      . Drop support for C++11. Now C++14 is required to build Mir.
+      . Deprecated MirEventDelegate. Now you just pass the two fields as
+        parameters directly to mir_surface_set_event_handler().
+      . Legacy functions for creating surfaces marked deprecated
+      . Minor redesign of the new input event API introduced in 0.10/11,
+        so that identifiers are shorter and less convoluted.
+      . Drop libmirclient dependency on client-platform drivers
+      . Drop libmirserver dependency on client-platform drivers
+      . Use the ABI version in platform library names and packages
+      . Rework to reduce "abstraction leaks" in the graphics platform
+      . Add thread sanitizer build option
+      . Update KVM Instructions
+      . Update CMAKE to use CMAKE_*_OUTPUT_DIRECTORY
+    - ABI summary: Servers need rebuilding, but clients do not;
+      . Mirclient ABI unchanged at 8
+      . Mircommon ABI bumped to 4
+      . Mirplatform ABI bumped to 7
+      . Mirserver ABI bumped to 31
+    - Bug fixes:
+      . vivid fails to build Mir as of 2015-03-22: error: #warning "_BSD_SOURCE
+        and _SVID_SOURCE are deprecated, use _DEFAULT_SOURCE" [-Werror=cpp]
+        (LP: #1435127)
+      . [regression] Mir servers freeze on startup (mouse and keyboard not
+        responsive) (LP: #1444061)
+      . [enhancement] Add support for video/HDMI output on Android
+        (LP: #1296538)
+      . [enhancement] Set custom cursors (LP: #1380463)
+      . [regression] mali, powervr locks up with around the introduction or
+        removal of a third overlay (LP: #1413211)
+      . [regression] Client functions residing in libmircommon (LP: #1415321)
+      . USC - mouse cursor on AMD graphics is drawing incorrectly (LP: #1417581)
+      . [testsfail] SurfaceSwapBuffers.does_not_block_when_surface_is_not_composited
+        fails in CI (LP: #1418002)
+      . Compositing is triggered continously and needlessly when there are
+        occluded surfaces with available buffers (LP: #1418081)
+      . mir_demo_server doesn't emit hover_exit events (LP: #1418569)
+      . SessionMediator locks mutexes in one thread and unlocks them in another
+        (LP: #1427976)
+      . ProtobufResponder::send_response_result race (LP: #1428402)
+      . Some protobuf Closure objects can access dead objects (LP: #1433330)
+      . valgrind on armhf fails with with many errors (LP: #1435186)
+      . [regression] QtMir and USC can't build with lp:mir -
+        fatal error: mir/events/event_builders.h (LP: #1436212)
+      . [regression] mir_acceptance_tests.TestClientInput is hanging
+        (LP: #1436644)
+      . [regression] libmirclient crashes when calling
+        mir_surface_set_event_handler() twice [InputTransport.cpp:110:
+        android::InputChannel::InputChannel(const String8&, int): Assertion
+        `false && "\"result != 0\""' failed.] (LP: #1438160)
+      . [regression] Surfaces can't overlap screen edges any more (LP: #1438660)
+      . losing touches in arale when home button is pressed (LP: #1439285)
+      . [krillin] mirscreencast only creates a still picture, not a playable
+        movie (LP: #1439549)
+      . [regression] Unity8 doesn't detect input sent from USC with latest mir
+        development code (LP: #1439719)
+      . Intermittent CI failures in tests expecting created surfaces to have
+        specific size (LP: #1440088)
+      . [regression] [testsfail] failure in CI on
+        SimpleDispatchThreadTest.keeps_dispatching_after_signal_interruption
+        (LP: #1441620)
+      . [android] Screencasting causes other clients to stop rendering
+        (LP: #1441759)
+      . Intermittent CI failures in
+        MultiThreadedCompositor.does_not_block_in_start_when_compositor_thread_fails
+        (LP: #1442020)
+      . Flickering showing stale buffers on Krillin (LP: #1444047)
+      . Acceptance tests link with static versions of client library and server
+        components (LP: #1445473)
+      . [regression] mir_acceptance_tests:
+        TestClientCursorAPI.cursor_passed_through_nested_server is crashing most
+        of the time (LP: #1447430)
+      . [regression] Clients log verbose info on startup:
+        "Loader: Loading module: ..." (LP: #1414883)
+      . [enhancement] Missing client function for surface resizing
+        (LP: #1420573)
+      . [regression] [multimonitor] Clients (sometimes) run at double frame rate
+        if overlapping two monitors. (LP: #1420678)
+      . [enhancement] Need a client API to specify resize limitations
+        (LP: #1421591)
+      . [enhancement] Add surface morph client API (LP: #1422522)
+      . The process for updating packaging for ABI changes is cumbersome and
+        error-prone (LP: #1427207)
+      . [regression] mir_acceptance_tests.NestedServer failure in clang CI
+        (LP: #1430000)
+      . DisplayConfigurationOutput.physical_size_mm is undefined/zero
+        (LP: #1430315)
+      . Dragging objects in a nested server or a client stutters slightly
+        (LP: #1436192)
+      . [regression] mir_proving_server: Super+N/Super+C does nothing now
+        (LP: #1437166)
+      . [regression] "Playground" event filters get registered twice
+        (LP: #1437174)
+      . [regression] <WARNING> Platform Probing: Failed to probe module.
+        (LP: #1438536)
+      . [regression] Move/resizing in mir_proving_server freezes if the cursor
+        is outside the window (LP: #1438621)
+      . [testsfail] CI failure in ClientLibraryErrorsDeathTest.
+        creating_surface_synchronosly_on_malconstructed_connection_is_fatal
+        (LP: #1438702)
+      . Exceptions thrown due to EGL failures don't include EGL error codes
+        (LP: #1444938)
+      . Can't switch between sibling windows of multi-window apps (LP: #1445538)
+      . [regression] specifying -DMIR_PLATFORM to one platform causes cmake
+        failure (LP: #1447729)
+      . mir_demo_server(_minimal): Can't move surfaces to overlap screen edges
+        (LP: #1447882)
+      . [regression] mir_demo_standalone_render_surfaces fails to start on
+        krillin (LP: #1449198)
+      . [regression] MIR_CLIENT_PERF_REPORT=log now shows "0" for the surface
+        name (LP: #1415305)
+      . Nested display leaks its EGLContext (LP: #1418910)
+      . SimpleDispatchThreadTest.doesnt_call_dispatch_after_first_false_return
+        fails when run repeatedly (LP: #1440005)
+      . Surfaces are not properly released in CustomWindowManagement.
+        state_change_requests_are_associated_with_correct_surface
+        (LP: #1445418)
+      . android reports that the gpu can only support 1 simultaneous output
+        (LP: #1446304)
+      . Support dynamic mouse cursor icons (LP: #1447839)
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Tue, 12 May 2015 13:12:55 +0000
+
+mir (0.12.1+15.04.20150324-0ubuntu1) vivid; urgency=medium
+
+  [ Alexandros Frantzis ]
+  * New upstream release 0.12.1 (https://launchpad.net/mir/+milestone/0.12.1)
+    - Bug fixes:
+      . [regression] mali, powervr locks up with around the introduction or
+        removal of a third overlay (LP: #1413211)
+      . USC - mouse cursor on AMD graphics is drawing incorrectly
+        (LP: #1417581)
+      . mir_demo_server doesn't emit hover_exit events (LP: #1418569)
+      . SessionMediator locks mutexes in one thread and unlocks them in
+        another (LP: #1427976)
+      . ProtobufResponder::send_response_result race (LP: #1428402)
+      . Some protobuf Closure objects can access dead objects (LP: #1433330)
+      . DisplayConfigurationOutput.physical_size_mm is undefined/zero
+        (LP: #1430315)
+      . vivid fails to build Mir as of 2015-03-22: error: #warning
+        "_BSD_SOURCE and _SVID_SOURCE are deprecated, use _DEFAULT_SOURCE"
+        [-Werror=cpp] (LP: #1435127)
+      . valgrind on armhf fails with with many errors (LP: #1435186)
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Tue, 24 Mar 2015 16:09:54 +0000
+
+mir (0.12.0+15.04.20150228-0ubuntu1) vivid; urgency=medium
+
+  [ Alberto Aguirre ]
+  * New upstream release 0.12.0 (https://launchpad.net/mir/+milestone/0.12.0)
+    - Packaging changes:
+      . Client platform packages now include the Mir client platform ABI 
+        number. Thusly, mir-client-platform-(mesa|android) is replaced by 
+        mir-client-platform-(mesa|android)2
+      . Server graphics platform packages now include the Mir graphics
+        platform ABI number. Thusly, mir-platform-graphics-(mesa|android)
+        is replaced by mir-platform-graphics-(mesa|android)1
+    - ABI summary: Servers need rebuilding, but clients do not;
+      . Mirclient ABI unchanged at 8
+      . Mircommon ABI unchanged at 3
+      . Mirplatform ABI unchanged at 6
+      . Mirserver ABI bumped to 30
+    - Bug fixes:
+      . [regression] Platform libraries and packages are not versioned thus
+        are not installable in parallel (LP: #1423591)
+      . [regression] Deadlock in TimeoutFrameDroppingPolicy logic (LP: #1421255)
+ 
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Sat, 28 Feb 2015 10:30:53 +0000
+
+mir (0.11.0+15.04.20150209.1-0ubuntu1) vivid; urgency=medium
+
+  [ Daniel van Vugt ]
+  * New upstream release 0.11.0 (https://launchpad.net/mir/+milestone/0.11.0)
+    - Packaging changes:
+      . Due to changes in the Mir driver model the client platforms are no
+        longer versioned by soname. Thusly libmirplatform5driver-(mesa|android) is
+        replaced by mir-client-platform-(mesa-android). A new package
+        mir-client-platform-mesa-dev is introduced containing headers
+        previously in mirplatform-dev.
+    - Enhancements:
+      . Lots more major plumbing in the Android code, on the path to
+        supporting external displays.
+      . Add support for clang 3.6.
+      . Major redesign of server classes in mir::shell,scene and friends
+        (still in progress).
+      . Added client API for creating dialogs and tooltips.
+      . Added new surface states: mir_surface_state_hidden and
+        mir_surface_state_horizmaximized.
       . Performance: Use optimally efficient fragment shading when possible.
       . Performance: (Desktop) Composite using double buffering instead of
         triple to reduce visible lag.
-      . TODO fill me in more
+      . mir_proving_server: Can now resize windows from any edge or corner
+        using the existing Alt+middlebuttondrag.
+      . mir_proving_server: Added some demo custom shaders (negative and
+        high contrast modes: Super+N/C).
+      . mir_proving_server: Can now close clients politely via Alt+F4.
+      . Added MirPointerInputEvent (part of the new input API, the old
+        MirMotionEvent is still supported also for now).
     - ABI summary: Servers need rebuilding, but clients do not;
       . Mirclient ABI unchanged at 8
       . Mircommon ABI unchanged at 3
       . Mirplatform ABI bumped to 6
       . Mirserver ABI bumped to 29
     - Bug fixes:
-      . TODO fill me in at release
+      . [regression] mir_demo_server exits immediately with boost
+        bad_any_cast exception (LP: #1414630)
+      . need way to position menus and tooltips (relative positioning to
+        parent) (LP: #1324101)
+      . GLibMainLoopTest failure seen in CI (LP: #1413748)
+      . Clang builds fail in CI (LP: #1416317)
+      . segfault in mir::compositor::GLProgramFamily::Shader::init()
+        (LP: #1416482)
+      . GLRenderer: The default fragment shader is sub-optimal for alpha=1.0
+        (LP: #1350674)
+      . mesa::DisplayBuffer::post_update is triple buffered - more laggy than
+        it needs to be (LP: #1350725)
+      . Cannot connect to nested server when started from a differen vt
+        (LP: #1379266)
+      . [testfail] AsioMainLoopAlarmTest fails in CI (LP: #1392256)
+      . Compositor report inconsistently reports frame time during bypass,
+        and render time otherwise (LP: #1408906)
+      . [regression] mir_demo_client_fingerpaint doesn't paint anything any
+        more (with the mouse) (LP: #1413139)
+      . Hardware cursor is always slightly ahead of the composited image
+        (LP: #1274408)
+      . integration tests are outputting (too many) DisplayServer log
+        messages (LP: #1408231)
+      . [regression] deploy-and-test.sh doesn't work any more (unless you
+        have umockdev installed already) (LP: #1413479)
+      . Color Inverse on display. Toggle Negative Image (LP: #1400580)
+      . mir-ubuntu-vivid-armhf-ci fails consistently (LP: #1407863)
+      . Double-buffered surfaces may lag or freeze if event driven and not
+        constantly redrawing (LP: #1395581)
+      . Pointer motion and crossing events are missing (LP: #1417650)
 
- -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Wed, 14 Jan 2015 16:10:37 +0800
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 09 Feb 2015 21:27:35 +0000
 
 mir (0.10.0+15.04.20150107.2-0ubuntu1) vivid; urgency=medium
 

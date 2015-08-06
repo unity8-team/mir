@@ -34,6 +34,7 @@ touch alternatives for phones/tablets:
  - Switch back to X: *Ctrl-Alt-F7*
  - Switch virtual terminals (VTs): *Ctrl-Alt-(F1-F12)*
  - Switch apps: *Alt-Tab* or *4-finger swipe left/right*
+ - Switch windows of the current app: *Alt-grave*
  - Ask an app to close: *Alt-F4* (it may refuse or not understand)
  - Move window: *Alt-leftmousebutton* or *3-finger drag*
  - Resize window: *Alt-middlemousebutton* or *3-finger pinch/zoom*
@@ -46,5 +47,7 @@ touch alternatives for phones/tablets:
  - Reset display mode to default, on focussed monitor: *Ctrl-Alt-0*
  - Adjust window opacity/alpha: *Alt-mousewheel*
  - Zoom in/out: *Super-mousewheel*
+
+*Super* means the Windows key on a PC, or the search key on a Chromebook.
 
 Want more? Log your requests at: https://bugs.launchpad.net/mir/+filebug

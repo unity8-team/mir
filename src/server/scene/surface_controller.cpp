@@ -31,13 +31,13 @@ ms::SurfaceController::SurfaceController(
 {
 }
 
-std::shared_ptr<ms::Surface> ms::SurfaceController::add_surface(
-    SurfaceCreationParameters const& params,
+void ms::SurfaceController::add_surface(
+    std::shared_ptr<ms::Surface> const& surface,
+    ms::DepthId depth, 
+    mir::input::InputReceptionMode const& input_mode,
     Session* /*session*/)
 {
-    auto const surface = surface_factory->create_surface(params);
-    surface_stack->add_surface(surface, params.depth, params.input_mode);
-    return surface;
+    surface_stack->add_surface(surface, depth, input_mode);
 }
 
 void ms::SurfaceController::remove_surface(std::weak_ptr<Surface> const& surface)
@@ -48,4 +48,15 @@ void ms::SurfaceController::remove_surface(std::weak_ptr<Surface> const& surface
 void ms::SurfaceController::raise(std::weak_ptr<Surface> const& surface)
 {
     surface_stack->raise(surface);
+}
+
+void ms::SurfaceController::raise(SurfaceSet const& surfaces)
+{
+    surface_stack->raise(surfaces);
+}
+
+auto ms::SurfaceController::surface_at(geometry::Point cursor) const
+-> std::shared_ptr<Surface>
+{
+    return surface_stack->surface_at(cursor);
 }

@@ -24,7 +24,9 @@
 #include "mir/scene/session.h"
 #include "mir/scene/session_listener.h"
 #include "mir/scene/prompt_session.h"
+#include "mir/scene/application_not_responding_detector.h"
 #include "session_event_sink.h"
+#include "mir/frontend/event_sink.h"
 
 #include <boost/throw_exception.hpp>
 
@@ -37,20 +39,24 @@ namespace mf = mir::frontend;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 
-ms::SessionManager::SessionManager(std::shared_ptr<SurfaceCoordinator> const& surface_factory,
+ms::SessionManager::SessionManager(
+    std::shared_ptr<SurfaceCoordinator> const& surface_coordinator,
+    std::shared_ptr<SurfaceFactory> const& surface_factory,
+    std::shared_ptr<BufferStreamFactory> const& buffer_stream_factory,
     std::shared_ptr<SessionContainer> const& container,
     std::shared_ptr<SnapshotStrategy> const& snapshot_strategy,
     std::shared_ptr<SessionEventSink> const& session_event_sink,
-    std::shared_ptr<SessionListener> const& session_listener) :
-    surface_coordinator(surface_factory),
+    std::shared_ptr<SessionListener> const& session_listener,
+    std::shared_ptr<ApplicationNotRespondingDetector> const& anr_detector) :
+    surface_coordinator(surface_coordinator),
+    surface_factory(surface_factory),
+    buffer_stream_factory(buffer_stream_factory),
     app_container(container),
     snapshot_strategy(snapshot_strategy),
     session_event_sink(session_event_sink),
-    session_listener(session_listener)
+    session_listener(session_listener),
+    anr_detector{anr_detector}
 {
-    assert(surface_factory);
-    assert(container);
-    assert(session_listener);
 }
 
 ms::SessionManager::~SessionManager() noexcept
@@ -80,11 +86,18 @@ std::shared_ptr<ms::Session> ms::SessionManager::open_session(
 {
     std::shared_ptr<Session> new_session =
         std::make_shared<ApplicationSession>(
-            surface_coordinator, client_pid, name, snapshot_strategy, session_listener, sender);
+            surface_coordinator, surface_factory,
+            buffer_stream_factory, client_pid, name,
+            snapshot_strategy, session_listener, sender);
 
     app_container->insert_session(new_session);
 
     session_listener->starting(new_session);
+
+    anr_detector->register_session(new_session.get(), [sender]()
+    {
+        sender->send_ping(0);
+    });
 
     return new_session;
 }
@@ -106,6 +119,8 @@ void ms::SessionManager::close_session(std::shared_ptr<Session> const& session)
     auto scene_session = std::dynamic_pointer_cast<Session>(session);
 
     scene_session->force_requests_to_complete();
+
+    anr_detector->unregister_session(session.get());
 
     session_event_sink->handle_session_stopping(scene_session);
 

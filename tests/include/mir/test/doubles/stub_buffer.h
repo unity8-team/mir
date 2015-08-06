@@ -1,0 +1,131 @@
+/*
+ * Copyright © 2012-2014 Canonical Ltd.
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
+ */
+
+#ifndef MIR_TEST_DOUBLES_STUB_BUFFER_H_
+#define MIR_TEST_DOUBLES_STUB_BUFFER_H_
+
+#include "mir/graphics/buffer_basic.h"
+#include "mir/graphics/buffer_properties.h"
+#include "mir/geometry/size.h"
+#include "mir/graphics/buffer_id.h"
+#include <vector>
+#include <string.h>
+
+namespace mir
+{
+namespace test
+{
+namespace doubles
+{
+
+class StubBuffer : public graphics::BufferBasic
+{
+public:
+    StubBuffer()
+        : StubBuffer{
+              create_native_buffer(),
+              graphics::BufferProperties{
+                  geometry::Size{},
+                  mir_pixel_format_abgr_8888,
+                  graphics::BufferUsage::hardware},
+              geometry::Stride{}}
+
+    {
+    }
+
+    StubBuffer(std::shared_ptr<graphics::NativeBuffer> const& native_buffer, geometry::Size const& size)
+        : StubBuffer{
+              native_buffer,
+              graphics::BufferProperties{
+                  size,
+                  mir_pixel_format_abgr_8888,
+                  graphics::BufferUsage::hardware},
+                  geometry::Stride{}}
+
+    {
+    }
+
+    StubBuffer(std::shared_ptr<graphics::NativeBuffer> const& native_buffer)
+        : StubBuffer{native_buffer, {}}
+    {
+    }
+
+    StubBuffer(graphics::BufferProperties const& properties)
+        : StubBuffer{create_native_buffer(), properties, geometry::Stride{properties.size.width.as_int() * MIR_BYTES_PER_PIXEL(properties.format)}}
+    {
+    }
+
+    StubBuffer(graphics::BufferID id)
+        : native_buffer(create_native_buffer()),
+          buf_size{},
+          buf_pixel_format{mir_pixel_format_abgr_8888},
+          buf_stride{},
+          buf_id{id}
+    {
+    }
+
+    StubBuffer(std::shared_ptr<graphics::NativeBuffer> const& native_buffer,
+               graphics::BufferProperties const& properties,
+               geometry::Stride stride)
+        : native_buffer(native_buffer),
+          buf_size{properties.size},
+          buf_pixel_format{properties.format},
+          buf_stride{stride},
+          buf_id{graphics::BufferBasic::id()}
+    {
+    }
+
+    virtual graphics::BufferID id() const override { return buf_id; }
+
+    virtual geometry::Size size() const override { return buf_size; }
+
+    virtual geometry::Stride stride() const override { return buf_stride; }
+
+    virtual MirPixelFormat pixel_format() const override { return buf_pixel_format; }
+
+    virtual std::shared_ptr<graphics::NativeBuffer> native_buffer_handle() const override { return native_buffer; }
+    virtual void gl_bind_to_texture() override {}
+
+    void write(unsigned char const* pixels, size_t len) override
+    {
+        if (pixels) written_pixels.assign(pixels, pixels + len);
+    }
+    void read(std::function<void(unsigned char const*)> const& do_with_pixels) override
+    {
+        if (written_pixels.size() == 0)
+        {
+            auto length = buf_size.width.as_int()*buf_size.height.as_int()*MIR_BYTES_PER_PIXEL(buf_pixel_format);
+            written_pixels.resize(length);
+            memset(written_pixels.data(), 0, length);
+        }
+        do_with_pixels(written_pixels.data());
+    }
+
+    std::shared_ptr<graphics::NativeBuffer> const native_buffer;
+    geometry::Size const buf_size;
+    MirPixelFormat const buf_pixel_format;
+    geometry::Stride const buf_stride;
+    graphics::BufferID const buf_id;
+    std::vector<unsigned char> written_pixels;
+
+    std::shared_ptr<graphics::NativeBuffer> create_native_buffer();
+};
+}
+}
+}
+#endif /* MIR_TEST_DOUBLES_STUB_BUFFER_H_ */

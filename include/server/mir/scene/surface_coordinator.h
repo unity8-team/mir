@@ -20,10 +20,14 @@
 #ifndef MIR_SCENE_SURFACE_COORDINATOR_H_
 #define MIR_SCENE_SURFACE_COORDINATOR_H_
 
+#include "mir/scene/depth_id.h"
 #include <memory>
+#include <set>
 
 namespace mir
 {
+namespace geometry { class Point; }
+namespace input { enum class InputReceptionMode; }
 namespace scene
 {
 class Surface;
@@ -34,13 +38,22 @@ class Session;
 class SurfaceCoordinator
 {
 public:
-    virtual std::shared_ptr<Surface> add_surface(
-        SurfaceCreationParameters const& params,
+    using SurfaceSet = std::set<std::weak_ptr<scene::Surface>, std::owner_less<std::weak_ptr<scene::Surface>>>;
+
+    virtual void add_surface(
+        std::shared_ptr<Surface> const&,
+        scene::DepthId depth,
+        input::InputReceptionMode const& new_mode,
         Session* session) = 0;
 
     virtual void raise(std::weak_ptr<Surface> const& surface) = 0;
 
+    virtual void raise(SurfaceSet const& surfaces) = 0;
+
     virtual void remove_surface(std::weak_ptr<Surface> const& surface) = 0;
+
+    virtual auto surface_at(geometry::Point) const -> std::shared_ptr<Surface> = 0;
+
 protected:
     SurfaceCoordinator() = default;
     virtual ~SurfaceCoordinator() = default;

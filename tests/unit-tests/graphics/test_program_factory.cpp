@@ -24,14 +24,13 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <mir/geometry/rectangle.h>
-#include <mir/compositor/destination_alpha.h>
 #include "src/server/graphics/program_factory.h"
-#include <mir_test/fake_shared.h>
-#include <mir_test_doubles/mock_buffer.h>
-#include <mir_test_doubles/mock_renderable.h>
-#include <mir_test_doubles/mock_buffer_stream.h>
+#include <mir/test/fake_shared.h>
+#include <mir/test/doubles/mock_buffer.h>
+#include <mir/test/doubles/mock_renderable.h>
+#include <mir/test/doubles/mock_buffer_stream.h>
 #include <mir/compositor/buffer_stream.h>
-#include <mir_test_doubles/mock_gl.h>
+#include <mir/test/doubles/mock_gl.h>
 
 using testing::SetArgPointee;
 using testing::InSequence;

@@ -25,13 +25,12 @@
 #include "mir/logging/null_shared_library_prober_report.h"
 #include "mir/graphics/platform_probe.h"
 
-#include <dlfcn.h>
-
 namespace mo = mir::options;
 
 char const* const mo::server_socket_opt           = "file,f";
 char const* const mo::prompt_socket_opt           = "prompt-file,p";
 char const* const mo::no_server_socket_opt        = "no-file";
+char const* const mo::arw_server_socket_opt       = "arw-file";
 char const* const mo::enable_input_opt            = "enable-input,i";
 char const* const mo::session_mediator_report_opt = "session-mediator-report";
 char const* const mo::msg_processor_report_opt    = "msg-processor-report";
@@ -46,42 +45,37 @@ char const* const mo::host_socket_opt             = "host-socket";
 char const* const mo::frontend_threads_opt        = "ipc-thread-pool";
 char const* const mo::name_opt                    = "name";
 char const* const mo::offscreen_opt               = "offscreen";
-char const* const mo::touchspots_opt               = "enable-touchspots";
+char const* const mo::touchspots_opt              = "enable-touchspots";
 char const* const mo::fatal_abort_opt             = "on-fatal-error-abort";
 char const* const mo::debug_opt                   = "debug";
+char const* const mo::nbuffers_opt                = "nbuffers";
+char const* const mo::composite_delay_opt         = "composite-delay";
+char const* const mo::enable_key_repeat_opt       = "enable-key-repeat";
 
 char const* const mo::off_opt_value = "off";
 char const* const mo::log_opt_value = "log";
 char const* const mo::lttng_opt_value = "lttng";
 
 char const* const mo::platform_graphics_lib = "platform-graphics-lib";
+char const* const mo::platform_input_lib = "platform-input-lib";
 char const* const mo::platform_path = "platform-path";
 
 namespace
 {
 int const default_ipc_threads          = 1;
 bool const enable_input_default        = true;
-
-// Hack around the way Qt loads mir:
-// platform_api and therefore Mir are loaded via dlopen(..., RTLD_LOCAL).
-// While this is sensible for a plugin it would mean that some symbols
-// cannot be resolved by the Mir platform plugins. This hack makes the
-// necessary symbols global.
-void ensure_loaded_with_rtld_global()
-{
-    Dl_info info;
-
-    // Cast dladdr itself to work around g++-4.8 warnings (LP: #1366134)
-    typedef int (safe_dladdr_t)(void(*func)(), Dl_info *info);
-    safe_dladdr_t *safe_dladdr = (safe_dladdr_t*)&dladdr;
-    safe_dladdr(&ensure_loaded_with_rtld_global, &info);
-    dlopen(info.dli_fname,  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
-}
 }
 
 mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
-    DefaultConfiguration(
-        argc, argv,
+    DefaultConfiguration(argc, argv, std::string{})
+{
+}
+
+mo::DefaultConfiguration::DefaultConfiguration(
+    int argc,
+    char const* argv[],
+    std::string const& config_file) :
+    DefaultConfiguration(argc, argv,
         [](int argc, char const* const* argv)
         {
             if (argc)
@@ -92,7 +86,8 @@ mo::DefaultConfiguration::DefaultConfiguration(int argc, char const* argv[]) :
                     help_text << ' ' << *opt;
                 BOOST_THROW_EXCEPTION(mir::AbnormalExit(help_text.str()));
             }
-        })
+        },
+        config_file)
 {
 }
 
@@ -100,12 +95,43 @@ mo::DefaultConfiguration::DefaultConfiguration(
     int argc,
     char const* argv[],
     std::function<void(int argc, char const* const* argv)> const& handler) :
+    DefaultConfiguration(argc, argv, handler, std::string{})
+{
+}
+
+namespace
+{
+std::string description_text(char const* program, std::string const& config_file)
+{
+    std::string result{
+        "Command-line options (e.g. \"--host-socket=/tmp/mir_socket\").\n\n"
+        "Environment variables capitalise long form with prefix \"MIR_SERVER_\" and \"_\" in place of \"-\".\n"
+        "(E.g. \"MIR_SERVER_HOST_SOCKET=/tmp/mir_socket\")\n\n"};
+
+    if (program)
+        result = std::string{"usage: "} + program + " [options]\n\n" + result;
+
+    if (!config_file.empty())
+        result +=
+        "Config file entries are long form (e.g. \"host-socket=/tmp/mir_socket\").\n"
+        "The config file (" + config_file + ") is located via the XDG Base Directory Specification.\n"
+        "($XDG_CONFIG_HOME or $HOME/.config followed by $XDG_CONFIG_DIRS)\n\n";
+
+    return result + "user options";
+}
+}
+
+mo::DefaultConfiguration::DefaultConfiguration(
+    int argc,
+    char const* argv[],
+    std::function<void(int argc, char const* const* argv)> const& handler,
+    std::string const& config_file) :
+    config_file{config_file},
     argc(argc),
     argv(argv),
     unparsed_arguments_handler{handler},
     program_options(std::make_shared<boost::program_options::options_description>(
-    "Command-line options.\n"
-    "Environment variables capitalise long form with prefix \"MIR_SERVER_\" and \"_\" in place of \"-\""))
+        description_text(argv[0], config_file)))
 {
     using namespace options;
     namespace po = boost::program_options;
@@ -116,9 +142,12 @@ mo::DefaultConfiguration::DefaultConfiguration(
         (server_socket_opt, po::value<std::string>()->default_value(::mir::default_server_socket),
             "Socket filename [string:default=$XDG_RUNTIME_DIR/mir_socket or /tmp/mir_socket]")
         (no_server_socket_opt, "Do not provide a socket filename for client connections")
+        (arw_server_socket_opt, "Make socket filename globally rw (equivalent to chmod a=rw)")
         (prompt_socket_opt, "Provide a \"..._trusted\" filename for prompt helper connections")
         (platform_graphics_lib, po::value<std::string>(),
             "Library to use for platform graphics support (default: autodetect)")
+        (platform_input_lib, po::value<std::string>(),
+            "Library to use for platform input support (default: input-stub.so)")
         (platform_path, po::value<std::string>()->default_value(MIR_SERVER_PLATFORM_PATH),
             "Directory to look for platform libraries (default: " MIR_SERVER_PLATFORM_PATH ")")
         (enable_input_opt, po::value<bool>()->default_value(enable_input_default),
@@ -143,12 +172,21 @@ mo::DefaultConfiguration::DefaultConfiguration(
             "How to handle the SharedLibraryProber report. [{log,lttng,off}]")
         (frontend_threads_opt, po::value<int>()->default_value(default_ipc_threads),
             "threads in frontend thread pool.")
+        (nbuffers_opt, po::value<int>()->default_value(3),
+            "Number of buffers per surface.")
+        (composite_delay_opt, po::value<int>()->default_value(-1),
+            "Compositor frame delay in milliseconds (how long to wait for new "
+            "frames from clients before compositing). Higher values result in "
+            "lower latency but risk causing frame skipping. "
+            "Default: A negative value means decide automatically.")
         (name_opt, po::value<std::string>(),
             "When nested, the name Mir uses when registering with the host.")
         (offscreen_opt,
             "Render to offscreen buffers instead of the real outputs.")
         (touchspots_opt,
             "Display visualization of touchspots (e.g. for screencasting).")
+        (enable_key_repeat_opt, po::value<bool>()->default_value(true),
+             "Enable server generated key repeat")
         (fatal_abort_opt, "On \"fatal error\" conditions [e.g. drivers behaving "
             "in unexpected ways] abort (to get a core dump)")
         (debug_opt, "Enable extra development debugging. "
@@ -171,8 +209,6 @@ void mo::DefaultConfiguration::add_platform_options()
     mo::ProgramOption options;
     options.parse_arguments(program_options, argc, argv);
 
-    ensure_loaded_with_rtld_global();
-
     // TODO: We should just load all the platform plugins we can and present their options.
     auto env_libname = ::getenv("MIR_SERVER_PLATFORM_GRAPHICS_LIB");
     auto env_libpath = ::getenv("MIR_SERVER_PLATFORM_PATH");
@@ -191,7 +227,7 @@ void mo::DefaultConfiguration::add_platform_options()
             mir::logging::NullSharedLibraryProberReport null_report;
             auto const plugin_path = env_libpath ? env_libpath : options.get<std::string>(platform_path);
             auto plugins = mir::libraries_for_path(plugin_path, null_report);
-            platform_graphics_library = mir::graphics::module_for_device(plugins);
+            platform_graphics_library = mir::graphics::module_for_device(plugins, options);
         }
 
         auto add_platform_options = platform_graphics_library->load_function<mir::graphics::AddPlatformOptions>("add_graphics_platform_options", MIR_SERVER_GRAPHICS_PLATFORM_VERSION);
@@ -280,7 +316,9 @@ void mo::DefaultConfiguration::parse_environment(
 }
 
 void mo::DefaultConfiguration::parse_config_file(
-    boost::program_options::options_description& /*desc*/,
-    mo::ProgramOption& /*options*/) const
+    boost::program_options::options_description& desc,
+    mo::ProgramOption& options) const
 {
+    if (!config_file.empty())
+        options.parse_file(desc, config_file);
 }

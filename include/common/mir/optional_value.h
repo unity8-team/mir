@@ -19,12 +19,17 @@
 #ifndef MIR_OPTIONAL_VALUE_H_
 #define MIR_OPTIONAL_VALUE_H_
 
+#include "mir/fatal.h"
+
 namespace mir
 {
 template<typename T>
 class optional_value
 {
 public:
+    optional_value() = default;
+    optional_value(T const& value) : value_{value}, is_set_{true} {}
+
     optional_value& operator=(T const& value)
     {
         value_ = value;
@@ -33,7 +38,14 @@ public:
     }
 
     bool is_set() const { return is_set_; }
-    T value() const { return value_; }
+    T value() const
+    {
+        if (!is_set())
+        {
+            (*fatal_error)("Accessing value of unset optional");
+        }
+        return value_;
+    }
 
 private:
     T value_;
@@ -45,7 +57,7 @@ template<typename T>
 inline bool operator == (optional_value<T> const& lhs, optional_value<T> const& rhs)
 {
     return lhs.is_set() == rhs.is_set() &&
-           (lhs.is_set() ? lhs.value() == rhs.value() : true);
+           (!lhs.is_set() || lhs.value() == rhs.value());
 }
 
 template<typename T>

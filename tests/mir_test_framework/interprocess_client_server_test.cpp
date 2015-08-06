@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+namespace mt = mir::test;
 namespace mtf = mir_test_framework;
 using namespace ::testing;
 
@@ -29,6 +30,7 @@ mtf::InterprocessClientServerTest::~InterprocessClientServerTest()
 {
     if (getpid() != test_process_id)
     {
+        shutdown_sync.reset();
         auto const status = ::testing::Test::HasFailure() ? EXIT_FAILURE : EXIT_SUCCESS;
         exit(status);
     }
@@ -54,7 +56,7 @@ void mtf::InterprocessClientServerTest::run_in_server(std::function<void()> cons
 {
     if (test_process_id != getpid()) return;
 
-    CrossProcessSync started_sync;
+    mt::CrossProcessSync started_sync;
 
     pid_t pid = fork();
 
@@ -68,6 +70,7 @@ void mtf::InterprocessClientServerTest::run_in_server(std::function<void()> cons
         server_process_id = getpid();
         process_tag = "server";
         add_to_environment("MIR_SERVER_FILE", mir_test_socket);
+                
         server_setup();
         start_server();
         started_sync.signal_ready();
@@ -126,7 +129,7 @@ void mtf::InterprocessClientServerTest::TearDown()
 {
     if (server_process_id == getpid())
     {
-        shutdown_sync.wait_for_signal_ready_for();
+        shutdown_sync->wait_for_signal_ready_for();
     }
 
     stop_server();
@@ -141,7 +144,7 @@ void mtf::InterprocessClientServerTest::stop_server()
 
     if (test_process_id != getpid()) return;
 
-    shutdown_sync.signal_ready();
+    shutdown_sync->signal_ready();
 
     if (server_process)
     {

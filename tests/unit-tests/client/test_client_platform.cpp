@@ -19,13 +19,13 @@
 #include "mir/client_platform.h"
 #include "mir/egl_native_surface.h"
 
-#include "mir_test_doubles/mock_client_context.h"
-#include "mir_test_doubles/mock_egl_native_surface.h"
+#include "mir/test/doubles/mock_client_context.h"
+#include "mir/test/doubles/mock_egl_native_surface.h"
 #include "mir_test_framework/executable_path.h"
 #include "mir_test_framework/stub_platform_helpers.h"
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-#include "mir_test_doubles/mock_android_hw.h"
+#include "mir/test/doubles/mock_android_hw.h"
 #endif
 
 #include "mir/client_platform_factory.h"
@@ -79,7 +79,7 @@ struct ClientPlatformTest : public ::testing::TestWithParam<ClientPlatformTraits
 };
 
 #ifdef MIR_BUILD_PLATFORM_ANDROID
-ClientPlatformTraits const android_platform{"android.so",
+ClientPlatformTraits const android_platform{"android",
                                             [](MirPlatformPackage& pkg)
                                             {
                                                 ::memset(&pkg, 0, sizeof(pkg));
@@ -93,8 +93,8 @@ INSTANTIATE_TEST_CASE_P(Android,
 
 #endif
 
-#ifdef MIR_BUILD_PLATFORM_MESA
-ClientPlatformTraits const mesa_platform{"mesa.so",
+#ifdef MIR_BUILD_PLATFORM_MESA_KMS
+ClientPlatformTraits const mesa_platform{"mesa",
                                          [](MirPlatformPackage& pkg)
                                          {
                                              ::memset(&pkg, 0, sizeof(pkg));

@@ -73,13 +73,6 @@ static void surface_create_callback(MirSurface *new_surface, void *context)
     ((MirDemoState*)context)->surface = new_surface;
 }
 
-// Callback to update MirDemoState on swap_buffers
-static void surface_swap_buffers_callback(MirSurface* surface, void *context)
-{
-    (void) surface;
-    (void) context;
-}
-
 // Callback to update MirDemoState on surface_release
 static void surface_release_callback(MirSurface *old_surface, void *context)
 {
@@ -98,7 +91,7 @@ int demo_client(const char* server, int buffer_swap_count)
 
     ///\internal [connect_tag]
     // Call mir_connect and wait for callback to complete.
-    mir_wait_for(mir_connect(server, __PRETTY_FUNCTION__, connection_callback, &mcd));
+    mir_wait_for(mir_connect(server, __FILE__, connection_callback, &mcd));
     puts("Connected");
     ///\internal [connect_tag]
 
@@ -125,14 +118,14 @@ int demo_client(const char* server, int buffer_swap_count)
     }
 
     // Identify a supported pixel format
-    MirPixelFormat pixel_format;
+    MirPixelFormat pixel_format = mir_pixel_format_invalid;
     unsigned int valid_formats;
     mir_connection_get_available_surface_formats(mcd.connection, &pixel_format, 1, &valid_formats);
 
     MirSurfaceSpec *spec =
         mir_connection_create_spec_for_normal_surface(mcd.connection, 640, 480, pixel_format);
     assert(spec != NULL);
-    mir_surface_spec_set_name(spec, __PRETTY_FUNCTION__);
+    mir_surface_spec_set_name(spec, __FILE__);
 
     ///\internal [surface_create_tag]
     // ...we create a surface using that format and wait for callback to complete.
@@ -149,6 +142,9 @@ int demo_client(const char* server, int buffer_swap_count)
     assert(mir_surface_is_valid(mcd.surface));
     assert(strcmp(mir_surface_get_error_message(mcd.surface), "") == 0);
 
+    MirBufferStream *bs =
+        mir_surface_get_buffer_stream(mcd.surface);
+
     // We can keep exchanging the current buffer for a new one
     for (int i = 0; i < buffer_swap_count; i++)
     {
@@ -156,12 +152,14 @@ int demo_client(const char* server, int buffer_swap_count)
         {
             ///\internal [get_current_buffer_tag]
             MirNativeBuffer* buffer_package = NULL;
-            mir_surface_get_current_buffer(mcd.surface, &buffer_package);
+            mir_buffer_stream_get_current_buffer(bs, &buffer_package);
             assert(buffer_package != NULL);
-            if (mir_platform_type_gbm == mir_surface_get_platform_type(mcd.surface))
+            MirPlatformType platform_type =
+                mir_buffer_stream_get_platform_type(bs);
+            if (mir_platform_type_gbm == platform_type)
             {
                 // Interpret buffer_package as MirBufferPackage
-            } else if (mir_platform_type_android == mir_surface_get_platform_type(mcd.surface))
+            } else if (mir_platform_type_android == platform_type)
             {
                 // Interpret buffer_package as ANativeWindowBuffer
             }
@@ -170,7 +168,7 @@ int demo_client(const char* server, int buffer_swap_count)
         }
 
         ///\internal [swap_buffers_tag]
-        mir_wait_for(mir_surface_swap_buffers(mcd.surface, surface_swap_buffers_callback, &mcd));
+        mir_buffer_stream_swap_buffers_sync(bs);
         ///\internal [swap_buffers_tag]
     }
 

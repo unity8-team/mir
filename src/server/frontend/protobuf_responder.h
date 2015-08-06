@@ -23,6 +23,7 @@
 #include "mir_protobuf_wire.pb.h"
 
 #include <memory>
+#include <mutex>
 
 namespace mir
 {
@@ -43,13 +44,14 @@ public:
 
     void send_response(
             ::google::protobuf::uint32 id,
-            ::google::protobuf::Message* response,
+            ::google::protobuf::MessageLite* response,
             FdSets const& fd_sets) override;
 
 private:
     std::shared_ptr<MessageSender> const sender;
     std::shared_ptr<ResourceCache> const resource_cache;
 
+    std::mutex result_guard;
     mir::protobuf::wire::Result send_response_result;
 };
 }

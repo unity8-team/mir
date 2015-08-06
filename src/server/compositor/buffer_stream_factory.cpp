@@ -33,21 +33,35 @@
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace ms = mir::scene;
+namespace mf = mir::frontend;
 
-mc::BufferStreamFactory::BufferStreamFactory(std::shared_ptr<mg::GraphicBufferAllocator> const& gralloc,
-                                             std::shared_ptr<mc::FrameDroppingPolicyFactory> const& policy_factory)
-        : gralloc(gralloc),
-          policy_factory{policy_factory}
+mc::BufferStreamFactory::BufferStreamFactory(
+    std::shared_ptr<mg::GraphicBufferAllocator> const& gralloc,
+    std::shared_ptr<mc::FrameDroppingPolicyFactory> const& policy_factory,
+    unsigned int nbuffers) :
+    gralloc(gralloc),
+    policy_factory{policy_factory},
+    nbuffers(nbuffers)
 {
     assert(gralloc);
     assert(policy_factory);
+    if (nbuffers < 2)
+        throw std::logic_error("nbuffers must be at least 2");
 }
 
 
 std::shared_ptr<mc::BufferStream> mc::BufferStreamFactory::create_buffer_stream(
+    mf::BufferStreamId id, std::shared_ptr<mf::BufferSink> const& sink,
     mg::BufferProperties const& buffer_properties)
 {
-    // Note: Framedropping requires a minimum 3 buffers
-    auto switching_bundle = std::make_shared<mc::BufferQueue>(3, gralloc, buffer_properties, *policy_factory);
+    return create_buffer_stream(id, sink, nbuffers, buffer_properties);
+}
+
+std::shared_ptr<mc::BufferStream> mc::BufferStreamFactory::create_buffer_stream(
+    mf::BufferStreamId, std::shared_ptr<mf::BufferSink> const&,
+    int nbuffers, mg::BufferProperties const& buffer_properties)
+{
+    auto switching_bundle = std::make_shared<mc::BufferQueue>(
+        nbuffers, gralloc, buffer_properties, *policy_factory);
     return std::make_shared<mc::BufferStreamSurfaces>(switching_bundle);
 }

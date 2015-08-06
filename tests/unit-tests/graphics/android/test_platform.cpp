@@ -20,14 +20,14 @@
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/options/program_option.h"
 #include "src/platforms/android/server/platform.h"
-#include "mir_test_doubles/mock_buffer.h"
-#include "mir_test_doubles/mock_android_hw.h"
-#include "mir_test_doubles/mock_buffer_ipc_message.h"
-#include "mir_test_doubles/mock_display_report.h"
-#include "mir_test_doubles/stub_display_builder.h"
-#include "mir_test_doubles/fd_matcher.h"
-#include "mir_test/fake_shared.h"
-#include "mir_test_doubles/mock_android_native_buffer.h"
+#include "mir/test/doubles/mock_buffer.h"
+#include "mir/test/doubles/mock_android_hw.h"
+#include "mir/test/doubles/mock_buffer_ipc_message.h"
+#include "mir/test/doubles/mock_display_report.h"
+#include "mir/test/doubles/stub_display_builder.h"
+#include "mir/test/doubles/fd_matcher.h"
+#include "mir/test/fake_shared.h"
+#include "mir/test/doubles/mock_android_native_buffer.h"
 #include "mir_test_framework/executable_path.h"
 #include "mir/shared_library.h"
 #include <system/window.h>
@@ -77,6 +77,8 @@ protected:
             .WillByDefault(Return(native_buffer));
         ON_CALL(*mock_buffer, stride())
             .WillByDefault(Return(stride));
+
+        quirks = std::make_shared<mga::DeviceQuirks>(mga::PropertiesOps{});
     }
 
     std::shared_ptr<mtd::MockAndroidNativeBuffer> native_buffer;
@@ -84,6 +86,7 @@ protected:
     std::shared_ptr<mtd::MockBuffer> mock_buffer;
     std::shared_ptr<native_handle_t> native_buffer_handle;
     std::shared_ptr<mg::DisplayReport> stub_display_report;
+    std::shared_ptr<mga::DeviceQuirks> quirks;
     geom::Stride stride;
     unsigned int num_ints, num_fds;
 };
@@ -96,7 +99,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     EXPECT_CALL(*native_buffer, copy_fence())
         .WillOnce(Return(fake_fence));
 
-    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled);
+    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled, quirks);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
@@ -127,7 +130,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_full_ipc_w
     EXPECT_CALL(*native_buffer, copy_fence())
         .WillOnce(Return(-1));
 
-    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled);
+    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled, quirks);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
@@ -166,7 +169,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_nested)
     EXPECT_CALL(*native_buffer, copy_fence())
         .WillOnce(Return(-1));
 
-    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled);
+    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled, quirks);
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
     int offset = 0;
@@ -201,7 +204,7 @@ TEST_F(PlatformBufferIPCPackaging, test_ipc_data_packed_correctly_for_partial_ip
     using namespace ::testing;
 
     int fake_fence{33};
-    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled);
+    mga::Platform platform(stub_display_builder, stub_display_report, mga::OverlayOptimization::enabled, quirks);
     auto ipc_ops = platform.make_ipc_operations();
 
     mtd::MockBufferIpcMessage mock_ipc_msg;
@@ -228,7 +231,8 @@ TEST(AndroidGraphicsPlatform, egl_native_display_is_egl_default_display)
     mga::Platform platform(
         std::make_shared<mtd::StubDisplayBuilder>(),
         mr::null_display_report(),
-        mga::OverlayOptimization::enabled);
+        mga::OverlayOptimization::enabled,
+        std::make_shared<mga::DeviceQuirks>(mga::PropertiesOps{}));
     EXPECT_EQ(EGL_DEFAULT_DISPLAY, platform.egl_native_display());
 }
 
@@ -236,21 +240,23 @@ TEST(AndroidGraphicsPlatform, probe_returns_unsupported_when_no_hwaccess)
 {
     using namespace testing;
     NiceMock<mtd::HardwareAccessMock> hwaccess;
+    mir::options::ProgramOption options;
 
     ON_CALL(hwaccess, hw_get_module(_,_)).WillByDefault(Return(-1));
 
-    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-android.so")};
+    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-android")};
     auto probe = platform_lib.load_function<mg::PlatformProbe>(probe_platform);
-    EXPECT_EQ(mg::PlatformPriority::unsupported, probe());
+    EXPECT_EQ(mg::PlatformPriority::unsupported, probe(options));
 }
 
 TEST(AndroidGraphicsPlatform, probe_returns_best_when_hwaccess_succeeds)
 {
     testing::NiceMock<mtd::HardwareAccessMock> hwaccess;
+    mir::options::ProgramOption options;
 
-    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-android.so")};
+    mir::SharedLibrary platform_lib{mtf::server_platform("graphics-android")};
     auto probe = platform_lib.load_function<mg::PlatformProbe>(probe_platform);
-    EXPECT_EQ(mg::PlatformPriority::best, probe());
+    EXPECT_EQ(mg::PlatformPriority::best, probe(options));
 }
 
 TEST(NestedPlatformCreation, doesnt_access_display_hardware)
@@ -265,5 +271,5 @@ TEST(NestedPlatformCreation, doesnt_access_display_hardware)
     EXPECT_CALL(hwaccess, hw_get_module(StrEq(GRALLOC_HARDWARE_MODULE_ID), _))
         .Times(AtMost(1));
 
-    auto platform = mg::create_guest_platform(mt::fake_shared(stub_report), nullptr);
+    auto platform = create_guest_platform(mt::fake_shared(stub_report), nullptr);
 }

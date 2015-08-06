@@ -21,9 +21,9 @@
 #include "mir/graphics/platform_ipc_operations.h"
 #include "mir/graphics/platform_ipc_package.h"
 
-#include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_display.h"
-#include "mir_test_doubles/null_platform_ipc_operations.h"
+#include "mir/test/doubles/stub_buffer_allocator.h"
+#include "mir/test/doubles/stub_display.h"
+#include "mir/test/doubles/null_platform_ipc_operations.h"
 
 #include <chrono>
 #include <functional>
@@ -36,20 +36,21 @@ namespace mtd = mir::test::doubles;
 namespace
 {
 
-struct StubDisplayBuffer : mtd::StubDisplayBuffer
+struct StubDisplaySyncGroup : mg::DisplaySyncGroup
 {
-    StubDisplayBuffer(geom::Size output_size, int vsync_rate_in_hz)
-        : mtd::StubDisplayBuffer({{0, 0}, output_size}),
-          vsync_rate_in_hz(vsync_rate_in_hz),
-          last_sync(std::chrono::high_resolution_clock::now())
-    {
-    }
-    
-    void gl_swap_buffers() override
+    StubDisplaySyncGroup(geom::Size output_size, int vsync_rate_in_hz) :
+        vsync_rate_in_hz(vsync_rate_in_hz),
+        last_sync(std::chrono::high_resolution_clock::now()),
+        buffer({{0, 0}, output_size})
     {
     }
 
-    void flip() override
+    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& exec) override
+    {
+        exec(buffer);
+    }
+
+    void post() override
     {
         auto now = std::chrono::high_resolution_clock::now();
         auto next_sync = last_sync + std::chrono::seconds(1) / vsync_rate_in_hz;
@@ -59,26 +60,33 @@ struct StubDisplayBuffer : mtd::StubDisplayBuffer
         
         last_sync = now;
     }
+
+    std::chrono::milliseconds recommended_sleep() const override
+    {
+        return std::chrono::milliseconds::zero();
+    }
     
     double const vsync_rate_in_hz;
 
     std::chrono::high_resolution_clock::time_point last_sync;
+
+    mtd::StubDisplayBuffer buffer;
 };
 
 struct StubDisplay : public mtd::StubDisplay
 {
-    StubDisplay(geom::Size output_size, int vsync_rate_in_hz)
-        : mtd::StubDisplay({{{0,0}, output_size}}),
-          buffer(output_size, vsync_rate_in_hz)
+    StubDisplay(geom::Size output_size, int vsync_rate_in_hz) :
+        mtd::StubDisplay({{{0,0}, output_size}}),
+        group(output_size, vsync_rate_in_hz)
     {
     }
     
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& exec) override
+    void for_each_display_sync_group(std::function<void(mg::DisplaySyncGroup&)> const& exec) override
     {
-        exec(buffer);
+        exec(group);
     }
 
-    StubDisplayBuffer buffer;
+    StubDisplaySyncGroup group;
 };
 
 }

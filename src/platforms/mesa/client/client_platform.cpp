@@ -26,6 +26,7 @@
 #include "mir_toolkit/mesa/platform_operation.h"
 
 #include <cstring>
+#include <dlfcn.h>
 
 namespace mcl=mir::client;
 namespace mclm=mir::client::mesa;
@@ -55,6 +56,20 @@ constexpr size_t division_ceiling(size_t a, size_t b)
     return ((a - 1) / b) + 1;
 }
 
+// Hack around the way mesa loads mir: This hack makes the
+// necessary symbols global.
+extern "C" int __attribute__((constructor))
+ensure_loaded_with_rtld_global_mesa_client()
+{
+    Dl_info info;
+
+    // Cast dladdr itself to work around g++-4.8 warnings (LP: #1366134)
+    typedef int (safe_dladdr_t)(int(*func)(), Dl_info *info);
+    safe_dladdr_t *safe_dladdr = (safe_dladdr_t*)&dladdr;
+    safe_dladdr(&ensure_loaded_with_rtld_global_mesa_client, &info);
+    dlopen(info.dli_fname,  RTLD_NOW | RTLD_NOLOAD | RTLD_GLOBAL);
+    return 0;
+}
 }
 
 mclm::ClientPlatform::ClientPlatform(
@@ -136,14 +151,15 @@ MirPlatformMessage* mclm::ClientPlatform::platform_operation(
     MirPlatformMessage const* msg)
 {
     auto const op = mir_platform_message_get_opcode(msg);
+    auto const msg_data = mir_platform_message_get_data(msg);
 
-    if (op == MirMesaPlatformOperation::set_gbm_device)
+    if (op == MirMesaPlatformOperation::set_gbm_device &&
+        msg_data.size == sizeof(MirMesaSetGBMDeviceRequest))
     {
-        auto const msg_data = mir_platform_message_get_data(msg);
-        auto const set_gbm_device_request_ptr =
-            reinterpret_cast<MirMesaSetGBMDeviceRequest const*>(msg_data.data);
+        MirMesaSetGBMDeviceRequest set_gbm_device_request{nullptr};
+        std::memcpy(&set_gbm_device_request, msg_data.data, msg_data.size);
 
-        gbm_dev = set_gbm_device_request_ptr->device;
+        gbm_dev = set_gbm_device_request.device;
 
         static int const success{0};
         MirMesaSetGBMDeviceResponse const response{success};
@@ -160,4 +176,51 @@ MirNativeBuffer* mclm::ClientPlatform::convert_native_buffer(graphics::NativeBuf
 {
     //MirNativeBuffer is type-compatible with the MirNativeBuffer
     return buf;
+}
+
+
+/*
+ * Driver modules get dlopened with RTLD_NOW, meaning that if the below egl
+ * functions aren't found in memory the driver fails to load. This would
+ * normally prevent software clients (those not linked to libEGL) from
+ * successfully loading our client module, but if we mark the undefined
+ * egl function symbols as "weak" then their absence is no longer an error,
+ * even with RTLD_NOW.
+ */
+extern "C" EGLAPI EGLBoolean EGLAPIENTRY
+    eglGetConfigAttrib(EGLDisplay dpy, EGLConfig config,
+                       EGLint attribute, EGLint *value)
+    __attribute__((weak));
+
+MirPixelFormat mclm::ClientPlatform::get_egl_pixel_format(
+    EGLDisplay disp, EGLConfig conf) const
+{
+    MirPixelFormat mir_format = mir_pixel_format_invalid;
+
+    /*
+     * This is based on gbm_dri_is_format_supported() however we can't call it
+     * via the public API gbm_device_is_format_supported because that is
+     * too buggy right now (LP: #1473901).
+     *
+     * Ideally Mesa should implement EGL_NATIVE_VISUAL_ID for all platforms
+     * to explicitly return the exact GBM pixel format. But it doesn't do that
+     * yet (for most platforms). It does however successfully return zero for
+     * EGL_NATIVE_VISUAL_ID, so ignore that for now.
+     */
+    EGLint r = 0, g = 0, b = 0, a = 0;
+    eglGetConfigAttrib(disp, conf, EGL_RED_SIZE, &r);
+    eglGetConfigAttrib(disp, conf, EGL_GREEN_SIZE, &g);
+    eglGetConfigAttrib(disp, conf, EGL_BLUE_SIZE, &b);
+    eglGetConfigAttrib(disp, conf, EGL_ALPHA_SIZE, &a);
+
+    if (r == 8 && g == 8 && b == 8)
+    {
+        // GBM is very limited, which at least makes this simple...
+        if (a == 8)
+            mir_format = mir_pixel_format_argb_8888;
+        else if (a == 0)
+            mir_format = mir_pixel_format_xrgb_8888;
+    }
+
+    return mir_format;
 }

@@ -19,9 +19,10 @@
 #include "mir/default_server_configuration.h"
 #include "null_host_lifecycle_event_listener.h"
 
-
-#include "default_placement_strategy.h"
-#include "default_shell.h"
+#include "mir/shell/canonical_window_manager.h"
+#include "mir/input/composite_event_filter.h"
+#include "mir/shell/abstract_shell.h"
+#include "default_persistent_surface_store.h"
 #include "frontend_shell.h"
 #include "graphics_display_layout.h"
 
@@ -34,14 +35,25 @@ auto mir::DefaultServerConfiguration::the_shell() -> std::shared_ptr<msh::Shell>
 {
     return shell([this]
         {
-            return wrap_shell(std::make_shared<msh::DefaultShell>(
+            auto const result = wrap_shell(std::make_shared<msh::AbstractShell>(
                 the_input_targeter(),
                 the_surface_coordinator(),
                 the_session_coordinator(),
                 the_prompt_session_manager(),
-                the_placement_strategy(),
-                the_surface_configurator()));
+                the_window_manager_builder()));
+
+            the_composite_event_filter()->prepend(result);
+
+            return result;
         });
+}
+
+auto mir::DefaultServerConfiguration::the_window_manager_builder() -> shell::WindowManagerBuilder
+{
+    return [this](msh::FocusController* focus_controller)
+        { return std::make_shared<msh::CanonicalWindowManager>(
+            focus_controller,
+            the_shell_display_layout()); };
 }
 
 auto mir::DefaultServerConfiguration::wrap_shell(std::shared_ptr<msh::Shell> const& wrapped) -> std::shared_ptr<msh::Shell>
@@ -49,12 +61,22 @@ auto mir::DefaultServerConfiguration::wrap_shell(std::shared_ptr<msh::Shell> con
     return wrapped;
 }
 
+std::shared_ptr<msh::PersistentSurfaceStore>
+mir::DefaultServerConfiguration::the_persistent_surface_store()
+{
+    return surface_store([]()
+    {
+        return std::make_shared<msh::DefaultPersistentSurfaceStore>();
+    });
+}
+
 std::shared_ptr<mf::Shell>
 mir::DefaultServerConfiguration::the_frontend_shell()
 {
     return frontend_shell([this]
         {
-            return std::make_shared<msh::detail::FrontendShell>(the_shell());
+            return std::make_shared<msh::detail::FrontendShell>(the_shell(),
+                                                                the_persistent_surface_store());
         });
 }
 
@@ -62,17 +84,6 @@ std::shared_ptr<msh::FocusController>
 mir::DefaultServerConfiguration::the_focus_controller()
 {
     return the_shell();
-}
-
-std::shared_ptr<ms::PlacementStrategy>
-mir::DefaultServerConfiguration::the_placement_strategy()
-{
-    return placement_strategy(
-        [this]
-        {
-            return std::make_shared<msh::DefaultPlacementStrategy>(
-                the_shell_display_layout());
-        });
 }
 
 std::shared_ptr<msh::DisplayLayout>

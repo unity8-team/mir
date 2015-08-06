@@ -16,21 +16,21 @@
  * Authored by: Kevin DuBois <kevin.dubois@canonical.com>
  */
 
-#include "mir_test_doubles/mock_fb_hal_device.h"
-#include "mir_test_doubles/mock_buffer.h"
-#include "mir_test_doubles/stub_android_native_buffer.h"
+#include "mir/test/doubles/mock_fb_hal_device.h"
+#include "mir/test/doubles/mock_buffer.h"
+#include "mir/test/doubles/stub_android_native_buffer.h"
 #include "src/platforms/android/server/fb_device.h"
 #include "src/platforms/android/server/hwc_fallback_gl_renderer.h"
 #include "src/platforms/android/server/hwc_layerlist.h"
-#include "mir_test_doubles/mock_framebuffer_bundle.h"
-#include "mir_test_doubles/mock_android_hw.h"
-#include "mir_test_doubles/mock_egl.h"
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_renderable.h"
-#include "mir_test_doubles/mock_android_native_buffer.h"
-#include "mir_test_doubles/mock_swapping_gl_context.h"
-#include "mir_test_doubles/stub_renderable_list_compositor.h"
-#include "mir_test_doubles/mock_renderable_list_compositor.h"
+#include "mir/test/doubles/mock_framebuffer_bundle.h"
+#include "mir/test/doubles/mock_android_hw.h"
+#include "mir/test/doubles/mock_egl.h"
+#include "mir/test/doubles/stub_buffer.h"
+#include "mir/test/doubles/stub_renderable.h"
+#include "mir/test/doubles/mock_android_native_buffer.h"
+#include "mir/test/doubles/mock_swapping_gl_context.h"
+#include "mir/test/doubles/stub_renderable_list_compositor.h"
+#include "mir/test/doubles/mock_renderable_list_compositor.h"
 
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -67,14 +67,14 @@ struct FBDevice : public ::testing::Test
     std::shared_ptr<mir::graphics::NativeBuffer> native_buffer;
     mtd::HardwareAccessMock hw_access_mock;
     testing::NiceMock<mtd::MockSwappingGLContext> mock_context;
-    mga::LayerList list{std::make_shared<mga::IntegerSourceCrop>(), {}};
+    mga::LayerList list{std::make_shared<mga::IntegerSourceCrop>(), {}, geom::Displacement{}};
     mtd::StubRenderableListCompositor stub_compositor;
     mga::DisplayName primary{mga::DisplayName::primary};
 };
 
 TEST_F(FBDevice, rejects_renderables)
 {
-    std::list<std::shared_ptr<mg::Renderable>> renderlist
+    mg::RenderableList renderlist
     {
         std::make_shared<mtd::StubRenderable>(),
         std::make_shared<mtd::StubRenderable>()
@@ -93,12 +93,16 @@ TEST_F(FBDevice, commits_frame)
         .WillOnce(Return(0));
 
     mga::FBDevice fbdev(fb_hal_mock);
+    mga::DisplayContents content{primary, list, geom::Displacement{}, mock_context, stub_compositor};
 
     EXPECT_THROW({
-        fbdev.commit(primary, list, mock_context, stub_compositor);
+        fbdev.commit({content});
     }, std::runtime_error);
 
-    fbdev.commit(primary, list, mock_context, stub_compositor);
+    fbdev.commit({content});
+
+    // Predictive bypass not enabled in FBDevice
+    EXPECT_EQ(0, fbdev.recommended_sleep().count());
 }
 
 //not all fb devices provide a swap interval hook. make sure we don't explode if thats the case
@@ -138,17 +142,7 @@ TEST_F(FBDevice, bundle_from_fb)
 {
     using namespace testing;
     mga::FbControl fb_control(fb_hal_mock);
-    auto attribs = fb_control.active_attribs_for(mga::DisplayName::primary);
-    EXPECT_EQ(display_size, attribs.pixel_size);
-    EXPECT_EQ(mir_pixel_format_abgr_8888, attribs.display_format);
-    EXPECT_EQ(fbnum, attribs.num_framebuffers);
-}
-
-//some drivers incorrectly report 0 buffers available. request 2 fbs in this case.
-TEST_F(FBDevice, determine_fbnum_always_reports_2_minimum)
-{
-    auto slightly_malformed_fb_hal_mock = std::make_shared<mtd::MockFBHalDevice>(
-        display_size.width.as_int(), display_size.height.as_int(), format, 0);
-    mga::FbControl fb_control(slightly_malformed_fb_hal_mock);
-    EXPECT_EQ(2u, fb_control.active_attribs_for(mga::DisplayName::primary).num_framebuffers);
+    auto attribs = fb_control.active_config_for(mga::DisplayName::primary);
+    EXPECT_EQ(display_size, attribs.modes[attribs.current_mode_index].size);
+    EXPECT_EQ(mir_pixel_format_abgr_8888, attribs.current_format);
 }

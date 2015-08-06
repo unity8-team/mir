@@ -19,17 +19,18 @@
 
 #include "hwc_fb_device.h"
 #include "framebuffer_bundle.h"
-#include "android_format_conversion-inl.h"
 #include "hwc_wrapper.h"
 #include "hwc_fallback_gl_renderer.h"
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/native_buffer.h"
+#include "mir/graphics/android/android_format_conversion-inl.h"
 #include "swapping_gl_context.h"
 #include "hwc_layerlist.h"
 
 #include <boost/throw_exception.hpp>
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
 
 namespace mg = mir::graphics;
 namespace mga = mir::graphics::android;
@@ -55,12 +56,16 @@ mga::HwcFbDevice::HwcFbDevice(
 {
 }
 
-void mga::HwcFbDevice::commit(
-    mga::DisplayName,
-    mga::LayerList& layer_list,
-    SwappingGLContext const& context,
-    RenderableListCompositor const&)
+void mga::HwcFbDevice::commit(std::list<DisplayContents> const& contents)
 {
+    auto primary_contents = std::find_if(contents.begin(), contents.end(),
+        [](mga::DisplayContents const& c) {
+            return (c.name == mga::DisplayName::primary);
+    });
+    if (primary_contents == contents.end()) return;
+    auto& layer_list = primary_contents->list;
+    auto& context = primary_contents->context;
+
     layer_list.setup_fb(context.last_rendered_buffer());
 
     if (auto display_list = layer_list.native_list())
@@ -107,4 +112,9 @@ bool mga::HwcFbDevice::compatible_renderlist(RenderableList const&)
 
 void mga::HwcFbDevice::content_cleared()
 {
+}
+
+std::chrono::milliseconds mga::HwcFbDevice::recommended_sleep() const
+{
+    return std::chrono::milliseconds::zero();
 }

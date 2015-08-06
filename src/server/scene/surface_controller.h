@@ -26,7 +26,6 @@ namespace mir
 {
 namespace scene
 {
-class PlacementStrategy;
 class SurfaceStackModel;
 class SurfaceFactory;
 
@@ -38,13 +37,19 @@ public:
         std::shared_ptr<SurfaceFactory> const& surface_factory,
         std::shared_ptr<SurfaceStackModel> const& surface_stack);
 
-    std::shared_ptr<Surface> add_surface(
-        SurfaceCreationParameters const& params,
+    void add_surface(
+        std::shared_ptr<Surface> const&,
+        scene::DepthId new_depth,
+        input::InputReceptionMode const& new_mode,
         Session* session) override;
 
     void remove_surface(std::weak_ptr<Surface> const& surface) override;
 
     void raise(std::weak_ptr<Surface> const& surface) override;
+
+    void raise(SurfaceSet const& surfaces) override;
+
+    auto surface_at(geometry::Point) const -> std::shared_ptr<Surface> override;
 
 private:
     std::shared_ptr<SurfaceFactory> const surface_factory;

@@ -40,7 +40,8 @@ public:
     Platform(
         std::shared_ptr<DisplayComponentFactory> const& display_buffer_builder,
         std::shared_ptr<DisplayReport> const& display_report,
-        OverlayOptimization overlay_option);
+        OverlayOptimization overlay_option,
+        std::shared_ptr<DeviceQuirks> const& quirks);
 
     /* From Platform */
     std::shared_ptr<graphics::GraphicBufferAllocator> create_buffer_allocator() override;
@@ -52,15 +53,13 @@ public:
     EGLNativeDisplayType egl_native_display() const override;
 
 private:
-    std::shared_ptr<Display> create_fb_backup_display();
-
     std::shared_ptr<GraphicBufferAllocator> create_mga_buffer_allocator();
 
     std::shared_ptr<DisplayComponentFactory> const display_buffer_builder;
     std::shared_ptr<DisplayReport> const display_report;
     std::shared_ptr<PlatformIpcOperations> const ipc_operations;
+    std::shared_ptr<DeviceQuirks> const quirks;
     OverlayOptimization const overlay_option;
-    DeviceQuirks quirks{PropertiesOps{}};
 };
 
 }

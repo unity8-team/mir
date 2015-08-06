@@ -19,10 +19,13 @@
 #ifndef MIR_GRAPHICS_ANDROID_DISPLAY_SUPPORT_PROVIDER_H_
 #define MIR_GRAPHICS_ANDROID_DISPLAY_SUPPORT_PROVIDER_H_
 
+#include "mir/geometry/displacement.h"
 #include "mir/graphics/renderable.h"
 #include "mir_toolkit/common.h"
 #include "display_name.h"
 #include <EGL/egl.h>
+#include <list>
+#include <chrono>
 
 namespace mir
 {
@@ -37,6 +40,15 @@ class RenderableListCompositor;
 class SwappingGLContext;
 class LayerList;
 
+struct DisplayContents
+{
+    DisplayName name;
+    LayerList& list;
+    geometry::Displacement list_offset;
+    SwappingGLContext& context;
+    RenderableListCompositor& compositor; 
+};
+ 
 class DisplayDevice
 {
 public:
@@ -50,14 +62,12 @@ public:
     /* post the layer list to the display, optionally drawing using the context/compositor if
      * instructed to by the driver
      */
-    virtual void commit(
-        DisplayName display_name,
-        LayerList& layer_list,
-        SwappingGLContext const& context,
-        RenderableListCompositor const& compositor) = 0;
+    virtual void commit(std::list<DisplayContents> const& contents) = 0;
 
     //notify the DisplayDevice that the screen content was cleared in a way other than the above fns
     virtual void content_cleared() = 0;
+
+    virtual std::chrono::milliseconds recommended_sleep() const = 0;
 
 protected:
     DisplayDevice() = default;

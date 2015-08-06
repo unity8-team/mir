@@ -95,16 +95,7 @@ void mc::ScreencastDisplayBuffer::gl_swap_buffers()
     glFinish();
 }
 
-void mc::ScreencastDisplayBuffer::flip()
-{
-}
-
 MirOrientation mc::ScreencastDisplayBuffer::orientation() const
 {
     return mir_orientation_normal;
-}
-
-bool mc::ScreencastDisplayBuffer::uses_alpha() const
-{
-    return false;
 }

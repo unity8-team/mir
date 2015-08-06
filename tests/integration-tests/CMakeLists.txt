@@ -17,7 +17,10 @@ protobuf_generate_cpp(
 
 set(
   INTEGRATION_TESTS_SRCS
+  test_focus_selection.cpp
+  test_touchspot_visualization.cpp
   test_surface_stack_with_compositor.cpp
+  test_buffer_scheduling.cpp
   test_client_screencast.cpp
   test_large_messages.cpp
   test_protobuf.cpp
@@ -33,7 +36,6 @@ set(
   test_swapinterval.cpp
   test_server_client_types.cpp
   test_server_shutdown.cpp
-  test_default_shell.cpp
   test_session.cpp
   session_management.cpp
   surface_composition.cpp
@@ -43,7 +45,6 @@ set(
 
 add_subdirectory(client/)
 add_subdirectory(compositor/)
-add_subdirectory(frontend/)
 add_subdirectory(shell/)
 add_subdirectory(process/)
 add_subdirectory(input/)
@@ -52,7 +53,7 @@ if (MIR_TEST_PLATFORM STREQUAL "android")
   add_subdirectory(graphics/android)
 endif()
 
-if(MIR_TEST_PLATFORM STREQUAL "mesa")
+if(MIR_TEST_PLATFORM STREQUAL "mesa-kms")
   include_directories(
     ${DRM_INCLUDE_DIRS}
     ${GBM_INCLUDE_DIRS}
@@ -61,15 +62,13 @@ if(MIR_TEST_PLATFORM STREQUAL "mesa")
     ${CMAKE_SOURCE_DIR}
   )
   add_subdirectory(graphics/mesa)
-  list(APPEND INTEGRATION_TESTS_SRCS test_drm_auth_magic.cpp)
 endif()
 
-link_directories(${LIBRARY_OUTPUT_PATH})
+link_directories(${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 mir_add_wrapped_executable(
   mir_integration_tests
   ${INTEGRATION_TESTS_SRCS}
   ${MIR_SERVER_OBJECTS}
-  $<TARGET_OBJECTS:mirclientobjects>
   ${MIR_PLATFORM_OBJECTS}
   ${MIR_COMMON_OBJECTS}
 )
@@ -83,18 +82,19 @@ uses_android_input(mir_integration_tests)
 target_link_libraries(
   mir_integration_tests
 
-  mir-test
-  mir-test-framework
-  mir-test-doubles
+  mir-test-static
+  mir-test-framework-static
+  mir-test-doubles-static
   mirclient-debug-extension
-
+  mirclient-static
   mirdraw
-  mirclientrpc
-  mirclientlttngstatic
+  mirclientrpc-static
+  mirclientlttng-static
 
-  3rd_party
+  android-input-static
+  xcursorloader-static
 
-  ${PROTOBUF_LIBRARIES}
+  ${PROTOBUF_LITE_LIBRARIES}
   ${Boost_LIBRARIES}
   ${GTEST_BOTH_LIBRARIES}
   ${GMOCK_LIBRARY}
@@ -117,9 +117,15 @@ target_link_libraries(
   ${MIR_SERVER_REFERENCES}
 )
 
+if (MIR_BUILD_PLATFORM_MESA_KMS)
+target_link_libraries(mir_integration_tests
+  mirsharedmesaservercommon-static
+)
+endif()
+
 if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_integration_tests
-  mirsharedandroid
+  mirsharedandroid-static
   ${ANDROID_PROPERTIES_LDFLAGS}
 )
 endif()
@@ -132,5 +138,5 @@ CMAKE_DEPENDENT_OPTION(
   OFF)
 
 if (MIR_RUN_INTEGRATION_TESTS)
-  mir_discover_tests(mir_integration_tests)
+  mir_discover_tests_with_fd_leak_detection(mir_integration_tests)
 endif (MIR_RUN_INTEGRATION_TESTS)

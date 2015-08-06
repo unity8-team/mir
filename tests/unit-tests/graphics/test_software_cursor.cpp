@@ -20,10 +20,10 @@
 #include "mir/graphics/cursor_image.h"
 #include "mir/graphics/renderable.h"
 
-#include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_input_scene.h"
+#include "mir/test/doubles/stub_buffer_allocator.h"
+#include "mir/test/doubles/stub_input_scene.h"
 
-#include "mir_test/fake_shared.h"
+#include "mir/test/fake_shared.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -199,6 +199,25 @@ TEST_F(SoftwareCursor, notifies_scene_when_moving)
     cursor.move_to({22,23});
 }
 
+TEST_F(SoftwareCursor, multiple_shows_just_show)
+{
+    using namespace testing;
+
+    InSequence s;
+    EXPECT_CALL(mock_input_scene, add_input_visualization(_));
+
+    EXPECT_CALL(mock_input_scene, remove_input_visualization(_));
+    EXPECT_CALL(mock_input_scene, add_input_visualization(_));
+
+    EXPECT_CALL(mock_input_scene, remove_input_visualization(_)); // removal on destruction
+
+    cursor.show(stub_cursor_image);
+    cursor.hide();
+    cursor.show();
+    cursor.show();
+}
+
+
 TEST_F(SoftwareCursor, creates_renderable_with_filled_buffer)
 {
     using namespace testing;
@@ -273,4 +292,24 @@ TEST_F(SoftwareCursor, places_new_cursor_renderable_at_correct_position)
                 add_input_visualization(RenderableWithPosition(renderable_position)));
 
     cursor.show(another_stub_cursor_image);
+}
+
+//lp: #1413211
+TEST_F(SoftwareCursor, new_buffer_on_each_show)
+{
+    struct MockBufferAllocator : public mg::GraphicBufferAllocator
+    {
+        MOCK_METHOD1(alloc_buffer, std::shared_ptr<mg::Buffer>(mg::BufferProperties const&));
+        std::vector<MirPixelFormat> supported_pixel_formats() { return {mir_pixel_format_abgr_8888}; } 
+    } mock_allocator;
+
+    EXPECT_CALL(mock_allocator, alloc_buffer(testing::_))
+        .Times(3)
+        .WillRepeatedly(testing::Return(std::make_shared<mtd::StubBuffer>()));;
+    mg::SoftwareCursor cursor{
+        mt::fake_shared(mock_allocator),
+        mt::fake_shared(mock_input_scene)};
+    cursor.show(another_stub_cursor_image);
+    cursor.show(another_stub_cursor_image);
+    cursor.show(stub_cursor_image);
 }

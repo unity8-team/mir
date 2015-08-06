@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -18,14 +18,14 @@
 
 #include "src/server/compositor/buffer_stream_surfaces.h"
 #include "mir/graphics/graphic_buffer_allocator.h"
-#include "mir/time/timer.h"
+
 #include "src/server/compositor/buffer_queue.h"
 #include "src/server/compositor/timeout_frame_dropping_policy_factory.h"
 
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/mock_timer.h"
-#include "mir_test/signal.h"
+#include "mir/test/doubles/stub_buffer.h"
+#include "mir/test/doubles/stub_buffer_allocator.h"
+#include "mir/test/doubles/mock_timer.h"
+#include "mir/test/signal.h"
 
 #include <gmock/gmock.h>
 
@@ -335,8 +335,7 @@ void snapshot_loop(mc::BufferStream &stream,
 {
     while (!done.load())
     {
-        auto out_region = stream.lock_snapshot_buffer();
-        ASSERT_NE(nullptr, out_region);
+        stream.with_most_recent_buffer_do([](mg::Buffer&){});
         std::this_thread::yield();
     }
 }

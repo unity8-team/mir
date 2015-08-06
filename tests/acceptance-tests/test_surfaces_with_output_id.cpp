@@ -25,12 +25,11 @@
 #include "mir_test_framework/connected_client_headless_server.h"
 #include "mir_test_framework/any_surface.h"
 
-#include "mir_test/validity_matchers.h"
+#include "mir/test/validity_matchers.h"
 
 #include <gtest/gtest.h>
 
 #include <vector>
-#include <tuple>
 #include <algorithm>
 
 namespace mf = mir::frontend;
@@ -82,7 +81,10 @@ public:
         for (auto const& surface : surfaces)
         {
             if (auto const ss = surface.lock())
-                rects.push_back(ss->compositor_snapshot(this)->screen_position());
+            {
+                for (auto& renderable: ss->generate_renderables(this))
+                    rects.push_back(renderable->screen_position());
+            }
         }
         return rects;
     }
@@ -129,6 +131,7 @@ struct SurfacesWithOutputId : mtf::ConnectedClientHeadlessServer
         mir_surface_spec_set_fullscreen_on_output(spec, output.output_id);
         
         auto surface_raw = mir_surface_create_sync(spec);
+        mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface_raw));
         mir_surface_spec_release(spec);
 
         return shared_ptr_surface(surface_raw);
@@ -145,6 +148,7 @@ struct SurfacesWithOutputId : mtf::ConnectedClientHeadlessServer
         mir_surface_spec_set_fullscreen_on_output(spec, output.output_id);
 
         auto surface_raw = mir_surface_create_sync(spec);
+        mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface_raw));
         mir_surface_spec_release(spec);
 
         return shared_ptr_surface(surface_raw);

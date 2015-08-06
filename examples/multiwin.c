@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <getopt.h>
+#include <stdlib.h>
 
 typedef struct
 {
@@ -68,6 +69,7 @@ static void put_pixels(void *where, int count, MirPixelFormat format,
         break;
     case mir_pixel_format_xbgr_8888:
         pixel = 
+            /* Not filling in the X byte is correct but buggy (LP: #1423462) */
             (uint32_t)color->b << 16 |
             (uint32_t)color->g << 8  |
             (uint32_t)color->r;
@@ -81,9 +83,20 @@ static void put_pixels(void *where, int count, MirPixelFormat format,
         break;
     case mir_pixel_format_xrgb_8888:
         pixel = 
+            /* Not filling in the X byte is correct but buggy (LP: #1423462) */
             (uint32_t)color->r << 16 |
             (uint32_t)color->g << 8  |
             (uint32_t)color->b;
+        break;
+    case mir_pixel_format_rgb_888:
+        for (n = 0; n < count; n++)
+        {
+            uint8_t *p = (uint8_t*)where + n * 3;
+            p[0] = color->r;
+            p[1] = color->g;
+            p[2] = color->b;
+        }
+        count = 0;
         break;
     case mir_pixel_format_bgr_888:
         for (n = 0; n < count; n++)
@@ -92,6 +105,38 @@ static void put_pixels(void *where, int count, MirPixelFormat format,
             p[0] = color->b;
             p[1] = color->g;
             p[2] = color->r;
+        }
+        count = 0;
+        break;
+    case mir_pixel_format_rgb_565:
+        for (n = 0; n < count; n++)
+        {
+            uint16_t *p = (uint16_t*)where + n;
+            *p = (uint16_t)(color->r >> 3) << 11 |
+                 (uint16_t)(color->g >> 2) << 5  |
+                 (uint16_t)(color->b >> 3);
+        }
+        count = 0;
+        break;
+    case mir_pixel_format_rgba_5551:
+        for (n = 0; n < count; n++)
+        {
+            uint16_t *p = (uint16_t*)where + n;
+            *p = (uint16_t)(color->r >> 3) << 11 |
+                 (uint16_t)(color->g >> 3) << 6  |
+                 (uint16_t)(color->b >> 3) << 1  |
+                 (uint16_t)(color->a ? 1 : 0);
+        }
+        count = 0;
+        break;
+    case mir_pixel_format_rgba_4444:
+        for (n = 0; n < count; n++)
+        {
+            uint16_t *p = (uint16_t*)where + n;
+            *p = (uint16_t)(color->r >> 4) << 12 |
+                 (uint16_t)(color->g >> 4) << 8  |
+                 (uint16_t)(color->b >> 4) << 4  |
+                 (uint16_t)(color->a >> 4);
         }
         count = 0;
         break;
@@ -119,10 +164,11 @@ static void clear_region(const MirGraphicsRegion *region, const Color *color)
 static void draw_window(Window *win)
 {
     MirGraphicsRegion region;
+    MirBufferStream *bs = mir_surface_get_buffer_stream(win->surface);
 
-    mir_surface_get_graphics_region(win->surface, &region);
+    mir_buffer_stream_get_graphics_region(bs, &region);
     clear_region(&region, &win->fill);
-    mir_surface_swap_buffers_sync(win->surface);
+    mir_buffer_stream_swap_buffers_sync(bs);
 }
 
 static char const *socket_file = NULL;
@@ -132,13 +178,23 @@ int main(int argc, char *argv[])
     MirConnection *conn;
     Window win[3];
     unsigned int f;
+    MirPixelFormat pixel_format = mir_pixel_format_invalid;
+    int alpha = 0x50;
 
     int arg;
     opterr = 0;
-    while ((arg = getopt (argc, argv, "hm:")) != -1)
+    while ((arg = getopt (argc, argv, "hm:a:p:")) != -1)
     {
         switch (arg)
         {
+        case 'a':
+            alpha = atoi(optarg);
+            break;
+
+        case 'p':
+            pixel_format = (MirPixelFormat)atoi(optarg);
+            break;
+
         case 'm':
             socket_file = optarg;
             break;
@@ -149,7 +205,9 @@ int main(int argc, char *argv[])
             puts(argv[0]);
             puts("Usage:");
             puts("    -m <Mir server socket>");
-            puts("    -h: this help text");
+            puts("    -a      Alpha for surfaces");
+            puts("    -p <N>  Force pixel format N");
+            puts("    -h      This help text");
             return -1;
         }
     }
@@ -157,30 +215,32 @@ int main(int argc, char *argv[])
     conn = mir_connect_sync(socket_file, argv[0]);
     if (!mir_connection_is_valid(conn))
     {
-        fprintf(stderr, "Could not connect to a display server.\n");
+        fprintf(stderr, "Could not connect to a display server: %s\n", mir_connection_get_error_message(conn));
         return 1;
     }
 
-    unsigned int const pf_size = 32;
-    MirPixelFormat formats[pf_size];
-    unsigned int valid_formats;
-    mir_connection_get_available_surface_formats(conn, formats, pf_size, &valid_formats);
-
-    MirPixelFormat pixel_format = mir_pixel_format_invalid;
-    for (f = 0; f < valid_formats; f++)
-    {
-        if (formats[f] == mir_pixel_format_abgr_8888 ||
-            formats[f] == mir_pixel_format_argb_8888)
-        {
-            pixel_format = formats[f];
-            break;
-        }
-    }
     if (pixel_format == mir_pixel_format_invalid)
     {
-        fprintf(stderr, "Could not find a fast 32-bit pixel format with "
-                        "alpha support. Blending won't work!.\n");
-        pixel_format = formats[0];
+        MirPixelFormat formats[mir_pixel_formats];
+        unsigned int valid_formats;
+        mir_connection_get_available_surface_formats(conn, formats,
+            mir_pixel_formats, &valid_formats);
+
+        for (f = 0; f < valid_formats; f++)
+        {
+            if (formats[f] == mir_pixel_format_abgr_8888 ||
+                formats[f] == mir_pixel_format_argb_8888)
+            {
+                pixel_format = formats[f];
+                break;
+            }
+        }
+        if (pixel_format == mir_pixel_format_invalid)
+        {
+            fprintf(stderr, "Could not find a fast 32-bit pixel format with "
+                            "alpha support. Blending won't work!.\n");
+            pixel_format = formats[0];
+        }
     }
 
     MirSurfaceSpec *spec =
@@ -199,7 +259,7 @@ int main(int argc, char *argv[])
     win[0].fill.r = 0xff;
     win[0].fill.g = 0x00;
     win[0].fill.b = 0x00;
-    win[0].fill.a = 0x50;
+    win[0].fill.a = alpha;
     premultiply_alpha(&win[0].fill);
 
     mir_surface_spec_set_name(spec, "green");
@@ -209,7 +269,7 @@ int main(int argc, char *argv[])
     win[1].fill.r = 0x00;
     win[1].fill.g = 0xff;
     win[1].fill.b = 0x00;
-    win[1].fill.a = 0x50;
+    win[1].fill.a = alpha;
     premultiply_alpha(&win[1].fill);
 
     mir_surface_spec_set_name(spec, "blue");
@@ -219,7 +279,7 @@ int main(int argc, char *argv[])
     win[2].fill.r = 0x00;
     win[2].fill.g = 0x00;
     win[2].fill.b = 0xff;
-    win[2].fill.a = 0x50;
+    win[2].fill.a = alpha;
     premultiply_alpha(&win[2].fill);
 
     mir_surface_spec_release(spec);

@@ -40,8 +40,6 @@ public:
 
     void close_session(std::shared_ptr<Session> const& session)  override;
 
-    void handle_surface_created(std::shared_ptr<Session> const& session) override;
-
     std::shared_ptr<PromptSession> start_prompt_session_for(
         std::shared_ptr<Session> const& session,
         scene::PromptSessionCreationParameters const& params) override;
@@ -55,7 +53,13 @@ public:
 
     SurfaceId create_surface(std::shared_ptr<Session> const& session, scene::SurfaceCreationParameters const& params) override;
 
+    void modify_surface(std::shared_ptr<Session> const& session, SurfaceId surface, shell::SurfaceSpecification const& modifications) override;
+
     void destroy_surface(std::shared_ptr<Session> const& session, SurfaceId surface) override;
+
+    std::string persistent_id_for(std::shared_ptr<Session> const& session, SurfaceId surface) override;
+
+    std::shared_ptr<scene::Surface> surface_for_id(std::string const& serialised_id) override;
 
     int set_surface_attribute(
         std::shared_ptr<Session> const& session,

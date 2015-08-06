@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 
+namespace mt = mir::test;
 namespace mtf = mir_test_framework;
 
 using ServerShutdown = mtf::InterprocessClientServerTest;
@@ -49,9 +50,11 @@ TEST_F(ServerShutdown, normal_exit_removes_endpoint)
     }
 }
 
-TEST_F(ServerShutdown, abort_removes_endpoint)
+using ServerShutdownDeathTest = ServerShutdown;
+
+TEST_F(ServerShutdownDeathTest, abort_removes_endpoint)
 {
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     run_in_server([&]
         {
@@ -76,12 +79,12 @@ TEST_F(ServerShutdown, abort_removes_endpoint)
     }
 }
 
-TEST_F(ServerShutdown, fatal_error_abort_causes_abort_on_fatal_error)
+TEST_F(ServerShutdownDeathTest, fatal_error_abort_causes_abort_on_fatal_error)
 {
     // Change the fatal error strategy before starting the Mir server
     mir::FatalErrorStrategy on_error{mir::fatal_error_abort};
 
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     run_in_server([&]
         {
@@ -102,11 +105,11 @@ TEST_F(ServerShutdown, fatal_error_abort_causes_abort_on_fatal_error)
     }
 }
 
-TEST_F(ServerShutdown, fatal_error_abort_removes_endpoint)
+TEST_F(ServerShutdownDeathTest, fatal_error_abort_removes_endpoint)
 {   // Even fatal errors sometimes need to be caught for critical cleanup...
     mir::FatalErrorStrategy on_error{mir::fatal_error_abort};
 
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     run_in_server([&]
         {
@@ -126,11 +129,11 @@ TEST_F(ServerShutdown, fatal_error_abort_removes_endpoint)
     };
 }
 
-TEST_F(ServerShutdown, on_fatal_error_abort_option_causes_abort_on_fatal_error)
+TEST_F(ServerShutdownDeathTest, on_fatal_error_abort_option_causes_abort_on_fatal_error)
 {
     add_to_environment( "MIR_SERVER_ON_FATAL_ERROR_ABORT", "");
 
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     run_in_server([&]
         {
@@ -151,14 +154,14 @@ TEST_F(ServerShutdown, on_fatal_error_abort_option_causes_abort_on_fatal_error)
     }
 }
 
-TEST_F(ServerShutdown, mir_fatal_error_during_init_removes_endpoint)
+TEST_F(ServerShutdownDeathTest, mir_fatal_error_during_init_removes_endpoint)
 {   // Even fatal errors sometimes need to be caught for critical cleanup...
 
     add_to_environment("MIR_SERVER_FILE", mir_test_socket);
     server.add_init_callback([&] { mir::fatal_error("Bang"); });
     server.apply_settings();
 
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     if (auto const pid = fork())
     {
@@ -178,11 +181,11 @@ TEST_F(ServerShutdown, mir_fatal_error_during_init_removes_endpoint)
     }
 }
 
-struct OnSignal : ServerShutdown, ::testing::WithParamInterface<int> {};
+struct OnSignalDeathTest : ServerShutdown, ::testing::WithParamInterface<int> {};
 
-TEST_P(OnSignal, removes_endpoint)
+TEST_P(OnSignalDeathTest, removes_endpoint)
 {
-    mtf::CrossProcessSync sync;
+    mt::CrossProcessSync sync;
 
     run_in_server([&]
         {
@@ -208,6 +211,6 @@ TEST_P(OnSignal, removes_endpoint)
 }
 
 INSTANTIATE_TEST_CASE_P(ServerShutdown,
-    OnSignal,
+    OnSignalDeathTest,
     ::testing::Values(SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS));
 

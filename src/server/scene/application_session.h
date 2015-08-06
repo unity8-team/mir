@@ -31,19 +31,23 @@ namespace frontend
 {
 class EventSink;
 }
-
+namespace compositor { class BufferStream; }
 namespace scene
 {
 class SessionListener;
 class Surface;
 class SurfaceCoordinator;
 class SnapshotStrategy;
+class BufferStreamFactory;
+class SurfaceFactory;
 
 class ApplicationSession : public Session
 {
 public:
     ApplicationSession(
         std::shared_ptr<SurfaceCoordinator> const& surface_coordinator,
+        std::shared_ptr<SurfaceFactory> const& surface_factory,
+        std::shared_ptr<BufferStreamFactory> const& buffer_stream_factory,
         pid_t pid,
         std::string const& session_name,
         std::shared_ptr<SnapshotStrategy> const& snapshot_strategy,
@@ -56,6 +60,7 @@ public:
     void destroy_surface(frontend::SurfaceId surface) override;
     std::shared_ptr<frontend::Surface> get_surface(frontend::SurfaceId surface) const override;
     std::shared_ptr<Surface> surface(frontend::SurfaceId surface) const override;
+    std::shared_ptr<Surface> surface_after(std::shared_ptr<Surface> const&) const override;
 
     void take_snapshot(SnapshotCallback const& snapshot_taken) override;
     std::shared_ptr<Surface> default_surface() const override;
@@ -77,12 +82,19 @@ public:
     void suspend_prompt_session() override;
     void resume_prompt_session() override;
 
+    std::shared_ptr<frontend::BufferStream> get_buffer_stream(frontend::BufferStreamId stream) const override;
+    frontend::BufferStreamId create_buffer_stream(graphics::BufferProperties const& params) override;
+    void destroy_buffer_stream(frontend::BufferStreamId stream) override;
+    void configure_streams(Surface& surface, std::vector<shell::StreamSpecification> const& config) override;
+
 protected:
     ApplicationSession(ApplicationSession const&) = delete;
     ApplicationSession& operator=(ApplicationSession const&) = delete;
 
 private:
     std::shared_ptr<SurfaceCoordinator> const surface_coordinator;
+    std::shared_ptr<SurfaceFactory> const surface_factory;
+    std::shared_ptr<BufferStreamFactory> const buffer_stream_factory;
     pid_t const pid;
     std::string const session_name;
     std::shared_ptr<SnapshotStrategy> const snapshot_strategy;
@@ -94,9 +106,12 @@ private:
     std::atomic<int> next_surface_id;
 
     typedef std::map<frontend::SurfaceId, std::shared_ptr<Surface>> Surfaces;
+    typedef std::map<frontend::BufferStreamId, std::shared_ptr<compositor::BufferStream>> Streams;
     Surfaces::const_iterator checked_find(frontend::SurfaceId id) const;
-    std::mutex mutable surfaces_mutex;
+    Streams::const_iterator checked_find(frontend::BufferStreamId id) const;
+    std::mutex mutable surfaces_and_streams_mutex;
     Surfaces surfaces;
+    Streams streams;
 };
 
 }

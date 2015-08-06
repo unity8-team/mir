@@ -23,7 +23,7 @@
 #include "mir_connection.h"
 #include "mir/raii.h"
 
-#include "uncaught.h"
+#include "mir/uncaught.h"
 
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
@@ -60,7 +60,7 @@ MirScreencast* mir_connection_create_screencast_sync(
                 size,
                 parameters->pixel_format,
                 connection->display_server(),
-                connection->get_client_buffer_stream_factory(),
+                connection,
                 null_callback, nullptr}};
 
         screencast_uptr->creation_wait_handle()->wait_for_all();
@@ -86,7 +86,13 @@ void mir_screencast_release_sync(MirScreencast* screencast)
     delete screencast;
 }
 
-MirEGLNativeWindowType mir_screencast_egl_native_window(MirScreencast* screencast)
+MirBufferStream *mir_screencast_get_buffer_stream(MirScreencast *screencast)
+try
 {
-    return reinterpret_cast<MirEGLNativeWindowType>(screencast->egl_native_window());
+    return reinterpret_cast<MirBufferStream*>(screencast->get_buffer_stream());
+}
+catch (std::exception const& ex)
+{
+    MIR_LOG_UNCAUGHT_EXCEPTION(ex);
+    return nullptr;
 }

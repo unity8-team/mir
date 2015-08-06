@@ -27,13 +27,16 @@
 #include "src/server/scene/session_event_sink.h"
 #include "src/server/report/null_report_factory.h"
 
-#include "mir_test_doubles/mock_surface_coordinator.h"
-#include "mir_test_doubles/mock_session_listener.h"
-#include "mir_test_doubles/stub_buffer_stream.h"
-#include "mir_test_doubles/null_snapshot_strategy.h"
-#include "mir_test_doubles/null_session_event_sink.h"
+#include "mir/test/doubles/mock_surface_coordinator.h"
+#include "mir/test/doubles/mock_session_listener.h"
+#include "mir/test/doubles/stub_buffer_stream.h"
+#include "mir/test/doubles/stub_buffer_stream_factory.h"
+#include "mir/test/doubles/null_snapshot_strategy.h"
+#include "mir/test/doubles/null_session_event_sink.h"
+#include "mir/test/doubles/stub_surface_factory.h"
+#include "mir/test/doubles/null_application_not_responding_detector.h"
 
-#include "mir_test/fake_shared.h"
+#include "mir/test/fake_shared.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -83,15 +86,20 @@ struct SessionManagerSetup : public testing::Test
         std::shared_ptr<mi::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
         mir::report::null_scene_report());
-    mtd::MockSurfaceCoordinator surface_coordinator;
+    testing::NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
     testing::NiceMock<MockSessionContainer> container;
     ms::NullSessionListener session_listener;
+    mtd::StubBufferStreamFactory buffer_stream_factory;
+    mtd::StubSurfaceFactory stub_surface_factory;
 
     ms::SessionManager session_manager{mt::fake_shared(surface_coordinator),
+        mt::fake_shared(stub_surface_factory),
+        mt::fake_shared(buffer_stream_factory),
         mt::fake_shared(container),
         std::make_shared<mtd::NullSnapshotStrategy>(),
         std::make_shared<mtd::NullSessionEventSink>(),
-        mt::fake_shared(session_listener)};
+        mt::fake_shared(session_listener),
+        std::make_shared<mtd::NullANRDetector>()};
 };
 
 }
@@ -111,10 +119,7 @@ TEST_F(SessionManagerSetup, closing_session_removes_surfaces)
 {
     using namespace ::testing;
 
-    EXPECT_CALL(surface_coordinator, add_surface(_, _)).Times(1);
-
-    ON_CALL(surface_coordinator, add_surface(_, _)).WillByDefault(
-       Return(dummy_surface));
+    EXPECT_CALL(surface_coordinator, add_surface(_,_,_,_)).Times(1);
 
     EXPECT_CALL(container, insert_session(_)).Times(1);
     EXPECT_CALL(container, remove_session(_)).Times(1);
@@ -138,13 +143,17 @@ struct SessionManagerSessionListenerSetup : public testing::Test
     mtd::MockSurfaceCoordinator surface_coordinator;
     testing::NiceMock<MockSessionContainer> container;
     testing::NiceMock<mtd::MockSessionListener> session_listener;
+    mtd::StubSurfaceFactory stub_surface_factory;
 
     ms::SessionManager session_manager{
         mt::fake_shared(surface_coordinator),
+        mt::fake_shared(stub_surface_factory),
+        std::make_shared<mtd::StubBufferStreamFactory>(),
         mt::fake_shared(container),
         std::make_shared<mtd::NullSnapshotStrategy>(),
         std::make_shared<mtd::NullSessionEventSink>(),
-        mt::fake_shared(session_listener)};
+        mt::fake_shared(session_listener),
+        std::make_shared<mtd::NullANRDetector>()};
 };
 }
 
@@ -173,13 +182,17 @@ struct SessionManagerSessionEventsSetup : public testing::Test
     testing::NiceMock<MockSessionContainer> container;    // Inelegant but some tests need a stub
     MockSessionEventSink session_event_sink;
     testing::NiceMock<mtd::MockSessionListener> session_listener;
+    mtd::StubSurfaceFactory stub_surface_factory;
 
     ms::SessionManager session_manager{
         mt::fake_shared(surface_coordinator),
+        mt::fake_shared(stub_surface_factory),
+        std::make_shared<mtd::StubBufferStreamFactory>(),
         mt::fake_shared(container),
         std::make_shared<mtd::NullSnapshotStrategy>(),
         mt::fake_shared(session_event_sink),
-        mt::fake_shared(session_listener)};
+        mt::fake_shared(session_listener),
+        std::make_shared<mtd::NullANRDetector>()};
 };
 }
 

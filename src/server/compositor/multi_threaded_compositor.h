@@ -26,6 +26,8 @@
 #include <memory>
 #include <vector>
 #include <future>
+#include <chrono>
+#include <atomic>
 
 namespace mir
 {
@@ -42,6 +44,7 @@ namespace compositor
 {
 
 class DisplayBufferCompositorFactory;
+class DisplayListener;
 class CompositingFunctor;
 class Scene;
 class CompositorReport;
@@ -57,11 +60,14 @@ enum class CompositorState
 class MultiThreadedCompositor : public Compositor
 {
 public:
-    MultiThreadedCompositor(std::shared_ptr<graphics::Display> const& display,
-                            std::shared_ptr<Scene> const& scene,
-                            std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory,
-                            std::shared_ptr<CompositorReport> const& compositor_report,
-                            bool compose_on_start);
+    MultiThreadedCompositor(
+        std::shared_ptr<graphics::Display> const& display,
+        std::shared_ptr<Scene> const& scene,
+        std::shared_ptr<DisplayBufferCompositorFactory> const& db_compositor_factory,
+        std::shared_ptr<DisplayListener> const& display_listener,
+        std::shared_ptr<CompositorReport> const& compositor_report,
+        std::chrono::milliseconds fixed_composite_delay,  // -1 = automatic
+        bool compose_on_start);
     ~MultiThreadedCompositor();
 
     void start();
@@ -69,18 +75,19 @@ public:
 
 private:
     void create_compositing_threads();
-    void destroy_compositing_threads(std::unique_lock<std::mutex>& lock);
+    void destroy_compositing_threads();
 
     std::shared_ptr<graphics::Display> const display;
     std::shared_ptr<Scene> const scene;
     std::shared_ptr<DisplayBufferCompositorFactory> const display_buffer_compositor_factory;
+    std::shared_ptr<DisplayListener> const display_listener;
     std::shared_ptr<CompositorReport> const report;
 
     std::vector<std::unique_ptr<CompositingFunctor>> thread_functors;
     std::vector<std::future<void>> futures;
 
-    std::mutex state_guard;
-    CompositorState state;
+    std::atomic<CompositorState> state;
+    std::chrono::milliseconds fixed_composite_delay;
     bool compose_on_start;
 
     void schedule_compositing(int number_composites);

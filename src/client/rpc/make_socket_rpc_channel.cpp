@@ -40,23 +40,24 @@ struct Prefix
 } const fd_prefix("fd://");
 }
 
-std::shared_ptr<google::protobuf::RpcChannel>
+std::shared_ptr<mir::client::rpc::MirBasicRpcChannel>
 mclr::make_rpc_channel(std::string const& name,
                        std::shared_ptr<mcl::SurfaceMap> const& map,
                        std::shared_ptr<mcl::DisplayConfiguration> const& disp_conf,
                        std::shared_ptr<RpcReport> const& rpc_report,
                        std::shared_ptr<mcl::LifecycleControl> const& lifecycle_control,
+                       std::shared_ptr<mcl::PingHandler> const& ping_handler,
                        std::shared_ptr<mcl::EventSink> const& event_sink)
 {
     std::unique_ptr<mclr::StreamTransport> transport;
     if (fd_prefix.is_start_of(name))
     {
         auto const fd = atoi(name.c_str()+fd_prefix.size);
-        transport = std::unique_ptr<mclr::StreamTransport>{new mclr::StreamSocketTransport{mir::Fd{fd}}};
+        transport = std::make_unique<mclr::StreamSocketTransport>(mir::Fd{fd});
     }
     else
     {
-        transport = std::unique_ptr<mclr::StreamTransport>{new mclr::StreamSocketTransport{name}};
+        transport = std::make_unique<mclr::StreamSocketTransport>(name);
     }
-    return std::make_shared<MirProtobufRpcChannel>(std::move(transport), map, disp_conf, rpc_report, lifecycle_control, event_sink);
+    return std::make_shared<MirProtobufRpcChannel>(std::move(transport), map, disp_conf, rpc_report, lifecycle_control, ping_handler, event_sink);
 }

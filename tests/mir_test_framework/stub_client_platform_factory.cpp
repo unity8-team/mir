@@ -17,7 +17,7 @@
  */
 
 #include "mir_test_framework/stub_client_platform_factory.h"
-#include "mir_test_doubles/stub_client_buffer_factory.h"
+#include "mir/test/doubles/stub_client_buffer_factory.h"
 #include "mir/client_buffer_factory.h"
 #include "mir/client_buffer.h"
 #include "mir/client_platform.h"
@@ -33,6 +33,8 @@ namespace mtd = mir::test::doubles;
 
 namespace
 {
+
+// TODO: Deduplicate this class (at least two other copies exist)
 struct StubClientPlatform : public mcl::ClientPlatform
 {
     StubClientPlatform(mcl::ClientContext* context)
@@ -60,9 +62,9 @@ struct StubClientPlatform : public mcl::ClientPlatform
         return std::make_shared<mtd::StubClientBufferFactory>();
     }
 
-    std::shared_ptr<EGLNativeWindowType> create_egl_native_window(mcl::EGLNativeSurface*)
+    std::shared_ptr<EGLNativeWindowType> create_egl_native_window(mcl::EGLNativeSurface* surface)
     {
-        auto fake_window = reinterpret_cast<EGLNativeWindowType>(0x12345678lu);
+        auto fake_window = reinterpret_cast<EGLNativeWindowType>(surface);
         return std::make_shared<EGLNativeWindowType>(fake_window);
     }
 
@@ -75,11 +77,16 @@ struct StubClientPlatform : public mcl::ClientPlatform
     MirNativeBuffer* convert_native_buffer(mir::graphics::NativeBuffer* buf) const
     {
         static_cast<void>(buf);
-#ifndef ANDROID
+#ifdef MESA_KMS
         return buf;
 #else
         return nullptr;
 #endif
+    }
+
+    MirPixelFormat get_egl_pixel_format(EGLDisplay, EGLConfig) const override
+    {
+        return mir_pixel_format_argb_8888;
     }
 
     mcl::ClientContext* const context;

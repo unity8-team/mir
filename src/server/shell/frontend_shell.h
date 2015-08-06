@@ -29,6 +29,7 @@ namespace mir
 namespace shell
 {
 class Shell;
+class PersistentSurfaceStore;
 
 namespace detail
 {
@@ -36,9 +37,14 @@ namespace detail
 struct FrontendShell : mf::Shell
 {
     std::shared_ptr<shell::Shell> const wrapped;
+    std::shared_ptr<shell::PersistentSurfaceStore> const surface_store;
 
-    explicit FrontendShell(std::shared_ptr<shell::Shell> const& wrapped) :
-        wrapped{wrapped} {}
+    explicit FrontendShell(std::shared_ptr<shell::Shell> const& wrapped,
+                           std::shared_ptr<shell::PersistentSurfaceStore> const& surface_store)
+        : wrapped{wrapped},
+          surface_store{surface_store}
+    {
+    }
 
     std::shared_ptr<mf::Session> open_session(
         pid_t client_pid,
@@ -46,8 +52,6 @@ struct FrontendShell : mf::Shell
         std::shared_ptr<mf::EventSink> const& sink) override;
 
     void close_session(std::shared_ptr<mf::Session> const& session) override;
-
-    void handle_surface_created(std::shared_ptr<mf::Session> const& session) override;
 
     std::shared_ptr<mf::PromptSession> start_prompt_session_for(
         std::shared_ptr<mf::Session> const& session,
@@ -61,7 +65,13 @@ struct FrontendShell : mf::Shell
 
     mf::SurfaceId create_surface(std::shared_ptr<mf::Session> const& session, ms::SurfaceCreationParameters const& params) override;
 
+    void modify_surface(std::shared_ptr<mf::Session> const& session, mf::SurfaceId surface, SurfaceSpecification const& modifications) override;
+
     void destroy_surface(std::shared_ptr<mf::Session> const& session, mf::SurfaceId surface) override;
+
+    std::string persistent_id_for(std::shared_ptr<mf::Session> const& session, mf::SurfaceId surface) override;
+
+    std::shared_ptr<ms::Surface> surface_for_id(std::string const& serialized_id) override;
 
     int set_surface_attribute(
         std::shared_ptr<mf::Session> const& session,

@@ -25,7 +25,6 @@
 #include <mir/graphics/buffer_id.h>
 #include <mir/graphics/renderable.h>
 #include <mir/graphics/gl_primitive.h>
-#include <mir/graphics/gl_texture_cache.h>
 #include <GLES2/gl2.h>
 #include <unordered_map>
 #include <unordered_set>
@@ -33,18 +32,16 @@
 
 namespace mir
 {
+namespace graphics { class GLTextureCache; }
+
 namespace compositor
 {
-
-enum class DestinationAlpha;
 
 class GLRenderer : public Renderer
 {
 public:
-    GLRenderer(
-        std::unique_ptr<graphics::GLTextureCache> && texture_cache, 
-        geometry::Rectangle const& display_area,
-        DestinationAlpha dest_alpha);
+    GLRenderer(geometry::Rectangle const& display_area);
+    virtual ~GLRenderer();
 
     // These are called with a valid GL context:
     void set_viewport(geometry::Rectangle const& rect) override;
@@ -73,8 +70,6 @@ protected:
      */
     virtual void tessellate(std::vector<graphics::GLPrimitive>& primitives,
                             graphics::Renderable const& renderable) const;
-
-    DestinationAlpha destination_alpha() const;
 
     GLfloat clear_color[4];
 
@@ -106,9 +101,8 @@ protected:
                       GLRenderer::Program const& prog) const;
 
 private:
-    std::unique_ptr<graphics::GLTextureCache> mutable texture_cache;
+    std::unique_ptr<graphics::GLTextureCache> const texture_cache;
     float rotation;
-    DestinationAlpha const dest_alpha;
     geometry::Rectangle viewport;
     glm::mat4 screen_to_gl_coords, screen_rotation;
 

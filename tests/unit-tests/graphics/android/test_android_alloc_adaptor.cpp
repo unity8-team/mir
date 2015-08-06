@@ -17,10 +17,11 @@
  */
 
 #include "src/platforms/android/server/android_alloc_adaptor.h"
+#include "src/platforms/android/server/device_quirks.h"
 #include "mir/graphics/android/native_buffer.h"
 
-#include "mir_test_doubles/mock_android_alloc_device.h"
-#include "mir_test_doubles/mock_alloc_adaptor.h"
+#include "mir/test/doubles/mock_android_alloc_device.h"
+#include "mir/test/doubles/mock_alloc_adaptor.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -38,7 +39,7 @@ public:
     AdaptorICSTest()
      : fb_usage_flags(GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_FB),
        hw_usage_flags(GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_RENDER),
-       sw_usage_flags(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN)
+       sw_usage_flags(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_TEXTURE)
     {}
 
     virtual void SetUp()
@@ -46,7 +47,8 @@ public:
         using namespace testing;
         mock_alloc_device = std::make_shared<NiceMock<mtd::MockAllocDevice>>();
 
-        alloc_adaptor = std::make_shared<mga::AndroidAllocAdaptor>(mock_alloc_device);
+        auto quirks = std::make_shared<mga::DeviceQuirks>(mga::PropertiesOps{});
+        alloc_adaptor = std::make_shared<mga::AndroidAllocAdaptor>(mock_alloc_device, quirks);
 
         pf = mir_pixel_format_abgr_8888;
         size = geom::Size{300, 200};

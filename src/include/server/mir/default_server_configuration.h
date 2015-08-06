@@ -20,6 +20,7 @@
 
 #include "mir/cached_ptr.h"
 #include "mir/server_configuration.h"
+#include "mir/shell/window_manager_builder.h"
 
 #include <memory>
 #include <string>
@@ -30,9 +31,6 @@ class EventHubInterface;
 class InputReaderInterface;
 class InputReaderPolicyInterface;
 class InputListenerInterface;
-class InputDispatcherInterface;
-class InputEnumerator;
-class InputDispatcherPolicyInterface;
 }
 
 namespace droidinput = android;
@@ -40,8 +38,13 @@ namespace droidinput = android;
 namespace mir
 {
 class ServerActionQueue;
+class SharedLibrary;
 class SharedLibraryProberReport;
 
+namespace dispatch
+{
+class MultiplexingDispatchable;
+}
 namespace compositor
 {
 class Renderer;
@@ -77,6 +80,7 @@ class FocusController;
 class DisplayLayout;
 class HostLifecycleEventListener;
 class Shell;
+class PersistentSurfaceStore;
 namespace detail { class FrontendShell; }
 }
 namespace time
@@ -98,7 +102,6 @@ class SessionListener;
 class SessionCoordinator;
 class SnapshotStrategy;
 class SurfaceCoordinator;
-class SurfaceConfigurator;
 class SurfaceStackModel;
 class SurfaceStack;
 class SceneReport;
@@ -123,7 +126,13 @@ namespace input
 class InputReport;
 class Scene;
 class InputManager;
+class SurfaceInputDispatcher;
+class Platform;
+class InputDeviceRegistry;
+class InputDeviceHub;
+class DefaultInputDeviceHub;
 class CompositeEventFilter;
+class EventFilterChainDispatcher;
 class InputChannelFactory;
 class CursorListener;
 class TouchVisualizer;
@@ -133,6 +142,7 @@ class InputSendObserver;
 class NestedInputRelay;
 class EventHandler;
 class CursorImages;
+class LegacyInputDispatchable;
 namespace android
 {
 class InputRegistrar;
@@ -185,6 +195,7 @@ public:
      * for an example.
      */
     auto the_fatal_error_strategy() -> void (*)(char const* reason, ...) override final;
+    std::shared_ptr<scene::ApplicationNotRespondingDetector> the_application_not_responding_detector() override;
     /** @} */
 
     /** @name graphics configuration - customization
@@ -251,12 +262,13 @@ public:
      * configurable interfaces for modifying shell
      *  @{ */
     virtual auto the_shell() -> std::shared_ptr<shell::Shell>;
-    virtual std::shared_ptr<scene::PlacementStrategy>   the_placement_strategy();
+    virtual auto the_window_manager_builder() -> shell::WindowManagerBuilder;
     virtual std::shared_ptr<scene::SessionListener>     the_session_listener();
     virtual std::shared_ptr<shell::DisplayLayout>       the_shell_display_layout();
     virtual std::shared_ptr<scene::PromptSessionListener> the_prompt_session_listener();
     virtual std::shared_ptr<scene::PromptSessionManager>  the_prompt_session_manager();
     virtual std::shared_ptr<shell::HostLifecycleEventListener> the_host_lifecycle_event_listener();
+    virtual std::shared_ptr<shell::PersistentSurfaceStore> the_persistent_surface_store();
 
     /** @} */
 
@@ -272,7 +284,6 @@ public:
     virtual std::shared_ptr<scene::SurfaceStackModel> the_surface_stack_model();
     virtual std::shared_ptr<scene::SurfaceFactory>    the_surface_factory();
     virtual std::shared_ptr<scene::SurfaceCoordinator>the_surface_coordinator();
-    virtual std::shared_ptr<scene::SurfaceConfigurator> the_surface_configurator();
     /** @} */
 
     /** @name scene configuration - dependencies
@@ -294,6 +305,9 @@ public:
      *  @{ */
     virtual std::shared_ptr<input::InputReport> the_input_report();
     virtual std::shared_ptr<input::CompositeEventFilter> the_composite_event_filter();
+
+    virtual std::shared_ptr<input::EventFilterChainDispatcher> the_event_filter_chain_dispatcher();
+
     virtual std::shared_ptr<shell::InputTargeter> the_input_targeter();
     virtual std::shared_ptr<input::Scene>  the_input_scene();
     virtual std::shared_ptr<input::CursorListener> the_cursor_listener();
@@ -301,11 +315,18 @@ public:
     virtual std::shared_ptr<input::InputRegion>    the_input_region();
     virtual std::shared_ptr<input::InputSender>    the_input_sender();
     virtual std::shared_ptr<input::InputSendObserver> the_input_send_observer();
+    virtual std::shared_ptr<input::LegacyInputDispatchable> the_legacy_input_dispatchable();
     virtual std::shared_ptr<droidinput::EventHubInterface> the_event_hub();
     virtual std::shared_ptr<droidinput::InputReaderInterface> the_input_reader();
     virtual std::shared_ptr<droidinput::InputReaderPolicyInterface> the_input_reader_policy();
     virtual std::shared_ptr<droidinput::InputListenerInterface> the_input_translator();
-    virtual std::shared_ptr<input::android::InputThread> the_input_reader_thread();
+
+    // new input reading related parts:
+    virtual std::shared_ptr<input::Platform> the_input_platform();
+    virtual std::shared_ptr<dispatch::MultiplexingDispatchable> the_input_reading_multiplexer();
+    virtual std::shared_ptr<input::InputDeviceRegistry> the_input_device_registry();
+    virtual std::shared_ptr<input::InputDeviceHub> the_input_device_hub();
+    virtual std::shared_ptr<input::SurfaceInputDispatcher> the_surface_input_dispatcher();
     /** @} */
 
     /** @name logging configuration - customization
@@ -327,14 +348,6 @@ protected:
     virtual std::shared_ptr<frontend::ProtobufIpcFactory> new_ipc_factory(
         std::shared_ptr<frontend::SessionAuthorizer> const& session_authorizer);
 
-    /** @name input dispatcher related configuration
-     *  @{ */
-    virtual std::shared_ptr<input::android::InputRegistrar> the_input_registrar();
-    virtual std::shared_ptr<droidinput::InputDispatcherInterface> the_android_input_dispatcher();
-    virtual std::shared_ptr<droidinput::InputEnumerator> the_input_target_enumerator();
-    virtual std::shared_ptr<input::android::InputThread> the_dispatcher_thread();
-    virtual std::shared_ptr<droidinput::InputDispatcherPolicyInterface> the_dispatcher_policy();
-    virtual bool is_key_repeat_enabled() const;
     /** @} */
 
     /** @Convenience wrapper functions
@@ -349,23 +362,23 @@ protected:
         std::shared_ptr<input::CursorListener> const& wrapped);
 /** @} */
 
-    CachedPtr<input::android::InputRegistrar> input_registrar;
-    CachedPtr<input::android::InputThread> dispatcher_thread;
-    CachedPtr<input::android::InputThread> input_reader_thread;
-    CachedPtr<droidinput::InputDispatcherInterface> android_input_dispatcher;
-    CachedPtr<droidinput::InputEnumerator> input_target_enumerator;
-    CachedPtr<droidinput::InputDispatcherPolicyInterface> android_dispatcher_policy;
     CachedPtr<droidinput::EventHubInterface> event_hub;
     CachedPtr<droidinput::InputReaderPolicyInterface> input_reader_policy;
     CachedPtr<droidinput::InputReaderInterface> input_reader;
     CachedPtr<droidinput::InputListenerInterface> input_translator;
+    CachedPtr<input::LegacyInputDispatchable> legacy_input_dispatchable;
 
     CachedPtr<frontend::Connector>   connector;
     CachedPtr<frontend::Connector>   prompt_connector;
 
     CachedPtr<input::InputReport> input_report;
+    CachedPtr<input::EventFilterChainDispatcher> event_filter_chain_dispatcher;
     CachedPtr<input::CompositeEventFilter> composite_event_filter;
     CachedPtr<input::InputManager>    input_manager;
+    CachedPtr<input::SurfaceInputDispatcher>    surface_input_dispatcher;
+    CachedPtr<input::DefaultInputDeviceHub>    default_input_device_hub; // currently not used by default
+    CachedPtr<input::Platform>    input_platform; // currently not used by default
+    CachedPtr<dispatch::MultiplexingDispatchable> input_reading_multiplexer;
     CachedPtr<input::InputDispatcher> input_dispatcher;
     CachedPtr<input::InputSender>     input_sender;
     CachedPtr<input::InputSendObserver> input_send_observer;
@@ -402,7 +415,6 @@ protected:
     CachedPtr<scene::PixelBuffer>       pixel_buffer;
     CachedPtr<scene::SnapshotStrategy>  snapshot_strategy;
     CachedPtr<shell::DisplayLayout>     shell_display_layout;
-    CachedPtr<scene::SurfaceConfigurator> surface_configurator;
     CachedPtr<compositor::DisplayBufferCompositorFactory> display_buffer_compositor_factory;
     CachedPtr<compositor::Compositor> compositor;
     CachedPtr<compositor::CompositorReport> compositor_report;
@@ -422,8 +434,10 @@ protected:
     CachedPtr<scene::CoordinateTranslator> coordinate_translator;
     CachedPtr<EmergencyCleanup> emergency_cleanup;
     CachedPtr<shell::HostLifecycleEventListener> host_lifecycle_event_listener;
+    CachedPtr<shell::PersistentSurfaceStore> surface_store;
     CachedPtr<SharedLibraryProberReport> shared_library_prober_report;
     CachedPtr<shell::Shell> shell;
+    CachedPtr<scene::ApplicationNotRespondingDetector> application_not_responding_detector;
 
 private:
     std::shared_ptr<options::Configuration> const configuration_options;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014,2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3,
@@ -20,23 +20,15 @@
 
 #include "mir_connection_api.h"
 #include "mir_toolkit/mir_connection.h"
-#include "mir_toolkit/mir_client_library_drm.h"
 #include "mir/default_configuration.h"
 #include "mir/raii.h"
 
 #include "mir_connection.h"
-//#include "egl_native_display_container.h"
 #include "default_connection_configuration.h"
 #include "display_configuration.h"
 #include "error_connections.h"
-#include "uncaught.h"
+#include "mir/uncaught.h"
 
-// Temporary include to ease client transition from mir_connection_drm* APIs.
-// to mir_connection_platform_operation().
-// TODO: Remove when transition is complete
-#include "../platforms/mesa/include/mir_toolkit/mesa/platform_operation.h"
-
-#include <unordered_set>
 #include <cstddef>
 #include <cstring>
 
@@ -77,7 +69,7 @@ public:
 
             auto const conf = configuration(sock);
 
-            std::unique_ptr<MirConnection> connection{new MirConnection(*conf)};
+            auto connection = std::make_unique<MirConnection>(*conf);
             auto const result = connection->connect(name, callback, context);
             connection.release();
             return result;
@@ -203,53 +195,19 @@ void mir_connection_set_lifecycle_event_callback(
         connection->register_lifecycle_event_callback(callback, context);
 }
 
-//TODO: DEPRECATED: remove this function
-void mir_connection_get_display_info(
+void mir_connection_set_ping_event_callback(
     MirConnection* connection,
-    MirDisplayInfo* display_info)
+    mir_ping_event_callback callback,
+    void* context)
 {
-    auto const config = mir::raii::deleter_for(
-        mir_connection_create_display_config(connection),
-        &mir_display_config_destroy);
+    if (!mcl::ErrorConnections::instance().contains(connection))
+        connection->register_ping_event_callback(callback, context);
+}
 
-    if (config->num_outputs < 1)
-        return;
-
-    MirDisplayOutput* state = nullptr;
-    // We can't handle more than one display, so just populate based on the first
-    // active display we find.
-    for (unsigned int i = 0; i < config->num_outputs; ++i)
-    {
-        if (config->outputs[i].used && config->outputs[i].connected &&
-            config->outputs[i].current_mode < config->outputs[i].num_modes)
-        {
-            state = &config->outputs[i];
-            break;
-        }
-    }
-    // Oh, oh! No connected outputs?!
-    if (state == nullptr)
-    {
-        memset(display_info, 0, sizeof(*display_info));
-        return;
-    }
-
-    MirDisplayMode mode = state->modes[state->current_mode];
-
-    display_info->width = mode.horizontal_resolution;
-    display_info->height = mode.vertical_resolution;
-
-    unsigned int format_items;
-    if (state->num_output_formats > mir_supported_pixel_format_max)
-         format_items = mir_supported_pixel_format_max;
-    else
-         format_items = state->num_output_formats;
-
-    display_info->supported_pixel_format_items = format_items;
-    for(auto i=0u; i < format_items; i++)
-    {
-        display_info->supported_pixel_format[i] = state->output_formats[i];
-    }
+void mir_connection_pong(MirConnection *connection, int32_t serial)
+{
+    if (!mcl::ErrorConnections::instance().contains(connection))
+        connection->pong(serial);
 }
 
 MirDisplayConfiguration* mir_connection_create_display_config(
@@ -295,6 +253,12 @@ MirEGLNativeDisplayType mir_connection_get_egl_native_display(
     return connection->egl_native_display();
 }
 
+MirPixelFormat mir_connection_get_egl_pixel_format(MirConnection* connection,
+    EGLDisplay disp, EGLConfig conf)
+{
+    return connection->egl_pixel_format(disp, conf);
+}
+
 void mir_connection_get_available_surface_formats(
     MirConnection* connection,
     MirPixelFormat* formats,
@@ -319,100 +283,4 @@ MirWaitHandle* mir_connection_platform_operation(
         MIR_LOG_UNCAUGHT_EXCEPTION(ex);
         return nullptr;
     }
-
-}
-
-/**************************
- * DRM specific functions *
- **************************/
-
-namespace
-{
-
-struct AuthMagicPlatformOperationContext
-{
-    mir_drm_auth_magic_callback callback;
-    void* context;
-};
-
-void platform_operation_to_auth_magic_callback(
-    MirConnection*, MirPlatformMessage* response, void* context)
-{
-    auto const response_msg = mir::raii::deleter_for(
-        response,
-        &mir_platform_message_release);
-    auto const auth_magic_context =
-        std::unique_ptr<AuthMagicPlatformOperationContext>{
-            static_cast<AuthMagicPlatformOperationContext*>(context)};
-
-    auto response_data = mir_platform_message_get_data(response_msg.get());
-    auto auth_response = reinterpret_cast<MirMesaAuthMagicResponse const*>(response_data.data);
-
-    auth_magic_context->callback(auth_response->status, auth_magic_context->context);
-}
-
-void assign_set_gbm_device_status(
-    MirConnection*, MirPlatformMessage* response, void* context)
-{
-    auto const response_msg = mir::raii::deleter_for(
-        response,
-        &mir_platform_message_release);
-
-    auto const response_data = mir_platform_message_get_data(response_msg.get());
-    auto const set_gbm_device_response_ptr =
-        reinterpret_cast<MirMesaSetGBMDeviceResponse const*>(response_data.data);
-
-    auto status_ptr = static_cast<int*>(context);
-    *status_ptr = set_gbm_device_response_ptr->status;
-}
-
-}
-
-MirWaitHandle* mir_connection_drm_auth_magic(MirConnection* connection,
-                                             unsigned int magic,
-                                             mir_drm_auth_magic_callback callback,
-                                             void* context)
-{
-    auto const msg = mir::raii::deleter_for(
-        mir_platform_message_create(MirMesaPlatformOperation::auth_magic),
-        &mir_platform_message_release);
-
-    auto const auth_magic_op_context =
-        new AuthMagicPlatformOperationContext{callback, context};
-
-    MirMesaAuthMagicRequest request;
-    request.magic = magic;
-
-    mir_platform_message_set_data(msg.get(), &request, sizeof(request));
-
-    return mir_connection_platform_operation(
-        connection,
-        msg.get(),
-        platform_operation_to_auth_magic_callback,
-        auth_magic_op_context);
-}
-
-int mir_connection_drm_set_gbm_device(MirConnection* connection,
-                                      struct gbm_device* gbm_dev)
-{
-    MirMesaSetGBMDeviceRequest const request{gbm_dev};
-
-    auto const msg = mir::raii::deleter_for(
-        mir_platform_message_create(MirMesaPlatformOperation::set_gbm_device),
-        &mir_platform_message_release);
-
-    mir_platform_message_set_data(msg.get(), &request, sizeof(request));
-
-    static int const success{0};
-    int status{-1};
-
-    auto wh = mir_connection_platform_operation(
-        connection,
-        msg.get(),
-        assign_set_gbm_device_status,
-        &status);
-
-    mir_wait_for(wh);
-
-    return status == success;
 }

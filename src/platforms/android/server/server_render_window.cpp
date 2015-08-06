@@ -19,10 +19,10 @@
 
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/android/sync_fence.h"
+#include "mir/graphics/android/android_format_conversion-inl.h"
 #include "server_render_window.h"
 #include "framebuffer_bundle.h"
 #include "buffer.h"
-#include "android_format_conversion-inl.h"
 #include "interpreter_resource_cache.h"
 
 #include <system/window.h>
@@ -36,10 +36,11 @@ namespace geom=mir::geometry;
 
 mga::ServerRenderWindow::ServerRenderWindow(
     std::shared_ptr<mga::FramebufferBundle> const& fb_bundle,
+    MirPixelFormat format,
     std::shared_ptr<InterpreterResourceCache> const& cache)
     : fb_bundle(fb_bundle),
       resource_cache(cache),
-      format(mga::to_android_format(fb_bundle->fb_format()))
+      format(mga::to_android_format(format))
 {
 }
 
@@ -94,4 +95,9 @@ int mga::ServerRenderWindow::driver_requests_info(int key) const
 
 void mga::ServerRenderWindow::sync_to_display(bool)
 {
+}
+
+void mga::ServerRenderWindow::dispatch_driver_request_buffer_count(unsigned int)
+{
+    //note: Haven't seen a good reason to honor this request for a fb context
 }

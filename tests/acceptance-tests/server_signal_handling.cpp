@@ -19,7 +19,7 @@
 #include "mir/server.h"
 
 #include "mir_test_framework/interprocess_client_server_test.h"
-#include "mir_test_framework/cross_process_sync.h"
+#include "mir/test/cross_process_sync.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -28,6 +28,7 @@
 
 #include <chrono>
 
+namespace mt = mir::test;
 namespace mtf = mir_test_framework;
 
 namespace
@@ -36,7 +37,7 @@ struct ServerSignal : mtf::InterprocessClientServerTest
 {
     std::chrono::seconds const timeout{60};
     MOCK_CONST_METHOD1(terminate_handler, void(int));
-    mtf::CrossProcessSync cleanup_done;
+    mt::CrossProcessSync cleanup_done;
 
     void SetUp() override
     {
@@ -75,9 +76,9 @@ TEST_F(ServerSignal, terminate_handler_is_called_for_SIGINT)
         });
 }
 
-struct Abort : ServerSignal, ::testing::WithParamInterface<int> {};
+struct AbortDeathTest : ServerSignal, ::testing::WithParamInterface<int> {};
 
-TEST_P(Abort, cleanup_handler_is_called_for)
+TEST_P(AbortDeathTest, cleanup_handler_is_called_for)
 {
     expect_server_signalled(GetParam());
 
@@ -86,15 +87,17 @@ TEST_P(Abort, cleanup_handler_is_called_for)
     cleanup_done.wait_for_signal_ready_for(timeout);
 }
 
-INSTANTIATE_TEST_CASE_P(ServerSignal, Abort,
+INSTANTIATE_TEST_CASE_P(ServerSignal, AbortDeathTest,
     ::testing::Values(SIGQUIT, SIGABRT, SIGFPE, SIGSEGV, SIGBUS));
 
-TEST_F(ServerSignal, multiple_cleanup_handlers_are_called)
+using ServerSignalDeathTest = ServerSignal;
+
+TEST_F(ServerSignalDeathTest, multiple_cleanup_handlers_are_called)
 {
     const int multiple = 5;
     expect_server_signalled(SIGABRT);
 
-    mtf::CrossProcessSync more_cleanup[multiple];
+    mt::CrossProcessSync more_cleanup[multiple];
 
     init_server([&]
        {

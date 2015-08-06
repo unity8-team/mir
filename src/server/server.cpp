@@ -16,7 +16,6 @@
  * Authored By: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#define MIR_LOG_COMPONENT "Server"
 #include "mir/server.h"
 
 #include "mir/emergency_cleanup.h"
@@ -53,7 +52,6 @@ namespace mo = mir::options;
     MACRO(host_lifecycle_event_listener)\
     MACRO(input_dispatcher)\
     MACRO(logger)\
-    MACRO(placement_strategy)\
     MACRO(prompt_session_listener)\
     MACRO(prompt_session_manager)\
     MACRO(server_status_listener)\
@@ -61,12 +59,14 @@ namespace mo = mir::options;
     MACRO(session_listener)\
     MACRO(session_mediator_report)\
     MACRO(shell)\
-    MACRO(surface_configurator)
+    MACRO(application_not_responding_detector)
 
 #define FOREACH_ACCESSOR(MACRO)\
+    MACRO(the_buffer_stream_factory)\
     MACRO(the_compositor)\
     MACRO(the_composite_event_filter)\
     MACRO(the_cursor_listener)\
+    MACRO(the_cursor)\
     MACRO(the_display)\
     MACRO(the_focus_controller)\
     MACRO(the_gl_config)\
@@ -78,12 +78,14 @@ namespace mo = mir::options;
     MACRO(the_session_authorizer)\
     MACRO(the_session_coordinator)\
     MACRO(the_session_listener)\
+    MACRO(the_surface_factory)\
     MACRO(the_prompt_session_manager)\
     MACRO(the_shell)\
     MACRO(the_shell_display_layout)\
-    MACRO(the_surface_configurator)\
     MACRO(the_surface_coordinator)\
-    MACRO(the_touch_visualizer)
+    MACRO(the_touch_visualizer)\
+    MACRO(the_input_device_hub)\
+    MACRO(the_application_not_responding_detector)
 
 #define MIR_SERVER_BUILDER(name)\
     std::function<std::result_of<decltype(&mir::DefaultServerConfiguration::the_##name)(mir::DefaultServerConfiguration*)>::type()> name##_builder;
@@ -118,6 +120,8 @@ struct mir::Server::Self
         [](options::DefaultConfiguration&){}};
 
     FOREACH_OVERRIDE(MIR_SERVER_BUILDER)
+
+    shell::WindowManagerBuilder wmb;
 
     FOREACH_WRAPPER(MIR_SERVER_WRAPPER)
 };
@@ -171,10 +175,10 @@ public:
 class StubRendererFactory : public mir::compositor::RendererFactory
 {
 public:
-    auto create_renderer_for(mir::geometry::Rectangle const&, mir::compositor::DestinationAlpha)
+    auto create_renderer_for(mir::geometry::Rectangle const&)
     -> std::unique_ptr<mir::compositor::Renderer>
     {
-        return std::unique_ptr<mir::compositor::Renderer>(new StubRenderer());
+        return std::make_unique<StubRenderer>();
     }
 };
 }
@@ -209,6 +213,12 @@ struct mir::Server::ServerConfiguration : mir::DefaultServerConfiguration
 
     FOREACH_WRAPPER(MIR_SERVER_CONFIG_WRAP)
 
+    auto the_window_manager_builder() -> shell::WindowManagerBuilder override
+    {
+        if (self->wmb) return self->wmb;
+        return mir::DefaultServerConfiguration::the_window_manager_builder();
+    }
+
     Self* const self;
 };
 
@@ -217,36 +227,18 @@ struct mir::Server::ServerConfiguration : mir::DefaultServerConfiguration
 
 namespace
 {
-class ConfigurationOptions : public mo::DefaultConfiguration
-{
-public:
-    using mo::DefaultConfiguration::DefaultConfiguration;
-
-    std::string config_file;
-
-    void parse_config_file(
-        boost::program_options::options_description& options_description,
-        mo::ProgramOption& options) const override
-    {
-        if (!config_file.empty())
-            options.parse_file(options_description, config_file);
-    }
-};
-
 std::shared_ptr<mo::DefaultConfiguration> configuration_options(
     int argc,
     char const** argv,
     std::function<void(int argc, char const* const* argv)> const& command_line_hander,
     std::string const& config_file)
 {
-    std::shared_ptr<ConfigurationOptions> result;
+    std::shared_ptr<mo::DefaultConfiguration> result;
 
     if (command_line_hander)
-        result = std::make_shared<ConfigurationOptions>(argc, argv, command_line_hander);
+        result = std::make_shared<mo::DefaultConfiguration>(argc, argv, command_line_hander, config_file);
     else
-        result = std::make_shared<ConfigurationOptions>(argc, argv);
-
-    result->config_file = config_file;
+        result = std::make_shared<mo::DefaultConfiguration>(argc, argv, config_file);
 
     return result;
 }
@@ -455,6 +447,12 @@ void mir::Server::override_the_##name(decltype(Self::name##_builder) const& valu
 FOREACH_OVERRIDE(MIR_SERVER_OVERRIDE)
 
 #undef MIR_SERVER_OVERRIDE
+
+void mir::Server::override_the_window_manager_builder(shell::WindowManagerBuilder const wmb)
+{
+    verify_setting_allowed(self->server_config);
+    self->wmb = wmb;
+}
 
 #define MIR_SERVER_WRAP(name)\
 void mir::Server::wrap_##name(decltype(Self::name##_wrapper) const& value)\

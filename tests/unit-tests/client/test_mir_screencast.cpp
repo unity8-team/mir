@@ -17,22 +17,22 @@
  */
 
 #include "src/client/mir_screencast.h"
+#include "src/client/rpc/mir_display_server.h"
 
 #include "mir/client_buffer_factory.h"
 #include "mir/client_platform.h"
 
-#include "mir_test_doubles/stub_client_buffer_stream_factory.h"
-#include "mir_test_doubles/mock_client_buffer_stream_factory.h"
-#include "mir_test_doubles/mock_client_buffer_stream.h"
-#include "mir_test_doubles/null_client_buffer.h"
-#include "mir_test/fake_shared.h"
-
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "mir/test/doubles/stub_client_buffer_stream_factory.h"
+#include "mir/test/doubles/mock_client_buffer_stream_factory.h"
+#include "mir/test/doubles/mock_client_buffer_stream.h"
+#include "mir/test/doubles/null_client_buffer.h"
+#include "mir/test/doubles/stub_display_server.h"
+#include "mir/test/fake_shared.h"
 
 #include <thread>
 
 namespace mcl = mir::client;
+namespace mclr = mir::client::rpc;
 namespace mp = mir::protobuf;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
@@ -48,25 +48,24 @@ class RpcController;
 namespace
 {
 
-struct MockProtobufServer : mir::protobuf::DisplayServer
+struct MockProtobufServer : mclr::DisplayServer
 {
-    MOCK_METHOD4(create_screencast,
-                 void(google::protobuf::RpcController* /*controller*/,
-                      mp::ScreencastParameters const* /*request*/,
+    MockProtobufServer() : mclr::DisplayServer(nullptr) {}
+    MOCK_METHOD3(create_screencast,
+                 void(mp::ScreencastParameters const* /*request*/,
                       mp::Screencast* /*response*/,
                       google::protobuf::Closure* /*done*/));
-    MOCK_METHOD4(release_screencast,
-                 void(google::protobuf::RpcController* /*controller*/,
-                      mp::ScreencastId const* /*request*/,
+    MOCK_METHOD3(release_screencast,
+                 void(mp::ScreencastId const* /*request*/,
                       mp::Void* /*response*/,
                       google::protobuf::Closure* /*done*/));
 };
 
-class StubProtobufServer : public mir::protobuf::DisplayServer
+class StubProtobufServer : public mclr::DisplayServer
 {
 public:
+    StubProtobufServer() : mclr::DisplayServer(nullptr) {}
     void create_screencast(
-        google::protobuf::RpcController* /*controller*/,
         mp::ScreencastParameters const* /*request*/,
         mp::Screencast* response,
         google::protobuf::Closure* done) override
@@ -82,7 +81,6 @@ public:
     }
 
     void release_screencast(
-        google::protobuf::RpcController* /*controller*/,
         mp::ScreencastId const* /*request*/,
         mp::Void* /*response*/,
         google::protobuf::Closure* done) override
@@ -125,18 +123,18 @@ MATCHER_P(WithScreencastId, value, "")
 
 ACTION_P(SetCreateScreencastId, screencast_id)
 {
-    arg2->clear_error();
-    arg2->mutable_screencast_id()->set_value(screencast_id);
+    arg1->clear_error();
+    arg1->mutable_screencast_id()->set_value(screencast_id);
 }
 
 ACTION(SetCreateError)
 {
-    arg2->set_error("Test error");
+    arg1->set_error("Test error");
 }
 
 ACTION(RunClosure)
 {
-    arg3->Run();
+    arg2->Run();
 }
 
 struct MockCallback
@@ -169,7 +167,7 @@ public:
         using namespace ::testing;
 
         ON_CALL(*mock_buffer_stream_factory,
-        make_consumer_stream(_,_,_)).WillByDefault(
+        make_consumer_stream(_,_,_,_)).WillByDefault(
             Return(mt::fake_shared(mock_bs)));
     }
 
@@ -190,14 +188,14 @@ TEST_F(MirScreencastTest, creates_screencast_on_construction)
     using namespace testing;
 
     EXPECT_CALL(mock_server,
-                create_screencast(_,WithParams(default_region, default_size, default_pixel_format),_,_))
+                create_screencast(WithParams(default_region, default_size, default_pixel_format),_,_))
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
         default_region,
         default_size,
         default_pixel_format, mock_server,
-        stub_buffer_stream_factory,
+        nullptr,
         null_callback_func, nullptr};
 }
 
@@ -210,42 +208,22 @@ TEST_F(MirScreencastTest, releases_screencast_on_release)
     InSequence seq;
 
     EXPECT_CALL(mock_server,
-                create_screencast(_,WithParams(default_region, default_size, default_pixel_format),_,_))
+                create_screencast(WithParams(default_region, default_size, default_pixel_format),_,_))
         .WillOnce(DoAll(SetCreateScreencastId(screencast_id), RunClosure()));
 
     EXPECT_CALL(mock_server,
-                release_screencast(_,WithScreencastId(screencast_id),_,_))
+                release_screencast(WithScreencastId(screencast_id),_,_))
         .WillOnce(RunClosure());
 
     MirScreencast screencast{
         default_region,
         default_size,
-        default_pixel_format, mock_server,
-        stub_buffer_stream_factory,
+        default_pixel_format,
+        mock_server,
+        nullptr,
         null_callback_func, nullptr};
 
     screencast.release(null_callback_func, nullptr);
-}
-
-TEST_F(MirScreencastTest, advances_buffer_stream_on_next_buffer)
-{
-    using namespace testing;
-
-    InSequence seq;
-
-    EXPECT_CALL(mock_bs, next_buffer(_)).Times(1)
-        .WillOnce(Return(nullptr));
-    
-    MirScreencast screencast{
-        default_region,
-        default_size,
-        default_pixel_format, stub_server,
-        mock_buffer_stream_factory,
-        null_callback_func, nullptr};
-
-    screencast.creation_wait_handle()->wait_for_all();
-
-    screencast.next_buffer(null_callback_func, nullptr);
 }
 
 TEST_F(MirScreencastTest, executes_callback_on_creation)
@@ -259,7 +237,7 @@ TEST_F(MirScreencastTest, executes_callback_on_creation)
         default_region,
         default_size,
         default_pixel_format, stub_server,
-        stub_buffer_stream_factory,
+        nullptr,
         mock_callback_func, &mock_cb};
 
     screencast.creation_wait_handle()->wait_for_all();
@@ -273,7 +251,7 @@ TEST_F(MirScreencastTest, executes_callback_on_release)
         default_region,
         default_size,
         default_pixel_format, stub_server,
-        stub_buffer_stream_factory,
+        nullptr,
         null_callback_func, nullptr};
 
     screencast.creation_wait_handle()->wait_for_all();
@@ -295,7 +273,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
             default_region,
             invalid_size,
             default_pixel_format, stub_server,
-            stub_buffer_stream_factory,
+            nullptr,
             null_callback_func, nullptr);
     }, std::runtime_error);
 
@@ -304,7 +282,7 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
             invalid_region,
             default_size,
             default_pixel_format, stub_server,
-            stub_buffer_stream_factory,
+            nullptr,
             null_callback_func, nullptr);
     }, std::runtime_error);
 
@@ -313,97 +291,23 @@ TEST_F(MirScreencastTest, construction_throws_on_invalid_params)
             default_region,
             default_size,
             mir_pixel_format_invalid, stub_server,
-            stub_buffer_stream_factory,
+            nullptr,
             null_callback_func, nullptr);
     }, std::runtime_error);
-}
-
-TEST_F(MirScreencastTest, returns_params_from_buffer_stream)
-{
-    using namespace ::testing;
-
-    MirSurfaceParameters expected_params;
-    expected_params.width = 1732;
-    expected_params.height = 33;
-    expected_params.pixel_format = default_pixel_format;
-    expected_params.buffer_usage = mir_buffer_usage_hardware;
-    expected_params.output_id = mir_display_output_id_invalid;
-    
-    EXPECT_CALL(mock_bs, get_parameters()).Times(1)
-        .WillOnce(Return(expected_params));
-
-    MirScreencast screencast{
-        default_region,
-        default_size,
-        default_pixel_format, stub_server,
-        mock_buffer_stream_factory,
-        null_callback_func, nullptr};
-
-    screencast.creation_wait_handle()->wait_for_all();
-
-    auto params = screencast.get_parameters();
-    EXPECT_EQ(expected_params.width, params.width);
-    EXPECT_EQ(expected_params.height, params.height);
-    EXPECT_EQ(expected_params.pixel_format, params.pixel_format);
-    EXPECT_EQ(expected_params.buffer_usage, params.buffer_usage);
-    EXPECT_EQ(expected_params.output_id, params.output_id);
-}
-
-TEST_F(MirScreencastTest, returns_current_client_buffer)
-{
-    using namespace testing;
-
-    auto const expected_client_buffer = std::make_shared<mtd::NullClientBuffer>();
-
-    EXPECT_CALL(mock_bs, get_current_buffer()).Times(1)
-        .WillOnce(Return(expected_client_buffer));
-
-    MirScreencast screencast{
-        default_region,
-        default_size,
-        default_pixel_format, stub_server,
-        mock_buffer_stream_factory,
-        null_callback_func, nullptr};
-
-    screencast.creation_wait_handle()->wait_for_all();
-
-    EXPECT_EQ(expected_client_buffer, screencast.get_current_buffer());
-}
-
-TEST_F(MirScreencastTest, gets_egl_native_window)
-{
-    using namespace testing;
-    
-    EGLNativeWindowType expected_native_window = reinterpret_cast<EGLNativeWindowType>(this); // any unique value
-    EXPECT_CALL(mock_bs, egl_native_window()).Times(1)
-        .WillOnce(Return(expected_native_window));
-
-    MirScreencast screencast{
-        default_region,
-        default_size,
-        default_pixel_format, stub_server,
-        mock_buffer_stream_factory,
-        null_callback_func, nullptr};
-
-    screencast.creation_wait_handle()->wait_for_all();
-
-    auto egl_native_window = screencast.egl_native_window();
-
-    EXPECT_EQ(expected_native_window, egl_native_window);
 }
 
 TEST_F(MirScreencastTest, is_invalid_if_server_create_screencast_fails)
 {
     using namespace testing;
 
-    EXPECT_CALL(mock_server, create_screencast(_,_,_,_))
+    EXPECT_CALL(mock_server, create_screencast(_,_,_))
         .WillOnce(DoAll(SetCreateError(), RunClosure()));
 
     MirScreencast screencast{
         default_region,
         default_size,
         default_pixel_format, mock_server,
-        stub_buffer_stream_factory,
+        nullptr,
         null_callback_func, nullptr};
 
     screencast.creation_wait_handle()->wait_for_all();
@@ -416,7 +320,7 @@ TEST_F(MirScreencastTest, calls_callback_on_creation_failure)
     using namespace testing;
 
     MockCallback mock_cb;
-    EXPECT_CALL(mock_server, create_screencast(_,_,_,_))
+    EXPECT_CALL(mock_server, create_screencast(_,_,_))
         .WillOnce(DoAll(SetCreateError(), RunClosure()));
     EXPECT_CALL(mock_cb, call(_,&mock_cb));
 
@@ -424,7 +328,7 @@ TEST_F(MirScreencastTest, calls_callback_on_creation_failure)
         default_region,
         default_size,
         default_pixel_format, mock_server,
-        stub_buffer_stream_factory,
+        nullptr,
         mock_callback_func, &mock_cb};
 
     screencast.creation_wait_handle()->wait_for_all();

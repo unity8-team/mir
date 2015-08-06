@@ -16,18 +16,17 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER // Required until wire format changes
-
 #include "mir_protobuf_rpc_channel.h"
 #include "rpc_report.h"
 
-#include "mir/protobuf/google_protobuf_guard.h"
 #include "../surface_map.h"
 #include "../mir_surface.h"
 #include "../display_configuration.h"
 #include "../lifecycle_control.h"
 #include "../event_sink.h"
+#include "../make_protobuf_object.h"
 #include "mir/variable_length_array.h"
+#include "mir/events/event_private.h"
 
 #include "mir_protobuf.pb.h"  // For Buffer frig
 #include "mir_protobuf_wire.pb.h"
@@ -37,10 +36,11 @@
 
 #include <stdexcept>
 
-
+namespace mf = mir::frontend;
 namespace mcl = mir::client;
 namespace mclr = mir::client::rpc;
 namespace md = mir::dispatch;
+namespace mp = mir::protobuf;
 
 namespace
 {
@@ -53,15 +53,19 @@ mclr::MirProtobufRpcChannel::MirProtobufRpcChannel(
     std::shared_ptr<DisplayConfiguration> const& disp_config,
     std::shared_ptr<RpcReport> const& rpc_report,
     std::shared_ptr<LifecycleControl> const& lifecycle_control,
+    std::shared_ptr<PingHandler> const& ping_handler,
     std::shared_ptr<EventSink> const& event_sink) :
     rpc_report(rpc_report),
     pending_calls(rpc_report),
     surface_map(surface_map),
     display_configuration(disp_config),
     lifecycle_control(lifecycle_control),
+    ping_handler{ping_handler},
     event_sink(event_sink),
     disconnected(false),
-    transport{std::move(transport)}
+    transport{std::move(transport)},
+    delayed_processor{std::make_shared<md::ActionQueue>()},
+    multiplexer{this->transport, delayed_processor}
 {
     class NullDeleter
     {
@@ -80,15 +84,19 @@ void mclr::MirProtobufRpcChannel::notify_disconnected()
 {
     if (!disconnected.exchange(true))
     {
-        lifecycle_control->call_lifecycle_event_handler(mir_lifecycle_connection_lost);
+        (*lifecycle_control)(mir_lifecycle_connection_lost);
     }
     pending_calls.force_completion();
+    surface_map->with_all_streams_do(
+        [](mcl::ClientBufferStream* stream) {
+            if (stream) stream->buffer_unavailable();
+        });
 }
 
 template<class MessageType>
 void mclr::MirProtobufRpcChannel::receive_any_file_descriptors_for(MessageType* response)
 {
-    static std::array<char, 1> dummy;
+    std::array<char, 1> dummy;
     if (response)
     {
         response->clear_fd();
@@ -106,8 +114,7 @@ void mclr::MirProtobufRpcChannel::receive_any_file_descriptors_for(MessageType* 
     }
 }
 
-void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Message* response,
-    google::protobuf::Closure* complete)
+void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::MessageLite* response)
 {
     auto const message_type = response->GetTypeName();
 
@@ -120,6 +127,12 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
     if (message_type == "mir.protobuf.Buffer")
     {
         buffer = static_cast<mir::protobuf::Buffer*>(response);
+    }
+    else if (message_type == "mir.protobuf.BufferStream")
+    {
+        auto buffer_stream = static_cast<mir::protobuf::BufferStream*>(response);
+        if (buffer_stream && buffer_stream->has_buffer())
+            buffer = buffer_stream->mutable_buffer();
     }
     else if (message_type == "mir.protobuf.Surface")
     {
@@ -158,14 +171,12 @@ void mclr::MirProtobufRpcChannel::receive_file_descriptors(google::protobuf::Mes
     receive_any_file_descriptors_for(platform);
     receive_any_file_descriptors_for(socket_fd);
     receive_any_file_descriptors_for(platform_operation_message);
-    complete->Run();
 }
 
-void mclr::MirProtobufRpcChannel::CallMethod(
-    const google::protobuf::MethodDescriptor* method,
-    google::protobuf::RpcController*,
-    const google::protobuf::Message* parameters,
-    google::protobuf::Message* response,
+void mclr::MirProtobufRpcChannel::call_method(
+    std::string const& method_name,
+    google::protobuf::MessageLite const* parameters,
+    google::protobuf::MessageLite* response,
     google::protobuf::Closure* complete)
 {
     // Only send message when details saved for handling response
@@ -184,14 +195,17 @@ void mclr::MirProtobufRpcChannel::CallMethod(
             fds.emplace_back(mir::Fd{IntOwnedFd{fd}});
     }
 
-    auto const& invocation = invocation_for(method, parameters, fds.size());
+    auto const& invocation = invocation_for(method_name, parameters, fds.size());
 
     rpc_report->invocation_requested(invocation);
 
-    std::shared_ptr<google::protobuf::Closure> callback(
-        google::protobuf::NewPermanentCallback(this, &MirProtobufRpcChannel::receive_file_descriptors, response, complete));
+    pending_calls.save_completion_details(invocation, response, complete);
 
-    pending_calls.save_completion_details(invocation, response, callback);
+    if (prioritise_next_request)
+    {
+        id_to_wait_for = invocation.id();
+        prioritise_next_request = false;
+    }
 
     send_message(invocation, invocation, fds);
 }
@@ -228,7 +242,7 @@ void mclr::MirProtobufRpcChannel::send_message(
 
 void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& event)
 {
-    mir::protobuf::EventSequence seq;
+    mp::EventSequence seq;
 
     seq.ParseFromString(event);
 
@@ -239,13 +253,37 @@ void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& even
 
     if (seq.has_lifecycle_event())
     {
-        lifecycle_control->call_lifecycle_event_handler(seq.lifecycle_event().new_state());
+        (*lifecycle_control)(static_cast<MirLifecycleState>(seq.lifecycle_event().new_state()));
+    }
+
+    if (seq.has_ping_event())
+    {
+        (*ping_handler)(seq.ping_event().serial());
+    }
+
+    if (seq.has_buffer_request())
+    {
+        std::array<char, 1> dummy;
+        auto const num_fds = seq.mutable_buffer_request()->mutable_buffer()->fds_on_side_channel();
+        std::vector<mir::Fd> fds(num_fds);
+        if (num_fds > 0)
+        {
+            transport->receive_data(dummy.data(), dummy.size(), fds);
+            seq.mutable_buffer_request()->mutable_buffer()->clear_fd();
+            for(auto& fd : fds)
+                seq.mutable_buffer_request()->mutable_buffer()->add_fd(fd);
+        }
+
+        surface_map->with_stream_do(mf::BufferStreamId(seq.buffer_request().id().value()),
+        [&] (mcl::ClientBufferStream* stream) {
+            stream->buffer_available(seq.buffer_request().buffer());
+        });
     }
 
     int const nevents = seq.event_size();
     for (int i = 0; i != nevents; ++i)
     {
-        mir::protobuf::Event const& event = seq.event(i);
+        mp::Event const& event = seq.event(i);
         if (event.has_raw())
         {
             std::string const& raw_event = event.raw();
@@ -269,21 +307,23 @@ void mclr::MirProtobufRpcChannel::process_event_sequence(std::string const& even
                 switch (e.type)
                 {
                 case mir_event_type_surface:
-                    surface_map->with_surface_do(e.surface.id, send_e);
+                    surface_map->with_surface_do(mf::SurfaceId(e.surface.id), send_e);
                     break;
 
                 case mir_event_type_resize:
-                    surface_map->with_surface_do(e.resize.surface_id, send_e);
+                    surface_map->with_surface_do(mf::SurfaceId(e.resize.surface_id), send_e);
                     break;
 
                 case mir_event_type_orientation:
-                    surface_map->with_surface_do(e.orientation.surface_id, send_e);
+                    surface_map->with_surface_do(mf::SurfaceId(e.orientation.surface_id), send_e);
                     break;
 
                 case mir_event_type_close_surface:
-                    surface_map->with_surface_do(e.close_surface.surface_id, send_e);
+                    surface_map->with_surface_do(mf::SurfaceId(e.close_surface.surface_id), send_e);
                     break;
-
+                case mir_event_type_keymap:
+                    surface_map->with_surface_do(mf::SurfaceId(e.keymap.surface_id), send_e);
+                    break;
                 default:
                     event_sink->handle_event(e);
                 }
@@ -310,7 +350,7 @@ void mclr::MirProtobufRpcChannel::on_data_available()
      */
     std::lock_guard<decltype(read_mutex)> lock(read_mutex);
 
-    mir::protobuf::wire::Result result;
+    auto result = mcl::make_protobuf_object<mp::wire::Result>();
     try
     {
         uint16_t message_size;
@@ -320,9 +360,9 @@ void mclr::MirProtobufRpcChannel::on_data_available()
         body_bytes.resize(message_size);
         transport->receive_data(body_bytes.data(), message_size);
 
-        result.ParseFromArray(body_bytes.data(), message_size);
+        result->ParseFromArray(body_bytes.data(), message_size);
 
-        rpc_report->result_receipt_succeeded(result);
+        rpc_report->result_receipt_succeeded(*result);
     }
     catch (std::exception const& x)
     {
@@ -332,14 +372,39 @@ void mclr::MirProtobufRpcChannel::on_data_available()
 
     try
     {
-        for (int i = 0; i != result.events_size(); ++i)
+        for (int i = 0; i != result->events_size(); ++i)
         {
-            process_event_sequence(result.events(i));
+            process_event_sequence(result->events(i));
         }
 
-        if (result.has_id())
+        if (result->has_id())
         {
-            pending_calls.complete_response(result);
+            auto result_message = pending_calls.message_for_result(*result);
+            result_message->ParseFromString(result->response());
+            receive_file_descriptors(result_message);
+
+            if (id_to_wait_for)
+            {
+                if (result->id() == id_to_wait_for.value())
+                {
+                    pending_calls.complete_response(*result);
+                    multiplexer.add_watch(delayed_processor);
+                }
+                else
+                {
+                    // It's too difficult to convince C++ to move this lambda everywhere, so
+                    // just give up and let it pretend its a shared_ptr.
+                    std::shared_ptr<mp::wire::Result> appeaser{std::move(result)};
+                    delayed_processor->enqueue([delayed_result = std::move(appeaser), this]() mutable
+                    {
+                        pending_calls.complete_response(*delayed_result);
+                    });
+                }
+            }
+            else
+            {
+                pending_calls.complete_response(*result);
+            }
         }
     }
     catch (std::exception const& x)
@@ -347,7 +412,7 @@ void mclr::MirProtobufRpcChannel::on_data_available()
         // TODO: This is dangerous as an error in result processing could cause a wait handle
         // to never fire. Could perhaps fix by catching and setting error on the response before invoking
         // callback ~racarr
-        rpc_report->result_processing_failed(result, x);
+        rpc_report->result_processing_failed(*result, x);
     }
 }
 
@@ -358,15 +423,21 @@ void mclr::MirProtobufRpcChannel::on_disconnected()
 
 mir::Fd mir::client::rpc::MirProtobufRpcChannel::watch_fd() const
 {
-    return transport->watch_fd();
+    return multiplexer.watch_fd();
 }
 
 bool mir::client::rpc::MirProtobufRpcChannel::dispatch(md::FdEvents events)
 {
-    return transport->dispatch(events);
+    return multiplexer.dispatch(events);
 }
 
 md::FdEvents mclr::MirProtobufRpcChannel::relevant_events() const
 {
-    return transport->relevant_events();
+    return multiplexer.relevant_events();
+}
+
+void mclr::MirProtobufRpcChannel::process_next_request_first()
+{
+    prioritise_next_request = true;
+    multiplexer.remove_watch(delayed_processor);
 }

@@ -30,6 +30,9 @@
 #include "mir/options/option.h"
 #include "mir/scene/surface.h"
 #include "mir/scene/surface_coordinator.h"
+#include "mir/scene/buffer_stream_factory.h"
+#include "mir/scene/surface_factory.h"
+#include "mir/frontend/buffer_sink.h"
 #include "mir/server.h"
 #include "mir/report_exception.h"
 
@@ -139,10 +142,10 @@ public:
     Moveable(std::shared_ptr<ms::Surface> const& s, const geom::Size& display_size,
              float dx, float dy, const glm::vec3& rotation_axis, float alpha_offset)
         : surface(s), display_size(display_size),
-          x{static_cast<float>(s->top_left().x.as_uint32_t())},
-          y{static_cast<float>(s->top_left().y.as_uint32_t())},
-          w{static_cast<float>(s->size().width.as_uint32_t())},
-          h{static_cast<float>(s->size().height.as_uint32_t())},
+          x{s->top_left().x.as_float()},
+          y{s->top_left().y.as_float()},
+          w{s->size().width.as_float()},
+          h{s->size().height.as_float()},
           dx{dx},
           dy{dy},
           rotation_axis(rotation_axis),
@@ -249,7 +252,6 @@ public:
             stop_watch.restart();
         }
 
-        glClearColor(0.0, 1.0, 0.0, 1.0);
         db_compositor->composite(std::move(scene_sequence));
 
         for (auto& m : moveables)
@@ -332,14 +334,19 @@ public:
         std::cout << "Rendering " << moveables.size() << " surfaces" << std::endl;
 
         auto const display = the_display();
+        auto const buffer_stream_factory = the_buffer_stream_factory();
+        auto const surface_factory = the_surface_factory();
         auto const surface_coordinator = the_surface_coordinator();
         auto const gl_context = the_display()->create_gl_context();
 
         /* TODO: Get proper configuration */
         geom::Rectangles view_area;
-        display->for_each_display_buffer([&view_area](mg::DisplayBuffer const& db)
+        display->for_each_display_sync_group([&](mg::DisplaySyncGroup& group)
         {
-            view_area.add(db.view_area());
+            group.for_each_display_buffer([&](mg::DisplayBuffer& db)
+            {
+                view_area.add(db.view_area());
+            });
         });
         geom::Size const display_size{view_area.bounding_rectangle().size};
         uint32_t const surface_side{300};
@@ -353,16 +360,25 @@ public:
         int i = 0;
         for (auto& m : moveables)
         {
-            auto const s = surface_coordinator->add_surface(
-                    ms::a_surface().of_size(surface_size)
-                                   .of_pixel_format(surface_pf)
-                                   .of_buffer_usage(mg::BufferUsage::hardware),
-                    nullptr);
+            auto params = ms::a_surface()
+                .of_size(surface_size)
+                .of_pixel_format(surface_pf)
+                .of_buffer_usage(mg::BufferUsage::hardware);
+            mg::BufferProperties properties{params.size, params.pixel_format, params.buffer_usage};
+            struct NullBufferSink : mf::BufferSink
+            {
+                void send_buffer(mf::BufferStreamId, mg::Buffer&, mg::BufferIpcMsgType) override {}
+            };
+
+            auto const stream = buffer_stream_factory->create_buffer_stream(
+                mf::BufferStreamId{}, std::make_shared<NullBufferSink>(), properties);
+            auto const surface = surface_factory->create_surface(stream, params);
+            surface_coordinator->add_surface(surface, params.depth, params.input_mode, nullptr);
 
             {
                 mg::Buffer* buffer{nullptr};
                 auto const complete = [&](mg::Buffer* new_buf){ buffer = new_buf; };
-                s->swap_buffers(buffer, complete); // Fetch buffer for rendering
+                surface->primary_buffer_stream()->swap_buffers(buffer, complete); // Fetch buffer for rendering
                 {
                     gl_context->make_current();
 
@@ -375,7 +391,7 @@ public:
 
                     gl_context->release_current();
                 }
-                s->swap_buffers(buffer, complete); // Post rendered buffer
+                surface->primary_buffer_stream()->swap_buffers(buffer, complete); // Post rendered buffer
             }
 
             /*
@@ -385,8 +401,8 @@ public:
             uint32_t const x = w * (0.5 + 0.25 * cos(i * angular_step)) - surface_side / 2.0;
             uint32_t const y = h * (0.5 + 0.25 * sin(i * angular_step)) - surface_side / 2.0;
 
-            s->move_to({x, y});
-            m = Moveable(s, display_size,
+            surface->move_to({x, y});
+            m = Moveable(surface, display_size,
                     cos(0.1f + i * M_PI / 6.0f) * w / 3.0f,
                     sin(0.1f + i * M_PI / 6.0f) * h / 3.0f,
                     glm::vec3{(i % 3 == 0) * 1.0f, (i % 3 == 1) * 1.0f, (i % 3 == 2) * 1.0f},

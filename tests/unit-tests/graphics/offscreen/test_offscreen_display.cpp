@@ -1,11 +1,11 @@
 #include "mir/graphics/display_buffer.h"
 
 #include "src/server/graphics/offscreen/display.h"
-#include "src/server/graphics/default_display_configuration_policy.h"
+#include "mir/graphics/default_display_configuration_policy.h"
 #include "src/server/report/null_report_factory.h"
 
-#include "mir_test_doubles/mock_egl.h"
-#include "mir_test_doubles/mock_gl.h"
+#include "mir/test/doubles/mock_egl.h"
+#include "mir/test/doubles/mock_gl.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -55,7 +55,7 @@ TEST_F(OffscreenDisplayTest, uses_basic_platform_egl_native_display)
 
     mgo::Display display{
         native_display,
-        std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+        std::make_shared<mg::CloneDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 }
 
@@ -64,18 +64,34 @@ TEST_F(OffscreenDisplayTest, orientation_normal)
     using namespace ::testing;
     mgo::Display display{
         native_display,
-        std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+        std::make_shared<mg::CloneDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 
     int count = 0;
-    display.for_each_display_buffer(
-        [&](mg::DisplayBuffer& db)
-        {
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer& db) {
             ++count;
             EXPECT_EQ(mir_orientation_normal, db.orientation());
         });
+    });
 
     EXPECT_TRUE(count);
+}
+
+TEST_F(OffscreenDisplayTest, never_enables_predictive_bypass)
+{
+    mgo::Display display{
+        native_display,
+        std::make_shared<mg::CloneDisplayConfigurationPolicy>(),
+        mr::null_display_report()};
+
+    int groups = 0;
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group){
+        ++groups;
+        EXPECT_EQ(0, group.recommended_sleep().count());
+    });
+
+    EXPECT_TRUE(groups);
 }
 
 TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
@@ -88,17 +104,27 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
         .Times(AtLeast(1))
         .WillRepeatedly(SetArgPointee<1>(fbo));
 
+    /* Provide unique EGL contexts */
+    std::vector<int> contexts;
+    EXPECT_CALL(mock_egl, eglCreateContext(_,_,_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(WithoutArgs(Invoke(
+            [&] ()
+            {
+                contexts.push_back(0);
+                return reinterpret_cast<EGLContext>(&contexts.back());
+            })));
+
     mgo::Display display{
         native_display,
-        std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+        std::make_shared<mg::CloneDisplayConfigurationPolicy>(),
         mr::null_display_report()};
 
     Mock::VerifyAndClearExpectations(&mock_gl);
 
     /* Binds the GL framebuffer objects */
-    display.for_each_display_buffer(
-        [this](mg::DisplayBuffer& db)
-        {
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer& db) {
             EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,Ne(EGL_NO_CONTEXT)));
             EXPECT_CALL(mock_gl, glBindFramebuffer(_,Ne(0)));
 
@@ -107,6 +133,14 @@ TEST_F(OffscreenDisplayTest, makes_fbo_current_rendering_target)
             Mock::VerifyAndClearExpectations(&mock_egl);
             Mock::VerifyAndClearExpectations(&mock_gl);
         });
+    });
+
+    /* Contexts are released at teardown */
+    display.for_each_display_sync_group([&](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([&](mg::DisplayBuffer&) {
+            EXPECT_CALL(mock_egl, eglMakeCurrent(_,_,_,EGL_NO_CONTEXT));
+        });
+    });
 }
 
 TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
@@ -131,7 +165,7 @@ TEST_F(OffscreenDisplayTest, restores_previous_state_on_fbo_setup_failure)
     EXPECT_THROW({
         mgo::Display display(
             native_display,
-            std::make_shared<mg::DefaultDisplayConfigurationPolicy>(),
+            std::make_shared<mg::CloneDisplayConfigurationPolicy>(),
             mr::null_display_report());
     }, std::runtime_error);
 }

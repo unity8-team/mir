@@ -13,23 +13,33 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -fno-strict-aliasing -Wextra"
 
 add_library(eglapp STATIC
   eglapp.c
+  client_helpers.cpp
 )
 
 add_library(exampleserverconfig STATIC
+  server_example_canonical_window_manager.cpp
   server_example_display_configuration_policy.cpp
   server_example_input_event_filter.cpp
   server_example_log_options.cpp
   server_example_input_filter.cpp
-  server_example_fullscreen_placement_strategy.cpp
   server_example_host_lifecycle_event.cpp
-  server_example_window_manager.cpp
+  server_example_tiling_window_manager.cpp
   server_example_window_management.cpp
+  server_example_custom_compositor.cpp
+  server_example_adorning_compositor.cpp
 )
 
 target_link_libraries(eglapp
   mirclient
   ${EGL_LIBRARIES}
   ${GLESv2_LIBRARIES}
+  )
+
+mir_add_wrapped_executable(mir_demo_client_animated_cursor
+  animated_cursor_demo_client.c
+)
+target_link_libraries(mir_demo_client_animated_cursor
+  eglapp
 )
 mir_add_wrapped_executable(mir_demo_client_eglflash
   eglflash.c
@@ -41,6 +51,12 @@ mir_add_wrapped_executable(mir_demo_client_egltriangle
   egltriangle.c
 )
 target_link_libraries(mir_demo_client_egltriangle
+  eglapp
+)
+mir_add_wrapped_executable(mir_demo_client_target
+  target.c
+)
+target_link_libraries(mir_demo_client_target
   eglapp
 )
 mir_add_wrapped_executable(mir_demo_client_eglcounter
@@ -68,15 +84,33 @@ target_link_libraries(mir_demo_client_eglstateswitcher
   eglapp
 )
 
+mir_add_wrapped_executable(mir_demo_client_tooltip
+  tooltip.c
+)
+target_link_libraries(mir_demo_client_tooltip
+  eglapp
+  )
+
+mir_add_wrapped_executable(mir_demo_client_touch_validator
+  client_touch_validator.cpp
+)
+target_link_libraries(mir_demo_client_touch_validator
+  eglapp
+)
+
 mir_add_wrapped_executable(mir_demo_client_basic
   basic.c
-)
+  )
+
+mir_add_wrapped_executable(mir_demo_client_input_shapes
+  input_shapes.cpp
+  )
+target_link_libraries(mir_demo_client_input_shapes eglapp)
 
 target_link_libraries(mir_demo_client_basic
   mirclient
 
   ${Boost_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -95,6 +129,9 @@ target_link_libraries(mir_demo_client_progressbar mirclient)
 mir_add_wrapped_executable(mir_demo_client_display_config demo_client_display_config.c)
 target_link_libraries(mir_demo_client_display_config eglapp)
 
+mir_add_wrapped_executable(mir_demo_client_eglsquare eglsquare.cpp)
+target_link_libraries(mir_demo_client_eglsquare eglapp)
+
 mir_add_wrapped_executable(mir_demo_client_flicker
   flicker.c
 )
@@ -103,7 +140,6 @@ target_link_libraries(mir_demo_client_flicker
   mirclient
 
   ${Boost_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -116,7 +152,6 @@ target_link_libraries(mir_demo_client_scroll
   mirclient
 
   ${Boost_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EGL_LIBRARIES}
   ${GLESv2_LIBRARIES}
@@ -160,6 +195,32 @@ target_link_libraries(mir_demo_server
   ${Boost_LIBRARIES}
 )
 
+add_library(mir_demo_server_loadable MODULE
+  server_example.cpp
+  glog_logger.cpp
+  server_example_test_client.cpp
+)
+
+target_link_libraries(mir_demo_server_loadable
+  mirserver
+  exampleserverconfig
+  ${GLog_LIBRARY}
+  ${GFlags_LIBRARY}
+  ${Boost_LIBRARIES}
+)
+
+install(TARGETS mir_demo_server_loadable
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+mir_add_wrapped_executable(mir_demo_server_loader
+  mir_demo_server_loader.cpp
+)
+
+target_link_libraries(mir_demo_server_loader
+  dl
+)
+
 mir_add_wrapped_executable(mir_demo_server_minimal server_minimal.cpp)
 target_link_libraries(mir_demo_server_minimal mirserver)
 
@@ -172,19 +233,27 @@ target_link_libraries(mir_demo_standalone_render_overlays
     mircommon
 )
 
-# FIXME: Bug not fixed yet.
-if (MIR_ENABLE_TESTS AND MIR_TEST_CLIENT_ABI)
+if (MIR_ENABLE_TESTS)
   # Regression tests for LP: #1415321
 
   # To see reasons for failure:  ctest -V -R Clients-only-use-client-symbols
-  add_test(NAME Clients-only-use-client-symbols
+  mir_add_test(NAME Clients-only-use-client-symbols
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMAND /bin/sh -c "!(nm -u .mir_demo_client_* mir_demo_client* | grep -v @@MIR_CLIENT | grep 'U mir_')"
+    COMMAND /bin/sh -c "!(nm -u mir_demo_client* | grep -v @@MIR_CLIENT | grep 'U mir_')"
   )
 
+# We use a slightly weaker version of the test with clang as that generates spurious NEEDED
+if (NOT "${CMAKE_CXX_COMPILER}" MATCHES "clang")
   # To see reasons for failure:  ctest -V -R Clients-only-use-client-ABI
-  add_test(NAME Clients-only-use-client-ABI
+  mir_add_test(NAME Clients-only-use-client-ABI
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMAND /bin/sh -c "!(objdump -p .mir_demo_client_* mir_demo_client*  | grep NEEDED | grep libmir | grep -v libmirclient)"
+    COMMAND /bin/sh -c "!(objdump -p mir_demo_client*  | grep NEEDED | grep libmir | grep -v libmirclient)"
   )
+else()
+  # To see reasons for failure:  ctest -V -R Clients-only-use-client-ABI
+  mir_add_test(NAME Clients-only-use-client-ABI
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    COMMAND /bin/sh -c "!(nm -u mir_demo_client* | grep -v @@MIR_CLIENT | grep @@MIR_)"
+  )
+endif ()
 endif ()

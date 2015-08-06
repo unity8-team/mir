@@ -21,17 +21,18 @@
 #include "mir/logging/logger.h"
 #include "src/platforms/android/server/display.h"
 #include "src/server/report/null_report_factory.h"
-#include "mir_test_doubles/mock_display_report.h"
-#include "mir_test_doubles/mock_display_device.h"
-#include "mir_test_doubles/mock_egl.h"
-#include "mir_test_doubles/mock_gl.h"
-#include "mir_test_doubles/stub_display_buffer.h"
-#include "mir_test_doubles/stub_display_builder.h"
-#include "mir_test_doubles/stub_gl_config.h"
-#include "mir_test_doubles/mock_gl_config.h"
-#include "mir_test_doubles/stub_gl_program_factory.h"
+#include "mir/test/doubles/mock_display_report.h"
+#include "mir/test/doubles/mock_display_device.h"
+#include "mir/test/doubles/mock_egl.h"
+#include "mir/test/doubles/mock_gl.h"
+#include "mir/test/doubles/stub_display_buffer.h"
+#include "mir/test/doubles/stub_display_builder.h"
+#include "mir/test/doubles/stub_gl_config.h"
+#include "mir/test/doubles/mock_gl_config.h"
+#include "mir/test/doubles/stub_gl_program_factory.h"
+#include "mir/test/doubles/stub_display_configuration.h"
 #include "mir/graphics/android/mir_native_window.h"
-#include "mir_test_doubles/stub_driver_interpreter.h"
+#include "mir/test/doubles/stub_driver_interpreter.h"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -335,6 +336,10 @@ TEST_F(Display, configures_power_modes)
 {
     stub_db_factory->with_next_config([](mtd::MockHwcConfiguration& mock_config)
     {
+        using namespace testing;
+        //external is not connected, so shouldn't adjust its power mode
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, _))
+            .Times(0);
         testing::InSequence seq;
         EXPECT_CALL(mock_config, power_mode(mga::DisplayName::primary, mir_power_mode_on));
         EXPECT_CALL(mock_config, power_mode(mga::DisplayName::primary, mir_power_mode_standby));
@@ -353,7 +358,8 @@ TEST_F(Display, configures_power_modes)
     auto configuration = display.configuration();
     configuration->for_each_output([&](mg::UserDisplayConfigurationOutput& output) {
         //on by default
-        EXPECT_EQ(output.power_mode, mir_power_mode_on);
+        if (output.id == mg::DisplayConfigurationOutputId{0})
+            EXPECT_EQ(output.power_mode, mir_power_mode_on);
         output.power_mode = mir_power_mode_on;
     });
     display.configure(*configuration);
@@ -396,10 +402,12 @@ TEST_F(Display, returns_correct_config_with_one_connected_output_at_start)
 
     stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
     {
-        ON_CALL(mock_config, active_attribs_for(mga::DisplayName::primary))
-            .WillByDefault(Return(mga::DisplayAttribs{pixel_size, physical_size, vrefresh, true, format, true}));
-        ON_CALL(mock_config, active_attribs_for(mga::DisplayName::external))
-            .WillByDefault(Return(mga::DisplayAttribs{pixel_size, physical_size, vrefresh, false, format, true}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::primary))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                pixel_size, physical_size, format, vrefresh, true}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                pixel_size, physical_size, format, vrefresh, false}));
     });
 
     mga::Display display(
@@ -443,12 +451,12 @@ TEST_F(Display, returns_correct_config_with_external_and_primary_output_at_start
 
     stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
     {
-        ON_CALL(mock_config, active_attribs_for(mga::DisplayName::primary))
-            .WillByDefault(Return(
-                mga::DisplayAttribs{primary_pixel_size, primary_physical_size, primary_vrefresh, true, format, 2}));
-        ON_CALL(mock_config, active_attribs_for(mga::DisplayName::external))
-            .WillByDefault(Return(
-                mga::DisplayAttribs{external_pixel_size, external_physical_size, external_vrefresh, true, format, 2}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::primary))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                primary_pixel_size, primary_physical_size, format, primary_vrefresh, true}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{mg::DisplayConfigurationOutputId{1},
+                external_pixel_size, external_physical_size, format, external_vrefresh, true}));
     });
 
     mga::Display display(
@@ -486,7 +494,7 @@ TEST_F(Display, returns_correct_config_with_external_and_primary_output_at_start
     EXPECT_EQ(mg::DisplayConfigurationOutputId{1}, outputs[1].id);
     EXPECT_EQ(mg::DisplayConfigurationCardId{0}, outputs[1].card_id);
     EXPECT_TRUE(outputs[1].connected);
-    EXPECT_FALSE(outputs[1].used);
+    EXPECT_TRUE(outputs[1].used);
     EXPECT_EQ(origin, outputs[1].top_left);
     EXPECT_EQ(0, outputs[1].current_mode_index);
     EXPECT_EQ(external_physical_size, outputs[1].physical_size_mm);
@@ -549,7 +557,7 @@ TEST_F(Display, keeps_subscription_to_hotplug)
     auto use_count_before = subscription.use_count();
     stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
     {
-        EXPECT_CALL(mock_config, subscribe_to_config_changes(_))
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
             .WillOnce(Return(subscription));
     });
     {
@@ -570,34 +578,33 @@ TEST_F(Display, will_requery_display_configuration_after_hotplug)
     std::shared_ptr<void> subscription = std::make_shared<int>(3433);
     std::function<void()> hotplug_fn = []{};
 
-    mga::DisplayAttribs attribs1
+    mtd::StubDisplayConfigurationOutput attribs1
     {
         {33, 32},
         {31, 35},
+        mir_pixel_format_abgr_8888,
         0.44,
         true,
-        mir_pixel_format_abgr_8888,
-        2
     };
-    mga::DisplayAttribs attribs2
+    mtd::StubDisplayConfigurationOutput attribs2
     {
         {3, 3},
         {1, 5},
+        mir_pixel_format_abgr_8888,
         0.5544,
         true,
-        mir_pixel_format_abgr_8888,
-        2
     };
 
     stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
     {
-        EXPECT_CALL(mock_config, subscribe_to_config_changes(_))
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
             .WillOnce(DoAll(SaveArg<0>(&hotplug_fn), Return(subscription)));
-        EXPECT_CALL(mock_config, active_attribs_for(mga::DisplayName::primary))
+
+        EXPECT_CALL(mock_config, active_config_for(mga::DisplayName::primary))
             .Times(2)
             .WillOnce(testing::Return(attribs1))
             .WillOnce(testing::Return(attribs2));
-        EXPECT_CALL(mock_config, active_attribs_for(mga::DisplayName::external))
+        EXPECT_CALL(mock_config, active_config_for(mga::DisplayName::external))
             .Times(2)
             .WillOnce(testing::Return(attribs1))
             .WillOnce(testing::Return(attribs2));
@@ -612,13 +619,281 @@ TEST_F(Display, will_requery_display_configuration_after_hotplug)
 
     auto config = display.configuration();
     config->for_each_output([&](mg::UserDisplayConfigurationOutput const& c){
-        EXPECT_THAT(c.modes[c.current_mode_index].size, Eq(attribs1.pixel_size));
+        EXPECT_THAT(c.modes[c.current_mode_index].size, Eq(attribs1.modes[attribs1.current_mode_index].size));
     });
 
     hotplug_fn();
     config = display.configuration();
     config = display.configuration();
     config->for_each_output([&](mg::UserDisplayConfigurationOutput const& c){
-        EXPECT_THAT(c.modes[c.current_mode_index].size, Eq(attribs2.pixel_size));
+        EXPECT_THAT(c.modes[c.current_mode_index].size, Eq(attribs2.modes[attribs2.current_mode_index].size));
+    });
+}
+
+TEST_F(Display, returns_correct_dbs_with_external_and_primary_output_at_start)
+{
+    using namespace testing;
+    std::function<void()> hotplug_fn = []{};
+    bool external_connected = true;
+    stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
+    {
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::primary))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                mg::DisplayConfigurationOutputId{0}, {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, true}));
+
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Invoke([&](mga::DisplayName)
+            {
+                return mtd::StubDisplayConfigurationOutput{mg::DisplayConfigurationOutputId{1},
+                    {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, external_connected};
+            }));
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
+            .WillOnce(DoAll(SaveArg<0>(&hotplug_fn), Return(std::make_shared<char>('2'))));
+    });
+
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    auto group_count = 0;
+    auto db_count = 0;
+    auto db_group_counter = [&](mg::DisplaySyncGroup& group) {
+        group_count++;
+        group.for_each_display_buffer([&](mg::DisplayBuffer&) {db_count++;});
+    };
+    display.for_each_display_sync_group(db_group_counter);
+    EXPECT_THAT(group_count, Eq(1));
+    EXPECT_THAT(db_count, Eq(2));
+
+    //hotplug external away
+    external_connected = false;
+    hotplug_fn();
+
+    group_count = 0;
+    db_count = 0;
+    display.for_each_display_sync_group(db_group_counter);
+    EXPECT_THAT(group_count, Eq(1));
+    EXPECT_THAT(db_count, Eq(1));
+
+    //hotplug external back 
+    external_connected = true;
+    hotplug_fn();
+
+    group_count = 0;
+    db_count = 0;
+    display.for_each_display_sync_group(db_group_counter);
+    EXPECT_THAT(group_count, Eq(1));
+    EXPECT_THAT(db_count, Eq(2));
+}
+
+TEST_F(Display, turns_external_display_on_with_hotplug)
+{
+    using namespace testing;
+    std::function<void()> hotplug_fn = []{};
+    bool external_connected = true;
+    stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
+    {
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
+            .WillOnce(DoAll(SaveArg<0>(&hotplug_fn), Return(std::make_shared<char>('2'))));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::primary))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, true}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Invoke([&](mga::DisplayName)
+            {
+                return mtd::StubDisplayConfigurationOutput{
+                    {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, external_connected};
+            }));
+
+
+        testing::InSequence seq;
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::primary, _));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_on));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_on));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::primary, _));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_off));
+    });
+
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    //hotplug external away
+    external_connected = false;
+    hotplug_fn();
+    display.for_each_display_sync_group([](mg::DisplaySyncGroup&){});
+
+    //hotplug external back 
+    external_connected = true;
+    hotplug_fn();
+    display.for_each_display_sync_group([](mg::DisplaySyncGroup&){});
+}
+
+TEST_F(Display, configures_external_display)
+{
+    using namespace testing;
+    stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
+    {
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                mg::DisplayConfigurationOutputId{1}, {0,0}, {0,0}, mir_pixel_format_abgr_8888, 0.0, true}));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::primary, _))
+            .Times(AnyNumber());
+        InSequence seq;
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_on));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_off));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_suspend));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_on));
+        EXPECT_CALL(mock_config, power_mode(mga::DisplayName::external, mir_power_mode_off));
+    });
+
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    auto configuration = display.configuration();
+    configuration->for_each_output([&](mg::UserDisplayConfigurationOutput& output) {
+        output.power_mode = mir_power_mode_off;
+    });
+    display.configure(*configuration);
+
+    configuration->for_each_output([&](mg::UserDisplayConfigurationOutput& output) {
+        output.power_mode = mir_power_mode_suspend;
+    });
+    display.configure(*configuration);
+
+    configuration->for_each_output([&](mg::UserDisplayConfigurationOutput& output) {
+        output.power_mode = mir_power_mode_on;
+    });
+    display.configure(*configuration);
+
+    configuration->for_each_output([&](mg::UserDisplayConfigurationOutput& output) {
+        output.power_mode = mir_power_mode_off;
+    });
+    display.configure(*configuration);
+}
+
+TEST_F(Display, reports_vsync)
+{
+    using namespace testing;
+    std::function<void(mga::DisplayName)> vsync_fn = [](mga::DisplayName){};
+    auto report = std::make_shared<NiceMock<mtd::MockDisplayReport>>();
+    EXPECT_CALL(*report, report_vsync(_));
+    stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
+    {
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
+            .WillOnce(DoAll(SaveArg<1>(&vsync_fn), Return(std::make_shared<char>('2'))));
+    });
+
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        report,
+        mga::OverlayOptimization::enabled);
+
+    vsync_fn(mga::DisplayName::primary);
+}
+
+TEST_F(Display, reports_correct_card_information)
+{
+    using namespace testing;
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    int num_cards = 0;
+    display.configuration()->for_each_card(
+        [&](mg::DisplayConfigurationCard const& config)
+        {
+            EXPECT_THAT(config.max_simultaneous_outputs, Eq(2));
+            num_cards++;
+        });
+    EXPECT_THAT(num_cards, Eq(1));
+}
+
+TEST_F(Display, can_configure_positioning_of_dbs)
+{
+    using namespace testing;
+    auto new_location = geom::Point{493,999};
+    auto another_new_location = geom::Point{540,221};
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    auto config = display.configuration();
+    config->for_each_output([&](mg::UserDisplayConfigurationOutput& disp_conf) {
+        disp_conf.top_left = new_location;
+    });
+    display.configure(*config);
+
+    config = display.configuration();
+    config->for_each_output([&](mg::UserDisplayConfigurationOutput& disp_conf) {
+        EXPECT_THAT(disp_conf.top_left, Eq(new_location));
+        disp_conf.top_left = another_new_location; 
+    });
+
+    config->for_each_output([&](mg::DisplayConfigurationOutput const& disp_conf) {
+        EXPECT_THAT(disp_conf.top_left, Eq(another_new_location));
+    });
+}
+
+//test for lp:1471858
+TEST_F(Display, applying_orientation_after_hotplug)
+{
+    using namespace testing;
+    std::function<void()> hotplug_fn = []{};
+    bool external_connected = false;
+    MirOrientation const orientation = mir_orientation_left;
+    stub_db_factory->with_next_config([&](mtd::MockHwcConfiguration& mock_config)
+    {
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::primary))
+            .WillByDefault(Return(mtd::StubDisplayConfigurationOutput{
+                mg::DisplayConfigurationOutputId{0}, {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, true}));
+        ON_CALL(mock_config, active_config_for(mga::DisplayName::external))
+            .WillByDefault(Invoke([&](mga::DisplayName)
+            {
+                return mtd::StubDisplayConfigurationOutput{mg::DisplayConfigurationOutputId{1},
+                    {20,20}, {4,4}, mir_pixel_format_abgr_8888, 50.0f, external_connected};
+            }));
+        EXPECT_CALL(mock_config, subscribe_to_config_changes(_,_))
+            .WillOnce(DoAll(SaveArg<0>(&hotplug_fn), Return(std::make_shared<char>('2'))));
+    });
+
+    mga::Display display(
+        stub_db_factory,
+        stub_gl_program_factory,
+        stub_gl_config,
+        null_display_report,
+        mga::OverlayOptimization::enabled);
+
+    //hotplug external back 
+    external_connected = true;
+    hotplug_fn();
+
+    auto config = display.configuration();
+    config->for_each_output([orientation](mg::UserDisplayConfigurationOutput& output) {
+        output.orientation = orientation;
+    });
+    display.configure(*config);
+    display.for_each_display_sync_group([orientation](mg::DisplaySyncGroup& group) {
+        group.for_each_display_buffer([orientation](mg::DisplayBuffer& db) {
+            EXPECT_THAT(db.orientation(), Eq(orientation)); 
+        });
     });
 }

@@ -45,19 +45,21 @@ public:
         std::shared_ptr<input::Scene> const& scene);
     ~SoftwareCursor();
 
+    void show() override;
     void show(CursorImage const& cursor_image) override;
     void hide() override;
     void move_to(geometry::Point position) override;
 
 private:
     std::shared_ptr<detail::CursorRenderable> create_renderable_for(
-        CursorImage const& cursor_image);
+        CursorImage const& cursor_image, geometry::Point position);
 
     std::shared_ptr<GraphicBufferAllocator> const allocator;
     std::shared_ptr<input::Scene> const scene;
     MirPixelFormat const format;
     std::mutex guard;
     std::shared_ptr<detail::CursorRenderable> renderable;
+    bool visible;
     geometry::Displacement hotspot;
 };
 

@@ -16,8 +16,8 @@
  * Authored by: Alan Griffiths <alan@octopull.co.uk>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
+#include "mir/events/event_private.h"
+#include "mir/events/event_builders.h"
 #include "src/server/scene/basic_surface.h"
 #include "mir/scene/surface_observer.h"
 #include "mir/scene/surface_event_source.h"
@@ -25,13 +25,13 @@
 #include "mir/frontend/event_sink.h"
 #include "mir/graphics/display_configuration.h"
 
-#include "mir_test_doubles/stub_buffer_stream.h"
-#include "mir_test_doubles/mock_buffer_stream.h"
-#include "mir_test_doubles/mock_input_targeter.h"
-#include "mir_test_doubles/stub_input_sender.h"
-#include "mir_test_doubles/null_event_sink.h"
-#include "mir_test/fake_shared.h"
-#include "mir_test/event_matchers.h"
+#include "mir/test/doubles/stub_buffer_stream.h"
+#include "mir/test/doubles/mock_buffer_stream.h"
+#include "mir/test/doubles/stub_input_sender.h"
+#include "mir/test/doubles/null_event_sink.h"
+#include "mir/test/doubles/mock_event_sink.h"
+#include "mir/test/fake_shared.h"
+#include "mir/test/event_matchers.h"
 
 #include <cstring>
 #include <stdexcept>
@@ -44,6 +44,7 @@ namespace mf = mir::frontend;
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
 namespace mi = mir::input;
+namespace mev = mir::events;
 namespace geom = mir::geometry;
 namespace mt = mir::test;
 namespace mtd = mt::doubles;
@@ -51,14 +52,6 @@ namespace mr = mir::report;
 
 namespace
 {
-
-struct MockEventSink : public mf::EventSink
-{
-    ~MockEventSink() noexcept(true) {}
-    MOCK_METHOD1(handle_event, void(MirEvent const&));
-    MOCK_METHOD1(handle_lifecycle_event, void(MirLifecycleState));
-    MOCK_METHOD1(handle_display_config_change, void(mg::DisplayConfiguration const&));
-};
 
 typedef testing::NiceMock<mtd::MockBufferStream> StubBufferStream;
 
@@ -179,18 +172,13 @@ TEST_F(Surface, emits_resize_events)
     using namespace testing;
 
     geom::Size const new_size{123, 456};
-    auto sink = std::make_shared<MockEventSink>();
+    auto sink = std::make_shared<mtd::MockEventSink>();
     auto const observer = std::make_shared<ms::SurfaceEventSource>(stub_id, sink);
 
     surface->add_observer(observer);
 
-    MirEvent e;
-    memset(&e, 0, sizeof e);
-    e.type = mir_event_type_resize;
-    e.resize.surface_id = stub_id.as_value();
-    e.resize.width = new_size.width.as_int();
-    e.resize.height = new_size.height.as_int();
-    EXPECT_CALL(*sink, handle_event(e))
+    auto e = mev::make_event(stub_id, new_size);
+    EXPECT_CALL(*sink, handle_event(*e))
         .Times(1);
 
     surface->resize(new_size);
@@ -203,27 +191,17 @@ TEST_F(Surface, emits_resize_events_only_on_change)
 
     geom::Size const new_size{123, 456};
     geom::Size const new_size2{789, 1011};
-    auto sink = std::make_shared<MockEventSink>();
+    auto sink = std::make_shared<mtd::MockEventSink>();
     auto const observer = std::make_shared<ms::SurfaceEventSource>(stub_id, sink);
 
     surface->add_observer(observer);
 
-    MirEvent e;
-    memset(&e, 0, sizeof e);
-    e.type = mir_event_type_resize;
-    e.resize.surface_id = stub_id.as_value();
-    e.resize.width = new_size.width.as_int();
-    e.resize.height = new_size.height.as_int();
-    EXPECT_CALL(*sink, handle_event(e))
+    auto e = mev::make_event(stub_id, new_size);
+    EXPECT_CALL(*sink, handle_event(*e))
         .Times(1);
 
-    MirEvent e2;
-    memset(&e2, 0, sizeof e2);
-    e2.type = mir_event_type_resize;
-    e2.resize.surface_id = stub_id.as_value();
-    e2.resize.width = new_size2.width.as_int();
-    e2.resize.height = new_size2.height.as_int();
-    EXPECT_CALL(*sink, handle_event(e2))
+    auto e2 = mev::make_event(stub_id, new_size2);
+    EXPECT_CALL(*sink, handle_event(*e2))
         .Times(1);
 
     surface->resize(new_size);
@@ -241,7 +219,7 @@ TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
 {
     using namespace testing;
 
-    MockEventSink sink;
+    mtd::MockEventSink sink;
 
     {
         InSequence seq;
@@ -259,46 +237,11 @@ TEST_F(Surface, sends_focus_notifications_when_focus_gained_and_lost)
     surface->configure(mir_surface_attrib_focus, mir_surface_unfocused);
 }
 
-TEST_F(Surface, take_input_focus)
-{
-    using namespace ::testing;
-
-    mtd::MockInputTargeter targeter;
-    EXPECT_CALL(targeter, focus_changed(_)).Times(1);
-
-    surface->take_input_focus(mt::fake_shared(targeter));
-}
-
-TEST_F(Surface, with_most_recent_buffer_do_uses_compositor_buffer)
-{
-    auto stub_buffer_stream = std::make_shared<mtd::StubBufferStream>();
-
-    ms::BasicSurface surf(
-        std::string("stub"),
-        geom::Rectangle{{},{}},
-        false,
-        stub_buffer_stream,
-        std::shared_ptr<mi::InputChannel>(),
-        stub_input_sender,
-        std::shared_ptr<mg::CursorImage>(),
-        report);
-
-    mg::Buffer* buf_ptr{nullptr};
-
-    surf.with_most_recent_buffer_do(
-        [&](mg::Buffer& buffer)
-        {
-            buf_ptr = &buffer;
-        });
-
-    EXPECT_EQ(stub_buffer_stream->stub_compositor_buffer.get(), buf_ptr);
-}
-
 TEST_F(Surface, emits_client_close_events)
 {
     using namespace testing;
 
-    auto sink = std::make_shared<MockEventSink>();
+    auto sink = std::make_shared<mtd::MockEventSink>();
     auto const observer = std::make_shared<ms::SurfaceEventSource>(stub_id, sink);
 
     surface->add_observer(observer);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Canonical Ltd.
+ * Copyright © 2013-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -16,8 +16,6 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
 #include "mir/compositor/compositor.h"
 #include "mir/frontend/connector.h"
 #include "mir/graphics/display_configuration.h"
@@ -25,15 +23,17 @@
 #include "mir/server_action_queue.h"
 #include "mir/graphics/event_handler_register.h"
 #include "mir/server_status_listener.h"
+#include "mir/events/event_private.h"
 
-#include "mir_test/pipe.h"
-#include "mir_test/wait_condition.h"
+#include "mir/test/pipe.h"
+#include "mir/test/wait_condition.h"
+#include "mir/test/auto_unblock_thread.h"
 #include "mir_test_framework/testing_server_configuration.h"
-#include "mir_test_doubles/mock_input_manager.h"
-#include "mir_test_doubles/mock_input_dispatcher.h"
-#include "mir_test_doubles/mock_compositor.h"
-#include "mir_test_doubles/null_display.h"
-#include "mir_test_doubles/mock_server_status_listener.h"
+#include "mir/test/doubles/mock_input_manager.h"
+#include "mir/test/doubles/mock_input_dispatcher.h"
+#include "mir/test/doubles/mock_compositor.h"
+#include "mir/test/doubles/null_display.h"
+#include "mir/test/doubles/mock_server_status_listener.h"
 #include "mir/run_mir.h"
 
 #include <gtest/gtest.h>
@@ -86,9 +86,9 @@ public:
     {
     }
 
-    void for_each_display_buffer(std::function<void(mg::DisplayBuffer&)> const& f) override
+    void for_each_display_sync_group(std::function<void(mg::DisplaySyncGroup&)> const& f) override
     {
-        display->for_each_display_buffer(f);
+        display->for_each_display_sync_group(f);
     }
 
     std::unique_ptr<mg::DisplayConfiguration> configuration() const
@@ -349,9 +349,68 @@ private:
     std::shared_ptr<mtd::MockServerStatusListener> mock_server_status_listener;
 };
 
+struct DisplayServerMainLoopEvents : testing::Test
+{
+    void use_config_for_expectations(TestMainLoopServerConfig& server_config)
+    {
+        mock_compositor = server_config.the_mock_compositor();
+        mock_display = server_config.the_mock_display();
+        mock_connector = server_config.the_mock_connector();
+        mock_input_manager = server_config.the_mock_input_manager();
+        mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    }
+
+    void expect_start()
+    {
+        EXPECT_CALL(*mock_compositor, start()).Times(1);
+        EXPECT_CALL(*mock_input_manager, start()).Times(1);
+        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
+        EXPECT_CALL(*mock_connector, start()).Times(1);
+    }
+
+    void expect_pause()
+    {
+        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
+        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
+        EXPECT_CALL(*mock_compositor, stop()).Times(1);
+        EXPECT_CALL(*mock_display, pause()).Times(1);
+    }
+
+    void expect_resume()
+    {
+        EXPECT_CALL(*mock_display, resume()).Times(1);
+        EXPECT_CALL(*mock_compositor, start()).Times(1);
+        EXPECT_CALL(*mock_input_manager, start()).Times(1);
+        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
+        EXPECT_CALL(*mock_connector, start()).Times(1);
+    }
+
+    void expect_stop()
+    {
+        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
+        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
+        EXPECT_CALL(*mock_compositor, stop()).Times(1);
+    }
+
+    void expect_change_configuration()
+    {
+        EXPECT_CALL(*mock_compositor, stop()).Times(1);
+        EXPECT_CALL(*mock_display, configure(testing::_)).Times(1);
+        EXPECT_CALL(*mock_compositor, start()).Times(1);
+    }
+
+    std::shared_ptr<MockDisplay> mock_display;
+    std::shared_ptr<mtd::MockCompositor> mock_compositor;
+    std::shared_ptr<MockConnector> mock_connector;
+    std::shared_ptr<mtd::MockInputManager> mock_input_manager;
+    std::shared_ptr<mtd::MockInputDispatcher> mock_input_dispatcher;
+};
+
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigint)
+TEST_F(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigint)
 {
     ServerConfig server_config;
 
@@ -362,7 +421,7 @@ TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigint)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigterm)
+TEST_F(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigterm)
 {
     ServerConfig server_config;
 
@@ -373,263 +432,161 @@ TEST(DisplayServerMainLoopEvents, display_server_shuts_down_properly_on_sigterm)
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
+TEST_F(DisplayServerMainLoopEvents, display_server_components_pause_and_resume)
 {
     using namespace testing;
 
     TestMainLoopServerConfig server_config;
-
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    use_config_for_expectations(server_config);
 
     {
         InSequence s;
 
-        /* Start */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-
-        /* Pause */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
-        EXPECT_CALL(*mock_display, pause()).Times(1);
-
-        /* Resume */
-        EXPECT_CALL(*mock_display, resume()).Times(1);
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_start();
+        expect_pause();
+        expect_resume();
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
-                 [&server_config](mir::DisplayServer&)
+                 [&server_config, &t](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_pause_event_and_wait_for_handler();
                             server_config.emit_resume_event_and_wait_for_handler();
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_quits_when_paused)
+TEST_F(DisplayServerMainLoopEvents, display_server_quits_when_paused)
 {
     using namespace testing;
 
     TestMainLoopServerConfig server_config;
-
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    use_config_for_expectations(server_config);
 
     {
         InSequence s;
-
-        /* Start */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-
-        /* Pause */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
-        EXPECT_CALL(*mock_display, pause()).Times(1);
-
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_start();
+        expect_pause();
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
-                 [&server_config](mir::DisplayServer&)
+                 [&server_config, &t](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_pause_event_and_wait_for_handler();
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_failure)
+TEST_F(DisplayServerMainLoopEvents, display_server_attempts_to_continue_on_pause_failure)
 {
     using namespace testing;
 
     TestMainLoopServerConfig server_config;
-
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    use_config_for_expectations(server_config);
 
     {
         InSequence s;
 
-        /* Start */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
+        expect_start();
 
         /* Pause failure */
+        EXPECT_CALL(*mock_connector, stop()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
         EXPECT_CALL(*mock_input_manager, stop()).Times(1);
         EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
         EXPECT_CALL(*mock_display, pause())
             .WillOnce(Throw(std::runtime_error("")));
 
         /* Attempt to continue */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
         EXPECT_CALL(*mock_compositor, start()).Times(1);
         EXPECT_CALL(*mock_input_manager, start()).Times(1);
         EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
+        EXPECT_CALL(*mock_connector, start()).Times(1);
 
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
-                 [&server_config](mir::DisplayServer&)
+                 [&server_config, &t](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_pause_event_and_wait_for_handler();
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
+TEST_F(DisplayServerMainLoopEvents, display_server_handles_configuration_change)
 {
     using namespace testing;
 
     TestMainLoopServerConfig server_config;
-
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    use_config_for_expectations(server_config);
 
     {
         InSequence s;
 
-        /* Start */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-
-        /* Change configuration */
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_display, configure(_)).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_start();
+        expect_change_configuration();
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
                  [&](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_configuration_change_event_and_wait_for_handler();
                             server_config.wait_for_server_actions_to_finish();
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
+TEST_F(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
 {
     using namespace testing;
 
     TestMainLoopServerConfig server_config;
-
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
+    use_config_for_expectations(server_config);
 
     {
         InSequence s;
 
-        /* Start */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-
-        /* Pause event */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
-        EXPECT_CALL(*mock_display, pause()) .Times(1);
-
-        /* Resume event */
-        EXPECT_CALL(*mock_display, resume()).Times(1);
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-
+        expect_start();
+        expect_pause();
+        expect_resume();
         /* Change configuration (after resuming) */
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_display, configure(_)).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_change_configuration();
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
                  [&](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_pause_event_and_wait_for_handler();
@@ -639,66 +596,48 @@ TEST(DisplayServerMainLoopEvents, postpones_configuration_when_paused)
 
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }
 
-TEST(DisplayServerMainLoopEvents, server_status_listener)
+TEST_F(DisplayServerMainLoopEvents, server_status_listener)
 {
     using namespace testing;
 
     TestServerStatusListenerConfig server_config;
+    use_config_for_expectations(server_config);
 
-    auto mock_compositor = server_config.the_mock_compositor();
-    auto mock_display = server_config.the_mock_display();
-    auto mock_connector = server_config.the_mock_connector();
-    auto mock_input_manager = server_config.the_mock_input_manager();
-    auto mock_input_dispatcher = server_config.the_mock_input_dispatcher();
     auto mock_server_status_listener = server_config.the_mock_server_status_listener();
 
     {
         InSequence s;
 
         /* "started" is emitted after all components have been started */
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
+        expect_start();
         EXPECT_CALL(*mock_server_status_listener, started()).Times(1);
 
         /* "paused" is emitted after all components have been paused/stopped */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
-        EXPECT_CALL(*mock_display, pause()).Times(1);
+        expect_pause();
         EXPECT_CALL(*mock_server_status_listener, paused()).Times(1);
 
         /* "resumed" is emitted after all components have been resumed/started */
-        EXPECT_CALL(*mock_display, resume()).Times(1);
-        EXPECT_CALL(*mock_connector, start()).Times(1);
-        EXPECT_CALL(*mock_input_manager, start()).Times(1);
-        EXPECT_CALL(*mock_input_dispatcher, start()).Times(1);
-        EXPECT_CALL(*mock_compositor, start()).Times(1);
+        expect_resume();
         EXPECT_CALL(*mock_server_status_listener, resumed()).Times(1);
 
-        /* Stop */
-        EXPECT_CALL(*mock_input_dispatcher, stop()).Times(1);
-        EXPECT_CALL(*mock_input_manager, stop()).Times(1);
-        EXPECT_CALL(*mock_compositor, stop()).Times(1);
-        EXPECT_CALL(*mock_connector, stop()).Times(1);
+        expect_stop();
     }
 
+    mt::AutoJoinThread t;
     mir::run_mir(server_config,
-                 [&server_config](mir::DisplayServer&)
+                 [&server_config, &t](mir::DisplayServer&)
                  {
-                    std::thread t{
+                    mt::AutoJoinThread killing_thread{
                         [&]
                         {
                             server_config.emit_pause_event_and_wait_for_handler();
                             server_config.emit_resume_event_and_wait_for_handler();
                             kill(getpid(), SIGTERM);
                         }};
-                    t.detach();
+                    t = std::move(killing_thread);
                  });
 }

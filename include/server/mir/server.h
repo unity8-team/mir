@@ -19,6 +19,7 @@
 #ifndef MIR_SERVER_H_
 #define MIR_SERVER_H_
 
+#include "mir/shell/window_manager_builder.h"
 #include "mir_toolkit/common.h"
 
 #include <functional>
@@ -29,8 +30,8 @@ namespace mir
 {
 namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
 namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
-namespace graphics { class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; }
+namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
+namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; class InputDeviceHub;}
 namespace logging { class Logger; }
 namespace options { class Option; }
 namespace shell
@@ -43,13 +44,14 @@ class Shell;
 }
 namespace scene
 {
-class PlacementStrategy;
+class ApplicationNotRespondingDetector;
+class BufferStreamFactory; 
 class PromptSessionListener;
 class PromptSessionManager;
 class SessionListener;
 class SessionCoordinator;
-class SurfaceConfigurator;
 class SurfaceCoordinator;
+class SurfaceFactory;
 }
 
 class Fd;
@@ -234,9 +236,6 @@ public:
     /// Sets an override functor for creating the logger.
     void override_the_logger(Builder<logging::Logger> const& logger_builder);
 
-    /// Sets an override functor for creating the placement strategy.
-    void override_the_placement_strategy(Builder<scene::PlacementStrategy> const& placement_strategy_builder);
-
     /// Sets an override functor for creating the prompt session listener.
     void override_the_prompt_session_listener(Builder<scene::PromptSessionListener> const& prompt_session_listener_builder);
 
@@ -258,8 +257,12 @@ public:
     /// Sets an override functor for creating the shell.
     void override_the_shell(Builder<shell::Shell> const& wrapper);
 
-    /// Sets an override functor for creating the surface configurator.
-    void override_the_surface_configurator(Builder<scene::SurfaceConfigurator> const& surface_configurator_builder);
+    /// Sets an override functor for creating the window manager.
+    void override_the_window_manager_builder(shell::WindowManagerBuilder const wmb);
+
+    /// Sets an override functor for creating the application not responding detector.
+    void override_the_application_not_responding_detector(
+        Builder<scene::ApplicationNotRespondingDetector> const& anr_detector_builder);
 
     /// Each of the wrap functions takes a wrapper functor of the same form
     template<typename T> using Wrapper = std::function<std::shared_ptr<T>(std::shared_ptr<T> const&)>;
@@ -292,6 +295,9 @@ public:
 
     /// \return the cursor listener.
     auto the_cursor_listener() const -> std::shared_ptr<input::CursorListener>;
+
+    /// \return the cursor
+    auto the_cursor() const -> std::shared_ptr<graphics::Cursor>;
 
     /// \return the focus controller.
     auto the_focus_controller() const -> std::shared_ptr<shell::FocusController>;
@@ -335,14 +341,24 @@ public:
     /// \return the display layout.
     auto the_shell_display_layout() const -> std::shared_ptr<shell::DisplayLayout>;
 
-    /// \return the surface configurator.
-    auto the_surface_configurator() const -> std::shared_ptr<scene::SurfaceConfigurator>;
+    /// \return the buffer stream factory
+    auto the_buffer_stream_factory() const -> std::shared_ptr<scene::BufferStreamFactory>;
+
+    /// \return the surface factory
+    auto the_surface_factory() const -> std::shared_ptr<scene::SurfaceFactory>;
 
     /// \return the surface coordinator.
     auto the_surface_coordinator() const -> std::shared_ptr<scene::SurfaceCoordinator>;
 
     /// \return the touch visualizer.
     auto the_touch_visualizer() const -> std::shared_ptr<input::TouchVisualizer>;
+
+    /// \return the input device hub
+    auto the_input_device_hub() const -> std::shared_ptr<input::InputDeviceHub>;
+
+    /// \return the application not responding detector
+    auto the_application_not_responding_detector() const ->
+        std::shared_ptr<scene::ApplicationNotRespondingDetector>;
 /** @} */
 
 /** @name Client side support

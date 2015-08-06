@@ -29,7 +29,7 @@ namespace mir
 namespace compositor
 {
 
-class BufferBundle;
+class BufferAcquisition;
 class BackBufferStrategy;
 
 class TemporaryBuffer : public mg::Buffer
@@ -41,9 +41,8 @@ public:
     mg::BufferID id() const override;
     void gl_bind_to_texture() override;
     std::shared_ptr<mg::NativeBuffer> native_buffer_handle() const override;
-    bool can_bypass() const override;
-    
     void write (unsigned char const* data, size_t size) override;
+    void read (std::function<void(unsigned char const*)> const& do_with_pixels) override;
 
 protected:
     explicit TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buffer);
@@ -54,22 +53,22 @@ class TemporaryCompositorBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporaryCompositorBuffer(
-        std::shared_ptr<BufferBundle> const& bun, void const* user_id);
+        std::shared_ptr<BufferAcquisition> const& acquisition, void const* user_id);
     ~TemporaryCompositorBuffer();
 
 private:
-    std::shared_ptr<BufferBundle> const bundle;
+    std::shared_ptr<BufferAcquisition> const acquisition;
 };
 
 class TemporarySnapshotBuffer : public TemporaryBuffer
 {
 public:
     explicit TemporarySnapshotBuffer(
-        std::shared_ptr<BufferBundle> const& bun);
+        std::shared_ptr<BufferAcquisition> const& acquisition);
     ~TemporarySnapshotBuffer();
 
 private:
-    std::shared_ptr<BufferBundle> const bundle;
+    std::shared_ptr<BufferAcquisition> const acquisition;
 };
 
 }

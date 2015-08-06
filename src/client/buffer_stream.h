@@ -18,8 +18,6 @@
 
 #ifndef MIR_CLIENT_BUFFER_STREAM_H
 #define MIR_CLIENT_BUFFER_STREAM_H
- 
-#include "mir_protobuf.pb.h"
 
 #include "mir_wait_handle.h"
 #include "mir/egl_native_surface.h"
@@ -31,6 +29,7 @@
 
 #include <EGL/eglplatform.h>
 
+#include <queue>
 #include <memory>
 #include <mutex>
 
@@ -40,11 +39,21 @@ namespace logging
 {
 class Logger;
 }
+namespace protobuf
+{
+class BufferStream;
+class BufferStreamParameters;
+class Void;
+}
 namespace client
 {
+namespace rpc
+{
+class DisplayServer;
+}
 class ClientBufferFactory;
 class ClientBuffer;
-class EGLNativeWindowFactory;
+class ClientPlatform;
 class PerfReport;
 struct MemoryRegion;
 
@@ -57,14 +66,28 @@ Consumer // As in screencasts
 class BufferStream : public EGLNativeSurface, public ClientBufferStream
 {
 public:
-    BufferStream(mir::protobuf::DisplayServer& server,
+    BufferStream(
+        MirConnection* connection,
+        mir::client::rpc::DisplayServer& server,
         BufferStreamMode mode,
-        std::shared_ptr<ClientBufferFactory> const& buffer_factory,
-        std::shared_ptr<EGLNativeWindowFactory> const& native_window_factory,
-        protobuf::BufferStream const& protobuf_bs,
+        std::shared_ptr<ClientPlatform> const& native_window_factory,
+        mir::protobuf::BufferStream const& protobuf_bs,
         std::shared_ptr<PerfReport> const& perf_report,
         std::string const& surface_name);
+    // For surfaceless buffer streams
+    BufferStream(
+        MirConnection* connection,
+        mir::client::rpc::DisplayServer& server,
+        std::shared_ptr<ClientPlatform> const& native_window_factory,
+        mir::protobuf::BufferStreamParameters const& parameters,
+        std::shared_ptr<PerfReport> const& perf_report,
+        mir_buffer_stream_callback callback,
+        void *context);
+        
     virtual ~BufferStream();
+
+    MirWaitHandle *get_create_wait_handle() override;
+    MirWaitHandle *release(mir_buffer_stream_callback callback, void* context) override;
     
     MirWaitHandle* next_buffer(std::function<void()> const& done) override;
     std::shared_ptr<mir::client::ClientBuffer> get_current_buffer() override;
@@ -73,6 +96,7 @@ public:
     
     int swap_interval() const override;
     void set_swap_interval(int interval) override;
+    void set_buffer_cache_size(unsigned int) override;
 
     EGLNativeWindowType egl_native_window() override;
     std::shared_ptr<MemoryRegion> secure_for_cpu_write() override;
@@ -82,26 +106,44 @@ public:
     void request_and_wait_for_next_buffer() override;
     // TODO: In this context it seems like a wart that this is a "SurfaceAttribute"
     void request_and_wait_for_configure(MirSurfaceAttrib attrib, int) override;
+
+    MirNativeBuffer* get_current_buffer_package() override;
+
+    MirPlatformType platform_type() override;
+
+    frontend::BufferStreamId rpc_id() const override;
+    bool valid() const override;
     
+    void buffer_available(mir::protobuf::Buffer const& buffer) override;
+    void buffer_unavailable() override;
+ 
 protected:
     BufferStream(BufferStream const&) = delete;
     BufferStream& operator=(BufferStream const&) = delete;
 
 private:
+    void created(mir_buffer_stream_callback callback, void* context);
     void process_buffer(protobuf::Buffer const& buffer);
+    void process_buffer(protobuf::Buffer const& buffer, std::unique_lock<std::mutex> const&);
     void next_buffer_received(
         std::function<void()> done);
     void on_configured();
     void release_cpu_region();
+    MirWaitHandle* submit(std::function<void()> const& done, std::unique_lock<std::mutex> lk);
 
     mutable std::mutex mutex; // Protects all members of *this
 
-    mir::protobuf::DisplayServer& display_server;
+    std::function<void()> on_incoming_buffer;
+    std::queue<mir::protobuf::Buffer> incoming_buffers;
+    bool server_connection_lost {false};
+
+    MirConnection* connection;
+    mir::client::rpc::DisplayServer& display_server;
 
     BufferStreamMode const mode;
-    std::shared_ptr<EGLNativeWindowFactory> const native_window_factory;
+    std::shared_ptr<ClientPlatform> const client_platform;
 
-    mir::protobuf::BufferStream protobuf_bs;
+    std::unique_ptr<mir::protobuf::BufferStream> protobuf_bs;
     mir::client::ClientBufferDepository buffer_depository;
     
     int swap_interval_;
@@ -110,8 +152,11 @@ private:
     
     std::shared_ptr<EGLNativeWindowType> egl_native_window_;
 
+    MirWaitHandle create_wait_handle;
+    MirWaitHandle release_wait_handle;
     MirWaitHandle next_buffer_wait_handle;
     MirWaitHandle configure_wait_handle;
+    std::unique_ptr<mir::protobuf::Void> protobuf_void;
     
     std::shared_ptr<MemoryRegion> secured_region;
     

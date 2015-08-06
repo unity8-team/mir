@@ -17,7 +17,7 @@
  * Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#include "mir_test_doubles/mock_gbm.h"
+#include "mir/test/doubles/mock_gbm.h"
 #include <gtest/gtest.h>
 
 namespace mtd=mir::test::doubles;
@@ -44,6 +44,9 @@ mtd::MockGBM::MockGBM()
 
     ON_CALL(*this, gbm_create_device(_))
     .WillByDefault(Return(fake_gbm.device));
+
+    ON_CALL(*this, gbm_device_is_format_supported(_,_,_))
+    .WillByDefault(Return(1));
 
     ON_CALL(*this, gbm_surface_create(fake_gbm.device,_,_,_,_))
     .WillByDefault(Return(fake_gbm.surface));
@@ -87,6 +90,12 @@ void gbm_device_destroy(struct gbm_device *gbm)
 int gbm_device_get_fd(struct gbm_device *gbm)
 {
     return global_mock->gbm_device_get_fd(gbm);
+}
+
+int gbm_device_is_format_supported(struct gbm_device *gbm,
+                                   uint32_t format, uint32_t usage)
+{
+    return global_mock->gbm_device_is_format_supported(gbm, format, usage);
 }
 
 struct gbm_surface *gbm_surface_create(struct gbm_device *gbm,
@@ -167,4 +176,9 @@ int gbm_bo_write(struct gbm_bo *bo, const void *buf, size_t count)
 void gbm_bo_destroy(struct gbm_bo *bo)
 {
     return global_mock->gbm_bo_destroy(bo);
+}
+
+struct gbm_bo* gbm_bo_import(struct gbm_device* device, uint32_t type, void* data, uint32_t flags)
+{
+    return global_mock->gbm_bo_import(device, type, data, flags);
 }

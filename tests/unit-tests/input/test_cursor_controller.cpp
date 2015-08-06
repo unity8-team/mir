@@ -18,6 +18,7 @@
 
 #include "src/server/input/cursor_controller.h"
 
+#include "mir/thread_safe_list.h"
 #include "mir/input/surface.h"
 #include "mir/input/scene.h"
 #include "mir/scene/observer.h"
@@ -26,10 +27,11 @@
 #include "mir/graphics/cursor.h"
 
 #include "mir_toolkit/common.h"
+#include "mir_toolkit/cursors.h"
 
-#include "mir_test/fake_shared.h"
-#include "mir_test_doubles/stub_scene_surface.h"
-#include "mir_test_doubles/stub_input_scene.h"
+#include "mir/test/fake_shared.h"
+#include "mir/test/doubles/stub_scene_surface.h"
+#include "mir/test/doubles/stub_input_scene.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -84,6 +86,7 @@ MATCHER_P(CursorNamed, name, "")
 
 struct MockCursor : public mg::Cursor
 {
+    MOCK_METHOD0(show, void());
     MOCK_METHOD1(show, void(mg::CursorImage const&));
     MOCK_METHOD0(hide, void());
     
@@ -160,6 +163,19 @@ struct StubInputSurface : public mtd::StubSceneSurface
         observers.erase(it);
     }
 
+    void post_frame()
+    {
+        for (auto observer : observers)
+        {
+            observer->frame_posted(1);
+        }
+    }
+
+    void set_cursor_image_without_notifications(std::shared_ptr<mg::CursorImage> const& image)
+    {
+        cursor_image_ = image;
+    }
+
     geom::Rectangle const bounds;
     std::shared_ptr<mg::CursorImage> cursor_image_;
     
@@ -182,45 +198,38 @@ struct StubScene : public mtd::StubInputScene
     
     void add_observer(std::shared_ptr<ms::Observer> const& observer) override
     {
-        std::unique_lock<decltype(observer_guard)> lk(observer_guard);
+        observers.add(observer);
 
-        observers.push_back(observer);
-        
         for (auto target : targets)
         {
-            for (auto observer : observers)
+            observers.for_each([&target](std::shared_ptr<ms::Observer> const& observer)
             {
                 observer->surface_exists(target.get());
-            }
+            });
         }
     }
 
     void remove_observer(std::weak_ptr<ms::Observer> const& observer) override
     {
-        std::unique_lock<decltype(observer_guard)> lk(observer_guard);
-        
         auto o = observer.lock();
         assert(o);
 
-        auto it = std::find(observers.begin(), observers.end(), o);
-        observers.erase(it);
+        observers.remove(o);
     }
     
     void add_surface(std::shared_ptr<StubInputSurface> const& surface)
     {
         targets.push_back(surface);
-        for (auto observer : observers)
+        observers.for_each([&surface](std::shared_ptr<ms::Observer> const& observer)
         {
             observer->surface_added(surface.get());
-        }
+        });
     }
     
     // TODO: Should be mi::Surface. See comment on StubInputSurface.
     std::vector<std::shared_ptr<ms::Surface>> targets;
 
-    std::mutex observer_guard;
-
-    std::vector<std::shared_ptr<ms::Observer>> observers;
+    mir::ThreadSafeList<std::shared_ptr<ms::Observer>> observers;
 };
 
 struct TestCursorController : public testing::Test
@@ -390,4 +399,34 @@ TEST_F(TestCursorController, cursor_image_not_reset_needlessly)
 
     targets.add_surface(mt::fake_shared(surface1));
     targets.add_surface(mt::fake_shared(surface2));
+}
+
+TEST_F(TestCursorController, updates_cursor_image_when_surface_posts_first_frame)
+{
+    using namespace ::testing;
+
+    StubInputSurface surface{rect_0_0_1_1,
+        std::make_shared<NamedCursorImage>(cursor_name_1)};
+    StubScene targets({mt::fake_shared(surface)});
+
+    // Cursor is set when we first create the controller
+    // because of the existing surface
+    EXPECT_CALL(cursor, show(CursorNamed(cursor_name_1))).Times(1);
+
+    mi::CursorController controller(mt::fake_shared(targets),
+        mt::fake_shared(cursor), default_cursor_image);
+
+    Mock::VerifyAndClearExpectations(&cursor);
+
+    surface.set_cursor_image_without_notifications(
+        std::make_shared<NamedCursorImage>(cursor_name_2));
+
+    // First post should lead to cursor update
+    EXPECT_CALL(cursor, show(CursorNamed(cursor_name_2))).Times(1);
+    surface.post_frame();
+    Mock::VerifyAndClearExpectations(&cursor);
+
+    // Second post should have no effect
+    EXPECT_CALL(cursor, show(_)).Times(0);
+    surface.post_frame();
 }

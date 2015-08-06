@@ -21,10 +21,11 @@
 
 #include "mir/graphics/renderable.h"
 #include "mir/input/surface.h"
-#include "mir/scene/surface_buffer_access.h"
 #include "mir/frontend/surface.h"
+#include "mir/compositor/compositor_id.h"
 
 #include <vector>
+#include <list>
 
 namespace mir
 {
@@ -32,15 +33,20 @@ namespace input { class InputChannel; }
 namespace shell { class InputTargeter; }
 namespace geometry { struct Rectangle; }
 namespace graphics { class CursorImage; }
-
+namespace compositor { class BufferStream; }
 namespace scene
 {
+struct StreamInfo
+{
+    std::shared_ptr<compositor::BufferStream> stream;
+    geometry::Displacement displacement;
+};
+
 class SurfaceObserver;
 
 class Surface :
     public input::Surface,
-    public frontend::Surface,
-    public SurfaceBufferAccess
+    public frontend::Surface
 {
 public:
     // resolve ambiguous member function names
@@ -56,7 +62,7 @@ public:
     /// Size of the surface including window frame (if any)
     virtual geometry::Size size() const = 0;
 
-    virtual std::unique_ptr<graphics::Renderable> compositor_snapshot(void const* compositor_id) const = 0;
+    virtual graphics::RenderableList generate_renderables(compositor::CompositorID id) const = 0; 
     virtual int buffers_ready_for_compositor(void const* compositor_id) const = 0;
 
     virtual float alpha() const = 0; //only used in examples/
@@ -66,7 +72,6 @@ public:
     virtual void show() = 0;
     virtual bool visible() const = 0;
     virtual void move_to(geometry::Point const& top_left) = 0;
-    virtual void take_input_focus(std::shared_ptr<shell::InputTargeter> const& targeter) = 0;
 
     /**
      * Sets the input region for this surface.
@@ -80,12 +85,10 @@ public:
      * set_input_region({geom::Rectangle{}}).
      */
     virtual void set_input_region(std::vector<geometry::Rectangle> const& region) = 0;
-    virtual void allow_framedropping(bool) = 0;
     virtual void resize(geometry::Size const& size) = 0;
     virtual void set_transformation(glm::mat4 const& t) = 0;
     virtual void set_alpha(float alpha) = 0;
     virtual void set_orientation(MirOrientation orientation) = 0;
-    virtual void force_requests_to_complete() = 0;
     
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) override = 0;
     virtual std::shared_ptr<graphics::CursorImage> cursor_image() const override = 0;
@@ -104,7 +107,11 @@ public:
     // TODO a legacy of old interactions and needs removing
     virtual int configure(MirSurfaceAttrib attrib, int value) = 0;
     // TODO a legacy of old interactions and needs removing
-    virtual int query(MirSurfaceAttrib attrib) = 0;
+    virtual int query(MirSurfaceAttrib attrib) const = 0;
+
+    virtual void set_keymap(xkb_rule_names const& rules) = 0;
+    virtual void rename(std::string const& title) = 0;
+    virtual void set_streams(std::list<StreamInfo> const& streams) = 0;
 };
 }
 }

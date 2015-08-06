@@ -41,16 +41,21 @@ ms::LegacySceneChangeNotification::~LegacySceneChangeNotification()
 
 void ms::LegacySceneChangeNotification::add_surface_observer(ms::Surface* surface)
 {
+    auto notifier = [surface, this, was_visible = false] () mutable
+        {
+            if (surface->visible() || was_visible)
+                scene_notify_change();
+            was_visible = surface->visible();
+        };
+
     auto observer = std::make_shared<ms::LegacySurfaceChangeNotification>(
-        scene_notify_change, buffer_notify_change);
+        notifier, buffer_notify_change);
     surface->add_observer(observer);
     
     {
         std::unique_lock<decltype(surface_observers_guard)> lg(surface_observers_guard);
         surface_observers[surface] = observer;
     }
-    
-    scene_notify_change();
 }
 
 void ms::LegacySceneChangeNotification::surface_added(ms::Surface* surface)
@@ -74,7 +79,9 @@ void ms::LegacySceneChangeNotification::surface_removed(ms::Surface* surface)
             surface_observers.erase(it);
         }
     }
-    scene_notify_change();
+
+    if (surface->visible())
+        scene_notify_change();
 }
 
 void ms::LegacySceneChangeNotification::surfaces_reordered()

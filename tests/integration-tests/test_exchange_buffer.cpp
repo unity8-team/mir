@@ -19,17 +19,24 @@
 #include "mir_test_framework/stubbed_server_configuration.h"
 #include "mir_test_framework/in_process_server.h"
 #include "mir_test_framework/using_stub_client_platform.h"
-#include "mir_test_doubles/stub_buffer.h"
-#include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_display.h"
-#include "mir_test_doubles/null_platform.h"
+#include "mir_test_framework/any_surface.h"
+#include "mir/test/doubles/stub_buffer.h"
+#include "mir/test/doubles/stub_buffer_allocator.h"
+#include "mir/test/doubles/stub_display.h"
+#include "mir/test/doubles/null_platform.h"
 #include "mir/graphics/buffer_id.h"
 #include "mir/graphics/buffer_ipc_message.h"
 #include "mir/graphics/platform_operation_message.h"
 #include "mir/scene/buffer_stream_factory.h"
+#include "mir/scene/session_coordinator.h"
+#include "mir/frontend/event_sink.h"
 #include "mir/compositor/buffer_stream.h"
+#include "src/server/compositor/buffer_bundle.h"
+#include "src/server/compositor/buffer_stream_surfaces.h"
 #include "mir_toolkit/mir_client_library.h"
+#include "mir_toolkit/debug/surface.h"
 #include "src/client/mir_connection.h"
+#include "src/client/rpc/mir_display_server.h"
 #include <chrono>
 #include <mutex>
 #include <stdio.h>
@@ -46,6 +53,8 @@ namespace msc = mir::scene;
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 namespace mp = mir::protobuf;
+namespace mf = mir::frontend;
+namespace mclr = mir::client::rpc;
 
 namespace
 {
@@ -54,14 +63,14 @@ MATCHER(DidNotTimeOut, "did not time out")
     return arg;
 }
 
-struct StubStream : public mc::BufferStream
+struct StubBundle : public mc::BufferBundle
 {
-    StubStream(std::vector<mg::BufferID> const& ids) :
+    StubBundle(std::vector<mg::BufferID> const& ids) :
         buffer_id_seq(ids)
     {
     }
 
-    void acquire_client_buffer(std::function<void(mg::Buffer* buffer)> complete)
+    void client_acquire(std::function<void(mg::Buffer* buffer)> complete)
     {
         std::shared_ptr<mg::Buffer> stub_buffer;
         if (buffers_acquired < buffer_id_seq.size())
@@ -72,34 +81,40 @@ struct StubStream : public mc::BufferStream
         client_buffers.push_back(stub_buffer);
         complete(stub_buffer.get());
     }
-
-    void release_client_buffer(mg::Buffer*) {}
-    std::shared_ptr<mg::Buffer> lock_compositor_buffer(void const*)
-    { return std::make_shared<mtd::StubBuffer>(); }
-    std::shared_ptr<mg::Buffer> lock_snapshot_buffer()
-    { return std::make_shared<mtd::StubBuffer>(); }
-    MirPixelFormat get_stream_pixel_format() { return mir_pixel_format_abgr_8888; }
-    geom::Size stream_size() { return geom::Size{1,212121}; }
-    void resize(geom::Size const&) {};
-    void allow_framedropping(bool) {};
-    void force_requests_to_complete() {};
-    int buffers_ready_for_compositor(void const*) const override { return -5; }
+    void client_release(mg::Buffer*) {}
+    std::shared_ptr<mg::Buffer> compositor_acquire(void const*)
+        { return std::make_shared<mtd::StubBuffer>(); }
+    void compositor_release(std::shared_ptr<mg::Buffer> const&) {}
+    std::shared_ptr<mg::Buffer> snapshot_acquire()
+        { return std::make_shared<mtd::StubBuffer>(); }
+    void snapshot_release(std::shared_ptr<mg::Buffer> const&) {}
+    mg::BufferProperties properties() const { return mg::BufferProperties{}; }
+    void allow_framedropping(bool) {}
+    void force_requests_to_complete() {}
+    void resize(const geom::Size&) {}
+    int buffers_ready_for_compositor(void const*) const { return 1; }
+    int buffers_free_for_client() const { return 1; }
     void drop_old_buffers() {}
-    void drop_client_requests() override {}
+    void drop_client_requests() {}
 
     std::vector<std::shared_ptr<mg::Buffer>> client_buffers;
     std::vector<mg::BufferID> const buffer_id_seq;
     unsigned int buffers_acquired{0};
 };
 
-struct StubStreamFactory : public msc::BufferStreamFactory
+struct StubBundleFactory : public msc::BufferStreamFactory
 {
-    StubStreamFactory(std::vector<mg::BufferID> const& ids) :
+    StubBundleFactory(std::vector<mg::BufferID> const& ids) :
         buffer_id_seq(ids)
     {}
 
-    std::shared_ptr<mc::BufferStream> create_buffer_stream(mg::BufferProperties const&) override
-    { return std::make_shared<StubStream>(buffer_id_seq); }
+    std::shared_ptr<mc::BufferStream> create_buffer_stream(
+        mf::BufferStreamId i, std::shared_ptr<mf::BufferSink> const& s,
+        int, mg::BufferProperties const& p) override
+    { return create_buffer_stream(i, s, p); }
+    std::shared_ptr<mc::BufferStream> create_buffer_stream(
+        mf::BufferStreamId, std::shared_ptr<mf::BufferSink> const&, mg::BufferProperties const&) override
+    { return std::make_shared<mc::BufferStreamSurfaces>(std::make_shared<StubBundle>(buffer_id_seq)); }
     std::vector<mg::BufferID> const buffer_id_seq;
 };
 
@@ -170,16 +185,65 @@ struct StubPlatform : public mtd::NullPlatform
     std::shared_ptr<mg::PlatformIpcOperations> const ipc_ops;
 };
 
+class SinkSkimmingCoordinator : public msc::SessionCoordinator
+{
+public:
+    SinkSkimmingCoordinator(std::shared_ptr<msc::SessionCoordinator> const& wrapped) :
+        wrapped(wrapped)
+    {
+    }
+
+    void set_focus_to(std::shared_ptr<msc::Session> const& focus) override
+    {
+        wrapped->set_focus_to(focus);
+    }
+
+    void unset_focus() override
+    {
+        wrapped->unset_focus();
+    }
+
+    std::shared_ptr<msc::Session> open_session(
+        pid_t client_pid,
+        std::string const& name,
+        std::shared_ptr<mf::EventSink> const& sink) override
+    {
+        last_sink = sink;
+        return wrapped->open_session(client_pid, name, sink);
+    }
+
+    void close_session(std::shared_ptr<msc::Session> const& session) override
+    {
+        wrapped->close_session(session);
+    }
+
+    std::shared_ptr<msc::Session> successor_of(std::shared_ptr<msc::Session> const& session) const override
+    {
+        return wrapped->successor_of(session);
+    }
+
+    std::shared_ptr<msc::SessionCoordinator> const wrapped;
+    std::weak_ptr<mf::EventSink> last_sink;
+};
+
 struct ExchangeServerConfiguration : mtf::StubbedServerConfiguration
 {
     ExchangeServerConfiguration(
         std::vector<mg::BufferID> const& id_seq,
         std::shared_ptr<mg::PlatformIpcOperations> const& ipc_ops) :
-        stream_factory{std::make_shared<StubStreamFactory>(id_seq)},
+        stream_factory{std::make_shared<StubBundleFactory>(id_seq)},
         platform{std::make_shared<StubPlatform>(ipc_ops)}
     {
     }
 
+    std::shared_ptr<msc::SessionCoordinator> the_session_coordinator() override
+    {
+        return session_coordinator([this]{
+            coordinator = std::make_shared<SinkSkimmingCoordinator>(
+                DefaultServerConfiguration::the_session_coordinator());
+            return coordinator;
+        });
+    }
     std::shared_ptr<mg::Platform> the_graphics_platform() override
     {
         return platform;
@@ -190,8 +254,9 @@ struct ExchangeServerConfiguration : mtf::StubbedServerConfiguration
         return stream_factory;
     }
 
-    std::shared_ptr<msc::BufferStreamFactory> const stream_factory;
+    std::shared_ptr<StubBundleFactory> const stream_factory;
     std::shared_ptr<mg::Platform> const platform;
+    std::shared_ptr<SinkSkimmingCoordinator> coordinator;
 };
 
 struct ExchangeBufferTest : mir_test_framework::InProcessServer
@@ -204,21 +269,19 @@ struct ExchangeBufferTest : mir_test_framework::InProcessServer
     mir::DefaultServerConfiguration& server_config() override { return server_configuration; }
     mtf::UsingStubClientPlatform using_stub_client_platform;
 
-    void buffer_arrival()
+    void request_completed()
     {
         std::unique_lock<decltype(mutex)> lk(mutex);
         arrived = true;
         cv.notify_all();
     }
 
-    //TODO: once the next_buffer rpc is deprecated, change this code out for the
-    //      mir_surface_next_buffer() api call
-    bool exchange_buffer(mp::DisplayServer& server)
+    bool exchange_buffer(mclr::DisplayServer& server)
     {
         std::unique_lock<decltype(mutex)> lk(mutex);
         mp::Buffer next;
-        server.exchange_buffer(0, &buffer_request, &next,
-            google::protobuf::NewCallback(this, &ExchangeBufferTest::buffer_arrival));
+        server.exchange_buffer(&buffer_request, &next,
+            google::protobuf::NewCallback(this, &ExchangeBufferTest::request_completed));
 
 
         arrived = false;
@@ -231,6 +294,39 @@ struct ExchangeBufferTest : mir_test_framework::InProcessServer
         return completed;
     }
 
+    bool submit_buffer(mclr::DisplayServer& server, mp::BufferRequest& request)
+    {
+        std::unique_lock<decltype(mutex)> lk(mutex);
+        mp::Void v;
+        server.submit_buffer(&request, &v,
+            google::protobuf::NewCallback(this, &ExchangeBufferTest::request_completed));
+        
+        arrived = false;
+        return cv.wait_for(lk, std::chrono::seconds(5), [this]() {return arrived;});
+    }
+
+    bool allocate_buffers(mclr::DisplayServer& server, mp::BufferAllocation& request)
+    {
+        std::unique_lock<decltype(mutex)> lk(mutex);
+        mp::Void v;
+        server.allocate_buffers(&request, &v,
+            google::protobuf::NewCallback(this, &ExchangeBufferTest::request_completed));
+        
+        arrived = false;
+        return cv.wait_for(lk, std::chrono::seconds(5), [this]() {return arrived;});
+    }
+
+    bool release_buffers(mclr::DisplayServer& server, mp::BufferRelease& request)
+    {
+        std::unique_lock<decltype(mutex)> lk(mutex);
+        mp::Void v;
+        server.release_buffers(&request, &v,
+            google::protobuf::NewCallback(this, &ExchangeBufferTest::request_completed));
+        
+        arrived = false;
+        return cv.wait_for(lk, std::chrono::seconds(5), [this]() {return arrived;});
+    }
+
     std::mutex mutex;
     std::condition_variable cv;
     bool arrived{false};
@@ -238,21 +334,14 @@ struct ExchangeBufferTest : mir_test_framework::InProcessServer
 };
 }
 
+//tests for the exchange_buffer rpc call
 TEST_F(ExchangeBufferTest, exchanges_happen)
 {
     auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
-    auto surface = mir_connection_create_surface_sync(connection, &request_params);
+    auto surface = mtf::make_any_surface(connection);
+
     auto rpc_channel = connection->rpc_channel();
-    mp::DisplayServer::Stub server(
-        rpc_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+    mclr::DisplayServer server(rpc_channel);
     buffer_request.mutable_buffer()->set_buffer_id(buffer_id_exchange_seq.begin()->as_value());
     for (auto i = 0; i < buffer_request.buffer().fd().size(); i++)
         ::close(buffer_request.buffer().fd(i));
@@ -282,18 +371,10 @@ TEST_F(ExchangeBufferTest, fds_can_be_sent_back)
     EXPECT_THAT(write(file, test_string.c_str(), test_string.size()), Gt(0));
 
     auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
-    MirSurfaceParameters const request_params =
-    {
-        __PRETTY_FUNCTION__,
-        640, 480,
-        mir_pixel_format_abgr_8888,
-        mir_buffer_usage_hardware,
-        mir_display_output_id_invalid
-    };
-    auto surface = mir_connection_create_surface_sync(connection, &request_params);
+    auto surface = mtf::make_any_surface(connection);
+
     auto rpc_channel = connection->rpc_channel();
-    mp::DisplayServer::Stub server(
-            rpc_channel.get(), ::google::protobuf::Service::STUB_DOESNT_OWN_CHANNEL);
+    mclr::DisplayServer server(rpc_channel);
     for (auto i = 0; i < buffer_request.buffer().fd().size(); i++)
         ::close(buffer_request.buffer().fd(i));
 
@@ -310,4 +391,86 @@ TEST_F(ExchangeBufferTest, fds_can_be_sent_back)
     lseek(file, 0, SEEK_SET);
     ASSERT_THAT(read(server_received_fd, file_buffer, sizeof(file_buffer)), NoErrorOnFileRead());
     EXPECT_THAT(strncmp(test_string.c_str(), file_buffer, test_string.size()), Eq(0)); 
+}
+
+//tests for the submit buffer protocol.
+TEST_F(ExchangeBufferTest, submissions_happen)
+{
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    auto surface = mtf::make_any_surface(connection);
+
+    auto rpc_channel = connection->rpc_channel();
+    mclr::DisplayServer server(rpc_channel);
+
+    mp::BufferRequest request;
+    for (auto const& id : buffer_id_exchange_seq)
+    {
+        buffer_request.mutable_buffer()->set_buffer_id(id.as_value());
+        ASSERT_THAT(submit_buffer(server, buffer_request), DidNotTimeOut());
+    }
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
+}
+
+TEST_F(ExchangeBufferTest, server_can_send_buffer)
+{
+    using namespace testing;
+    using namespace std::literals::chrono_literals;
+    mtd::StubBuffer stub_buffer;
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    auto surface = mtf::make_any_surface(connection);
+    auto sink = server_configuration.coordinator->last_sink.lock();
+    sink->send_buffer(mf::BufferStreamId{0}, stub_buffer, mg::BufferIpcMsgType::full_msg);
+
+    //spin-wait for the id to become the current one.
+    //The notification doesn't generate a client-facing callback on the stream yet
+    //(although probably should, seems something a media decoder would need
+    bool buffer_arrived = false;
+    auto timeout = std::chrono::steady_clock::now() + 5s;
+    while(!buffer_arrived && std::chrono::steady_clock::now() < timeout)
+    {
+        mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
+        if (mir_debug_surface_current_buffer_id(surface) == stub_buffer.id().as_value())
+        {
+            buffer_arrived = true;
+            break;
+        }
+        std::this_thread::yield();
+    }
+    EXPECT_THAT(buffer_arrived, Eq(true)) << "failed to see the sent buffer become the current one";
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
+}
+
+//TODO: check that a buffer arrives asynchronously.
+TEST_F(ExchangeBufferTest, allocate_buffers_doesnt_time_out)
+{
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    auto surface = mtf::make_any_surface(connection);
+
+    auto rpc_channel = connection->rpc_channel();
+    mclr::DisplayServer server(rpc_channel);
+
+    mp::BufferAllocation request;
+    EXPECT_THAT(allocate_buffers(server, request), DidNotTimeOut());
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
+}
+
+TEST_F(ExchangeBufferTest, release_buffers_doesnt_time_out)
+{
+    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
+    auto surface = mtf::make_any_surface(connection);
+
+    auto rpc_channel = connection->rpc_channel();
+    mclr::DisplayServer server(rpc_channel);
+
+    mp::BufferRelease request;
+    EXPECT_THAT(release_buffers(server, request), DidNotTimeOut());
+
+    mir_surface_release_sync(surface);
+    mir_connection_release(connection);
 }

@@ -54,28 +54,6 @@ public:
      */
     virtual void gl_swap_buffers() = 0;
 
-    /**
-     * After gl_swap_buffers, flip the new front buffer to the screen
-     * This most likely involves a wait for vblank so can be very time
-     * consuming. This function is separate to gl_swap_buffers() because in
-     * real display systems the act of scanning out (or flipping) the
-     * front buffer is a very separate step to the GL buffer swapping. Not
-     * least because "flipping" is a hardware operation that is independent
-     * of the graphics library (OpenGL or other). Also, flip() can be a
-     * dramatically slower operation than gl_swap_buffers() and it would be
-     * an unacceptable performance hit to wait for both before freeing
-     * GL resources.
-     */
-    virtual void flip() = 0;
-
-    /**
-     * \deprecated Please try to implement separate gl_swap_buffers and
-     * flip functions instead. If not possible, just move your old
-     * post_update() logic into gl_swap_buffers.
-     */
-    __attribute__((__deprecated__("Use gl_swap_buffers() and flip(), remembering to release all compositor buffers in the middle.")))
-    void post_update() { gl_swap_buffers(); flip(); }
-
     /** This will render renderlist to the screen and post the result to the 
      *  screen if there is a hardware optimization that can be done.
      *  \param [in] renderlist 
@@ -102,12 +80,6 @@ public:
      *  amount of rotation the renderer must do to make things "look right".
      */
     virtual MirOrientation orientation() const = 0;
-
-    /** Returns true if the display buffer has an alpha channel and the alpha 
-     *  channel will be read from at some point - in which case the renderer
-     *  must produce valid alpha channel content
-     */
-    virtual bool uses_alpha() const = 0;
 
 protected:
     DisplayBuffer() = default;

@@ -43,6 +43,8 @@
 // Log debug messages about hover events.
 #define DEBUG_HOVER 0
 
+#define ENABLE_APP_SWITCH_OPTIMIZATION 0
+
 #include "InputDispatcher.h"
 
 #include "mir/input/input_report.h"
@@ -373,6 +375,7 @@ bool InputDispatcher::enqueueInboundEventLocked(EventEntry* entry) {
 
     switch (entry->type) {
     case EventEntry::TYPE_KEY: {
+#if ENABLE_APP_SWITCH_OPTIMIZATION == 1
         // Optimize app switch latency.
         // If the application takes too long to catch up then we drop all events preceding
         // the app switch key.
@@ -391,6 +394,7 @@ bool InputDispatcher::enqueueInboundEventLocked(EventEntry* entry) {
                 }
             }
         }
+#endif
         break;
     }
 
@@ -663,7 +667,7 @@ bool InputDispatcher::dispatchKeyLocked(std::chrono::nanoseconds currentTime, Ke
                 && (entry->policyFlags & POLICY_FLAG_TRUSTED)
                 && (!(entry->policyFlags & POLICY_FLAG_DISABLE_KEY_REPEAT))) {
             if (mKeyRepeatState.lastKeyEntry
-                    && mKeyRepeatState.lastKeyEntry->keyCode == entry->keyCode) {
+                    && mKeyRepeatState.lastKeyEntry->is_same_key(entry)) {
                 // We have seen two identical key downs in a row which indicates that the device
                 // driver is automatically generating key repeats itself.  We take note of the
                 // repeat here, but we disable our own next key repeat timer since it is clear that
@@ -1224,36 +1228,36 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(std::chrono::nanoseconds
                             "eventually add a new window when it finishes starting up.");
                     goto Unresponsive;
                 }
-
-                ALOGI("Dropping event because there is no touched window.");
-                injectionResult = INPUT_EVENT_INJECTION_FAILED;
-                goto Failed;
             }
         }
 
-        // Set target flags.
-        int32_t targetFlags = InputTarget::FLAG_FOREGROUND | InputTarget::FLAG_DISPATCH_AS_IS;
-        if (isSplit) {
-            targetFlags |= InputTarget::FLAG_SPLIT;
-        }
-        if (isWindowObscuredAtPointLocked(newTouchedWindowHandle, x, y)) {
-            targetFlags |= InputTarget::FLAG_WINDOW_IS_OBSCURED;
-        }
+        // We may still not have a window handle but we can't just abort the dispatch
+        // cycle because there could be hover exits to dispatch.
+        if (newTouchedWindowHandle != NULL) {
+            // Set target flags.
+            int32_t targetFlags = InputTarget::FLAG_FOREGROUND | InputTarget::FLAG_DISPATCH_AS_IS;
+            if (isSplit) {
+                targetFlags |= InputTarget::FLAG_SPLIT;
+            }
+            if (isWindowObscuredAtPointLocked(newTouchedWindowHandle, x, y)) {
+                targetFlags |= InputTarget::FLAG_WINDOW_IS_OBSCURED;
+            }
 
-        // Update hover state.
-        if (isHoverAction) {
-            newHoverWindowHandle = newTouchedWindowHandle;
-        } else if (maskedAction == AMOTION_EVENT_ACTION_SCROLL) {
-            newHoverWindowHandle = mLastHoverWindowHandle;
+            // Update hover state.
+            if (isHoverAction) {
+                newHoverWindowHandle = newTouchedWindowHandle;
+            } else if (maskedAction == AMOTION_EVENT_ACTION_SCROLL) {
+                newHoverWindowHandle = mLastHoverWindowHandle;
+            }
+            
+            // Update the temporary touch state.
+            IntSet pointerIds;
+            if (isSplit) {
+                int32_t pointerId = entry->pointerProperties[pointerIndex].id;
+                pointerIds.insert(pointerId);
+            }
+            mTempTouchState.addOrUpdateWindow(newTouchedWindowHandle, targetFlags, pointerIds);
         }
-
-        // Update the temporary touch state.
-        IntSet pointerIds;
-        if (isSplit) {
-            int32_t pointerId = entry->pointerProperties[pointerIndex].id;
-            pointerIds.insert(pointerId);
-        }
-        mTempTouchState.addOrUpdateWindow(newTouchedWindowHandle, targetFlags, pointerIds);
     } else {
         /* Case 2: Pointer move, up, cancel or non-splittable pointer down. */
 
@@ -1277,6 +1281,9 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(std::chrono::nanoseconds
             sp<InputWindowHandle> oldTouchedWindowHandle =
                     mTempTouchState.getFirstForegroundWindowHandle();
             sp<InputWindowHandle> newTouchedWindowHandle = findTouchedWindowAtLocked(x, y);
+
+            newHoverWindowHandle = newTouchedWindowHandle;
+            
             if (oldTouchedWindowHandle != newTouchedWindowHandle
                     && newTouchedWindowHandle != NULL) {
 #if DEBUG_FOCUS
@@ -1339,7 +1346,9 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(std::chrono::nanoseconds
         bool haveForegroundWindow = false;
         for (size_t i = 0; i < mTempTouchState.windows.size(); i++) {
             const TouchedWindow& touchedWindow = mTempTouchState.windows[i];
-            if (touchedWindow.targetFlags & InputTarget::FLAG_FOREGROUND) {
+            if (touchedWindow.targetFlags & InputTarget::FLAG_FOREGROUND ||
+                // We allow dispatching hover exit events to non foreground windows.
+                touchedWindow.targetFlags & InputTarget::FLAG_DISPATCH_AS_HOVER_EXIT) {
                 haveForegroundWindow = true;
                 if (! checkInjectionPermission(touchedWindow.windowHandle,
                         entry->injectionState)) {
@@ -1364,16 +1373,17 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(std::chrono::nanoseconds
     // Check whether windows listening for outside touches are owned by the same UID. If it is
     // set the policy flag that we will not reveal coordinate information to this window.
     if (maskedAction == AMOTION_EVENT_ACTION_DOWN) {
-        sp<InputWindowHandle> foregroundWindowHandle =
-                mTempTouchState.getFirstForegroundWindowHandle();
-        const int32_t foregroundWindowUid = foregroundWindowHandle->getInfo()->ownerUid;
-        for (size_t i = 0; i < mTempTouchState.windows.size(); i++) {
-            const TouchedWindow& touchedWindow = mTempTouchState.windows[i];
-            if (touchedWindow.targetFlags & InputTarget::FLAG_DISPATCH_AS_OUTSIDE) {
-                sp<InputWindowHandle> inputWindowHandle = touchedWindow.windowHandle;
-                if (inputWindowHandle->getInfo()->ownerUid != foregroundWindowUid) {
-                    mTempTouchState.addOrUpdateWindow(inputWindowHandle,
+        auto const foregroundWindowHandle = mTempTouchState.getFirstForegroundWindowHandle();
+        if (foregroundWindowHandle != nullptr) {
+            const int32_t foregroundWindowUid = foregroundWindowHandle->getInfo()->ownerUid;
+            for (size_t i = 0; i < mTempTouchState.windows.size(); i++) {
+                const TouchedWindow& touchedWindow = mTempTouchState.windows[i];
+                if (touchedWindow.targetFlags & InputTarget::FLAG_DISPATCH_AS_OUTSIDE) {
+                    sp<InputWindowHandle> inputWindowHandle = touchedWindow.windowHandle;
+                    if (inputWindowHandle->getInfo()->ownerUid != foregroundWindowUid) {
+                        mTempTouchState.addOrUpdateWindow(inputWindowHandle,
                             InputTarget::FLAG_ZERO_COORDS, IntSet());
+                    }
                 }
             }
         }
@@ -1412,7 +1422,7 @@ int32_t InputDispatcher::findTouchedWindowTargetsLocked(std::chrono::nanoseconds
     if (maskedAction == AMOTION_EVENT_ACTION_DOWN) {
         sp<InputWindowHandle> foregroundWindowHandle =
                 mTempTouchState.getFirstForegroundWindowHandle();
-        if (foregroundWindowHandle->getInfo()->hasWallpaper) {
+        if (foregroundWindowHandle != nullptr && foregroundWindowHandle->getInfo()->hasWallpaper) {
             mEnumerator->for_each([&](sp<InputWindowHandle> const& windowHandle){
                 if (windowHandle->getInfo()->layoutParamsType
                         == InputWindowInfo::TYPE_WALLPAPER) {
@@ -3733,6 +3743,12 @@ void InputDispatcher::KeyEntry::recycle() {
     interceptKeyWakeupTime = std::chrono::nanoseconds(0);
 }
 
+bool InputDispatcher::KeyEntry::is_same_key(KeyEntry* other) const {
+    if (keyCode != 0)
+        return keyCode == other->keyCode;
+    else
+        return scanCode == other->scanCode;
+}
 
 // --- InputDispatcher::MotionEntry ---
 

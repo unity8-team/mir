@@ -18,12 +18,13 @@
 
 #include "src/server/shell/graphics_display_layout.h"
 
-#include "mir_test_doubles/stub_display.h"
+#include "mir/test/doubles/stub_display.h"
 
 #include <vector>
 #include <tuple>
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace msh = mir::shell;
 namespace mg = mir::graphics;

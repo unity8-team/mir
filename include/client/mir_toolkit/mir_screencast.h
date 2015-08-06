@@ -49,12 +49,12 @@ void mir_screencast_release_sync(
     MirScreencast *screencast);
 
 /**
- * Get a window type that can be used by EGL.
- *   \param [in] screencast  The screencast
- *   \return                 An EGLNativeWindowType that the client can use
+ * Retrieve the MirBufferStream associated with a screencast 
+ * (to advance buffers, obtain EGLNativeWindowType, etc...)
+ * 
+ *   \param[in] screencast The screencast
  */
-MirEGLNativeWindowType mir_screencast_egl_native_window(
-    MirScreencast *screencast);
+MirBufferStream* mir_screencast_get_buffer_stream(MirScreencast *screencast);
 
 #ifdef __cplusplus
 }

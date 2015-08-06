@@ -16,37 +16,40 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER
-
-#include "mir/geometry/rectangle.h"
-#include "mir/client_platform.h"
-#include "mir/client_platform_factory.h"
 #include "src/client/mir_connection.h"
 #include "src/client/default_connection_configuration.h"
 #include "src/client/rpc/mir_basic_rpc_channel.h"
 #include "src/client/display_configuration.h"
 #include "src/client/mir_surface.h"
+
+#include "mir/client_platform.h"
+#include "mir/client_platform_factory.h"
 #include "mir/client_buffer_factory.h"
-#include "mir/dispatch/dispatchable.h"
 #include "mir/raii.h"
+#include "mir/dispatch/dispatchable.h"
+#include "mir/events/event_builders.h"
+#include "mir/geometry/rectangle.h"
 
 #include "src/server/frontend/resource_cache.h" /* needed by test_server.h */
-#include "mir_test/test_protobuf_server.h"
-#include "mir_test/stub_server_tool.h"
-#include "mir_test_doubles/stub_client_buffer_factory.h"
+#include "mir/test/test_protobuf_server.h"
+#include "mir/test/stub_server_tool.h"
+#include "mir/test/doubles/stub_client_buffer_factory.h"
 
 #include "mir_protobuf.pb.h"
 
-#include <google/protobuf/descriptor.h>
+#include <sys/eventfd.h>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace mcl = mir::client;
+namespace mclr = mir::client::rpc;
+namespace mf = mir::frontend;
 namespace mp = mir::protobuf;
+namespace mev = mir::events;
+namespace md = mir::dispatch;
 namespace geom = mir::geometry;
 namespace mtd = mir::test::doubles;
-namespace md = mir::dispatch;
 
 namespace
 {
@@ -55,27 +58,27 @@ struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel,
                         public mir::dispatch::Dispatchable
 {
     MockRpcChannel()
+        : pollable_fd{eventfd(0, EFD_CLOEXEC)}
     {
-        ON_CALL(*this, watch_fd()).WillByDefault(testing::Return(mir::Fd{}));
+        ON_CALL(*this, watch_fd()).WillByDefault(testing::Return(pollable_fd));
     }
 
-    void CallMethod(const google::protobuf::MethodDescriptor* method,
-                    google::protobuf::RpcController*,
-                    const google::protobuf::Message* parameters,
-                    google::protobuf::Message* response,
+    void call_method(std::string const& name,
+                    google::protobuf::MessageLite const* parameters,
+                    google::protobuf::MessageLite* response,
                     google::protobuf::Closure* complete)
     {
-        if (method->name() == "connect")
+        if (name == "connect")
         {
             static_cast<mp::Connection*>(response)->clear_error();
             connect(static_cast<mp::ConnectParameters const*>(parameters),
                     static_cast<mp::Connection*>(response));
         }
-        else if (method->name() == "configure_display")
+        else if (name == "configure_display")
         {
             configure_display_sent(static_cast<mp::DisplayConfiguration const*>(parameters));
         }
-        else if (method->name() == "platform_operation")
+        else if (name == "platform_operation")
         {
             platform_operation(static_cast<mp::PlatformOperationMessage const*>(parameters),
                                static_cast<mp::PlatformOperationMessage*>(response));
@@ -92,6 +95,8 @@ struct MockRpcChannel : public mir::client::rpc::MirBasicRpcChannel,
     MOCK_CONST_METHOD0(watch_fd, mir::Fd());
     MOCK_METHOD1(dispatch, bool(md::FdEvents));
     MOCK_CONST_METHOD0(relevant_events, md::FdEvents());
+private:
+    mir::Fd pollable_fd;
 };
 
 struct MockClientPlatform : public mcl::ClientPlatform
@@ -129,6 +134,8 @@ struct MockClientPlatform : public mcl::ClientPlatform
     MOCK_METHOD0(create_buffer_factory, std::shared_ptr<mcl::ClientBufferFactory>());
     MOCK_METHOD1(create_egl_native_window, std::shared_ptr<EGLNativeWindowType>(mcl::EGLNativeSurface*));
     MOCK_METHOD0(create_egl_native_display, std::shared_ptr<EGLNativeDisplayType>());
+    MOCK_CONST_METHOD2(get_egl_pixel_format,
+        MirPixelFormat(EGLDisplay, EGLConfig));
 
     mcl::ClientContext* client_context = nullptr;
 };
@@ -157,7 +164,7 @@ class TestConnectionConfiguration : public mcl::DefaultConnectionConfiguration
 public:
     TestConnectionConfiguration(
         std::shared_ptr<mcl::ClientPlatform> const& platform,
-        std::shared_ptr<mcl::rpc::MirBasicRpcChannel> const& channel)
+        std::shared_ptr<mclr::MirBasicRpcChannel> const& channel)
         : DefaultConnectionConfiguration(""),
           disp_config(std::make_shared<mcl::DisplayConfiguration>()),
           platform{platform},
@@ -165,7 +172,7 @@ public:
     {
     }
 
-    std::shared_ptr<::google::protobuf::RpcChannel> the_rpc_channel() override
+    std::shared_ptr<mclr::MirBasicRpcChannel> the_rpc_channel() override
     {
         return channel;
     }
@@ -182,7 +189,7 @@ public:
 private:
     std::shared_ptr<mcl::DisplayConfiguration> disp_config;
     std::shared_ptr<mcl::ClientPlatform> const platform;
-    std::shared_ptr<mcl::rpc::MirBasicRpcChannel> const channel;
+    std::shared_ptr<mclr::MirBasicRpcChannel> const channel;
 };
 
 }
@@ -493,11 +500,14 @@ static void surface_callback(MirSurface* surf, void*)
 static bool unfocused_received;
 static void surface_event_callback(MirSurface *, MirEvent const *ev, void *)
 {
-    if (ev->type == mir_event_type_surface &&
-        ev->surface.attrib == mir_surface_attrib_focus &&
-        ev->surface.value == mir_surface_unfocused)
-        unfocused_received = true;
-
+    if (mir_event_type_surface != mir_event_get_type(ev))
+        return;
+    auto surface_ev = mir_event_get_surface_event(ev);
+    if (mir_surface_attrib_focus != mir_surface_event_get_attribute(surface_ev))
+        return;
+    if (mir_surface_unfocused != mir_surface_event_get_attribute_value(surface_ev))
+        return;
+    unfocused_received = true;
 }
 
 TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
@@ -507,11 +517,6 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
     MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
     params.surface_name = __PRETTY_FUNCTION__;
 
-    MirEventDelegate const event_delegate = {
-        &surface_event_callback,
-        nullptr
-    };
-
     unfocused_received = false;
 
     MirWaitHandle *wait_handle = connection->connect("MirClientSurfaceTest", &connected_callback, nullptr);
@@ -520,14 +525,9 @@ TEST_F(MirConnectionTest, focused_window_synthesises_unfocus_event_on_release)
     wait_handle = connection->create_surface(params, &surface_callback, nullptr);
     wait_handle->wait_for_all();
 
-    MirEvent focus_event;
-    focus_event.type = mir_event_type_surface;
-    focus_event.surface.id = surface->id();
-    focus_event.surface.attrib = mir_surface_attrib_focus;
-    focus_event.surface.value = mir_surface_focused;
-    surface->handle_event(focus_event);
+    surface->handle_event(*mev::make_event(mf::SurfaceId{surface->id()}, mir_surface_attrib_focus, mir_surface_focused));
 
-    surface->set_event_handler(&event_delegate);
+    surface->set_event_handler(&surface_event_callback, nullptr);
 
     wait_handle = connection->release_surface(surface, &surface_callback, nullptr);
     wait_handle->wait_for_all();
@@ -545,11 +545,6 @@ TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_
     MirSurfaceSpec params{nullptr, 640, 480, mir_pixel_format_abgr_8888};
     params.surface_name = __PRETTY_FUNCTION__;
 
-    MirEventDelegate const event_delegate = {
-        &surface_event_callback,
-        nullptr
-    };
-
     unfocused_received = false;
 
     MirWaitHandle *wait_handle = connection->connect("MirClientSurfaceTest", &connected_callback, nullptr);
@@ -558,14 +553,9 @@ TEST_F(MirConnectionTest, unfocused_window_does_not_synthesise_unfocus_event_on_
     wait_handle = connection->create_surface(params, &surface_callback, nullptr);
     wait_handle->wait_for_all();
 
-    MirEvent focus_event;
-    focus_event.type = mir_event_type_surface;
-    focus_event.surface.id = surface->id();
-    focus_event.surface.attrib = mir_surface_attrib_focus;
-    focus_event.surface.value = mir_surface_unfocused;
-    surface->handle_event(focus_event);
+    surface->handle_event(*mev::make_event(mf::SurfaceId{surface->id()}, mir_surface_attrib_focus, mir_surface_unfocused));
 
-    surface->set_event_handler(&event_delegate);
+    surface->set_event_handler(&surface_event_callback, nullptr);
 
     wait_handle = connection->release_surface(surface, &surface_callback, nullptr);
     wait_handle->wait_for_all();

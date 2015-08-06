@@ -144,10 +144,6 @@ void mgo::DisplayBuffer::gl_swap_buffers()
     glFinish();
 }
 
-void mgo::DisplayBuffer::flip()
-{
-}
-
 bool mgo::DisplayBuffer::post_renderables_if_optimizable(RenderableList const&)
 {
     return false;
@@ -160,9 +156,4 @@ MirOrientation mgo::DisplayBuffer::orientation() const
      * so nothing more to do.
      */
     return mir_orientation_normal;
-}
-
-bool mgo::DisplayBuffer::uses_alpha() const
-{
-    return false;
 }

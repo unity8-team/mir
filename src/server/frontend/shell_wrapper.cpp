@@ -19,6 +19,7 @@
 #include "shell_wrapper.h"
 
 namespace mf = mir::frontend;
+namespace ms = mir::scene;
 
 std::shared_ptr<mf::Session> mf::ShellWrapper::open_session(
     pid_t client_pid,
@@ -31,12 +32,6 @@ std::shared_ptr<mf::Session> mf::ShellWrapper::open_session(
 void mf::ShellWrapper::close_session(std::shared_ptr<Session> const& session)
 {
     wrapped->close_session(session);
-}
-
-void mf::ShellWrapper::handle_surface_created(
-    std::shared_ptr<Session> const& session)
-{
-    wrapped->handle_surface_created(session);
 }
 
 std::shared_ptr<mf::PromptSession> mf::ShellWrapper::start_prompt_session_for(
@@ -64,9 +59,24 @@ mf::SurfaceId mf::ShellWrapper::create_surface(std::shared_ptr<Session> const& s
     return wrapped->create_surface(session, params);
 }
 
+void mf::ShellWrapper::modify_surface(std::shared_ptr<Session> const& session, SurfaceId surface, shell::SurfaceSpecification const& modifications)
+{
+    wrapped->modify_surface(session, surface, modifications);
+}
+
 void mf::ShellWrapper::destroy_surface(std::shared_ptr<Session> const& session, SurfaceId surface)
 {
     wrapped->destroy_surface(session, surface);
+}
+
+std::string mf::ShellWrapper::persistent_id_for(std::shared_ptr<Session> const& session, mf::SurfaceId surface)
+{
+    return wrapped->persistent_id_for(session, surface);
+}
+
+std::shared_ptr<ms::Surface> mf::ShellWrapper::surface_for_id(std::string const& serialised_id)
+{
+    return wrapped->surface_for_id(serialised_id);
 }
 
 int mf::ShellWrapper::set_surface_attribute(

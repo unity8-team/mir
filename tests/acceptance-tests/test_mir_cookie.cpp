@@ -21,7 +21,7 @@
 
 #include "mir_test_framework/headless_test.h"
 #include "mir_test_framework/udev_environment.h"
-#include "mir_test/validity_matchers.h"
+#include "mir/test/validity_matchers.h"
 
 #include <gtest/gtest.h>
 
@@ -112,11 +112,7 @@ TEST_F(ClientCookies, input_events_have_attestable_cookies)
     ASSERT_THAT(surf, IsValid());
 
     MirCookie cookie;
-    MirEventDelegate const delegate = {
-        &cookie_capturing_callback,
-        &cookie
-    };
-    mir_surface_set_event_handler(surf, &delegate);
+    mir_surface_set_event_handler(surf, &cookie_capturing_callback, &cookie);
 
     mock_devices.load_device_evemu("laptop-keyboard-hello");
 

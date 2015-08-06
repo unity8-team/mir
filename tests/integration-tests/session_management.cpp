@@ -26,7 +26,7 @@
 #include "mir/scene/surface.h"
 #include "src/server/scene/surface_stack.h"
 
-#include "mir_test_doubles/null_event_sink.h"
+#include "mir/test/doubles/null_event_sink.h"
 #include "mir_test_framework/stubbed_server_configuration.h"
 
 #include <gmock/gmock.h>
@@ -97,7 +97,7 @@ struct SessionManagement : Test
     std::shared_ptr<mf::EventSink> const event_sink = std::make_shared<mtd::NullEventSink>();
     std::shared_ptr<mf::Shell> const session_manager = builder.the_frontend_shell();
     std::shared_ptr<TestSurfaceStack> const& test_surface_stack = builder.test_surface_stack;
-    ms::SurfaceCreationParameters const params = ms::SurfaceCreationParameters().of_size(100,100);
+    ms::SurfaceCreationParameters const params = ms::SurfaceCreationParameters().of_size(100,100).of_type(mir_surface_type_normal);
 
     void SetUp()
     {
@@ -121,25 +121,4 @@ TEST_F(SessionManagement, creating_a_surface_adds_it_to_scene)
 
     EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(1);
     session_manager->create_surface(session, params);
-}
-
-TEST_F(SessionManagement, focus_on_a_session_raises_its_surface)
-{
-    EXPECT_CALL(*test_surface_stack, add_surface(_,_,_)).Times(AnyNumber());
-
-    auto const session1 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto const surface1 = session_manager->create_surface(session1, params);
-
-    auto const session2 = session_manager->open_session(0, __PRETTY_FUNCTION__, event_sink);
-    auto surface2 = session_manager->create_surface(session2, params);
-
-    auto const focus_controller = builder.the_focus_controller();
-    auto const shell_session = std::dynamic_pointer_cast<ms::Session>(session1);
-
-    EXPECT_CALL(*test_surface_stack, raise(WeakPtrTo(session1->get_surface(surface1)))).Times(1);
-
-    focus_controller->set_focus_to(shell_session);
-
-    session_manager->destroy_surface(session1, surface1);
-    session_manager->destroy_surface(session2, surface2);
 }

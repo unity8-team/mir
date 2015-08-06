@@ -18,6 +18,7 @@
 
 #include "mir/default_server_configuration.h"
 
+#include "mir/main_loop.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/gl_context.h"
 #include "mir/input/scene.h"
@@ -37,6 +38,9 @@
 #include "threaded_snapshot_strategy.h"
 #include "prompt_session_manager_impl.h"
 #include "default_coordinate_translator.h"
+#include "timeout_application_not_responding_detector.h"
+#include "mir/options/program_option.h"
+#include "mir/options/default_configuration.h"
 
 namespace mc = mir::compositor;
 namespace mf = mir::frontend;
@@ -71,7 +75,6 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
         [this]()
         {
             return std::make_shared<ms::SurfaceAllocator>(
-                the_buffer_stream_factory(),
                 the_input_channel_factory(),
                 the_input_sender(),
                 the_default_cursor_image(),
@@ -167,10 +170,13 @@ mir::DefaultServerConfiguration::the_session_coordinator()
         {
             return std::make_shared<ms::SessionManager>(
                     the_surface_coordinator(),
+                    the_surface_factory(),
+                    the_buffer_stream_factory(),
                     the_session_container(),
                     the_snapshot_strategy(),
                     the_session_event_sink(),
-                    the_session_listener());
+                    the_session_listener(),
+                    the_application_not_responding_detector());
         });
 }
 
@@ -215,5 +221,17 @@ mir::DefaultServerConfiguration::the_coordinate_translator()
         [this]()
         {
             return std::make_shared<ms::DefaultCoordinateTranslator>();
+        });
+}
+
+auto mir::DefaultServerConfiguration::the_application_not_responding_detector()
+-> std::shared_ptr<scene::ApplicationNotRespondingDetector>
+{
+    return application_not_responding_detector(
+        [this]() -> std::shared_ptr<scene::ApplicationNotRespondingDetector>
+        {
+            using namespace std::literals::chrono_literals;
+            return std::make_shared<ms::TimeoutApplicationNotRespondingDetector>(
+                *the_main_loop(), 1s);
         });
 }

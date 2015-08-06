@@ -36,7 +36,6 @@ public:
     void invocation_failed(mir::protobuf::wire::Invocation const& invocation,
                            std::exception const& ex) override;
 
-    void header_receipt_failed(std::exception const& ex) override;
     void result_receipt_succeeded(mir::protobuf::wire::Result const& result) override;
     void result_receipt_failed(std::exception const& ex) override;
 
@@ -49,10 +48,8 @@ public:
     void result_processing_failed(mir::protobuf::wire::Result const& result,
                                   std::exception const& ex) override;
 
-    void file_descriptors_received(google::protobuf::Message const& response,
+    void file_descriptors_received(google::protobuf::MessageLite const& response,
                                    std::vector<Fd> const& fds) override;
-
-    void connection_failure(std::exception const& ex) override;
 };
 
 }

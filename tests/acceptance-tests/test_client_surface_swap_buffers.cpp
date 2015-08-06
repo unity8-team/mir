@@ -19,8 +19,8 @@
 #include "mir_toolkit/mir_client_library.h"
 
 #include "mir_test_framework/connected_client_with_a_surface.h"
-#include "mir_test_doubles/null_display_buffer_compositor_factory.h"
-#include "mir_test/signal.h"
+#include "mir/test/doubles/null_display_buffer_compositor_factory.h"
+#include "mir/test/signal.h"
 
 #include <gtest/gtest.h>
 
@@ -32,7 +32,7 @@ using namespace testing;
 
 namespace
 {
-void swap_buffers_callback(MirSurface*, void* ctx)
+void swap_buffers_callback(MirBufferStream*, void* ctx)
 {
     auto buffers_swapped = static_cast<mt::Signal*>(ctx);
     buffers_swapped->raise();
@@ -58,12 +58,12 @@ TEST_F(SurfaceSwapBuffers, does_not_block_when_surface_is_not_composited)
     {
         mt::Signal buffers_swapped;
 
-        mir_surface_swap_buffers(surface, swap_buffers_callback, &buffers_swapped);
+        mir_buffer_stream_swap_buffers(mir_surface_get_buffer_stream(surface), swap_buffers_callback, &buffers_swapped);
 
         /*
          * ASSERT instead of EXPECT, since if we continue we will block in future
          * mir client calls (e.g mir_connection_release).
          */
-        ASSERT_TRUE(buffers_swapped.wait_for(std::chrono::seconds{5}));
+        ASSERT_TRUE(buffers_swapped.wait_for(std::chrono::seconds{20}));
     }
 }

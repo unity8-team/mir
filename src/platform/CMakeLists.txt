@@ -13,13 +13,17 @@ add_definitions(-DMIR_SERVER_GRAPHICS_PLATFORM_VERSION="${MIR_SERVER_GRAPHICS_PL
 set(MIR_PLATFORM_OBJECTS
   $<TARGET_OBJECTS:mirplatformgraphicscommon>
   $<TARGET_OBJECTS:miroptions>
-  $<TARGET_OBJECTS:mirfatal>
+  $<TARGET_OBJECTS:mirudev>
 )
 
 set(MIR_PLATFORM_REFERENCES
   ${EGL_LDFLAGS} ${EGL_LIBRARIES}
   ${GLESv2_LDFLAGS} ${GLESv2_LIBRARIES}
 )
+
+add_subdirectory(graphics/)
+add_subdirectory(options)
+add_subdirectory(udev)
 
 set(MIR_PLATFORM_OBJECTS ${MIR_PLATFORM_OBJECTS} PARENT_SCOPE)
 set(MIR_PLATFORM_REFERENCES ${MIR_PLATFORM_REFERENCES} PARENT_SCOPE)
@@ -43,10 +47,6 @@ set_target_properties(
 )
 
 install(TARGETS mirplatform LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
-add_subdirectory(graphics/)
-add_subdirectory(options)
-add_subdirectory(fatal)
 
 set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mirplatform")
 set(COMMON_INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include/mircommon")

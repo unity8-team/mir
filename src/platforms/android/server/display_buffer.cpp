@@ -21,7 +21,6 @@
 #include "display_device.h"
 #include "hwc_layerlist.h"
 
-#include <functional>
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <algorithm>
@@ -32,6 +31,7 @@ namespace mga=mir::graphics::android;
 namespace geom=mir::geometry;
 
 mga::DisplayBuffer::DisplayBuffer(
+    mga::DisplayName display_name,
     std::unique_ptr<LayerList> layer_list,
     std::shared_ptr<FramebufferBundle> const& fb_bundle,
     std::shared_ptr<DisplayDevice> const& display_device,
@@ -39,15 +39,19 @@ mga::DisplayBuffer::DisplayBuffer(
     mga::GLContext const& shared_gl_context,
     mg::GLProgramFactory const& program_factory,
     MirOrientation orientation,
+    geom::Displacement offset,
     mga::OverlayOptimization overlay_option)
-    : layer_list(std::move(layer_list)),
+    : display_name(display_name),
+      layer_list(std::move(layer_list)),
       fb_bundle{fb_bundle},
       display_device{display_device},
       native_window{native_window},
       gl_context{shared_gl_context, fb_bundle, native_window},
       overlay_program{program_factory, gl_context, geom::Rectangle{{0,0},fb_bundle->fb_size()}},
       overlay_enabled{overlay_option == mga::OverlayOptimization::enabled},
-      orientation_{orientation}
+      orientation_{orientation},
+      offset_from_origin{offset},
+      power_mode_{mir_power_mode_on}
 {
 }
 
@@ -60,7 +64,8 @@ geom::Rectangle mga::DisplayBuffer::view_area() const
     if (orientation_ == mir_orientation_left || orientation_ == mir_orientation_right)
         std::swap(width, height);
 
-    return {{0,0}, {width,height}};
+    geom::Point origin;
+    return {origin + offset_from_origin, {width,height}};
 }
 
 void mga::DisplayBuffer::make_current()
@@ -78,26 +83,18 @@ bool mga::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
     if (!overlay_enabled || !display_device->compatible_renderlist(renderlist))
         return false;
 
-    layer_list->update_list(renderlist);
+    layer_list->update_list(renderlist, offset_from_origin);
 
     bool needs_commit{false};
     for (auto& layer : *layer_list)
         needs_commit |= layer.needs_commit;
-    if (!needs_commit)
-        return false;
 
-    display_device->commit(mga::DisplayName::primary, *layer_list, gl_context, overlay_program);
-    return true;
+    return needs_commit;
 }
 
 void mga::DisplayBuffer::gl_swap_buffers()
 {
-    layer_list->update_list({});
-    display_device->commit(mga::DisplayName::primary, *layer_list, gl_context, overlay_program);
-}
-
-void mga::DisplayBuffer::flip()
-{
+    layer_list->update_list({}, offset_from_origin);
 }
 
 MirOrientation mga::DisplayBuffer::orientation() const
@@ -111,14 +108,21 @@ MirOrientation mga::DisplayBuffer::orientation() const
     return orientation_;
 }
 
-bool mga::DisplayBuffer::uses_alpha() const
+void mga::DisplayBuffer::configure(MirPowerMode power_mode, MirOrientation orientation, geom::Displacement offset)
 {
-    return false;
-}
-
-void mga::DisplayBuffer::configure(MirPowerMode power_mode, MirOrientation orientation)
-{
-    if (power_mode != mir_power_mode_on)
+    power_mode_ = power_mode;
+    offset_from_origin = offset;
+    if (power_mode_ != mir_power_mode_on)
         display_device->content_cleared();
     orientation_ = orientation;
+}
+
+mga::DisplayContents mga::DisplayBuffer::contents()
+{
+    return mga::DisplayContents{display_name, *layer_list, offset_from_origin, gl_context, overlay_program};
+}
+
+MirPowerMode mga::DisplayBuffer::power_mode() const
+{
+    return power_mode_;
 }

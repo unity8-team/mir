@@ -32,27 +32,27 @@ mc::TemporaryBuffer::TemporaryBuffer(std::shared_ptr<mg::Buffer> const& real_buf
 }
 
 mc::TemporaryCompositorBuffer::TemporaryCompositorBuffer(
-    std::shared_ptr<BufferBundle> const& bun, void const* user_id)
-    : TemporaryBuffer(bun->compositor_acquire(user_id)),
-      bundle(bun)
+    std::shared_ptr<BufferAcquisition> const& acquisition, void const* user_id)
+    : TemporaryBuffer(acquisition->compositor_acquire(user_id)),
+      acquisition(acquisition)
 {
 }
 
 mc::TemporaryCompositorBuffer::~TemporaryCompositorBuffer()
 {
-    bundle->compositor_release(buffer);
+    acquisition->compositor_release(buffer);
 }
 
 mc::TemporarySnapshotBuffer::TemporarySnapshotBuffer(
-    std::shared_ptr<BufferBundle> const& bun)
-    : TemporaryBuffer(bun->snapshot_acquire()),
-      bundle(bun)
+    std::shared_ptr<BufferAcquisition> const& acquisition)
+    : TemporaryBuffer(acquisition->snapshot_acquire()),
+      acquisition(acquisition)
 {
 }
 
 mc::TemporarySnapshotBuffer::~TemporarySnapshotBuffer()
 {
-    bundle->snapshot_release(buffer);
+    acquisition->snapshot_release(buffer);
 }
 
 geom::Size mc::TemporaryBuffer::size() const
@@ -85,13 +85,13 @@ std::shared_ptr<mg::NativeBuffer> mc::TemporaryBuffer::native_buffer_handle() co
     return buffer->native_buffer_handle();
 }
 
-bool mc::TemporaryBuffer::can_bypass() const
-{
-    return buffer->can_bypass();
-}
-
 void mc::TemporaryBuffer::write(unsigned char const*, size_t)
 {
     BOOST_THROW_EXCEPTION(
         std::runtime_error("Write to temporary buffer snapshot is ill advised and indicates programmer error"));
+}
+
+void mc::TemporaryBuffer::read(std::function<void(unsigned char const*)> const& exec)
+{
+    buffer->read(exec);
 }

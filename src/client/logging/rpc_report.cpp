@@ -70,15 +70,6 @@ void mcll::RpcReport::invocation_failed(
     logger->log(ml::Severity::error, ss.str(), component);
 }
 
-void mcll::RpcReport::header_receipt_failed(
-    std::exception const& ex)
-{
-    std::stringstream ss;
-    ss << "Header receipt failed: " << " error: " << ex.what();
-
-    logger->log(ml::Severity::error, ss.str(), component);
-}
-
 void mcll::RpcReport::result_receipt_succeeded(
     mir::protobuf::wire::Result const& result)
 {
@@ -121,7 +112,7 @@ void mcll::RpcReport::orphaned_result(
     mir::protobuf::wire::Result const& result)
 {
     std::stringstream ss;
-    ss << "Orphaned result: " << result.ShortDebugString();
+    ss << "Orphaned result: " << result.id();
 
     logger->log(ml::Severity::error, ss.str(), component);
 }
@@ -146,7 +137,7 @@ void mcll::RpcReport::result_processing_failed(
 }
 
 void mcll::RpcReport::file_descriptors_received(
-    google::protobuf::Message const& /*response*/,
+    google::protobuf::MessageLite const& /*response*/,
     std::vector<Fd> const& fds)
 {
     std::stringstream ss;
@@ -155,12 +146,4 @@ void mcll::RpcReport::file_descriptors_received(
         ss << f << " ";
 
     logger->log(ml::Severity::debug, ss.str(), component);
-}
-
-void mcll::RpcReport::connection_failure(std::exception const& x)
-{
-    std::stringstream ss;
-    ss << "Connection failure: " << boost::diagnostic_information(x) << std::endl;
-
-    logger->log(ml::Severity::warning, ss.str(), component);
 }

@@ -20,9 +20,13 @@
 #ifndef MIR_FRONTEND_SURFACE_H_
 #define MIR_FRONTEND_SURFACE_H_
 
+#include "mir/frontend/buffer_stream.h"
 #include "mir/geometry/size.h"
+#include "mir/geometry/displacement.h"
+
 #include "mir_toolkit/common.h"
 
+#include <string>
 #include <memory>
 
 namespace mir
@@ -36,6 +40,7 @@ class CursorImage;
 namespace frontend
 {
 class ClientBufferTracker;
+class BufferStream;
 
 class Surface
 {
@@ -44,14 +49,15 @@ public:
 
     /// Size of the client area of the surface (excluding any decorations)
     virtual geometry::Size client_size() const = 0;
-    virtual MirPixelFormat pixel_format() const = 0;
 
-    virtual void swap_buffers(graphics::Buffer* old_buffer, std::function<void(graphics::Buffer* new_buffer)> complete) = 0;
+    virtual std::shared_ptr<frontend::BufferStream> primary_buffer_stream() const = 0;
 
     virtual bool supports_input() const = 0;
     virtual int client_input_fd() const = 0;
 
     virtual void set_cursor_image(std::shared_ptr<graphics::CursorImage> const& image) = 0;
+    virtual void set_cursor_stream(std::shared_ptr<frontend::BufferStream> const& image,
+        geometry::Displacement const& hotspot) = 0;
 
 protected:
     Surface() = default;

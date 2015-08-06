@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -16,11 +16,12 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#define MIR_INCLUDE_DEPRECATED_EVENT_HEADER 
+#include "mir/events/event_private.h"
 
 #include "input_sender.h"
 #include "input_send_entry.h"
 
+#include "mir/input/android/event_conversion_helpers.h"
 #include "mir/input/input_send_observer.h"
 #include "mir/input/input_channel.h"
 #include "mir/input/input_report.h"
@@ -183,10 +184,19 @@ void mia::InputSender::ActiveTransfer::send(InputSendEntry && event)
         event.event.type != mir_event_type_motion)
         return;
 
-    droidinput::status_t error_status =
-        (event.event.type == mir_event_type_key)
-        ? send_key_event(event.sequence_id, event.event.key)
-        : send_motion_event(event.sequence_id, event.event.motion);
+    droidinput::status_t error_status;
+
+    auto event_time = mir_input_event_get_event_time(mir_event_get_input_event(&event.event));
+    if (event.event.type == mir_event_type_key)
+    {
+        error_status = send_key_event(event.sequence_id, event.event.key);
+        state.report->published_key_event(event.channel->server_fd(), event.sequence_id, event_time);
+    }
+    else
+    {
+        error_status = send_motion_event(event.sequence_id, event.event.motion);
+        state.report->published_motion_event(event.channel->server_fd(), event.sequence_id, event_time);
+    }
 
     if (error_status == droidinput::OK)
     {
@@ -236,18 +246,20 @@ void mia::InputSender::ActiveTransfer::subscribe()
 
 droidinput::status_t mia::InputSender::ActiveTransfer::send_key_event(uint32_t seq, MirKeyEvent const& event)
 {
+    int32_t repeat_count = 0;
+    auto android_action = mia::android_keyboard_action_from_mir(repeat_count, event.action);
     return publisher.publishKeyEvent(
         seq,
         event.device_id,
         event.source_id,
-        event.action,
-        event.flags,
+        android_action,
+        0, /* Flags */
         event.key_code,
         event.scan_code,
-        event.modifiers,
-        event.repeat_count,
-        std::chrono::nanoseconds(event.down_time),
-        std::chrono::nanoseconds(event.event_time)
+        mia::android_modifiers_from_mir(event.modifiers),
+        repeat_count,
+        event.event_time,
+        event.event_time
         );
 }
 
@@ -265,6 +277,8 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         // here x, y is used instead of the raw co-ordinates and offset is set to zero
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_X, event.pointer_coordinates[i].x);
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_Y, event.pointer_coordinates[i].y);
+        coords[i].setAxisValue(AMOTION_EVENT_AXIS_RX, event.pointer_coordinates[i].dx);
+        coords[i].setAxisValue(AMOTION_EVENT_AXIS_RY, event.pointer_coordinates[i].dy);
 
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR, event.pointer_coordinates[i].touch_major);
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR, event.pointer_coordinates[i].touch_minor);
@@ -273,7 +287,7 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_ORIENTATION, event.pointer_coordinates[i].orientation);
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_VSCROLL, event.pointer_coordinates[i].vscroll);
         coords[i].setAxisValue(AMOTION_EVENT_AXIS_HSCROLL, event.pointer_coordinates[i].hscroll);
-        properties[i].toolType = event.pointer_coordinates[i].tool_type;
+        properties[i].toolType = mia::android_tool_type_from_mir(event.pointer_coordinates[i].tool_type);
         properties[i].id = event.pointer_coordinates[i].id;
     }
 
@@ -281,17 +295,16 @@ droidinput::status_t mia::InputSender::ActiveTransfer::send_motion_event(uint32_
         seq,
         event.device_id,
         event.source_id,
-        event.action,
-        static_cast<int32_t>(event.flags),
-        event.edge_flags,
-        static_cast<int32_t>(event.modifiers),
-        static_cast<int32_t>(event.button_state),
+        mia::extract_android_action_from(reinterpret_cast<MirEvent const&>(event)),
+        0, /* flags */
+        0, /* edge flags */
+        mia::android_modifiers_from_mir(event.modifiers),
+        mia::android_pointer_buttons_from_mir(event.buttons),
         0.0f,  // event.x_offset,
         0.0f,  // event.y_offset,
-        event.x_precision,
-        event.y_precision,
-        std::chrono::nanoseconds(event.down_time),
-        std::chrono::nanoseconds(event.event_time),
+        0, 0, /* unused x/y precision */
+        event.event_time,
+        event.event_time,
         event.pointer_count,
         properties,
         coords
@@ -404,10 +417,10 @@ mia::InputSendEntry mia::InputSender::ActiveTransfer::unqueue_entry(uint32_t seq
 
 void mia::InputSender::ActiveTransfer::update_timer()
 {
-    if (send_timer)
-        send_timer->reschedule_in(input_send_timeout);
-    else
-        send_timer = state.main_loop->notify_in(input_send_timeout, [this](){on_response_timeout();});
+    if (send_timer == nullptr)
+        send_timer = state.main_loop->create_alarm([this]{ on_response_timeout(); });
+
+    send_timer->reschedule_in(input_send_timeout);
 }
 
 void mia::InputSender::ActiveTransfer::cancel_timer()

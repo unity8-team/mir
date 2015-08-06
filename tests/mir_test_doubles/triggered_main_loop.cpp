@@ -16,8 +16,8 @@
  * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#include "mir_test_doubles/triggered_main_loop.h"
-#include "mir_test_doubles/stub_timer.h"
+#include "mir/test/doubles/triggered_main_loop.h"
+#include "mir/test/doubles/stub_alarm.h"
 
 #include <algorithm>
 #include <sys/select.h>
@@ -85,10 +85,10 @@ void mtd::TriggeredMainLoop::trigger_server_actions()
         action();
 }
 
-std::unique_ptr<mir::time::Alarm> mtd::TriggeredMainLoop::notify_in(std::chrono::milliseconds delay,
-                                            callback call)
+std::unique_ptr<mir::time::Alarm>
+mtd::TriggeredMainLoop::create_alarm(callback const& call)
 {
-    base::notify_in(delay, call);
+    base::create_alarm(call);
     timeout_callbacks.push_back(call);
     return std::unique_ptr<mir::time::Alarm>{new mtd::StubAlarm};
 }

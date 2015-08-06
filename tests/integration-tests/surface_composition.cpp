@@ -21,9 +21,9 @@
 #include "src/server/compositor/buffer_stream_surfaces.h"
 #include "src/server/compositor/buffer_queue.h"
 
-#include "mir_test_doubles/stub_buffer_allocator.h"
-#include "mir_test_doubles/stub_frame_dropping_policy_factory.h"
-#include "mir_test_doubles/stub_input_sender.h"
+#include "mir/test/doubles/stub_buffer_allocator.h"
+#include "mir/test/doubles/stub_frame_dropping_policy_factory.h"
+#include "mir/test/doubles/stub_input_sender.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -117,10 +117,10 @@ TEST_F(SurfaceComposition, does_not_send_client_buffers_to_dead_surfaces)
     while (called_back)
     {
         called_back = false;
-        surface->swap_buffers(old_buffer, callback);
+        surface->primary_buffer_stream()->swap_buffers(old_buffer, callback);
     }
 
-    auto const renderable = surface->compositor_snapshot(this);
+    auto const renderables = surface->generate_renderables(this);
 
     surface.reset();
 }

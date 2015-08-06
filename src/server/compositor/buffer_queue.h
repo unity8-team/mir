@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2014-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -65,12 +65,29 @@ public:
     void drop_old_buffers() override;
     void drop_client_requests() override;
 
+    /**
+     * Set the minimum number of smooth frames the client must keep up with
+     * the compositor for in order to qualify for queue scaling (dynamic
+     * double buffering for reduced latency). A negative value means never
+     * but it's recommended that you never change this.
+     */
+    void set_scaling_delay(int nframes);
+    int scaling_delay() const;
+
 private:
+    class LockableCallback;
+    enum SnapshotWait
+    {
+        wait_for_snapshot,
+        ignore_snapshot
+    };
     void give_buffer_to_client(graphics::Buffer* buffer,
-        std::unique_lock<std::mutex> lock);
+        std::unique_lock<std::mutex>& lock);
+    void give_buffer_to_client(graphics::Buffer* buffer,
+        std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
     void release(graphics::Buffer* buffer,
         std::unique_lock<std::mutex> lock);
-    void drop_frame(std::unique_lock<std::mutex> lock);
+    void drop_frame(std::unique_lock<std::mutex>& lock, SnapshotWait wait_type);
 
     mutable std::mutex guard;
 
@@ -86,8 +103,14 @@ private:
 
     std::deque<Callback> pending_client_notifications;
 
+    bool client_ahead_of_compositor() const;
+    graphics::Buffer* get_a_free_buffer();
+
     int nbuffers;
+    int frame_deadlines_threshold;
+    int frame_deadlines_met;
     bool frame_dropping_enabled;
+    bool current_compositor_buffer_valid;
     graphics::BufferProperties the_properties;
     bool force_new_compositor_buffer;
     bool callbacks_allowed;

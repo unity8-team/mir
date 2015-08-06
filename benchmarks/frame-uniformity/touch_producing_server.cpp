@@ -18,9 +18,10 @@
 
 #include "touch_producing_server.h"
 #include "vsync_simulating_graphics_platform.h"
+#include "mir/input/input_device_info.h"
 
-#include "mir_test/event_factory.h"
-#include "mir_test/fake_event_hub.h"
+#include "mir_test_framework/stub_server_platform_factory.h"
+#include "mir/geometry/displacement.h"
 
 #include <functional>
 
@@ -36,15 +37,17 @@ namespace mtf = mir_test_framework;
 TouchProducingServer::TouchProducingServer(geom::Rectangle screen_dimensions, geom::Point touch_start,
     geom::Point touch_end, std::chrono::high_resolution_clock::duration touch_duration,
     mt::Barrier &client_ready)
-    : FakeEventHubServerConfiguration({screen_dimensions}),
+    : FakeInputServerConfiguration({screen_dimensions}),
       screen_dimensions(screen_dimensions),
       touch_start(touch_start),
       touch_end(touch_end),
       touch_duration(touch_duration),
-      client_ready(client_ready)
+      client_ready(client_ready),
+      touch_screen(mtf::add_fake_input_device(mi::InputDeviceInfo{
+                                              0, "touch screen", "touch-screen-uid", mi::DeviceCapability::touchscreen | mi::DeviceCapability::multitouch}))
 {
     input_injection_thread = std::thread(std::mem_fn(&TouchProducingServer::thread_function), this);
-}                                           
+}
 
 TouchProducingServer::~TouchProducingServer()
 {
@@ -65,18 +68,17 @@ std::shared_ptr<mg::Platform> TouchProducingServer::the_graphics_platform()
 
 void TouchProducingServer::synthesize_event_at(geom::Point const& point)
 {
-    auto const minimum_touch = mia::FakeEventHub::TouchScreenMinAxisValue;
-    auto const maximum_touch = mia::FakeEventHub::TouchScreenMaxAxisValue;
+    auto const minimum_touch = mtf::FakeInputDevice::minimum_touch_axis_value;
+    auto const maximum_touch = mtf::FakeInputDevice::maximum_touch_axis_value;
     auto const display_width = screen_dimensions.size.width.as_int();
     auto const display_height = screen_dimensions.size.height.as_int();
-    
+
     auto px_frac = point.x.as_int() / static_cast<double>(display_width);
     auto py_frac = point.y.as_int() / static_cast<double>(display_height);
     auto const abs_touch_x = minimum_touch + (maximum_touch-minimum_touch) * px_frac;
     auto const abs_touch_y = minimum_touch + (maximum_touch-minimum_touch) * py_frac;
-    
-    fake_event_hub->synthesize_event(
-        mis::a_touch_event().at_position({abs_touch_x, abs_touch_y}));                                      
+
+    touch_screen->emit_event(mis::a_touch_event().at_position({abs_touch_x, abs_touch_y}));
 }
 
 void TouchProducingServer::thread_function()
@@ -101,8 +103,7 @@ void TouchProducingServer::thread_function()
         touch_end_time = now;
         
         double alpha = (now.time_since_epoch().count()-start.time_since_epoch().count()) / static_cast<double>(end.time_since_epoch().count()-start.time_since_epoch().count());
-        auto point = geom::Point{touch_start.x.as_int()+(touch_end.x.as_int()-touch_start.x.as_int())*alpha,
-            touch_start.y.as_int()+(touch_end.y.as_int()-touch_start.y.as_int())*alpha};
+        auto point = touch_start + alpha*(touch_end-touch_start);
         synthesize_event_at(point);
     }
 }

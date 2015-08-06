@@ -19,21 +19,12 @@
 #include "mir/graphics/display_buffer.h"
 #include "mir/compositor/compositor_report.h"
 #include "mir/compositor/scene_element.h"
-#include "mir/compositor/destination_alpha.h"
 #include "demo_compositor.h"
 
 namespace me = mir::examples;
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
-
-namespace
-{
-mc::DestinationAlpha destination_alpha(mg::DisplayBuffer const& db)
-{
-    return db.uses_alpha() ? mc::DestinationAlpha::generate_from_source : mc::DestinationAlpha::opaque;
-}
-}
 
 std::mutex                              me::DemoCompositor::instances_mutex;
 std::unordered_set<me::DemoCompositor*> me::DemoCompositor::instances;
@@ -47,7 +38,6 @@ me::DemoCompositor::DemoCompositor(
     zoom_mag{1.0f},
     renderer(
         display_buffer.view_area(),
-        destination_alpha(display_buffer),
         30.0f, //titlebar_height
         80.0f) //shadow_radius
 {
@@ -75,20 +65,28 @@ void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
     //the elements should be notified if they are rendered or not
     bool nonrenderlist_elements{false};
     mg::RenderableList renderable_list;
-    std::unordered_set<mg::Renderable::ID> decoration_skip_list;
+    DecorMap decorated;
 
     for(auto const& it : elements)
     {
         auto const& renderable = it->renderable();
-        auto embellished = renderer.would_embellish(*renderable, viewport);
-        auto any_part_drawn = (viewport.overlaps(renderable->screen_position()) || embellished);
         
-        if (!it->is_a_surface())
-            decoration_skip_list.insert(renderable->id());
-        if (any_part_drawn)
+        bool embellished = false;
+        if (auto decor = it->decoration())
+        {
+            embellished = decor->type != mc::Decoration::Type::none;
+            decorated[renderable->id()] = std::move(decor);
+        }
+
+        if (embellished || viewport.overlaps(renderable->screen_position()))
         {
             renderable_list.push_back(renderable);
 
+            /*
+             * TODO: This logic could be replaced more cleanly in future by
+             *       the surface stack logic setting decoration status more
+             *       accurately for fullscreen surfaces.
+             */
             // Fullscreen and opaque? Definitely no embellishment
             if (renderable->screen_position() == viewport &&
                 renderable->alpha() == 1.0f &&
@@ -122,6 +120,7 @@ void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
         viewport == display_buffer.view_area() &&  // no bypass while zoomed
         display_buffer.post_renderables_if_optimizable(renderable_list))
     {
+        report->renderables_in_frame(this, renderable_list);
         renderer.suspend();
     }
     else
@@ -130,10 +129,11 @@ void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
 
         renderer.set_rotation(display_buffer.orientation());
         renderer.set_viewport(viewport);
-        renderer.begin(std::move(decoration_skip_list));
+        renderer.begin(std::move(decorated));
         renderer.render(renderable_list);
 
         display_buffer.gl_swap_buffers();
+        report->renderables_in_frame(this, renderable_list);
         report->rendered_frame(this);
 
         // Release buffers back to the clients now that the swap has returned.
@@ -141,8 +141,6 @@ void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
         // flip() ...
         // FIXME: This clear() call is blocking a little (LP: #1395421)
         renderable_list.clear();
-
-        display_buffer.flip();
     }
 
     report->finished_frame(this);
@@ -188,8 +186,11 @@ void me::DemoCompositor::update_viewport()
         float zoom_width = db_width / zoom_mag;
         float zoom_height = db_height / zoom_mag;
     
-        float screen_x = cursor_pos.x.as_int() - db_x;
-        float screen_y = cursor_pos.y.as_int() - db_y;
+        // Note the 0.5f. This is because cursors (and all input in general)
+        // measures coordinates at the centre of a pixel. But GL measures to
+        // the top-left corner of a pixel.
+        float screen_x = cursor_pos.x.as_float() + 0.5f - db_x;
+        float screen_y = cursor_pos.y.as_float() + 0.5f - db_y;
 
         float normal_x = screen_x / db_width;
         float normal_y = screen_y / db_height;
