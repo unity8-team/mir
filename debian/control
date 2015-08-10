@@ -131,7 +131,7 @@ Section: libdevel
 Architecture: linux-any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Depends: libmirserver33 (= ${binary:Version}),
+Depends: libmirserver34 (= ${binary:Version}),
          libmirplatform-dev (= ${binary:Version}),
          libmircommon-dev (= ${binary:Version}),
          libglm-dev,
