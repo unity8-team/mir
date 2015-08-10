@@ -286,7 +286,6 @@ MIR_SERVER_33 {
     mir::shell::WindowManager::operator*;
     mir::shell::WindowManager::?WindowManager*;
     mir::shell::WindowManager::WindowManager*;
-    mir::terminate_with_current_exception*;
     mir::time::Alarm::?Alarm*;
     mir::time::Alarm::Alarm*;
     mir::time::AlarmFactory::?AlarmFactory*;
