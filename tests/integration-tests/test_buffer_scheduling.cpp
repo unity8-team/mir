@@ -769,22 +769,26 @@ TEST_P(WithTwoOrMoreBuffers, overlapping_compositors_get_different_frames)
     // This test simulates bypass behaviour
     // overlay/bypass code will need to acquire two buffers at once, as there's a brief period of time where a buffer 
     // is onscreen, and the compositor has to arrange for the next buffer to swap in.
-    auto const num_simultaneous_consumptions = 2u;
-    auto num_iterations = 20u;
-    std::array<std::shared_ptr<mg::Buffer>, num_simultaneous_consumptions> compositor_resources;
-    for (auto i = 0u; i < num_iterations; i++)
+    std::shared_ptr<mg::Buffer> onscreen[2];
+
+    producer.produce();
+    onscreen[0] = consumer.consume_resource();
+    producer.produce();
+    onscreen[1] = consumer.consume_resource();
+
+    for (int i = 0; i < 20; ++i)
     {
+        // Two compositors acquired, and they're always different...
+        ASSERT_TRUE(onscreen[0].get());
+        ASSERT_TRUE(onscreen[1].get());
+        ASSERT_NE(onscreen[0]->id(), onscreen[1]->id());
+
         // One of the compositors (the oldest one) gets a new buffer...
         int oldest = i & 1;
-        compositor_resources[oldest].reset();
+        onscreen[oldest].reset();
         producer.produce();
-        compositor_resources[oldest] = consumer.consume_resource();
+        onscreen[oldest] = consumer.consume_resource();
     }
-
-    // Two compositors acquired, and they're always different...
-    auto log = consumer.consumption_log();
-    for(auto i = 0u; i < log.size() - 1; i++)
-        EXPECT_THAT(log[i].id, Ne(log[i+1].id));
 }
 
 // Regression test LP: #1241369 / LP: #1241371
