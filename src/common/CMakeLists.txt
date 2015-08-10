@@ -18,10 +18,12 @@ add_subdirectory(thread)
 add_subdirectory(time)
 add_subdirectory(dispatch)
 add_subdirectory(fatal)
+add_subdirectory(udev)
 
 list(APPEND MIR_COMMON_SOURCES
   $<TARGET_OBJECTS:mirtime>
   $<TARGET_OBJECTS:mirfatal>
+  $<TARGET_OBJECTS:mirudev>
   ${CMAKE_CURRENT_SOURCE_DIR}/log.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/terminate_with_current_exception.cpp
   )
