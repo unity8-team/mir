@@ -26,7 +26,7 @@ set(
 
 
 add_library(
-  android-input-static STATIC
+  android-input OBJECT
   # The stuff that we want
   frameworks/base/services/input/EventHub.cpp
   frameworks/base/services/input/InputApplication.cpp
@@ -63,14 +63,8 @@ if(MIR_USE_BIONIC)
     skia)
 endif()
 
-target_link_libraries(
-  android-input-static
-
-  ${Boost_LIBRARIES}
-)
-
 set_target_properties(
-  android-input-static
+  android-input
   PROPERTIES
   COMPILE_FLAGS ${ANDROID_INPUT_COMPILE_FLAGS}
 )

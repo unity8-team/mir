@@ -178,7 +178,37 @@ MIR_CLIENT_9.1 {  # New functions in Mir 0.15
 
 MIR_CLIENT_DETAIL_9 {
   global:
-    extern "C++" { 
+    extern "C++" {
+      android::EventHub::EventHub*;
+      android::InputChannel::InputChannel*;
+      android::InputChannel::openInputFdPair*;
+      android::InputDeviceInfo::?InputDeviceInfo*;
+      android::InputDeviceInfo::InputDeviceInfo*;
+      android::InputPublisher::?InputPublisher*;
+      android::InputPublisher::InputPublisher*;
+      android::InputPublisher::publishKeyEvent*;
+      android::InputPublisher::publishMotionEvent*;
+      android::InputPublisher::receiveFinishedSignal*;
+      android::InputReaderConfiguration::setDisplayInfo*;
+      android::InputReader::InputReader*;
+      android::KeyCharacterMap::empty*;
+      android::KeyLayoutMap::mapKey*;
+      android::KeyMap::?KeyMap*;
+      android::KeyMap::KeyMap*;
+      android::KeyMap::loadGenericMaps*;
+      android::PointerCoords::getAxisValue*;
+      android::PointerCoords::setAxisValue*;
+      android::RefBase::decStrong*;
+      android::RefBase::incStrong*;
+      android::RefBase::onFirstRef*;
+      android::RefBase::onIncStrongAttempted*;
+      android::RefBase::onLastStrongRef*;
+      android::RefBase::onLastWeakRef*;
+      android::RefBase::?RefBase*;
+      android::RefBase::RefBase*;
+      mir::write_to_log*;
+      typeinfo?for?android::RefBase;
+
       mir::events::make_event*;
       mir::events::add_touch*;
       mir::input::android::Lexicon::translate*;

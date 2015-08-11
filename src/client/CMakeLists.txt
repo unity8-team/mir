@@ -76,8 +76,17 @@ add_library(mirclientobjects OBJECT
 # trying to compile mirclientobjects
 add_dependencies(mirclientobjects mirprotobuf)
 
-add_library(mirclient SHARED $<TARGET_OBJECTS:mirclientobjects> $<TARGET_OBJECTS:mirsharedinput>)
-add_library(mirclient-static STATIC $<TARGET_OBJECTS:mirclientobjects> $<TARGET_OBJECTS:mirsharedinput>)
+add_library(mirclient SHARED
+  $<TARGET_OBJECTS:mirclientobjects>
+  $<TARGET_OBJECTS:mirsharedinput>
+  $<TARGET_OBJECTS:android-input>
+)
+
+add_library(mirclient-static STATIC
+  $<TARGET_OBJECTS:mirclientobjects>
+  $<TARGET_OBJECTS:mirsharedinput>
+  $<TARGET_OBJECTS:android-input>
+)
 
 set_target_properties(mirclient
 
