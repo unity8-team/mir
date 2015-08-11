@@ -39,14 +39,6 @@ add_library(android-input OBJECT
   frameworks/native/libs/utils/Timers.cpp     # used by KeyCharacterMap.cpp, InputReader.cpp, InputDispatcher.cpp, Looper.cpp
 )
 
-#we don't have binder or skia available on hybris/linux platforms
-if(MIR_USE_BIONIC)
-  target_link_libraries(
-    android-input-static
-    binder
-    skia)
-endif()
-
 set_target_properties(
   android-input
   PROPERTIES
