@@ -219,7 +219,7 @@ struct FakeToucher
     {
         touched = true;
 
-        auto ev = mev::make_event(id, std::chrono::nanoseconds(0), 0);
+        auto ev = mev::make_event(id, std::chrono::nanoseconds(0), 0, 0);
         mev::add_touch(*ev, 0, mir_touch_action_down,
                        mir_touch_tooltype_finger, point1.x.as_int(), point1.y.as_int(),
                        1.0, 1.0, 1.0, 1.0);
@@ -242,7 +242,7 @@ struct FakeToucher
     {
         touched = false;
 
-        auto ev = mev::make_event(id, std::chrono::nanoseconds(0), 0);
+        auto ev = mev::make_event(id, std::chrono::nanoseconds(0), 0, 0);
         mev::add_touch(*ev, 0, mir_touch_action_up,
                        mir_touch_tooltype_finger, point1.x.as_int(), point1.y.as_int(),
                        1.0, 1.0, 1.0, 1.0);
