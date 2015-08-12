@@ -47,7 +47,8 @@ struct MockSurface : public scene::BasicSurface
             std::make_shared<StubInputChannel>(),
             {},
             {},
-            mir::report::null_scene_report())
+            mir::report::null_scene_report(),
+            {})
     {
         ON_CALL(*this, primary_buffer_stream())
             .WillByDefault(testing::Return(std::make_shared<testing::NiceMock<MockBufferStream>>()));

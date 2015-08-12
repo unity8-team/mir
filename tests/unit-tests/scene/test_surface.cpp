@@ -36,6 +36,8 @@
 #include "mir/test/fake_shared.h"
 #include "mir/test/event_matchers.h"
 
+#include "mir/cookie_factory.h"
+
 #include "gmock_set_arg.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -195,7 +197,8 @@ struct SurfaceCreation : public ::testing::Test
             rect, false, mock_buffer_stream, 
             std::make_shared<mtd::StubInputChannel>(),
             std::make_shared<mtd::StubInputSender>(),
-            nullptr /* cursor_image */, report)
+            nullptr /* cursor_image */, report,
+            mt::fake_shared(cookie_factory))
     {
     }
 
@@ -224,6 +227,8 @@ struct SurfaceCreation : public ::testing::Test
     geom::Stride stride = geom::Stride{4 * size.width.as_uint32_t()};
     geom::Rectangle rect = geom::Rectangle{geom::Point{geom::X{0}, geom::Y{0}}, size};
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
+    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
+    mir::CookieFactory cookie_factory{secret};
     ms::BasicSurface surface;
 };
 
@@ -384,7 +389,8 @@ TEST_F(SurfaceCreation, input_fds)
         mt::fake_shared(channel),
         std::make_shared<mtd::StubInputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report);
+        report,
+        mt::fake_shared(cookie_factory));
 
     EXPECT_EQ(client_fd, input_surf.client_input_fd());
 }
@@ -402,11 +408,12 @@ TEST_F(SurfaceCreation, consume_calls_send_event)
         std::make_shared<mtd::StubInputChannel>(),
         mt::fake_shared(mock_sender),
         std::shared_ptr<mg::CursorImage>(),
-        report);
+        report,
+        mt::fake_shared(cookie_factory));
 
-    auto key_event = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0),
+    auto key_event = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0), 0,
                                      mir_keyboard_action_down, 0, 0, mir_input_event_modifier_none);
-    auto touch_event = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0),
+    auto touch_event = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0), 0,
                                        mir_input_event_modifier_none);
     mev::add_touch(*touch_event, 0, mir_touch_action_down, mir_touch_tooltype_finger, 0, 0,
         0, 0, 0, 0);

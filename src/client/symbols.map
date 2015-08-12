@@ -165,12 +165,14 @@ MIR_CLIENT_9.1 {  # New functions in Mir 0.15
     mir_connection_pong;
     mir_connection_set_ping_event_callback;
     mir_crosshair_cursor_name;
-    mir_input_event_get_cookie;
     mir_keyboard_event_input_event;
+    mir_keyboard_event_get_cookie;
     mir_persistent_id_as_string;
     mir_persistent_id_from_string;
     mir_pointer_event_input_event;
+    mir_pointer_event_get_cookie;
     mir_touch_event_input_event;
+    mir_touch_event_get_cookie;
     mir_surface_spec_attach_to_foreign_parent;
     mir_surface_spec_set_input_shape;
     mir_connection_get_egl_pixel_format;

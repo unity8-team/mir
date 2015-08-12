@@ -29,6 +29,7 @@ namespace droidinput = android;
 
 namespace mir
 {
+class CookieFactory;
 namespace input
 {
 class InputDispatcher;
@@ -37,7 +38,8 @@ namespace android
 class InputTranslator : public droidinput::InputListenerInterface
 {
 public:
-    InputTranslator(std::shared_ptr<InputDispatcher> const& dispatcher);
+    InputTranslator(std::shared_ptr<InputDispatcher> const& dispatcher,
+                    std::shared_ptr<CookieFactory> const& c_factory);
 
     void notifyConfigurationChanged(const droidinput::NotifyConfigurationChangedArgs* args) override;
     void notifyKey(const droidinput::NotifyKeyArgs* args) override;
@@ -47,6 +49,8 @@ public:
 
 private:
     std::shared_ptr<InputDispatcher> const dispatcher;
+    std::shared_ptr<CookieFactory> const cookie_factory;
+
 };
 
 }

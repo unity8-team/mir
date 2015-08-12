@@ -170,8 +170,8 @@ mir::DefaultServerConfiguration::the_input_dispatcher()
             auto enable_repeat = options->get<bool>(options::enable_key_repeat_opt);
 
             return std::make_shared<mi::KeyRepeatDispatcher>(
-                the_event_filter_chain_dispatcher(), the_main_loop(), enable_repeat,
-                key_repeat_timeout, key_repeat_delay);
+                the_event_filter_chain_dispatcher(), the_main_loop(), the_cookie_provider(),
+                enable_repeat, key_repeat_timeout, key_repeat_delay);
         });
 }
 
@@ -221,7 +221,7 @@ mir::DefaultServerConfiguration::the_input_translator()
     return input_translator(
         [this]()
         {
-            return std::make_shared<mia::InputTranslator>(the_input_dispatcher());
+            return std::make_shared<mia::InputTranslator>(the_input_dispatcher(), the_cookie_provider());
         });
 }
 

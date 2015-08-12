@@ -97,14 +97,6 @@ MirInputDeviceId mir_input_event_get_device_id(MirInputEvent const* ev);
  */
 int64_t mir_input_event_get_event_time(MirInputEvent const* ev);
 
-/**
- * Retrieves the timestamp cookie of an input event.
- *
- * \param [in] event The input event
- * \return           A MirCookie
- */
-MirCookie mir_input_event_get_cookie(MirInputEvent const* ev);
-
 /*
  * Retrieve the type of an input event (e.g. key, touch...)
  *

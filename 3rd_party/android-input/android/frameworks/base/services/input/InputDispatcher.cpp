@@ -612,7 +612,7 @@ InputDispatcher::KeyEntry* InputDispatcher::synthesizeKeyRepeatLocked(std::chron
         KeyEntry* newEntry = new KeyEntry(currentTime,
                 entry->deviceId, entry->source, policyFlags,
                 entry->action, entry->flags, entry->keyCode, entry->scanCode,
-                entry->metaState, entry->repeatCount + 1, entry->downTime);
+                entry->metaState, entry->repeatCount + 1, entry->mac, entry->downTime);
 
         mKeyRepeatState.lastKeyEntry = newEntry;
         entry->release();
@@ -760,11 +760,11 @@ void InputDispatcher::logOutboundKeyDetailsLocked(const char* prefix, const KeyE
 #if DEBUG_OUTBOUND_EVENT_DETAILS
     ALOGD("%seventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, "
-            "repeatCount=%d, downTime=%lld",
+            "repeatCount=%d, mac=%lu, downTime=%lld",
             prefix,
             entry->eventTime, entry->deviceId, entry->source, entry->policyFlags,
             entry->action, entry->flags, entry->keyCode, entry->scanCode, entry->metaState,
-            entry->repeatCount, entry->downTime);
+            entry->repeatCount, entry->mac, entry->downTime);
 #endif
 }
 
@@ -827,13 +827,13 @@ void InputDispatcher::logOutboundMotionDetailsLocked(const char* prefix, const M
     ALOGD("%seventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, "
             "metaState=0x%x, buttonState=0x%x, "
-            "edgeFlags=0x%x, xPrecision=%f, yPrecision=%f, downTime=%lld",
+            "edgeFlags=0x%x, xPrecision=%f, yPrecision=%f, mac=%lu, downTime=%lld",
             prefix,
             entry->eventTime, entry->deviceId, entry->source, entry->policyFlags,
             entry->action, entry->flags,
             entry->metaState, entry->buttonState,
             entry->edgeFlags, entry->xPrecision, entry->yPrecision,
-            entry->downTime);
+            entry->mac, entry->downTime);
 
     for (uint32_t i = 0; i < entry->pointerCount; i++) {
         ALOGD("  Pointer %d: id=%d, toolType=%d, "
@@ -1881,8 +1881,8 @@ void InputDispatcher::startDispatchCycleLocked(std::chrono::nanoseconds currentT
                     keyEntry->deviceId, keyEntry->source,
                     dispatchEntry->resolvedAction, dispatchEntry->resolvedFlags,
                     keyEntry->keyCode, keyEntry->scanCode,
-                    keyEntry->metaState, keyEntry->repeatCount, keyEntry->downTime,
-                    keyEntry->eventTime);
+                    keyEntry->metaState, keyEntry->repeatCount, keyEntry->mac,
+                    keyEntry->downTime, keyEntry->eventTime);
             input_report->published_key_event(connection->inputChannel->getFd(),
                                               dispatchEntry->seq,
                                               keyEntry->eventTime.count());
@@ -1929,7 +1929,7 @@ void InputDispatcher::startDispatchCycleLocked(std::chrono::nanoseconds currentT
                     dispatchEntry->resolvedAction, dispatchEntry->resolvedFlags,
                     motionEntry->edgeFlags, motionEntry->metaState, motionEntry->buttonState,
                     xOffset, yOffset,
-                    motionEntry->xPrecision, motionEntry->yPrecision,
+                    motionEntry->xPrecision, motionEntry->yPrecision, motionEntry->mac,
                     motionEntry->downTime, motionEntry->eventTime,
                     motionEntry->pointerCount, motionEntry->pointerProperties,
                     usingCoords);
@@ -2249,6 +2249,7 @@ InputDispatcher::splitMotionEvent(const MotionEntry* originalMotionEntry, const 
             originalMotionEntry->edgeFlags,
             originalMotionEntry->xPrecision,
             originalMotionEntry->yPrecision,
+            originalMotionEntry->mac,
             originalMotionEntry->downTime,
             splitPointerCount, splitPointerProperties, splitPointerCoords);
 
@@ -2281,10 +2282,10 @@ void InputDispatcher::notifyConfigurationChanged(const NotifyConfigurationChange
 void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
     ALOGD("notifyKey - eventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, action=0x%x, "
-            "flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, downTime=%lld",
+            "flags=0x%x, keyCode=0x%x, scanCode=0x%x, metaState=0x%x, mac=%lu, downTime=%lld",
             args->eventTime, args->deviceId, args->source, args->policyFlags,
             args->action, args->flags, args->keyCode, args->scanCode,
-            args->metaState, args->downTime);
+            args->metaState, args->mac, args->downTime);
 #endif
     if (!validateKeyEvent(args->action)) {
         return;
@@ -2318,7 +2319,7 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
     KeyEvent event;
     event.initialize(args->deviceId, args->source, args->action,
             flags, args->keyCode, args->scanCode, metaState, 0,
-            args->downTime, args->eventTime);
+            args->mac, args->downTime, args->eventTime);
 
     mPolicy->interceptKeyBeforeQueueing(&event, /*byref*/ policyFlags);
 
@@ -2345,7 +2346,7 @@ void InputDispatcher::notifyKey(const NotifyKeyArgs* args) {
         KeyEntry* newEntry = new KeyEntry(args->eventTime,
                 args->deviceId, args->source, policyFlags,
                 args->action, flags, args->keyCode, args->scanCode,
-                metaState, repeatCount, args->downTime);
+                metaState, repeatCount, args->mac, args->downTime);
 
         needWake = enqueueInboundEventLocked(newEntry);
         mLock.unlock();
@@ -2360,10 +2361,10 @@ void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
 #if DEBUG_INBOUND_EVENT_DETAILS
     ALOGD("notifyMotion - eventTime=%lld, deviceId=%d, source=0x%x, policyFlags=0x%x, "
             "action=0x%x, flags=0x%x, metaState=0x%x, buttonState=0x%x, edgeFlags=0x%x, "
-            "xPrecision=%f, yPrecision=%f, downTime=%lld",
+            "xPrecision=%f, yPrecision=%f, mac=%lu, downTime=%lld",
             args->eventTime, args->deviceId, args->source, args->policyFlags,
             args->action, args->flags, args->metaState, args->buttonState,
-            args->edgeFlags, args->xPrecision, args->yPrecision, args->downTime);
+            args->edgeFlags, args->xPrecision, args->yPrecision, args->mac, args->downTime);
     for (uint32_t i = 0; i < args->pointerCount; i++) {
         ALOGD("  Pointer %d: id=%d, toolType=%d, "
                 "x=%f, y=%f, pressure=%f, size=%f, "
@@ -2400,7 +2401,7 @@ void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
             MotionEvent event;
             event.initialize(args->deviceId, args->source, args->action, args->flags,
                     args->edgeFlags, args->metaState, args->buttonState, 0, 0,
-                    args->xPrecision, args->yPrecision,
+                    args->xPrecision, args->yPrecision, args->mac,
                     args->downTime, args->eventTime,
                     args->pointerCount, args->pointerProperties, args->pointerCoords);
 
@@ -2416,8 +2417,8 @@ void InputDispatcher::notifyMotion(const NotifyMotionArgs* args) {
         MotionEntry* newEntry = new MotionEntry(args->eventTime,
                 args->deviceId, args->source, policyFlags,
                 args->action, args->flags, args->metaState, args->buttonState,
-                args->edgeFlags, args->xPrecision, args->yPrecision, args->downTime,
-                args->pointerCount, args->pointerProperties, args->pointerCoords);
+                args->edgeFlags, args->xPrecision, args->yPrecision, args->mac,
+                args->downTime, args->pointerCount, args->pointerProperties, args->pointerCoords);
 
         needWake = enqueueInboundEventLocked(newEntry);
         mLock.unlock();
@@ -2505,7 +2506,7 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event,
                 keyEvent->getDeviceId(), keyEvent->getSource(),
                 policyFlags, action, flags,
                 keyEvent->getKeyCode(), keyEvent->getScanCode(), keyEvent->getMetaState(),
-                keyEvent->getRepeatCount(), keyEvent->getDownTime());
+                keyEvent->getRepeatCount(), keyEvent->getMac(), keyEvent->getDownTime());
         lastInjectedEntry = firstInjectedEntry;
         break;
     }
@@ -2533,8 +2534,8 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event,
                 motionEvent->getMetaState(), motionEvent->getButtonState(),
                 motionEvent->getEdgeFlags(),
                 motionEvent->getXPrecision(), motionEvent->getYPrecision(),
-                motionEvent->getDownTime(), uint32_t(pointerCount),
-                pointerProperties, samplePointerCoords);
+                motionEvent->getMac(), motionEvent->getDownTime(),
+                uint32_t(pointerCount), pointerProperties, samplePointerCoords);
         lastInjectedEntry = firstInjectedEntry;
         for (size_t i = motionEvent->getHistorySize(); i > 0; i--) {
             sampleEventTimes += 1;
@@ -2545,7 +2546,7 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event,
                     motionEvent->getMetaState(), motionEvent->getButtonState(),
                     motionEvent->getEdgeFlags(),
                     motionEvent->getXPrecision(), motionEvent->getYPrecision(),
-                    motionEvent->getDownTime(), uint32_t(pointerCount),
+                    motionEvent->getMac(), motionEvent->getDownTime(), uint32_t(pointerCount),
                     pointerProperties, samplePointerCoords);
             lastInjectedEntry->next = nextInjectedEntry;
             lastInjectedEntry = nextInjectedEntry;
@@ -3558,6 +3559,7 @@ bool InputDispatcher::afterKeyEventLockedInterruptible(const sp<Connection>& con
                 keyEntry->scanCode = event.getScanCode();
                 keyEntry->metaState = event.getMetaState();
                 keyEntry->repeatCount = event.getRepeatCount();
+                keyEntry->mac = event.getMac();
                 keyEntry->downTime = event.getDownTime();
                 keyEntry->syntheticRepeat = false;
 
@@ -3593,7 +3595,7 @@ void InputDispatcher::doPokeUserActivityLockedInterruptible(CommandEntry* comman
 void InputDispatcher::initializeKeyEvent(KeyEvent* event, const KeyEntry* entry) {
     event->initialize(entry->deviceId, entry->source, entry->action, entry->flags,
             entry->keyCode, entry->scanCode, entry->metaState, entry->repeatCount,
-            entry->downTime, entry->eventTime);
+            entry->mac, entry->downTime, entry->eventTime);
 }
 
 void InputDispatcher::updateDispatchStatisticsLocked(std::chrono::nanoseconds currentTime, const EventEntry* entry,
@@ -3717,11 +3719,11 @@ void InputDispatcher::DeviceResetEntry::appendDescription(String8& msg) const {
 InputDispatcher::KeyEntry::KeyEntry(std::chrono::nanoseconds eventTime,
         int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action,
         int32_t flags, int32_t keyCode, int32_t scanCode, int32_t metaState,
-        int32_t repeatCount, std::chrono::nanoseconds downTime) :
+        int32_t repeatCount, uint64_t mac, std::chrono::nanoseconds downTime) :
         EventEntry(TYPE_KEY, eventTime, policyFlags),
         deviceId(deviceId), source(source), action(action), flags(flags),
         keyCode(keyCode), scanCode(scanCode), metaState(metaState),
-        repeatCount(repeatCount), downTime(downTime),
+        repeatCount(repeatCount), mac(mac), downTime(downTime),
         syntheticRepeat(false), interceptKeyResult(KeyEntry::INTERCEPT_KEY_RESULT_UNKNOWN),
         interceptKeyWakeupTime(0) {
 }
@@ -3756,13 +3758,13 @@ InputDispatcher::MotionEntry::MotionEntry(std::chrono::nanoseconds eventTime,
         int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action, int32_t flags,
         int32_t metaState, int32_t buttonState,
         int32_t edgeFlags, float xPrecision, float yPrecision,
-        std::chrono::nanoseconds downTime, uint32_t pointerCount,
+        uint64_t mac, std::chrono::nanoseconds downTime, uint32_t pointerCount,
         const PointerProperties* pointerProperties, const PointerCoords* pointerCoords) :
         EventEntry(TYPE_MOTION, eventTime, policyFlags),
         eventTime(eventTime),
         deviceId(deviceId), source(source), action(action), flags(flags),
         metaState(metaState), buttonState(buttonState), edgeFlags(edgeFlags),
-        xPrecision(xPrecision), yPrecision(yPrecision),
+        xPrecision(xPrecision), yPrecision(yPrecision), mac(mac),
         downTime(downTime), pointerCount(pointerCount) {
     for (uint32_t i = 0; i < pointerCount; i++) {
         this->pointerProperties[i].copyFrom(pointerProperties[i]);
@@ -3995,6 +3997,7 @@ void InputDispatcher::InputState::addKeyMemento(const KeyEntry* entry, int32_t f
     memento.scanCode = entry->scanCode;
     memento.metaState = entry->metaState;
     memento.flags = flags;
+    memento.mac = entry->mac;
     memento.downTime = entry->downTime;
     memento.policyFlags = entry->policyFlags;
 }
@@ -4008,6 +4011,7 @@ void InputDispatcher::InputState::addMotionMemento(const MotionEntry* entry,
     memento.flags = flags;
     memento.xPrecision = entry->xPrecision;
     memento.yPrecision = entry->yPrecision;
+    memento.mac = entry->mac;
     memento.downTime = entry->downTime;
     memento.setPointers(entry);
     memento.hovering = hovering;
@@ -4030,7 +4034,7 @@ void InputDispatcher::InputState::synthesizeCancelationEvents(std::chrono::nanos
             outEvents.push(new KeyEntry(currentTime,
                     memento.deviceId, memento.source, memento.policyFlags,
                     AKEY_EVENT_ACTION_UP, memento.flags | AKEY_EVENT_FLAG_CANCELED,
-                    memento.keyCode, memento.scanCode, memento.metaState, 0, memento.downTime));
+                    memento.keyCode, memento.scanCode, memento.metaState, 0, memento.mac, memento.downTime));
         }
     }
 
@@ -4043,7 +4047,7 @@ void InputDispatcher::InputState::synthesizeCancelationEvents(std::chrono::nanos
                             ? AMOTION_EVENT_ACTION_HOVER_EXIT
                             : AMOTION_EVENT_ACTION_CANCEL,
                     memento.flags, 0, 0, 0,
-                    memento.xPrecision, memento.yPrecision, memento.downTime,
+                    memento.xPrecision, memento.yPrecision, memento.mac, memento.downTime,
                     memento.pointerCount, memento.pointerProperties, memento.pointerCoords));
         }
     }

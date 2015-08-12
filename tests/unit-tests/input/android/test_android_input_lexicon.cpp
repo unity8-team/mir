@@ -39,12 +39,13 @@ TEST(AndroidInputLexicon, translates_key_events)
     const int32_t scan_code = 6;
     const int32_t meta_state = AMETA_ALT_ON;
     const int32_t repeat_count = 0;
+    const uint64_t mac = 1;
     auto const down_time = std::chrono::nanoseconds(9);
     auto const event_time = std::chrono::nanoseconds(10);
 
     android_key_ev->initialize(device_id, source_id, action, flags, key_code,
                                scan_code, meta_state, repeat_count,
-                               down_time, event_time);
+                               mac, down_time, event_time);
 
     auto mir_ev = mia::Lexicon::translate(android_key_ev);
 
@@ -60,6 +61,8 @@ TEST(AndroidInputLexicon, translates_key_events)
 
     EXPECT_EQ(key_code, mir_keyboard_event_key_code(kev));
     EXPECT_EQ(scan_code, mir_keyboard_event_scan_code(kev));
+
+    EXPECT_EQ(mac, mir_keyboard_event_get_cookie(kev).mac);
 
     delete android_key_ev;
 }
@@ -99,6 +102,7 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     const float size = 500.0;
     const float pressure = 600.0;
     const float orientation = 700.0;
+    const uint64_t mac = 800.0f;
 
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_X, x_axis);
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_Y, y_axis);
@@ -111,7 +115,7 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
 
     android_motion_ev->initialize(device_id, source_id, action, flags, edge_flags,
                                   meta_state, button_state, x_offset, y_offset,
-                                  x_precision, y_precision, down_time,
+                                  x_precision, y_precision, mac, down_time,
                                   event_time, pointer_count, &pointer_properties, &pointer_coords);
 
     auto mir_ev = mia::Lexicon::translate(android_motion_ev);
@@ -126,6 +130,7 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
 
     auto tev = mir_input_event_get_touch_event(iev);
     EXPECT_EQ(pointer_count, mir_touch_event_point_count(tev));
+    EXPECT_EQ(mac, mir_touch_event_get_cookie(tev).mac);
     
     EXPECT_EQ(pointer_id, mir_touch_event_id(tev, 0));
     // Notice these two coordinates are offset by x/y offset
@@ -156,6 +161,7 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
     const float y_offset = 9;
     const float x_precision = 10;
     const float y_precision = 11;
+    const uint64_t mac = 14;
     const std::chrono::nanoseconds down_time = std::chrono::nanoseconds(12);
     const std::chrono::nanoseconds event_time = std::chrono::nanoseconds(13);
     const size_t pointer_count = 2;
@@ -197,7 +203,7 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
     android_motion_ev->initialize(device_id, source_id, action, flags,
                                   edge_flags, meta_state, 0,
                                   x_offset, y_offset, x_precision, y_precision,
-                                  down_time, event_time, pointer_count,
+                                  mac, down_time, event_time, pointer_count,
                                   pointer_properties, pointer_coords);
 
     auto mir_ev = mia::Lexicon::translate(android_motion_ev);
@@ -212,6 +218,7 @@ TEST(AndroidInputLexicon, translates_multi_pointer_motion_events)
 
     auto tev = mir_input_event_get_touch_event(iev);
     EXPECT_EQ(pointer_count, mir_touch_event_point_count(tev));
+    EXPECT_EQ(mac, mir_touch_event_get_cookie(tev).mac);
 
     for (unsigned i = 0; i < pointer_count; i++)
     {

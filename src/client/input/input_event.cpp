@@ -167,11 +167,36 @@ MirInputDeviceId mir_input_event_get_device_id(MirInputEvent const* ev)
     }
 }
 
-MirCookie mir_input_event_get_cookie(MirInputEvent const* ev)
+MirCookie mir_keyboard_event_get_cookie(MirKeyboardEvent const* kev)
 {
     MirCookie cookie;
-    cookie.timestamp = mir_input_event_get_event_time(ev);
-    cookie.mac = 0;
+    auto const& old_kev = old_kev_from_new(kev);
+
+    cookie.timestamp = old_kev.event_time.count();
+    cookie.mac       = old_kev.mac;
+
+    return cookie;
+}
+
+MirCookie mir_pointer_event_get_cookie(MirPointerEvent const* mev)
+{
+    MirCookie cookie;
+    auto const& old_mev = old_mev_from_new(mev);
+
+    cookie.timestamp = old_mev.event_time.count();
+    cookie.mac       = old_mev.mac;
+
+    return cookie;
+}
+
+MirCookie mir_touch_event_get_cookie(MirTouchEvent const* tev)
+{
+    MirCookie cookie;
+    auto const& old_mev = old_mev_from_new(tev);
+
+    cookie.timestamp = old_mev.event_time.count();
+    cookie.mac       = old_mev.mac;
+
     return cookie;
 }
 

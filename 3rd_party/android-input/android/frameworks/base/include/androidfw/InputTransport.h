@@ -70,6 +70,7 @@ struct InputMessage {
             int32_t scanCode;
             int32_t metaState;
             int32_t repeatCount;
+            uint64_t mac;
             int64_t downTime;
 
             inline size_t size() const {
@@ -87,6 +88,7 @@ struct InputMessage {
             int32_t metaState;
             int32_t buttonState;
             int32_t edgeFlags;
+            uint64_t mac;
             int64_t downTime;
             float xOffset;
             float yOffset;
@@ -210,6 +212,7 @@ public:
             int32_t scanCode,
             int32_t metaState,
             int32_t repeatCount,
+            uint64_t mac,
             std::chrono::nanoseconds downTime,
             std::chrono::nanoseconds eventTime);
 
@@ -234,6 +237,7 @@ public:
             float yOffset,
             float xPrecision,
             float yPrecision,
+            uint64_t mac,
             std::chrono::nanoseconds downTime,
             std::chrono::nanoseconds eventTime,
             size_t pointerCount,

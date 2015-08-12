@@ -496,6 +496,7 @@ private:
         int32_t scanCode;
         int32_t metaState;
         int32_t repeatCount;
+        uint64_t mac;
         std::chrono::nanoseconds downTime;
 
         bool syntheticRepeat; // set to true for synthetic key repeats
@@ -512,7 +513,7 @@ private:
         KeyEntry(std::chrono::nanoseconds eventTime,
                 int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action,
                 int32_t flags, int32_t keyCode, int32_t scanCode, int32_t metaState,
-                int32_t repeatCount, std::chrono::nanoseconds downTime);
+                int32_t repeatCount, uint64_t mac, std::chrono::nanoseconds downTime);
         virtual void appendDescription(String8& msg) const;
         void recycle();
 
@@ -533,6 +534,7 @@ private:
         int32_t edgeFlags;
         float xPrecision;
         float yPrecision;
+        uint64_t mac;
         std::chrono::nanoseconds downTime;
         uint32_t pointerCount;
         PointerProperties pointerProperties[MAX_POINTERS];
@@ -541,7 +543,7 @@ private:
         MotionEntry(std::chrono::nanoseconds eventTime,
                 int32_t deviceId, uint32_t source, uint32_t policyFlags, int32_t action,
                 int32_t flags, int32_t metaState, int32_t buttonState, int32_t edgeFlags,
-                float xPrecision, float yPrecision,
+                float xPrecision, float yPrecision, uint64_t mac,
                 std::chrono::nanoseconds downTime, uint32_t pointerCount,
                 const PointerProperties* pointerProperties, const PointerCoords* pointerCoords);
         virtual void appendDescription(String8& msg) const;
@@ -764,6 +766,7 @@ private:
             int32_t scanCode;
             int32_t metaState;
             int32_t flags;
+            uint64_t mac;
             std::chrono::nanoseconds downTime;
             uint32_t policyFlags;
         };
@@ -774,6 +777,7 @@ private:
             int32_t flags;
             float xPrecision;
             float yPrecision;
+            uint64_t mac;
             std::chrono::nanoseconds downTime;
             uint32_t pointerCount;
             PointerProperties pointerProperties[MAX_POINTERS];

@@ -27,6 +27,7 @@
 #include "mir/graphics/buffer.h"
 #include "mir/graphics/cursor_image.h"
 #include "mir/geometry/displacement.h"
+#include "mir/cookie_factory.h"
 
 #include "mir/scene/scene_report.h"
 #include "mir/scene/null_surface_observer.h"
@@ -134,7 +135,8 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<mi::InputChannel> const& input_channel,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& cursor_image,
-    std::shared_ptr<SceneReport> const& report) :
+    std::shared_ptr<SceneReport> const& report,
+    std::shared_ptr<CookieFactory> const& c_factory) :
     surface_name(name),
     surface_rect(rect),
     surface_alpha(1.0f),
@@ -147,9 +149,11 @@ ms::BasicSurface::BasicSurface(
     input_sender(input_sender),
     cursor_image_(cursor_image),
     report(report),
+    cookie_factory(c_factory),
     parent_(parent),
     layers({StreamInfo{buffer_stream, {0,0}}}),
-    input_validator([this](MirEvent const& ev) { this->input_sender->send_event(ev, server_input_channel); })
+    input_validator([this](MirEvent const& ev) { this->input_sender->send_event(ev, server_input_channel); },
+                    c_factory)
 {
     report->surface_created(this, surface_name);
 }
@@ -162,9 +166,10 @@ ms::BasicSurface::BasicSurface(
     std::shared_ptr<mi::InputChannel> const& input_channel,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& cursor_image,
-    std::shared_ptr<SceneReport> const& report) :
+    std::shared_ptr<SceneReport> const& report,
+    std::shared_ptr<CookieFactory> const& c_factory) :
     BasicSurface(name, rect, std::shared_ptr<Surface>{nullptr}, nonrectangular,buffer_stream,
-                 input_channel, input_sender, cursor_image, report)
+                 input_channel, input_sender, cursor_image, report, c_factory)
 {
 }
 

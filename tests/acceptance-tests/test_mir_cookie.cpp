@@ -21,11 +21,26 @@
 
 #include "mir_test_framework/headless_test.h"
 #include "mir_test_framework/udev_environment.h"
+#include "mir_test_framework/connected_client_with_a_surface.h"
+#include "mir/test/doubles/wrap_shell_to_track_latest_surface.h"
+#include "mir/shell/shell_wrapper.h"
 #include "mir/test/validity_matchers.h"
+#include "mir/test/wait_condition.h"
+
+#include "boost/throw_exception.hpp"
 
 #include <gtest/gtest.h>
 
 namespace mtf = mir_test_framework;
+namespace mtd = mir::test::doubles;
+namespace msh = mir::shell;
+
+namespace
+{
+  int const MAX_WAIT = 4;
+}
+
+static void cookie_capturing_callback(MirSurface*, MirEvent const* ev, void* ctx);
 
 TEST(MirCookieFactory, attests_real_timestamp)
 {
@@ -66,11 +81,12 @@ TEST(MirCookieFactory, timestamp_trusted_with_different_secret_doesnt_attest)
     EXPECT_FALSE(bobs_factory.attest_timestamp(alices_cookie));
 }
 
-class ClientCookies : public mtf::HeadlessTest
+class ClientCookies : public mtf::ConnectedClientWithASurface
 {
 public:
     ClientCookies()
         : cookie_secret{ 0x01, 0x02, 0x33, 0xde, 0xad, 0xbe, 0xef, 0xf0 }
+        , out_cookie{0, 0}
     {
         server.set_cookie_secret(cookie_secret);
         mock_devices.add_standard_device("laptop-keyboard");
@@ -78,45 +94,58 @@ public:
 
     void SetUp() override
     {
-        start_server();
+        std::shared_ptr<mtd::WrapShellToTrackLatestSurface> shell;
+
+        server.wrap_shell([&](std::shared_ptr<msh::Shell> const& wrapped)
+        {
+            auto const msc = std::make_shared<mtd::WrapShellToTrackLatestSurface>(wrapped);
+            shell = msc;
+            return msc;
+        });
+
+        mtf::ConnectedClientWithASurface::SetUp();
+
+        mir_surface_set_event_handler(surface, &cookie_capturing_callback, this);
+        mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
     }
 
     void TearDown() override
     {
-        stop_server();
+        mtf::ConnectedClientHeadlessServer::TearDown();
     }
 
     std::vector<uint8_t> const cookie_secret;
     mtf::UdevEnvironment mock_devices;
+    MirCookie out_cookie;
+    mir::test::WaitCondition udev_read_recording;
 };
 
 void cookie_capturing_callback(MirSurface*, MirEvent const* ev, void* ctx)
 {
-    auto out_cookie = reinterpret_cast<MirCookie*>(ctx);
-    if (mir_event_get_type(ev) == mir_event_type_input)
+    auto client = reinterpret_cast<ClientCookies*>(ctx);
+    auto etype = mir_event_get_type(ev);
+    if (etype == mir_event_type_input)
     {
-        *out_cookie = mir_input_event_get_cookie(mir_event_get_input_event(ev));
+        auto iev = mir_event_get_input_event(ev);
+        auto itype = mir_input_event_get_type(iev);
+        if (itype == mir_input_event_type_key)
+        {
+            auto kev = mir_input_event_get_keyboard_event(iev);
+            client->out_cookie = mir_keyboard_event_get_cookie(kev);
+            client->udev_read_recording.wake_up_everyone();
+        }
     }
 }
 
-TEST_F(ClientCookies, input_events_have_attestable_cookies)
+TEST_F(ClientCookies, keyboard_events_have_attestable_cookies)
 {
-    auto connection = mir_connect_sync(new_connection().c_str(), __PRETTY_FUNCTION__);
-    ASSERT_THAT(connection, IsValid());
-
-    auto surface_spec = mir_connection_create_spec_for_normal_surface(connection,
-                                                                      233, 355,
-                                                                      mir_pixel_format_argb_8888);
-    auto surf = mir_surface_create_sync(surface_spec);
-    mir_surface_spec_release(surface_spec);
-    ASSERT_THAT(surf, IsValid());
-
-    MirCookie cookie;
-    mir_surface_set_event_handler(surf, &cookie_capturing_callback, &cookie);
-
     mock_devices.load_device_evemu("laptop-keyboard-hello");
+
+    udev_read_recording.wait_for_at_most_seconds(MAX_WAIT);
+    if (!udev_read_recording.woken())
+        BOOST_THROW_EXCEPTION(std::runtime_error("Timeout waiting for udev to read the recording 'laptop-keyboard-hello'"));
 
     mir::CookieFactory factory{cookie_secret};
 
-    EXPECT_TRUE(factory.attest_timestamp(cookie));
+    EXPECT_TRUE(factory.attest_timestamp(out_cookie));
 }

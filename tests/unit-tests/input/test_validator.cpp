@@ -25,6 +25,8 @@
 #include "mir/test/event_matchers.h"
 #include "mir/test/doubles/mock_input_dispatcher.h"
 
+#include "mir/cookie_factory.h"
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -50,12 +52,15 @@ namespace
 struct Validator : public ::testing::Test
 {
     Validator()
-        : rewriter([this](MirEvent const& ev) {input_sink.handle(ev);})
+        : rewriter([this](MirEvent const& ev) {input_sink.handle(ev);}, mt::fake_shared(cookie_factory))
     {
     }
 
     mir::MockEventSink input_sink;
     mi::Validator rewriter;
+
+    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
+    mir::CookieFactory cookie_factory{secret};
 };
 
 void add_another_touch(mir::EventUPtr const& ev, MirTouchId id, MirTouchAction action)
@@ -66,7 +71,7 @@ void add_another_touch(mir::EventUPtr const& ev, MirTouchId id, MirTouchAction a
     
 mir::EventUPtr make_touch(MirTouchId id, MirTouchAction action)
 {
-    auto ev = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0),
+    auto ev = mev::make_event(MirInputDeviceId(0), std::chrono::nanoseconds(0), 0,
                               mir_input_event_modifier_none);
     add_another_touch(ev, id, action);
     return ev;
