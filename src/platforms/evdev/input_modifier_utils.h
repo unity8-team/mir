@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Canonical Ltd.
+ * Copyright © 2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -13,32 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored By: Alan Griffiths <alan@octopull.co.uk>
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_EXAMPLE_TEST_CLIENT_H_
-#define MIR_EXAMPLE_TEST_CLIENT_H_
+#ifndef MIR_INPUT_EVDEV_INPUT_MODIFIER_UTILS_H_
+#define MIR_INPUT_EVDEV_INPUT_MODIFIER_UTILS_H_
 
-#include <memory>
-#include <future>
-
-#include "mir/main_loop.h"
+#include "mir_toolkit/event.h"
 
 namespace mir
 {
-class Server;
-
-namespace examples
+namespace input
 {
-struct ClientContext
+namespace evdev
 {
-    std::unique_ptr<mir::time::Alarm> client_kill_action;
-    std::unique_ptr<mir::time::Alarm> server_stop_action;
-    std::atomic<bool> test_failed;
-};
-
-void add_test_client_option_to(mir::Server& server, ClientContext& context);
+MirPointerButton to_pointer_button(int button);
+MirInputEventModifier to_modifier(int32_t scan_code);
+MirInputEventModifiers expand_modifiers(MirInputEventModifiers modifiers);
+}
 }
 }
 
-#endif /* MIR_EXAMPLE_TEST_CLIENT_H_ */
+#endif
