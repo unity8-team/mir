@@ -83,6 +83,9 @@ bool mga::DisplayBuffer::post_renderables_if_optimizable(RenderableList const& r
     if (!overlay_enabled || !display_device->compatible_renderlist(renderlist))
         return false;
 
+    if (orientation_ != mir_orientation_normal)
+        return false;
+
     layer_list->update_list(renderlist, offset_from_origin);
 
     bool needs_commit{false};
