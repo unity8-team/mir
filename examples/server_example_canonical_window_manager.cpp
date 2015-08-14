@@ -32,6 +32,7 @@
 
 namespace me = mir::examples;
 namespace ms = mir::scene;
+namespace mg = mir::graphics;
 using namespace mir::geometry;
 
 ///\example server_example_canonical_window_manager.cpp
@@ -45,6 +46,7 @@ Size titlebar_size_for_window(Size window_size)
     return {window_size.width, Height{title_bar_height}};
 }
 
+#if 0
 Point titlebar_position_for_window(Point window_position)
 {
     return {
@@ -52,6 +54,7 @@ Point titlebar_position_for_window(Point window_position)
         window_position.y - DeltaY(title_bar_height)
     };
 }
+#endif
 
 bool needs_titlebar(MirSurfaceType type)
 {
@@ -423,9 +426,29 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     std::shared_ptr<scene::Surface> const& surface,
     CanonicalSurfaceInfoMap& surface_map)
 {
+    (void)surface_map;
+
     if (!needs_titlebar(surface->type()))
         return;
 
+    mg::BufferProperties properties(
+        titlebar_size_for_window(surface->size()),
+        mir_pixel_format_xrgb_8888,
+        mg::BufferUsage::software);
+    auto titlebar_id = session->create_buffer_stream(properties);
+
+    std::vector<shell::StreamSpecification> stream_config
+    {
+    //    {primary_id, geom::Displacement{0,0}}
+        {titlebar_id, mir::geometry::Displacement{0, -title_bar_height}},
+    };
+
+    session->configure_streams(*surface, stream_config);
+
+    //setup
+//    auto titlebar_stream = session->get_buffer_stream(titlebar_id);
+//    titlebar_stream->allocate
+#if 0
     auto format = mir_pixel_format_xrgb_8888;
     ms::SurfaceCreationParameters params;
     params.of_size(titlebar_size_for_window(surface->size()))
@@ -448,6 +471,7 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     titlebar_info.is_titlebar = true;
     titlebar_info.parent = surface;
     titlebar_info.init_titlebar(titlebar);
+#endif
 }
 
 void me::CanonicalWindowManagerPolicyCopy::handle_new_surface(std::shared_ptr<ms::Session> const& session, std::shared_ptr<ms::Surface> const& surface)
