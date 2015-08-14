@@ -76,6 +76,8 @@ pushd ${BUILD_DIR} > /dev/null
     echo "Using PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
     echo "Using PKG_CONFIG_EXECUTABLE: $PKG_CONFIG_EXECUTABLE"
     cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/LinuxCrossCompile.cmake \
+      -DCMAKE_INSTALL_PREFIX=/usr \
+      -DCMAKE_INSTALL_LIBEXECDIR="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/mir" \
       -DBoost_COMPILER=-gcc \
       -DMIR_PLATFORM=android\;mesa-kms \
       .. 
