@@ -28,11 +28,78 @@
 #include "mir/compositor/buffer_stream.h"
 #include "occlusion.h"
 #include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <deque>
 #include <cstdlib>
 #include <algorithm>
 
 namespace mc = mir::compositor;
 namespace mg = mir::graphics;
+
+namespace
+{
+
+class ReplyThread
+{
+public:
+    ReplyThread();
+    ~ReplyThread();
+    void handoff(mg::RenderableList &&list);
+private:
+    void body();
+    bool running;
+    std::thread th;
+    std::mutex mutex;
+    std::condition_variable cond;
+    std::deque<mg::RenderableList> todo;
+};
+
+ReplyThread::ReplyThread() : running(true), th(&ReplyThread::body, this)
+{
+}
+
+ReplyThread::~ReplyThread()
+{
+    running = false;
+    cond.notify_one();
+    th.join();
+}
+
+void ReplyThread::body()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    
+    while (running)
+    {
+        while (running && todo.empty())
+            cond.wait(lock);
+
+        while (!todo.empty())
+        {
+            {
+                auto job = std::move(todo.front());
+                todo.pop_front();
+                lock.unlock();
+                // Replies are transparently sent to clients here, which takes
+                // significant time. We are not locked while this happens.
+            }
+
+            lock.lock();
+        }
+    }
+}
+
+void ReplyThread::handoff(mg::RenderableList &&list)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    todo.push_back(list);
+    cond.notify_one();
+}
+
+ReplyThread reply_thread;
+
+} // anonymous namespace
 
 mc::DefaultDisplayBufferCompositor::DefaultDisplayBufferCompositor(
     mg::DisplayBuffer& display_buffer,
@@ -90,9 +157,19 @@ void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& sc
         report->rendered_frame(this);
 
         // Release the buffers we did use back to the clients, before starting
-        // on the potentially slow flip().
-        // FIXME: This clear() call is blocking a little because we drive IPC here (LP: #1395421)
-        renderable_list.clear();
+        // on the potentially slow swap-buffers and post().
+        /*
+         * FIXME: Destruction of the renderable_list blocks for a significant
+         * time (LP: #1395421). In order to avoid this slowing down our
+         * rendering, and particularly to avoid inserting blocking socket
+         * calls in here that could cause context switches before we get to
+         * the swap buffers, we hand off destruction of the renderable_list
+         * to another thread. This is arguably more a workaround than a fix
+         * because the ideal solution would be to fix out sockets code to
+         * only use asynchronous sends.
+         */
+
+        reply_thread.handoff(std::move(renderable_list));
     }
 
     report->finished_frame(this);
