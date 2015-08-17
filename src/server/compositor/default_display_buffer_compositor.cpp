@@ -93,7 +93,7 @@ void ReplyThread::body()
 void ReplyThread::handoff(mg::RenderableList &&list)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    todo.push_back(list);
+    todo.push_back(std::move(list));
     cond.notify_one();
 }
 
