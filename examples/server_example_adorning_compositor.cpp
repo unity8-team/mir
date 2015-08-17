@@ -105,7 +105,7 @@ me::AdorningDisplayBufferCompositor::AdorningDisplayBufferCompositor(
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void me::AdorningDisplayBufferCompositor::composite(compositor::SceneElementSequence&& scene_sequence)
+void me::AdorningDisplayBufferCompositor::composite(compositor::SceneElementSequence& scene_sequence)
 {
     //note: If what should be drawn is expressible as a SceneElementSequence,
     //      mg::DisplayBuffer::post_renderables_if_optimizable() should be used,

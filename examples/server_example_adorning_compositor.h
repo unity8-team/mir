@@ -34,7 +34,7 @@ class AdorningDisplayBufferCompositor : public compositor::DisplayBufferComposit
 {
 public:
     AdorningDisplayBufferCompositor(graphics::DisplayBuffer&, std::tuple<float, float, float> const& background_rgb);
-    void composite(compositor::SceneElementSequence&& scene_sequence) override;
+    void composite(compositor::SceneElementSequence& scene_sequence) override;
 private:
     graphics::DisplayBuffer& db;
     GLchar const*const vert_shader_src;

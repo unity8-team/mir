@@ -50,7 +50,7 @@ public:
         std::shared_ptr<compositor::CompositorReport> const& report);
     ~DemoCompositor();
 
-    void composite(compositor::SceneElementSequence&& elements) override;
+    void composite(compositor::SceneElementSequence& elements) override;
 
     void zoom(float mag);
     void on_cursor_movement(geometry::Point const& p);

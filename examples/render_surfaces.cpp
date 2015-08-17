@@ -241,7 +241,7 @@ public:
     {
     }
 
-    void composite(mc::SceneElementSequence&& scene_sequence) override
+    void composite(mc::SceneElementSequence& scene_sequence) override
     {
         while (!created) std::this_thread::yield();
         stop_watch.stop();
@@ -252,7 +252,7 @@ public:
             stop_watch.restart();
         }
 
-        db_compositor->composite(std::move(scene_sequence));
+        db_compositor->composite(scene_sequence);
 
         for (auto& m : moveables)
             m.step();

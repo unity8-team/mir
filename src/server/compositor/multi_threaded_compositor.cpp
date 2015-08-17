@@ -152,12 +152,18 @@ public:
                 frames_scheduled--;
                 lock.unlock();
 
+                std::vector<SceneElementSequence> snapshots;
+                snapshots.reserve(compositors.size());
+
                 for (auto& compositor : compositors)
                 {
                     target.ensure_current(std::get<0>(compositor));
-                    std::get<1>(compositor)->composite(scene->scene_elements_for(comp_id));
+                    snapshots.push_back(scene->scene_elements_for(comp_id));
+                    std::get<1>(compositor)->composite(snapshots.back());
                 }
                 group.post();
+
+                snapshots.clear();
 
                 /*
                  * "Predictive bypass" optimization: If the last frame was

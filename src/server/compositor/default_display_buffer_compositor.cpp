@@ -44,7 +44,7 @@ mc::DefaultDisplayBufferCompositor::DefaultDisplayBufferCompositor(
 {
 }
 
-void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& scene_elements)
+void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence& scene_elements)
 {
     report->began_frame(this);
 
@@ -61,16 +61,6 @@ void mc::DefaultDisplayBufferCompositor::composite(mc::SceneElementSequence&& sc
         element->rendered();
         renderable_list.push_back(element->renderable());
     }
-
-    /*
-     * Note: Buffer lifetimes are ensured by the two objects holding
-     *       references to them; scene_elements and renderable_list.
-     *       So no buffer is going to be released back to the client till
-     *       both of those containers get destroyed (end of the function).
-     *       Actually, there's a third reference held by the texture cache
-     *       in GLRenderer, but that gets released earlier in render().
-     */
-    scene_elements.clear();  // Those in use are still in renderable_list
 
     if (display_buffer.post_renderables_if_optimizable(renderable_list))
     {

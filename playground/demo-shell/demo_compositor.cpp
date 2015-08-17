@@ -58,7 +58,7 @@ void me::DemoCompositor::for_each(std::function<void(DemoCompositor&)> f)
         f(*i);
 }
 
-void me::DemoCompositor::composite(mc::SceneElementSequence&& elements)
+void me::DemoCompositor::composite(mc::SceneElementSequence& elements)
 {
     report->began_frame(this);
     //a simple filtering out of renderables that shouldn't be drawn
