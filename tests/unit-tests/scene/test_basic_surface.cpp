@@ -33,8 +33,6 @@
 #include "mir/test/doubles/stub_buffer.h"
 #include "mir/test/fake_shared.h"
 
-#include "mir/cookie_factory.h"
-
 #include "src/server/report/null_report_factory.h"
 
 #include <algorithm>
@@ -98,8 +96,6 @@ struct BasicSurfaceTest : public testing::Test
         std::make_shared<ms::LegacySurfaceChangeNotification>(mock_change_cb, [this](int){mock_change_cb();});
     std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
     testing::NiceMock<mtd::MockInputSender> mock_sender;
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
-    mir::CookieFactory cookie_factory{secret};
 
 
     ms::BasicSurface surface{
@@ -110,8 +106,7 @@ struct BasicSurfaceTest : public testing::Test
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     BasicSurfaceTest()
     {
@@ -146,7 +141,7 @@ TEST_F(BasicSurfaceTest, buffer_stream_ids_always_unique)
         surface = std::make_unique<ms::BasicSurface>(
                 name, rect, false, std::make_shared<testing::NiceMock<mtd::MockBufferStream>>(),
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
-                std::shared_ptr<mg::CursorImage>(), report, mt::fake_shared(cookie_factory));
+                std::shared_ptr<mg::CursorImage>(), report);
         for (auto& renderable : surface->generate_renderables(this))
             ids.insert(renderable->id());
     }
@@ -165,7 +160,7 @@ TEST_F(BasicSurfaceTest, id_never_invalid)
         surface = std::make_unique<ms::BasicSurface>(
                 name, rect, false, mock_buffer_stream,
                 std::shared_ptr<mi::InputChannel>(), stub_input_sender,
-                std::shared_ptr<mg::CursorImage>(), report, mt::fake_shared(cookie_factory));
+                std::shared_ptr<mg::CursorImage>(), report);
 
         for (auto& renderable : surface->generate_renderables(this))
             EXPECT_THAT(renderable->id(), testing::Ne(nullptr));
@@ -295,8 +290,7 @@ TEST_F(BasicSurfaceTest, test_surface_visibility)
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     //not visible by default
     EXPECT_FALSE(surface.visible());
@@ -337,8 +331,7 @@ TEST_F(BasicSurfaceTest, default_region_is_surface_rectangle)
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     surface.add_observer(observer);
     post_a_frame(surface);
@@ -380,8 +373,7 @@ TEST_F(BasicSurfaceTest, default_invisible_surface_doesnt_get_input)
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     EXPECT_FALSE(surface.input_area_contains({50,50}));
     EXPECT_TRUE(surface.input_area_contains({50,50}));
@@ -521,8 +513,7 @@ TEST_F(BasicSurfaceTest, stores_parent)
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     EXPECT_EQ(child.parent(), parent);
 }
@@ -683,8 +674,7 @@ TEST_F(BasicSurfaceTest, calls_send_event_on_consume)
         std::shared_ptr<mi::InputChannel>(),
         mt::fake_shared(mock_sender),
         nullptr,
-        report,
-        mt::fake_shared(cookie_factory)};
+        report};
 
     EXPECT_CALL(mock_sender, send_event(_,_));
 

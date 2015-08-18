@@ -227,9 +227,9 @@ void fill_with_random_data(std::array<uint8_t, length>& buffer)
 }
 }
 
-std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_provider()
+std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_factory()
 {
-    return cookie_provider(
+    return cookie_factory(
         []()
         {
             std::array<uint8_t, 16> seed;

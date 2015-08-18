@@ -34,8 +34,6 @@
 #include "mir/test/doubles/mock_buffer_stream.h"
 #include "mir/test/doubles/mock_buffer_bundle.h"
 
-#include "mir/cookie_factory.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -139,8 +137,7 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
 
         post_a_frame(*stub_surface1);
 
@@ -152,8 +149,7 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
 
         post_a_frame(*stub_surface2);
 
@@ -165,8 +161,7 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
 
         post_a_frame(*stub_surface3);
 
@@ -178,8 +173,7 @@ struct SurfaceStack : public ::testing::Test
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
         invisible_stub_surface->set_hidden(true);
     }
 
@@ -191,8 +185,6 @@ struct SurfaceStack : public ::testing::Test
 
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     ms::SurfaceStack stack{report};
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
-    mir::CookieFactory cookie_factory{secret};
 
     void const* compositor_id{&default_params};
 };
@@ -294,8 +286,7 @@ TEST_F(SurfaceStack, decor_name_is_surface_name)
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
     surface->configure(mir_surface_attrib_visibility,
                        mir_surface_visibility_exposed);
@@ -325,8 +316,7 @@ TEST_F(SurfaceStack, gets_surface_renames)
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
     surface->configure(mir_surface_attrib_visibility,
                        mir_surface_visibility_exposed);
@@ -368,8 +358,7 @@ TEST_F(SurfaceStack, scene_counts_pending_accurately)
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
     surface->configure(mir_surface_attrib_visibility,
                        mir_surface_visibility_exposed);
@@ -404,8 +393,7 @@ TEST_F(SurfaceStack, scene_doesnt_count_pending_frames_from_occluded_surfaces)
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
 
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
     surface->configure(mir_surface_attrib_visibility,
@@ -531,8 +519,7 @@ TEST_F(SurfaceStack, generate_elementelements)
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
         post_a_frame(*surface);
 
         surfaces.emplace_back(surface);
@@ -662,8 +649,7 @@ TEST_F(SurfaceStack, scene_elements_hold_snapshot_of_positioning_info)
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mir::input::InputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            report,
-            mt::fake_shared(cookie_factory));
+            report);
 
         surfaces.emplace_back(surface);
         stack.add_surface(surface, default_params.depth, default_params.input_mode);
@@ -696,8 +682,7 @@ TEST_F(SurfaceStack, generates_scene_elements_that_delay_buffer_acquisition)
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
     post_a_frame(*surface);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
@@ -728,8 +713,7 @@ TEST_F(SurfaceStack, generates_scene_elements_that_allow_only_one_buffer_acquisi
         std::shared_ptr<mir::input::InputChannel>(),
         std::shared_ptr<mir::input::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
     post_a_frame(*surface);
     stack.add_surface(surface, default_params.depth, default_params.input_mode);
 
@@ -753,8 +737,7 @@ struct MockConfigureSurface : public ms::BasicSurface
             {},
             {},
             {},
-            mir::report::null_scene_report(),
-            {})
+            mir::report::null_scene_report())
     {
     }
     MOCK_METHOD2(configure, int(MirSurfaceAttrib, int));

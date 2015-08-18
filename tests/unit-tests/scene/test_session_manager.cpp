@@ -36,8 +36,6 @@
 #include "mir/test/doubles/stub_surface_factory.h"
 #include "mir/test/doubles/null_application_not_responding_detector.h"
 
-#include "mir/cookie_factory.h"
-
 #include "mir/test/fake_shared.h"
 
 #include <gmock/gmock.h>
@@ -87,15 +85,12 @@ struct SessionManagerSetup : public testing::Test
         std::shared_ptr<mi::InputChannel>(),
         std::shared_ptr<mi::InputSender>(),
         std::shared_ptr<mg::CursorImage>(),
-        mir::report::null_scene_report(),
-        mt::fake_shared(cookie_factory));
+        mir::report::null_scene_report());
     testing::NiceMock<mtd::MockSurfaceCoordinator> surface_coordinator;
     testing::NiceMock<MockSessionContainer> container;
     ms::NullSessionListener session_listener;
     mtd::StubBufferStreamFactory buffer_stream_factory;
     mtd::StubSurfaceFactory stub_surface_factory;
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
-    mir::CookieFactory cookie_factory{secret};
 
     ms::SessionManager session_manager{mt::fake_shared(surface_coordinator),
         mt::fake_shared(stub_surface_factory),

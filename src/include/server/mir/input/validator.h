@@ -27,14 +27,12 @@
 
 namespace mir
 {
-class CookieFactory;
 namespace input
 {
 class Validator
 {
 public:
-    Validator(std::function<void(MirEvent const&)> const& dispatch_valid_event,
-              std::shared_ptr<CookieFactory> const& c_factory);
+    Validator(std::function<void(MirEvent const&)> const& dispatch_valid_event);
 
     void validate_and_dispatch(MirEvent const& event);
     
@@ -44,8 +42,6 @@ private:
     std::function<void(MirEvent const&)> const dispatch_valid_event;
 
     std::unordered_map<MirInputDeviceId, EventUPtr> last_event_by_device;
-
-    std::shared_ptr<CookieFactory> const cookie_factory;
 
     void handle_touch_event(MirInputDeviceId,
         MirTouchEvent const* event);

@@ -37,7 +37,6 @@
 
 namespace mir
 {
-class CookieFactory;
 namespace compositor
 {
 struct BufferIPCPackage;
@@ -70,8 +69,7 @@ public:
         std::shared_ptr<input::InputChannel> const& input_channel,
         std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
-        std::shared_ptr<SceneReport> const& report,
-        std::shared_ptr<CookieFactory> const& c_factory);
+        std::shared_ptr<SceneReport> const& report);
 
     BasicSurface(
         std::string const& name,
@@ -82,8 +80,7 @@ public:
         std::shared_ptr<input::InputChannel> const& input_channel,
         std::shared_ptr<input::InputSender> const& sender,
         std::shared_ptr<graphics::CursorImage> const& cursor_image,
-        std::shared_ptr<SceneReport> const& report,
-        std::shared_ptr<CookieFactory> const& c_factory);
+        std::shared_ptr<SceneReport> const& report);
 
     ~BasicSurface() noexcept;
 
@@ -175,7 +172,6 @@ private:
     std::shared_ptr<input::InputSender> const input_sender;
     std::shared_ptr<graphics::CursorImage> cursor_image_;
     std::shared_ptr<SceneReport> const report;
-    std::shared_ptr<CookieFactory> const cookie_factory;
     std::weak_ptr<Surface> const parent_;
 
     std::list<StreamInfo> layers;

@@ -78,8 +78,7 @@ auto mir::DefaultServerConfiguration::the_surface_factory()
                 the_input_channel_factory(),
                 the_input_sender(),
                 the_default_cursor_image(),
-                the_scene_report(),
-                the_cookie_provider());
+                the_scene_report());
         });
 }
 

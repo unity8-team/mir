@@ -26,8 +26,6 @@
 #include "mir/test/doubles/stub_input_sender.h"
 #include "mir/test/fake_shared.h"
 
-#include "mir/cookie_factory.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -57,9 +55,7 @@ struct SurfaceComposition : Test
             create_input_channel(),
             create_input_sender(),
             create_cursor_image(),
-            mr::null_scene_report(),
-            create_cookie_factory());
-
+            mr::null_scene_report());
     }
 
     int const number_of_buffers = 3;
@@ -96,16 +92,7 @@ struct SurfaceComposition : Test
     mg::BufferProperties const basic_properties
         { geom::Size{3, 4}, mir_pixel_format_abgr_8888, mg::BufferUsage::hardware };
 
-    auto create_cookie_factory() const
-    -> std::shared_ptr<mir::CookieFactory>
-    {
-      mir::CookieFactory cookie_factory{secret};
-      return mt::fake_shared(cookie_factory);
-    }
-
     mtd::StubFrameDroppingPolicyFactory policy_factory;
-
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
 };
 }
 

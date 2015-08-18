@@ -33,8 +33,6 @@
 #include "mir/test/fake_shared.h"
 #include "mir/test/event_matchers.h"
 
-#include "mir/cookie_factory.h"
-
 #include <cstring>
 #include <stdexcept>
 #include <gmock/gmock.h>
@@ -72,14 +70,12 @@ struct Surface : testing::Test
         
         surface = std::make_shared<ms::BasicSurface>(std::string("stub"), geom::Rectangle{{},{}}, false,
             buffer_stream, nullptr /* input_channel */, stub_input_sender,
-            nullptr /* cursor_image */, report, mt::fake_shared(cookie_factory));
+            nullptr /* cursor_image */, report);
     }
 
     mf::SurfaceId stub_id;
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     std::shared_ptr<mtd::StubInputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
-    mir::CookieFactory cookie_factory{secret};
 
     
     std::shared_ptr<ms::BasicSurface> surface;
@@ -273,8 +269,7 @@ TEST_F(Surface, preferred_orientation_mode_defaults_to_any)
         std::shared_ptr<mi::InputChannel>(),
         stub_input_sender,
         std::shared_ptr<mg::CursorImage>(),
-        report,
-        mt::fake_shared(cookie_factory));
+        report);
 
     EXPECT_EQ(mir_orientation_mode_any, surf.query(mir_surface_attrib_preferred_orientation));
 }

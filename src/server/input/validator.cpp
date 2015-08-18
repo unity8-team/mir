@@ -21,7 +21,6 @@
 #include "mir_toolkit/event.h"
 
 #include "mir/events/event_private.h"
-#include "mir/cookie_factory.h"
 
 #include <string.h>
 
@@ -30,10 +29,8 @@
 namespace mi = mir::input;
 namespace mev = mir::events;
 
-mi::Validator::Validator(std::function<void(MirEvent const&)> const& dispatch_valid_event,
-                         std::shared_ptr<CookieFactory> const& c_factory)
+mi::Validator::Validator(std::function<void(MirEvent const&)> const& dispatch_valid_event)
     : dispatch_valid_event(dispatch_valid_event)
-    , cookie_factory(c_factory)
 {
 }
 
@@ -250,11 +247,10 @@ void mi::Validator::handle_touch_event(MirInputDeviceId id, MirTouchEvent const*
     MirTouchEvent const* last_ev = nullptr;
 
     std::chrono::nanoseconds event_time = std::chrono::high_resolution_clock::now().time_since_epoch();
-    MirCookie cookie = cookie_factory->timestamp_to_cookie(event_time.count());
 
     auto default_ev = mev::make_event(id,
         event_time,
-        cookie.mac,
+        0, /* No need for a mac, since theres no pointer count for a default event */
         mir_input_event_modifier_none); 
 
     if (it == last_event_by_device.end())

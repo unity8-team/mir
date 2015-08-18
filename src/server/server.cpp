@@ -208,13 +208,13 @@ struct mir::Server::ServerConfiguration : mir::DefaultServerConfiguration
         return mir::DefaultServerConfiguration::the_renderer_factory();
     }
 
-    auto the_cookie_provider() -> std::shared_ptr<CookieFactory> override
+    auto the_cookie_factory() -> std::shared_ptr<CookieFactory> override
     {
         if (self->cookie_factory)
         {
             return self->cookie_factory;
         }
-        return mir::DefaultServerConfiguration::the_cookie_provider();
+        return mir::DefaultServerConfiguration::the_cookie_factory();
     }
 
     using mir::DefaultServerConfiguration::the_options;

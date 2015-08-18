@@ -20,7 +20,6 @@
 #include "mir/scene/buffer_stream_factory.h"
 #include "mir/compositor/buffer_stream.h"
 #include "mir/input/input_channel_factory.h"
-#include "mir/cookie_factory.h"
 #include "basic_surface.h"
 
 namespace geom=mir::geometry;
@@ -40,13 +39,11 @@ ms::SurfaceAllocator::SurfaceAllocator(
     std::shared_ptr<input::InputChannelFactory> const& input_factory,
     std::shared_ptr<input::InputSender> const& input_sender,
     std::shared_ptr<mg::CursorImage> const& default_cursor_image,
-    std::shared_ptr<SceneReport> const& report,
-    std::shared_ptr<CookieFactory> const& c_factory) :
+    std::shared_ptr<SceneReport> const& report) :
     input_factory(input_factory),
     input_sender(input_sender),
     default_cursor_image(default_cursor_image),
-    report(report),
-    cookie_factory(c_factory)
+    report(report)
 {
 }
 
@@ -67,8 +64,7 @@ std::shared_ptr<ms::Surface> ms::SurfaceAllocator::create_surface(
         input_channel,
         input_sender,
         default_cursor_image,
-        report,
-        cookie_factory);
+        report);
 
     return surface;
 }

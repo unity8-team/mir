@@ -36,8 +36,6 @@
 #include "mir/test/doubles/null_display_sync_group.h"
 #include "mir/test/fake_shared.h"
 
-#include "mir/cookie_factory.h"
-
 #include <condition_variable>
 #include <mutex>
 #include <gtest/gtest.h>
@@ -133,16 +131,13 @@ struct SurfaceStackCompositor : public testing::Test
             std::shared_ptr<mir::input::InputChannel>(),
             std::shared_ptr<mtd::StubInputSender>(),
             std::shared_ptr<mg::CursorImage>(),
-            null_scene_report,
-            mt::fake_shared(cookie_factory))}
+            null_scene_report)}
     {
         using namespace testing;
         ON_CALL(*mock_buffer_stream, compositor_acquire(_))
             .WillByDefault(Return(mt::fake_shared(stubbuf)));
     }
     std::shared_ptr<ms::SceneReport> null_scene_report{mr::null_scene_report()};
-    std::vector<uint8_t> secret{ 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0xde, 0x01 };
-    mir::CookieFactory cookie_factory{secret};
     ms::SurfaceStack stack{null_scene_report};
     std::shared_ptr<mc::CompositorReport> null_comp_report{mr::null_compositor_report()};
     StubRendererFactory renderer_factory;
