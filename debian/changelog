@@ -1,4 +1,4 @@
-qtmir-gles (0.4.5+15.04.20150812.1-0ubuntu1) vivid; urgency=medium
+qtmir-gles (0.4.5+15.10.20150812.1-0ubuntu1) vivid; urgency=medium
 
   [ Łukasz 'sil2100' Zemczak ]
   * Sync with upstream. Last version not dual-landed so to unblock we need
