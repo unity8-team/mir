@@ -1,6 +1,8 @@
 qtmir-gles (0.4.5+15.04.20150812.1-0ubuntu1) vivid; urgency=medium
 
-  * Sync with upstream
+  * Sync with upstream. Last version not dual-landed so to unblock we need
+    to go back in time and release only for vivid... I expect this to get
+    fixed properly after consultation with upstream
 
  -- Łukasz 'sil2100' Zemczak <lukasz.zemczak@canonical.com>  Tue, 18 Aug 2015 11:55:11 +0200
 
