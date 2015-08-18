@@ -76,7 +76,6 @@ struct Surface : testing::Test
     mf::SurfaceId stub_id;
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     std::shared_ptr<mtd::StubInputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
-
     
     std::shared_ptr<ms::BasicSurface> surface;
 };

@@ -97,7 +97,6 @@ struct BasicSurfaceTest : public testing::Test
     std::shared_ptr<mi::InputSender> const stub_input_sender = std::make_shared<mtd::StubInputSender>();
     testing::NiceMock<mtd::MockInputSender> mock_sender;
 
-
     ms::BasicSurface surface{
         name,
         rect,

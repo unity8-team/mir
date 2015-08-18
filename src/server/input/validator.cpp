@@ -245,11 +245,8 @@ void mi::Validator::handle_touch_event(MirInputDeviceId id, MirTouchEvent const*
 
     auto it = last_event_by_device.find(id);
     MirTouchEvent const* last_ev = nullptr;
-
-    std::chrono::nanoseconds event_time = std::chrono::high_resolution_clock::now().time_since_epoch();
-
     auto default_ev = mev::make_event(id,
-        event_time,
+        std::chrono::high_resolution_clock::now().time_since_epoch(),
         0, /* No need for a mac, since theres no pointer count for a default event */
         mir_input_event_modifier_none); 
 

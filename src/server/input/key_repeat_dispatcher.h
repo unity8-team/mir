@@ -46,7 +46,6 @@ public:
                         bool repeat_enabled,
                         std::chrono::milliseconds repeat_timeout, /* timeout before sending first repeat */
                         std::chrono::milliseconds repeat_delay /* delay between repeated keys */);
-                        
 
     // InputDispatcher
     bool dispatch(MirEvent const& event) override;

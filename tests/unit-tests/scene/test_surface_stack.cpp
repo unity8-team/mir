@@ -185,7 +185,6 @@ struct SurfaceStack : public ::testing::Test
 
     std::shared_ptr<ms::SceneReport> const report = mr::null_scene_report();
     ms::SurfaceStack stack{report};
-
     void const* compositor_id{&default_params};
 };
 
