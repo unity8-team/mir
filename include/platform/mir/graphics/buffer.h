@@ -21,6 +21,7 @@
 
 #include "mir/graphics/native_buffer.h"
 #include "mir/graphics/buffer_id.h"
+#include "mir/graphics/render_image.h"
 #include "mir/geometry/size.h"
 #include "mir_toolkit/common.h"
 
@@ -42,7 +43,7 @@ public:
     virtual geometry::Size size() const = 0;
     virtual geometry::Stride stride() const = 0;
     virtual MirPixelFormat pixel_format() const = 0;
-    virtual void gl_bind_to_texture() = 0;
+    virtual RenderImage bind_to_render_image() = 0;
     //FIXME: correct mg::Buffer::write, it requires that the user does too much to use it correctly,
     //       (ie, it forces them to figure out what size is proper, alloc a buffer, fill it, and then
     //       copy the data into the buffer)

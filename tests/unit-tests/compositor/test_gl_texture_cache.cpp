@@ -66,26 +66,26 @@ TEST_F(RecentlyUsedCache, caches_and_uploads_texture_only_on_buffer_changes)
     EXPECT_CALL(mock_gl, glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, _));
     EXPECT_CALL(mock_gl, glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, _));
     EXPECT_CALL(mock_gl, glBindTexture(GL_TEXTURE_2D, stub_texture));
-    EXPECT_CALL(*mock_buffer,gl_bind_to_texture());
+    EXPECT_CALL(*mock_buffer,bind_to_render_image());
 
     // Frame 2: Texture found in cache and not re-uploaded
     EXPECT_CALL(*mock_buffer, id())
         .WillOnce(Return(mg::BufferID(123)));
     EXPECT_CALL(mock_gl, glBindTexture(GL_TEXTURE_2D, stub_texture));
-    EXPECT_CALL(*mock_buffer,gl_bind_to_texture())
+    EXPECT_CALL(*mock_buffer,bind_to_render_image())
         .Times(0);
 
     // Frame 3: Texture found in cache but refreshed with new buffer
     EXPECT_CALL(*mock_buffer, id())
         .WillOnce(Return(mg::BufferID(456)));
     EXPECT_CALL(mock_gl, glBindTexture(GL_TEXTURE_2D, stub_texture));
-    EXPECT_CALL(*mock_buffer,gl_bind_to_texture());
+    EXPECT_CALL(*mock_buffer,bind_to_render_image());
 
     // Frame 4: Stale texture reuploaded following bypass
     EXPECT_CALL(*mock_buffer, id())
         .WillOnce(Return(mg::BufferID(456)));
     EXPECT_CALL(mock_gl, glBindTexture(GL_TEXTURE_2D, stub_texture));
-    EXPECT_CALL(*mock_buffer,gl_bind_to_texture());
+    EXPECT_CALL(*mock_buffer,bind_to_render_image());
 
     // Frame 5: Texture found in cache and not re-uploaded
     EXPECT_CALL(*mock_buffer, id())
@@ -128,7 +128,7 @@ TEST_F(RecentlyUsedCache, invalidated_buffers_are_reloaded)
 {
     ON_CALL(*mock_buffer, id())
         .WillByDefault(testing::Return(mg::BufferID(0)));
-    EXPECT_CALL(*mock_buffer,gl_bind_to_texture())
+    EXPECT_CALL(*mock_buffer,bind_to_render_image())
         .Times(2);
 
     mc::RecentlyUsedCache cache;

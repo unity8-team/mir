@@ -48,7 +48,7 @@ public:
     geometry::Stride stride() const override;
     MirPixelFormat pixel_format() const override;
     std::shared_ptr<MirNativeBuffer> native_buffer_handle() const override;
-    void gl_bind_to_texture() override;
+    RenderImage bind_to_render_image() override;
     void write(unsigned char const* data, size_t size) override;
     void read(std::function<void(unsigned char const*)> const& do_with_pixels) override;
 

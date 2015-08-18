@@ -33,7 +33,7 @@ std::shared_ptr<mg::GLTexture> mc::RecentlyUsedCache::load(mg::Renderable const&
 
     if ((texture.last_bound_buffer != buffer_id) || (!texture.valid_binding))
     {
-        buffer->gl_bind_to_texture();
+        buffer->bind_to_render_image();
         texture.resource = buffer;
         texture.last_bound_buffer = buffer_id;
     }

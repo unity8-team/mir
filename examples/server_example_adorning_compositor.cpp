@@ -150,7 +150,7 @@ void me::AdorningDisplayBufferCompositor::composite(compositor::SceneElementSequ
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
-        renderable->buffer()->gl_bind_to_texture();
+        renderable->buffer()->bind_to_render_image();
 
         glEnableVertexAttribArray(vPositionAttr);
         glEnableVertexAttribArray(uvCoord);

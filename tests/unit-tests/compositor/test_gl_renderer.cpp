@@ -24,7 +24,7 @@
 #include <mir/graphics/gl_texture.h>
 #include <mir/compositor/gl_renderer.h>
 #include <mir/test/fake_shared.h>
-#include <mir/test/doubles/mock_buffer.h>
+#include <mir/test/doubles/stub_buffer.h>
 #include <mir/test/doubles/mock_renderable.h>
 #include <mir/test/doubles/mock_buffer_stream.h>
 #include <mir/compositor/buffer_stream.h>
@@ -114,16 +114,11 @@ public:
         EXPECT_CALL(mock_gl, glDrawArrays(_, _, _)).Times(AnyNumber());
         EXPECT_CALL(mock_gl, glDisableVertexAttribArray(_)).Times(AnyNumber());
 
-        mock_buffer = std::make_shared<mtd::MockBuffer>();
-        EXPECT_CALL(*mock_buffer, gl_bind_to_texture()).Times(AnyNumber());
-        EXPECT_CALL(*mock_buffer, id())
-            .WillRepeatedly(Return(mir::graphics::BufferID(789)));
-        EXPECT_CALL(*mock_buffer, size())
-            .WillRepeatedly(Return(mir::geometry::Size{123, 456}));
+        stub_buffer = std::make_shared<mtd::StubBuffer>();
 
         renderable = std::make_shared<testing::NiceMock<mtd::MockRenderable>>();
         EXPECT_CALL(*renderable, id()).WillRepeatedly(Return(&renderable));
-        EXPECT_CALL(*renderable, buffer()).WillRepeatedly(Return(mock_buffer));
+        EXPECT_CALL(*renderable, buffer()).WillRepeatedly(Return(stub_buffer));
         EXPECT_CALL(*renderable, shaped()).WillRepeatedly(Return(false));
         EXPECT_CALL(*renderable, alpha()).WillRepeatedly(Return(1.0f));
         EXPECT_CALL(*renderable, transformation()).WillRepeatedly(Return(trans));
@@ -144,7 +139,7 @@ public:
 
     testing::NiceMock<mtd::MockGL> mock_gl;
     testing::NiceMock<mtd::MockEGL> mock_egl;
-    std::shared_ptr<mtd::MockBuffer> mock_buffer;
+    std::shared_ptr<mtd::StubBuffer> stub_buffer;
     mir::geometry::Rectangle display_area;
     std::shared_ptr<testing::NiceMock<mtd::MockRenderable>> renderable;
     mg::RenderableList renderable_list;

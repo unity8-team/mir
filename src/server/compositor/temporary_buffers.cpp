@@ -75,9 +75,9 @@ mg::BufferID mc::TemporaryBuffer::id() const
     return buffer->id();
 }
 
-void mc::TemporaryBuffer::gl_bind_to_texture()
+mg::RenderImage mc::TemporaryBuffer::bind_to_render_image()
 {
-    buffer->gl_bind_to_texture();
+    return buffer->bind_to_render_image();
 }
 
 std::shared_ptr<mg::NativeBuffer> mc::TemporaryBuffer::native_buffer_handle() const

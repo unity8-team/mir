@@ -102,7 +102,7 @@ TEST_F(ShmBufferTest, cant_upload_bgr_888)
                 .Times(0);
 
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_bgr_888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_rgb_888_correctly)
@@ -114,7 +114,7 @@ TEST_F(ShmBufferTest, uploads_rgb_888_correctly)
                                       stub_shm_file->fake_mapping));
 
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_rgb_888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_rgb_565_correctly)
@@ -127,7 +127,7 @@ TEST_F(ShmBufferTest, uploads_rgb_565_correctly)
                                       stub_shm_file->fake_mapping));
 
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_rgb_565);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_rgba_5551_correctly)
@@ -140,7 +140,7 @@ TEST_F(ShmBufferTest, uploads_rgba_5551_correctly)
                                       stub_shm_file->fake_mapping));
 
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_rgba_5551);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_rgba_4444_correctly)
@@ -153,7 +153,7 @@ TEST_F(ShmBufferTest, uploads_rgba_4444_correctly)
                                       stub_shm_file->fake_mapping));
 
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_rgba_4444);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_xrgb_8888_correctly)
@@ -165,7 +165,7 @@ TEST_F(ShmBufferTest, uploads_xrgb_8888_correctly)
                                       stub_shm_file->fake_mapping));
 #endif
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_xrgb_8888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_argb_8888_correctly)
@@ -177,7 +177,7 @@ TEST_F(ShmBufferTest, uploads_argb_8888_correctly)
                                       stub_shm_file->fake_mapping));
 #endif
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_argb_8888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_xbgr_8888_correctly)
@@ -189,7 +189,7 @@ TEST_F(ShmBufferTest, uploads_xbgr_8888_correctly)
                                       stub_shm_file->fake_mapping));
 #endif
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_xbgr_8888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }
 
 TEST_F(ShmBufferTest, uploads_abgr_8888_correctly)
@@ -201,5 +201,5 @@ TEST_F(ShmBufferTest, uploads_abgr_8888_correctly)
                                       stub_shm_file->fake_mapping));
 #endif
     mgm::ShmBuffer buf(stub_shm_file, size, mir_pixel_format_abgr_8888);
-    buf.gl_bind_to_texture();
+    buf.bind_to_render_image();
 }

@@ -103,7 +103,7 @@ void ms::GLPixelBuffer::fill_from(graphics::Buffer& buffer)
 
     prepare();
 
-    buffer.gl_bind_to_texture();
+    buffer.bind_to_render_image();
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
 

@@ -53,7 +53,7 @@ public:
         creation_thread_id{std::this_thread::get_id()}
     {}
 
-    void gl_bind_to_texture() override
+    mg::RenderImage bind_to_render_image() override
     {
         /*
          * If we are trying to bind the texture from a different thread from
@@ -66,6 +66,8 @@ public:
             eglInitialize(0, 0, 0);
             throw std::runtime_error("Binding to texture failed");
         }
+
+        return {};
     }
 
 private:
@@ -179,7 +181,7 @@ struct BufferTextureInstantiatorThread
 
         try
         {
-            buffer->gl_bind_to_texture();
+            buffer->bind_to_render_image();
         }
         catch(std::runtime_error const&)
         {
@@ -211,7 +213,7 @@ TEST_F(MesaBufferIntegration, buffer_destruction_from_arbitrary_thread_works)
 
     EXPECT_NO_THROW({
         auto buffer = allocator->alloc_buffer(buffer_properties);
-        buffer->gl_bind_to_texture();
+        buffer->bind_to_render_image();
         ASSERT_EQ(EGL_SUCCESS, eglGetError());
 
         BufferDestructorThread destructor{std::move(buffer)};

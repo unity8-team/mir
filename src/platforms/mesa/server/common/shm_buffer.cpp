@@ -122,7 +122,7 @@ MirPixelFormat mgm::ShmBuffer::pixel_format() const
     return pixel_format_;
 }
 
-void mgm::ShmBuffer::gl_bind_to_texture()
+mir::graphics::RenderImage mgm::ShmBuffer::bind_to_render_image()
 {
     GLenum format, type;
 
@@ -141,6 +141,8 @@ void mgm::ShmBuffer::gl_bind_to_texture()
                      size_.width.as_int(), size_.height.as_int(),
                      0, format, type, pixels);
     }
+
+    return {};
 }
 
 std::shared_ptr<MirNativeBuffer> mgm::ShmBuffer::native_buffer_handle() const

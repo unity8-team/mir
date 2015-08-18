@@ -71,7 +71,7 @@ MirPixelFormat mga::Buffer::pixel_format() const
     return mga::to_mir_format(anwb->format);
 }
 
-void mga::Buffer::gl_bind_to_texture()
+mg::RenderImage mga::Buffer::bind_to_render_image()
 {
     std::unique_lock<std::mutex> lk(content_lock);
     native_buffer->ensure_available_for(mga::BufferAccess::read);
@@ -117,6 +117,7 @@ void mga::Buffer::gl_bind_to_texture()
     //TODO: we should make use of the android egl fence extension here to update the fence.
     //      if the extension is not available, we should pass out a token that the user
     //      will have to keep until the completion of the gl draw
+    return {};
 }
 
 std::shared_ptr<mg::NativeBuffer> mga::Buffer::native_buffer_handle() const
