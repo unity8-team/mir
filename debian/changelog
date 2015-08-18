@@ -1,3 +1,19 @@
+qtmir-gles (0.4.5+15.04.20150812.1-0ubuntu1) vivid; urgency=medium
+
+  [ Łukasz 'sil2100' Zemczak ]
+  * Sync with upstream. Last version not dual-landed so to unblock we need
+    to go back in time and release only for vivid... I expect this to get
+    fixed properly after consultation with upstream
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Tue, 18 Aug 2015 10:29:20 +0000
+
+qtmir-gles (0.4.5+15.10.20150804.1-0ubuntu1) wily; urgency=medium
+
+  [ Gerry Boland ]
+  * Sync with upstream
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Wed, 05 Aug 2015 11:48:17 +0000
+
 qtmir-gles (0.4.5+15.10.20150728-0ubuntu1) wily; urgency=medium
 
   [ Gerry Boland ]
