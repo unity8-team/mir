@@ -88,6 +88,7 @@ public:
         : cookie_secret{ 0x01, 0x02, 0x33, 0xde, 0xad, 0xbe, 0xef, 0xf0 }
         , out_cookie{0, 0}
     {
+        add_to_environment("MIR_SERVER_PLATFORM_INPUT_LIB", nullptr);
         server.set_cookie_secret(cookie_secret);
         mock_devices.add_standard_device("laptop-keyboard");
     }
