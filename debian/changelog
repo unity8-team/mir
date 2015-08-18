@@ -1,3 +1,9 @@
+qtmir-gles (0.4.5+15.10.20150817-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Alberto Aguirre <alberto.aguirre@canonical.com>  Tue, 18 Aug 2015 13:41:27 -0500
+
 qtmir-gles (0.4.5+15.10.20150812.1-0ubuntu1) vivid; urgency=medium
 
   [ Łukasz 'sil2100' Zemczak ]
