@@ -33,7 +33,7 @@ do
         ;;
       d )
         dist=${OPTARG}
-        BUILD_DIR=build-android-arm-${dist}
+        BUILD_DIR=${BUILD_DIR}-${dist}
         ;;
       u )
         _do_update_chroot=1
