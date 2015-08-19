@@ -403,6 +403,17 @@ Description: Display server for Ubuntu - android driver metapackage
  This package depends on a full set of graphics drivers for running Mir on top
  of an existing Android driver stack.
 
+Package: mir-cookie
+Section: libs
+Architecture: all
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+Description: Mir Cookie library that generates a MAC
+ (Message Authentication Code) based on event timestamps.
+ .
+ This package depends on nettle to do the cryptography.
+
 Package: python3-mir-perf-framework
 Section: python
 Architecture: all
