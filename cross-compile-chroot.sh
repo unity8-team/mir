@@ -16,6 +16,8 @@ clean_build_dir() {
     mkdir ${1}
 }
 
+# Default to a dist-agnostic directory name so as to not break Jenkins right now
+BUILD_DIR=build-android-arm
 NUM_JOBS=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
 _do_update_chroot=0
 
@@ -31,6 +33,7 @@ do
         ;;
       d )
         dist=${OPTARG}
+        BUILD_DIR=build-android-arm-${dist}
         ;;
       u )
         _do_update_chroot=1
@@ -54,7 +57,6 @@ done
 
 shift $((${OPTIND}-1))
 
-BUILD_DIR=build-android-arm-${dist}
 if [ ${clean} -ne 0 ]; then
     clean_build_dir ${BUILD_DIR}
 fi
