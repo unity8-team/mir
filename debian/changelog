@@ -1,6 +1,9 @@
 mir (0.14.1) UNRELEASED; urgency=medium
 
-  * Fix display config issues when running in the ubuntu-touch emulator 
+  * New upstream release 0.14.1 (https://launchpad.net/mir/+milestone/0.14.1)
+    - Bug fixes: 
+      . Fix display config issues when running in the ubuntu-touch emulator
+        (LP: #1486535)
 
  -- Alberto Aguirre <alberto.aguirre@canonical.com>  Wed, 19 Aug 2015 12:51:37 -0500
 
