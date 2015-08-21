@@ -101,7 +101,6 @@ void mtf::FakeInputDeviceImpl::InputDevice::synthesize_events(synthesis::KeyPara
 
     auto event_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::system_clock::now().time_since_epoch());
-
     auto mac = 0;
 
     auto input_action =

@@ -29,7 +29,7 @@ struct InputEventBuilder : public testing::Test
 {
     MirInputDeviceId const device_id = 7;
     std::chrono::nanoseconds const timestamp = std::chrono::nanoseconds(39);
-    uint64_t mac = 0;
+    uint64_t const mac = 0;
     MirInputEventModifiers const modifiers = mir_input_event_modifier_meta;
 };
 }
@@ -40,8 +40,8 @@ TEST_F(InputEventBuilder, makes_valid_key_event)
     xkb_keysym_t const key_code = 34;
     int const scan_code = 17;
 
-   auto ev = mev::make_event(device_id, timestamp, mac,
-       action, key_code, scan_code, modifiers);
+   auto ev = mev::make_event(device_id, timestamp,
+       mac, action, key_code, scan_code, modifiers);
    auto e = ev.get();
 
    EXPECT_EQ(mir_event_type_input, mir_event_get_type(e));

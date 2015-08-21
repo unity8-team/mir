@@ -297,8 +297,8 @@ status_t InputPublisher::publishMotionEvent(
     ALOGD("channel '%s' publisher ~ publishMotionEvent: seq=%u, deviceId=%d, source=0x%x, "
             "action=0x%x, flags=0x%x, edgeFlags=0x%x, metaState=0x%x, buttonState=0x%x, "
             "xOffset=%f, yOffset=%f, "
-            "xPrecision=%f, yPrecision=%f, mac=%lu, downTime=%lld, eventTime=%lld, "
-            "pointerCount=%d",
+            "xPrecision=%f, yPrecision=%f, mac=%lu, "
+            "downTime=%lld, eventTime=%lld, pointerCount=%d",
             c_str(mChannel->getName()), seq,
             deviceId, source, action, flags, edgeFlags, metaState, buttonState,
             xOffset, yOffset, xPrecision, yPrecision, mac, downTime, eventTime, pointerCount);

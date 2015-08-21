@@ -42,21 +42,22 @@ void NotifyConfigurationChangedArgs::notify(InputListenerInterface& listener) co
 
 // --- NotifyKeyArgs ---
 
-NotifyKeyArgs::NotifyKeyArgs(std::chrono::nanoseconds eventTime, int32_t deviceId, uint32_t source,
-        uint32_t policyFlags,
+NotifyKeyArgs::NotifyKeyArgs(std::chrono::nanoseconds eventTime, uint64_t mac,
+        int32_t deviceId, uint32_t source, uint32_t policyFlags,
         int32_t action, int32_t flags, int32_t keyCode, int32_t scanCode,
-        int32_t metaState, uint64_t mac, std::chrono::nanoseconds downTime) :
-        eventTime(eventTime), deviceId(deviceId), source(source), policyFlags(policyFlags),
+        int32_t metaState, std::chrono::nanoseconds downTime) :
+        eventTime(eventTime), mac(mac), deviceId(deviceId), source(source), policyFlags(policyFlags),
         action(action), flags(flags), keyCode(keyCode), scanCode(scanCode),
-        metaState(metaState), mac(mac), downTime(downTime) {
+        metaState(metaState), downTime(downTime) {
 }
 
 NotifyKeyArgs::NotifyKeyArgs(const NotifyKeyArgs& other) :
-        eventTime(other.eventTime), deviceId(other.deviceId), source(other.source),
+        eventTime(other.eventTime), mac(other.mac),
+        deviceId(other.deviceId), source(other.source),
         policyFlags(other.policyFlags),
         action(other.action), flags(other.flags),
         keyCode(other.keyCode), scanCode(other.scanCode),
-        metaState(other.metaState), mac(other.mac), downTime(other.downTime) {
+        metaState(other.metaState), downTime(other.downTime) {
 }
 
 void NotifyKeyArgs::notify(InputListenerInterface& listener) const {
@@ -66,16 +67,16 @@ void NotifyKeyArgs::notify(InputListenerInterface& listener) const {
 
 // --- NotifyMotionArgs ---
 
-NotifyMotionArgs::NotifyMotionArgs(std::chrono::nanoseconds eventTime, int32_t deviceId, uint32_t source,
-        uint32_t policyFlags,
+NotifyMotionArgs::NotifyMotionArgs(std::chrono::nanoseconds eventTime, uint64_t mac,
+        int32_t deviceId, uint32_t source, uint32_t policyFlags,
         int32_t action, int32_t flags, int32_t metaState, int32_t buttonState,
         int32_t edgeFlags, uint32_t pointerCount,
         const PointerProperties* pointerProperties, const PointerCoords* pointerCoords,
-        float xPrecision, float yPrecision, uint64_t mac, std::chrono::nanoseconds downTime) :
-        eventTime(eventTime), deviceId(deviceId), source(source), policyFlags(policyFlags),
-        action(action), flags(flags), metaState(metaState), buttonState(buttonState),
-        edgeFlags(edgeFlags), pointerCount(pointerCount),
-        xPrecision(xPrecision), yPrecision(yPrecision), mac(mac), downTime(downTime) {
+        float xPrecision, float yPrecision, std::chrono::nanoseconds downTime) :
+        eventTime(eventTime), mac(mac), deviceId(deviceId), source(source),
+        policyFlags(policyFlags), action(action), flags(flags), metaState(metaState),
+        buttonState(buttonState), edgeFlags(edgeFlags), pointerCount(pointerCount),
+        xPrecision(xPrecision), yPrecision(yPrecision), downTime(downTime) {
     for (uint32_t i = 0; i < pointerCount; i++) {
         this->pointerProperties[i].copyFrom(pointerProperties[i]);
         this->pointerCoords[i].copyFrom(pointerCoords[i]);
@@ -83,13 +84,14 @@ NotifyMotionArgs::NotifyMotionArgs(std::chrono::nanoseconds eventTime, int32_t d
 }
 
 NotifyMotionArgs::NotifyMotionArgs(const NotifyMotionArgs& other) :
-        eventTime(other.eventTime), deviceId(other.deviceId), source(other.source),
+        eventTime(other.eventTime), mac(other.mac),
+        deviceId(other.deviceId), source(other.source),
         policyFlags(other.policyFlags),
         action(other.action), flags(other.flags),
         metaState(other.metaState), buttonState(other.buttonState),
         edgeFlags(other.edgeFlags), pointerCount(other.pointerCount),
         xPrecision(other.xPrecision), yPrecision(other.yPrecision),
-        mac(other.mac), downTime(other.downTime) {
+        downTime(other.downTime) {
     for (uint32_t i = 0; i < pointerCount; i++) {
         pointerProperties[i].copyFrom(other.pointerProperties[i]);
         pointerCoords[i].copyFrom(other.pointerCoords[i]);

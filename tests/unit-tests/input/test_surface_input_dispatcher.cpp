@@ -159,8 +159,8 @@ struct FakePointer
 
     mir::EventUPtr move_to(geom::Point const& location)
     {
-        return mev::make_event(id, std::chrono::nanoseconds(0),
-            0, 0, mir_pointer_action_motion, buttons,
+        return mev::make_event(id, std::chrono::nanoseconds(0), 0,
+            0, mir_pointer_action_motion, buttons,
             location.x.as_int(), location.y.as_int(),
             0, 0);
     }
@@ -168,8 +168,8 @@ struct FakePointer
     {
         buttons &= ~button;
 
-        return mev::make_event(id, std::chrono::nanoseconds(0),
-            0, 0, mir_pointer_action_button_up, buttons,
+        return mev::make_event(id, std::chrono::nanoseconds(0), 0,
+            0, mir_pointer_action_button_up, buttons,
             location.x.as_int(), location.y.as_int(),
             0, 0);
     }
@@ -177,8 +177,8 @@ struct FakePointer
     {
         buttons |= button;
         
-        return mev::make_event(id, std::chrono::nanoseconds(0),
-            0, 0, mir_pointer_action_button_down, buttons,
+        return mev::make_event(id, std::chrono::nanoseconds(0), 0,
+            0, mir_pointer_action_button_down, buttons,
             location.x.as_int(), location.y.as_int(),
             0, 0);
     }

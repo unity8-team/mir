@@ -136,7 +136,7 @@ struct AbstractShell : Test
     }
 
     std::chrono::nanoseconds const event_timestamp = std::chrono::nanoseconds(0);
-    uint64_t mac = 0;
+    uint64_t const mac = 0;
 };
 }
 
