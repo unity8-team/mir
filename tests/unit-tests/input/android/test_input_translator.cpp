@@ -126,7 +126,7 @@ TEST_F(InputTranslator, accepts_motion_action_with_existing_index)
 
     droidinput::NotifyMotionArgs motion(some_time, mac, device_id, source_id, 0, valid_motion_action,
                                         no_flags, meta_state, button_state, edge_flags, three_pointers, properties,
-                                        coords, x_precision, y_precision, 0, later_time);
+                                        coords, x_precision, y_precision, later_time);
 
     translator.notifyMotion(&motion);
 }
@@ -175,7 +175,7 @@ TEST_F(InputTranslator, translates_multifinger_release_correctly)
     droidinput::NotifyMotionArgs motion(
         some_time, mac, device_id, source_id, 0, end_of_gesture,
         no_flags, meta_state, button_state, edge_flags, 1, properties,
-        coords, x_precision, y_precision, 0, later_time);
+        coords, x_precision, y_precision, later_time);
 
     translator.notifyMotion(&motion);
 }
@@ -194,7 +194,7 @@ TEST_F(InputTranslator, ignores_motion_with_duplicated_pointerids)
 
     droidinput::NotifyMotionArgs motion(some_time, mac, device_id, source_id, 0, motion_action, no_flags,
                                         meta_state, button_state, edge_flags, three_pointers, properties, coords,
-                                        x_precision, y_precision, 0, later_time);
+                                        x_precision, y_precision, later_time);
     translator.notifyMotion(&motion);
 }
 
@@ -212,7 +212,7 @@ TEST_F(InputTranslator, ignores_motion_with_invalid_pointerids)
 
     droidinput::NotifyMotionArgs motion(some_time, mac, device_id, source_id, 0, motion_action, no_flags,
                                         meta_state, button_state, edge_flags, three_pointers, properties, coords,
-                                        x_precision, y_precision, 0, later_time);
+                                        x_precision, y_precision, later_time);
     translator.notifyMotion(&motion);
 }
 
@@ -238,7 +238,7 @@ TEST_F(InputTranslator, forwards_pointer_positions)
     
     droidinput::NotifyMotionArgs motion(some_time, mac, device_id, AINPUT_SOURCE_MOUSE, 0, motion_action, no_flags,
                                         meta_state, button_state, edge_flags, one_pointer, properties, coords,
-                                        x_precision, y_precision, 0, later_time);
+                                        x_precision, y_precision, later_time);
     translator.notifyMotion(&motion);
 }
 
@@ -284,7 +284,6 @@ TEST_F(InputTranslator, forwards_all_key_event_paramters_correctly)
                                        key_code,
                                        scan_code,
                                        AMETA_SHIFT_ON,
-                                       0, /* mac */
                                        event_time);
 
     translator.notifyKey(&notified);
@@ -329,7 +328,6 @@ TEST_F(InputTranslator, forwards_all_motion_event_paramters_correctly)
                                           properties,
                                           coords,
                                           0, 0, /* unused x/y precision */
-                                          0, /* mac */
                                           event_time);
 
     translator.notifyMotion(&notified);
@@ -347,7 +345,7 @@ TEST_P(InputTranslatorWithPolicyParam, forwards_policy_modifiers_as_flags_and_mo
 
     droidinput::NotifyKeyArgs tester(some_time, mac, device_id, source_id,
                                      GetParam().policy_flag, AKEY_EVENT_ACTION_DOWN,
-                                     no_flags, arbitrary_key_code, arbitrary_scan_code, no_modifiers, 0, later_time);
+                                     no_flags, arbitrary_key_code, arbitrary_scan_code, no_modifiers, later_time);
 
     translator.notifyKey(&tester);
 }

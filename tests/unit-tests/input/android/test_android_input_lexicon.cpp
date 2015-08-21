@@ -103,7 +103,6 @@ TEST(AndroidInputLexicon, translates_single_pointer_motion_events)
     const float size = 500.0;
     const float pressure = 600.0;
     const float orientation = 700.0;
-    const uint64_t mac = 800.0f;
 
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_X, x_axis);
     pointer_coords.setAxisValue(AMOTION_EVENT_AXIS_Y, y_axis);
