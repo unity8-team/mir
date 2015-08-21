@@ -23,7 +23,6 @@
 namespace mir
 {
 class CookieFactory;
-
 namespace compositor
 {
 class Compositor;

@@ -23,7 +23,6 @@ add_library(mircookie SHARED
 )
 
 set_target_properties(mircookie
-
   PROPERTIES
   SOVERSION ${MIRCOOKIE_ABI}
   LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${symbol_map}"

@@ -152,7 +152,7 @@ MirInputEvent const* mir_touch_event_input_event(MirTouchEvent const* event);
 /**
  * Retrieves the timestamp cookie of a touch event.
  *
- * \param [in] event The keyboard event
+ * \param [in] event The touch event
  * \return           A MirCookie
  */
 MirCookie mir_touch_event_get_cookie(MirTouchEvent const* event);

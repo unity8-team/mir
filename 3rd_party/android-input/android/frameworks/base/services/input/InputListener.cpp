@@ -90,8 +90,7 @@ NotifyMotionArgs::NotifyMotionArgs(const NotifyMotionArgs& other) :
         action(other.action), flags(other.flags),
         metaState(other.metaState), buttonState(other.buttonState),
         edgeFlags(other.edgeFlags), pointerCount(other.pointerCount),
-        xPrecision(other.xPrecision), yPrecision(other.yPrecision),
-        downTime(other.downTime) {
+        xPrecision(other.xPrecision), yPrecision(other.yPrecision), downTime(other.downTime) {
     for (uint32_t i = 0; i < pointerCount; i++) {
         pointerProperties[i].copyFrom(other.pointerProperties[i]);
         pointerCoords[i].copyFrom(other.pointerCoords[i]);

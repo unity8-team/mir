@@ -138,7 +138,7 @@ MirInputEvent const* mir_pointer_event_input_event(MirPointerEvent const* event)
 /**
  * Retrieves the timestamp cookie of a keyboard event.
  *
- * \param [in] event The keyboard event
+ * \param [in] event The pointer event
  * \return           A MirCookie
  */
 MirCookie mir_pointer_event_get_cookie(MirPointerEvent const* event);

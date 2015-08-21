@@ -21,7 +21,6 @@
 #include "mir/time/alarm_factory.h"
 #include "mir/time/alarm.h"
 #include "mir/events/event_private.h"
-
 #include "mir/cookie_factory.h"
 
 #include <boost/throw_exception.hpp>
