@@ -376,7 +376,6 @@ mir_eglapp_bool mir_eglapp_init(int argc, char *argv[],
     {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-        EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
         EGL_BUFFER_SIZE, bpp,
         EGL_NONE
     };

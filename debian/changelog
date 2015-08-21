@@ -1,3 +1,30 @@
+mir (0.14.1) UNRELEASED; urgency=medium
+
+  * New upstream release 0.14.1 (https://launchpad.net/mir/+milestone/0.14.1)
+    - Bug fixes: 
+      . Fix display config issues when running in the ubuntu-touch emulator
+        (LP: #1486535)
+
+ -- Alberto Aguirre <alberto.aguirre@canonical.com>  Wed, 19 Aug 2015 12:51:37 -0500
+
+mir (0.14.0+15.10.20150723.1-0ubuntu2~ppa2) wily; urgency=medium
+
+  * Rebuild for libstdc++6 follow-up transitions.
+
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 29 Jul 2015 22:16:18 +0200
+
+mir (0.14.0+15.10.20150723.1-0ubuntu2~ppa1) wily; urgency=medium
+
+  * Ignore test failures on armhf.
+
+ -- Matthias Klose <doko@ubuntu.com>  Sat, 25 Jul 2015 10:58:03 +0200
+
+mir (0.14.0+15.10.20150723.1-0ubuntu2~gcc5.1) wily; urgency=medium
+
+  * No-change rebuild using GCC 5.
+
+ -- Matthias Klose <doko@ubuntu.com>  Sat, 25 Jul 2015 00:33:22 +0200
+
 mir (0.14.0+15.10.20150723.1-0ubuntu1) wily; urgency=medium
 
   [ Andreas Pokorny ]
