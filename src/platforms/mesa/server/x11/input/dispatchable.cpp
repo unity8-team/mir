@@ -135,6 +135,7 @@ bool mix::XDispatchable::dispatch(md::FdEvents events)
                     *mev::make_event(
                         MirInputDeviceId(0),
                         event_time,
+                        0, /* mac */
                         xkev.type == KeyPress ?
                             mir_keyboard_action_down :
                             mir_keyboard_action_up,
@@ -196,6 +197,7 @@ bool mix::XDispatchable::dispatch(md::FdEvents events)
                     *mev::make_event(
                         MirInputDeviceId(0),
                         event_time,
+                        0, /* mac */
                         modifiers,
                         xbev.type == ButtonPress ?
                             mir_pointer_action_button_down :
@@ -258,6 +260,7 @@ bool mix::XDispatchable::dispatch(md::FdEvents events)
                     *mev::make_event(
                         MirInputDeviceId(0),
                         event_time,
+                        0, /* mac */
                         modifiers,
                         mir_pointer_action_motion,
                         buttons_pressed,
