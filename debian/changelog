@@ -1,11 +1,12 @@
-mir (0.14.1) UNRELEASED; urgency=medium
+mir (0.14.1+15.04.20150821-0ubuntu1) vivid; urgency=medium
 
+  [ Alberto Aguirre ]
   * New upstream release 0.14.1 (https://launchpad.net/mir/+milestone/0.14.1)
     - Bug fixes: 
       . Fix display config issues when running in the ubuntu-touch emulator
         (LP: #1486535)
 
- -- Alberto Aguirre <alberto.aguirre@canonical.com>  Wed, 19 Aug 2015 12:51:37 -0500
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 21 Aug 2015 14:19:26 +0000
 
 mir (0.14.0+15.10.20150723.1-0ubuntu2~ppa2) wily; urgency=medium
 
