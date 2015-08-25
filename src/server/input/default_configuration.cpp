@@ -318,10 +318,14 @@ mir::DefaultServerConfiguration::the_input_platform()
 
             auto lib = std::make_shared<mir::SharedLibrary>(
                 options->get<std::string>(options::platform_input_lib));
+            auto create_module_context = lib->load_function<mir::CreateModuleContext>(
+                "create_module_context",
+                "MIR_SERVER_PLATFORM");
+            auto context = create_module_context ? create_module_context() : nullptr;
             auto create = lib->load_function<mi::CreatePlatform>(
                 "create_input_platform",
                 MIR_SERVER_INPUT_PLATFORM_VERSION);
-            return create(the_options(), the_emergency_cleanup(), the_input_device_registry(), the_input_report());
+            return create(the_options(), the_emergency_cleanup(), the_input_device_registry(), the_input_report(), context);
         });
 }
 

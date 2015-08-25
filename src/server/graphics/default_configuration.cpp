@@ -94,6 +94,10 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
                 }
                 platform_library = mir::graphics::module_for_device(platforms, dynamic_cast<mir::options::ProgramOption&>(*the_options()));
             }
+            auto create_module_context = platform_library->load_function<mir::CreateModuleContext>(
+                "create_module_context",
+                "MIR_SERVER_PLATFORM");
+            auto context = create_module_context ? create_module_context() : nullptr;
             auto create_host_platform = platform_library->load_function<mg::CreateHostPlatform>(
                 "create_host_platform",
                 MIR_SERVER_GRAPHICS_PLATFORM_VERSION);
@@ -111,11 +115,12 @@ std::shared_ptr<mg::Platform> mir::DefaultServerConfiguration::the_graphics_plat
                           description->micro_version);
 
             if (!the_options()->is_set(options::host_socket_opt))
-                return create_host_platform(the_options(), the_emergency_cleanup(), the_display_report());
+                return create_host_platform(the_options(), the_emergency_cleanup(), the_display_report(), context);
             else
                 return create_guest_platform(
                     the_display_report(),
-                    the_host_connection());
+                    the_host_connection(),
+                    context);
 
         });
 }

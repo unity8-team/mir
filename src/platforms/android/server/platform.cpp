@@ -138,7 +138,8 @@ EGLNativeDisplayType mga::Platform::egl_native_display() const
 std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
-    std::shared_ptr<mir::graphics::DisplayReport> const& display_report)
+    std::shared_ptr<mir::graphics::DisplayReport> const& display_report,
+    std::shared_ptr<void> /*module_context*/)
 {
     auto quirks = std::make_shared<mga::DeviceQuirks>(mga::PropertiesOps{}, *options);
     auto hwc_report = make_hwc_report(*options);
@@ -153,7 +154,8 @@ std::shared_ptr<mg::Platform> create_host_platform(
 
 std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const& display_report,
-    std::shared_ptr<mg::NestedContext> const&)
+    std::shared_ptr<mg::NestedContext> const&,
+    std::shared_ptr<void> /*module_context*/)
 {
     //TODO: actually allow disabling quirks for guest platform
     auto quirks = std::make_shared<mga::DeviceQuirks>(mga::PropertiesOps{});
@@ -195,4 +197,9 @@ mir::ModuleProperties const description = {
 mir::ModuleProperties const* describe_graphics_module()
 {
     return &description;
+}
+
+std::shared_ptr<void> create_module_context()
+{
+    return {};
 }

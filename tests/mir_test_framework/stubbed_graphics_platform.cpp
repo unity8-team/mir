@@ -294,7 +294,8 @@ extern "C" std::shared_ptr<mg::Platform> create_stub_platform(std::vector<geom::
 std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
-    std::shared_ptr<mg::DisplayReport> const& /*report*/)
+    std::shared_ptr<mg::DisplayReport> const& /*report*/,
+    std::shared_ptr<void> /*module_context*/)
 {
     std::shared_ptr<mg::Platform> result{};
 
@@ -313,7 +314,8 @@ std::shared_ptr<mg::Platform> create_host_platform(
 
 std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const&,
-    std::shared_ptr<mg::NestedContext> const& context)
+    std::shared_ptr<mg::NestedContext> const& context,
+    std::shared_ptr<void> /*module_context*/)
 {
     auto graphics_platform = the_graphics_platform.lock();
     if (!graphics_platform)
@@ -338,4 +340,9 @@ extern "C" void set_next_display_rects(
 extern "C" void set_next_preset_display(std::shared_ptr<mir::graphics::Display> const& display)
 {
     display_preset = display;
+}
+
+extern "C" std::shared_ptr<void> create_module_context()
+{
+    return {};
 }

@@ -40,7 +40,8 @@ auto mtd::create_platform_with_null_dependencies()
     return create_host_platform(
         std::make_shared<options::ProgramOption>(),
         std::make_shared<NullEmergencyCleanup>(),
-        report::null_display_report());
+        report::null_display_report(),
+        create_module_context());
 }
 
 #elif MESA_KMS

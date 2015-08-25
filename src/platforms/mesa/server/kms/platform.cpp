@@ -185,7 +185,8 @@ mgm::BypassOption mgm::Platform::bypass_option() const
 std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
-    std::shared_ptr<mg::DisplayReport> const& report)
+    std::shared_ptr<mg::DisplayReport> const& report,
+    std::shared_ptr<void> /*module_context*/)
 {
     auto real_fops = std::make_shared<RealVTFileOperations>();
     auto real_pops = std::unique_ptr<RealPosixProcessOperations>(new RealPosixProcessOperations{});
@@ -257,4 +258,9 @@ mir::ModuleProperties const description = {
 mir::ModuleProperties const* describe_graphics_module()
 {
     return &description;
+}
+
+std::shared_ptr<void> create_module_context()
+{
+    return {};
 }

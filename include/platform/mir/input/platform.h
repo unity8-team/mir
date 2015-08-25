@@ -38,6 +38,8 @@ namespace dispatch
 class Dispatchable;
 }
 
+typedef std::shared_ptr<void>(*CreateModuleContext)();
+
 namespace input
 {
 class InputDevice;
@@ -94,7 +96,8 @@ typedef mir::UniqueModulePtr<Platform>(*CreatePlatform)(
     std::shared_ptr<options::Option> const& options,
     std::shared_ptr<EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<InputDeviceRegistry> const& input_device_registry,
-    std::shared_ptr<InputReport> const& report);
+    std::shared_ptr<InputReport> const& report,
+    std::shared_ptr<void> module_context);
 
 typedef void(*AddPlatformOptions)(
     boost::program_options::options_description& config);
@@ -126,7 +129,8 @@ mir::UniqueModulePtr<mir::input::Platform> create_input_platform(
     std::shared_ptr<mir::options::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
     std::shared_ptr<mir::input::InputDeviceRegistry> const& input_device_registry,
-    std::shared_ptr<mir::input::InputReport> const& report);
+    std::shared_ptr<mir::input::InputReport> const& report,
+    std::shared_ptr<void> module_context);
 
 /**
  * Function used to add additional configuration options

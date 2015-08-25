@@ -28,7 +28,8 @@ mir::UniqueModulePtr<mi::Platform> create_input_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mi::InputDeviceRegistry> const& input_device_registry,
-    std::shared_ptr<mi::InputReport> const& /*report*/)
+    std::shared_ptr<mi::InputReport> const& /*report*/,
+    std::shared_ptr<void> /*module_context*/)
 {
     return mir::make_module_ptr<mtf::StubInputPlatform>(input_device_registry);
 }
@@ -63,4 +64,9 @@ mir::ModuleProperties const* describe_input_module()
 extern "C" mir::UniqueModulePtr<mtf::FakeInputDevice> add_fake_input_device(mi::InputDeviceInfo const& info)
 {
     return mir::make_module_ptr<mtf::FakeInputDeviceImpl>(info);
+}
+
+extern "C" std::shared_ptr<void> create_module_context()
+{
+    return {};
 }

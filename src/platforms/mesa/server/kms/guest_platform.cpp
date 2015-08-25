@@ -90,7 +90,8 @@ std::shared_ptr<mg::GraphicBufferAllocator> mgm::GuestPlatform::create_buffer_al
 
 std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const&,
-    std::shared_ptr<mg::NestedContext> const& nested_context)
+    std::shared_ptr<mg::NestedContext> const& nested_context,
+    std::shared_ptr<void> /*module_context*/)
 {
     return std::make_shared<mgm::GuestPlatform>(nested_context);
 }

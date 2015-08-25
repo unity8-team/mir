@@ -102,7 +102,8 @@ protected:
             platform = create_host_platform(
                 options,
                 std::make_shared<mtd::NullEmergencyCleanup>(),
-                mr::null_display_report());
+                mr::null_display_report(),
+                create_module_context());
         }
         else
         {

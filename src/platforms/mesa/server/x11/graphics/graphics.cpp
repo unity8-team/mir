@@ -25,22 +25,33 @@ namespace mg = mir::graphics;
 namespace mx = mir::X;
 namespace mgx = mg::X;
 
-mx::X11Resources x11_resources;
+std::shared_ptr<void> create_module_context()
+{
+    static std::shared_ptr<mx::X11Resources> anchor;
+
+    if (!anchor)
+        anchor = std::make_shared<mx::X11Resources>();
+
+    return anchor;
+}
 
 std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
-    std::shared_ptr<mg::DisplayReport> const& /*report*/)
+    std::shared_ptr<mg::DisplayReport> const& /*report*/,
+    std::shared_ptr<void> module_context)
 {
-    if (!x11_resources.get_conn())
+    auto context = std::static_pointer_cast<mx::X11Resources>(module_context);
+    if (!context->get_conn())
         BOOST_THROW_EXCEPTION(std::runtime_error("Need valid x11 display"));
 
-    return std::make_shared<mgx::Platform>(x11_resources.get_conn());
+    return std::make_shared<mgx::Platform>(context->get_conn());
 }
 
 std::shared_ptr<mg::Platform> create_guest_platform(
     std::shared_ptr<mg::DisplayReport> const& /*report*/,
-    std::shared_ptr<mg::NestedContext> const&)
+    std::shared_ptr<mg::NestedContext> const&,
+    std::shared_ptr<void> /*module_context*/)
 {
     BOOST_THROW_EXCEPTION(std::runtime_error("Guest platform isn't supported under X"));
     return nullptr;

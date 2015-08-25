@@ -25,15 +25,16 @@ namespace mi = mir::input;
 namespace mx = mir::X;
 namespace mix = mi::X;
 
-extern mx::X11Resources x11_resources;
-
 mir::UniqueModulePtr<mi::Platform> create_input_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,
     std::shared_ptr<mi::InputDeviceRegistry> const& input_device_registry,
-    std::shared_ptr<mi::InputReport> const& /*report*/)
+    std::shared_ptr<mi::InputReport> const& /*report*/,
+    std::shared_ptr<void> module_context)
 {
-    return mir::make_module_ptr<mix::XInputPlatform>(input_device_registry, x11_resources.get_conn());
+    auto context = std::static_pointer_cast<mx::X11Resources>(module_context);
+
+    return mir::make_module_ptr<mix::XInputPlatform>(input_device_registry, context->get_conn());
 }
 
 void add_input_platform_options(

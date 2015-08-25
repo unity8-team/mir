@@ -40,6 +40,8 @@ class Option;
 class ProgramOption;
 }
 
+typedef std::shared_ptr<void>(*CreateModuleContext)();
+
 /// Graphics subsystem. Mediates interaction between core system and
 /// the graphics environment.
 namespace graphics
@@ -119,11 +121,13 @@ enum PlatformPriority : uint32_t
 typedef std::shared_ptr<mir::graphics::Platform>(*CreateHostPlatform)(
     std::shared_ptr<mir::options::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
-    std::shared_ptr<mir::graphics::DisplayReport> const& report);
+    std::shared_ptr<mir::graphics::DisplayReport> const& report,
+    std::shared_ptr<void> module_context);
 
 typedef std::shared_ptr<mir::graphics::Platform>(*CreateGuestPlatform)(
     std::shared_ptr<mir::graphics::DisplayReport> const& report,
-    std::shared_ptr<mir::graphics::NestedContext> const& nested_context);
+    std::shared_ptr<mir::graphics::NestedContext> const& nested_context,
+    std::shared_ptr<void> module_context);
 
 
 typedef void(*AddPlatformOptions)(
@@ -153,7 +157,8 @@ extern "C"
 std::shared_ptr<mir::graphics::Platform> create_host_platform(
     std::shared_ptr<mir::options::Option> const& options,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& emergency_cleanup_registry,
-    std::shared_ptr<mir::graphics::DisplayReport> const& report);
+    std::shared_ptr<mir::graphics::DisplayReport> const& report,
+    std::shared_ptr<void> module_context);
 
 /**
  * Function prototype used to return a new guest graphics platform. The guest graphics platform
@@ -168,7 +173,8 @@ std::shared_ptr<mir::graphics::Platform> create_host_platform(
  */
 std::shared_ptr<mir::graphics::Platform> create_guest_platform(
     std::shared_ptr<mir::graphics::DisplayReport> const& report,
-    std::shared_ptr<mir::graphics::NestedContext> const& nested_context);
+    std::shared_ptr<mir::graphics::NestedContext> const& nested_context,
+    std::shared_ptr<void> module_context);
 
 /**
  * Function prototype used to add platform specific options to the platform-independent server options.
@@ -188,6 +194,8 @@ void add_graphics_platform_options(
 mir::graphics::PlatformPriority probe_graphics_platform(mir::options::ProgramOption const& options);
 
 mir::ModuleProperties const* describe_graphics_module();
+
+std::shared_ptr<void> create_module_context();
 }
 
 #endif // MIR_GRAPHICS_PLATFORM_H_
