@@ -69,6 +69,8 @@ public:
     void write(unsigned char const* pixels, size_t size) override;
     void read(std::function<void(unsigned char const*)> const& do_with_pixels) override;
 
+    Buffer* native_type() override;
+
 private:
     std::shared_ptr<gbm_bo> const gbm_handle;
     uint32_t bo_flags;

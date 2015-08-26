@@ -68,6 +68,7 @@ struct MockBuffer : public graphics::Buffer
 
     MOCK_METHOD2(write, void(unsigned char const*, size_t));
     MOCK_METHOD1(read, void(std::function<void(unsigned char const*)> const&));
+    MOCK_METHOD0(native_type, graphics::Buffer*());
 };
 
 }

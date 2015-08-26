@@ -95,3 +95,8 @@ void mc::TemporaryBuffer::read(std::function<void(unsigned char const*)> const& 
 {
     buffer->read(exec);
 }
+
+mg::Buffer* mc::TemporaryBuffer::native_type()
+{
+    return buffer->native_type();
+}

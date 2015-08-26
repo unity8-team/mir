@@ -116,6 +116,11 @@ public:
         do_with_pixels(written_pixels.data());
     }
 
+    Buffer* native_type() override
+    {
+        return this;
+    }
+
     std::shared_ptr<graphics::NativeBuffer> const native_buffer;
     geometry::Size const buf_size;
     MirPixelFormat const buf_pixel_format;

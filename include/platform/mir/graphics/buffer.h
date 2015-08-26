@@ -49,6 +49,8 @@ public:
     virtual void write(unsigned char const* pixels, size_t size) = 0;
     virtual void read(std::function<void(unsigned char const*)> const& do_with_pixels) = 0;
 
+    virtual Buffer* native_type() = 0;
+
 protected:
     Buffer() = default;
 };

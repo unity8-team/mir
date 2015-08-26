@@ -61,6 +61,8 @@ public:
     void write(unsigned char const* pixels, size_t size) override;
     void read(std::function<void(unsigned char const*)> const&) override;
 
+    graphics::Buffer* native_type() override;
+
 private:
     gralloc_module_t const* hw_module;
 
