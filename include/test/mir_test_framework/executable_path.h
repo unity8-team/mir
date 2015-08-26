@@ -23,10 +23,11 @@
 #include <string>
 namespace mir_test_framework
 {
-std::string executable_path();
+extern std::string executable_path();
 
-std::string library_path();
-std::string server_platform(std::string const& name);
-std::string client_platform(std::string const& name);
+extern std::string library_path();
+extern std::string udev_recordings_path();
+extern std::string server_platform(std::string const& name);
+extern std::string client_platform(std::string const& name);
 }
 #endif /* MIR_TEST_FRAMEWORK_EXECUTABLE_PATH_H_ */

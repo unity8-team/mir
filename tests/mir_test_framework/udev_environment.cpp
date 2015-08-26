@@ -38,7 +38,7 @@
 namespace mtf = mir_test_framework;
 
 mtf::UdevEnvironment::UdevEnvironment()
-    : recordings_path(mtf::executable_path() + "/udev_recordings")
+    : recordings_path(mtf::udev_recordings_path())
 {
     testbed = umockdev_testbed_new();
 }
