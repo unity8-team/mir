@@ -55,10 +55,7 @@ std::string mir_test_framework::udev_recordings_path()
   else if (boost::filesystem::exists(share_path))
     return share_path;
 
-  std::string error("Failed to find udev_recordings in standard search locations: ");
-  error += bin_path + " :: " + share_path;
-
-  BOOST_THROW_EXCEPTION(std::runtime_error(error));
+  BOOST_THROW_EXCEPTION(std::runtime_error("Failed to find udev_recordings in standard search locations"));
 }
 
 std::string mir_test_framework::server_platform(std::string const& name)
