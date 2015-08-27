@@ -4,6 +4,30 @@ qtmir-gles (0.4.6+15.04.20150827-0ubuntu1) UNRELEASED; urgency=medium
 
  -- Michael Zanetti <michael.zanetti@canonical.com>  Wed, 19 Aug 2015 16:27:33 +0200
 
+qtmir-gles (0.4.5+15.10.20150817-0ubuntu1) wily; urgency=medium
+
+  [ Alberto Aguirre ]
+  * Sync with upstream
+
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Mon, 24 Aug 2015 14:52:38 +0000
+
+qtmir-gles (0.4.5+15.04.20150821-0ubuntu1) vivid; urgency=medium
+
+  [ Gerry Boland ]
+  * Sync with upstream
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 21 Aug 2015 13:17:01 +0000
+
+qtmir-gles (0.4.5+15.04.20150820-0ubuntu1) vivid; urgency=medium
+
+  [ Michael Zanetti ]
+  * sync with upstream
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Thu, 20 Aug 2015 13:35:28 +0000
+
 qtmir-gles (0.4.5+15.04.20150812.1-0ubuntu1) vivid; urgency=medium
 
   [ Łukasz 'sil2100' Zemczak ]
