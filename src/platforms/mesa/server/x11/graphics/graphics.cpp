@@ -25,16 +25,6 @@ namespace mg = mir::graphics;
 namespace mx = mir::X;
 namespace mgx = mg::X;
 
-std::shared_ptr<void> create_module_context()
-{
-    static std::shared_ptr<mx::X11Resources> anchor;
-
-    if (!anchor)
-        anchor = std::make_shared<mx::X11Resources>();
-
-    return anchor;
-}
-
 std::shared_ptr<mg::Platform> create_host_platform(
     std::shared_ptr<mo::Option> const& /*options*/,
     std::shared_ptr<mir::EmergencyCleanupRegistry> const& /*emergency_cleanup_registry*/,

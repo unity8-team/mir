@@ -1,6 +1,13 @@
 add_subdirectory(graphics/)
 add_subdirectory(input/)
 
+include_directories(
+  ${server_common_include_dirs}
+  ${PROJECT_SOURCE_DIR}/src/platforms/mesa/server/common
+  ${PROJECT_SOURCE_DIR}/include/platform
+  ${DRM_INCLUDE_DIRS}
+)
+
 add_library(
   mirplatformservermesax11 MODULE
 

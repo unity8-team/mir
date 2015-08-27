@@ -19,12 +19,23 @@
 #define MIR_LOG_COMPONENT "x11-error"
 #include "mir/log.h"
 
+#include "graphics/platform.h"
 #include "X11_resources.h"
 
 namespace mx = mir::X;
 
 //Force synchronous Xlib operation - for debugging
 //#define FORCE_SYNCHRONOUS
+
+std::shared_ptr<void> create_module_context()
+{
+    static std::shared_ptr<mx::X11Resources> anchor;
+
+    if (!anchor)
+        anchor = std::make_shared<mx::X11Resources>();
+
+    return anchor;
+}
 
 int mx::mir_x11_error_handler(Display* dpy, XErrorEvent* eev)
 {
