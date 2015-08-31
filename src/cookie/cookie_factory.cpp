@@ -49,7 +49,7 @@ private:
 };
 
 mir::CookieFactory::CookieFactory(std::vector<uint8_t> const& secret)
-    : impl{new CookieImpl{secret}}
+    : impl(std::make_unique<CookieImpl>(secret))
 {
 }
 
