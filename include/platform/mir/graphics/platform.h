@@ -40,7 +40,7 @@ class Option;
 class ProgramOption;
 }
 
-typedef std::shared_ptr<void>(*CreateModuleContext)();
+typedef std::shared_ptr<void>(*GetModuleContext)();
 
 /// Graphics subsystem. Mediates interaction between core system and
 /// the graphics environment.
@@ -195,7 +195,7 @@ mir::graphics::PlatformPriority probe_graphics_platform(mir::options::ProgramOpt
 
 mir::ModuleProperties const* describe_graphics_module();
 
-std::shared_ptr<void> create_module_context();
+std::shared_ptr<void> get_module_context();
 }
 
 #endif // MIR_GRAPHICS_PLATFORM_H_

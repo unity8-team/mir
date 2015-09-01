@@ -260,7 +260,7 @@ mir::ModuleProperties const* describe_graphics_module()
     return &description;
 }
 
-std::shared_ptr<void> create_module_context()
+std::shared_ptr<void> get_module_context()
 {
     return {};
 }

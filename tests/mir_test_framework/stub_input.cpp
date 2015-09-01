@@ -66,7 +66,7 @@ extern "C" mir::UniqueModulePtr<mtf::FakeInputDevice> add_fake_input_device(mi::
     return mir::make_module_ptr<mtf::FakeInputDeviceImpl>(info);
 }
 
-extern "C" std::shared_ptr<void> create_module_context()
+extern "C" std::shared_ptr<void> get_module_context()
 {
     return {};
 }

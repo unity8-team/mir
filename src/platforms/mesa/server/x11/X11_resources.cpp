@@ -27,7 +27,7 @@ namespace mx = mir::X;
 //Force synchronous Xlib operation - for debugging
 //#define FORCE_SYNCHRONOUS
 
-std::shared_ptr<void> create_module_context()
+std::shared_ptr<void> get_module_context()
 {
     static std::shared_ptr<mx::X11Resources> anchor;
 

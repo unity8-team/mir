@@ -103,7 +103,7 @@ protected:
                 options,
                 std::make_shared<mtd::NullEmergencyCleanup>(),
                 mr::null_display_report(),
-                create_module_context());
+                get_module_context());
         }
         else
         {

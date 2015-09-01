@@ -342,7 +342,7 @@ extern "C" void set_next_preset_display(std::shared_ptr<mir::graphics::Display> 
     display_preset = display;
 }
 
-extern "C" std::shared_ptr<void> create_module_context()
+extern "C" std::shared_ptr<void> get_module_context()
 {
     return {};
 }

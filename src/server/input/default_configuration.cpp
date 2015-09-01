@@ -318,10 +318,10 @@ mir::DefaultServerConfiguration::the_input_platform()
 
             auto lib = std::make_shared<mir::SharedLibrary>(
                 options->get<std::string>(options::platform_input_lib));
-            auto create_module_context = lib->load_function<mir::CreateModuleContext>(
-                "create_module_context",
+            auto get_module_context = lib->load_function<mir::GetModuleContext>(
+                "get_module_context",
                 "MIR_SERVER_PLATFORM");
-            auto context = create_module_context ? create_module_context() : nullptr;
+            auto context = get_module_context ? get_module_context() : nullptr;
             auto create = lib->load_function<mi::CreatePlatform>(
                 "create_input_platform",
                 MIR_SERVER_INPUT_PLATFORM_VERSION);

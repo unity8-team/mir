@@ -1,6 +1,6 @@
 MIR_SERVER_PLATFORM {
   global:
-   create_module_context;
+   get_module_context;
 };
 
 MIR_INPUT_PLATFORM_2 {

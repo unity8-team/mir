@@ -38,7 +38,7 @@ namespace dispatch
 class Dispatchable;
 }
 
-typedef std::shared_ptr<void>(*CreateModuleContext)();
+typedef std::shared_ptr<void>(*GetModuleContext)();
 
 namespace input
 {
