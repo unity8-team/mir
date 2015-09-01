@@ -36,6 +36,7 @@
 namespace mir
 {
 class ServerActionQueue;
+class CookieFactory;
 namespace dispatch
 {
 class Dispatchable;
@@ -58,7 +59,8 @@ public:
                           std::shared_ptr<ServerActionQueue> const& observer_queue,
                           std::shared_ptr<TouchVisualizer> const& touch_visualizer,
                           std::shared_ptr<CursorListener> const& cursor_listener,
-                          std::shared_ptr<InputRegion> const& input_region);
+                          std::shared_ptr<InputRegion> const& input_region,
+                          std::shared_ptr<CookieFactory> const& c_factory);
 
     // InputDeviceRegistry - calls from mi::Platform
     void add_device(std::shared_ptr<InputDevice> const& device) override;
@@ -78,11 +80,17 @@ private:
     std::shared_ptr<TouchVisualizer> const touch_visualizer;
     std::shared_ptr<CursorListener> const cursor_listener;
     std::shared_ptr<InputRegion> const input_region;
+    std::shared_ptr<CookieFactory> const cookie_factory;
 
     struct RegisteredDevice : public InputSink
     {
     public:
-        RegisteredDevice(std::shared_ptr<InputDevice> const& dev, std::shared_ptr<InputDispatcher> const& dispatcher, std::shared_ptr<dispatch::MultiplexingDispatchable> const& multiplexer, DefaultInputDeviceHub * hub);
+        RegisteredDevice(std::shared_ptr<InputDevice> const& dev,
+                         std::shared_ptr<InputDispatcher> const& dispatcher,
+                         std::shared_ptr<dispatch::MultiplexingDispatchable> const& multiplexer,
+                         std::shared_ptr<CookieFactory> const& cookie_factory,
+                         DefaultInputDeviceHub * hub);
+
         void handle_input(MirEvent& event) override;
         void confine_pointer(mir::geometry::Point& position) override;
         mir::geometry::Rectangle bounding_rectangle() const override;

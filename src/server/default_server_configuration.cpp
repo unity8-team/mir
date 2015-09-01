@@ -25,7 +25,6 @@
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 #include "mir/cookie_factory.h"
-#include "mir/fill_random_bits.h"
 
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/options/program_option.h"
