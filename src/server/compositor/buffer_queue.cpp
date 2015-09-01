@@ -276,8 +276,6 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
     bool use_current_buffer = false;
     if (is_a_current_buffer_user(user_id))   // Primary/fastest display
     {
-        single_compositor = current_compositor_buffer_valid &&
-                            current_buffer_users.size() <= 1;  // might be zero
         if (ready_to_composite_queue.empty())
             frame_deadlines_met = 0;
         else if (frame_deadlines_met < frame_deadlines_threshold)
@@ -288,6 +286,9 @@ mc::BufferQueue::compositor_acquire(void const* user_id)
         use_current_buffer = true;
         current_buffer_users.push_back(user_id);
     }
+
+    single_compositor = current_compositor_buffer_valid &&
+                        current_buffer_users.size() <= 1;  // might be zero
 
     if (ready_to_composite_queue.empty())
     {
@@ -360,18 +361,24 @@ void mc::BufferQueue::compositor_release(std::shared_ptr<graphics::Buffer> const
 
     if (current_compositor_buffer != buffer.get())
         release(buffer.get(), std::move(lock));
-    else if (!ready_to_composite_queue.empty() &&
-             buffers_owned_by_client.empty() &&
-             !client_ahead_of_compositor() &&
-             single_compositor)
+    else if (!ready_to_composite_queue.empty() && single_compositor)
     {
         /*
-         * The "early release" optimization:
-         * This is fundamentally incompatible with multi-monitor frame sync
-         * so we need to be sure there's only one compositor.
+         * The "early release" optimisation: Note "single_compositor" above
+         * is because this path will break (actually just overclock) the
+         * multi-monitor frame sync algorithm. For the moment we prefer
+         * /perfect/ multi-monitor frame sync all the time. But if you so
+         * choose that overclocking with multi-monitors is acceptable then
+         * you could remove the above "single_compositor" check and get this
+         * optimised code path with multi-monitors too...
          */
         current_compositor_buffer = pop(ready_to_composite_queue);
         current_buffer_users.clear();
+        /*
+         * As we have now caused the next compositor_acquire() to skip the
+         * frame_deadlines_met update, we need to do it here:
+         */
+        ++frame_deadlines_met;
         release(buffer.get(), std::move(lock));
     }
 }
