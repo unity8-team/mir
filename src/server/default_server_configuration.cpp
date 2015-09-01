@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012-2014 Canonical Ltd.
+ * Copyright © 2012-2015 Canonical Ltd.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3,
@@ -25,6 +25,7 @@
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 #include "mir/cookie_factory.h"
+#include "mir/fill_random_bits.h"
 
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/options/program_option.h"
@@ -185,45 +186,14 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
 
 namespace
 {
-// Until getrandom gets a glibc wrapper we can just syscall it...
-int getrandom(void* buf, size_t buflen, unsigned int flags)
+void fill_with_random_data(std::vector<uint8_t>& buffer)
 {
-    return syscall(__NR_getrandom, buf, buflen, flags);
-}
+    std::uniform_int_distribution<uint8_t> dist;
+    std::random_device rand_dev("/dev/random");
 
-template<size_t length>
-void fill_with_random_data(std::array<uint8_t, length>& buffer)
-{
-    if (length < 256)
-    {
-        // getrandom is exactly what we want. It will guarantee we get
-        // appropriate random data from urandom.
-        //
-        // Sadly, it's not necessarily implemented on the kernel we have to use.
-        if (getrandom(buffer.data(), buffer.size(), 0) == static_cast<ssize_t>(buffer.size()))
-        {
-            return;
-        }
-    }
-    auto rnd_source = mir::Fd{open("/dev/urandom", O_RDONLY)};
-    if (rnd_source == mir::Fd::invalid)
-    {
-        BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                 std::system_category(),
-                                                 "Failed to open /dev/urandom"}));
-    }
-    size_t read_bytes{0};
-    while (read_bytes < buffer.size())
-    {
-        auto last_read = read(rnd_source, buffer.data() + read_bytes, buffer.size() - read_bytes);
-        if (last_read < 0 && errno != EINTR)
-        {
-            BOOST_THROW_EXCEPTION((std::system_error{errno,
-                                                     std::system_category(),
-                                                     "Failed to read from /dev/urandom"}));
-        }
-        read_bytes += last_read;
-    }
+    std::generate(buffer.begin(), buffer.end(), [&]() {
+        return dist(rand_dev);
+    });
 }
 }
 
@@ -232,9 +202,9 @@ std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_
     return cookie_factory(
         []()
         {
-            std::array<uint8_t, 16> seed;
+            std::vector<uint8_t> seed(16);
             fill_with_random_data(seed);
-            return std::make_shared<mir::CookieFactory>(std::vector<uint8_t>(seed.begin(), seed.end()));
+            return std::make_shared<mir::CookieFactory>(seed);
         });
 }
 
