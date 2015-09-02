@@ -17,10 +17,12 @@
  *
  */
 
-#ifndef MIR_GRAPHICS_X_DISPLAY_CONFIGURATION_H_
-#define MIR_GRAPHICS_X_DISPLAY_CONFIGURATION_H_
+#ifndef MIR_GRAPHICS_X_DISPLAY_GROUP_H_
+#define MIR_GRAPHICS_X_DISPLAY_GROUP_H_
 
-#include "mir/graphics/display_configuration.h"
+#include "mir_toolkit/common.h"
+#include "mir/graphics/display.h"
+#include "display_buffer.h"
 
 namespace mir
 {
@@ -29,24 +31,22 @@ namespace graphics
 namespace X
 {
 
-class DisplayConfiguration : public graphics::DisplayConfiguration
+class DisplayGroup : public graphics::DisplaySyncGroup
 {
 public:
-    DisplayConfiguration(MirPixelFormat pf, int width, int height);
+    DisplayGroup(std::unique_ptr<DisplayBuffer> primary_buffer);
 
-    virtual ~DisplayConfiguration() = default;
-
-    void for_each_card(std::function<void(DisplayConfigurationCard const&)> f) const override;
-    void for_each_output(std::function<void(DisplayConfigurationOutput const&)> f) const override;
-    void for_each_output(std::function<void(UserDisplayConfigurationOutput&)> f) override;
+    void for_each_display_buffer(std::function<void(graphics::DisplayBuffer&)> const& f) override;
+    void post() override;
+    std::chrono::milliseconds recommended_sleep() const override;
+    void set_orientation(MirOrientation orientation);
 
 private:
-    DisplayConfigurationOutput configuration;
-    DisplayConfigurationCard card;
+    std::unique_ptr<DisplayBuffer> display_buffer;
 };
 
+}
+}
+}
 
-}
-}
-}
-#endif /* MIR_GRAPHICS_X_DISPLAY_CONFIGURATION_H_ */
+#endif /* MIR_GRAPHICS_X_DISPLAY_GROUP_H_ */

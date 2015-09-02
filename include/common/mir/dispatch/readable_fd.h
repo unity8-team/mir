@@ -13,39 +13,35 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Cemil Azizoglu <cemil.azizoglu@canonical.com>
- *
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_GRAPHICS_X_DISPLAY_GROUP_H_
-#define MIR_GRAPHICS_X_DISPLAY_GROUP_H_
+#ifndef MIR_DISPATCH_READABLE_FD_H_
+#define MIR_DISPATCH_READABLE_FD_H_
 
-#include "mir_toolkit/common.h"
-#include "mir/graphics/display.h"
-#include "display_buffer.h"
+#include "mir/dispatch/dispatchable.h"
+#include "mir/fd.h"
+
+#include <functional>
 
 namespace mir
 {
-namespace graphics
-{
-namespace X
+namespace dispatch
 {
 
-class DisplayGroup : public graphics::DisplaySyncGroup
+class ReadableFd : public Dispatchable
 {
 public:
-    DisplayGroup(std::unique_ptr<DisplayBuffer> primary_buffer);
+    ReadableFd(Fd fd, std::function<void()> const& on_readable);
+    Fd watch_fd() const override;
 
-    void for_each_display_buffer(std::function<void(graphics::DisplayBuffer&)> const& f) override;
-    void post() override;
-    std::chrono::milliseconds recommended_sleep() const override;
-
+    bool dispatch(FdEvents events) override;
+    FdEvents relevant_events() const override;
 private:
-    std::unique_ptr<DisplayBuffer> display_buffer;
+    mir::Fd fd;
+    std::function<void()> readable;
 };
-
-}
 }
 }
 
-#endif /* MIR_GRAPHICS_X_DISPLAY_GROUP_H_ */
+#endif // MIR_DISPATCH_READABLE_FD_H_

@@ -13,39 +13,34 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Authored by: Cemil Azizoglu <cemil.azizoglu@canonical.com>
+ * Authored by: Andreas Pokorny <andreas.pokorny@canonical.com>
  */
 
-#ifndef MIR_X_LAZY_CONNECTION_H_
-#define MIR_X_LAZY_CONNECTION_H_
+#include "mir/dispatch/readable_fd.h"
 
-#include <X11/Xlib.h>
-
-namespace mir
+mir::dispatch::ReadableFd::ReadableFd(Fd fd, std::function<void()> const& on_readable) :
+    fd{fd},
+    readable{on_readable}
 {
-namespace X
-{
-
-class LazyConnection
-{
-public:
-    std::shared_ptr<::Display> get()
-    {
-        if (auto conn = connection.lock())
-            return conn;
-
-        std::shared_ptr<::Display> new_conn{
-            XOpenDisplay(nullptr),
-            [](::Display* display) { XCloseDisplay(display); }};
-
-        connection = new_conn;
-        return new_conn;
-    }
-
-private:
-    std::weak_ptr<::Display> connection;
-};
-
 }
+
+mir::Fd mir::dispatch::ReadableFd::watch_fd() const
+{
+    return fd;
 }
-#endif /* MIR_X_LAZY_CONNECTION_H_ */
+
+bool mir::dispatch::ReadableFd::dispatch(FdEvents events)
+{
+    if (events & FdEvent::error)
+        return false;
+
+    if (events & FdEvent::readable)
+        readable();
+
+    return true;
+}
+
+mir::dispatch::FdEvents mir::dispatch::ReadableFd::relevant_events() const
+{
+    return FdEvent::readable;
+}
