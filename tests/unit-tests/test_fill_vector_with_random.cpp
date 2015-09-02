@@ -25,8 +25,6 @@
 
 #include "mir/fill_vector_with_random.h"
 
-using namespace testing;
-
 namespace
 {
     /* Using rngtest we only want to check 1 20,000bit block and then exit */
