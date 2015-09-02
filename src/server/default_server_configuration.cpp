@@ -25,6 +25,7 @@
 #include "mir/emergency_cleanup.h"
 #include "mir/default_configuration.h"
 #include "mir/cookie_factory.h"
+#include "mir/fill_vector_with_random.h"
 
 #include "mir/logging/dumb_console_logger.h"
 #include "mir/options/program_option.h"
@@ -183,9 +184,7 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
         });
 }
 
-namespace
-{
-void fill_with_random_data(std::vector<uint8_t>& buffer)
+void mir::fill_vector_with_random_data(std::vector<uint8_t>& buffer)
 {
     std::uniform_int_distribution<uint8_t> dist;
     std::random_device rand_dev("/dev/random");
@@ -194,7 +193,6 @@ void fill_with_random_data(std::vector<uint8_t>& buffer)
         return dist(rand_dev);
     });
 }
-}
 
 std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_factory()
 {
@@ -202,7 +200,7 @@ std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_
         []()
         {
             std::vector<uint8_t> seed(16);
-            fill_with_random_data(seed);
+            mir::fill_vector_with_random_data(seed);
             return std::make_shared<mir::CookieFactory>(seed);
         });
 }
