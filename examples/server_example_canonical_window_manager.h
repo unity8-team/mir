@@ -67,6 +67,7 @@ struct CanonicalSurfaceInfoCopy
     std::weak_ptr<scene::Surface> parent;
     std::vector<std::weak_ptr<scene::Surface>> children;
     std::shared_ptr<scene::Surface> titlebar;
+    frontend::SurfaceId primary_id;
     frontend::SurfaceId titlebar_id;
     bool is_titlebar = false;
     geometry::Width min_width;
@@ -77,6 +78,7 @@ struct CanonicalSurfaceInfoCopy
     mir::optional_value<geometry::DeltaY> height_inc;
     mir::optional_value<shell::SurfaceAspectRatio> min_aspect;
     mir::optional_value<shell::SurfaceAspectRatio> max_aspect;
+    std::vector<shell::StreamSpecification> streams;
 
     void init_titlebar(std::shared_ptr<scene::Surface> const& surface);
     void paint_titlebar(int intensity);

@@ -89,7 +89,8 @@ me::CanonicalSurfaceInfoCopy::CanonicalSurfaceInfoCopy(
     width_inc{params.width_inc},
     height_inc{params.height_inc},
     min_aspect{params.min_aspect},
-    max_aspect{params.max_aspect}
+    max_aspect{params.max_aspect},
+    streams{params.streams}
 {
 }
 
@@ -431,23 +432,36 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     if (!needs_titlebar(surface->type()))
         return;
 
+    auto sz = titlebar_size_for_window(surface->size());
+    printf("PROPS %i %i\n", sz.width.as_int(), sz.height.as_int());
+    auto format = mir_pixel_format_xrgb_8888;
     mg::BufferProperties properties(
-        titlebar_size_for_window(surface->size()),
-        mir_pixel_format_xrgb_8888,
-        mg::BufferUsage::software);
+        titlebar_size_for_window(surface->size()), format, mg::BufferUsage::software);
     auto titlebar_id = session->create_buffer_stream(properties);
+    auto titlebar_stream = session->get_buffer_stream(titlebar_id);
 
-    std::vector<shell::StreamSpecification> stream_config
+    printf("go go\n");
+    auto buffer_id = titlebar_stream->allocate_buffer(properties);
+    try{
+    titlebar_stream->with_buffer(buffer_id, [&](mg::Buffer& buffer)
     {
-    //    {primary_id, geom::Displacement{0,0}}
-        {titlebar_id, mir::geometry::Displacement{0, -title_bar_height}},
-    };
+        printf("WRITE\n");
+        auto const sz = buffer.size().height.as_int() *
+            buffer.size().width.as_int() * MIR_BYTES_PER_PIXEL(format);
+        std::vector<unsigned char> pixels(sz, 0xFF);
+        buffer.write(pixels.data(), sz);
+        printf("TB GO\n");
+        titlebar_stream->swap_buffers(&buffer, [](mg::Buffer*){});
+    });
+    } catch (std::exception&e) {printf("athrow throw %s\n", e.what());}
 
-    session->configure_streams(*surface, stream_config);
-
-    //setup
-//    auto titlebar_stream = session->get_buffer_stream(titlebar_id);
-//    titlebar_stream->allocate
+    printf("go go\n");
+    auto& surface_info = tools->info_for(surface);
+        printf("STREAM SIZ %i\n", (int) surface_info.streams.size());
+    surface_info.streams.push_back( 
+        shell::StreamSpecification{titlebar_id, mir::geometry::Displacement{0, -10}});//-title_bar_height}});
+    session->configure_streams(*surface, surface_info.streams);
+    printf("done.\n");
 #if 0
     auto format = mir_pixel_format_xrgb_8888;
     ms::SurfaceCreationParameters params;
