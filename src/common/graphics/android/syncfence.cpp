@@ -36,7 +36,7 @@ void mga::SyncFence::wait()
     if (fence_fd > 0)
     {
         int timeout = infinite_timeout;
-        sync_wait(fence_fd, timeout);
+        ops->wait(fence_fd, timeout);
         fence_fd = mir::Fd(Fd::invalid);
     }
 }
@@ -56,7 +56,7 @@ void mga::SyncFence::merge_with(NativeFence& merge_fd)
     else
     {
         //both fences were valid, must merge
-        fence_fd = mir::Fd(sync_merge("mirfence", merge_fd, fence_fd));
+        fence_fd = mir::Fd(ops->merge("mirfence", fence_fd, merge_fd));
         ops->close(merge_fd);
     }
 
@@ -68,9 +68,14 @@ mga::NativeFence mga::SyncFence::copy_native_handle() const
     return ops->dup(fence_fd);
 }
 
-int mga::RealSyncFileOps::ioctl(int fd, int req, void* dat)
+int mga::RealSyncFileOps::merge(char const* name, int fd1, int fd2)
 {
-    return ::ioctl(fd, req, dat);
+    return ::sync_merge(name, fd1, fd2);
+}
+
+int mga::RealSyncFileOps::wait(int fd, int timeout)
+{
+    return ::sync_wait(fd, timeout);
 }
 
 int mga::RealSyncFileOps::dup(int fd)

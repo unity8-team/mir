@@ -32,8 +32,13 @@ namespace android
 class SyncFileOps
 {
 public:
+    SyncFileOps() = default;
     virtual ~SyncFileOps() = default;
-    virtual int ioctl(int, int, void*) = 0;
+    SyncFileOps(SyncFileOps const&) = delete;
+    SyncFileOps& operator=(SyncFileOps const&) = delete;
+    
+    virtual int merge(char const*, int, int) = 0;
+    virtual int wait(int, int) = 0;
     virtual int dup(int) = 0;
     virtual int close(int) = 0;
 };
@@ -41,9 +46,10 @@ public:
 class RealSyncFileOps : public SyncFileOps
 {
 public:
-    int ioctl(int fd, int req, void* dat);
-    int dup(int fd);
-    int close(int fd);
+    int merge(char const*, int, int) override;
+    int wait(int, int) override;
+    int dup(int fd) override;
+    int close(int fd) override;
 };
 
 class SyncFence : public Fence

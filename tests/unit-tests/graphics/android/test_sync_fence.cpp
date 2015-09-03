@@ -20,7 +20,6 @@
 #include "mir/test/doubles/mock_fence.h"
 
 #include <android/linux/sync.h>
-#include <sys/ioctl.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>
@@ -32,7 +31,8 @@ namespace
 {
 struct MockFileOps : public mga::SyncFileOps
 {
-    MOCK_METHOD3(ioctl, int(int,int,void*));
+    MOCK_METHOD3(merge, int(char const*, int, int));
+    MOCK_METHOD2(wait, int(int, int));
     MOCK_METHOD1(dup, int(int));
     MOCK_METHOD1(close, int(int));
 };
@@ -55,30 +55,14 @@ protected:
 };
 
 
-MATCHER_P(TimeoutMatches, value,
-          std::string("timeout should be: " + testing::PrintToString(value)))
-{
-    int* timeout = static_cast<int*>(arg);
-    if (!timeout)
-        return false;
-    return value == *timeout;
-}
-
-MATCHER_P(MergeMatches, value,
-          std::string("merge should be: " + testing::PrintToString(value)))
-{
-    auto argument = static_cast<struct sync_merge_data*>(arg);
-    return argument->fd2 == value.fd2;
-}
-
 TEST_F(SyncSwTest, sync_wait)
 {
-    EXPECT_CALL(*mock_fops, ioctl(dummy_fd_value, SYNC_IOC_WAIT, TimeoutMatches(-1)))
+    EXPECT_CALL(*mock_fops, wait(dummy_fd_value, -1))
         .Times(1);
     mga::SyncFence fence1(mock_fops, std::move(dummy_fd));
     fence1.wait();
 
-    //will not call ioctl
+    //will not call wait
     mga::SyncFence fence2(mock_fops, std::move(invalid_fd));
     fence2.wait();
 }
@@ -107,11 +91,9 @@ TEST_F(SyncSwTest, sync_merge_with_valid_fd)
     int out_fd = 88;
     IoctlSetter setter(out_fd);
 
-    struct sync_merge_data expected_data_in { dummy_fd2, "name", 0 };
-
-    EXPECT_CALL(*mock_fops, ioctl(dummy_fd_value, static_cast<int>(SYNC_IOC_MERGE), MergeMatches(expected_data_in)))
+    EXPECT_CALL(*mock_fops, merge(_, dummy_fd_value, dummy_fd2))
         .Times(1)
-        .WillOnce(Invoke(&setter, &IoctlSetter::merge_setter));
+        .WillOnce(Return(out_fd));
 
     mga::SyncFence fence1(mock_fops, std::move(dummy_fd));
     fence1.merge_with(dummy_fd2);
@@ -120,7 +102,7 @@ TEST_F(SyncSwTest, sync_merge_with_valid_fd)
 TEST_F(SyncSwTest, sync_merge_with_invalid_fd)
 {
     using namespace testing;
-    EXPECT_CALL(*mock_fops, ioctl(dummy_fd_value, static_cast<int>(SYNC_IOC_MERGE), _))
+    EXPECT_CALL(*mock_fops, merge(_,_,_))
         .Times(0);
 
     mga::SyncFence fence1(mock_fops, std::move(dummy_fd));
