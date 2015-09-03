@@ -45,12 +45,12 @@ TEST(FillVectorRandomTest, fill_vector_random_test)
     */
     for (int tries = 0; tries < MAX_TRIES; tries++)
     {
+        mir::fill_vector_with_random_data(buffer);
+
         if ((command_file_ptr = popen(COMMAND, "w")) == NULL)
             BOOST_THROW_EXCEPTION(std::runtime_error(std::string("Failed to popen command: " +
                                                                  std::string(COMMAND) +
                                                                  ". Check rng-tools is installed.")));
-
-        mir::fill_vector_with_random_data(buffer);
 
         fwrite(buffer.data(), sizeof(uint8_t), buffer.size(), command_file_ptr);
 
