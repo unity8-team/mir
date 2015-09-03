@@ -37,7 +37,6 @@ void mga::SyncFence::wait()
     {
         int timeout = infinite_timeout;
         sync_wait(fence_fd, timeout);
-        //ops->ioctl(fence_fd, SYNC_IOC_WAIT, &timeout);
         fence_fd = mir::Fd(Fd::invalid);
     }
 }
