@@ -10,3 +10,8 @@ add_library(
   android_native_buffer.cpp
   syncfence.cpp
 )
+
+target_link_libraries(
+  mirsharedandroid-static
+  ${LIBSYNC_LIBRARIES}
+)

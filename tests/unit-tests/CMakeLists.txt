@@ -67,6 +67,7 @@ set(
   test_shared_library_prober.cpp
   test_lockable_callback.cpp
   test_module_deleter.cpp
+  strlcpy.cpp
 )
 
 if (MIR_TEST_PLATFORM STREQUAL "mesa-x11")
@@ -154,6 +155,7 @@ endif()
 if (MIR_BUILD_PLATFORM_ANDROID)
 target_link_libraries(mir_unit_tests 
   mirsharedandroid-static
+  ${LIBSYNC_LIBRARIES}
   ${LIBHARDWARE_LDFLAGS} ${LIBHARDWARE_LIBRARIES}
   ${ANDROID_PROPERTIES_LDFLAGS} ${ANDROID_PROPERTIES_LIBRARIES}
 )

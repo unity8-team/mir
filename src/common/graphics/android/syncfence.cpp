@@ -20,7 +20,8 @@
 
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <android/linux/sync.h>
+#include <android/sync/sync.h>
+//#include <android/linux/sync.h>
 
 namespace mga = mir::graphics::android;
 
@@ -35,7 +36,8 @@ void mga::SyncFence::wait()
     if (fence_fd > 0)
     {
         int timeout = infinite_timeout;
-        ops->ioctl(fence_fd, SYNC_IOC_WAIT, &timeout);
+        sync_wait(fence_fd, timeout);
+        //ops->ioctl(fence_fd, SYNC_IOC_WAIT, &timeout);
         fence_fd = mir::Fd(Fd::invalid);
     }
 }
@@ -55,10 +57,8 @@ void mga::SyncFence::merge_with(NativeFence& merge_fd)
     else
     {
         //both fences were valid, must merge
-        struct sync_merge_data data { merge_fd, "mirfence", infinite_timeout };
-        ops->ioctl(fence_fd, static_cast<int>(SYNC_IOC_MERGE), &data);
+        fence_fd = mir::Fd(sync_merge("mirfence", merge_fd, fence_fd));
         ops->close(merge_fd);
-        fence_fd = mir::Fd(data.fence);
     }
 
     merge_fd = -1;
