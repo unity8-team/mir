@@ -1,3 +1,9 @@
+qtmir-gles (0.4.6+15.10.20150903-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Michal Sawicz <michal.sawicz@canonical.com>  Thu, 03 Sep 2015 11:44:39 +0200
+
 qtmir-gles (0.4.6+15.04.20150827.1-0ubuntu1) vivid; urgency=medium
 
   [ Michael Zanetti ]
