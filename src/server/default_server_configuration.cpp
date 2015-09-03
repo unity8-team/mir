@@ -52,6 +52,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// FIXME REMOVE ME
+#include <iostream>
+#include <fstream>
+
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
@@ -186,8 +190,20 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
 
 void mir::fill_vector_with_random_data(std::vector<uint8_t>& buffer)
 {
+    std::string path = "/proc/sys/kernel/random/entropy_avail";
+    std::ifstream is(path.c_str(), std::ifstream::binary);
+    std::string entropy_pool;
+
+    if (is)
+    {
+        while (is >> entropy_pool);
+        is.close();
+    }
+
+    std::cerr << "[SERVER] Entropy Pool: " << entropy_pool << std::endl;
+
     std::uniform_int_distribution<uint8_t> dist;
-    std::random_device rand_dev("/dev/random");
+    std::random_device rand_dev("/dev/urandom");
 
     std::generate(std::begin(buffer), std::end(buffer), [&]() {
         return dist(rand_dev);
