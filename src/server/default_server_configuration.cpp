@@ -189,7 +189,7 @@ void mir::fill_vector_with_random_data(std::vector<uint8_t>& buffer)
     std::uniform_int_distribution<uint8_t> dist;
     std::random_device rand_dev("/dev/random");
 
-    std::generate(buffer.begin(), buffer.end(), [&]() {
+    std::generate(std::begin(buffer), std::end(buffer), [dist, rand_dev]() {
         return dist(rand_dev);
     });
 }
@@ -199,7 +199,7 @@ std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_
     return cookie_factory(
         []()
         {
-            std::vector<uint8_t> seed(16);
+            std::vector<uint8_t> seed(16) = {0};
             mir::fill_vector_with_random_data(seed);
             return std::make_shared<mir::CookieFactory>(seed);
         });
