@@ -203,7 +203,7 @@ void mir::fill_vector_with_random_data(std::vector<uint8_t>& buffer)
     std::cerr << "[SERVER] Entropy Pool: " << entropy_pool << std::endl;
 
     std::uniform_int_distribution<uint8_t> dist;
-    std::random_device rand_dev("/dev/urandom");
+    std::random_device rand_dev("/dev/random");
 
     std::generate(std::begin(buffer), std::end(buffer), [&]() {
         return dist(rand_dev);
