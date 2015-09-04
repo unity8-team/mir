@@ -1,8 +1,12 @@
-qtmir-gles (0.4.6+15.10.20150904-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.6+15.10.20150904-0ubuntu1) wily; urgency=medium
 
+  [ Michal Sawicz ]
   * Sync with upstream
 
- -- Michal Sawicz <michal.sawicz@canonical.com>  Fri, 04 Sep 2015 12:40:44 +0200
+  [ CI Train Bot ]
+  * No-change rebuild.
+
+ -- CI Train Bot <ci-train-bot@canonical.com>  Fri, 04 Sep 2015 11:16:34 +0000
 
 qtmir-gles (0.4.6+15.04.20150827.1-0ubuntu1) vivid; urgency=medium
 
