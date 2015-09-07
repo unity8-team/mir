@@ -43,6 +43,8 @@
 #include "mir/scene/null_prompt_session_listener.h"
 #include "default_emergency_cleanup.h"
 
+#include <boost/throw_exception.hpp>
+
 #include <vector>
 #include <array>
 #include <linux/random.h>
@@ -51,10 +53,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-// FIXME REMOVE ME
-#include <iostream>
-#include <fstream>
+#include <errno.h>
 
 namespace mc = mir::compositor;
 namespace geom = mir::geometry;
@@ -65,6 +64,12 @@ namespace mo = mir::options;
 namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mi = mir::input;
+
+namespace
+{
+    char const* RANDOM_DEVICE_PATH = "/dev/random";
+    int const WAIT_SECONDS = 30;
+}
 
 mir::DefaultServerConfiguration::DefaultServerConfiguration(int argc, char const* argv[]) :
         DefaultServerConfiguration(std::make_shared<mo::DefaultConfiguration>(argc, argv))
@@ -190,24 +195,48 @@ std::shared_ptr<mir::EmergencyCleanup> mir::DefaultServerConfiguration::the_emer
 
 void mir::fill_vector_with_random_data(std::vector<uint8_t>& buffer)
 {
-    std::string path = "/proc/sys/kernel/random/entropy_avail";
-    std::ifstream is(path.c_str(), std::ifstream::binary);
-    std::string entropy_pool;
+    int random_fd;
+    int retval;
+    fd_set rfds;
 
-    if (is)
+    struct timeval tv;
+    tv.tv_sec  = WAIT_SECONDS;
+    tv.tv_usec = 0;
+
+    if ((random_fd = open(RANDOM_DEVICE_PATH, O_RDONLY)) == -1)
     {
-        while (is >> entropy_pool);
-        is.close();
+        int error = errno;
+        BOOST_THROW_EXCEPTION(std::system_error(error, std::system_category(),
+                                                "open failed on device " + std::string(RANDOM_DEVICE_PATH)));
     }
 
-    std::cerr << "[SERVER] Entropy Pool: " << entropy_pool << std::endl;
+    FD_ZERO(&rfds);
+    FD_SET(random_fd, &rfds);
 
-    std::uniform_int_distribution<uint8_t> dist;
-    std::random_device rand_dev("/dev/random");
+    /* We want to block until *some* entropy exists on boot, then use urandom once we have some */
+    retval = select(random_fd + 1, &rfds, NULL, NULL, &tv);
 
-    std::generate(std::begin(buffer), std::end(buffer), [&]() {
-        return dist(rand_dev);
-    });
+    if (retval == -1)
+    {
+        int error = errno;
+        BOOST_THROW_EXCEPTION(std::system_error(error, std::system_category(),
+                                                "select failed on file descriptor " + std::to_string(random_fd) +
+                                                " from device " + std::string(RANDOM_DEVICE_PATH)));
+    }
+    else if (retval && FD_ISSET(random_fd, &rfds))
+    {
+        std::uniform_int_distribution<uint8_t> dist;
+        std::random_device rand_dev("/dev/urandom");
+
+        std::generate(std::begin(buffer), std::end(buffer), [&]() {
+            return dist(rand_dev);
+        });
+    }
+    else
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error("Failed to read from device: " + std::string(RANDOM_DEVICE_PATH) +
+                                                 " after: " + std::to_string(WAIT_SECONDS) + " seconds"));
+    }
 }
 
 std::shared_ptr<mir::CookieFactory> mir::DefaultServerConfiguration::the_cookie_factory()
