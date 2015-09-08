@@ -115,6 +115,7 @@ namespace graphics
 class Platform;
 class Display;
 class DisplayReport;
+class DisplayConfigurationReport;
 class GraphicBufferAllocator;
 class Cursor;
 class CursorImage;
@@ -216,6 +217,7 @@ public:
     virtual std::shared_ptr<graphics::Cursor> the_cursor();
     virtual std::shared_ptr<graphics::CursorImage> the_default_cursor_image();
     virtual std::shared_ptr<input::CursorImages> the_cursor_images();
+    virtual std::shared_ptr<graphics::DisplayConfigurationReport> the_display_configuration_report();
 
     /** @} */
 
@@ -422,6 +424,7 @@ protected:
     CachedPtr<compositor::CompositorReport> compositor_report;
     CachedPtr<logging::Logger> logger;
     CachedPtr<graphics::DisplayReport> display_report;
+    CachedPtr<graphics::DisplayConfigurationReport> display_configuration_report;
     CachedPtr<time::Clock> clock;
     CachedPtr<MainLoop> main_loop;
     CachedPtr<ServerStatusListener> server_status_listener;
