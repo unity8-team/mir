@@ -76,7 +76,7 @@ void log_gl_details()
                   rbits, gbits, bbits, abits, dbits, sbits);
 }
 
-} // anonymouse namespace
+} // anonymous namespace
 
 const GLchar* const mrg::GLRenderer::vshader =
 {
