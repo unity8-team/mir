@@ -31,6 +31,7 @@
 #define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <EGL/egl.h>
 
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
@@ -46,12 +47,31 @@ namespace {
 
 void log_gl_details()
 {
+    EGLDisplay disp = eglGetCurrentDisplay();
+    if (disp != EGL_NO_DISPLAY)
+    {
+        struct {GLint id; char const* label;} const eglstrings[] =
+        {
+            {EGL_VENDOR,      "EGL vendor"},
+            {EGL_VERSION,     "EGL version"},
+            {EGL_CLIENT_APIS, "EGL client APIs"},
+            {EGL_EXTENSIONS,  "EGL extensions"},
+        };
+        for (auto& s : eglstrings)
+        {
+            auto val = eglQueryString(disp, s.id);
+            // val will only be NULL in our MockEGL tests
+            mir::log_info("%s: %s", s.label, val ? val : "");
+        }
+    }
+
     struct {GLenum id; char const* label;} const glstrings[] =
     {
         {GL_VENDOR,   "GL vendor"},
         {GL_RENDERER, "GL renderer"},
         {GL_VERSION,  "GL version"},
         {GL_SHADING_LANGUAGE_VERSION,  "GLSL version"},
+        {GL_EXTENSIONS,  "GL extensions"},
     };
 
     for (auto& s : glstrings)
