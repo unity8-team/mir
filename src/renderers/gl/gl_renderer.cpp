@@ -60,8 +60,7 @@ void log_gl_details()
         for (auto& s : eglstrings)
         {
             auto val = eglQueryString(disp, s.id);
-            // val will only be NULL in our MockEGL tests
-            mir::log_info("%s: %s", s.label, val ? val : "");
+            mir::log_info(std::string(s.label) + ": " + (val ? val : ""));
         }
     }
 
@@ -77,8 +76,7 @@ void log_gl_details()
     for (auto& s : glstrings)
     {
         auto val = reinterpret_cast<char const*>(glGetString(s.id));
-        if (!val) val = "";
-        mir::log_info("%s: %s", s.label, val);
+        mir::log_info(std::string(s.label) + ": " + (val ? val : ""));
     }
 
     GLint max_texture_size = 0;
