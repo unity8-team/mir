@@ -35,11 +35,48 @@
 #include <boost/throw_exception.hpp>
 #include <stdexcept>
 #include <cmath>
+#include <mutex>
 
 namespace mg = mir::graphics;
 namespace mc = mir::compositor;
 namespace mrg = mir::renderer::gl;
 namespace geom = mir::geometry;
+
+namespace {
+
+void log_gl_details()
+{
+    struct {GLenum id; char const* label;} const glstrings[] =
+    {
+        {GL_VENDOR,   "GL vendor"},
+        {GL_RENDERER, "GL renderer"},
+        {GL_VERSION,  "GL version"},
+        {GL_SHADING_LANGUAGE_VERSION,  "GLSL version"},
+    };
+
+    for (auto& s : glstrings)
+    {
+        auto val = reinterpret_cast<char const*>(glGetString(s.id));
+        if (!val) val = "";
+        mir::log_info("%s: %s", s.label, val);
+    }
+
+    GLint max_texture_size = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+    mir::log_info("GL max texture size = %d", max_texture_size);
+
+    GLint rbits = 0, gbits = 0, bbits = 0, abits = 0, dbits = 0, sbits = 0;
+    glGetIntegerv(GL_RED_BITS, &rbits);
+    glGetIntegerv(GL_GREEN_BITS, &gbits);
+    glGetIntegerv(GL_BLUE_BITS, &bbits);
+    glGetIntegerv(GL_ALPHA_BITS, &abits);
+    glGetIntegerv(GL_DEPTH_BITS, &dbits);
+    glGetIntegerv(GL_STENCIL_BITS, &sbits);
+    mir::log_info("GL framebuffer bits: RGBA=%d%d%d%d, depth=%d, stencil=%d",
+                  rbits, gbits, bbits, abits, dbits, sbits);
+}
+
+} // anonymouse namespace
 
 const GLchar* const mrg::GLRenderer::vshader =
 {
@@ -100,34 +137,8 @@ mrg::GLRenderer::GLRenderer(geom::Rectangle const& display_area)
       texture_cache(std::make_unique<mc::RecentlyUsedCache>()),
       rotation(NAN) // ensure the first set_rotation succeeds
 {
-    struct {GLenum id; char const* label;} const glstrings[] =
-    {
-        {GL_VENDOR,   "GL vendor"},
-        {GL_RENDERER, "GL renderer"},
-        {GL_VERSION,  "GL version"},
-        {GL_SHADING_LANGUAGE_VERSION,  "GLSL version"},
-    };
-
-    for (auto& s : glstrings)
-    {
-        auto val = reinterpret_cast<char const*>(glGetString(s.id));
-        if (!val) val = "";
-        mir::log_info("%s: %s", s.label, val);
-    }
-
-    GLint max_texture_size = 0;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
-    mir::log_info("GL max texture size = %d", max_texture_size);
-
-    GLint rbits = 0, gbits = 0, bbits = 0, abits = 0, dbits = 0, sbits = 0;
-    glGetIntegerv(GL_RED_BITS, &rbits);
-    glGetIntegerv(GL_GREEN_BITS, &gbits);
-    glGetIntegerv(GL_BLUE_BITS, &bbits);
-    glGetIntegerv(GL_ALPHA_BITS, &abits);
-    glGetIntegerv(GL_DEPTH_BITS, &dbits);
-    glGetIntegerv(GL_STENCIL_BITS, &sbits);
-    mir::log_info("GL framebuffer bits: RGBA=%d%d%d%d, depth=%d, stencil=%d",
-                  rbits, gbits, bbits, abits, dbits, sbits);
+    static std::once_flag log_once;
+    std::call_once(log_once, log_gl_details);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
