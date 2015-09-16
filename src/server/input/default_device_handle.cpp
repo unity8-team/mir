@@ -23,7 +23,7 @@
 namespace mi = mir::input;
 
 mi::DefaultDeviceHandle::DefaultDeviceHandle(mi::InputDeviceInfo const& info)
-    : info{info}
+    : info(info)
 {
 }
 
