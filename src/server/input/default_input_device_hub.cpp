@@ -17,6 +17,7 @@
  */
 
 #include "default_input_device_hub.h"
+#include "default_device_handle.h"
 
 #include "mir/input/input_dispatcher.h"
 #include "mir/input/input_device.h"
@@ -134,13 +135,13 @@ mi::InputDeviceInfo mi::DefaultInputDeviceHub::RegisteredDevice::get_device_info
     return ret;
 }
 
-int32_t mi::DefaultInputDeviceHub::RegisteredDevice::create_new_device_id()
+MirInputDeviceId mi::DefaultInputDeviceHub::RegisteredDevice::create_new_device_id()
 {
-    static int32_t device_id{0};
+    static MirInputDeviceId device_id{0};
     return ++device_id;
 }
 
-int32_t mi::DefaultInputDeviceHub::RegisteredDevice::id()
+MirInputDeviceId mi::DefaultInputDeviceHub::RegisteredDevice::id()
 {
     return device_id;
 }
@@ -229,7 +230,7 @@ void mi::DefaultInputDeviceHub::add_observer(std::shared_ptr<InputDeviceObserver
         [observer,this]
         {
             observers.push_back(observer);
-            for (auto const& item : infos)
+            for (auto const& item : handles)
             {
                 observer->device_added(item);
             }
@@ -251,28 +252,30 @@ void mi::DefaultInputDeviceHub::remove_observer(std::weak_ptr<InputDeviceObserve
 
 void mi::DefaultInputDeviceHub::add_device_info(InputDeviceInfo const& info)
 {
-    infos.push_back(info);
+    handles.push_back(std::make_shared<DefaultDeviceHandle>(info));
 
     for (auto const& observer : observers)
     {
-        observer->device_added(infos.back());
+        observer->device_added(handles.back());
         observer->changes_complete();
     }
 }
 
-void mi::DefaultInputDeviceHub::remove_device_info(int32_t id)
+void mi::DefaultInputDeviceHub::remove_device_info(MirInputDeviceId id)
 {
-    auto info_it = remove_if(begin(infos), end(infos), [&id](auto const& info){return info.id == id;});
+    auto handle_it = remove_if(begin(handles),
+                               end(handles),
+                               [&id](auto const& handle){return handle->id() == id;});
 
-    if (info_it == end(infos))
+    if (handle_it == end(handles))
         return;
     for (auto const& observer : observers)
     {
-        observer->device_removed(*info_it);
+        observer->device_removed(*handle_it);
         observer->changes_complete();
     }
 
-    infos.erase(info_it, end(infos));
+    handles.erase(handle_it, end(handles));
 }
 
 void mi::DefaultInputDeviceHub::update_spots()

@@ -20,6 +20,7 @@
 #define MIR_INPUT_INPUT_DEVICE_INFO_H_
 
 #include "mir/input/device_capability.h"
+#include "mir_toolkit/event.h"
 
 #include <cstdint>
 #include <string>
@@ -31,7 +32,7 @@ namespace input
 
 struct InputDeviceInfo
 {
-    int32_t id;
+    MirInputDeviceId id;
     std::string name;
     std::string unique_id;
     DeviceCapabilities capabilities;

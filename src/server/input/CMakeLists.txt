@@ -5,6 +5,8 @@ include_directories(${MIR_XCURSOR_INCLUDE_DIRECTORIES})
 set(
   INPUT_SOURCES
 
+  default_device_handle.cpp
+  default_device_settings.cpp
   default_event_builder.cpp
   default_input_manager.cpp
   default_input_device_hub.cpp
