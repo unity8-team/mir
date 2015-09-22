@@ -42,3 +42,11 @@ install(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/mirplatform-input.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )
+
+# header install
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/platform-input/mir
+  DESTINATION "include/mirplatform-input"
+)
+
+
