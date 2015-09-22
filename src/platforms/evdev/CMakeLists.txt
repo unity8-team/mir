@@ -31,6 +31,7 @@ set_target_properties(
     OUTPUT_NAME input-evdev
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/server-modules
     PREFIX ""
+    SUFFIX ".so.${MIR_SERVER_INPUT_PLATFORM_ABI}"
     LINK_FLAGS "-Wl,--exclude-libs=ALL -Wl,--version-script,${MIR_INPUT_PLATFORM_VERSION_SCRIPT}"
     )
 
@@ -40,3 +41,5 @@ target_link_libraries(mirplatforminputevdev
     ${Boost_PROGRAM_OPTIONS_LIBRARY}
     ${LIBINPUT_LDFLAGS} ${LIBINPUT_LIBRARIES}
     )
+
+install(TARGETS mirplatforminputevdev LIBRARY DESTINATION ${MIR_SERVER_PLATFORM_PATH})
