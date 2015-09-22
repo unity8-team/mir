@@ -40,8 +40,8 @@ class EventBuilder;
 class InputDevice
 {
 public:
-    InputDevice() = default;
-    virtual ~InputDevice() = default;
+    InputDevice();
+    virtual ~InputDevice();
 
     /*!
      * Allow the input device to provide its input events to the given InputSink

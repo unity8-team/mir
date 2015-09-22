@@ -1,0 +1,10 @@
+prefix=@PREFIX@
+exec_prefix=@EXEC_PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: mirplatform-input
+Description: Mir library for input platforms
+Version: @MIR_VERSION@
+Libs: -L@LIBDIR@ -lmirplatform-input
+Cflags: -I@INCLUDEDIR@ -I@COMMON_INCLUDEDIR@ -I@CLIENT_INCLUDEDIR@ -I@PLATFORM_INCLUDEDIR@

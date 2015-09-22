@@ -94,6 +94,19 @@ Description: Display server for Ubuntu - platform library
  Contains the shared libraries required for the Mir server to interact with
  the underlying hardware platform.
 
+Package: libmirplatform-input0
+Section: libs
+Architecture: linux-any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Description: Display server for Ubuntu - platform library
+ Mir is a display server running on linux systems, with a focus on efficiency,
+ robust operation and a well-defined driver model.
+ .
+ Contains the shared libraries required by input platforms drivers.
+
 Package: libmircommon-dev
 Section: libdevel
 Architecture: linux-any
@@ -127,6 +140,22 @@ Description: Display server for Ubuntu - development headers
  robust operation and a well-defined driver model.
  .
  Contains header files required for hardware/driver support development.
+
+Package: libmirplatform-input-dev
+Section: libdevel
+Architecture: linux-any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: libmirplatform-dev
+         libmirclient-dev,
+         ${misc:Depends},
+Breaks:
+Replaces
+Description: Display server for Ubuntu - development headers
+ Mir is a display server running on linux systems, with a focus on efficiency,
+ robust operation and a well-defined driver model.
+ .
+ Contains header files required for input driver support development.
 
 Package: libmirserver-dev
 Section: libdevel

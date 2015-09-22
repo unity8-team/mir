@@ -1,0 +1,3 @@
+usr/include/mirplatform-input
+usr/lib/*/pkgconfig/mirplatform-input.pc
+usr/lib/*/libmirplatform-input.so

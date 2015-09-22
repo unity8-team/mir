@@ -65,8 +65,8 @@ enum class PlatformPriority : uint32_t
 class Platform
 {
 public:
-    Platform() = default;
-    virtual ~Platform() = default;
+    Platform();
+    virtual ~Platform();
 
     /*!
      * The dispatchable of the platform shall be used to monitor for devices.

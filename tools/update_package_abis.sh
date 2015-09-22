@@ -14,6 +14,7 @@ packages="\
     libmirclient-debug-extension:MIRCLIENT_DEBUG_EXTENSION_ABI \
     libmircommon:MIRCOMMON_ABI \
     libmirplatform:MIRPLATFORM_ABI \
+    libmirplatform-input:MIRPLATFORM_INPUT_ABI \
     libmirprotobuf:MIRPROTOBUF_ABI \
     libmirserver:MIRSERVER_ABI \
     libmircookie:MIRCOOKIE_ABI \

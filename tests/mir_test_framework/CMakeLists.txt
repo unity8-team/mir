@@ -108,7 +108,7 @@ add_library(
   $<TARGET_OBJECTS:mirevdevutilsobjects>
   )
 
-target_link_libraries(mirplatforminputstub mircommon)
+target_link_libraries(mirplatforminputstub mircommon mirplatform-input)
 
 set_target_properties(
   mirplatforminputstub PROPERTIES

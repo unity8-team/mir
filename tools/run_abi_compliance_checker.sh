@@ -4,6 +4,7 @@ declare -A abi_var_for
 abi_var_for=( ["mirclient"]="MIRCLIENT_ABI" \
     ["mircommon"]="MIRCOMMON_ABI" \
     ["mirplatform"]="MIRPLATFORM_ABI" \
+    ["mirplatform-input"]="MIRPLATFORM_INPUT_ABI" \
     ["mirprotobuf"]="MIRPROTOBUF_ABI" \
     ["mirserver"]="MIRSERVER_ABI" \
     ["mirclientplatformandroid"]="MIR_CLIENT_PLATFORM_ABI" \

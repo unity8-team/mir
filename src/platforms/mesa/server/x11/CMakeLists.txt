@@ -13,6 +13,7 @@ target_link_libraries(
   mirplatformservermesax11
   PRIVATE
   mirplatform
+  mirplatform-input
   EGL
   GLESv2
   X11

@@ -21,6 +21,7 @@ add_subdirectory(protobuf/)
 include_directories(${MIR_GENERATED_INCLUDE_DIRECTORIES})
 
 add_subdirectory(platform/)
+add_subdirectory(platform-input/)
 add_subdirectory(server/)
 add_subdirectory(client/)
 add_subdirectory(utils/)

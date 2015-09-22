@@ -1,0 +1,18 @@
+MIRPLATFORM_INPUT_0 {
+ global:
+  extern "C++" {
+    mir::input::Platform::Platform*;
+    mir::input::Platform::?Platform*;
+    mir::input::InputDevice::InputDevice*;
+    mir::input::InputDevice::?InputDevice*;
+    mir::input::EventBuilder::EventBuilder*;
+    mir::input::EventBuilder::?EventBuilder*;
+    typeinfo?for?mir::input::InputDevice;
+    typeinfo?for?mir::input::EventBuilder;
+    typeinfo?for?mir::input::Platform;
+    vtable?for?mir::input::InputDevice;
+    vtable?for?mir::input::EventBuilder;
+    vtable?for?mir::input::Platform;
+  };
+ local: *;
+};

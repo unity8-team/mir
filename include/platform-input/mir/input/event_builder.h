@@ -34,8 +34,8 @@ namespace input
 class EventBuilder
 {
 public:
-    EventBuilder() = default;
-    virtual ~EventBuilder() = default;
+    EventBuilder();
+    virtual ~EventBuilder();
     using Timestamp = std::chrono::nanoseconds;
 
     virtual EventUPtr key_event(Timestamp timestamp, MirKeyboardAction action, xkb_keysym_t key_code, int scan_code,
