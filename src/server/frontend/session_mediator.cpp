@@ -46,6 +46,7 @@
 #include "mir/frontend/buffer_stream.h"
 #include "mir/scene/prompt_session_creation_parameters.h"
 #include "mir/fd.h"
+#include "mir/log.h"
 
 #include "mir/geometry/rectangles.h"
 #include "buffer_stream_tracker.h"
@@ -105,6 +106,9 @@ mf::SessionMediator::~SessionMediator() noexcept
 {
     if (auto session = weak_session.lock())
     {
+        mir::log_warning("Session `%s' connection dropped without disconnect "
+                         "(client crashed?)",
+                         session->name().c_str());
         report->session_error(session->name(), __PRETTY_FUNCTION__, "connection dropped without disconnect");
         shell->close_session(session);
     }
