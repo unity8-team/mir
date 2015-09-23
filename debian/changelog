@@ -1,8 +1,12 @@
-qtmir-gles (0.4.6+15.10.20150923-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.6+15.10.20150923-0ubuntu1) wily; urgency=medium
 
+  [ Cemil Azizoglu ]
   * Sync with upstream
 
- -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Wed, 23 Sep 2015 11:24:47 -0500
+  [ CI Train Bot ]
+  * No-change rebuild.
+
+ -- Cemil Azizoglu <cemil.azizoglu@canonical.com>  Wed, 23 Sep 2015 16:26:48 +0000
 
 qtmir-gles (0.4.6+15.10.20150918-0ubuntu1) wily; urgency=medium
 
