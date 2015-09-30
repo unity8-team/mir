@@ -105,7 +105,6 @@ MIR_COMMON_5 {
     
     # These symbols are supposed to be "private" (they're under src/include)
     # but they are used by libmirplatform, libmirclient or libmirserver
-    mir::default_server_socket;
     mir::libraries_for_path*;
     mir::logging::input_timestamp*;
     mir::logging::log*;
@@ -199,6 +198,10 @@ MIR_COMMON_5.1 {  # New functions in Mir 0.16
       mir::dispatch::ReadableFd::dispatch*;
       mir::dispatch::ReadableFd::relevant_events*;
       mir::logger::Logger::log*;
+
+      # These symbols are supposed to be "private" (they're under src/include)
+      # but they are used by libmirplatform, libmirclient or libmirserver
+      mir::default_server_socket*;
     };
   local: *;
 } MIR_COMMON_5;
