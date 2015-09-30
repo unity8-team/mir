@@ -1,8 +1,12 @@
-qtmir-gles (0.4.6+15.10.20150930.1-0ubuntu1) UNRELEASED; urgency=medium
+qtmir-gles (0.4.6+15.10.20150930.1-0ubuntu1) wily; urgency=medium
 
+  [ Michal Sawicz ]
   * Sync with trunk
 
- -- Michal Sawicz <michal.sawicz@canonical.com>  Wed, 30 Sep 2015 12:35:59 +0200
+  [ CI Train Bot ]
+  * No-change rebuild.
+
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Wed, 30 Sep 2015 10:37:50 +0000
 
 qtmir-gles (0.4.6+15.10.20150925-0ubuntu1) wily; urgency=medium
 
