@@ -21,9 +21,11 @@
 #ifndef MIR_DEFAULT_CONFIGURATION_
 #define MIR_DEFAULT_CONFIGURATION_
 
+#include <string>
+
 namespace mir
 {
-extern char const* default_server_socket();
+extern std::string default_server_socket();
 }
 
 #endif
