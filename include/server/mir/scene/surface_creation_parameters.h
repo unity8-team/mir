@@ -104,6 +104,7 @@ struct SurfaceCreationParameters
     mir::optional_value<shell::SurfaceAspectRatio> max_aspect;
 
     mir::optional_value<std::vector<geometry::Rectangle>> input_shape;
+    std::vector<shell::StreamSpecification> streams;
 };
 
 bool operator==(const SurfaceCreationParameters& lhs, const SurfaceCreationParameters& rhs);

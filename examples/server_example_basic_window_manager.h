@@ -144,9 +144,11 @@ private:
         std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build) override
     {
         std::lock_guard<decltype(mutex)> lock(mutex);
-        scene::SurfaceCreationParameters const placed_params = policy.handle_place_new_surface(session, params);
+        scene::SurfaceCreationParameters placed_params = policy.handle_place_new_surface(session, params);
         auto const result = build(session, placed_params);
         auto const surface = session->surface(result);
+
+        placed_params.streams.emplace_back(shell::StreamSpecification{frontend::BufferStreamId(result.as_value()), mir::geometry::Displacement{0,0}});
         surface_info.emplace(surface, SurfaceInfo{session, surface, placed_params});
         policy.handle_new_surface(session, surface);
         policy.generate_decorations_for(session, surface, surface_info, build);
