@@ -449,7 +449,8 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
             titlebar_stream->swap_buffers(&buffer, [](mg::Buffer*){});
         });
 
-        surface_info.streams.push_back( 
+        //TODO: (kdub) place in front to accommodate lp: #1503317. once fixed, just use push_back()
+        surface_info.streams.insert(surface_info.streams.begin(),
             shell::StreamSpecification{titlebar_id, mir::geometry::Displacement{0, -title_bar_height}});
         session->configure_streams(*surface, surface_info.streams);
     }
