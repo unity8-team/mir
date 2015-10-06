@@ -30,13 +30,18 @@ namespace mir
 {
 namespace compositor { class Compositor; class DisplayBufferCompositorFactory; }
 namespace frontend { class SessionAuthorizer; class Session; class SessionMediatorReport; }
-namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; }
-namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class TouchVisualizer; class InputDeviceHub;}
+namespace graphics { class Cursor; class Platform; class Display; class GLConfig; class DisplayConfigurationPolicy; class DisplayConfigurationReport; }
+namespace input { class CompositeEventFilter; class InputDispatcher; class CursorListener; class CursorImages; class TouchVisualizer; class InputDeviceHub;}
 namespace logging { class Logger; }
 namespace options { class Option; }
+namespace cookie
+{
+using Secret = std::vector<uint8_t>;
+}
 namespace shell
 {
 class DisplayLayout;
+class DisplayConfigurationController;
 class FocusController;
 class HostLifecycleEventListener;
 class InputTargeter;
@@ -78,6 +83,13 @@ public:
     /// set the command line.
     /// This must remain valid while apply_settings() and run() are called.
     void set_command_line(int argc, char const* argv[]);
+
+    /// creates the CookieFactory from the given secret
+    /// This secret is used to generate timestamps that can be attested to by
+    /// libmircookie. Any process this secret is shared with can verify Mir-generated
+    /// cookies, or produce their own.
+    /// \note If not explicitly set, a random secret will be chosen.
+    void override_the_cookie_factory(mir::cookie::Secret const& secret);
 
     /// Applies any configuration options, hooks, or custom implementations.
     /// Must be called before calling run() or accessing any mir subsystems.
@@ -212,9 +224,19 @@ public:
     /// Sets an override functor for creating the compositor.
     void override_the_compositor(Builder<compositor::Compositor> const& compositor_builder);
 
+    /// Sets an override functor for creating the cursor.
+    void override_the_cursor(Builder<graphics::Cursor> const& cursor_builder);
+
+    /// Sets an override functor for creating the cursor images.
+    void override_the_cursor_images(Builder<input::CursorImages> const& cursor_images_builder);
+
     /// Sets an override functor for creating the per-display rendering code.
     void override_the_display_buffer_compositor_factory(
         Builder<compositor::DisplayBufferCompositorFactory> const& compositor_builder);
+
+    /// Sets an override functor for creating the display configuration report.
+    void override_the_display_configuration_report(
+        Builder<graphics::DisplayConfigurationReport> const& report_builder);
 
     /// Sets an override functor for creating the gl config.
     void override_the_gl_config(Builder<graphics::GLConfig> const& gl_config_builder);
@@ -298,6 +320,8 @@ public:
     /// \return the graphics display.
     auto the_display() const -> std::shared_ptr<graphics::Display>;
 
+    auto the_display_configuration_controller() const -> std::shared_ptr<shell::DisplayConfigurationController>;
+
     /// \return the GL config.
     auto the_gl_config() const -> std::shared_ptr<graphics::GLConfig>;
 
@@ -377,6 +401,7 @@ public:
     /// using the format "fd://%d".
     auto open_prompt_socket() -> Fd;
 /** @} */
+
 private:
     struct ServerConfiguration;
     struct Self;

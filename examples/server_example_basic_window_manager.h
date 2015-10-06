@@ -151,7 +151,7 @@ private:
         placed_params.streams.emplace_back(shell::StreamSpecification{frontend::BufferStreamId(result.as_value()), mir::geometry::Displacement{0,0}});
         surface_info.emplace(surface, SurfaceInfo{session, surface, placed_params});
         policy.handle_new_surface(session, surface);
-        policy.generate_decorations_for(session, surface, surface_info);
+        policy.generate_decorations_for(session, surface, surface_info, build);
         return result;
     }
 

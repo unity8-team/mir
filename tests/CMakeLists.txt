@@ -54,6 +54,7 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include/client
   ${PROJECT_SOURCE_DIR}/include/common
   ${PROJECT_SOURCE_DIR}/include/test
+  ${PROJECT_SOURCE_DIR}/include/renderers/gl
 )
 
 option(MIR_BUILD_ACCEPTANCE_TESTS "Build acceptance tests" ON)
@@ -64,6 +65,7 @@ option(MIR_BUILD_UNIT_TESTS "Build unit tests" ON)
 
 if (MIR_BUILD_ACCEPTANCE_TESTS)
   add_subdirectory(acceptance-tests/)
+  add_subdirectory(umock-acceptance-tests/)
 endif (MIR_BUILD_ACCEPTANCE_TESTS)
 
 if (MIR_BUILD_PERFORMANCE_TESTS)

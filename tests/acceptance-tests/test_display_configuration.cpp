@@ -20,6 +20,7 @@
 #include "mir/main_loop.h"
 #include "mir/frontend/session_authorizer.h"
 #include "mir/graphics/event_handler_register.h"
+#include "mir/shell/display_configuration_controller.h"
 
 #include "mir_test_framework/connected_client_headless_server.h"
 #include "mir/test/doubles/null_platform.h"
@@ -32,6 +33,7 @@
 #include "mir/test/fake_shared.h"
 #include "mir/test/pipe.h"
 #include "mir/test/wait_condition.h"
+#include "mir/test/signal.h"
 
 #include "mir_toolkit/mir_client_library.h"
 
@@ -62,6 +64,13 @@ public:
         : config{std::make_shared<mtd::StubDisplayConfig>()},
           handler_called{false}
     {
+        using namespace testing;
+        ON_CALL(*this, configure(_))
+            .WillByDefault(Invoke(
+                [this](mg::DisplayConfiguration const& new_config)
+                {
+                    config = std::make_shared<mtd::StubDisplayConfig>(new_config);
+                }));
     }
 
     void for_each_display_sync_group(std::function<void(mg::DisplaySyncGroup&)> const& f) override
@@ -110,7 +119,7 @@ public:
     }
 
 private:
-    std::shared_ptr<mtd::StubDisplayConfig> config;
+    std::shared_ptr<mg::DisplayConfiguration> config;
     mtd::NullDisplaySyncGroup display_sync_group;
     mt::Pipe p;
     std::atomic<bool> handler_called;
@@ -316,8 +325,6 @@ TEST_F(DisplayConfigurationTest, focusing_client_with_display_config_configures_
 
 TEST_F(DisplayConfigurationTest, changing_focus_from_client_with_config_to_client_without_config_configures_display)
 {
-    EXPECT_CALL(mock_display, configure(_)).Times(1);
-
     DisplayClient display_client{new_connection()};
     SimpleClient simple_client{new_connection()};
 
@@ -326,8 +333,10 @@ TEST_F(DisplayConfigurationTest, changing_focus_from_client_with_config_to_clien
 
     /* Connect the display config client and apply a display config. */
     display_client.connect();
-    display_client.apply_config();
 
+    wait_for_server_actions_to_finish(*server.the_main_loop());
+    EXPECT_CALL(mock_display, configure(_)).Times(1);
+    display_client.apply_config();
     wait_for_server_actions_to_finish(*server.the_main_loop());
     testing::Mock::VerifyAndClearExpectations(&mock_display);
 
@@ -366,4 +375,65 @@ TEST_F(DisplayConfigurationTest, hw_display_change_doesnt_apply_base_config_if_p
     Mock::VerifyAndClearExpectations(&mock_display);
 
     display_client.disconnect();
+}
+
+namespace
+{
+struct DisplayConfigMatchingContext
+{
+    std::function<void(MirDisplayConfiguration*)> matcher;
+    mt::Signal done;
+};
+
+void new_display_config_matches(MirConnection* connection, void* ctx)
+{
+    auto context = reinterpret_cast<DisplayConfigMatchingContext*>(ctx);
+
+    auto config = mir_connection_create_display_config(connection);
+    context->matcher(config);
+    mir_display_config_destroy(config);
+    context->done.raise();
+}
+}
+
+TEST_F(DisplayConfigurationTest, shell_initiated_display_configuration_notifies_clients)
+{
+    using namespace testing;
+
+    // Create a new client for explicit lifetime handling.
+    SimpleClient client{new_connection()};
+
+    client.connect();
+
+    std::shared_ptr<mg::DisplayConfiguration> new_conf;
+    new_conf = server.the_display()->configuration();
+
+    new_conf->for_each_output([](mg::UserDisplayConfigurationOutput& output)
+        {
+            if (output.connected)
+            {
+                output.used = !output.used;
+            }
+        });
+
+    DisplayConfigMatchingContext context;
+    context.matcher = [new_conf](MirDisplayConfiguration* conf)
+        {
+            EXPECT_THAT(conf, mt::DisplayConfigMatches(std::cref(*new_conf)));
+        };
+
+    mir_connection_set_display_config_change_callback(
+        client.connection,
+        &new_display_config_matches,
+        &context);
+
+    server.the_display_configuration_controller()->set_default_display_configuration(new_conf).get();
+
+    EXPECT_THAT(
+        *server.the_display()->configuration(),
+        mt::DisplayConfigMatches(std::cref(*new_conf)));
+
+    EXPECT_TRUE(context.done.wait_for(std::chrono::seconds{10}));
+
+    client.disconnect();
 }

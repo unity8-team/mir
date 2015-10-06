@@ -278,10 +278,32 @@ bool mt::compare_display_configurations(mp::DisplayConfiguration const& protobuf
     return compare_display_configurations(config1, display_config);
 }
 
+bool mt::compare_display_configurations(MirDisplayConfiguration const* client_config1,
+                                        MirDisplayConfiguration const* client_config2)
+{
+    TestDisplayConfiguration config1{*client_config1};
+    TestDisplayConfiguration config2{*client_config2};
+    return compare_display_configurations(config1, config2);
+}
+
 bool mt::compare_display_configurations(MirDisplayConfiguration const& client_config,
                                         mp::DisplayConfiguration const& protobuf_config)
 {
     TestDisplayConfiguration config1{client_config};
     TestDisplayConfiguration config2{protobuf_config};
     return compare_display_configurations(config1, config2);
+}
+
+bool mt::compare_display_configurations(graphics::DisplayConfiguration const& display_config1,
+                                        MirDisplayConfiguration const* display_config2)
+{
+    TestDisplayConfiguration config2{*display_config2};
+    return compare_display_configurations(display_config1, config2);
+}
+
+bool mt::compare_display_configurations(MirDisplayConfiguration const* display_config2,
+                                        graphics::DisplayConfiguration const& display_config1)
+{
+    TestDisplayConfiguration config2{*display_config2};
+    return compare_display_configurations(display_config1, config2);
 }

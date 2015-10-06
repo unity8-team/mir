@@ -41,6 +41,10 @@ class ServerActionQueue;
 class SharedLibrary;
 class SharedLibraryProberReport;
 
+namespace cookie
+{
+class CookieFactory;
+}
 namespace dispatch
 {
 class MultiplexingDispatchable;
@@ -74,6 +78,7 @@ class Screencast;
 
 namespace shell
 {
+class DisplayConfigurationController;
 class InputTargeter;
 class FocusSetter;
 class FocusController;
@@ -114,6 +119,7 @@ namespace graphics
 class Platform;
 class Display;
 class DisplayReport;
+class DisplayConfigurationReport;
 class GraphicBufferAllocator;
 class Cursor;
 class CursorImage;
@@ -185,7 +191,8 @@ public:
     std::shared_ptr<DisplayChanger>         the_display_changer() override;
     std::shared_ptr<graphics::Platform>     the_graphics_platform() override;
     std::shared_ptr<input::InputDispatcher> the_input_dispatcher() override;
-    std::shared_ptr<EmergencyCleanup>  the_emergency_cleanup() override;
+    std::shared_ptr<EmergencyCleanup>       the_emergency_cleanup() override;
+    std::shared_ptr<cookie::CookieFactory>  the_cookie_factory() override;
     /**
      * Function to call when a "fatal" error occurs. This implementation allows
      * the default strategy to be overridden by --on-fatal-error-abort to force a
@@ -202,6 +209,7 @@ public:
      * configurable interfaces for modifying graphics
      *  @{ */
     virtual std::shared_ptr<compositor::RendererFactory>   the_renderer_factory();
+    virtual std::shared_ptr<shell::DisplayConfigurationController> the_display_configuration_controller();
     virtual std::shared_ptr<graphics::DisplayConfigurationPolicy> the_display_configuration_policy();
     virtual std::shared_ptr<graphics::nested::HostConnection> the_host_connection();
     virtual std::shared_ptr<graphics::GLConfig> the_gl_config();
@@ -214,6 +222,7 @@ public:
     virtual std::shared_ptr<graphics::Cursor> the_cursor();
     virtual std::shared_ptr<graphics::CursorImage> the_default_cursor_image();
     virtual std::shared_ptr<input::CursorImages> the_cursor_images();
+    virtual std::shared_ptr<graphics::DisplayConfigurationReport> the_display_configuration_report();
 
     /** @} */
 
@@ -420,6 +429,7 @@ protected:
     CachedPtr<compositor::CompositorReport> compositor_report;
     CachedPtr<logging::Logger> logger;
     CachedPtr<graphics::DisplayReport> display_report;
+    CachedPtr<graphics::DisplayConfigurationReport> display_configuration_report;
     CachedPtr<time::Clock> clock;
     CachedPtr<MainLoop> main_loop;
     CachedPtr<ServerStatusListener> server_status_listener;
@@ -438,6 +448,7 @@ protected:
     CachedPtr<SharedLibraryProberReport> shared_library_prober_report;
     CachedPtr<shell::Shell> shell;
     CachedPtr<scene::ApplicationNotRespondingDetector> application_not_responding_detector;
+    CachedPtr<cookie::CookieFactory> cookie_factory;
 
 private:
     std::shared_ptr<options::Configuration> const configuration_options;

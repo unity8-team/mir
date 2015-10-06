@@ -21,6 +21,7 @@
 
 #include "mir/frontend/display_changer.h"
 #include "mir/display_changer.h"
+#include "mir/shell/display_configuration_controller.h"
 
 #include <mutex>
 #include <map>
@@ -33,6 +34,7 @@ namespace graphics
 {
     class Display;
     class DisplayConfigurationPolicy;
+    class DisplayConfigurationReport;
 }
 namespace compositor { class Compositor; }
 namespace scene
@@ -42,7 +44,8 @@ class SessionContainer;
 class Session;
 
 class MediatingDisplayChanger : public frontend::DisplayChanger,
-                                public mir::DisplayChanger
+                                public mir::DisplayChanger,
+                                public shell::DisplayConfigurationController
 {
 public:
     MediatingDisplayChanger(
@@ -51,7 +54,8 @@ public:
         std::shared_ptr<graphics::DisplayConfigurationPolicy> const& display_configuration_policy,
         std::shared_ptr<SessionContainer> const& session_container,
         std::shared_ptr<SessionEventHandlerRegister> const& session_event_handler_register,
-        std::shared_ptr<ServerActionQueue> const& server_action_queue);
+        std::shared_ptr<ServerActionQueue> const& server_action_queue,
+        std::shared_ptr<graphics::DisplayConfigurationReport> const& report);
 
     /* From mir::frontend::DisplayChanger */
     std::shared_ptr<graphics::DisplayConfiguration> active_configuration() override;
@@ -65,6 +69,10 @@ public:
 
     void pause_display_config_processing() override;
     void resume_display_config_processing() override;
+
+    /* From shell::DisplayConfigurationController */
+    std::future<void> set_default_display_configuration(
+        std::shared_ptr<graphics::DisplayConfiguration> const &conf) override;
 
 private:
     void focus_change_handler(std::shared_ptr<Session> const& session);
@@ -83,6 +91,7 @@ private:
     std::shared_ptr<SessionContainer> const session_container;
     std::shared_ptr<SessionEventHandlerRegister> const session_event_handler_register;
     std::shared_ptr<ServerActionQueue> const server_action_queue;
+    std::shared_ptr<graphics::DisplayConfigurationReport> const report;
     std::mutex configuration_mutex;
     std::map<std::weak_ptr<frontend::Session>,
              std::shared_ptr<graphics::DisplayConfiguration>,

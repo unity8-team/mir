@@ -20,6 +20,7 @@
 #define MIR_CLIENT_CLIENT_BUFFER_STREAM_H_
 
 #include "mir/frontend/buffer_stream_id.h"
+#include "mir/geometry/size.h"
 
 #include "mir_toolkit/client_types.h"
 #include "mir_toolkit/mir_native_buffer.h"
@@ -57,7 +58,7 @@ public:
     virtual std::shared_ptr<MemoryRegion> secure_for_cpu_write() = 0;
 
     virtual int swap_interval() const = 0;
-    virtual void set_swap_interval(int interval) = 0;
+    virtual MirWaitHandle* set_swap_interval(int interval) = 0;
 
     virtual MirNativeBuffer* get_current_buffer_package() = 0;
     virtual MirPlatformType platform_type() = 0;
@@ -69,7 +70,8 @@ public:
     virtual bool valid() const = 0;
     virtual void buffer_available(mir::protobuf::Buffer const& buffer) = 0;
     virtual void buffer_unavailable() = 0;
-
+    virtual void set_size(geometry::Size) = 0;
+    virtual MirWaitHandle* set_scale(float) = 0;
 protected:
     ClientBufferStream() = default;
     ClientBufferStream(const ClientBufferStream&) = delete;
