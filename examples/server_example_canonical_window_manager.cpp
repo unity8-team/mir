@@ -71,6 +71,56 @@ bool needs_titlebar(MirSurfaceType type)
 }
 }
 
+namespace mir
+{
+namespace examples
+{
+class Titlebar
+{
+public:
+    Titlebar(
+        mir::scene::Surface const& surface,
+        std::shared_ptr<mir::scene::Session> const& session) :
+        session(session),
+        properties{titlebar_size_for_window(surface.size()), mir_pixel_format_xrgb_8888, mg::BufferUsage::software},
+        id_(session->create_buffer_stream(properties)),
+        buffer_id(session->get_buffer_stream(id_)->allocate_buffer(properties))
+    {
+        paint(0xFF);
+    }
+
+    void paint(unsigned char pixel)
+    {
+        session->get_buffer_stream(id_)->with_buffer(buffer_id,
+            [this, pixel](mg::Buffer& buffer)
+            {
+                auto const sz = buffer.size().height.as_int() *
+                    buffer.size().width.as_int() * MIR_BYTES_PER_PIXEL(buffer.pixel_format());
+                std::vector<unsigned char> pixels(sz, pixel);
+                buffer.write(pixels.data(), sz);
+                session->get_buffer_stream(id_)->swap_buffers(&buffer, [](mg::Buffer*){});
+            });
+    }
+
+    frontend::BufferStreamId id()
+    {
+        return id_;
+    }
+
+    ~Titlebar()
+    {
+        session->destroy_buffer_stream(id_);
+    }
+private:
+    std::shared_ptr<scene::Session> const session;
+    mg::BufferProperties const properties;
+    frontend::BufferStreamId const id_;
+    mg::BufferID const buffer_id;
+};
+}
+}
+
+
 me::CanonicalSurfaceInfoCopy::CanonicalSurfaceInfoCopy(
     std::shared_ptr<scene::Session> const& session,
     std::shared_ptr<scene::Surface> const& surface,
@@ -400,13 +450,35 @@ struct mir::examples::CanonicalSurfaceInfoCopy::PaintingImpl
     std::atomic<graphics::Buffer*> buffer;
 };
 
-void mir::examples::CanonicalSurfaceInfoCopy::init_titlebar(std::shared_ptr<scene::Surface> const& surface)
+void mir::examples::CanonicalSurfaceInfoCopy::attach_titlebar(
+    std::shared_ptr<mir::scene::Session> const& session,
+    std::shared_ptr<scene::Surface> const& surface)
 {
-    painting_impl = std::make_shared<PaintingImpl>(surface->primary_buffer_stream());
+    if (titlebar_stream)
+    {
+        streams =
+        {
+            shell::StreamSpecification{titlebar_stream->id(), mir::geometry::Displacement{0, -title_bar_height}},
+            shell::StreamSpecification{frontend::BufferStreamId(primary_id.as_value()), mir::geometry::Displacement{0, 0}}
+        };
+        session->configure_streams(*surface, streams);
+    }
+    else
+    {
+        painting_impl = std::make_shared<PaintingImpl>(surface->primary_buffer_stream());
+    }
 }
 
 void mir::examples::CanonicalSurfaceInfoCopy::paint_titlebar(int intensity)
 {
+    if (titlebar_stream)
+    {
+        printf("PAINT!\n");
+        titlebar_stream->paint(intensity);
+        return;
+    }
+
+    printf("trying here.\n");
     if (auto const buf = painting_impl->buffer.load())
     {
         auto const format = painting_impl->buffer_stream->pixel_format();
@@ -430,36 +502,16 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
         return;
 
     auto& surface_info = tools->info_for(surface);
-
-    auto format = mir_pixel_format_xrgb_8888;
-    mg::BufferProperties properties(
-        titlebar_size_for_window(surface->size()), format, mg::BufferUsage::software);
-    auto titlebar_id = session->create_buffer_stream(properties);
-    auto titlebar_stream = session->get_buffer_stream(titlebar_id);
-
     try
     {
-        auto buffer_id = titlebar_stream->allocate_buffer(properties);
-        titlebar_stream->with_buffer(buffer_id, [&](mg::Buffer& buffer)
-        {
-            auto const sz = buffer.size().height.as_int() *
-                buffer.size().width.as_int() * MIR_BYTES_PER_PIXEL(format);
-            std::vector<unsigned char> pixels(sz, 0xFF);
-            buffer.write(pixels.data(), sz);
-            titlebar_stream->swap_buffers(&buffer, [](mg::Buffer*){});
-        });
-
-        //TODO: (kdub) place in front to accommodate lp: #1503317. once fixed, just use push_back()
-        surface_info.streams.insert(surface_info.streams.begin(),
-            shell::StreamSpecification{titlebar_id, mir::geometry::Displacement{0, -title_bar_height}});
-        session->configure_streams(*surface, surface_info.streams);
+        surface_info.titlebar_stream = std::make_shared<Titlebar>(*surface, session);
+        surface_info.attach_titlebar(session, surface);
     }
     catch(std::exception&)
     {
+        printf("OOO\n");
         //if we could not allocate a buffer, the try the old way (soon to be deprecated
         //when all streams can allocate)
-        session->destroy_buffer_stream(titlebar_id);
-
         auto format = mir_pixel_format_xrgb_8888;
         ms::SurfaceCreationParameters params;
         params.of_size(titlebar_size_for_window(surface->size()))
@@ -480,7 +532,7 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
                 surface_map.emplace(titlebar, CanonicalSurfaceInfoCopy{session, titlebar, {}}).first->second;
         titlebar_info.is_titlebar = true;
         titlebar_info.parent = surface;
-        titlebar_info.init_titlebar(titlebar);
+        surface_info.attach_titlebar(session, titlebar);
     }
 }
 
@@ -935,12 +987,7 @@ void me::CanonicalWindowManagerPolicyCopy::select_active_surface(std::shared_ptr
     if (!surface)
     {
         if (auto const active_surface = active_surface_.lock())
-        {
-            if (auto const titlebar = tools->info_for(active_surface).titlebar)
-            {
-                tools->info_for(titlebar).paint_titlebar(0x3F);
-            }
-        }
+            tools->info_for(active_surface).paint_titlebar(0x3F);
 
         if (active_surface_.lock())
             tools->set_focus_to({}, {});
@@ -954,16 +1001,10 @@ void me::CanonicalWindowManagerPolicyCopy::select_active_surface(std::shared_ptr
     if (info_for.can_be_active())
     {
         if (auto const active_surface = active_surface_.lock())
-        {
-            if (auto const titlebar = tools->info_for(active_surface).titlebar)
-            {
-                tools->info_for(titlebar).paint_titlebar(0x3F);
-            }
-        }
-        if (auto const titlebar = tools->info_for(surface).titlebar)
-        {
-            tools->info_for(titlebar).paint_titlebar(0xFF);
-        }
+            tools->info_for(active_surface).paint_titlebar(0x3F);
+
+        tools->info_for(surface).paint_titlebar(0xFF);
+
         tools->set_focus_to(info_for.session.lock(), surface);
         raise_tree(surface);
         active_surface_ = surface;
