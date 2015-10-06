@@ -428,6 +428,7 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     CanonicalSurfaceInfoMap& surface_map,
     std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build)
 {
+    (void)build;
     (void)surface_map;
 
     if (!needs_titlebar(surface->type()))
