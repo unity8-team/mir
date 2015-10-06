@@ -861,7 +861,7 @@ void ms::BasicSurface::set_streams(std::list<scene::StreamInfo> const& s)
         {
             BOOST_THROW_EXCEPTION(std::logic_error("cannot remove the created-with buffer stream yet"));
         }
-    printf("BBB\n");
+
         layers = s;
     }
     observers.moved_to(surface_rect.top_left);
@@ -877,10 +877,9 @@ mg::RenderableList ms::BasicSurface::generate_renderables(mc::CompositorID id) c
         {
             list.emplace_back(std::make_shared<SurfaceSnapshot>(
                 info.stream, id,
-                geom::Rectangle{surface_rect.top_left + info.displacement, info.stream->stream_size()},/*surface_rect.size},*/
+                geom::Rectangle{surface_rect.top_left + info.displacement, info.stream->stream_size()},
                 transformation_matrix, surface_alpha, nonrectangular, info.stream.get()));
         }
     }
-    printf("GENERATED %i\n",(int) list.size());
     return list;
 }

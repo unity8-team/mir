@@ -139,7 +139,6 @@ void mga::Buffer::write(unsigned char const* data, size_t data_size)
 {
     std::unique_lock<std::mutex> lk(content_lock);
 
-    printf("WRITIN\n");
     native_buffer->ensure_available_for(mga::BufferAccess::write);
     
     auto bpp = MIR_BYTES_PER_PIXEL(pixel_format());
