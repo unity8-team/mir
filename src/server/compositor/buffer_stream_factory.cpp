@@ -47,8 +47,8 @@ mc::BufferStreamFactory::BufferStreamFactory(
 {
     assert(gralloc);
     assert(policy_factory);
-    if (nbuffers < 2)
-        throw std::logic_error("nbuffers must be at least 2");
+//    if (nbuffers < 2)
+//        throw std::logic_error("nbuffers must be at least 2");
 }
 
 
