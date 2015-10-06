@@ -46,6 +46,7 @@ Size titlebar_size_for_window(Size window_size)
     return {window_size.width, Height{title_bar_height}};
 }
 
+#if 0
 Point titlebar_position_for_window(Point window_position)
 {
     return {
@@ -53,7 +54,7 @@ Point titlebar_position_for_window(Point window_position)
         window_position.y - DeltaY(title_bar_height)
     };
 }
-
+#endif
 bool needs_titlebar(MirSurfaceType type)
 {
     switch (type)
@@ -75,31 +76,85 @@ namespace mir
 {
 namespace examples
 {
+//TODO: provide an easier way for the server to write to a surface!
+//TODO: this is painful to use mg::Buffer::write()
+struct PaintingImpl
+{
+    PaintingImpl(std::shared_ptr<frontend::BufferStream> const& buffer_stream) :
+        buffer_stream{buffer_stream}, buffer{nullptr}
+    {
+        swap_buffers();
+    }
+
+    void swap_buffers()
+    {
+        auto const callback = [this](mir::graphics::Buffer* new_buffer)
+            {
+                buffer.store(new_buffer);
+            };
+
+        buffer_stream->swap_buffers(buffer, callback);
+    }
+
+    std::shared_ptr<frontend::BufferStream> const buffer_stream;
+    std::atomic<graphics::Buffer*> buffer;
+};
+
 class Titlebar
 {
 public:
+
+    void i()
+    {
+        try
+        {
+            buffer_id = session->get_buffer_stream(id_)->allocate_buffer(properties);
+        }
+        catch(...)
+        {
+            painting_impl = std::make_shared<PaintingImpl>(session->get_buffer_stream(id_));
+        }
+
+    }
     Titlebar(
         mir::scene::Surface const& surface,
         std::shared_ptr<mir::scene::Session> const& session) :
         session(session),
         properties{titlebar_size_for_window(surface.size()), mir_pixel_format_xrgb_8888, mg::BufferUsage::software},
-        id_(session->create_buffer_stream(properties)),
-        buffer_id(session->get_buffer_stream(id_)->allocate_buffer(properties))
+        id_(session->create_buffer_stream(properties))
     {
+        i();
         paint(0xFF);
     }
 
     void paint(unsigned char pixel)
     {
-        session->get_buffer_stream(id_)->with_buffer(buffer_id,
-            [this, pixel](mg::Buffer& buffer)
+        if (!painting_impl)
+        {
+            session->get_buffer_stream(id_)->with_buffer(buffer_id,
+                [this, pixel](mg::Buffer& buffer)
+                {
+                    auto const sz = buffer.size().height.as_int() *
+                        buffer.size().width.as_int() * MIR_BYTES_PER_PIXEL(buffer.pixel_format());
+                    std::vector<unsigned char> pixels(sz, pixel);
+                    buffer.write(pixels.data(), sz);
+                    session->get_buffer_stream(id_)->swap_buffers(&buffer, [](mg::Buffer*){});
+                });
+        }
+        else
+        {
+            if (auto const buf = painting_impl->buffer.load())
             {
-                auto const sz = buffer.size().height.as_int() *
-                    buffer.size().width.as_int() * MIR_BYTES_PER_PIXEL(buffer.pixel_format());
+                auto const format = painting_impl->buffer_stream->pixel_format();
+                auto const sz = buf->size().height.as_int() *
+                    buf->size().width.as_int() * MIR_BYTES_PER_PIXEL(format);
+
                 std::vector<unsigned char> pixels(sz, pixel);
-                buffer.write(pixels.data(), sz);
-                session->get_buffer_stream(id_)->swap_buffers(&buffer, [](mg::Buffer*){});
-            });
+                buf->write(pixels.data(), sz);
+
+                painting_impl->swap_buffers();
+            }
+        }
     }
 
     frontend::BufferStreamId id()
@@ -115,7 +170,10 @@ private:
     std::shared_ptr<scene::Session> const session;
     mg::BufferProperties const properties;
     frontend::BufferStreamId const id_;
-    mg::BufferID const buffer_id;
+
+    mg::BufferID buffer_id;
+
+    std::shared_ptr<PaintingImpl> painting_impl;
 };
 }
 }
@@ -426,70 +484,21 @@ auto me::CanonicalWindowManagerPolicyCopy::handle_place_new_surface(
     return parameters;
 }
 
-//TODO: provide an easier way for the server to write to a surface!
-//TODO: this is painful to use mg::Buffer::write()
-struct mir::examples::CanonicalSurfaceInfoCopy::PaintingImpl
-{
-    PaintingImpl(std::shared_ptr<frontend::BufferStream> const& buffer_stream) :
-        buffer_stream{buffer_stream}, buffer{nullptr}
-    {
-        swap_buffers();
-    }
-
-    void swap_buffers()
-    {
-        auto const callback = [this](mir::graphics::Buffer* new_buffer)
-            {
-                buffer.store(new_buffer);
-            };
-
-        buffer_stream->swap_buffers(buffer, callback);
-    }
-
-    std::shared_ptr<frontend::BufferStream> const buffer_stream;
-    std::atomic<graphics::Buffer*> buffer;
-};
-
 void mir::examples::CanonicalSurfaceInfoCopy::attach_titlebar(
     std::shared_ptr<mir::scene::Session> const& session,
     std::shared_ptr<scene::Surface> const& surface)
 {
-    if (titlebar_stream)
-    {
         streams =
         {
             shell::StreamSpecification{titlebar_stream->id(), mir::geometry::Displacement{0, -title_bar_height}},
             shell::StreamSpecification{frontend::BufferStreamId(primary_id.as_value()), mir::geometry::Displacement{0, 0}}
         };
         session->configure_streams(*surface, streams);
-    }
-    else
-    {
-        painting_impl = std::make_shared<PaintingImpl>(surface->primary_buffer_stream());
-    }
 }
 
 void mir::examples::CanonicalSurfaceInfoCopy::paint_titlebar(int intensity)
 {
-    if (titlebar_stream)
-    {
-        printf("PAINT!\n");
-        titlebar_stream->paint(intensity);
-        return;
-    }
-
-    printf("trying here.\n");
-    if (auto const buf = painting_impl->buffer.load())
-    {
-        auto const format = painting_impl->buffer_stream->pixel_format();
-        auto const sz = buf->size().height.as_int() *
-            buf->size().width.as_int() * MIR_BYTES_PER_PIXEL(format);
-
-        std::vector<unsigned char> pixels(sz, intensity);
-        buf->write(pixels.data(), sz);
-
-        painting_impl->swap_buffers();
-    }
+    titlebar_stream->paint(intensity);
 }
 
 void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
@@ -498,18 +507,19 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     CanonicalSurfaceInfoMap& surface_map,
     std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build)
 {
+    (void) surface_map; (void) build;
     if (!needs_titlebar(surface->type()))
         return;
 
     auto& surface_info = tools->info_for(surface);
-    try
-    {
+//    try
+//    {
         surface_info.titlebar_stream = std::make_shared<Titlebar>(*surface, session);
         surface_info.attach_titlebar(session, surface);
+#if 0
     }
     catch(std::exception&)
     {
-        printf("OOO\n");
         //if we could not allocate a buffer, the try the old way (soon to be deprecated
         //when all streams can allocate)
         auto format = mir_pixel_format_xrgb_8888;
@@ -534,6 +544,7 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
         titlebar_info.parent = surface;
         surface_info.attach_titlebar(session, titlebar);
     }
+#endif
 }
 
 void me::CanonicalWindowManagerPolicyCopy::handle_new_surface(std::shared_ptr<ms::Session> const& session, std::shared_ptr<ms::Surface> const& surface)

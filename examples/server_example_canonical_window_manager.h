@@ -88,11 +88,6 @@ struct CanonicalSurfaceInfoCopy
         std::shared_ptr<mir::scene::Session> const& session,
         std::shared_ptr<scene::Surface> const& surface);
     void paint_titlebar(int intensity);
-private:
-
-    struct PaintingImpl;
-
-    std::shared_ptr<PaintingImpl> painting_impl;
 };
 
 // standard window management algorithm:
