@@ -512,39 +512,8 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
         return;
 
     auto& surface_info = tools->info_for(surface);
-//    try
-//    {
-        surface_info.titlebar_stream = std::make_shared<Titlebar>(*surface, session);
-        surface_info.attach_titlebar(session, surface);
-#if 0
-    }
-    catch(std::exception&)
-    {
-        //if we could not allocate a buffer, the try the old way (soon to be deprecated
-        //when all streams can allocate)
-        auto format = mir_pixel_format_xrgb_8888;
-        ms::SurfaceCreationParameters params;
-        params.of_size(titlebar_size_for_window(surface->size()))
-            .of_name("decoration")
-            .of_pixel_format(format)
-            .of_buffer_usage(mir::graphics::BufferUsage::software)
-            .of_position(titlebar_position_for_window(surface->top_left()))
-            .of_type(mir_surface_type_gloss);
-        auto id = build(session, params);
-        auto titlebar = session->surface(id);
-        titlebar->set_alpha(0.9);
-
-        surface_info.titlebar = titlebar;
-        surface_info.titlebar_id = id;
-        surface_info.children.push_back(titlebar);
-
-        CanonicalSurfaceInfoCopy& titlebar_info =
-                surface_map.emplace(titlebar, CanonicalSurfaceInfoCopy{session, titlebar, {}}).first->second;
-        titlebar_info.is_titlebar = true;
-        titlebar_info.parent = surface;
-        surface_info.attach_titlebar(session, titlebar);
-    }
-#endif
+    surface_info.titlebar_stream = std::make_shared<Titlebar>(*surface, session);
+    surface_info.attach_titlebar(session, surface);
 }
 
 void me::CanonicalWindowManagerPolicyCopy::handle_new_surface(std::shared_ptr<ms::Session> const& session, std::shared_ptr<ms::Surface> const& surface)
