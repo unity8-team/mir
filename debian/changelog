@@ -1,3 +1,9 @@
+qtmir-gles (0.4.6+15.10.20151008.2-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Sync with upstream
+
+ -- Alexandros Frantzis <alexandros.frantzis@canonical.com>  Fri, 09 Oct 2015 11:20:57 +0300
+
 qtmir-gles (0.4.6+15.10.20150930.1-0ubuntu1) wily; urgency=medium
 
   [ Michal Sawicz ]
