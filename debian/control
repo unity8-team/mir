@@ -49,7 +49,6 @@ Homepage: https://launchpad.net/qtmir
 # upstream branch
 Vcs-Bzr: lp:qtmir/gles
 Vcs-Browser: http://bazaar.launchpad.net/~mir-team/qtmir/gles/files
-X-Auto-Uploader: no-rewrite-version
 
 Package: qtmir-android
 Architecture: amd64 i386
