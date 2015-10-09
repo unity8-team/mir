@@ -450,36 +450,6 @@ TEST_F(MediatingDisplayChangerTest, uses_server_action_queue_for_configuration_a
     Mock::VerifyAndClearExpectations(&mock_server_action_queue);
 }
 
-TEST_F(MediatingDisplayChangerTest, does_not_block_IPC_thread_for_inactive_sessions)
-{
-    using namespace testing;
-
-    auto const conf = std::make_shared<mtd::NullDisplayConfiguration>();
-    auto const active_session = std::make_shared<mtd::StubSceneSession>();
-    auto const inactive_session = std::make_shared<mtd::StubSceneSession>();
-    MockServerActionQueue mock_server_action_queue;
-
-    stub_session_container.insert_session(active_session);
-    stub_session_container.insert_session(inactive_session);
-
-    ms::MediatingDisplayChanger display_changer(
-        mt::fake_shared(mock_display),
-        mt::fake_shared(mock_compositor),
-        mt::fake_shared(mock_conf_policy),
-        mt::fake_shared(stub_session_container),
-        mt::fake_shared(session_event_sink),
-        mt::fake_shared(mock_server_action_queue),
-        mt::fake_shared(display_configuration_report));
-
-    EXPECT_CALL(mock_server_action_queue, enqueue(_, _));
-    session_event_sink.handle_focus_change(active_session);
-    Mock::VerifyAndClearExpectations(&mock_server_action_queue);
-
-    EXPECT_CALL(mock_server_action_queue, enqueue(_, _)).Times(0);
-
-    display_changer.configure(inactive_session, conf);
-}
-
 TEST_F(MediatingDisplayChangerTest, set_default_display_configuration_doesnt_override_session_configuration)
 {
     using namespace testing;

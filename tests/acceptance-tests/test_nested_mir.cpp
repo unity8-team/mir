@@ -28,6 +28,7 @@
 #include "mir/main_loop.h"
 #include "mir/scene/session_coordinator.h"
 #include "mir/scene/session.h"
+#include "mir/scene/null_session_listener.h"
 #include "mir/shell/host_lifecycle_event_listener.h"
 
 #include "mir_test_framework/headless_in_process_server.h"
@@ -44,9 +45,12 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <atomic>
+
 namespace geom = mir::geometry;
 namespace mf = mir::frontend;
 namespace mg = mir::graphics;
+namespace ms = mir::scene;
 namespace msh = mir::shell;
 namespace mt = mir::test;
 namespace mtd = mir::test::doubles;
@@ -183,6 +187,27 @@ private:
     bool hidden{false};
 };
 
+class FocusedSessionListener : public ms::NullSessionListener
+{
+public:
+    void focused(std::shared_ptr<ms::Session> const&) override
+    {
+        have_focused_session = true;
+    }
+
+    void wait_for_focused_session()
+    {
+        mt::spin_wait_for_condition_or_timeout(
+            [this] { return have_focused_session.load(); },
+            std::chrono::seconds{5});
+
+        if (!have_focused_session)
+            throw std::runtime_error{"Timeout waiting for surface to become focused"};
+    }
+
+    std::atomic<bool> have_focused_session{false};
+};
+
 class NestedMirRunner : public mtf::HeadlessNestedServerRunner
 {
 public:
@@ -196,6 +221,9 @@ public:
             { return cursor_wrapper = std::make_shared<CursorWrapper>(wrapped); });
 
         server.override_the_cursor_images([] { return std::make_shared<CursorImages>(); });
+
+        server.override_the_session_listener(
+            [this] { return session_listener = std::make_shared<FocusedSessionListener>(); });
 
         start_server();
     }
@@ -212,6 +240,7 @@ public:
     }
 
     std::shared_ptr<CursorWrapper> cursor_wrapper;
+    std::shared_ptr<FocusedSessionListener> session_listener;
 
 private:
     mir::CachedPtr<MockHostLifecycleEventListener> mock_host_lifecycle_event_listener;
@@ -237,6 +266,8 @@ struct NestedServer : mtf::HeadlessInProcessServer
             { return the_mock_display_configuration_report(); });
 
         server.wrap_cursor([this](std::shared_ptr<mg::Cursor> const&) { return the_mock_cursor(); });
+        server.override_the_session_listener(
+            [this] { return session_listener = std::make_shared<FocusedSessionListener>(); });
 
         mtf::HeadlessInProcessServer::SetUp();
     }
@@ -268,10 +299,14 @@ struct NestedServer : mtf::HeadlessInProcessServer
 
     mir::CachedPtr<MockCursor> mock_cursor;
 
-    MirSurface* make_and_paint_surface(MirConnection* connection) const
+    MirSurface* make_and_paint_surface(MirConnection* connection, NestedMirRunner& mir_runner) const
     {
         auto const surface = mtf::make_any_surface(connection);
         mir_buffer_stream_swap_buffers_sync(mir_surface_get_buffer_stream(surface));
+
+        mir_runner.session_listener->wait_for_focused_session();
+        session_listener->wait_for_focused_session();
+
         return surface;
     }
 
@@ -281,6 +316,8 @@ struct NestedServer : mtf::HeadlessInProcessServer
         EXPECT_CALL(mock_egl, eglCreateContext(_, _, _, _)).Times(AnyNumber()).WillRepeatedly(Return((EGLContext)this));
         EXPECT_CALL(mock_egl, eglDestroyContext(_, _)).Times(AnyNumber()).WillRepeatedly(Return(EGL_TRUE));
     }
+
+    std::shared_ptr<FocusedSessionListener> session_listener;
 };
 }
 
@@ -355,7 +392,7 @@ TEST_F(NestedServer, client_may_connect_to_nested_server_and_create_surface)
     NestedMirRunner nested_mir{new_connection()};
 
     auto c = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
-    auto surface = make_and_paint_surface(c);
+    auto surface = make_and_paint_surface(c, nested_mir);
 
     bool became_exposed_and_focused = mir::test::spin_wait_for_condition_or_timeout(
         [surface]
@@ -426,7 +463,7 @@ TEST_F(NestedServer, display_configuration_changes_are_forwarded_to_host)
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
 
     // Need a painted surface to have focus
-    auto const painted_surface = make_and_paint_surface(connection);
+    auto const painted_surface = make_and_paint_surface(connection, nested_mir);
 
     auto const configuration = mir_connection_create_display_config(connection);
 
@@ -454,7 +491,7 @@ TEST_F(NestedServer, display_orientation_changes_are_forwarded_to_host)
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
 
     // Need a painted surface to have focus
-    auto const painted_surface = make_and_paint_surface(connection);
+    auto const painted_surface = make_and_paint_surface(connection, nested_mir);
 
     auto const configuration = mir_connection_create_display_config(connection);
 
@@ -492,7 +529,7 @@ TEST_F(NestedServer, display_configuration_changes_are_visible_to_client)
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
 
     // Need a painted surface to have focus
-    auto const painted_surface = make_and_paint_surface(connection);
+    auto const painted_surface = make_and_paint_surface(connection, nested_mir);
 
     auto const configuration = mir_connection_create_display_config(connection);
 
@@ -545,7 +582,7 @@ TEST_F(NestedServer, display_configuration_changes_are_visible_to_client_when_it
     mir_wait_for(mir_connection_apply_display_config(connection, configuration));
 
     // Need a painted surface to have focus
-    auto const painted_surface = make_and_paint_surface(connection);
+    auto const painted_surface = make_and_paint_surface(connection, nested_mir);
 
     condition.wait_for_at_most_seconds(1);
 
@@ -564,7 +601,7 @@ TEST_F(NestedServer, animated_cursor_image_changes_are_forwarded_to_host)
     NestedMirRunner nested_mir{new_connection()};
 
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
-    auto const surface = make_and_paint_surface(connection);
+    auto const surface = make_and_paint_surface(connection, nested_mir);
     auto const mock_cursor = the_mock_cursor();
 
     auto const spec = mir_connection_create_spec_for_changes(connection);
@@ -613,7 +650,7 @@ TEST_F(NestedServer, named_cursor_image_changes_are_forwarded_to_host)
     NestedMirRunner nested_mir{new_connection()};
 
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
-    auto const surface = make_and_paint_surface(connection);
+    auto const surface = make_and_paint_surface(connection, nested_mir);
     auto const mock_cursor = the_mock_cursor();
 
     auto const spec = mir_connection_create_spec_for_changes(connection);
@@ -648,7 +685,7 @@ TEST_F(NestedServer, can_hide_the_host_cursor)
     NestedMirRunner nested_mir{new_connection()};
 
     auto const connection = mir_connect_sync(nested_mir.new_connection().c_str(), __PRETTY_FUNCTION__);
-    auto const surface = make_and_paint_surface(connection);
+    auto const surface = make_and_paint_surface(connection, nested_mir);
     auto const mock_cursor = the_mock_cursor();
 
     auto const spec = mir_connection_create_spec_for_changes(connection);
