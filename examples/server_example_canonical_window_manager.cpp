@@ -195,8 +195,7 @@ me::CanonicalSurfaceInfoCopy::CanonicalSurfaceInfoCopy(
     width_inc{params.width_inc},
     height_inc{params.height_inc},
     min_aspect{params.min_aspect},
-    max_aspect{params.max_aspect},
-    streams{params.streams}
+    max_aspect{params.max_aspect}
 {
 }
 
@@ -484,18 +483,6 @@ auto me::CanonicalWindowManagerPolicyCopy::handle_place_new_surface(
     return parameters;
 }
 
-void mir::examples::CanonicalSurfaceInfoCopy::attach_titlebar(
-    std::shared_ptr<mir::scene::Session> const& session,
-    std::shared_ptr<scene::Surface> const& surface)
-{
-        streams =
-        {
-            shell::StreamSpecification{titlebar_stream->id(), mir::geometry::Displacement{0, -title_bar_height}},
-            shell::StreamSpecification{frontend::BufferStreamId(primary_id.as_value()), mir::geometry::Displacement{0, 0}}
-        };
-        session->configure_streams(*surface, streams);
-}
-
 void mir::examples::CanonicalSurfaceInfoCopy::paint_titlebar(int intensity)
 {
     titlebar_stream->paint(intensity);
@@ -507,13 +494,17 @@ void me::CanonicalWindowManagerPolicyCopy::generate_decorations_for(
     CanonicalSurfaceInfoMap& surface_map,
     std::function<frontend::SurfaceId(std::shared_ptr<scene::Session> const& session, scene::SurfaceCreationParameters const& params)> const& build)
 {
-    (void) surface_map; (void) build;
     if (!needs_titlebar(surface->type()))
         return;
 
+    (void) surface_map; (void) build;
     auto& surface_info = tools->info_for(surface);
     surface_info.titlebar_stream = std::make_shared<Titlebar>(*surface, session);
-    surface_info.attach_titlebar(session, surface);
+    session->configure_streams(*surface,
+    {
+        shell::StreamSpecification{frontend::BufferStreamId(surface_info.primary_id.as_value()), Displacement{0, 0}},
+        shell::StreamSpecification{surface_info.titlebar_stream->id(), Displacement{0, -title_bar_height}}
+    });
 }
 
 void me::CanonicalWindowManagerPolicyCopy::handle_new_surface(std::shared_ptr<ms::Session> const& session, std::shared_ptr<ms::Surface> const& surface)

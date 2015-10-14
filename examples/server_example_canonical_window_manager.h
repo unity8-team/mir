@@ -81,12 +81,7 @@ struct CanonicalSurfaceInfoCopy
     mir::optional_value<shell::SurfaceAspectRatio> max_aspect;
 
     frontend::SurfaceId primary_id;
-    std::vector<shell::StreamSpecification> streams;
     std::shared_ptr<Titlebar> titlebar_stream;
-
-    void attach_titlebar(
-        std::shared_ptr<mir::scene::Session> const& session,
-        std::shared_ptr<scene::Surface> const& surface);
     void paint_titlebar(int intensity);
 };
 
