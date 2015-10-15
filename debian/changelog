@@ -1,3 +1,13 @@
+qtmir-gles (0.4.6+15.10.20151008.2-0ubuntu1) wily; urgency=medium
+
+  [ Alexandros Frantzis ]
+  * Sync with upstream
+
+  [ CI Train Bot ]
+  * No-change rebuild.
+
+ -- Alexandros Frantzis <alexandros.frantzis@canonical.com>  Fri, 09 Oct 2015 08:28:13 +0000
+
 qtmir-gles (0.4.6+15.10.20150930.1-0ubuntu1) wily; urgency=medium
 
   [ Michal Sawicz ]
