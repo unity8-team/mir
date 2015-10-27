@@ -14,14 +14,14 @@ get-orig-source:
 	      $(CURDIR)/$(SOURCE)-gles_$(VERSION).orig.tar.gz
 
 %:
-	dh $@ --parallel
+	dh $@ --parallel --fail-missing
 
 override_dh_clean:
 	rm -rf $(TMP1_DIR)
 	dh_clean
 
 override_dh_auto_configure:
-	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(CURDIR) -DCMAKE_INSTALL_PREFIX=$(TMP1_DIR)/usr/ -DUSE_OPENGLES=1
+	mkdir -p $(ANDROID_DIR) && dh_auto_configure -B$(ANDROID_DIR) -- $(FLAGS) $(CURDIR) -DUSE_OPENGLES=1
 
 override_dh_auto_build:
 	dh_auto_build -B$(ANDROID_DIR)
@@ -30,9 +30,7 @@ override_dh_auto_test:
 	dh_auto_test -B$(ANDROID_DIR)
 
 override_dh_auto_install:
-	mkdir -p $(TMP1_DIR) && cd $(ANDROID_DIR) && INSTALL_ROOT=$(TMP1_DIR) make install
-	cd $(CURDIR)
+	dh_auto_install -B$(ANDROID_DIR) --destdir=$(TMP1_DIR)
 
 override_dh_install:
 	dh_install --sourcedir=$(TMP1_DIR) -pqtmir-android
-
