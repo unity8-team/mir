@@ -14,7 +14,7 @@ get-orig-source:
 	      $(CURDIR)/$(SOURCE)-gles_$(VERSION).orig.tar.gz
 
 %:
-	dh $@ --parallel --fail-missing
+	dh $@ --parallel
 
 override_dh_clean:
 	rm -rf $(TMP1_DIR)
