@@ -1,16 +1,16 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: unity-mir
+Upstream-Name: qtmir-gles
 
 Files: *
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2015 Canonical Ltd.
 License: LGPL-3
 
 Files: debian/*
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2015 Canonical Ltd.
 License: GPL-3
 
 Files: tests/*
-Copyright: 2013 Canonical Ltd.
+Copyright: 2013-2015 Canonical Ltd.
 License: GPL-3
 
 License: LGPL-3
