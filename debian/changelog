@@ -1,3 +1,13 @@
+qtmir-gles (0.4.6+16.04.20151102-0ubuntu1) xenial; urgency=medium
+
+  [ CI Train Bot ]
+  * New rebuild forced.
+
+  [ Michał Sawicz ]
+  * Bring packaging in line with upstream and add autopkgtest
+
+ -- Michał Sawicz <michal.sawicz@canonical.com>  Mon, 02 Nov 2015 11:22:38 +0000
+
 qtmir-gles (0.4.6+15.10.20151021-0ubuntu1) wily; urgency=medium
 
   [ CI Train Bot ]
