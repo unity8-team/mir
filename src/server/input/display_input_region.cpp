@@ -16,12 +16,15 @@
  * Authored by: Alexandros Frantzis <alexandros.frantzis@canonical.com>
  */
 
+#define MIR_LOG_COMPONENT "input"
+
 #include "display_input_region.h"
 #include "mir/graphics/display.h"
 #include "mir/graphics/display_buffer.h"
 
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/rectangles.h"
+#include "mir/log.h"
 
 namespace mi = mir::input;
 namespace mg = mir::graphics;
@@ -54,7 +57,10 @@ geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
     if (rectangles.size() > 0)
         return *rectangles.begin();
     else
+    {
+        mir::log_warning("mi::DisplayInputRegion::bounding_rectangle() called without any outputs!");
         return geom::Rectangle{};
+    }
 }
 
 void mi::DisplayInputRegion::confine(geom::Point& point)
