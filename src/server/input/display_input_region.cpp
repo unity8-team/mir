@@ -25,6 +25,7 @@
 #include "mir/geometry/rectangle.h"
 #include "mir/geometry/rectangles.h"
 #include "mir/log.h"
+#include <iostream>
 
 namespace mi = mir::input;
 namespace mg = mir::graphics;
@@ -58,6 +59,7 @@ geom::Rectangle mi::DisplayInputRegion::bounding_rectangle()
         return *rectangles.begin();
     else
     {
+        std::cerr << "*** mi::DisplayInputRegion::bounding_rectangle() called without any outputs!" << std::endl;
         mir::log_warning("mi::DisplayInputRegion::bounding_rectangle() called without any outputs!");
         return geom::Rectangle{};
     }
