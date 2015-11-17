@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -ex
+
+# Do nothing here. We don't need to run the tests multiple times, and they
+# are already being run during the build phase of the autopkgtest, as we
+# require a built tree to run them, and the tests are run as part of the
+# normal package build process. We do want to test that things install, though
+# and at least one test is actually required, for autopkgtest to work.
+

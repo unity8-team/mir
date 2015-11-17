@@ -6,16 +6,14 @@ Build-Depends: cmake,
                cmake-extras (>= 0.3),
                debhelper (>= 9),
                google-mock (>= 1.6.0+svn437),
-               libboost-system-dev,
                libfontconfig1-dev,
                libgles2-mesa-dev,
                libglib2.0-dev,
                libgsettings-qt-dev,
                liblttng-ust-dev,
-               libmirclient-dev (>= 0.16.0),
-               libmircommon-dev (>= 0.16.0),
-               libmirserver-dev (>= 0.16.0),
-               mir-renderer-gl-dev (>= 0.16.0),
+               libmirclient-dev (>= 0.17.0),
+               libmircommon-dev (>= 0.17.0),
+               libmirserver-dev (>= 0.17.0),
                libmtdev-dev,
                libprocess-cpp-dev,
                libqt5gui5-gles,
@@ -29,12 +27,12 @@ Build-Depends: cmake,
                libubuntu-app-launch2-dev,
                libubuntu-application-api-dev (>= 2.1.0),
                libudev-dev,
-               libunity-api-dev (>= 7.100),
+               libunity-api-dev (>= 7.101),
                liburl-dispatcher1-dev,
                libxkbcommon-dev,
                libxrender-dev,
+               mir-renderer-gl-dev (>= 0.17.0),
                pkg-config,
-               protobuf-compiler,
 # lttng-gen-ts needs python3, but doesn't depend on it itself: bug 1359147
                python3:any,
                qt5-default,
@@ -49,6 +47,7 @@ Homepage: https://launchpad.net/qtmir
 # upstream branch
 Vcs-Bzr: lp:qtmir/gles
 Vcs-Browser: http://bazaar.launchpad.net/~mir-team/qtmir/gles/files
+Xs-Testsuite: autopkgtest
 
 Package: qtmir-android
 Architecture: amd64 i386
