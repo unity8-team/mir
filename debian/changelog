@@ -1,3 +1,10 @@
+qtmir-gles (0.4.6+16.04.20151119-0ubuntu1) xenial; urgency=medium
+
+  [ Kevin Gunn ]
+  * Sync with trunk
+
+ -- Gerry Boland <ci-train-bot@canonical.com>  Thu, 19 Nov 2015 12:56:27 +0000
+
 qtmir-gles (0.4.6+16.04.20151113-0ubuntu1) xenial; urgency=medium
 
   [ CI Train Bot ]
