@@ -10,8 +10,8 @@ TMP1_DIR = $(CURDIR)/debian/tmp1
 
 # Don't try this at /home/: It will only work within https://ci-train.ubuntu.com
 get-orig-source:
-	cp -v ~/silos/$(SILONAME)/$(SOURCE)_$(VERSION).orig.tar.gz \
-	      $(CURDIR)/$(SOURCE)-gles_$(VERSION).orig.tar.gz
+	find ~/silos/$(SILONAME) -name $(SOURCE)_$(VERSION).orig.tar.gz -exec \
+		cp \{} $(CURDIR)/$(SOURCE)-gles_$(VERSION).orig.tar.gz \;
 
 %:
 	dh $@ --parallel
